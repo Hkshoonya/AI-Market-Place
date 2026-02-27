@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageSquare, Send, ThumbsUp } from "lucide-react";
+import { Edit3, MessageSquare, Send, ThumbsUp, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -36,6 +36,8 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const supabase = createClient();
 
@@ -131,6 +133,30 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
     });
   };
 
+  const handleEdit = async (commentId: string) => {
+    if (!user || !editText.trim()) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("comments")
+      .update({ content: editText.trim() })
+      .eq("id", commentId)
+      .eq("user_id", user.id);
+    setEditingId(null);
+    setEditText("");
+    await fetchComments();
+  };
+
+  const handleDelete = async (commentId: string) => {
+    if (!user) return;
+    if (!confirm("Delete this comment?")) return;
+    await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", user.id);
+    await fetchComments();
+  };
+
   const renderComment = (comment: Comment, isReply = false) => {
     const authorName =
       comment.profiles?.display_name ??
@@ -163,9 +189,39 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
                 {formatRelativeDate(comment.created_at)}
               </span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
-              {comment.content}
-            </p>
+            {editingId === comment.id ? (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-md border border-border/50 bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon/30"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-neon text-background hover:bg-neon/90 h-7 text-xs"
+                    onClick={() => handleEdit(comment.id)}
+                    disabled={!editText.trim()}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { setEditingId(null); setEditText(""); }}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
+                {comment.content}
+              </p>
+            )}
             <div className="mt-2 flex items-center gap-3">
               <button
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-neon transition-colors"
@@ -187,6 +243,24 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
                 >
                   Reply
                 </button>
+              )}
+              {user && user.id === comment.user_id && editingId !== comment.id && (
+                <>
+                  <button
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-neon transition-colors"
+                    onClick={() => { setEditingId(comment.id); setEditText(comment.content); }}
+                  >
+                    <Edit3 className="h-3 w-3" />
+                    Edit
+                  </button>
+                  <button
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-loss transition-colors"
+                    onClick={() => handleDelete(comment.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                </>
               )}
             </div>
 
