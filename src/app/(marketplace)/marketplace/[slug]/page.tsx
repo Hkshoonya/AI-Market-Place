@@ -9,6 +9,7 @@ import { SellerCard } from "@/components/marketplace/seller-card";
 import { ListingReviews } from "@/components/marketplace/listing-reviews";
 import { ContactForm } from "@/components/marketplace/contact-form";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
+import { ReportListingButton } from "@/components/marketplace/report-listing-button";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type { Metadata } from "next";
@@ -107,7 +108,7 @@ export default async function ListingDetailPage(props: {
           </Card>
 
           {/* Stats */}
-          <div className="flex gap-6 text-sm text-muted-foreground">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Eye className="h-4 w-4" />
               {formatNumber(listing.view_count)} views
@@ -122,6 +123,9 @@ export default async function ListingDetailPage(props: {
                 {listing.tags.length} tags
               </div>
             )}
+            <div className="ml-auto">
+              <ReportListingButton listingSlug={slug} />
+            </div>
           </div>
 
           {/* Tags */}

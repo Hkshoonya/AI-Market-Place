@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = rateLimit(`seller-stats:${ip}`, RATE_LIMITS.public);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = await createClient();
   const {
