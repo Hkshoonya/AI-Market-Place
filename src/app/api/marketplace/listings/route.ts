@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+
+const createListingSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().min(1, "Description is required").max(10000, "Description must be 10000 characters or less"),
+  short_description: z.string().max(500, "Short description must be 500 characters or less").optional().nullable(),
+  listing_type: z.enum(["model", "dataset", "service", "plugin"], {
+    message: "listing_type must be one of: model, dataset, service, plugin",
+  }),
+  pricing_type: z.enum(["free", "one_time", "subscription"]).optional().default("one_time"),
+  price: z.number().min(0, "Price must be non-negative").optional().nullable(),
+  currency: z.string().max(10).optional().default("USD"),
+  model_id: z.string().uuid("model_id must be a valid UUID").optional().nullable(),
+  tags: z.array(z.string().max(50)).max(20, "Maximum 20 tags allowed").optional().default([]),
+  thumbnail_url: z.string().url("thumbnail_url must be a valid URL").optional().nullable(),
+  demo_url: z.string().url("demo_url must be a valid URL").optional().nullable(),
+  documentation_url: z.string().url("documentation_url must be a valid URL").optional().nullable(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +106,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
+  const parsed = createListingSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.issues },
+      { status: 400 }
+    );
+  }
+
   const {
     title,
     description,
@@ -101,14 +128,7 @@ export async function POST(request: NextRequest) {
     thumbnail_url,
     demo_url,
     documentation_url,
-  } = body;
-
-  if (!title || !description || !listing_type) {
-    return NextResponse.json(
-      { error: "Title, description, and listing_type are required" },
-      { status: 400 }
-    );
-  }
+  } = parsed.data;
 
   // Generate slug from title
   const baseSlug = title

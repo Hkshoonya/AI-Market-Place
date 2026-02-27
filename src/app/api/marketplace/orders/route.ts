@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+
+const createOrderSchema = z.object({
+  listing_id: z.string().uuid("listing_id must be a valid UUID"),
+  message: z.string().max(2000, "Message must be 2000 characters or less").optional().nullable(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -74,14 +80,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { listing_id, message } = body;
+  const parsed = createOrderSchema.safeParse(body);
 
-  if (!listing_id) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "listing_id is required" },
+      { error: "Validation failed", details: parsed.error.issues },
       { status: 400 }
     );
   }
+
+  const { listing_id, message } = parsed.data;
 
   // Get listing to find seller and price
   const { data: listing } = await (supabase as any)

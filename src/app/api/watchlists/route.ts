@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+
+const createWatchlistSchema = z.object({
+  name: z.string().min(1, "Watchlist name is required").max(100, "Name must be 100 characters or less").transform(s => s.trim()),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable().transform(s => s?.trim() || null),
+  is_public: z.boolean().optional().default(false),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -60,23 +67,25 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, description, is_public } = body;
+  const parsed = createWatchlistSchema.safeParse(body);
 
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Watchlist name is required" },
+      { error: "Validation failed", details: parsed.error.issues },
       { status: 400 }
     );
   }
+
+  const { name, description, is_public } = parsed.data;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("watchlists")
     .insert({
       user_id: user.id,
-      name: name.trim(),
-      description: description?.trim() || null,
-      is_public: is_public ?? false,
+      name,
+      description,
+      is_public,
     })
     .select()
     .single();
