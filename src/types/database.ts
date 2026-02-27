@@ -181,6 +181,64 @@ export interface Tag {
   tag_group: string | null;
 }
 
+// Auth & Community types
+export interface Profile {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  reputation_score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserBookmark {
+  id: string;
+  user_id: string;
+  model_id: string;
+  created_at: string;
+}
+
+export interface ModelComment {
+  id: string;
+  model_id: string;
+  user_id: string;
+  parent_id: string | null;
+  content: string;
+  upvotes: number;
+  is_edited: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserRating {
+  id: string;
+  user_id: string;
+  model_id: string;
+  score: number;
+  review: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Watchlist {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  watchlist_id: string;
+  model_id: string;
+  added_at: string;
+}
+
 // Model with all relations joined
 export interface ModelWithDetails extends Model {
   benchmark_scores?: BenchmarkScore[];
@@ -253,6 +311,132 @@ export interface Database {
         Row: ModelSnapshot;
         Insert: Partial<ModelSnapshot> & Pick<ModelSnapshot, "model_id">;
         Update: Partial<ModelSnapshot>;
+      };
+      profiles: {
+        Row: Profile;
+        Insert: {
+          id: string;
+          username?: string | null;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          reputation_score?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          username?: string | null;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          reputation_score?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      user_bookmarks: {
+        Row: UserBookmark;
+        Insert: {
+          id?: string;
+          user_id: string;
+          model_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          model_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      comments: {
+        Row: ModelComment;
+        Insert: {
+          id?: string;
+          model_id: string;
+          user_id: string;
+          parent_id?: string | null;
+          content: string;
+          upvotes?: number;
+          is_edited?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          model_id?: string;
+          user_id?: string;
+          parent_id?: string | null;
+          content?: string;
+          upvotes?: number;
+          is_edited?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      user_ratings: {
+        Row: UserRating;
+        Insert: {
+          id?: string;
+          user_id: string;
+          model_id: string;
+          score: number;
+          review?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          model_id?: string;
+          score?: number;
+          review?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      watchlists: {
+        Row: Watchlist;
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          is_public?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          is_public?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      watchlist_items: {
+        Row: WatchlistItem;
+        Insert: {
+          id?: string;
+          watchlist_id: string;
+          model_id: string;
+          added_at?: string;
+        };
+        Update: {
+          id?: string;
+          watchlist_id?: string;
+          model_id?: string;
+          added_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

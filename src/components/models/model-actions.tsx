@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { BarChart3, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
+import { createClient } from "@/lib/supabase/client";
 
 interface ModelActionsProps {
   modelSlug: string;
   modelName: string;
+  modelId?: string;
 }
 
 const BOOKMARKS_KEY = "aimc_bookmarks";
 
-function getBookmarks(): string[] {
+function getLocalBookmarks(): string[] {
   if (typeof window === "undefined") return [];
   try {
     return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "[]");
@@ -22,8 +25,8 @@ function getBookmarks(): string[] {
   }
 }
 
-function toggleBookmark(slug: string): boolean {
-  const bookmarks = getBookmarks();
+function toggleLocalBookmark(slug: string): boolean {
+  const bookmarks = getLocalBookmarks();
   const index = bookmarks.indexOf(slug);
   if (index >= 0) {
     bookmarks.splice(index, 1);
@@ -36,14 +39,32 @@ function toggleBookmark(slug: string): boolean {
   }
 }
 
-export function ModelActions({ modelSlug, modelName }: ModelActionsProps) {
+export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
 
+  const supabase = createClient();
+
   useEffect(() => {
-    setIsBookmarked(getBookmarks().includes(modelSlug));
-  }, [modelSlug]);
+    if (user && modelId) {
+      // Check DB bookmark
+      const check = async () => {
+        const { data } = await supabase
+          .from("user_bookmarks")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("model_id", modelId)
+          .maybeSingle();
+        setIsBookmarked(!!data);
+      };
+      check();
+    } else {
+      // Fallback to localStorage
+      setIsBookmarked(getLocalBookmarks().includes(modelSlug));
+    }
+  }, [modelSlug, modelId, user]);
 
   useEffect(() => {
     if (showToast) {
@@ -51,6 +72,37 @@ export function ModelActions({ modelSlug, modelName }: ModelActionsProps) {
       return () => clearTimeout(timer);
     }
   }, [showToast]);
+
+  const handleBookmark = async () => {
+    if (user && modelId) {
+      // DB bookmark
+      if (isBookmarked) {
+        await supabase
+          .from("user_bookmarks")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("model_id", modelId);
+        setIsBookmarked(false);
+        setShowToast(`${modelName} removed from bookmarks`);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any)
+          .from("user_bookmarks")
+          .insert({ user_id: user.id, model_id: modelId });
+        setIsBookmarked(true);
+        setShowToast(`${modelName} bookmarked`);
+      }
+    } else {
+      // localStorage fallback
+      const nowBookmarked = toggleLocalBookmark(modelSlug);
+      setIsBookmarked(nowBookmarked);
+      setShowToast(
+        nowBookmarked
+          ? `${modelName} bookmarked`
+          : `${modelName} removed from bookmarks`
+      );
+    }
+  };
 
   return (
     <>
@@ -61,15 +113,7 @@ export function ModelActions({ modelSlug, modelName }: ModelActionsProps) {
           "gap-2 transition-colors",
           isBookmarked && "border-neon/30 bg-neon/10 text-neon"
         )}
-        onClick={() => {
-          const nowBookmarked = toggleBookmark(modelSlug);
-          setIsBookmarked(nowBookmarked);
-          setShowToast(
-            nowBookmarked
-              ? `${modelName} bookmarked`
-              : `${modelName} removed from bookmarks`
-          );
-        }}
+        onClick={handleBookmark}
       >
         <Heart
           className={cn("h-4 w-4", isBookmarked && "fill-neon text-neon")}

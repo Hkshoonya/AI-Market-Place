@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/layout/header";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { Footer } from "@/components/layout/footer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/constants/site";
@@ -34,11 +35,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased`}
       >
-        <TooltipProvider>
-          <Header />
-          <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-          <Footer />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Header />
+            <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+            <Footer />
+          </TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );

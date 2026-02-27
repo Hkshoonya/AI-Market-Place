@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
+import { AuthButton } from "@/components/auth/auth-button";
 
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
@@ -62,14 +63,10 @@ export function Header() {
         <div className="flex items-center gap-2">
           <SearchDialog />
 
-          {/* CTA */}
-          <Button
-            size="sm"
-            className="hidden bg-neon text-neon-foreground hover:bg-neon/90 sm:flex"
-            asChild
-          >
-            <Link href="/sell">List Your Model</Link>
-          </Button>
+          {/* Auth Button */}
+          <div className="hidden sm:flex">
+            <AuthButton />
+          </div>
 
           {/* Mobile menu */}
           <Sheet>
