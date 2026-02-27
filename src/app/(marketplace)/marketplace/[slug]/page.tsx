@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SellerCard } from "@/components/marketplace/seller-card";
 import { ListingReviews } from "@/components/marketplace/listing-reviews";
 import { ContactForm } from "@/components/marketplace/contact-form";
+import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type { Metadata } from "next";
@@ -58,6 +59,7 @@ export default async function ListingDetailPage(props: {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <ViewTracker listingId={listing.id} />
       <Link
         href="/marketplace/browse"
         className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-neon"

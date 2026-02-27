@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
+  Ban,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -34,10 +35,11 @@ export default function AdminUsersPage() {
     setLoading(true);
     let query = (supabase as any)
       .from("profiles")
-      .select("id, username, display_name, email, avatar_url, is_admin, is_seller, seller_verified, joined_at, total_sales", { count: "exact" });
+      .select("id, username, display_name, email, avatar_url, is_admin, is_seller, seller_verified, is_banned, joined_at, total_sales", { count: "exact" });
 
     if (roleFilter === "admin") query = query.eq("is_admin", true);
     if (roleFilter === "seller") query = query.eq("is_seller", true);
+    if (roleFilter === "banned") query = query.eq("is_banned", true);
     if (roleFilter === "verified_seller") query = query.eq("seller_verified", true);
 
     if (search) {
@@ -75,6 +77,19 @@ export default function AdminUsersPage() {
     fetchUsers();
   };
 
+  const toggleBan = async (id: string, currentValue: boolean) => {
+    await fetch("/api/admin/moderate", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: currentValue ? "unban" : "ban",
+        target_type: "user",
+        target_id: id,
+      }),
+    });
+    fetchUsers();
+  };
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
@@ -103,6 +118,7 @@ export default function AdminUsersPage() {
             { key: "admin", label: "Admins" },
             { key: "seller", label: "Sellers" },
             { key: "verified_seller", label: "Verified" },
+            { key: "banned", label: "Banned" },
           ].map((f) => (
             <Button
               key={f.key}
@@ -179,6 +195,11 @@ export default function AdminUsersPage() {
                             Verified
                           </Badge>
                         )}
+                        {u.is_banned && (
+                          <Badge variant="outline" className="text-[11px] border-loss/30 text-loss">
+                            Banned
+                          </Badge>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center text-sm tabular-nums">
@@ -213,6 +234,15 @@ export default function AdminUsersPage() {
                             {u.seller_verified ? "Unverify" : "Verify"}
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-7 px-2 text-xs gap-1 ${u.is_banned ? "text-gain" : "text-loss"}`}
+                          onClick={() => toggleBan(u.id, u.is_banned)}
+                        >
+                          <Ban className="h-3 w-3" />
+                          {u.is_banned ? "Unban" : "Ban"}
+                        </Button>
                       </div>
                     </td>
                   </tr>

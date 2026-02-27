@@ -3,9 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
+  Archive,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  RotateCcw,
   Search,
   ShoppingBag,
   Star,
@@ -72,6 +74,33 @@ export default function AdminListingsPage() {
     fetchListings();
   };
 
+  const removeListing = async (id: string) => {
+    await fetch("/api/admin/moderate", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "remove",
+        target_type: "listing",
+        target_id: id,
+        reason: "Removed by admin",
+      }),
+    });
+    fetchListings();
+  };
+
+  const restoreListing = async (id: string) => {
+    await fetch("/api/admin/moderate", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "restore",
+        target_type: "listing",
+        target_id: id,
+      }),
+    });
+    fetchListings();
+  };
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
@@ -95,7 +124,7 @@ export default function AdminListingsPage() {
           />
         </div>
         <div className="flex gap-1">
-          {["all", "active", "draft", "paused"].map((s) => (
+          {["all", "active", "draft", "paused", "archived"].map((s) => (
             <Button
               key={s}
               variant={statusFilter === s ? "default" : "outline"}
@@ -196,7 +225,9 @@ export default function AdminListingsPage() {
                               ? "border-gain/30 text-gain"
                               : l.status === "paused"
                                 ? "border-amber-500/30 text-amber-500"
-                                : "border-muted-foreground/30 text-muted-foreground"
+                                : l.status === "archived"
+                                  ? "border-loss/30 text-loss"
+                                  : "border-muted-foreground/30 text-muted-foreground"
                           }`}
                         >
                           {l.status}
@@ -220,6 +251,27 @@ export default function AdminListingsPage() {
                           >
                             {l.status === "active" ? "Pause" : "Activate"}
                           </Button>
+                          {l.status === "archived" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-gain hover:text-gain"
+                              onClick={() => restoreListing(l.id)}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Restore
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-loss hover:text-loss"
+                              onClick={() => removeListing(l.id)}
+                            >
+                              <Archive className="h-3 w-3 mr-1" />
+                              Remove
+                            </Button>
+                          )}
                           <Link href={`/marketplace/${l.slug}`}>
                             <Button variant="ghost" size="sm" className="h-7 px-2">
                               <ExternalLink className="h-3 w-3" />

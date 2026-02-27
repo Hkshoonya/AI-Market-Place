@@ -7,6 +7,7 @@ import {
   BarChart3,
   Box,
   LayoutDashboard,
+  MessageSquare,
   ShieldCheck,
   ShoppingBag,
   Users,
@@ -19,6 +20,7 @@ const ADMIN_NAV = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: ShoppingBag },
   { href: "/admin/verifications", label: "Verify", icon: ShieldCheck },
+  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 

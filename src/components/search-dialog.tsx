@@ -433,6 +433,22 @@ export function SearchDialog() {
                   </div>
                 )}
 
+              {/* View all link */}
+              {query.length >= 2 && (results.length > 0 || marketplaceResults.length > 0) && (
+                <div className="border-t border-border/50 px-4 py-2">
+                  <button
+                    className="w-full text-center text-xs text-neon hover:text-neon/80 transition-colors py-1"
+                    onClick={() => {
+                      addRecentSearch(query);
+                      setOpen(false);
+                      router.push(`/search?q=${encodeURIComponent(query)}`);
+                    }}
+                  >
+                    View all results for &ldquo;{query}&rdquo; →
+                  </button>
+                </div>
+              )}
+
               {/* Footer */}
               <div className="flex items-center justify-between border-t border-border px-4 py-2">
                 <div className="flex gap-2 text-[10px] text-muted-foreground">
