@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
 import { AuthButton } from "@/components/auth/auth-button";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
@@ -62,6 +63,11 @@ export function Header() {
         {/* Right side */}
         <div className="flex items-center gap-2">
           <SearchDialog />
+
+          {/* Notification Bell */}
+          <div className="hidden sm:flex">
+            <NotificationBell />
+          </div>
 
           {/* Auth Button */}
           <div className="hidden sm:flex">

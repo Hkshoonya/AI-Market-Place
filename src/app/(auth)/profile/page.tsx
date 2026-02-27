@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, Save, ShoppingBag, User } from "lucide-react";
+import { Eye, Heart, Save, ShoppingBag, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,6 +171,29 @@ export default function ProfilePage() {
               <Save className="h-4 w-4" />
               {saving ? "Saving..." : "Save Profile"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Watchlists */}
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Eye className="h-5 w-5 text-neon" />
+              Watchlists
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Organize AI models into custom watchlists and get personalized activity updates.
+            </p>
+            <div className="mt-3 flex gap-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/watchlists">View Watchlists</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/activity">Activity Feed</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

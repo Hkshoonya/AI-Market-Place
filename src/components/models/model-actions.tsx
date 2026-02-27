@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { AddToWatchlist } from "@/components/watchlists/add-to-watchlist";
 
 interface ModelActionsProps {
   modelSlug: string;
@@ -120,6 +121,10 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
         />
         {isBookmarked ? "Bookmarked" : "Bookmark"}
       </Button>
+
+      {modelId && (
+        <AddToWatchlist modelId={modelId} modelName={modelName} />
+      )}
 
       <Button
         variant="outline"
