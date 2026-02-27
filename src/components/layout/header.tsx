@@ -105,6 +105,24 @@ export function Header() {
                   );
                 })}
                 <div className="my-4 border-t border-border" />
+                <div className="flex flex-col gap-2">
+                  <AuthButton />
+                  <NotificationBell />
+                </div>
+                <div className="my-4 border-t border-border" />
+                <Link
+                  href="/compare"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
+                  Compare
+                </Link>
+                <Link
+                  href="/discover"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
+                  Discover
+                </Link>
+                <div className="my-2" />
                 <Button className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
                   <Link href="/sell">List Your Model</Link>
                 </Button>

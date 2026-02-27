@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { Footer } from "@/components/layout/footer";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import "./globals.css";
@@ -64,6 +65,7 @@ export default function RootLayout({
             <Header />
             <main className="min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />
+            <ScrollToTop />
           </TooltipProvider>
         </AuthProvider>
       </body>

@@ -61,7 +61,7 @@ export default function AdminLayout({
       </div>
 
       {/* Navigation tabs */}
-      <nav className="mb-8 flex gap-1 overflow-x-auto rounded-lg bg-secondary/30 p-1">
+      <nav className="mb-8 flex gap-1 overflow-x-auto rounded-lg bg-secondary/30 p-1 scrollbar-thin">
         {ADMIN_NAV.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -70,14 +70,15 @@ export default function AdminLayout({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap sm:px-4 ${
                 isActive
                   ? "bg-neon/10 text-neon"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
               }`}
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">{item.label}</span>
+              <span className="sm:hidden">{item.label}</span>
             </Link>
           );
         })}
