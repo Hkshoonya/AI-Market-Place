@@ -102,6 +102,35 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
     setSubmitting(false);
   };
 
+  const handleUpvote = async (commentId: string) => {
+    if (!user) return;
+
+    // Optimistic update
+    setComments((prev) =>
+      prev.map((c) => {
+        if (c.id === commentId) return { ...c, upvotes: c.upvotes + 1 };
+        if (c.replies) {
+          return {
+            ...c,
+            replies: c.replies.map((r) =>
+              r.id === commentId ? { ...r, upvotes: r.upvotes + 1 } : r
+            ),
+          };
+        }
+        return c;
+      })
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+    await sb.rpc("increment_comment_upvote", { comment_id: commentId }).catch(() => {
+      // Fallback: direct update if RPC doesn't exist
+      sb.from("comments")
+        .update({ upvotes: (supabase as any).rpc ? undefined : 1 })
+        .eq("id", commentId);
+    });
+  };
+
   const renderComment = (comment: Comment, isReply = false) => {
     const authorName =
       comment.profiles?.display_name ??
@@ -138,7 +167,12 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
               {comment.content}
             </p>
             <div className="mt-2 flex items-center gap-3">
-              <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-neon transition-colors"
+                onClick={() => handleUpvote(comment.id)}
+                disabled={!user}
+                title={user ? "Upvote" : "Sign in to upvote"}
+              >
                 <ThumbsUp className="h-3 w-3" />
                 {comment.upvotes > 0 && comment.upvotes}
               </button>

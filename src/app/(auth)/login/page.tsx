@@ -128,6 +128,14 @@ function LoginForm() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-neon transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">

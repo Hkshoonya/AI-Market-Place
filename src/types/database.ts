@@ -189,12 +189,14 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   reputation_score: number;
+  is_admin: boolean;
   is_seller: boolean;
   seller_bio: string | null;
   seller_website: string | null;
   seller_verified: boolean;
   total_sales: number;
   seller_rating: number | null;
+  joined_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -394,12 +396,14 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           reputation_score?: number;
+          is_admin?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
           seller_website?: string | null;
           seller_verified?: boolean;
           total_sales?: number;
           seller_rating?: number | null;
+          joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -410,12 +414,14 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           reputation_score?: number;
+          is_admin?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
           seller_website?: string | null;
           seller_verified?: boolean;
           total_sales?: number;
           seller_rating?: number | null;
+          joined_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
