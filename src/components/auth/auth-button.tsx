@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogIn, LogOut, User, Heart, List, Eye, Bell } from "lucide-react";
+import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -92,6 +92,12 @@ export function AuthButton() {
           <Link href="/activity" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Activity
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/orders" className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4" />
+            My Orders
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

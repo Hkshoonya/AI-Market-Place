@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Bell,
   Key,
+  Loader2,
   Lock,
   LogOut,
+  Mail,
   Save,
   Settings,
   Shield,
+  Smartphone,
   Trash2,
   User,
 } from "lucide-react";
@@ -20,6 +24,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+
+interface NotifPrefs {
+  email_model_updates: boolean;
+  email_watchlist_changes: boolean;
+  email_order_updates: boolean;
+  email_marketplace: boolean;
+  email_newsletter: boolean;
+  in_app_model_updates: boolean;
+  in_app_watchlist_changes: boolean;
+  in_app_order_updates: boolean;
+  in_app_marketplace: boolean;
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -43,13 +59,49 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
+    email_model_updates: true,
+    email_watchlist_changes: true,
+    email_order_updates: true,
+    email_marketplace: false,
+    email_newsletter: true,
+    in_app_model_updates: true,
+    in_app_watchlist_changes: true,
+    in_app_order_updates: true,
+    in_app_marketplace: true,
+  });
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifMessage, setNotifMessage] = useState<string | null>(null);
+
   const supabase = createClient();
+
+  const fetchNotifPrefs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/preferences");
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setNotifPrefs((prev) => ({ ...prev, ...json.data }));
+      }
+    } catch {
+      // use defaults
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login?redirect=/settings");
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifPrefs();
+    }
+  }, [user, fetchNotifPrefs]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +172,32 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
+  };
+
+  const toggleNotifPref = (key: keyof NotifPrefs) => {
+    setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    setNotifMessage(null);
+  };
+
+  const saveNotifPrefs = async () => {
+    setNotifSaving(true);
+    setNotifMessage(null);
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifPrefs),
+      });
+      if (res.ok) {
+        setNotifMessage("Preferences saved!");
+      } else {
+        setNotifMessage("Failed to save preferences.");
+      }
+    } catch {
+      setNotifMessage("Failed to save preferences.");
+    } finally {
+      setNotifSaving(false);
+    }
   };
 
   if (authLoading) {
@@ -293,6 +371,125 @@ export default function SettingsPage() {
                 {passwordLoading ? "Updating..." : "Update Password"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Notification preferences */}
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Bell className="h-5 w-5 text-neon" />
+              Notification Preferences
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {notifLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* Email notifications */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="text-sm font-semibold">Email Notifications</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {([
+                      { key: "email_model_updates" as const, label: "Model updates", desc: "When models you follow get updated" },
+                      { key: "email_watchlist_changes" as const, label: "Watchlist changes", desc: "Significant changes to watchlisted models" },
+                      { key: "email_order_updates" as const, label: "Order updates", desc: "When your marketplace orders change status" },
+                      { key: "email_marketplace" as const, label: "Marketplace", desc: "New listings and marketplace activity" },
+                      { key: "email_newsletter" as const, label: "Newsletter", desc: "Weekly AI market digest and insights" },
+                    ]).map((item) => (
+                      <div key={item.key} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={notifPrefs[item.key]}
+                          onClick={() => toggleNotifPref(item.key)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                            notifPrefs[item.key] ? "bg-neon" : "bg-secondary"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 rounded-full bg-background transition-transform ${
+                              notifPrefs[item.key] ? "translate-x-4" : "translate-x-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator className="border-border/30" />
+
+                {/* In-app notifications */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="text-sm font-semibold">In-App Notifications</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {([
+                      { key: "in_app_model_updates" as const, label: "Model updates", desc: "Real-time model update alerts" },
+                      { key: "in_app_watchlist_changes" as const, label: "Watchlist changes", desc: "Alerts for watchlisted model changes" },
+                      { key: "in_app_order_updates" as const, label: "Order updates", desc: "Marketplace order status changes" },
+                      { key: "in_app_marketplace" as const, label: "Marketplace", desc: "New listings and marketplace activity" },
+                    ]).map((item) => (
+                      <div key={item.key} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={notifPrefs[item.key]}
+                          onClick={() => toggleNotifPref(item.key)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                            notifPrefs[item.key] ? "bg-neon" : "bg-secondary"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 rounded-full bg-background transition-transform ${
+                              notifPrefs[item.key] ? "translate-x-4" : "translate-x-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {notifMessage && (
+                  <p className={`text-sm ${notifMessage.includes("saved") ? "text-gain" : "text-loss"}`}>
+                    {notifMessage}
+                  </p>
+                )}
+
+                <Button
+                  onClick={saveNotifPrefs}
+                  disabled={notifSaving}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  {notifSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {notifSaving ? "Saving..." : "Save Preferences"}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 

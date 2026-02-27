@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { Footer } from "@/components/layout/footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { PWARegister } from "@/components/pwa-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import "./globals.css";
@@ -18,6 +19,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#000000" },
+  ],
+};
+
 export const metadata: Metadata = {
   title: {
     default: SITE_NAME,
@@ -25,6 +36,12 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: SITE_NAME,
+  },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
@@ -57,6 +74,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased`}
       >
@@ -66,6 +86,7 @@ export default function RootLayout({
             <main className="min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />
             <ScrollToTop />
+            <PWARegister />
           </TooltipProvider>
         </AuthProvider>
       </body>
