@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 interface PaginationProps {
   totalCount: number;
   pageSize: number;
+  basePath?: string;
 }
 
-export function Pagination({ totalCount, pageSize }: PaginationProps) {
+export function Pagination({ totalCount, pageSize, basePath = "/models" }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPage = parseInt(searchParams.get("page") ?? "1", 10);
@@ -25,7 +26,7 @@ export function Pagination({ totalCount, pageSize }: PaginationProps) {
     } else {
       params.set("page", String(page));
     }
-    router.push(`/models?${params.toString()}`, { scroll: true });
+    router.push(`${basePath}?${params.toString()}`, { scroll: true });
   };
 
   // Generate page numbers to show
