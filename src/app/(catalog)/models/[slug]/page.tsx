@@ -30,6 +30,7 @@ import { QualityTrend } from "@/components/charts/quality-trend";
 import { DownloadsTrend } from "@/components/charts/downloads-trend";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import type { Metadata } from "next";
+import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 
 export const revalidate = 3600;
 
@@ -42,19 +43,38 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { data } = await supabase
     .from("models")
-    .select("name, provider, short_description")
+    .select("name, provider, short_description, category")
     .eq("slug", slug)
     .single();
 
-  const model = data as { name: string; provider: string; short_description: string | null } | null;
+  const model = data as { name: string; provider: string; short_description: string | null; category: string } | null;
 
   if (!model) {
     return { title: "Model Not Found" };
   }
 
+  const title = `${model.name} by ${model.provider}`;
+  const description =
+    model.short_description ??
+    `Explore ${model.name} by ${model.provider} — benchmarks, pricing, and comparisons on ${SITE_NAME}.`;
+
   return {
-    title: `${model.name} by ${model.provider}`,
-    description: model.short_description ?? undefined,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/models/${slug}`,
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    alternates: {
+      canonical: `${SITE_URL}/models/${slug}`,
+    },
   };
 }
 
@@ -131,8 +151,54 @@ export default async function ModelDetailPage({
   const modalities = (model.modalities as string[]) ?? [];
   const capabilities = (model.capabilities as Record<string, boolean>) ?? {};
 
+  // JSON-LD structured data
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: model.name,
+    description: model.description ?? model.short_description ?? undefined,
+    applicationCategory: "Artificial Intelligence",
+    operatingSystem: "Cloud",
+    author: {
+      "@type": "Organization",
+      name: model.provider,
+    },
+    ...(model.release_date && { datePublished: model.release_date }),
+    ...(model.quality_score && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: Number(model.quality_score).toFixed(1),
+        bestRating: "100",
+        worstRating: "0",
+        ratingCount: model.hf_likes || 1,
+      },
+    }),
+    ...(pricingData.length > 0 &&
+      pricingData[0].input_price_per_million != null && {
+        offers: {
+          "@type": "Offer",
+          price: pricingData
+            .sort(
+              (a: { input_price_per_million: number | null }, b: { input_price_per_million: number | null }) =>
+                (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0)
+            )[0].input_price_per_million,
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+        },
+      }),
+    ...(model.is_open_weights && {
+      license: model.license_name ?? "Open Source",
+      isAccessibleForFree: true,
+    }),
+    url: `${SITE_URL}/models/${model.slug}`,
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Back nav */}
       <Link
         href="/models"

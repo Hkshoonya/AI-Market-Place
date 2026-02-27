@@ -11,12 +11,13 @@ const FOOTER_LINKS = {
     { href: "/news", label: "News & Updates" },
   ],
   Categories: CATEGORIES.slice(0, 5).map((c) => ({
-    href: `/categories/${c.slug}`,
+    href: `/models?category=${c.slug}`,
     label: c.shortLabel,
   })),
   Company: [
     { href: "/about", label: "About" },
-    { href: "/api", label: "API" },
+    { href: "/providers", label: "Providers" },
+    { href: "/api-docs", label: "API" },
     { href: "/terms", label: "Terms" },
     { href: "/privacy", label: "Privacy" },
   ],

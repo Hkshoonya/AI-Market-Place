@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart3,
+  Building2,
   Menu,
   Search,
   ShoppingBag,
@@ -19,6 +20,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
+  { href: "/providers", label: "Providers", icon: Building2 },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
 ];
 
