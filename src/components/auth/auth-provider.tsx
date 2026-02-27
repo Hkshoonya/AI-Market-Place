@@ -10,8 +10,10 @@ interface Profile {
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  is_admin: boolean;
   is_seller: boolean;
   seller_verified: boolean;
+  joined_at: string | null;
 }
 
 interface AuthContextType {
@@ -38,7 +40,7 @@ const supabase = createClient();
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, is_seller, seller_verified")
+    .select("id, username, display_name, avatar_url, bio, is_admin, is_seller, seller_verified, joined_at")
     .eq("id", userId)
     .single();
 
