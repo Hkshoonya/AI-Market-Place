@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+
+const createBookmarkSchema = z.object({
+  model_id: z.string().uuid("model_id must be a valid UUID"),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -58,11 +63,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { model_id } = body;
+  const parsed = createBookmarkSchema.safeParse(body);
 
-  if (!model_id) {
-    return NextResponse.json({ error: "model_id is required" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.issues },
+      { status: 400 }
+    );
   }
+
+  const { model_id } = parsed.data;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)

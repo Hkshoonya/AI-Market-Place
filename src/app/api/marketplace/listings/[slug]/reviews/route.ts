@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+
+const createReviewSchema = z.object({
+  rating: z.number().int("Rating must be a whole number").min(1, "Rating must be at least 1").max(5, "Rating must be at most 5"),
+  title: z.string().max(200, "Title must be 200 characters or less").optional().nullable(),
+  content: z.string().max(5000, "Content must be 5000 characters or less").optional().nullable(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -67,14 +74,16 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { rating, title, content } = body;
+  const parsed = createReviewSchema.safeParse(body);
 
-  if (!rating || rating < 1 || rating > 5) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Rating must be between 1 and 5" },
+      { error: "Validation failed", details: parsed.error.issues },
       { status: 400 }
     );
   }
+
+  const { rating, title, content } = parsed.data;
 
   // Get listing ID
   const { data: listing } = await (supabase as any)
