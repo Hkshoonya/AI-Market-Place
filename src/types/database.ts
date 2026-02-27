@@ -189,6 +189,12 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   reputation_score: number;
+  is_seller: boolean;
+  seller_bio: string | null;
+  seller_website: string | null;
+  seller_verified: boolean;
+  total_sales: number;
+  seller_rating: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -237,6 +243,73 @@ export interface WatchlistItem {
   watchlist_id: string;
   model_id: string;
   added_at: string;
+}
+
+// Marketplace types
+export type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template";
+export type ListingStatus = "draft" | "active" | "paused" | "sold_out" | "archived";
+export type MarketplacePricingType = "one_time" | "monthly_subscription" | "per_token" | "per_request" | "free" | "contact";
+export type OrderStatus = "pending" | "approved" | "rejected" | "completed" | "cancelled";
+
+export interface MarketplaceListing {
+  id: string;
+  seller_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  short_description: string | null;
+  listing_type: ListingType;
+  status: ListingStatus;
+  pricing_type: MarketplacePricingType;
+  price: number | null;
+  currency: string;
+  model_id: string | null;
+  tags: string[];
+  thumbnail_url: string | null;
+  demo_url: string | null;
+  documentation_url: string | null;
+  view_count: number;
+  inquiry_count: number;
+  avg_rating: number | null;
+  review_count: number;
+  is_featured: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketplaceReview {
+  id: string;
+  listing_id: string;
+  reviewer_id: string;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  is_verified_purchase: boolean;
+  upvotes: number;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  profiles?: Pick<Profile, "display_name" | "avatar_url" | "username">;
+}
+
+export interface MarketplaceOrder {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  status: OrderStatus;
+  message: string | null;
+  price_at_time: number | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  marketplace_listings?: Pick<MarketplaceListing, "title" | "slug" | "listing_type">;
+  profiles?: Pick<Profile, "display_name" | "avatar_url">;
+}
+
+export interface MarketplaceListingWithSeller extends MarketplaceListing {
+  profiles?: Pick<Profile, "id" | "display_name" | "avatar_url" | "username" | "is_seller" | "seller_verified" | "seller_rating" | "total_sales">;
+  models?: Pick<Model, "name" | "slug" | "provider" | "quality_score"> | null;
 }
 
 // Model with all relations joined
@@ -321,6 +394,12 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           reputation_score?: number;
+          is_seller?: boolean;
+          seller_bio?: string | null;
+          seller_website?: string | null;
+          seller_verified?: boolean;
+          total_sales?: number;
+          seller_rating?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -331,6 +410,12 @@ export interface Database {
           avatar_url?: string | null;
           bio?: string | null;
           reputation_score?: number;
+          is_seller?: boolean;
+          seller_bio?: string | null;
+          seller_website?: string | null;
+          seller_verified?: boolean;
+          total_sales?: number;
+          seller_rating?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -438,6 +523,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      marketplace_listings: {
+        Row: MarketplaceListing;
+        Insert: Partial<MarketplaceListing> & Pick<MarketplaceListing, "seller_id" | "slug" | "title" | "description" | "listing_type">;
+        Update: Partial<MarketplaceListing>;
+      };
+      marketplace_reviews: {
+        Row: MarketplaceReview;
+        Insert: {
+          id?: string;
+          listing_id: string;
+          reviewer_id: string;
+          rating: number;
+          title?: string | null;
+          content?: string | null;
+          is_verified_purchase?: boolean;
+          upvotes?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<MarketplaceReview>;
+      };
+      marketplace_orders: {
+        Row: MarketplaceOrder;
+        Insert: {
+          id?: string;
+          listing_id: string;
+          buyer_id: string;
+          seller_id: string;
+          status?: OrderStatus;
+          message?: string | null;
+          price_at_time?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<MarketplaceOrder>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -445,6 +566,10 @@ export interface Database {
       model_category: ModelCategory;
       model_status: ModelStatus;
       license_type: LicenseType;
+      listing_type: ListingType;
+      listing_status: ListingStatus;
+      marketplace_pricing_type: MarketplacePricingType;
+      order_status: OrderStatus;
     };
   };
 }

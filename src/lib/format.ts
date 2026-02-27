@@ -77,3 +77,17 @@ export function getRankChange(current: number | null, previous: number | null): 
   if (current > previous) return { direction: "down", amount: current - previous };
   return { direction: "same", amount: 0 };
 }
+
+export function formatCurrency(
+  price: number | null | undefined,
+  currency = "USD"
+): string {
+  if (price == null) return "Contact";
+  if (price === 0) return "Free";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: price < 1 ? 4 : 2,
+    maximumFractionDigits: price < 1 ? 4 : 2,
+  }).format(price);
+}
