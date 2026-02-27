@@ -3,12 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, Heart, Save, ShoppingBag, User } from "lucide-react";
+import {
+  Calendar,
+  Eye,
+  Globe,
+  Heart,
+  LayoutDashboard,
+  Save,
+  Shield,
+  ShoppingBag,
+  User,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { formatRelativeDate } from "@/lib/format";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -18,7 +30,10 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [bookmarks, setBookmarks] = useState<{ id: string; slug: string; name: string; provider: string }[]>([]);
+  const [bookmarks, setBookmarks] = useState<
+    { id: string; slug: string; name: string; provider: string }[]
+  >([]);
+  const [watchlistCount, setWatchlistCount] = useState(0);
 
   const supabase = createClient();
 
@@ -58,9 +73,20 @@ export default function ProfilePage() {
           );
         }
       };
+
+      // Fetch watchlist count
+      const fetchWatchlistCount = async () => {
+        const { count } = await supabase
+          .from("watchlists")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+        setWatchlistCount(count ?? 0);
+      };
+
       fetchBookmarks();
+      fetchWatchlistCount();
     }
-  }, [user]);
+  }, [user, supabase]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -98,14 +124,102 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const initials = (
+    profile?.display_name || profile?.username || user.email || "?"
+  )
+    .charAt(0)
+    .toUpperCase();
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <User className="h-6 w-6 text-neon" />
-        <h1 className="text-2xl font-bold">Your Profile</h1>
+      {/* Profile header */}
+      <div className="flex items-start gap-4 mb-8">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-neon/10 text-neon text-2xl font-bold">
+          {profile?.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.avatar_url}
+              alt="Avatar"
+              className="h-16 w-16 rounded-full object-cover"
+            />
+          ) : (
+            initials
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold truncate">
+              {profile?.display_name || profile?.username || "Your Profile"}
+            </h1>
+            {profile?.is_admin && (
+              <Badge
+                variant="outline"
+                className="border-neon/30 text-neon text-[11px]"
+              >
+                <Shield className="mr-1 h-3 w-3" />
+                Admin
+              </Badge>
+            )}
+            {profile?.seller_verified && (
+              <Badge
+                variant="outline"
+                className="border-gain/30 text-gain text-[11px]"
+              >
+                Verified Seller
+              </Badge>
+            )}
+          </div>
+          {profile?.username && (
+            <p className="text-sm text-muted-foreground">
+              @{profile.username}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              Joined{" "}
+              {profile?.joined_at
+                ? formatRelativeDate(profile.joined_at)
+                : "recently"}
+            </span>
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" />
+              {bookmarks.length} bookmarks
+            </span>
+            <span className="flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              {watchlistCount} watchlists
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-6">
+        {/* Admin link */}
+        {profile?.is_admin && (
+          <Card className="border-neon/20 bg-neon/5">
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <LayoutDashboard className="h-5 w-5 text-neon" />
+                <div>
+                  <p className="text-sm font-semibold">Admin Dashboard</p>
+                  <p className="text-xs text-muted-foreground">
+                    Manage models, users, and marketplace
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-neon/30 text-neon"
+                asChild
+              >
+                <Link href="/admin">Open Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Profile form */}
         <Card className="border-border/50 bg-card">
           <CardHeader>
@@ -158,7 +272,9 @@ export default function ProfilePage() {
             </div>
 
             {message && (
-              <p className={`text-sm ${message.startsWith("Error") ? "text-loss" : "text-gain"}`}>
+              <p
+                className={`text-sm ${message.startsWith("Error") ? "text-loss" : "text-gain"}`}
+              >
                 {message}
               </p>
             )}
@@ -184,14 +300,21 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Organize AI models into custom watchlists and get personalized activity updates.
+              Organize AI models into custom watchlists and get personalized
+              activity updates.
             </p>
-            <div className="mt-3 flex gap-3">
+            <div className="mt-3 flex flex-wrap gap-3">
               <Button variant="outline" size="sm" asChild>
                 <Link href="/watchlists">View Watchlists</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/activity">Activity Feed</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/discover">
+                  <Globe className="mr-1 h-3 w-3" />
+                  Discover Public
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -263,9 +386,13 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Start selling your AI models, APIs, and datasets on the marketplace.
+                  Start selling your AI models, APIs, and datasets on the
+                  marketplace.
                 </p>
-                <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
+                <Button
+                  className="bg-neon text-background font-semibold hover:bg-neon/90"
+                  asChild
+                >
                   <Link href="/sell">Start Selling</Link>
                 </Button>
               </div>

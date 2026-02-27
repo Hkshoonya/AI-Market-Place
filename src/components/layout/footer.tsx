@@ -8,7 +8,7 @@ const FOOTER_LINKS = {
     { href: "/leaderboards", label: "Leaderboards" },
     { href: "/compare", label: "Compare" },
     { href: "/marketplace", label: "Marketplace" },
-    { href: "/news", label: "News & Updates" },
+    { href: "/discover", label: "Discover Watchlists" },
   ],
   Categories: CATEGORIES.slice(0, 5).map((c) => ({
     href: `/models?category=${c.slug}`,
