@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
+import { QualityDistribution } from "@/components/charts/quality-distribution";
 import { getProviderBrand } from "@/lib/constants/providers";
 import type { Metadata } from "next";
 
@@ -104,6 +105,15 @@ export default async function LeaderboardsPage() {
 
         {/* Overall Tab */}
         <TabsContent value="overall" className="mt-6">
+          {rankedModels && rankedModels.length > 0 && (
+            <QualityDistribution
+              data={rankedModels.map((m: any) => ({
+                name: m.name,
+                quality: Number(m.quality_score) || 0,
+                provider: m.provider,
+              }))}
+            />
+          )}
           <div className="overflow-hidden rounded-xl border border-border/50">
             <table className="w-full">
               <thead>

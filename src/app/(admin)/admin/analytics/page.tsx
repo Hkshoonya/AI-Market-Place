@@ -10,6 +10,10 @@ import {
   Star,
   TrendingUp,
 } from "lucide-react";
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/format";
@@ -23,6 +27,20 @@ interface AnalyticsData {
   topDownloaded: { name: string; provider: string; hf_downloads: number }[];
   topRated: { name: string; provider: string; quality_score: number }[];
   openVsClosed: { open: number; closed: number };
+}
+
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border/50 bg-card px-3 py-2 shadow-xl">
+      <p className="text-xs font-semibold">{label || payload[0]?.name}</p>
+      {payload.map((entry: any, i: number) => (
+        <p key={i} className="text-xs text-muted-foreground">
+          {entry.name}: <span className="font-medium text-foreground">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        </p>
+      ))}
+    </div>
+  );
 }
 
 export default function AdminAnalyticsPage() {
@@ -151,6 +169,51 @@ export default function AdminAnalyticsPage() {
         </Card>
       </div>
 
+      {/* Open vs Closed Donut */}
+      <Card className="border-border/50 bg-card mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <TrendingUp className="h-5 w-5 text-neon" />
+            Open vs Closed Source
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width={300} height={200}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: "Open Weights", value: data.openVsClosed.open },
+                    { name: "Closed Source", value: data.openVsClosed.closed },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                  stroke="transparent"
+                >
+                  <Cell fill="#00d4aa" />
+                  <Cell fill="#ef5350" />
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2 ml-4">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-[#00d4aa]" />
+                <span className="text-sm">Open Weights ({data.openVsClosed.open})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-[#ef5350]" />
+                <span className="text-sm">Closed Source ({data.openVsClosed.closed})</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* Category breakdown */}
         <Card className="border-border/50 bg-card">
@@ -161,26 +224,19 @@ export default function AdminAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {data.categoryBreakdown.map((cat) => {
-                const total = data.categoryBreakdown.reduce((s, c) => s + c.count, 0);
-                const pct = total > 0 ? ((cat.count / total) * 100) : 0;
-                return (
-                  <div key={cat.category}>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium">{cat.label}</span>
-                      <span className="text-muted-foreground">{cat.count} ({pct.toFixed(0)}%)</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-secondary">
-                      <div
-                        className="h-2 rounded-full transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: cat.color }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ResponsiveContainer width="100%" height={Math.max(200, data.categoryBreakdown.length * 36)}>
+              <BarChart data={data.categoryBreakdown} layout="vertical" margin={{ left: 0, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "#888" }} />
+                <YAxis type="category" dataKey="label" width={100} tick={{ fontSize: 11, fill: "#888" }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
+                  {data.categoryBreakdown.map((cat, i) => (
+                    <Cell key={i} fill={cat.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
@@ -193,26 +249,15 @@ export default function AdminAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {data.providerBreakdown.slice(0, 10).map((prov) => {
-                const total = data.providerBreakdown.reduce((s, p) => s + p.count, 0);
-                const pct = total > 0 ? ((prov.count / total) * 100) : 0;
-                return (
-                  <div key={prov.provider}>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium">{prov.provider}</span>
-                      <span className="text-muted-foreground">{prov.count} ({pct.toFixed(0)}%)</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-secondary">
-                      <div
-                        className="h-2 rounded-full bg-neon transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ResponsiveContainer width="100%" height={Math.max(200, data.providerBreakdown.slice(0, 10).length * 36)}>
+              <BarChart data={data.providerBreakdown.slice(0, 10)} layout="vertical" margin={{ left: 0, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "#888" }} />
+                <YAxis type="category" dataKey="provider" width={100} tick={{ fontSize: 11, fill: "#888" }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="count" fill="#00d4aa" radius={[0, 4, 4, 0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
