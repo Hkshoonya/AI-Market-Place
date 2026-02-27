@@ -7,6 +7,7 @@ import {
   BarChart3,
   Box,
   LayoutDashboard,
+  ShieldCheck,
   ShoppingBag,
   Users,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const ADMIN_NAV = [
   { href: "/admin/models", label: "Models", icon: Box },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: ShoppingBag },
+  { href: "/admin/verifications", label: "Verify", icon: ShieldCheck },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 

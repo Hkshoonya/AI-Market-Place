@@ -314,6 +314,65 @@ export interface MarketplaceListingWithSeller extends MarketplaceListing {
   models?: Pick<Model, "name" | "slug" | "provider" | "quality_score"> | null;
 }
 
+// Order messages
+export interface OrderMessage {
+  id: string;
+  order_id: string;
+  sender_id: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  // Joined
+  profiles?: Pick<Profile, "display_name" | "avatar_url" | "username">;
+}
+
+// Seller verification requests
+export type VerificationStatus = "pending" | "approved" | "rejected";
+
+export interface SellerVerificationRequest {
+  id: string;
+  user_id: string;
+  status: VerificationStatus;
+  business_name: string;
+  business_description: string | null;
+  website_url: string | null;
+  portfolio_url: string | null;
+  reason: string | null;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Notification types
+export type NotificationType = "model_update" | "watchlist_change" | "order_update" | "system" | "marketplace";
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationPreferences {
+  user_id: string;
+  email_model_updates: boolean;
+  email_watchlist_changes: boolean;
+  email_order_updates: boolean;
+  email_marketplace: boolean;
+  email_newsletter: boolean;
+  in_app_model_updates: boolean;
+  in_app_watchlist_changes: boolean;
+  in_app_order_updates: boolean;
+  in_app_marketplace: boolean;
+  updated_at: string;
+}
+
 // Model with all relations joined
 export interface ModelWithDetails extends Model {
   benchmark_scores?: BenchmarkScore[];
@@ -565,6 +624,37 @@ export interface Database {
         };
         Update: Partial<MarketplaceOrder>;
       };
+      notifications: {
+        Row: Notification;
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: NotificationType;
+          title: string;
+          message?: string | null;
+          link?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Notification>;
+      };
+      notification_preferences: {
+        Row: NotificationPreferences;
+        Insert: {
+          user_id: string;
+          email_model_updates?: boolean;
+          email_watchlist_changes?: boolean;
+          email_order_updates?: boolean;
+          email_marketplace?: boolean;
+          email_newsletter?: boolean;
+          in_app_model_updates?: boolean;
+          in_app_watchlist_changes?: boolean;
+          in_app_order_updates?: boolean;
+          in_app_marketplace?: boolean;
+          updated_at?: string;
+        };
+        Update: Partial<NotificationPreferences>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -576,6 +666,7 @@ export interface Database {
       listing_status: ListingStatus;
       marketplace_pricing_type: MarketplacePricingType;
       order_status: OrderStatus;
+      notification_type: NotificationType;
     };
   };
 }
