@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/watchlists — list all watchlists for the authenticated user
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = rateLimit(`watchlists:${ip}`, RATE_LIMITS.public);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -31,6 +41,15 @@ export async function GET() {
 
 // POST /api/watchlists — create a new watchlist
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = rateLimit(`watchlists-write:${ip}`, RATE_LIMITS.write);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
