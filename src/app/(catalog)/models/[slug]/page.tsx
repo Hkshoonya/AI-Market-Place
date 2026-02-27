@@ -24,6 +24,10 @@ import { formatNumber, formatParams, formatContextWindow, formatTokenPrice } fro
 import { ModelActions } from "@/components/models/model-actions";
 import { CommentsSection } from "@/components/models/comments-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
+import { QualityTrend } from "@/components/charts/quality-trend";
+import { DownloadsTrend } from "@/components/charts/downloads-trend";
+import { PriceComparison } from "@/components/charts/price-comparison";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -82,6 +86,14 @@ export default async function ModelDetailPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const model = data as any;
+
+  // Fetch historical snapshots for trends
+  const { data: snapshotsRaw } = await supabase
+    .from("model_snapshots")
+    .select("snapshot_date, quality_score, hf_downloads, hf_likes, overall_rank")
+    .eq("model_id", model.id)
+    .order("snapshot_date", { ascending: true });
+  const snapshots = (snapshotsRaw as any[] | null) ?? [];
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
   const benchmarkScores = (model.benchmark_scores as {
@@ -196,6 +208,7 @@ export default async function ModelDetailPage({
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
         </TabsList>
@@ -208,7 +221,17 @@ export default async function ModelDetailPage({
             </CardHeader>
             <CardContent>
               {benchmarkScores.length > 0 ? (
-                <div className="space-y-4">
+                <>
+                  <div className="mb-8">
+                    <BenchmarkRadar
+                      scores={benchmarkScores.map((bs) => ({
+                        benchmark: bs.benchmarks?.name ?? "Unknown",
+                        score: Number(bs.score),
+                        maxScore: Number(bs.benchmarks?.max_score) || 100,
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-4">
                   {benchmarkScores.map((bs, i) => {
                     const maxScore = Number(bs.benchmarks?.max_score) || 100;
                     const score = Number(bs.score);
@@ -233,6 +256,7 @@ export default async function ModelDetailPage({
                     );
                   })}
                 </div>
+                </>
               ) : (
                 <p className="text-center text-muted-foreground py-8">No benchmark data available yet.</p>
               )}
@@ -247,6 +271,17 @@ export default async function ModelDetailPage({
               <CardTitle className="text-lg">Pricing Across Providers</CardTitle>
             </CardHeader>
             <CardContent>
+              {pricingData.length > 1 && (
+                <div className="mb-6">
+                  <PriceComparison
+                    models={pricingData.map((p) => ({
+                      name: p.provider_name,
+                      inputPrice: p.input_price_per_million,
+                      outputPrice: p.output_price_per_million,
+                    }))}
+                  />
+                </div>
+              )}
               {pricingData.length > 0 ? (
                 <div className="overflow-hidden rounded-lg border border-border/50">
                   <table className="w-full">
@@ -292,6 +327,46 @@ export default async function ModelDetailPage({
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Trends Tab */}
+        <TabsContent value="trends" className="mt-6">
+          {snapshots.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Quality Score Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <QualityTrend
+                    snapshots={snapshots.map((s: any) => ({
+                      snapshot_date: s.snapshot_date,
+                      quality_score: s.quality_score,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Downloads Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DownloadsTrend
+                    snapshots={snapshots.map((s: any) => ({
+                      snapshot_date: s.snapshot_date,
+                      hf_downloads: s.hf_downloads,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card className="border-border/50">
+              <CardContent className="py-8">
+                <p className="text-center text-muted-foreground">No historical trend data available yet.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Details Tab */}

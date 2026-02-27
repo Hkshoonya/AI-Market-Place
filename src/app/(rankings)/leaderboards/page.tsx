@@ -7,6 +7,8 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
+import { getProviderBrand } from "@/lib/constants/providers";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -208,6 +210,21 @@ export default async function LeaderboardsPage() {
 
         {/* Speed Tab */}
         <TabsContent value="speed" className="mt-6">
+          {speedModels && speedModels.length > 0 && (
+            <div className="mb-6">
+              <SpeedCostScatter
+                data={speedModels
+                  .filter((p: any) => p.input_price_per_million != null)
+                  .map((p: any) => ({
+                    name: p.models.name,
+                    speed: Number(p.median_output_tokens_per_second),
+                    cost: Number(p.input_price_per_million),
+                    provider: p.provider_name,
+                    color: getProviderBrand(p.provider_name)?.color ?? "#666",
+                  }))}
+              />
+            </div>
+          )}
           <div className="overflow-hidden rounded-xl border border-border/50">
             <table className="w-full">
               <thead>

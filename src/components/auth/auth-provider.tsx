@@ -30,31 +30,47 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Module-level singleton — safe for browser client (same instance across renders)
+const supabase = createClient();
+
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, bio")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.warn("Profile fetch failed:", error.message);
+    return null;
+  }
+
+  return data as Profile | null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
-
   useEffect(() => {
     // Get initial session
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+      try {
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        setUser(currentUser);
 
-      if (user) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url, bio")
-          .eq("id", user.id)
-          .single();
-        setProfile(data as Profile | null);
+        if (currentUser) {
+          const profileData = await fetchProfile(currentUser.id);
+          setProfile(profileData);
+        }
+      } catch (err) {
+        console.warn("Auth initialization failed:", err);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     getUser();
@@ -62,17 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, username, display_name, avatar_url, bio")
-          .eq("id", currentUser.id)
-          .single();
-        setProfile(data as Profile | null);
+        const profileData = await fetchProfile(currentUser.id);
+        setProfile(profileData);
       } else {
         setProfile(null);
       }
