@@ -2,16 +2,48 @@ import { createClient } from "@/lib/supabase/server";
 import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { Pagination } from "@/components/models/pagination";
+import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Browse Marketplace",
-  description: "Browse AI models, APIs, datasets, and more on the AI Marketplace.",
-};
 
 export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 18;
+
+export async function generateMetadata(props: {
+  searchParams: Promise<{ [key: string]: string | undefined }>;
+}): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const type = searchParams.type || "";
+  const search = searchParams.q || "";
+
+  const typeConfig = type
+    ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]
+    : null;
+
+  if (search) {
+    return {
+      title: `Search: "${search}" - Marketplace`,
+      description: `Search results for "${search}" on the AI Market Cap marketplace.`,
+    };
+  }
+
+  if (typeConfig) {
+    return {
+      title: `${typeConfig.label} - AI Marketplace`,
+      description: `Browse ${typeConfig.label.toLowerCase()} listings. ${typeConfig.description} on AI Market Cap.`,
+      openGraph: {
+        title: `${typeConfig.label} - AI Marketplace`,
+        description: `Browse ${typeConfig.label.toLowerCase()} on the AI Market Cap marketplace.`,
+      },
+    };
+  }
+
+  return {
+    title: "Browse Marketplace",
+    description:
+      "Browse AI models, APIs, datasets, and more on the AI Marketplace.",
+  };
+}
 
 export default async function BrowsePage(props: {
   searchParams: Promise<{ [key: string]: string | undefined }>;
@@ -24,9 +56,13 @@ export default async function BrowsePage(props: {
 
   const supabase = await createClient();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from("marketplace_listings")
-    .select("*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales)", { count: "exact" })
+    .select(
+      "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales)",
+      { count: "exact" }
+    )
     .eq("status", "active");
 
   if (type) query = query.eq("listing_type", type);
@@ -41,7 +77,10 @@ export default async function BrowsePage(props: {
   };
 
   const sortConfig = sortMap[sort] || sortMap.newest;
-  query = query.order(sortConfig.column, { ascending: sortConfig.ascending, nullsFirst: false });
+  query = query.order(sortConfig.column, {
+    ascending: sortConfig.ascending,
+    nullsFirst: false,
+  });
 
   const from = (page - 1) * ITEMS_PER_PAGE;
   const to = from + ITEMS_PER_PAGE - 1;
@@ -50,9 +89,29 @@ export default async function BrowsePage(props: {
   const { data, count } = await query;
   const totalCount = count || 0;
 
+  const typeConfig = type
+    ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]
+    : null;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">Browse Marketplace</h1>
+      <h1 className="mb-1 text-2xl font-bold">
+        {search
+          ? `Search: "${search}"`
+          : typeConfig
+            ? typeConfig.label
+            : "Browse Marketplace"}
+      </h1>
+      {typeConfig && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          {typeConfig.description}
+        </p>
+      )}
+      {!typeConfig && !search && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          Discover AI models, APIs, datasets, and more.
+        </p>
+      )}
 
       <MarketplaceFilterBar totalCount={totalCount} />
 

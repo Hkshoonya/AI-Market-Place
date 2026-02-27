@@ -1,15 +1,45 @@
 import { createClient } from "@/lib/supabase/server";
 import { CompareClient } from "./compare-client";
+import type { Metadata } from "next";
 
 export const revalidate = 3600;
 
-import type { Metadata } from "next";
+export async function generateMetadata(props: {
+  searchParams: Promise<{ models?: string }>;
+}): Promise<Metadata> {
+  const { models: modelsParam } = await props.searchParams;
 
-export const metadata: Metadata = {
-  title: "Compare AI Models",
-  description:
-    "Side-by-side comparison of AI models across benchmarks, pricing, speed, and capabilities.",
-};
+  if (!modelsParam) {
+    return {
+      title: "Compare AI Models",
+      description:
+        "Side-by-side comparison of AI models across benchmarks, pricing, speed, and capabilities.",
+    };
+  }
+
+  const slugs = modelsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 5);
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("models")
+    .select("name")
+    .in("slug", slugs)
+    .eq("status", "active");
+
+  const names = (data as { name: string }[] | null)?.map((m) => m.name) ?? slugs;
+  const title = names.length > 0
+    ? `Compare ${names.slice(0, 3).join(" vs ")}${names.length > 3 ? ` + ${names.length - 3} more` : ""}`
+    : "Compare AI Models";
+
+  return {
+    title,
+    description: `Side-by-side comparison of ${names.join(", ")} across benchmarks, pricing, speed, and capabilities on AI Market Cap.`,
+    openGraph: {
+      title,
+      description: `Compare ${names.join(", ")} side by side.`,
+    },
+  };
+}
 
 export default async function ComparePage({
   searchParams,

@@ -26,6 +26,7 @@ import { ProviderLogo } from "@/components/shared/provider-logo";
 import { BenchmarkRadarOverlay } from "@/components/charts/benchmark-radar-overlay";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
+import { ShareComparison } from "@/components/compare/share-comparison";
 import { getProviderBrand } from "@/lib/constants/providers";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -293,11 +294,21 @@ export function CompareClient({
         Back to Models
       </Link>
 
-      <h1 className="text-3xl font-bold">Compare Models</h1>
-      <p className="mt-2 text-muted-foreground">
-        Select up to 5 models for side-by-side comparison across benchmarks,
-        pricing, and specifications.
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Compare Models</h1>
+          <p className="mt-2 text-muted-foreground">
+            Select up to 5 models for side-by-side comparison across benchmarks,
+            pricing, and specifications.
+          </p>
+        </div>
+        {models.length >= 2 && (
+          <ShareComparison
+            modelNames={models.map((m) => m.name as string)}
+            slugs={selectedSlugs}
+          />
+        )}
+      </div>
 
       {/* Model selector bar */}
       <div className="mt-8 flex flex-wrap items-start gap-3">

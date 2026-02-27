@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Rocket, Activity, Layers, Globe, BarChart3 } from "lucide-react";
+import { ArrowRight, Rocket, Activity, Layers, Globe, BarChart3, Download, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,18 +21,30 @@ interface HeroStats {
   categoryCount: number;
   providerCount: number;
   benchmarkCount: number;
+  totalDownloads?: number;
+  totalLikes?: number;
 }
 
-const STAT_ICONS = [Activity, Layers, Globe, BarChart3];
-const STAT_LABELS = ["Models Tracked", "Categories", "Providers", "Benchmarks"];
+function formatStatValue(num: number): string {
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toLocaleString();
+}
+
+const STAT_CONFIGS = [
+  { key: "modelCount", icon: Activity, label: "Models Tracked" },
+  { key: "providerCount", icon: Globe, label: "Providers" },
+  { key: "benchmarkCount", icon: BarChart3, label: "Benchmarks" },
+  { key: "totalDownloads", icon: Download, label: "Total Downloads" },
+  { key: "totalLikes", icon: Heart, label: "Community Likes" },
+  { key: "categoryCount", icon: Layers, label: "Categories" },
+] as const;
 
 export function HeroSection({ stats }: { stats: HeroStats }) {
-  const statValues = [
-    stats.modelCount,
-    stats.categoryCount,
-    stats.providerCount,
-    stats.benchmarkCount,
-  ];
+  const statEntries = STAT_CONFIGS.filter(
+    (s) => stats[s.key as keyof HeroStats] != null && stats[s.key as keyof HeroStats]! > 0
+  ).slice(0, 6);
 
   return (
     <section className="relative overflow-hidden border-b border-border/50" style={{ minHeight: "85vh" }}>
@@ -96,24 +108,27 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
 
         {/* Stats Row */}
         <div
-          className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-4 stagger-children animate-slide-up"
+          className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 stagger-children animate-slide-up"
           style={{ animationDelay: "400ms" }}
         >
-          {statValues.map((value, i) => {
-            const Icon = STAT_ICONS[i];
+          {statEntries.map((stat) => {
+            const Icon = stat.icon;
+            const value = stats[stat.key as keyof HeroStats] ?? 0;
             return (
               <Card
-                key={STAT_LABELS[i]}
+                key={stat.key}
                 className="border-border/50 bg-card/30 backdrop-blur-md hover:bg-card/50 transition-all duration-300 hover:border-neon/20"
               >
                 <CardContent className="flex items-center gap-3 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neon/10">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon/10">
                     <Icon className="h-5 w-5 text-neon" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold tabular-nums">{value}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {STAT_LABELS[i]}
+                  <div className="min-w-0">
+                    <p className="text-xl font-bold tabular-nums truncate lg:text-2xl">
+                      {formatStatValue(value)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {stat.label}
                     </p>
                   </div>
                 </CardContent>
