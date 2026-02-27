@@ -27,6 +27,7 @@ export const env = {
   // ── Data source adapter API keys (all optional) ───────────────────
   REPLICATE_API_TOKEN: getEnvVar("REPLICATE_API_TOKEN", false),
   OPENAI_API_KEY: getEnvVar("OPENAI_API_KEY", false),
+  ANTHROPIC_API_KEY: getEnvVar("ANTHROPIC_API_KEY", false),
   GOOGLE_AI_API_KEY: getEnvVar("GOOGLE_AI_API_KEY", false),
   HUGGINGFACE_API_TOKEN: getEnvVar("HUGGINGFACE_API_TOKEN", false),
   CIVITAI_API_KEY: getEnvVar("CIVITAI_API_KEY", false),

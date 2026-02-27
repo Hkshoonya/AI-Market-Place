@@ -14,7 +14,7 @@ import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
  * Artificial Analysis public leaderboard API.
  *
  * Primary: GET https://artificialanalysis.ai/api/leaderboard
- * Fallback: Curated benchmark dataset updated with releases.
+ * No fallback — sync fails if the API is unreachable or returns empty data.
  */
 
 interface AAModel {
@@ -31,25 +31,6 @@ interface AAModel {
   last_updated?: string;
 }
 
-/** Curated fallback data when API is unavailable */
-const FALLBACK_DATA: AAModel[] = [
-  { model_name: "GPT-4o", provider: "OpenAI", quality_index: 83, speed_index: 72, price_per_million_tokens: 5.0, output_tokens_per_second: 95, context_window: 128000, mmlu_score: 88.7, humaneval_score: 90.2 },
-  { model_name: "GPT-4o-mini", provider: "OpenAI", quality_index: 72, speed_index: 88, price_per_million_tokens: 0.15, output_tokens_per_second: 140, context_window: 128000, mmlu_score: 82.0, humaneval_score: 87.0 },
-  { model_name: "Claude 4 Opus", provider: "Anthropic", quality_index: 86, speed_index: 55, price_per_million_tokens: 15.0, output_tokens_per_second: 48, context_window: 200000, mmlu_score: 89.5, humaneval_score: 92.0 },
-  { model_name: "Claude 4 Sonnet", provider: "Anthropic", quality_index: 82, speed_index: 74, price_per_million_tokens: 3.0, output_tokens_per_second: 90, context_window: 200000, mmlu_score: 87.0, humaneval_score: 89.5 },
-  { model_name: "Claude 3.5 Haiku", provider: "Anthropic", quality_index: 68, speed_index: 92, price_per_million_tokens: 0.25, output_tokens_per_second: 160, context_window: 200000, mmlu_score: 78.0, humaneval_score: 82.0 },
-  { model_name: "Gemini 2.5 Pro", provider: "Google", quality_index: 84, speed_index: 68, price_per_million_tokens: 7.0, output_tokens_per_second: 85, context_window: 1000000, mmlu_score: 88.2, humaneval_score: 88.0 },
-  { model_name: "Gemini 2.0 Flash", provider: "Google", quality_index: 74, speed_index: 90, price_per_million_tokens: 0.10, output_tokens_per_second: 150, context_window: 1000000, mmlu_score: 82.5, humaneval_score: 83.0 },
-  { model_name: "DeepSeek-R1", provider: "DeepSeek", quality_index: 80, speed_index: 65, price_per_million_tokens: 2.19, output_tokens_per_second: 70, context_window: 128000, mmlu_score: 86.0, humaneval_score: 90.0 },
-  { model_name: "DeepSeek-V3", provider: "DeepSeek", quality_index: 76, speed_index: 78, price_per_million_tokens: 0.27, output_tokens_per_second: 110, context_window: 128000, mmlu_score: 83.5, humaneval_score: 85.0 },
-  { model_name: "Llama 4 Maverick", provider: "Meta", quality_index: 78, speed_index: 80, price_per_million_tokens: 0.50, output_tokens_per_second: 120, context_window: 128000, mmlu_score: 84.0, humaneval_score: 86.0 },
-  { model_name: "Llama 3.3 70B", provider: "Meta", quality_index: 72, speed_index: 82, price_per_million_tokens: 0.40, output_tokens_per_second: 100, context_window: 128000, mmlu_score: 81.0, humaneval_score: 82.5 },
-  { model_name: "Mistral Large 2", provider: "Mistral", quality_index: 75, speed_index: 70, price_per_million_tokens: 2.0, output_tokens_per_second: 80, context_window: 128000, mmlu_score: 83.0, humaneval_score: 84.0 },
-  { model_name: "Grok-3", provider: "xAI", quality_index: 79, speed_index: 72, price_per_million_tokens: 3.0, output_tokens_per_second: 85, context_window: 131072, mmlu_score: 85.0, humaneval_score: 87.0 },
-  { model_name: "Qwen2.5-72B", provider: "Alibaba", quality_index: 73, speed_index: 75, price_per_million_tokens: 0.35, output_tokens_per_second: 95, context_window: 128000, mmlu_score: 82.0, humaneval_score: 83.0 },
-  { model_name: "Command R+", provider: "Cohere", quality_index: 70, speed_index: 68, price_per_million_tokens: 3.0, output_tokens_per_second: 75, context_window: 128000, mmlu_score: 79.0, humaneval_score: 78.0 },
-];
-
 const AA_API = "https://artificialanalysis.ai/api/leaderboard";
 
 const adapter: DataSourceAdapter = {
@@ -64,9 +45,8 @@ const adapter: DataSourceAdapter = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = ctx.supabase as any;
     let models: AAModel[] = [];
-    let usedFallback = false;
 
-    // Try live API first
+    // Fetch live API data — no fallback
     try {
       const headers: Record<string, string> = {
         Accept: "application/json",
@@ -80,23 +60,35 @@ const adapter: DataSourceAdapter = {
         // API may return { models: [...] } or [...] directly
         models = Array.isArray(data) ? data : (data.models ?? data.data ?? []);
       } else {
-        // API returned error — fall back to curated data
-        errors.push({
-          message: `Artificial Analysis API returned ${res.status}, using fallback data`,
-          context: "api_fallback",
-        });
-        models = FALLBACK_DATA;
-        usedFallback = true;
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [{ message: `Artificial Analysis API returned HTTP ${res.status}`, context: "api_error" }],
+          metadata: { source: "live_api" },
+        };
       }
-    } catch {
-      // Network error — fall back to curated data
-      models = FALLBACK_DATA;
-      usedFallback = true;
+    } catch (err) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: `Artificial Analysis API unreachable: ${err instanceof Error ? err.message : "unknown error"}`, context: "network_error" }],
+        metadata: { source: "live_api" },
+      };
     }
 
     if (models.length === 0) {
-      models = FALLBACK_DATA;
-      usedFallback = true;
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "Artificial Analysis API returned empty data", context: "empty_response" }],
+        metadata: { source: "live_api" },
+      };
     }
 
     const recordsProcessed = models.length;
@@ -183,12 +175,12 @@ const adapter: DataSourceAdapter = {
     }
 
     return {
-      success: errors.filter((e) => !e.context?.includes("fallback")).length === 0,
+      success: errors.length === 0,
       recordsProcessed,
       recordsCreated,
       recordsUpdated: 0,
       errors,
-      metadata: { usedFallback, source: usedFallback ? "curated_data" : "live_api" },
+      metadata: { source: "live_api" },
     };
   },
 
@@ -202,15 +194,15 @@ const adapter: DataSourceAdapter = {
         return { healthy: true, latencyMs: Date.now() - start };
       }
       return {
-        healthy: true,
+        healthy: false,
         latencyMs: Date.now() - start,
-        message: `API returned ${res.status} — fallback data available`,
+        message: `API returned ${res.status}`,
       };
     } catch {
       return {
-        healthy: true,
+        healthy: false,
         latencyMs: Date.now() - start,
-        message: "API unreachable — fallback data available",
+        message: "API unreachable",
       };
     }
   },

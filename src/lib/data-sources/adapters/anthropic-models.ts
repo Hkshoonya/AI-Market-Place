@@ -1,9 +1,8 @@
 /**
- * Anthropic Models Adapter (Static Catalog)
+ * Anthropic Models Adapter (Live API)
  *
- * Anthropic does not expose a public model-listing API, so this adapter
- * maintains a hardcoded catalog of known Claude models and upserts them
- * into the models table on each sync.
+ * Fetches the model catalog from the Anthropic /v1/models API endpoint.
+ * Requires ANTHROPIC_API_KEY to be configured — no static fallback.
  */
 
 import type {
@@ -14,171 +13,46 @@ import type {
   HealthCheckResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { upsertBatch } from "../utils";
+import { fetchWithRetry, upsertBatch, makeSlug } from "../utils";
 
-// --------------- Static Catalog ---------------
+// --------------- Anthropic API Types ---------------
 
-interface ClaudeModelEntry {
-  slug: string;
-  name: string;
-  description: string;
-  short_description: string;
-  parameter_count: number | null;
-  context_window: number;
-  release_date: string;
-  status: string;
-  architecture: string;
-  modalities: string[];
-  capabilities: Record<string, boolean>;
+interface AnthropicModelEntry {
+  id: string;
+  type: string;
+  display_name: string;
+  created_at: string;
 }
 
-const CLAUDE_MODELS: ClaudeModelEntry[] = [
-  {
-    slug: "anthropic-claude-4-opus",
-    name: "Claude 4 Opus",
-    description:
-      "Anthropic's most powerful model with exceptional reasoning, analysis, and creative capabilities. Excels at complex, multi-step tasks requiring deep understanding.",
-    short_description:
-      "Most powerful Claude model for complex reasoning tasks.",
-    parameter_count: 2000000000000, // ~2T estimated
-    context_window: 200000,
-    release_date: "2025-03-01",
+interface AnthropicModelsResponse {
+  data: AnthropicModelEntry[];
+  has_more: boolean;
+  first_id: string;
+  last_id: string;
+}
+
+// --------------- Helpers ---------------
+
+const ANTHROPIC_API_BASE = "https://api.anthropic.com/v1";
+
+/** Build a model record from an Anthropic API model entry. */
+function buildRecord(entry: AnthropicModelEntry): Record<string, unknown> {
+  const slug = makeSlug(`anthropic-${entry.id}`);
+
+  return {
+    slug,
+    name: entry.display_name || entry.id,
+    provider: "Anthropic",
+    category: "llm",
     status: "active",
+    description: null,
     architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      analysis: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-4-sonnet",
-    name: "Claude 4 Sonnet",
-    description:
-      "Balanced model offering strong performance with faster response times and lower cost than Opus. Ideal for most production workloads.",
-    short_description:
-      "Balanced Claude model for everyday production use.",
-    parameter_count: 70000000000, // ~70B estimated
-    context_window: 200000,
-    release_date: "2025-05-01",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      analysis: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-3-5-haiku",
-    name: "Claude 3.5 Haiku",
-    description:
-      "Fast, compact model optimized for near-instant responsiveness. Best for high-throughput tasks and simple queries.",
-    short_description:
-      "Fastest Claude model for high-throughput tasks.",
-    parameter_count: 20000000000, // ~20B estimated
-    context_window: 200000,
-    release_date: "2024-10-01",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet",
-    description:
-      "Enhanced mid-tier model with significantly improved coding, reasoning, and vision capabilities over Claude 3 Sonnet.",
-    short_description:
-      "Upgraded Sonnet with strong coding and reasoning.",
-    parameter_count: 70000000000, // ~70B estimated
-    context_window: 200000,
-    release_date: "2024-06-20",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      analysis: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-3-opus",
-    name: "Claude 3 Opus",
-    description:
-      "Previous generation flagship with top-tier intelligence for complex tasks requiring deep analysis and nuanced understanding.",
-    short_description:
-      "Previous-gen flagship for complex analysis.",
-    parameter_count: 137000000000, // ~137B estimated
-    context_window: 200000,
-    release_date: "2024-03-04",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      analysis: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-3-sonnet",
-    name: "Claude 3 Sonnet",
-    description:
-      "Balanced performance and speed for enterprise workloads. Strong at analysis, forecasting, and content generation.",
-    short_description:
-      "Balanced enterprise model for varied workloads.",
-    parameter_count: 70000000000, // ~70B estimated
-    context_window: 200000,
-    release_date: "2024-03-04",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "anthropic-claude-3-haiku",
-    name: "Claude 3 Haiku",
-    description:
-      "Fastest and most compact model in the Claude 3 family. Designed for quick, lightweight interactions at scale.",
-    short_description:
-      "Fastest Claude 3 model for lightweight tasks.",
-    parameter_count: 20000000000, // ~20B estimated
-    context_window: 200000,
-    release_date: "2024-03-14",
-    status: "active",
-    architecture: "transformer",
+    parameter_count: null,
+    context_window: null,
+    release_date: entry.created_at ? entry.created_at.split("T")[0] : null,
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
     modalities: ["text", "image"],
     capabilities: {
       chat: true,
@@ -186,8 +60,9 @@ const CLAUDE_MODELS: ClaudeModelEntry[] = [
       vision: true,
       streaming: true,
     },
-  },
-];
+    data_refreshed_at: new Date().toISOString(),
+  };
+}
 
 // --------------- Adapter ---------------
 
@@ -196,33 +71,94 @@ const adapter: DataSourceAdapter = {
   name: "Anthropic Models",
   outputTypes: ["models"],
   defaultConfig: {},
-  /** No API key needed — this is a static catalog. */
-  requiredSecrets: [],
+  requiredSecrets: ["ANTHROPIC_API_KEY"],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const errors: SyncError[] = [];
-    const now = new Date().toISOString();
+    const apiKey = ctx.secrets.ANTHROPIC_API_KEY;
 
-    // Build records from the static catalog
-    const records: Record<string, unknown>[] = CLAUDE_MODELS.map((model) => ({
-      slug: model.slug,
-      name: model.name,
-      provider: "Anthropic",
-      category: "llm",
-      status: model.status,
-      description: model.description,
-      short_description: model.short_description,
-      architecture: model.architecture,
-      parameter_count: model.parameter_count,
-      context_window: model.context_window,
-      release_date: model.release_date,
-      is_api_available: true,
-      is_open_weights: false,
-      license: "commercial",
-      modalities: model.modalities,
-      capabilities: model.capabilities,
-      data_refreshed_at: now,
-    }));
+    if (!apiKey) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "ANTHROPIC_API_KEY not configured" }],
+      };
+    }
+
+    // Fetch all models with pagination
+    const allModels: AnthropicModelEntry[] = [];
+    let afterId: string | undefined;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const url = new URL(`${ANTHROPIC_API_BASE}/models`);
+        url.searchParams.set("limit", "100");
+        if (afterId) {
+          url.searchParams.set("after_id", afterId);
+        }
+
+        const res = await fetchWithRetry(
+          url.toString(),
+          {
+            headers: {
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01",
+            },
+            signal: ctx.signal,
+          },
+          { signal: ctx.signal }
+        );
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          return {
+            success: false,
+            recordsProcessed: 0,
+            recordsCreated: 0,
+            recordsUpdated: 0,
+            errors: [
+              {
+                message: `Anthropic API returned ${res.status}: ${body.slice(0, 200)}`,
+              },
+            ],
+          };
+        }
+
+        const json: AnthropicModelsResponse = await res.json();
+        const models = json.data ?? [];
+        allModels.push(...models);
+
+        hasMore = json.has_more === true;
+        if (hasMore && json.last_id) {
+          afterId = json.last_id;
+        } else {
+          hasMore = false;
+        }
+      }
+    } catch (err) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch Anthropic models: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+      };
+    }
+
+    // Filter to only Claude models
+    const claudeModels = allModels.filter((m) =>
+      m.id.toLowerCase().includes("claude")
+    );
+
+    // Build records
+    const records = claudeModels.map(buildRecord);
 
     // Upsert into the models table
     const { created, errors: upsertErrors } = await upsertBatch(
@@ -235,24 +171,66 @@ const adapter: DataSourceAdapter = {
 
     return {
       success: errors.length === 0,
-      recordsProcessed: CLAUDE_MODELS.length,
+      recordsProcessed: claudeModels.length,
       recordsCreated: created,
       recordsUpdated: 0,
       errors,
       metadata: {
-        catalogSize: CLAUDE_MODELS.length,
-        source: "static_catalog",
+        source: "anthropic_api",
+        totalFromApi: allModels.length,
+        claudeModelsCount: claudeModels.length,
       },
     };
   },
 
-  async healthCheck(): Promise<HealthCheckResult> {
-    // Static catalog is always healthy — no external dependency.
-    return {
-      healthy: true,
-      latencyMs: 0,
-      message: "Static catalog adapter — always healthy",
-    };
+  async healthCheck(
+    secrets: Record<string, string>
+  ): Promise<HealthCheckResult> {
+    const apiKey = secrets.ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      return {
+        healthy: false,
+        latencyMs: 0,
+        message: "ANTHROPIC_API_KEY not configured",
+      };
+    }
+
+    const start = Date.now();
+    try {
+      const res = await fetchWithRetry(
+        `${ANTHROPIC_API_BASE}/models?limit=1`,
+        {
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+        },
+        { maxRetries: 1 }
+      );
+
+      const latencyMs = Date.now() - start;
+
+      if (res.ok) {
+        return {
+          healthy: true,
+          latencyMs,
+          message: "Anthropic /v1/models API reachable",
+        };
+      }
+
+      return {
+        healthy: false,
+        latencyMs,
+        message: `Anthropic API returned HTTP ${res.status}`,
+      };
+    } catch (err) {
+      return {
+        healthy: false,
+        latencyMs: Date.now() - start,
+        message: `Anthropic API unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
   },
 };
 
