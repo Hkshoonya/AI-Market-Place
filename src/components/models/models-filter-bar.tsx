@@ -26,6 +26,27 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "quality", label: "Quality" },
 ];
 
+const PROVIDER_OPTIONS = [
+  "OpenAI",
+  "Anthropic",
+  "Google",
+  "Meta",
+  "Mistral AI",
+  "xAI",
+  "Stability AI",
+  "Cohere",
+  "DeepSeek",
+  "Microsoft",
+];
+
+const PARAM_RANGES = [
+  { label: "Any", value: "" },
+  { label: "< 10B", value: "0-10" },
+  { label: "10B–70B", value: "10-70" },
+  { label: "70B–200B", value: "70-200" },
+  { label: "> 200B", value: "200+" },
+];
+
 interface ModelsFilterBarProps {
   totalCount: number;
 }
@@ -41,6 +62,19 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentView = searchParams.get("view") ?? "list";
   const currentQuery = searchParams.get("q") ?? "";
   const currentOpenOnly = searchParams.get("open") === "true";
+  const currentProvider = searchParams.get("provider") ?? "";
+  const currentParams = searchParams.get("params") ?? "";
+  const currentHasApi = searchParams.get("api") === "true";
+  const currentLicense = searchParams.get("license") ?? "";
+
+  // Count active filters
+  const activeFilterCount = [
+    currentOpenOnly,
+    currentProvider,
+    currentParams,
+    currentHasApi,
+    currentLicense,
+  ].filter(Boolean).length;
 
   // Local search state for debouncing
   const [searchValue, setSearchValue] = useState(currentQuery);
@@ -161,14 +195,14 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 size="sm"
                 className={cn(
                   "h-9 gap-1.5",
-                  currentOpenOnly && "border-neon/30 text-neon"
+                  activeFilterCount > 0 && "border-neon/30 text-neon"
                 )}
               >
                 <Filter className="h-3.5 w-3.5" />
                 Filters
-                {currentOpenOnly && (
+                {activeFilterCount > 0 && (
                   <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-neon text-[10px] text-black font-bold">
-                    1
+                    {activeFilterCount}
                   </span>
                 )}
               </Button>
@@ -208,6 +242,141 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                     >
                       Open Weights Only
                     </Button>
+                  </div>
+                </div>
+
+                {/* Provider Filter */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Provider
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "cursor-pointer text-xs transition-colors",
+                        !currentProvider
+                          ? "border-neon/30 bg-neon/10 text-neon"
+                          : "border-border/50 text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => updateParams({ provider: null })}
+                    >
+                      All
+                    </Badge>
+                    {PROVIDER_OPTIONS.map((p) => (
+                      <Badge
+                        key={p}
+                        variant="outline"
+                        className={cn(
+                          "cursor-pointer text-xs transition-colors",
+                          currentProvider === p
+                            ? "border-neon/30 bg-neon/10 text-neon"
+                            : "border-border/50 text-muted-foreground hover:text-foreground"
+                        )}
+                        onClick={() =>
+                          updateParams({
+                            provider: currentProvider === p ? null : p,
+                          })
+                        }
+                      >
+                        {p}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Parameter Count Filter */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Parameter Count
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PARAM_RANGES.map((range) => (
+                      <Badge
+                        key={range.value || "any"}
+                        variant="outline"
+                        className={cn(
+                          "cursor-pointer text-xs transition-colors",
+                          currentParams === range.value
+                            ? "border-neon/30 bg-neon/10 text-neon"
+                            : "border-border/50 text-muted-foreground hover:text-foreground"
+                        )}
+                        onClick={() =>
+                          updateParams({
+                            params: range.value || null,
+                          })
+                        }
+                      >
+                        {range.label}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Has API Filter */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    API Access
+                  </label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={!currentHasApi ? "default" : "outline"}
+                      size="sm"
+                      className={
+                        !currentHasApi
+                          ? "bg-neon text-black hover:bg-neon/90"
+                          : ""
+                      }
+                      onClick={() => updateParams({ api: null })}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={currentHasApi ? "default" : "outline"}
+                      size="sm"
+                      className={
+                        currentHasApi
+                          ? "bg-neon text-black hover:bg-neon/90"
+                          : ""
+                      }
+                      onClick={() => updateParams({ api: "true" })}
+                    >
+                      API Available
+                    </Button>
+                  </div>
+                </div>
+
+                {/* License Filter */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    License
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["", "open_source", "commercial", "research_only"].map(
+                      (lic) => (
+                        <Badge
+                          key={lic || "all"}
+                          variant="outline"
+                          className={cn(
+                            "cursor-pointer text-xs transition-colors",
+                            currentLicense === lic
+                              ? "border-neon/30 bg-neon/10 text-neon"
+                              : "border-border/50 text-muted-foreground hover:text-foreground"
+                          )}
+                          onClick={() =>
+                            updateParams({ license: lic || null })
+                          }
+                        >
+                          {lic === ""
+                            ? "All"
+                            : lic === "open_source"
+                              ? "Open Source"
+                              : lic === "commercial"
+                                ? "Commercial"
+                                : "Research Only"}
+                        </Badge>
+                      )
+                    )}
                   </div>
                 </div>
 

@@ -28,15 +28,23 @@ export default async function ModelsPage({
     view?: string;
     page?: string;
     open?: string;
+    provider?: string;
+    params?: string;
+    api?: string;
+    license?: string;
   }>;
 }) {
-  const params = await searchParams;
-  const category = params.category ?? "";
-  const sort = params.sort ?? "rank";
-  const query = params.q ?? "";
-  const view = params.view ?? "list";
-  const page = parseInt(params.page ?? "1", 10);
-  const openOnly = params.open === "true";
+  const p = await searchParams;
+  const category = p.category ?? "";
+  const sort = p.sort ?? "rank";
+  const query = p.q ?? "";
+  const view = p.view ?? "list";
+  const page = parseInt(p.page ?? "1", 10);
+  const openOnly = p.open === "true";
+  const providerFilter = p.provider ?? "";
+  const paramsFilter = p.params ?? "";
+  const apiFilter = p.api === "true";
+  const licenseFilter = p.license ?? "";
 
   const supabase = await createClient();
 
@@ -54,6 +62,35 @@ export default async function ModelsPage({
   // Open weights filter
   if (openOnly) {
     dbQuery = dbQuery.eq("is_open_weights", true);
+  }
+
+  // Provider filter
+  if (providerFilter) {
+    dbQuery = dbQuery.eq("provider", providerFilter);
+  }
+
+  // Parameter count range filter
+  if (paramsFilter) {
+    const billion = 1_000_000_000;
+    if (paramsFilter === "0-10") {
+      dbQuery = dbQuery.lt("parameter_count", 10 * billion);
+    } else if (paramsFilter === "10-70") {
+      dbQuery = dbQuery.gte("parameter_count", 10 * billion).lt("parameter_count", 70 * billion);
+    } else if (paramsFilter === "70-200") {
+      dbQuery = dbQuery.gte("parameter_count", 70 * billion).lt("parameter_count", 200 * billion);
+    } else if (paramsFilter === "200+") {
+      dbQuery = dbQuery.gte("parameter_count", 200 * billion);
+    }
+  }
+
+  // API available filter
+  if (apiFilter) {
+    dbQuery = dbQuery.eq("is_api_available", true);
+  }
+
+  // License filter
+  if (licenseFilter) {
+    dbQuery = dbQuery.eq("license", licenseFilter);
   }
 
   // Text search

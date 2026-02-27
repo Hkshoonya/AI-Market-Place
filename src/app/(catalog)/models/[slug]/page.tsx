@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatNumber, formatParams, formatContextWindow, formatTokenPrice } from "@/lib/format";
 import { ModelActions } from "@/components/models/model-actions";
 import { CommentsSection } from "@/components/models/comments-section";
+import { SimilarModels } from "@/components/models/similar-models";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
 import { QualityTrend } from "@/components/charts/quality-trend";
@@ -94,6 +95,20 @@ export default async function ModelDetailPage({
     .eq("model_id", model.id)
     .order("snapshot_date", { ascending: true });
   const snapshots = (snapshotsRaw as any[] | null) ?? [];
+
+  // Fetch similar models (same category, excluding current model)
+  const { data: similarRaw } = await supabase
+    .from("models")
+    .select(
+      "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, parameter_count, is_open_weights"
+    )
+    .eq("status", "active")
+    .eq("category", model.category)
+    .neq("id", model.id)
+    .order("quality_score", { ascending: false, nullsFirst: false })
+    .limit(5);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const similarModels = (similarRaw as any[] | null) ?? [];
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
   const benchmarkScores = (model.benchmark_scores as {
@@ -471,6 +486,20 @@ export default async function ModelDetailPage({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Similar Models */}
+      {similarModels.length > 0 && (
+        <div className="mt-8">
+          <Card className="border-border/50">
+            <CardContent className="p-6">
+              <SimilarModels
+                models={similarModels}
+                currentCategory={model.category}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Comments */}
       <CommentsSection modelId={model.id} />
