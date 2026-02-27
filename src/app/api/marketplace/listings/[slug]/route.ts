@@ -1,0 +1,107 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  const { data, error } = await supabase
+    .from("marketplace_listings")
+    .select(
+      "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales, seller_bio, seller_website, created_at)"
+    )
+    .eq("slug", slug)
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // Increment view count (fire-and-forget)
+  supabase
+    .from("marketplace_listings")
+    .update({ view_count: (data.view_count || 0) + 1 })
+    .eq("id", data.id)
+    .then();
+
+  return NextResponse.json({ data });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+  const { createClient: createServerClient } = await import(
+    "@/lib/supabase/server"
+  );
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+
+  const { data, error } = await (supabase as any)
+    .from("marketplace_listings")
+    .update(body)
+    .eq("slug", slug)
+    .eq("seller_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      { error: "Not found or not authorized" },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({ data });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+  const { createClient: createServerClient } = await import(
+    "@/lib/supabase/server"
+  );
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { error } = await (supabase as any)
+    .from("marketplace_listings")
+    .delete()
+    .eq("slug", slug)
+    .eq("seller_id", user.id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

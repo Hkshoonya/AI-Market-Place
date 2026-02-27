@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, Save, User } from "lucide-react";
+import { Heart, Save, ShoppingBag, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,6 +210,42 @@ export default function ProfilePage() {
                 </Link>{" "}
                 and bookmark your favorites!
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Seller Section */}
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ShoppingBag className="h-5 w-5 text-neon" />
+              Seller
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {profile?.is_seller ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  You are a registered seller on AI Market Cap.
+                </p>
+                <div className="flex gap-3">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/dashboard/seller">Seller Dashboard</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/sell">Create New Listing</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Start selling your AI models, APIs, and datasets on the marketplace.
+                </p>
+                <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
+                  <Link href="/sell">Start Selling</Link>
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
