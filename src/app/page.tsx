@@ -85,6 +85,16 @@ export default async function HomePage() {
     (providerResult.data as any[])?.map((m) => m.provider)
   ).size;
 
+  // Dynamic category count from active models
+  const categoryResult = await (supabase as any)
+    .from("models")
+    .select("category")
+    .eq("status", "active");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categoryCount = new Set(
+    (categoryResult.data as any[])?.map((m: any) => m.category).filter(Boolean)
+  ).size;
+
   // Aggregate stats: total downloads and HF likes
   const { data: aggregateRaw } = await supabase
     .from("models")
@@ -193,7 +203,7 @@ export default async function HomePage() {
       <HeroSection
         stats={{
           modelCount: modelCount ?? 0,
-          categoryCount: 9,
+          categoryCount: categoryCount || 0,
           providerCount: uniqueProviders,
           benchmarkCount: benchmarkCount ?? 0,
           totalDownloads,

@@ -1,9 +1,8 @@
 /**
- * Google AI Models Adapter
+ * Google AI Models Adapter (Live API Only)
  *
  * Fetches model catalog from the Google Generative Language API
- * (GET /v1beta/models). Falls back to a static catalog when no
- * API key is configured.
+ * (GET /v1beta/models). Requires GOOGLE_AI_API_KEY — no static fallback.
  */
 
 import type {
@@ -31,200 +30,6 @@ interface GoogleModelEntry {
 interface GoogleModelsResponse {
   models: GoogleModelEntry[];
 }
-
-// --------------- Static Fallback Catalog ---------------
-
-interface StaticGoogleModel {
-  slug: string;
-  name: string;
-  modelId: string;
-  description: string;
-  short_description: string;
-  category: string;
-  parameter_count: number | null;
-  context_window: number;
-  release_date: string;
-  status: string;
-  architecture: string;
-  modalities: string[];
-  capabilities: Record<string, boolean>;
-}
-
-const STATIC_GOOGLE_MODELS: StaticGoogleModel[] = [
-  {
-    slug: "google-gemini-2-5-pro",
-    name: "Gemini 2.5 Pro",
-    modelId: "gemini-2.5-pro",
-    description:
-      "Google's most capable thinking model with advanced reasoning, coding, math, and science capabilities.",
-    short_description:
-      "Most capable Gemini model with advanced reasoning.",
-    category: "multimodal",
-    parameter_count: null,
-    context_window: 1048576,
-    release_date: "2025-03-25",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-gemini-2-5-flash",
-    name: "Gemini 2.5 Flash",
-    modelId: "gemini-2.5-flash",
-    description:
-      "Fast, efficient thinking model with strong adaptive reasoning and cost efficiency.",
-    short_description:
-      "Fast thinking model with adaptive reasoning.",
-    category: "multimodal",
-    parameter_count: null,
-    context_window: 1048576,
-    release_date: "2025-04-17",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      reasoning: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-gemini-2-0-flash",
-    name: "Gemini 2.0 Flash",
-    modelId: "gemini-2.0-flash",
-    description:
-      "Next-generation features with superior speed, native tool use, and multimodal generation.",
-    short_description:
-      "Fast Gemini 2.0 model with native tool use.",
-    category: "multimodal",
-    parameter_count: null,
-    context_window: 1048576,
-    release_date: "2025-02-05",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-gemini-1-5-pro",
-    name: "Gemini 1.5 Pro",
-    modelId: "gemini-1.5-pro",
-    description:
-      "Mid-size multimodal model optimized for a wide range of reasoning tasks. Features a breakthrough 2M-token context window.",
-    short_description:
-      "Versatile model with 2M-token context window.",
-    category: "multimodal",
-    parameter_count: null,
-    context_window: 2097152,
-    release_date: "2024-02-15",
-    status: "active",
-    architecture: "transformer-moe",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-gemini-1-5-flash",
-    name: "Gemini 1.5 Flash",
-    modelId: "gemini-1.5-flash",
-    description:
-      "Fast and versatile multimodal model for scaling across diverse tasks. Optimized for speed and efficiency.",
-    short_description:
-      "Fast multimodal model for scalable workloads.",
-    category: "multimodal",
-    parameter_count: null,
-    context_window: 1048576,
-    release_date: "2024-05-24",
-    status: "active",
-    architecture: "transformer-moe",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      coding: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-gemini-1-5-flash-8b",
-    name: "Gemini 1.5 Flash-8B",
-    modelId: "gemini-1.5-flash-8b",
-    description:
-      "Smallest Gemini model optimized for lower intelligence tasks. High volume and lower cost.",
-    short_description:
-      "Compact Gemini model for high-volume tasks.",
-    category: "multimodal",
-    parameter_count: 8000000000, // 8B
-    context_window: 1048576,
-    release_date: "2024-10-03",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text", "image", "audio", "video"],
-    capabilities: {
-      chat: true,
-      function_calling: true,
-      vision: true,
-      streaming: true,
-    },
-  },
-  {
-    slug: "google-text-embedding-004",
-    name: "Text Embedding 004",
-    modelId: "text-embedding-004",
-    description:
-      "Google's text embedding model for generating high-quality vector representations of text.",
-    short_description:
-      "High-quality text embeddings model.",
-    category: "embeddings",
-    parameter_count: null,
-    context_window: 2048,
-    release_date: "2024-03-14",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text"],
-    capabilities: { embeddings: true },
-  },
-  {
-    slug: "google-embedding-001",
-    name: "Embedding 001",
-    modelId: "embedding-001",
-    description:
-      "General-purpose embedding model by Google for retrieval, classification, and clustering tasks.",
-    short_description:
-      "General-purpose Google embedding model.",
-    category: "embeddings",
-    parameter_count: null,
-    context_window: 2048,
-    release_date: "2023-12-13",
-    status: "active",
-    architecture: "transformer",
-    modalities: ["text"],
-    capabilities: { embeddings: true },
-  },
-];
 
 // --------------- Helpers ---------------
 
@@ -303,31 +108,6 @@ function buildRecordFromApi(
   };
 }
 
-/** Build a model record from the static fallback catalog. */
-function buildRecordFromStatic(
-  model: StaticGoogleModel
-): Record<string, unknown> {
-  return {
-    slug: model.slug,
-    name: model.name,
-    provider: "Google",
-    category: model.category,
-    status: model.status,
-    description: model.description,
-    short_description: model.short_description,
-    architecture: model.architecture,
-    parameter_count: model.parameter_count,
-    context_window: model.context_window,
-    release_date: model.release_date,
-    is_api_available: true,
-    is_open_weights: false,
-    license: "commercial",
-    modalities: model.modalities,
-    capabilities: model.capabilities,
-    data_refreshed_at: new Date().toISOString(),
-  };
-}
-
 // --------------- Adapter ---------------
 
 const adapter: DataSourceAdapter = {
@@ -335,59 +115,66 @@ const adapter: DataSourceAdapter = {
   name: "Google AI Models",
   outputTypes: ["models"],
   defaultConfig: {},
-  /**
-   * API key is optional. When provided, models are fetched live.
-   * When absent, the static fallback catalog is used.
-   */
   requiredSecrets: ["GOOGLE_AI_API_KEY"],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const errors: SyncError[] = [];
     const apiKey = ctx.secrets.GOOGLE_AI_API_KEY;
 
-    let records: Record<string, unknown>[];
-    let source: string;
-    let totalFromApi = 0;
-
-    if (apiKey) {
-      // ---- Live API path ----
-      try {
-        const res = await fetchWithRetry(
-          `${GOOGLE_API_BASE}/models?key=${apiKey}`,
-          { signal: ctx.signal },
-          { signal: ctx.signal }
-        );
-
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          // Fall back to static catalog on API failure
-          errors.push({
-            message: `Google AI API returned ${res.status}: ${body.slice(0, 200)}. Falling back to static catalog.`,
-          });
-          records = STATIC_GOOGLE_MODELS.map(buildRecordFromStatic);
-          source = "static_fallback_after_api_error";
-        } else {
-          const json: GoogleModelsResponse = await res.json();
-          const apiModels = json.models ?? [];
-          totalFromApi = apiModels.length;
-          records = apiModels.map(buildRecordFromApi);
-          source = "google_api";
-        }
-      } catch (err) {
-        // Network error — fall back to static catalog
-        errors.push({
-          message: `Failed to fetch Google models: ${err instanceof Error ? err.message : String(err)}. Falling back to static catalog.`,
-        });
-        records = STATIC_GOOGLE_MODELS.map(buildRecordFromStatic);
-        source = "static_fallback_after_network_error";
-      }
-    } else {
-      // ---- No API key — use static catalog ----
-      records = STATIC_GOOGLE_MODELS.map(buildRecordFromStatic);
-      source = "static_catalog";
+    if (!apiKey) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "GOOGLE_AI_API_KEY not configured" }],
+      };
     }
 
-    // ---- Upsert into DB ----
+    let records: Record<string, unknown>[];
+    let totalFromApi = 0;
+
+    try {
+      const res = await fetchWithRetry(
+        `${GOOGLE_API_BASE}/models?key=${apiKey}`,
+        { signal: ctx.signal },
+        { signal: ctx.signal }
+      );
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [
+            {
+              message: `Google AI API returned ${res.status}: ${body.slice(0, 200)}`,
+            },
+          ],
+        };
+      }
+
+      const json: GoogleModelsResponse = await res.json();
+      const apiModels = json.models ?? [];
+      totalFromApi = apiModels.length;
+      records = apiModels.map(buildRecordFromApi);
+    } catch (err) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch Google models: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+      };
+    }
+
+    // Upsert into DB
     const { created, errors: upsertErrors } = await upsertBatch(
       ctx.supabase,
       "models",
@@ -397,15 +184,14 @@ const adapter: DataSourceAdapter = {
     errors.push(...upsertErrors);
 
     return {
-      success: upsertErrors.length === 0,
+      success: errors.length === 0,
       recordsProcessed: records.length,
       recordsCreated: created,
       recordsUpdated: 0,
       errors,
       metadata: {
-        source,
+        source: "google_api",
         totalFromApi,
-        staticCatalogSize: STATIC_GOOGLE_MODELS.length,
         recordCount: records.length,
       },
     };
@@ -416,13 +202,11 @@ const adapter: DataSourceAdapter = {
   ): Promise<HealthCheckResult> {
     const apiKey = secrets.GOOGLE_AI_API_KEY;
 
-    // If no API key, the adapter can still sync via static catalog
     if (!apiKey) {
       return {
-        healthy: true,
+        healthy: false,
         latencyMs: 0,
-        message:
-          "No GOOGLE_AI_API_KEY configured — will use static catalog fallback",
+        message: "GOOGLE_AI_API_KEY not configured",
       };
     }
 
