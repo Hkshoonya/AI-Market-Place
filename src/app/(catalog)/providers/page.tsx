@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getProviderBrand } from "@/lib/constants/providers";
+import { ProviderCharts } from "@/components/charts/provider-charts";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -125,6 +126,16 @@ export default async function ProvidersPage() {
           </Card>
         ))}
       </div>
+
+      {/* Charts */}
+      <ProviderCharts
+        providers={providers.map((p) => ({
+          name: p.provider,
+          models: p.modelCount,
+          downloads: p.totalDownloads,
+          avgQuality: p.avgQuality,
+        }))}
+      />
 
       {/* Provider Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
