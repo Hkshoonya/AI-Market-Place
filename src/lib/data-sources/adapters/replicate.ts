@@ -273,9 +273,7 @@ const adapter: DataSourceAdapter = {
           errors.push(...upsertErrors);
         }
 
-        console.log(
-          `[replicate] Page ${page + 1}/${maxPages}: fetched ${models.length}, upserted ${records.length} (total processed: ${totalProcessed})`
-        );
+        // Progress tracked via SyncResult metadata
 
         // Advance to next cursor page
         nextUrl = data.next ?? null;

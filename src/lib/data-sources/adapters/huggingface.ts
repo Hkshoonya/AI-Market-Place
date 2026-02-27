@@ -256,9 +256,7 @@ const adapter: DataSourceAdapter = {
           errors.push(...upsertErrors);
         }
 
-        console.log(
-          `[huggingface] Page ${page + 1}/${maxPages}: fetched ${models.length}, upserted ${records.length} (total processed: ${totalProcessed})`
-        );
+        // Progress tracked via SyncResult metadata
 
         // If we got fewer models than the page size, there are no more pages
         if (models.length < pageSize) {
