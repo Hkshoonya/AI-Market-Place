@@ -23,8 +23,10 @@ import {
 } from "@/lib/format";
 import { createBrowserClient } from "@supabase/ssr";
 import { ProviderLogo } from "@/components/shared/provider-logo";
-import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
+import { BenchmarkRadarOverlay } from "@/components/charts/benchmark-radar-overlay";
 import { PriceComparison } from "@/components/charts/price-comparison";
+import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
+import { getProviderBrand } from "@/lib/constants/providers";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -577,21 +579,27 @@ export function CompareClient({
 
           {/* Visual Comparison */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Benchmark Radar for first selected model */}
-            {models[0]?.benchmark_scores?.length > 0 && (
+            {/* Overlaid Benchmark Radar for all models */}
+            {models.some((m: any) => (m.benchmark_scores ?? []).length > 0) && (
               <Card className="border-border/50 overflow-hidden">
                 <CardHeader className="bg-secondary/20">
                   <CardTitle className="text-lg">
-                    {models[0].name} - Benchmark Radar
+                    Benchmark Comparison
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <BenchmarkRadar
-                    scores={(models[0].benchmark_scores as any[]).map((bs: any) => ({
-                      benchmark: bs.benchmarks?.name ?? "Unknown",
-                      score: Number(bs.score),
-                      maxScore: Number(bs.benchmarks?.max_score) || 100,
-                    }))}
+                  <BenchmarkRadarOverlay
+                    models={models
+                      .filter((m: any) => (m.benchmark_scores ?? []).length > 0)
+                      .map((m: any, i: number) => ({
+                        modelName: m.name,
+                        color: ["#00d4aa", "#f59e0b", "#ec4899", "#6366f1", "#ef4444"][i % 5],
+                        scores: (m.benchmark_scores as any[]).map((bs: any) => ({
+                          benchmark: bs.benchmarks?.name ?? "Unknown",
+                          score: Number(bs.score),
+                          maxScore: Number(bs.benchmarks?.max_score) || 100,
+                        })),
+                      }))}
                   />
                 </CardContent>
               </Card>
@@ -623,6 +631,51 @@ export function CompareClient({
               </Card>
             )}
           </div>
+
+          {/* Speed vs Cost Scatter */}
+          {models.some((m: any) => {
+            const pricing = m.model_pricing ?? [];
+            return pricing.some(
+              (p: any) =>
+                p.median_output_tokens_per_second != null &&
+                p.input_price_per_million != null
+            );
+          }) && (
+            <Card className="border-border/50 overflow-hidden">
+              <CardHeader className="bg-secondary/20">
+                <CardTitle className="text-lg">Speed vs Cost</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <SpeedCostScatter
+                  data={models
+                    .map((m: any) => {
+                      const pricing = m.model_pricing ?? [];
+                      const best = pricing.find(
+                        (p: any) =>
+                          p.median_output_tokens_per_second != null &&
+                          p.input_price_per_million != null
+                      );
+                      if (!best) return null;
+                      return {
+                        name: m.name,
+                        speed: Number(best.median_output_tokens_per_second),
+                        cost: Number(best.input_price_per_million),
+                        provider: m.provider,
+                        color:
+                          getProviderBrand(m.provider)?.color ?? "#888",
+                      };
+                    })
+                    .filter(Boolean) as {
+                    name: string;
+                    speed: number;
+                    cost: number;
+                    provider: string;
+                    color: string;
+                  }[]}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

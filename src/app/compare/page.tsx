@@ -3,8 +3,10 @@ import { CompareClient } from "./compare-client";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Compare AI Models | AI Market Cap",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Compare AI Models",
   description:
     "Side-by-side comparison of AI models across benchmarks, pricing, speed, and capabilities.",
 };
