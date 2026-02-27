@@ -23,6 +23,8 @@ import {
 } from "@/lib/format";
 import { createBrowserClient } from "@supabase/ssr";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
+import { PriceComparison } from "@/components/charts/price-comparison";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -572,6 +574,55 @@ export function CompareClient({
               </div>
             </CardContent>
           </Card>
+
+          {/* Visual Comparison */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Benchmark Radar for first selected model */}
+            {models[0]?.benchmark_scores?.length > 0 && (
+              <Card className="border-border/50 overflow-hidden">
+                <CardHeader className="bg-secondary/20">
+                  <CardTitle className="text-lg">
+                    {models[0].name} - Benchmark Radar
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <BenchmarkRadar
+                    scores={(models[0].benchmark_scores as any[]).map((bs: any) => ({
+                      benchmark: bs.benchmarks?.name ?? "Unknown",
+                      score: Number(bs.score),
+                      maxScore: Number(bs.benchmarks?.max_score) || 100,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Price Comparison across all models */}
+            {models.some((m: any) => (m.model_pricing ?? []).length > 0) && (
+              <Card className="border-border/50 overflow-hidden">
+                <CardHeader className="bg-secondary/20">
+                  <CardTitle className="text-lg">
+                    Price Comparison
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <PriceComparison
+                    models={models.map((m: any) => {
+                      const pricing = (m.model_pricing as any[]) ?? [];
+                      const cheapest = pricing
+                        .filter((p: any) => p.input_price_per_million != null)
+                        .sort((a: any, b: any) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0];
+                      return {
+                        name: m.name,
+                        inputPrice: cheapest?.input_price_per_million ?? null,
+                        outputPrice: cheapest?.output_price_per_million ?? null,
+                      };
+                    })}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 

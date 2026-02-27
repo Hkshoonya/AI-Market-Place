@@ -7,13 +7,16 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { ProviderMarketShare } from "@/components/charts/provider-market-share";
+import { CategoryDistribution } from "@/components/charts/category-distribution";
+import { getProviderBrand } from "@/lib/constants/providers";
 
 export const revalidate = 3600;
 
@@ -60,6 +63,51 @@ export default async function HomePage() {
   const uniqueProviders = new Set(
     (providerResult.data as any[])?.map((m) => m.provider)
   ).size;
+
+  // Provider market share data
+  const { data: providerCounts } = await supabase
+    .from("models")
+    .select("provider")
+    .eq("status", "active");
+
+  // Category distribution data
+  const { data: categoryCounts } = await supabase
+    .from("models")
+    .select("category")
+    .eq("status", "active");
+
+  // Aggregate provider counts
+  const providerMap = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (providerCounts ?? []).forEach((m: any) => {
+    providerMap.set(m.provider, (providerMap.get(m.provider) ?? 0) + 1);
+  });
+
+  const providerChartData = Array.from(providerMap.entries())
+    .map(([provider, count]) => ({
+      provider,
+      count,
+      color: getProviderBrand(provider)?.color ?? "#666",
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Aggregate category counts
+  const categoryMap = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (categoryCounts ?? []).forEach((m: any) => {
+    categoryMap.set(m.category, (categoryMap.get(m.category) ?? 0) + 1);
+  });
+
+  const categoryChartData = Array.from(categoryMap.entries())
+    .map(([cat, count]) => {
+      const config = CATEGORIES.find((c) => c.slug === cat);
+      return {
+        category: config?.shortLabel ?? cat,
+        count,
+        color: config?.color ?? "#666",
+      };
+    })
+    .sort((a, b) => b.count - a.count);
 
   return (
     <div className="relative">
@@ -362,6 +410,29 @@ export default async function HomePage() {
               </Card>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* Analytics Section */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <h2 className="text-xl font-bold mb-6">Market Analytics</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="border-border/50 bg-card">
+            <CardHeader>
+              <CardTitle className="text-lg">Provider Market Share</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProviderMarketShare data={providerChartData} />
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 bg-card">
+            <CardHeader>
+              <CardTitle className="text-lg">Models by Category</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CategoryDistribution data={categoryChartData} />
+            </CardContent>
+          </Card>
         </div>
       </section>
 
