@@ -22,6 +22,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber, formatParams, formatContextWindow, formatTokenPrice } from "@/lib/format";
 import { ModelActions } from "@/components/models/model-actions";
+import { CommentsSection } from "@/components/models/comments-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 
@@ -166,7 +167,7 @@ export default async function ModelDetailPage({
               </a>
             </Button>
           )}
-          <ModelActions modelSlug={model.slug} modelName={model.name} />
+          <ModelActions modelSlug={model.slug} modelName={model.name} modelId={model.id} />
         </div>
       </div>
 
@@ -395,6 +396,9 @@ export default async function ModelDetailPage({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Comments */}
+      <CommentsSection modelId={model.id} />
     </div>
   );
 }
