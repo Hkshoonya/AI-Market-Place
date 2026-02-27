@@ -22,6 +22,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber, formatParams, formatContextWindow, formatTokenPrice } from "@/lib/format";
 import { ModelActions } from "@/components/models/model-actions";
+import { ShareModel } from "@/components/models/share-model";
 import { CommentsSection } from "@/components/models/comments-section";
 import { SimilarModels } from "@/components/models/similar-models";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -261,6 +262,7 @@ export default async function ModelDetailPage({
             </Button>
           )}
           <ModelActions modelSlug={model.slug} modelName={model.name} modelId={model.id} />
+          <ShareModel modelSlug={model.slug} modelName={model.name} provider={model.provider} />
         </div>
       </div>
 
