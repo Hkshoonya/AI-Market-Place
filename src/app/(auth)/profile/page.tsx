@@ -10,6 +10,7 @@ import {
   Heart,
   LayoutDashboard,
   Save,
+  Settings,
   Shield,
   ShoppingBag,
   User,
@@ -192,6 +193,17 @@ export default function ProfilePage() {
             </span>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 shrink-0"
+          asChild
+        >
+          <Link href="/settings">
+            <Settings className="h-4 w-4" />
+            Settings
+          </Link>
+        </Button>
       </div>
 
       <div className="space-y-6">
