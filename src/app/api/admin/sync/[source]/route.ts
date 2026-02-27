@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
+import { runSingleSync } from "@/lib/data-sources/orchestrator";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+// POST /api/admin/sync/[source] — manually trigger sync for one source
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ source: string }> }
+) {
+  const { source } = await params;
+
+  const ip = getClientIp(request);
+  const rl = rateLimit(`admin-sync-trigger:${ip}`, RATE_LIMITS.write);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.is_admin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const result = await runSingleSync(source);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
+  }
+}

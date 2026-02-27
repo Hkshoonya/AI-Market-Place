@@ -181,6 +181,61 @@ export interface Tag {
   tag_group: string | null;
 }
 
+// Data Aggregation types
+export type DataSourceSyncStatus = "success" | "partial" | "failed";
+
+export interface DataSource {
+  id: number;
+  slug: string;
+  name: string;
+  adapter_type: string;
+  description: string | null;
+  is_enabled: boolean;
+  tier: number;
+  sync_interval_hours: number;
+  priority: number;
+  config: Record<string, unknown>;
+  secret_env_keys: string[];
+  output_types: string[];
+  last_sync_at: string | null;
+  last_sync_status: DataSourceSyncStatus | null;
+  last_sync_records: number;
+  last_error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModelNews {
+  id: string;
+  source: string;
+  source_id: string;
+  title: string;
+  summary: string | null;
+  url: string;
+  published_at: string;
+  category: string;
+  related_model_ids: string[] | null;
+  related_provider: string | null;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SyncJob {
+  id: string;
+  source: string;
+  job_type: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  records_processed: number | null;
+  records_created: number | null;
+  records_updated: number | null;
+  error_message: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
 // Auth & Community types
 export interface Profile {
   id: string;
@@ -654,6 +709,21 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<NotificationPreferences>;
+      };
+      data_sources: {
+        Row: DataSource;
+        Insert: Partial<DataSource> & Pick<DataSource, "slug" | "name" | "adapter_type">;
+        Update: Partial<DataSource>;
+      };
+      model_news: {
+        Row: ModelNews;
+        Insert: Partial<ModelNews> & Pick<ModelNews, "source" | "source_id" | "title" | "url" | "published_at">;
+        Update: Partial<ModelNews>;
+      };
+      sync_jobs: {
+        Row: SyncJob;
+        Insert: Partial<SyncJob> & Pick<SyncJob, "source" | "job_type" | "status">;
+        Update: Partial<SyncJob>;
       };
     };
     Views: Record<string, never>;
