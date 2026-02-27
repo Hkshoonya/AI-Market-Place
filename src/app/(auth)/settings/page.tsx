@@ -58,6 +58,8 @@ export default function SettingsPage() {
   // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Notification preferences
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
@@ -172,6 +174,29 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE" }),
+      });
+      if (res.ok) {
+        router.push("/?deleted=true");
+      } else {
+        const json = await res.json();
+        setDeleteError(json.error || "Failed to delete account.");
+      }
+    } catch {
+      setDeleteError("An unexpected error occurred.");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const toggleNotifPref = (key: keyof NotifPrefs) => {
@@ -571,12 +596,20 @@ export default function SettingsPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      disabled={deleteConfirmText !== "DELETE"}
+                      disabled={deleteConfirmText !== "DELETE" || deleteLoading}
                       className="gap-2"
+                      onClick={handleDeleteAccount}
                     >
-                      <Trash2 className="h-4 w-4" />
-                      Permanently Delete
+                      {deleteLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      {deleteLoading ? "Deleting..." : "Permanently Delete"}
                     </Button>
+                    {deleteError && (
+                      <p className="text-xs text-loss mt-2">{deleteError}</p>
+                    )}
                   </div>
                 </div>
               )}

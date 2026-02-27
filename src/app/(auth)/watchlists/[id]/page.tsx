@@ -3,11 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit3, Eye, Globe, Lock, Save, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Edit3, Eye, Globe, Lock, Save, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
 import { WatchlistModelTable } from "@/components/watchlists/watchlist-model-table";
+
+interface WatchlistModel {
+  id: string;
+  name: string;
+  provider: string;
+  slug: string;
+  category: string;
+  overall_rank: number | null;
+  quality_score: number | null;
+  hf_downloads: number;
+  hf_likes: number;
+  release_date: string | null;
+  parameter_count: number | null;
+  context_window: number | null;
+  is_open_weights: boolean;
+}
 
 interface WatchlistDetail {
   id: string;
@@ -17,8 +33,12 @@ interface WatchlistDetail {
   is_public: boolean;
   created_at: string;
   updated_at: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  watchlist_items: any[];
+  watchlist_items: {
+    id: string;
+    model_id: string;
+    added_at: string;
+    models: WatchlistModel | null;
+  }[];
 }
 
 export default function WatchlistDetailPage() {
@@ -154,6 +174,34 @@ export default function WatchlistDetailPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!watchlist?.watchlist_items?.length) return;
+    const headers = ["Name", "Provider", "Category", "Rank", "Quality Score", "Downloads", "Likes"];
+    const rows = watchlist.watchlist_items
+      .filter((item: WatchlistDetail["watchlist_items"][0]) => item.models != null)
+      .map((item: WatchlistDetail["watchlist_items"][0]) => {
+        const m = item.models!;
+        return [
+          m.name ?? "",
+          m.provider ?? "",
+          m.category ?? "",
+          m.overall_rank ?? "",
+          m.quality_score ?? "",
+          m.hf_downloads ?? "",
+          m.hf_likes ?? "",
+        ].join(",");
+      });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${watchlist.name.replace(/[^a-zA-Z0-9]/g, "_")}_watchlist.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToast("Watchlist exported as CSV");
+  };
+
   if (loading || authLoading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16">
@@ -240,6 +288,17 @@ export default function WatchlistDetailPage() {
 
               {isOwner && (
                 <div className="flex gap-2">
+                  {watchlist.watchlist_items?.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleExportCSV}
+                    >
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
+                  )}
                   {watchlist.is_public && (
                     <Button
                       variant="outline"
