@@ -17,15 +17,26 @@ export const revalidate = 3600;
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("marketplace_listings")
-    .select("title, short_description")
+    .select("title, short_description, listing_type")
     .eq("slug", slug)
     .single();
 
+  const title = data?.title || "Marketplace Listing";
+  const description =
+    data?.short_description ||
+    `Browse this ${data?.listing_type?.replace(/_/g, " ") ?? "AI"} listing on the AI Market Cap marketplace.`;
+
   return {
-    title: data?.title || "Listing",
-    description: data?.short_description || "AI Marketplace listing",
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+    },
   };
 }
 
