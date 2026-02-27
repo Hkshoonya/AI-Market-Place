@@ -4,6 +4,7 @@ import {
   Flame,
   Layers,
   Rocket,
+  Scale,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -66,6 +67,43 @@ export default async function HomePage() {
     (providerResult.data as any[])?.map((m) => m.provider)
   ).size;
 
+  // Aggregate stats: total downloads and HF likes
+  const { data: aggregateRaw } = await supabase
+    .from("models")
+    .select("hf_downloads, hf_likes")
+    .eq("status", "active");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aggregateData = aggregateRaw as any[] | null;
+  const totalDownloads = (aggregateData ?? []).reduce(
+    (sum, m) => sum + (Number(m.hf_downloads) || 0),
+    0
+  );
+  const totalLikes = (aggregateData ?? []).reduce(
+    (sum, m) => sum + (Number(m.hf_likes) || 0),
+    0
+  );
+
+  // Market overview aggregates
+  const { count: openWeightCount } = await supabase
+    .from("models")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("is_open_weights", true);
+
+  const { data: qualityScoresRaw } = await supabase
+    .from("models")
+    .select("quality_score")
+    .eq("status", "active")
+    .not("quality_score", "is", null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const qualityScores = (qualityScoresRaw as any[] | null) ?? [];
+  const avgQualityScore =
+    qualityScores.length > 0
+      ? qualityScores.reduce((sum, m) => sum + Number(m.quality_score), 0) / qualityScores.length
+      : 0;
+
   // Provider market share data
   const { data: providerCounts } = await supabase
     .from("models")
@@ -120,6 +158,8 @@ export default async function HomePage() {
           categoryCount: 9,
           providerCount: uniqueProviders,
           benchmarkCount: benchmarkCount ?? 0,
+          totalDownloads,
+          totalLikes,
         }}
       />
 
@@ -282,6 +322,54 @@ export default async function HomePage() {
               })}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* Market Overview */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="flex items-center gap-3 mb-6">
+          <Scale className="h-5 w-5 text-neon" />
+          <h2 className="text-xl font-bold">Market Overview</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="border-border/50 bg-card">
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">Total Models</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">{modelCount ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                across {uniqueProviders} providers
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 bg-card">
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">Avg Quality Score</p>
+              <p className="text-3xl font-bold tabular-nums mt-1 text-neon">
+                {avgQualityScore > 0 ? avgQualityScore.toFixed(1) : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                out of 100 across {qualityScores.length} models
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 bg-card">
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">Open Weight Models</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">{openWeightCount ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {modelCount ? ((((openWeightCount ?? 0) / modelCount) * 100).toFixed(0)) : 0}% of tracked models
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 bg-card">
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">Total Downloads</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">{formatNumber(totalDownloads)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatNumber(totalLikes)} community likes
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
