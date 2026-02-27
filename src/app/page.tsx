@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Flame,
   Layers,
   Rocket,
   TrendingUp,
@@ -16,6 +17,7 @@ import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ProviderMarketShare } from "@/components/charts/provider-market-share";
 import { CategoryDistribution } from "@/components/charts/category-distribution";
+import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
 
 export const revalidate = 3600;
@@ -374,6 +376,21 @@ export default async function HomePage() {
             );
           })}
         </div>
+      </section>
+
+      {/* Trending Section */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flame className="h-5 w-5 text-neon" />
+              Trending Models
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TrendingModels limit={8} />
+          </CardContent>
+        </Card>
       </section>
 
       {/* Categories Grid */}
