@@ -12,6 +12,7 @@ import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { ReportListingButton } from "@/components/marketplace/report-listing-button";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
+import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -58,8 +59,55 @@ export default async function ListingDetailPage(props: {
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
+  // Build JSON-LD Product structured data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jsonLd: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: listing.title,
+    description: listing.short_description || listing.description?.slice(0, 200) || "",
+    url: `${SITE_URL}/marketplace/${slug}`,
+    category: typeConfig?.label || listing.listing_type?.replace(/_/g, " ") || "AI Product",
+  };
+
+  if (listing.profiles?.display_name) {
+    jsonLd.brand = {
+      "@type": "Organization",
+      name: listing.profiles.display_name,
+    };
+  }
+
+  if (listing.pricing_type === "free") {
+    jsonLd.offers = {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  } else if (listing.price && listing.pricing_type !== "contact") {
+    jsonLd.offers = {
+      "@type": "Offer",
+      price: String(listing.price),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  }
+
+  if (listing.avg_rating && listing.review_count > 0) {
+    jsonLd.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: String(Number(listing.avg_rating).toFixed(1)),
+      bestRating: "5",
+      reviewCount: String(listing.review_count),
+    };
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <ViewTracker listingId={listing.id} />
       <Link
         href="/marketplace/browse"

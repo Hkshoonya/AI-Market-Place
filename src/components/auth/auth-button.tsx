@@ -50,6 +50,7 @@ export function AuthButton() {
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-full"
+          aria-label={`User menu for ${displayName}`}
         >
           {avatarUrl ? (
             <img

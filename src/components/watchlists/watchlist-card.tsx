@@ -40,9 +40,9 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
               {watchlist.name}
             </h3>
             {watchlist.is_public ? (
-              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" aria-label="Public watchlist" />
             ) : (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+              <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Private watchlist" />
             )}
           </div>
 
@@ -87,8 +87,9 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
               onDelete(watchlist.id);
             }}
             disabled={deleting}
+            aria-label={`Delete watchlist ${watchlist.name}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>

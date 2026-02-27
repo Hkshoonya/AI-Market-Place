@@ -71,7 +71,7 @@ function LoginFormInner() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss">
+            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">
               {error}
             </div>
           )}
@@ -112,6 +112,8 @@ function LoginFormInner() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="bg-secondary"
+              aria-label="Email address"
+              autoComplete="email"
             />
             <Input
               type="password"
@@ -120,6 +122,8 @@ function LoginFormInner() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="bg-secondary"
+              aria-label="Password"
+              autoComplete="current-password"
             />
             <Button
               type="submit"

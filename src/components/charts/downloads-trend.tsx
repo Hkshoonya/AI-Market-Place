@@ -48,16 +48,9 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#999", fontSize: 12, margin: 0 }}>{label}</p>
-      <p style={{ color: "#00d4aa", fontSize: 14, fontWeight: 600, margin: "4px 0 0" }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-xs text-[#999]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#00d4aa]">
         {formatFullNumber(payload[0].value)} downloads
       </p>
     </div>
@@ -75,14 +68,14 @@ export function DownloadsTrend({ snapshots }: DownloadsTrendProps) {
 
   if (validData.length < 2) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         Not enough download data to display trend
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Downloads trend chart showing ${validData.length} data points over time`}>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={validData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>

@@ -437,6 +437,7 @@ export default function SettingsForm() {
                           type="button"
                           role="switch"
                           aria-checked={notifPrefs[item.key]}
+                          aria-label={item.label}
                           onClick={() => toggleNotifPref(item.key)}
                           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
                             notifPrefs[item.key] ? "bg-neon" : "bg-secondary"
@@ -477,6 +478,7 @@ export default function SettingsForm() {
                           type="button"
                           role="switch"
                           aria-checked={notifPrefs[item.key]}
+                          aria-label={item.label}
                           onClick={() => toggleNotifPref(item.key)}
                           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
                             notifPrefs[item.key] ? "bg-neon" : "bg-secondary"
@@ -581,6 +583,7 @@ export default function SettingsForm() {
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     className="bg-secondary"
+                    aria-label="Type DELETE to confirm account deletion"
                   />
                   <div className="flex gap-2">
                     <Button

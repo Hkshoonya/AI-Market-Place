@@ -51,15 +51,16 @@ export function Pagination({ totalCount, pageSize, basePath = "/models" }: Pagin
   };
 
   return (
-    <div className="mt-6 flex items-center justify-center gap-1">
+    <nav className="mt-6 flex items-center justify-center gap-1" aria-label="Pagination">
       <Button
         variant="outline"
         size="icon"
         className="h-9 w-9"
         disabled={currentPage <= 1}
         onClick={() => goToPage(currentPage - 1)}
+        aria-label="Go to previous page"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </Button>
 
       {getVisiblePages().map((page, i) =>
@@ -81,6 +82,8 @@ export function Pagination({ totalCount, pageSize, basePath = "/models" }: Pagin
                 "border-neon/30 bg-neon/10 text-neon hover:bg-neon/20"
             )}
             onClick={() => goToPage(page)}
+            aria-label={`Page ${page}`}
+            aria-current={page === currentPage ? "page" : undefined}
           >
             {page}
           </Button>
@@ -93,9 +96,10 @@ export function Pagination({ totalCount, pageSize, basePath = "/models" }: Pagin
         className="h-9 w-9"
         disabled={currentPage >= totalPages}
         onClick={() => goToPage(currentPage + 1)}
+        aria-label="Go to next page"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
-    </div>
+    </nav>
   );
 }

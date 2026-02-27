@@ -156,10 +156,7 @@ export default async function LeaderboardsPage() {
                         <div className="flex items-center gap-1">
                           {rank <= 3 && (
                             <Crown
-                              className="h-3.5 w-3.5"
-                              style={{
-                                color: rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : "#CD7F32",
-                              }}
+                              className={`h-3.5 w-3.5 ${rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : "text-[#CD7F32]"}`}
                             />
                           )}
                           <span className={`text-sm font-bold tabular-nums ${rank <= 3 ? "text-neon" : "text-muted-foreground"}`}>

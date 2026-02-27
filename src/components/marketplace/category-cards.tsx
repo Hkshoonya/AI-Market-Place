@@ -11,7 +11,7 @@ export function CategoryCards({ counts }: CategoryCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
       {LISTING_TYPES.map((type) => (
-        <Link key={type.slug} href={`/marketplace/browse?type=${type.slug}`}>
+        <Link key={type.slug} href={`/marketplace/browse?type=${type.slug}`} aria-label={`${type.label}: ${counts[type.slug] || 0} listings`}>
           <Card className="group h-full cursor-pointer border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
             <CardContent className="flex flex-col items-center p-4 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neon/10">

@@ -38,16 +38,9 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#999", fontSize: 12, margin: 0 }}>{label}</p>
-      <p style={{ color: "#00d4aa", fontSize: 14, fontWeight: 600, margin: "4px 0 0" }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-xs text-[#999]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#00d4aa]">
         {payload[0].value.toFixed(1)}
       </p>
     </div>
@@ -65,14 +58,14 @@ export function QualityTrend({ snapshots, modelName }: QualityTrendProps) {
 
   if (validData.length < 2) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         Not enough data to display trend
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Quality score trend chart${modelName ? ` for ${modelName}` : ""} showing ${validData.length} data points over time`}>
       {modelName && (
         <p className="mb-2 text-sm text-muted-foreground">{modelName}</p>
       )}

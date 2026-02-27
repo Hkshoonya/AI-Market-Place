@@ -31,9 +31,9 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5" aria-label="AI Market Cap - Home">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neon/10">
-            <Activity className="h-5 w-5 text-neon" />
+            <Activity className="h-5 w-5 text-neon" aria-hidden="true" />
           </div>
           <span className="text-lg font-bold tracking-tight">
             AI Market <span className="text-neon">Cap</span>
@@ -41,7 +41,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -79,13 +79,13 @@ export function Header() {
           {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden">
-                <Menu className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" aria-label="Open navigation menu">
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72 bg-background">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-              <nav className="mt-8 flex flex-col gap-2">
+              <nav className="mt-8 flex flex-col gap-2" aria-label="Mobile navigation">
                 {NAV_ITEMS.map((item) => {
                   const isActive = pathname.startsWith(item.href);
                   return (

@@ -59,7 +59,7 @@ export function ProviderCharts({ providers }: { providers: ProviderChartData[] }
             Market Share by Models
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent role="img" aria-label={`Pie chart showing market share distribution across ${pieData.length} providers`}>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
@@ -102,7 +102,7 @@ export function ProviderCharts({ providers }: { providers: ProviderChartData[] }
               Average Quality Score
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent role="img" aria-label={`Bar chart comparing average quality scores across ${qualityData.length} providers`}>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={qualityData} layout="vertical" margin={{ left: 0, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />

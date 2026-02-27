@@ -52,7 +52,7 @@ export default function ForgotPasswordForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss">
+            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">
               {error}
             </div>
           )}
@@ -87,6 +87,8 @@ export default function ForgotPasswordForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-secondary"
+                aria-label="Email address"
+                autoComplete="email"
               />
               <Button
                 type="submit"

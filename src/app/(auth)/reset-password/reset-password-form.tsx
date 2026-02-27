@@ -67,7 +67,7 @@ export default function ResetPasswordForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss">
+            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">
               {error}
             </div>
           )}
@@ -82,12 +82,13 @@ export default function ResetPasswordForm() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="reset-new-password" className="text-sm font-medium text-muted-foreground">
                   New Password
                 </label>
                 <div className="relative mt-1">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                   <Input
+                    id="reset-new-password"
                     type="password"
                     placeholder="At least 6 characters"
                     value={password}
@@ -95,20 +96,23 @@ export default function ResetPasswordForm() {
                     required
                     minLength={6}
                     className="bg-secondary pl-9"
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="reset-confirm-password" className="text-sm font-medium text-muted-foreground">
                   Confirm Password
                 </label>
                 <Input
+                  id="reset-confirm-password"
                   type="password"
                   placeholder="Confirm your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   className="mt-1 bg-secondary"
+                  autoComplete="new-password"
                 />
               </div>
               <Button

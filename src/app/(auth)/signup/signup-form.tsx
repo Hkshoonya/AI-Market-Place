@@ -100,7 +100,7 @@ export default function SignupForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss">
+            <div className="rounded-lg border border-loss/30 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">
               {error}
             </div>
           )}
@@ -139,6 +139,8 @@ export default function SignupForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="bg-secondary"
+              aria-label="Email address"
+              autoComplete="email"
             />
             <Input
               type="password"
@@ -147,6 +149,8 @@ export default function SignupForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="bg-secondary"
+              aria-label="Password, minimum 6 characters"
+              autoComplete="new-password"
             />
             <Input
               type="password"
@@ -155,6 +159,8 @@ export default function SignupForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               className="bg-secondary"
+              aria-label="Confirm password"
+              autoComplete="new-password"
             />
             <Button
               type="submit"

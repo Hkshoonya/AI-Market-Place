@@ -38,18 +38,11 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {data.benchmark}
       </p>
-      <p style={{ color: "#00d4aa", fontSize: 12, margin: "4px 0 0" }}>
+      <p className="mt-1 text-xs text-[#00d4aa]">
         {data.raw} / {data.max} ({data.normalized.toFixed(1)}%)
       </p>
     </div>
@@ -59,7 +52,7 @@ function CustomTooltip({
 export function BenchmarkRadar({ scores, modelName }: BenchmarkRadarProps) {
   if (!scores || scores.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         No benchmark data available
       </div>
     );
@@ -73,7 +66,7 @@ export function BenchmarkRadar({ scores, modelName }: BenchmarkRadarProps) {
   }));
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Benchmark radar chart${modelName ? ` for ${modelName}` : ""} showing scores across ${data.length} benchmarks`}>
       {modelName && (
         <p className="mb-2 text-center text-sm text-muted-foreground">
           {modelName}

@@ -97,10 +97,10 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <Bell className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}>
+          <Bell className="h-4 w-4" aria-hidden="true" />
           {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-neon text-[9px] font-bold text-background">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-neon text-[9px] font-bold text-background" aria-hidden="true">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -118,8 +118,9 @@ export function NotificationBell() {
             <button
               onClick={markAllRead}
               className="flex items-center gap-1 text-xs text-neon hover:underline"
+              aria-label="Mark all notifications as read"
             >
-              <CheckCheck className="h-3 w-3" />
+              <CheckCheck className="h-3 w-3" aria-hidden="true" />
               Mark all read
             </button>
           )}
