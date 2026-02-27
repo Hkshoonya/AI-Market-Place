@@ -32,9 +32,9 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5" aria-label="AI Market Cap - Home">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neon/10">
-                <Activity className="h-5 w-5 text-neon" />
+                <Activity className="h-5 w-5 text-neon" aria-hidden="true" />
               </div>
               <span className="text-lg font-bold tracking-tight">
                 AI Market <span className="text-neon">Cap</span>
@@ -47,7 +47,7 @@ export function Footer() {
 
           {/* Link columns */}
           {Object.entries(FOOTER_LINKS).map(([title, links]) => (
-            <div key={title}>
+            <nav key={title} aria-label={`${title} links`}>
               <h3 className="text-sm font-semibold text-foreground">{title}</h3>
               <ul className="mt-3 space-y-2">
                 {links.map((link) => (
@@ -61,7 +61,7 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
 

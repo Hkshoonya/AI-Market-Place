@@ -32,18 +32,11 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {label}
       </p>
-      <p style={{ color: item.payload.color, fontSize: 12, margin: "4px 0 0" }}>
+      <p className="mt-1 text-xs" style={{ color: item.payload.color }}>
         {item.value} models
       </p>
     </div>
@@ -53,7 +46,7 @@ function CustomTooltip({
 export function CategoryDistribution({ data }: CategoryDistributionProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         No category data available
       </div>
     );
@@ -63,7 +56,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
   const chartHeight = Math.max(300, sorted.length * 36 + 40);
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Category distribution chart showing model counts across ${sorted.length} categories`}>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={sorted}

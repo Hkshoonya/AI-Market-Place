@@ -87,10 +87,11 @@ export function CreateWatchlistDialog({
 
         <div className="space-y-4 pt-2">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
+            <label htmlFor="watchlist-name" className="text-sm font-medium text-muted-foreground">
               Name
             </label>
             <Input
+              id="watchlist-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Top LLMs, Image Models..."
@@ -99,10 +100,11 @@ export function CreateWatchlistDialog({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
+            <label htmlFor="watchlist-description" className="text-sm font-medium text-muted-foreground">
               Description (optional)
             </label>
             <textarea
+              id="watchlist-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What models will you track here?"
@@ -122,7 +124,7 @@ export function CreateWatchlistDialog({
             </span>
           </label>
 
-          {error && <p className="text-sm text-loss">{error}</p>}
+          {error && <p className="text-sm text-loss" role="alert">{error}</p>}
 
           <div className="flex justify-end gap-3">
             <Button

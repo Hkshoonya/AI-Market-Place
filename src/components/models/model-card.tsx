@@ -22,7 +22,7 @@ export function ModelCard({ model }: ModelCardProps) {
     .sort((a, b) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0];
 
   return (
-    <Link href={`/models/${model.slug}`}>
+    <Link href={`/models/${model.slug}`} aria-label={`${model.name} by ${model.provider}${overallRanking?.rank || model.overall_rank ? `, ranked #${overallRanking?.rank ?? model.overall_rank}` : ""}`}>
       <Card className="group relative overflow-hidden border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
         <CardContent className="p-4">
           {/* Top row: rank + category */}

@@ -138,6 +138,7 @@ export function ContactForm({ listing }: ContactFormProps) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
+                aria-label="Your message to the seller"
               />
             </div>
 
@@ -152,7 +153,7 @@ export function ContactForm({ listing }: ContactFormProps) {
               </div>
             )}
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
 
             <DialogFooter>
               <Button

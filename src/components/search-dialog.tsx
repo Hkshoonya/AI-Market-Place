@@ -187,8 +187,9 @@ export function SearchDialog() {
         variant="ghost"
         className="h-9 gap-2 px-3 text-muted-foreground"
         onClick={() => setOpen(true)}
+        aria-label="Open search dialog (Ctrl+K)"
       >
-        <Search className="h-4 w-4" />
+        <Search className="h-4 w-4" aria-hidden="true" />
         <span className="hidden text-xs sm:inline">Search...</span>
         <kbd className="pointer-events-none hidden h-5 select-none items-center gap-0.5 rounded border border-border bg-secondary px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
           <span className="text-xs">⌘</span>K
@@ -203,6 +204,9 @@ export function SearchDialog() {
           onClick={(e) => {
             if (e.target === overlayRef.current) setOpen(false);
           }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search"
         >
           <div className="mx-auto mt-[15vh] w-full max-w-lg px-4">
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
@@ -220,6 +224,10 @@ export function SearchDialog() {
                     setActiveIndex(0);
                   }}
                   onKeyDown={handleKeyDown}
+                  aria-label="Search AI models and marketplace"
+                  role="combobox"
+                  aria-expanded={totalItems > 0}
+                  aria-autocomplete="list"
                 />
                 {loading && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -227,8 +235,9 @@ export function SearchDialog() {
                 <button
                   className="rounded p-1 text-muted-foreground hover:text-foreground"
                   onClick={() => setOpen(false)}
+                  aria-label="Close search"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
 
@@ -248,6 +257,7 @@ export function SearchDialog() {
                             clearRecentSearches();
                             setRecentSearches([]);
                           }}
+                          aria-label="Clear recent searches"
                         >
                           Clear
                         </button>

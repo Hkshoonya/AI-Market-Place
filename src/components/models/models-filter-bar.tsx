@@ -135,6 +135,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
             className="h-10 bg-secondary pl-9 pr-9 text-sm"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
+            aria-label="Search models"
           />
           {searchValue && (
             <button
@@ -143,8 +144,9 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 setSearchValue("");
                 updateParams({ q: null });
               }}
+              aria-label="Clear search"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -397,7 +399,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
           </Sheet>
 
           {/* View Toggle */}
-          <div className="flex rounded-lg border border-border/50">
+          <div className="flex rounded-lg border border-border/50" role="group" aria-label="View mode">
             <Button
               variant="ghost"
               size="icon"
@@ -406,8 +408,10 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 currentView === "list" ? "text-neon" : "text-muted-foreground"
               )}
               onClick={() => updateParams({ view: "list" })}
+              aria-label="List view"
+              aria-pressed={currentView === "list"}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
@@ -417,8 +421,10 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 currentView === "grid" ? "text-neon" : "text-muted-foreground"
               )}
               onClick={() => updateParams({ view: "grid" })}
+              aria-label="Grid view"
+              aria-pressed={currentView === "grid"}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -437,7 +443,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
             </>
           )}
         </p>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="group" aria-label="Sort options">
           Sort by:
           {SORT_OPTIONS.map((opt) => (
             <Badge
@@ -450,6 +456,9 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                   : "border-border/50 hover:border-neon/30 hover:text-foreground"
               )}
               onClick={() => updateParams({ sort: opt.value })}
+              role="button"
+              aria-pressed={currentSort === opt.value}
+              aria-label={`Sort by ${opt.label}`}
             >
               {opt.label}
             </Badge>

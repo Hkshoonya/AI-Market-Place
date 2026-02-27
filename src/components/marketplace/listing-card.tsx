@@ -16,7 +16,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   const sellerName = listing.profiles?.display_name || "Unknown Seller";
 
   return (
-    <Link href={`/marketplace/${listing.slug}`}>
+    <Link href={`/marketplace/${listing.slug}`} aria-label={`${listing.title} by ${sellerName}, ${listing.pricing_type === "free" ? "Free" : listing.pricing_type === "contact" ? "Contact for pricing" : formatCurrency(listing.price)}`}>
       <Card className="group h-full cursor-pointer border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
         <CardContent className="p-5">
           <div className="flex items-center gap-2">

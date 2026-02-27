@@ -44,7 +44,7 @@ export function QualityDistribution({ data }: QualityDistributionProps) {
           Quality Score Distribution
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent role="img" aria-label={`Quality score distribution bar chart showing scores for ${data.length} models`}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} margin={{ left: 0, right: 10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />

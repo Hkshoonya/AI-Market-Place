@@ -44,21 +44,15 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {label}
       </p>
       {payload.map((entry) => (
         <p
           key={entry.dataKey}
-          style={{ color: entry.color, fontSize: 12, margin: "4px 0 0" }}
+          className="mt-1 text-xs"
+          style={{ color: entry.color }}
         >
           {entry.dataKey === "input" ? "Input" : "Output"}: {formatDollar(entry.value)}/M tokens
         </p>
@@ -74,7 +68,7 @@ export function PriceComparison({ models }: PriceComparisonProps) {
 
   if (validModels.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         No pricing data available
       </div>
     );
@@ -89,7 +83,7 @@ export function PriceComparison({ models }: PriceComparisonProps) {
   const chartHeight = Math.max(300, data.length * 50 + 60);
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Price comparison bar chart for ${data.length} models showing input and output pricing`}>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={data}
@@ -117,7 +111,7 @@ export function PriceComparison({ models }: PriceComparisonProps) {
             verticalAlign="top"
             height={32}
             formatter={(value: string) => (
-              <span style={{ color: "#999", fontSize: 12 }}>
+              <span className="text-xs text-[#999]">
                 {value === "input" ? "Input Price" : "Output Price"}
               </span>
             )}

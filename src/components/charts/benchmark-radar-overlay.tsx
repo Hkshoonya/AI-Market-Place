@@ -41,26 +41,15 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-        maxWidth: 250,
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="max-w-[250px] rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {label}
       </p>
       {payload.map((entry, i) => (
         <p
           key={i}
-          style={{
-            color: entry.color,
-            fontSize: 12,
-            margin: "4px 0 0",
-          }}
+          className="mt-1 text-xs"
+          style={{ color: entry.color }}
         >
           {entry.name}: {Number(entry.value).toFixed(1)}%
         </p>
@@ -73,8 +62,7 @@ export function BenchmarkRadarOverlay({ models }: BenchmarkRadarOverlayProps) {
   if (models.length === 0) {
     return (
       <div
-        className="flex items-center justify-center text-muted-foreground"
-        style={{ minHeight: 350 }}
+        className="flex min-h-[350px] items-center justify-center text-muted-foreground"
       >
         No benchmark data available
       </div>
@@ -104,7 +92,7 @@ export function BenchmarkRadarOverlay({ models }: BenchmarkRadarOverlayProps) {
   });
 
   return (
-    <div style={{ minHeight: 350, width: "100%" }}>
+    <div className="min-h-[350px] w-full" role="img" aria-label={`Benchmark comparison radar chart overlaying ${models.length} models across ${allBenchmarks.size} benchmarks`}>
       <ResponsiveContainer width="100%" height={380}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
           <PolarGrid stroke="#333" />

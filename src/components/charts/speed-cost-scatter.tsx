@@ -39,24 +39,17 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {point.name}
       </p>
-      <p style={{ color: "#999", fontSize: 11, margin: "2px 0 0" }}>
+      <p className="mt-0.5 text-[11px] text-[#999]">
         {point.provider}
       </p>
-      <p style={{ color: "#00d4aa", fontSize: 12, margin: "4px 0 0" }}>
+      <p className="mt-1 text-xs text-[#00d4aa]">
         Speed: {point.speed.toLocaleString()} tok/s
       </p>
-      <p style={{ color: "#f59e0b", fontSize: 12, margin: "2px 0 0" }}>
+      <p className="mt-0.5 text-xs text-[#f59e0b]">
         Cost: ${point.cost.toFixed(2)}/M tokens
       </p>
     </div>
@@ -66,7 +59,7 @@ function CustomTooltip({
 export function SpeedCostScatter({ data }: SpeedCostScatterProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         No speed/cost data available
       </div>
     );
@@ -84,7 +77,7 @@ export function SpeedCostScatter({ data }: SpeedCostScatterProps) {
   }
 
   return (
-    <div style={{ minHeight: 300, width: "100%" }}>
+    <div className="min-h-[300px] w-full" role="img" aria-label={`Speed versus cost scatter chart comparing ${data.length} AI models`}>
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
           <CartesianGrid stroke="#333" strokeDasharray="3 3" />

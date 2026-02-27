@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -20,6 +21,23 @@ import { ProviderMarketShare } from "@/components/charts/provider-market-share";
 import { CategoryDistribution } from "@/components/charts/category-distribution";
 import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
+import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
+
+export const metadata: Metadata = {
+  title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+    description: SITE_DESCRIPTION,
+    type: "website",
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+    description: SITE_DESCRIPTION,
+  },
+};
 
 export const revalidate = 3600;
 
@@ -149,8 +167,28 @@ export default async function HomePage() {
     })
     .sort((a, b) => b.count - a.count);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <div className="relative">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* 3D Hero Section — Client Component Island */}
       <HeroSection
         stats={{

@@ -60,18 +60,11 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div
-      style={{
-        backgroundColor: "#0a0a0a",
-        border: "1px solid #333",
-        borderRadius: 8,
-        padding: "8px 12px",
-      }}
-    >
-      <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+    <div className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2">
+      <p className="m-0 text-[13px] font-semibold text-white">
         {item.name}
       </p>
-      <p style={{ color: item.payload.color, fontSize: 12, margin: "4px 0 0" }}>
+      <p className="mt-1 text-xs" style={{ color: item.payload.color }}>
         {item.value} models
       </p>
     </div>
@@ -81,7 +74,7 @@ function CustomTooltip({
 export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+      <div className="flex min-h-[300px] items-center justify-center text-muted-foreground">
         No provider data available
       </div>
     );
@@ -90,7 +83,7 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
-    <div style={{ minHeight: 350, width: "100%", position: "relative" }}>
+    <div className="relative min-h-[350px] w-full" role="img" aria-label={`Provider market share pie chart showing distribution of ${total} models across ${data.length} providers`}>
       <ResponsiveContainer width="100%" height={350}>
         <PieChart>
           <Pie
@@ -114,7 +107,7 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
             verticalAlign="bottom"
             height={36}
             formatter={(value: string) => (
-              <span style={{ color: "#999", fontSize: 12 }}>{value}</span>
+              <span className="text-xs text-[#999]">{value}</span>
             )}
           />
           {/* Center text */}
