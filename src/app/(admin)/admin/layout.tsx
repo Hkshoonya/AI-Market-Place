@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   BarChart3,
   Box,
+  Database,
   LayoutDashboard,
   MessageSquare,
   ShieldCheck,
@@ -22,6 +23,7 @@ const ADMIN_NAV = [
   { href: "/admin/verifications", label: "Verify", icon: ShieldCheck },
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/data-sources", label: "Sources", icon: Database },
 ];
 
 export default function AdminLayout({
