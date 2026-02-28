@@ -106,6 +106,7 @@ function LoginFormInner() {
           {/* Email login */}
           <form onSubmit={handleEmailLogin} className="space-y-3">
             <Input
+              id="login-email"
               type="email"
               placeholder="Email"
               value={email}
@@ -116,6 +117,7 @@ function LoginFormInner() {
               autoComplete="email"
             />
             <Input
+              id="login-password"
               type="password"
               placeholder="Password"
               value={password}

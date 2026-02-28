@@ -133,6 +133,7 @@ export default function SignupForm() {
 
           <form onSubmit={handleSignup} className="space-y-3">
             <Input
+              id="signup-email"
               type="email"
               placeholder="Email"
               value={email}
@@ -143,6 +144,7 @@ export default function SignupForm() {
               autoComplete="email"
             />
             <Input
+              id="signup-password"
               type="password"
               placeholder="Password (min 6 characters)"
               value={password}
@@ -153,6 +155,7 @@ export default function SignupForm() {
               autoComplete="new-password"
             />
             <Input
+              id="signup-confirm-password"
               type="password"
               placeholder="Confirm Password"
               value={confirmPassword}

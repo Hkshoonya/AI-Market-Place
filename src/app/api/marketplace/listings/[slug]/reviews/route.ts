@@ -50,7 +50,10 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch reviews. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data });
@@ -70,7 +73,10 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to leave a review." },
+      { status: 401 }
+    );
   }
 
   const rl = rateLimit(`review-create:${user.id}`, RATE_LIMITS.api);
@@ -123,7 +129,10 @@ export async function POST(
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to submit review. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data }, { status: 201 });

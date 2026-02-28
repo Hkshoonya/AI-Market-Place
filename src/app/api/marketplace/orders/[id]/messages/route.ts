@@ -25,7 +25,10 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to view order messages." },
+      { status: 401 }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +42,10 @@ export async function GET(
     .single();
 
   if (!order || (order.buyer_id !== user.id && order.seller_id !== user.id)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Order not found, or you do not have access to its messages." },
+      { status: 404 }
+    );
   }
 
   // Get messages
@@ -81,7 +87,10 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to send a message." },
+      { status: 401 }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,7 +104,10 @@ export async function POST(
     .single();
 
   if (!order || (order.buyer_id !== user.id && order.seller_id !== user.id)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Order not found, or you do not have permission to send messages." },
+      { status: 404 }
+    );
   }
 
   const body = await request.json();
@@ -116,7 +128,10 @@ export async function POST(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to send message. Please try again later." },
+      { status: 500 }
+    );
   }
 
   // Notify the other party (non-critical, log errors only)

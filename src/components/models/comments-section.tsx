@@ -241,6 +241,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
                 onClick={() => handleUpvote(comment.id)}
                 disabled={!user}
                 title={user ? "Upvote" : "Sign in to upvote"}
+                aria-label={`Upvote comment${comment.upvotes > 0 ? `, ${comment.upvotes} upvotes` : ""}`}
               >
                 <ThumbsUp className="h-3 w-3" />
                 {comment.upvotes > 0 && comment.upvotes}
@@ -292,6 +293,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
                   className="bg-neon text-background hover:bg-neon/90 self-end"
                   onClick={() => submitComment(comment.id)}
                   disabled={submitting || !replyText.trim()}
+                  aria-label="Send reply"
                 >
                   <Send className="h-3 w-3" />
                 </Button>

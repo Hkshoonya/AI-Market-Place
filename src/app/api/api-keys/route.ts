@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const rl = rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {
     return NextResponse.json(
-      { error: "Rate limit exceeded" },
+      { error: "Too many requests. Please wait before trying again." },
       { status: 429, headers: rateLimitHeaders(rl) }
     );
   }
@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to manage API keys." },
+      { status: 401 }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,7 +40,10 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch API keys. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ keys: data ?? [] });
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
   const rl = rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {
     return NextResponse.json(
-      { error: "Rate limit exceeded" },
+      { error: "Too many requests. Please wait before trying again." },
       { status: 429, headers: rateLimitHeaders(rl) }
     );
   }
@@ -60,7 +66,10 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to create an API key." },
+      { status: 401 }
+    );
   }
 
   let body: {
@@ -72,7 +81,10 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON in request body. Please send a valid JSON object." },
+      { status: 400 }
+    );
   }
 
   if (!body.name || body.name.length < 2) {
@@ -130,7 +142,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create API key. Please try again later." },
+      { status: 500 }
+    );
   }
 
   // Return plaintext key ONCE

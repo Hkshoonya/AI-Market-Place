@@ -409,6 +409,9 @@ export default function AdminDataSourcesPage() {
                               ? "bg-neon"
                               : "bg-secondary"
                           }`}
+                          aria-label={`${source.is_enabled ? "Disable" : "Enable"} ${source.name}`}
+                          role="switch"
+                          aria-checked={source.is_enabled}
                         >
                           <span
                             className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background transition-transform ${

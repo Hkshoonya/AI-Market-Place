@@ -82,7 +82,10 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch marketplace listings. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
@@ -104,7 +107,10 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to create a listing." },
+      { status: 401 }
+    );
   }
 
   const rl = rateLimit(`listing-create:${user.id}`, RATE_LIMITS.api);
@@ -180,7 +186,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create listing. Please check your input and try again." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data }, { status: 201 });

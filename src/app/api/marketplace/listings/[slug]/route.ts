@@ -53,7 +53,10 @@ export async function PATCH(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to edit this listing." },
+      { status: 401 }
+    );
   }
 
   const rl = rateLimit(`listing-edit:${user.id}`, RATE_LIMITS.api);
@@ -110,12 +113,15 @@ export async function PATCH(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update listing. Please try again later." },
+      { status: 500 }
+    );
   }
 
   if (!data) {
     return NextResponse.json(
-      { error: "Not found or not authorized" },
+      { error: "Listing not found, or you do not have permission to edit it." },
       { status: 404 }
     );
   }
@@ -137,7 +143,10 @@ export async function DELETE(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to delete this listing." },
+      { status: 401 }
+    );
   }
 
   const rl = rateLimit(`listing-delete:${user.id}`, RATE_LIMITS.api);
@@ -155,7 +164,10 @@ export async function DELETE(
     .eq("seller_id", user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete listing. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ success: true });

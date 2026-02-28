@@ -199,6 +199,7 @@ export default function ApiKeysContent() {
                 <button
                   onClick={copyKey}
                   className="shrink-0 rounded-lg bg-secondary px-3 py-2 transition-colors hover:bg-secondary/80"
+                  aria-label={copied ? "Copied to clipboard" : "Copy API key to clipboard"}
                 >
                   {copied ? (
                     <Check className="h-4 w-4 text-neon" />
@@ -225,10 +226,11 @@ export default function ApiKeysContent() {
           {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+              <label htmlFor="api-key-name" className="mb-1 block text-sm font-medium text-muted-foreground">
                 Key Name
               </label>
               <input
+                id="api-key-name"
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
@@ -267,10 +269,11 @@ export default function ApiKeysContent() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
+              <label htmlFor="api-key-expiry" className="mb-1 block text-sm font-medium text-muted-foreground">
                 Expiration (optional)
               </label>
               <select
+                id="api-key-expiry"
                 value={newKeyExpiry}
                 onChange={(e) => setNewKeyExpiry(e.target.value)}
                 className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:border-neon focus:outline-none"
@@ -368,6 +371,7 @@ export default function ApiKeysContent() {
                       onClick={() => revokeKey(apiKey.id)}
                       className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-400/10 hover:text-red-400"
                       title="Revoke key"
+                      aria-label={`Revoke API key ${apiKey.name}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
