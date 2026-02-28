@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { extractApiKey, validateApiKey, hasScope } from "@/lib/agents/auth";
+import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   findOrCreateConversation,
   sendMessage,
@@ -42,6 +43,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "API key missing 'agent' scope" },
       { status: 403 }
+    );
+  }
+
+  // Rate limit per API key
+  const keyId = auth.keyRecord.id as string;
+  const rl = rateLimit(`agent-chat:${keyId}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: rateLimitHeaders(rl) }
     );
   }
 
