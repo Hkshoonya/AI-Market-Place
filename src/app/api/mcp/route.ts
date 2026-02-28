@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleMcpRequest } from "@/lib/mcp/server";
 import { extractApiKey, validateApiKey } from "@/lib/agents/auth";
+import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import type { JsonRpcRequest } from "@/lib/mcp/types";
 import { JSON_RPC_ERRORS } from "@/lib/mcp/types";
 
@@ -14,7 +15,21 @@ function createServiceClient() {
   );
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Rate limit MCP requests
+  const ip = getClientIp(request);
+  const rl = rateLimit(`mcp:${ip}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      {
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32000, message: "Rate limit exceeded" },
+      },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const supabase = createServiceClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
