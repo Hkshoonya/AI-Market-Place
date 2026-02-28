@@ -99,6 +99,19 @@ export const MCP_TOOLS: McpTool[] = [
       },
     },
   },
+  {
+    name: "send_message",
+    description: "Send a message to a resident agent and get a response (requires 'agent' scope)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agent_slug: { type: "string", description: "Target agent slug (e.g., 'pipeline-engineer', 'code-quality')" },
+        message: { type: "string", description: "Message content to send" },
+        topic: { type: "string", description: "Optional conversation topic" },
+      },
+      required: ["agent_slug", "message"],
+    },
+  },
 ];
 
 /** Execute a tool call and return the result */
@@ -280,6 +293,54 @@ export async function executeTool(
       const { data, error } = await q;
       if (error) throw new Error(error.message);
       return { agents: data ?? [] };
+    }
+
+    case "send_message": {
+      const scopes = (keyRecord?.scopes as string[]) ?? [];
+      if (!scopes.includes("agent")) {
+        throw new Error("Requires 'agent' scope");
+      }
+
+      const agentSlug = params.agent_slug as string;
+      const message = params.message as string;
+      if (!agentSlug || !message) throw new Error("agent_slug and message are required");
+
+      // Import chat utilities dynamically to avoid circular deps
+      const { findOrCreateConversation, sendMessage, generateAgentResponse } =
+        await import("@/lib/agents/chat");
+
+      // Find the target agent
+      const { data: agent, error: agentErr } = await sb
+        .from("agents")
+        .select("id, slug, name, status")
+        .eq("slug", agentSlug)
+        .single();
+
+      if (agentErr || !agent) throw new Error(`Agent "${agentSlug}" not found`);
+      if (agent.status !== "active") throw new Error(`Agent "${agentSlug}" is ${agent.status}`);
+
+      const senderId = (keyRecord?.owner_id as string) ?? "";
+      const senderType = keyRecord?.agent_id ? "agent" : "user";
+
+      const conversation = await findOrCreateConversation(
+        sb, senderId, senderType as "agent" | "user",
+        agent.id, "agent", (params.topic as string) ?? undefined
+      );
+
+      const sent = await sendMessage(
+        sb, conversation.id, senderId,
+        senderType as "agent" | "user", message, "text"
+      );
+
+      const response = await generateAgentResponse(
+        sb, agentSlug, conversation.id, message
+      );
+
+      return {
+        conversation_id: conversation.id,
+        message: sent,
+        response,
+      };
     }
 
     default:

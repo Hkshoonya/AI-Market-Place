@@ -262,6 +262,24 @@ export default function SettingsForm() {
         </div>
       </div>
 
+      {/* Quick links */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Link
+          href="/settings/api-keys"
+          className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-3 text-sm font-medium hover:bg-secondary/50 transition-colors"
+        >
+          <Key className="h-4 w-4 text-neon" />
+          API Keys
+        </Link>
+        <Link
+          href="/profile"
+          className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-3 text-sm font-medium hover:bg-secondary/50 transition-colors"
+        >
+          <User className="h-4 w-4 text-neon" />
+          Edit Profile
+        </Link>
+      </div>
+
       <div className="space-y-6">
         {/* Account info */}
         <Card className="border-border/50 bg-card">
