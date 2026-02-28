@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -232,19 +233,31 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => toggleAdmin(u.id, u.is_admin)}
-                        >
-                          {u.is_admin ? (
-                            <ShieldCheck className="h-3 w-3 text-neon" />
-                          ) : (
-                            <Shield className="h-3 w-3" />
-                          )}
-                          {u.is_admin ? "Remove Admin" : "Make Admin"}
-                        </Button>
+                        <ConfirmDialog
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs gap-1"
+                            >
+                              {u.is_admin ? (
+                                <ShieldCheck className="h-3 w-3 text-neon" />
+                              ) : (
+                                <Shield className="h-3 w-3" />
+                              )}
+                              {u.is_admin ? "Remove Admin" : "Make Admin"}
+                            </Button>
+                          }
+                          title={u.is_admin ? "Remove Admin Role" : "Grant Admin Role"}
+                          description={
+                            u.is_admin
+                              ? "Are you sure you want to remove admin privileges from this user?"
+                              : "Are you sure you want to grant admin privileges to this user? They will have full access to the admin dashboard."
+                          }
+                          confirmLabel={u.is_admin ? "Remove Admin" : "Make Admin"}
+                          variant={u.is_admin ? "destructive" : "default"}
+                          onConfirm={() => toggleAdmin(u.id, u.is_admin)}
+                        />
                         {u.is_seller && (
                           <Button
                             variant="ghost"
@@ -256,15 +269,27 @@ export default function AdminUsersPage() {
                             {u.seller_verified ? "Unverify" : "Verify"}
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 text-xs gap-1 ${u.is_banned ? "text-gain" : "text-loss"}`}
-                          onClick={() => toggleBan(u.id, u.is_banned)}
-                        >
-                          <Ban className="h-3 w-3" />
-                          {u.is_banned ? "Unban" : "Ban"}
-                        </Button>
+                        <ConfirmDialog
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`h-7 px-2 text-xs gap-1 ${u.is_banned ? "text-gain" : "text-loss"}`}
+                            >
+                              <Ban className="h-3 w-3" />
+                              {u.is_banned ? "Unban" : "Ban"}
+                            </Button>
+                          }
+                          title={u.is_banned ? "Unban User" : "Ban User"}
+                          description={
+                            u.is_banned
+                              ? "Are you sure you want to unban this user? They will regain access to the platform."
+                              : "Are you sure you want to ban this user? They will lose access to the platform."
+                          }
+                          confirmLabel={u.is_banned ? "Unban" : "Ban"}
+                          variant={u.is_banned ? "default" : "destructive"}
+                          onConfirm={() => toggleBan(u.id, u.is_banned)}
+                        />
                       </div>
                     </td>
                   </tr>

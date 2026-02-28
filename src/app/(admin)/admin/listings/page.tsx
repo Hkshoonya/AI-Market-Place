@@ -20,6 +20,7 @@ import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -290,18 +291,26 @@ export default function AdminListingsPage() {
                               Restore
                             </Button>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-loss hover:text-loss"
-                              onClick={() => removeListing(l.id)}
-                            >
-                              <Archive className="h-3 w-3 mr-1" />
-                              Remove
-                            </Button>
+                            <ConfirmDialog
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs text-loss hover:text-loss"
+                                >
+                                  <Archive className="h-3 w-3 mr-1" />
+                                  Remove
+                                </Button>
+                              }
+                              title="Remove Listing"
+                              description="Are you sure you want to remove this listing? It will be archived and can be restored later."
+                              confirmLabel="Remove"
+                              variant="destructive"
+                              onConfirm={() => removeListing(l.id)}
+                            />
                           )}
                           <Link href={`/marketplace/${l.slug}`}>
-                            <Button variant="ghost" size="sm" className="h-7 px-2">
+                            <Button variant="ghost" size="sm" className="h-7 px-2" aria-label={`View ${l.title}`}>
                               <ExternalLink className="h-3 w-3" />
                             </Button>
                           </Link>

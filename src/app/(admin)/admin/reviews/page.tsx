@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -174,15 +175,23 @@ export default function AdminReviewsPage() {
                     </span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-loss hover:text-loss shrink-0"
-                  onClick={() => removeReview(r.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  Delete
-                </Button>
+                <ConfirmDialog
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-loss hover:text-loss shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Delete
+                    </Button>
+                  }
+                  title="Delete Review"
+                  description="Are you sure you want to delete this review? This action cannot be undone."
+                  confirmLabel="Delete"
+                  variant="destructive"
+                  onConfirm={() => removeReview(r.id)}
+                />
               </div>
             </div>
           ))
