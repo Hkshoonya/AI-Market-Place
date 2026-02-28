@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
+import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -184,7 +185,7 @@ const adapter: DataSourceAdapter = {
       const { data: models } = await sb
         .from("models")
         .select("id")
-        .or(`slug.eq.${modelSlug},name.ilike.%${modelName}%`)
+        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(modelName)}%`)
         .limit(1);
 
       const model = models?.[0];

@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
+import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 /**
  * Artificial Analysis Adapter — AI Model Benchmarks & Pricing
@@ -103,7 +104,7 @@ const adapter: DataSourceAdapter = {
       const { data: existing } = await sb
         .from("models")
         .select("id, slug")
-        .or(`slug.eq.${modelSlug},name.ilike.%${m.model_name}%`)
+        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(m.model_name)}%`)
         .limit(1);
 
       const model = existing?.[0];

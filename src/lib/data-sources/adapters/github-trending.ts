@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch, sleep } from "../utils";
+import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 /**
  * GitHub Trending ML Repos Adapter
@@ -110,7 +111,7 @@ const adapter: DataSourceAdapter = {
         const { data: existing } = await sb
           .from("models")
           .select("id, github_url")
-          .or(`slug.eq.${repoSlug},name.ilike.%${repo.name}%`)
+          .or(`slug.eq.${sanitizeSlug(repoSlug)},name.ilike.%${sanitizeFilterValue(repo.name)}%`)
           .limit(1);
 
         if (existing?.[0] && !existing[0].github_url) {
