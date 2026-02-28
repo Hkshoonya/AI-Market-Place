@@ -303,7 +303,7 @@ export interface WatchlistItem {
 }
 
 // Marketplace types
-export type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template";
+export type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template" | "agent" | "mcp_server";
 export type ListingStatus = "draft" | "active" | "paused" | "sold_out" | "archived";
 export type MarketplacePricingType = "one_time" | "monthly_subscription" | "per_token" | "per_request" | "free" | "contact";
 export type OrderStatus = "pending" | "approved" | "rejected" | "completed" | "cancelled";
@@ -330,6 +330,9 @@ export interface MarketplaceListing {
   avg_rating: number | null;
   review_count: number;
   is_featured: boolean;
+  agent_config?: Record<string, unknown> | null;
+  mcp_manifest?: Record<string, unknown> | null;
+  agent_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -426,6 +429,94 @@ export interface NotificationPreferences {
   in_app_order_updates: boolean;
   in_app_marketplace: boolean;
   updated_at: string;
+}
+
+// Agent Infrastructure types
+export type AgentType = "resident" | "marketplace" | "visitor";
+export type AgentStatus = "active" | "paused" | "disabled" | "error";
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface Agent {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  agent_type: AgentType;
+  owner_id: string | null;
+  status: AgentStatus;
+  capabilities: string[];
+  config: Record<string, unknown>;
+  mcp_endpoint: string | null;
+  api_key_hash: string | null;
+  last_active_at: string | null;
+  total_tasks_completed: number;
+  total_conversations: number;
+  error_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentTask {
+  id: string;
+  agent_id: string;
+  task_type: string;
+  status: TaskStatus;
+  priority: number;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface AgentLog {
+  id: number;
+  agent_id: string;
+  task_id: string | null;
+  level: string;
+  message: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface ApiKeyRecord {
+  id: string;
+  owner_id: string;
+  agent_id: string | null;
+  name: string;
+  key_prefix: string;
+  key_hash: string;
+  scopes: string[];
+  rate_limit_per_minute: number;
+  last_used_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AgentConversation {
+  id: string;
+  participant_a: string;
+  participant_b: string;
+  participant_a_type: "agent" | "user";
+  participant_b_type: "agent" | "user";
+  topic: string | null;
+  status: "active" | "closed" | "archived";
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_type: "agent" | "user";
+  content: string;
+  message_type: "text" | "tool_call" | "tool_result" | "system";
+  metadata: Record<string, unknown> | null;
+  created_at: string;
 }
 
 // Model with all relations joined
@@ -725,6 +816,36 @@ export interface Database {
         Insert: Partial<SyncJob> & Pick<SyncJob, "source" | "job_type" | "status">;
         Update: Partial<SyncJob>;
       };
+      agents: {
+        Row: Agent;
+        Insert: Partial<Agent> & Pick<Agent, "slug" | "name" | "agent_type">;
+        Update: Partial<Agent>;
+      };
+      agent_tasks: {
+        Row: AgentTask;
+        Insert: Partial<AgentTask> & Pick<AgentTask, "agent_id" | "task_type">;
+        Update: Partial<AgentTask>;
+      };
+      agent_logs: {
+        Row: AgentLog;
+        Insert: Partial<AgentLog> & Pick<AgentLog, "agent_id" | "level" | "message">;
+        Update: Partial<AgentLog>;
+      };
+      api_keys: {
+        Row: ApiKeyRecord;
+        Insert: Partial<ApiKeyRecord> & Pick<ApiKeyRecord, "owner_id" | "name" | "key_prefix" | "key_hash">;
+        Update: Partial<ApiKeyRecord>;
+      };
+      agent_conversations: {
+        Row: AgentConversation;
+        Insert: Partial<AgentConversation> & Pick<AgentConversation, "participant_a" | "participant_b" | "participant_a_type" | "participant_b_type">;
+        Update: Partial<AgentConversation>;
+      };
+      agent_messages: {
+        Row: AgentMessage;
+        Insert: Partial<AgentMessage> & Pick<AgentMessage, "conversation_id" | "sender_id" | "sender_type" | "content">;
+        Update: Partial<AgentMessage>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -737,6 +858,9 @@ export interface Database {
       marketplace_pricing_type: MarketplacePricingType;
       order_status: OrderStatus;
       notification_type: NotificationType;
+      agent_type: AgentType;
+      agent_status: AgentStatus;
+      task_status: TaskStatus;
     };
   };
 }

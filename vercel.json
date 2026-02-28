@@ -3,6 +3,9 @@
     { "path": "/api/cron/sync?tier=1", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/sync?tier=2", "schedule": "0 */12 * * *" },
     { "path": "/api/cron/sync?tier=3", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/sync?tier=4", "schedule": "0 0 * * 1" }
+    { "path": "/api/cron/sync?tier=4", "schedule": "0 0 * * 1" },
+    { "path": "/api/cron/agents/pipeline", "schedule": "0 1 */6 * *" },
+    { "path": "/api/cron/agents/code-quality", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/agents/ux-monitor", "schedule": "0 10 * * 1" }
   ]
 }
