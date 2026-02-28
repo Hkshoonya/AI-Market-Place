@@ -6,6 +6,7 @@
  */
 
 import type { AgentConversation, AgentMessage } from "./types";
+import { assertUuid } from "@/lib/utils/sanitize";
 
 /** Find or create a conversation between two participants */
 export async function findOrCreateConversation(
@@ -19,13 +20,17 @@ export async function findOrCreateConversation(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
+  // Validate UUIDs before interpolating into .or() filter
+  const pA = assertUuid(participantA, "participantA");
+  const pB = assertUuid(participantB, "participantB");
+
   // Check for existing active conversation between these participants
   const { data: existing } = await sb
     .from("agent_conversations")
     .select("*")
     .eq("status", "active")
     .or(
-      `and(participant_a.eq.${participantA},participant_b.eq.${participantB}),and(participant_a.eq.${participantB},participant_b.eq.${participantA})`
+      `and(participant_a.eq.${pA},participant_b.eq.${pB}),and(participant_a.eq.${pB},participant_b.eq.${pA})`
     )
     .limit(1)
     .single();
@@ -55,7 +60,7 @@ export async function findOrCreateConversation(
       .select("*")
       .eq("status", "active")
       .or(
-        `and(participant_a.eq.${participantA},participant_b.eq.${participantB}),and(participant_a.eq.${participantB},participant_b.eq.${participantA})`
+        `and(participant_a.eq.${pA},participant_b.eq.${pB}),and(participant_a.eq.${pB},participant_b.eq.${pA})`
       )
       .limit(1)
       .single();

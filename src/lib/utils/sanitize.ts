@@ -23,3 +23,16 @@ export function sanitizeFilterValue(value: string): string {
 export function sanitizeSlug(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "").trim();
 }
+
+/**
+ * Validate that a string is a valid UUID v4 format.
+ * Use before interpolating IDs into PostgREST .or() filters.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function assertUuid(value: string, label = "value"): string {
+  if (!UUID_RE.test(value)) {
+    throw new Error(`Invalid UUID for ${label}: ${value}`);
+  }
+  return value;
+}

@@ -47,7 +47,7 @@ const FAQ_SECTIONS = [
     items: [
       {
         q: "What can I buy on the marketplace?",
-        a: "The marketplace offers API access packages, model weights, fine-tuned models, datasets, and prompt templates — all from verified sellers. Each listing includes ratings, reviews, and seller reputation scores.",
+        a: "The marketplace offers API access packages, model weights, fine-tuned models, datasets, prompt templates, AI agents, and MCP servers — all from verified sellers. Each listing includes ratings, reviews, and seller reputation scores.",
       },
       {
         q: "How do I become a seller?",

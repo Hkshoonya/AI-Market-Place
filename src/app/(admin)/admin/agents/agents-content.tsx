@@ -102,9 +102,7 @@ export default function AgentsContent() {
   const triggerAgent = async (slug: string) => {
     setTriggering(slug);
     try {
-      await fetch(`/api/cron/agents/${slug}`, {
-        method: "POST",
-      });
+      await fetch(`/api/cron/agents/${slug}`);
       // Refresh after a brief delay
       setTimeout(fetchData, 2000);
     } catch {
