@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   BarChart3,
+  Bot,
   Box,
   Database,
   LayoutDashboard,
@@ -24,6 +25,7 @@ const ADMIN_NAV = [
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/data-sources", label: "Sources", icon: Database },
+  { href: "/admin/agents", label: "Agents", icon: Bot },
 ];
 
 export default function AdminLayout({
