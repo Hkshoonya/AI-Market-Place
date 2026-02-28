@@ -32,7 +32,7 @@ export async function findOrCreateConversation(
 
   if (existing) return existing as AgentConversation;
 
-  // Create new conversation
+  // Create new conversation (handle race condition with retry on conflict)
   const { data, error } = await sb
     .from("agent_conversations")
     .insert({
@@ -47,7 +47,23 @@ export async function findOrCreateConversation(
     .select("*")
     .single();
 
-  if (error) throw new Error(`Failed to create conversation: ${error.message}`);
+  if (error) {
+    // Race condition: another request may have created the conversation first
+    // Retry the lookup before throwing
+    const { data: retryExisting } = await sb
+      .from("agent_conversations")
+      .select("*")
+      .eq("status", "active")
+      .or(
+        `and(participant_a.eq.${participantA},participant_b.eq.${participantB}),and(participant_a.eq.${participantB},participant_b.eq.${participantA})`
+      )
+      .limit(1)
+      .single();
+
+    if (retryExisting) return retryExisting as AgentConversation;
+    throw new Error(`Failed to create conversation: ${error.message}`);
+  }
+
   return data as AgentConversation;
 }
 
@@ -79,22 +95,13 @@ export async function sendMessage(
 
   if (error) throw new Error(`Failed to send message: ${error.message}`);
 
-  // Increment message count (fetch current, add 1, update)
-  const { data: conv } = await sb
-    .from("agent_conversations")
-    .select("message_count")
+  // Update conversation activity timestamp
+  // message_count is not atomically incremented here to avoid read-then-write races;
+  // derive accurate counts from agent_messages table when needed
+  sb.from("agent_conversations")
+    .update({ updated_at: new Date().toISOString() })
     .eq("id", conversationId)
-    .single();
-
-  if (conv) {
-    await sb
-      .from("agent_conversations")
-      .update({
-        message_count: (conv.message_count ?? 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conversationId);
-  }
+    .then(() => {});
 
   return data as AgentMessage;
 }
