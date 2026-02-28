@@ -5,6 +5,7 @@
  */
 
 import type { McpTool } from "./types";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 export const MCP_TOOLS: McpTool[] = [
   {
@@ -137,7 +138,7 @@ export async function executeTool(
         .order("quality_score", { ascending: false, nullsFirst: false })
         .limit(limit);
 
-      if (query) q = q.ilike("name", `%${query}%`);
+      if (query) q = q.ilike("name", `%${sanitizeFilterValue(query)}%`);
       if (category) q = q.eq("category", category);
 
       const { data, error } = await q;
@@ -210,7 +211,7 @@ export async function executeTool(
         .limit(limit);
 
       if (type) q = q.eq("listing_type", type);
-      if (query) q = q.ilike("title", `%${query}%`);
+      if (query) q = q.ilike("title", `%${sanitizeFilterValue(query)}%`);
 
       switch (sort) {
         case "price_asc": q = q.order("price", { ascending: true, nullsFirst: false }); break;
