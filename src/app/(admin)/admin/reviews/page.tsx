@@ -19,6 +19,7 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const PAGE_SIZE = 20;
+const supabase = createClient();
 
 export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -27,8 +28,6 @@ export default function AdminReviewsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createClient();
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -58,7 +57,7 @@ export default function AdminReviewsPage() {
     setReviews((data as any[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
-  }, [search, ratingFilter, page, supabase]);
+  }, [search, ratingFilter, page]);
 
   useEffect(() => {
     fetchReviews();

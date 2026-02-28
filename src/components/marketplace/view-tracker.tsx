@@ -16,12 +16,7 @@ export function ViewTracker({ listingId }: { listingId: string }) {
       .rpc("increment_view_count", { listing_id: listingId })
       .then(() => {})
       .catch(() => {
-        // Fallback: direct update
-        supabase
-          .from("marketplace_listings")
-          .update({ view_count: supabase.rpc ? undefined : 1 })
-          .eq("id", listingId)
-          .then(() => {});
+        // RPC not available; silently skip
       });
   }, [listingId]);
 

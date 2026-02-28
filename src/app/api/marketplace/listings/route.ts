@@ -10,7 +10,7 @@ const createListingSchema = z.object({
   listing_type: z.enum(["api_access", "model_weights", "fine_tuned_model", "dataset", "prompt_template", "agent", "mcp_server"], {
     message: "listing_type must be one of: api_access, model_weights, fine_tuned_model, dataset, prompt_template, agent, mcp_server",
   }),
-  pricing_type: z.enum(["free", "one_time", "subscription"]).optional().default("one_time"),
+  pricing_type: z.enum(["free", "one_time", "monthly_subscription", "per_token", "per_request", "contact"]).optional().default("one_time"),
   price: z.number().min(0, "Price must be non-negative").optional().nullable(),
   currency: z.string().max(10).optional().default("USD"),
   model_id: z.string().uuid("model_id must be a valid UUID").optional().nullable(),

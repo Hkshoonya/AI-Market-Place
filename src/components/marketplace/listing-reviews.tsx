@@ -212,7 +212,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
         {!user && (
           <div className="rounded-lg border border-border/50 bg-secondary/30 p-4 text-center">
             <p className="text-sm text-muted-foreground">
-              <Link href="/auth/login" className="text-neon hover:underline">
+              <Link href="/login" className="text-neon hover:underline">
                 Sign in
               </Link>{" "}
               to write a review.

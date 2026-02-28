@@ -20,6 +20,8 @@ import { formatDate, formatCurrency } from "@/lib/format";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const supabase = createClient();
+
 const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: "text-amber-500 border-amber-500/30", label: "Pending" },
   approved: { icon: CheckCircle2, color: "text-blue-500 border-blue-500/30", label: "Approved" },
@@ -34,8 +36,6 @@ export default function OrdersContent() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-
-  const supabase = createClient();
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
@@ -56,7 +56,7 @@ export default function OrdersContent() {
     const { data } = await query;
     setOrders((data as any[]) ?? []);
     setLoading(false);
-  }, [user, filter, supabase]);
+  }, [user, filter]);
 
   useEffect(() => {
     if (!authLoading && !user) {

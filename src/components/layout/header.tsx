@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
 
 export function Header() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -67,17 +69,17 @@ export function Header() {
           <SearchDialog />
 
           {/* Notification Bell */}
-          <div className="hidden sm:flex">
+          <div className="hidden md:flex">
             <NotificationBell />
           </div>
 
           {/* Auth Button */}
-          <div className="hidden sm:flex">
+          <div className="hidden md:flex">
             <AuthButton />
           </div>
 
           {/* Mobile menu */}
-          <Sheet>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" aria-hidden="true" />
@@ -92,6 +94,7 @@ export function Header() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
@@ -112,19 +115,21 @@ export function Header() {
                 <div className="my-4 border-t border-border" />
                 <Link
                   href="/compare"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 >
                   Compare
                 </Link>
                 <Link
                   href="/discover"
+                  onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 >
                   Discover
                 </Link>
                 <div className="my-2" />
-                <Button className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
-                  <Link href="/sell">List Your Model</Link>
+                <Button className="bg-neon text-primary-foreground hover:bg-neon/90" asChild>
+                  <Link href="/sell" onClick={() => setMobileOpen(false)}>List Your Model</Link>
                 </Button>
               </nav>
             </SheetContent>

@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import Link from "next/link";
 
+const supabase = createClient();
+
 interface Comment {
   id: string;
   content: string;
@@ -38,8 +40,6 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-
-  const supabase = createClient();
 
   const fetchComments = async () => {
     const { data } = await supabase
@@ -125,12 +125,25 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
-    await sb.rpc("increment_comment_upvote", { comment_id: commentId }).catch(() => {
-      // Fallback: direct update if RPC doesn't exist
-      sb.from("comments")
-        .update({ upvotes: (supabase as any).rpc ? undefined : 1 })
-        .eq("id", commentId);
-    });
+    const { error } = await sb.rpc("increment_comment_upvote", { comment_id: commentId });
+
+    if (error) {
+      // Revert optimistic update on failure
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === commentId) return { ...c, upvotes: c.upvotes - 1 };
+          if (c.replies) {
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId ? { ...r, upvotes: r.upvotes - 1 } : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    }
   };
 
   const handleEdit = async (commentId: string) => {

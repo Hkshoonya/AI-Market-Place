@@ -21,6 +21,7 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const PAGE_SIZE = 20;
+const supabase = createClient();
 
 export default function AdminModelsPage() {
   const [models, setModels] = useState<any[]>([]);
@@ -29,8 +30,6 @@ export default function AdminModelsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createClient();
 
   const fetchModels = useCallback(async () => {
     setLoading(true);
@@ -57,7 +56,7 @@ export default function AdminModelsPage() {
     setModels((data as any[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
-  }, [search, statusFilter, page, supabase]);
+  }, [search, statusFilter, page]);
 
   useEffect(() => {
     fetchModels();

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { formatRelativeDate } from "@/lib/format";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -37,9 +38,12 @@ export default async function DiscoverPage(props: {
     .range(offset, offset + PAGE_SIZE - 1);
 
   if (searchQuery && searchQuery.length >= 2) {
-    query = query.or(
-      `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`
-    );
+    const sanitizedSearch = sanitizeFilterValue(searchQuery);
+    if (sanitizedSearch) {
+      query = query.or(
+        `name.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`
+      );
+    }
   }
 
   const { data: watchlistsRaw, count } = await query;

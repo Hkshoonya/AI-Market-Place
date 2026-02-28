@@ -21,6 +21,7 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const PAGE_SIZE = 20;
+const supabase = createClient();
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -29,8 +30,6 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createClient();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -59,7 +58,7 @@ export default function AdminUsersPage() {
     setUsers((data as any[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
-  }, [search, roleFilter, page, supabase]);
+  }, [search, roleFilter, page]);
 
   useEffect(() => {
     fetchUsers();

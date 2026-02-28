@@ -23,6 +23,7 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const PAGE_SIZE = 20;
+const supabase = createClient();
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<any[]>([]);
@@ -31,8 +32,6 @@ export default function AdminListingsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const supabase = createClient();
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -55,7 +54,7 @@ export default function AdminListingsPage() {
     setListings((data as any[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
-  }, [search, statusFilter, page, supabase]);
+  }, [search, statusFilter, page]);
 
   useEffect(() => {
     fetchListings();

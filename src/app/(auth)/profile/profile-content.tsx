@@ -23,6 +23,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 
+const supabase = createClient();
+
 export default function ProfileContent() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
@@ -35,8 +37,6 @@ export default function ProfileContent() {
     { id: string; slug: string; name: string; provider: string }[]
   >([]);
   const [watchlistCount, setWatchlistCount] = useState(0);
-
-  const supabase = createClient();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,7 +87,8 @@ export default function ProfileContent() {
       fetchBookmarks();
       fetchWatchlistCount();
     }
-  }, [user, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleSave = async () => {
     if (!user) return;

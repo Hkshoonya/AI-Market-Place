@@ -22,6 +22,8 @@ import { formatDate, formatRelativeDate, formatCurrency } from "@/lib/format";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const supabase = createClient();
+
 const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: "text-amber-500 border-amber-500/30 bg-amber-500/5", label: "Pending" },
   approved: { icon: CheckCircle2, color: "text-blue-500 border-blue-500/30 bg-blue-500/5", label: "Approved" },
@@ -45,8 +47,6 @@ export default function OrderDetailContent({
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
     params.then((p) => setOrderId(p.id));
   }, [params]);
@@ -66,7 +66,7 @@ export default function OrderDetailContent({
       setOrder(data);
     }
     setLoading(false);
-  }, [user, orderId, supabase]);
+  }, [user, orderId]);
 
   const fetchMessages = useCallback(async () => {
     if (!orderId) return;

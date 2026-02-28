@@ -23,6 +23,11 @@ import {
 } from "@/lib/format";
 import { createBrowserClient } from "@supabase/ssr";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 import { BenchmarkRadarOverlay } from "@/components/charts/benchmark-radar-overlay";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
@@ -199,11 +204,6 @@ export function CompareClient({
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>(initialSlugs);
   const [loading, setLoading] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   const fetchModel = useCallback(
     async (slug: string) => {
       const { data } = await supabase
@@ -221,7 +221,7 @@ export function CompareClient({
         .single();
       return data;
     },
-    [supabase]
+    []
   );
 
   const addModel = async (slug: string) => {

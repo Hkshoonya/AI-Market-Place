@@ -129,7 +129,7 @@ export function EditListingForm({ listing }: EditListingFormProps) {
         throw new Error(data.error || "Failed to delete listing");
       }
 
-      router.push("/marketplace/seller/dashboard");
+      router.push("/dashboard/seller");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete listing");
       setDeleteDialogOpen(false);

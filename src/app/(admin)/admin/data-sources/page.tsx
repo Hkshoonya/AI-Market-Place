@@ -20,6 +20,8 @@ import { formatRelativeDate } from "@/lib/format";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const supabase = createClient();
+
 const TIER_LABELS: Record<number, string> = {
   1: "Model Hubs",
   2: "Benchmarks",
@@ -81,8 +83,6 @@ export default function AdminDataSourcesPage() {
   const [tierFilter, setTierFilter] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   const fetchSources = useCallback(async () => {
     const sb = supabase as any;
     let query = sb
@@ -102,7 +102,7 @@ export default function AdminDataSourcesPage() {
       setSources((data ?? []) as DataSourceRow[]);
     }
     setLoading(false);
-  }, [supabase, tierFilter]);
+  }, [tierFilter]);
 
   useEffect(() => {
     fetchSources();
