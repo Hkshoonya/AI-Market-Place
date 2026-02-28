@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
+import { toast } from "sonner";
 
 const supabase = createClient();
 
@@ -107,8 +108,10 @@ export default function ProfileContent() {
 
     if (error) {
       setMessage(`Error: ${error.message}`);
+      toast.error("Failed to update profile");
     } else {
       setMessage("Profile updated!");
+      toast.success("Profile updated successfully");
     }
     setSaving(false);
   };

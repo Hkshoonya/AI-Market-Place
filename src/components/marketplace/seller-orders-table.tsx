@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { MarketplaceOrder, OrderStatus } from "@/types/database";
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
@@ -74,8 +75,9 @@ export function SellerOrdersTable() {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status } : o))
       );
+      toast.success(`Order ${status}`);
     } catch (err) {
-      console.error("Failed to update order status:", err instanceof Error ? err.message : err);
+      toast.error(err instanceof Error ? err.message : "Failed to update order status");
     } finally {
       setProcessingId(null);
     }

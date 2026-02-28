@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const CATEGORIES = [
   { value: "general", label: "General Inquiry", icon: HelpCircle },
@@ -46,8 +47,10 @@ export default function ContactContent() {
       }
 
       setSent(true);
+      toast.success("Message sent successfully");
     } catch (err) {
       console.error("Contact form error:", err);
+      toast.error("Failed to send message. Please try again.");
       // Still show success to the user since the message was attempted
       setSent(true);
     } finally {

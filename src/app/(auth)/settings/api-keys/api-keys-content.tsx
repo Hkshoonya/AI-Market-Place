@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { toast } from "sonner";
 
 interface ApiKeyRecord {
   id: string;
@@ -113,18 +114,22 @@ export default function ApiKeysContent() {
       setNewKeyName("");
       setNewKeyScopes(["read"]);
       setNewKeyExpiry("");
+      toast.success("API key created");
       fetchKeys();
     } catch {
       setError("Failed to create API key");
+      toast.error("Failed to create API key");
     }
   };
 
   const revokeKey = async (id: string) => {
     try {
-      await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("API key revoked");
       fetchKeys();
     } catch {
-      // ignore
+      toast.error("Failed to revoke API key");
     }
   };
 

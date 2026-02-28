@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
+import { toast } from "sonner";
 import type { MarketplaceListing } from "@/types/database";
 
 interface ContactFormProps {
@@ -63,8 +64,10 @@ export function ContactForm({ listing }: ContactFormProps) {
 
       setSubmitted(true);
       setMessage("");
+      toast.success("Request sent to seller");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send request");
+      toast.error("Failed to send request");
     } finally {
       setSubmitting(false);
     }
@@ -129,10 +132,11 @@ export function ContactForm({ listing }: ContactFormProps) {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="contact-seller-message" className="mb-2 block text-sm font-medium">
                 Your Message
               </label>
               <textarea
+                id="contact-seller-message"
                 placeholder="Introduce yourself and explain how you plan to use this listing..."
                 className="flex min-h-[120px] w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={message}

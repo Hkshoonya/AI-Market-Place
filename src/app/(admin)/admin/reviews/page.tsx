@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -64,17 +65,22 @@ export default function AdminReviewsPage() {
   }, [fetchReviews]);
 
   const removeReview = async (id: string) => {
-    if (!confirm("Delete this review permanently?")) return;
-    await fetch("/api/admin/moderate", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "remove",
-        target_type: "review",
-        target_id: id,
-      }),
-    });
-    fetchReviews();
+    try {
+      const res = await fetch("/api/admin/moderate", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "remove",
+          target_type: "review",
+          target_id: id,
+        }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      toast.success("Review deleted");
+      fetchReviews();
+    } catch {
+      toast.error("Failed to delete review");
+    }
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);

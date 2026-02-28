@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -65,32 +66,50 @@ export default function AdminUsersPage() {
   }, [fetchUsers]);
 
   const toggleAdmin = async (id: string, currentValue: boolean) => {
-    await (supabase as any)
-      .from("profiles")
-      .update({ is_admin: !currentValue })
-      .eq("id", id);
-    fetchUsers();
+    try {
+      const { error } = await (supabase as any)
+        .from("profiles")
+        .update({ is_admin: !currentValue })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success(currentValue ? "Admin role removed" : "Admin role granted");
+      fetchUsers();
+    } catch {
+      toast.error("Failed to update admin status");
+    }
   };
 
   const toggleSellerVerified = async (id: string, currentValue: boolean) => {
-    await (supabase as any)
-      .from("profiles")
-      .update({ seller_verified: !currentValue })
-      .eq("id", id);
-    fetchUsers();
+    try {
+      const { error } = await (supabase as any)
+        .from("profiles")
+        .update({ seller_verified: !currentValue })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success(currentValue ? "Seller verification removed" : "Seller verified successfully");
+      fetchUsers();
+    } catch {
+      toast.error("Failed to update seller verification");
+    }
   };
 
   const toggleBan = async (id: string, currentValue: boolean) => {
-    await fetch("/api/admin/moderate", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: currentValue ? "unban" : "ban",
-        target_type: "user",
-        target_id: id,
-      }),
-    });
-    fetchUsers();
+    try {
+      const res = await fetch("/api/admin/moderate", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: currentValue ? "unban" : "ban",
+          target_type: "user",
+          target_id: id,
+        }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      toast.success(currentValue ? "User unbanned" : "User banned");
+      fetchUsers();
+    } catch {
+      toast.error(currentValue ? "Failed to unban user" : "Failed to ban user");
+    }
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
