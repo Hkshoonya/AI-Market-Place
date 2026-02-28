@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { generateApiKey } from "@/lib/agents/auth";
+
+export const dynamic = "force-dynamic";
+
+// GET: List user's API keys
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
+  const { data, error } = await sb
+    .from("api_keys")
+    .select(
+      "id, name, key_prefix, scopes, rate_limit_per_minute, last_used_at, expires_at, is_active, created_at"
+    )
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ keys: data ?? [] });
+}
+
+// POST: Create new API key
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: {
+    name: string;
+    scopes?: string[];
+    rate_limit?: number;
+    expires_in_days?: number;
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (!body.name || body.name.length < 2) {
+    return NextResponse.json(
+      { error: "Name is required (min 2 chars)" },
+      { status: 400 }
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
+  // Check max keys per user (limit: 10)
+  const { count } = await sb
+    .from("api_keys")
+    .select("*", { count: "exact", head: true })
+    .eq("owner_id", user.id)
+    .eq("is_active", true);
+
+  if ((count ?? 0) >= 10) {
+    return NextResponse.json(
+      { error: "Maximum 10 active API keys allowed" },
+      { status: 400 }
+    );
+  }
+
+  const { plaintext, hash, prefix } = generateApiKey();
+
+  const validScopes = ["read", "write", "agent", "mcp", "marketplace"];
+  const scopes = (body.scopes ?? ["read"]).filter((s) =>
+    validScopes.includes(s)
+  );
+
+  const expiresAt = body.expires_in_days
+    ? new Date(
+        Date.now() + body.expires_in_days * 24 * 60 * 60 * 1000
+      ).toISOString()
+    : null;
+
+  const { data, error } = await sb
+    .from("api_keys")
+    .insert({
+      owner_id: user.id,
+      name: body.name,
+      key_prefix: prefix,
+      key_hash: hash,
+      scopes,
+      rate_limit_per_minute: body.rate_limit ?? 60,
+      expires_at: expiresAt,
+      is_active: true,
+    })
+    .select(
+      "id, name, key_prefix, scopes, rate_limit_per_minute, expires_at, created_at"
+    )
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Return plaintext key ONCE
+  return NextResponse.json(
+    {
+      key: data,
+      plaintext_key: plaintext,
+      warning: "Store this key securely. It will not be shown again.",
+    },
+    { status: 201 }
+  );
+}
