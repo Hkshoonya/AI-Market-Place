@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { PWARegister } from "@/components/pwa-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import "./globals.css";
 
@@ -95,6 +96,7 @@ export default function RootLayout({
             <PWARegister />
           </TooltipProvider>
         </AuthProvider>
+        <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </body>
     </html>
   );

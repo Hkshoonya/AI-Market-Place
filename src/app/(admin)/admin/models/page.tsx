@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber, formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -63,9 +64,15 @@ export default function AdminModelsPage() {
   }, [fetchModels]);
 
   const toggleStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "active" ? "inactive" : "active";
-    await (supabase as any).from("models").update({ status: newStatus }).eq("id", id);
-    fetchModels();
+    try {
+      const newStatus = currentStatus === "active" ? "inactive" : "active";
+      const { error } = await (supabase as any).from("models").update({ status: newStatus }).eq("id", id);
+      if (error) throw error;
+      toast.success(`Model ${newStatus === "active" ? "activated" : "deactivated"}`);
+      fetchModels();
+    } catch {
+      toast.error("Failed to update model status");
+    }
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);

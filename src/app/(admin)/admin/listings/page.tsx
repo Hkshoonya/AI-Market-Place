@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -61,47 +62,71 @@ export default function AdminListingsPage() {
   }, [fetchListings]);
 
   const toggleStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "active" ? "paused" : "active";
-    await (supabase as any)
-      .from("marketplace_listings")
-      .update({ status: newStatus })
-      .eq("id", id);
-    fetchListings();
+    try {
+      const newStatus = currentStatus === "active" ? "paused" : "active";
+      const { error } = await (supabase as any)
+        .from("marketplace_listings")
+        .update({ status: newStatus })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success(`Listing ${newStatus === "active" ? "activated" : "paused"}`);
+      fetchListings();
+    } catch {
+      toast.error("Failed to update listing status");
+    }
   };
 
   const toggleFeatured = async (id: string, currentValue: boolean) => {
-    await (supabase as any)
-      .from("marketplace_listings")
-      .update({ is_featured: !currentValue })
-      .eq("id", id);
-    fetchListings();
+    try {
+      const { error } = await (supabase as any)
+        .from("marketplace_listings")
+        .update({ is_featured: !currentValue })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success(currentValue ? "Listing unfeatured" : "Listing featured");
+      fetchListings();
+    } catch {
+      toast.error("Failed to update featured status");
+    }
   };
 
   const removeListing = async (id: string) => {
-    await fetch("/api/admin/moderate", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "remove",
-        target_type: "listing",
-        target_id: id,
-        reason: "Removed by admin",
-      }),
-    });
-    fetchListings();
+    try {
+      const res = await fetch("/api/admin/moderate", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "remove",
+          target_type: "listing",
+          target_id: id,
+          reason: "Removed by admin",
+        }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      toast.success("Listing removed");
+      fetchListings();
+    } catch {
+      toast.error("Failed to remove listing");
+    }
   };
 
   const restoreListing = async (id: string) => {
-    await fetch("/api/admin/moderate", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "restore",
-        target_type: "listing",
-        target_id: id,
-      }),
-    });
-    fetchListings();
+    try {
+      const res = await fetch("/api/admin/moderate", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "restore",
+          target_type: "listing",
+          target_id: id,
+        }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      toast.success("Listing restored");
+      fetchListings();
+    } catch {
+      toast.error("Failed to restore listing");
+    }
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);

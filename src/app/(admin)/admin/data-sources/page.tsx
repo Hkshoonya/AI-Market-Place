@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
+import { toast } from "sonner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -116,29 +117,34 @@ export default function AdminDataSourcesPage() {
   }, [syncing.size, fetchSources]);
 
   const toggleEnabled = async (id: number, currentlyEnabled: boolean) => {
-    const res = await fetch("/api/admin/data-sources", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, is_enabled: !currentlyEnabled }),
-    });
+    try {
+      const res = await fetch("/api/admin/data-sources", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_enabled: !currentlyEnabled }),
+      });
 
-    if (res.ok) {
+      if (!res.ok) throw new Error("Request failed");
       setSources((prev) =>
         prev.map((s) =>
           s.id === id ? { ...s, is_enabled: !currentlyEnabled } : s
         )
       );
+      toast.success(currentlyEnabled ? "Data source disabled" : "Data source enabled");
+    } catch {
+      toast.error("Failed to update data source");
     }
   };
 
   const triggerSync = async (slug: string) => {
     setSyncing((prev) => new Set([...prev, slug]));
     try {
-      await fetch(`/api/admin/sync/${slug}`, { method: "POST" });
-      // Refresh after sync completes
+      const res = await fetch(`/api/admin/sync/${slug}`, { method: "POST" });
+      if (!res.ok) throw new Error("Sync failed");
+      toast.success("Sync completed successfully");
       await fetchSources();
     } catch {
-      // Silently handle — user can see status update on refresh
+      toast.error("Sync failed");
     } finally {
       setSyncing((prev) => {
         const next = new Set(prev);
