@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { formatNumber } from "@/lib/format";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 export const revalidate = 0;
 
@@ -49,6 +50,7 @@ export default async function SearchPage({
   let marketplaceCount = 0;
 
   if (query.length >= 2) {
+    const safeQuery = sanitizeFilterValue(query);
     const offset = (page - 1) * PAGE_SIZE;
 
     if (activeTab === "models") {
@@ -61,7 +63,7 @@ export default async function SearchPage({
         )
         .eq("status", "active")
         .or(
-          `name.ilike.%${query}%,provider.ilike.%${query}%,description.ilike.%${query}%`
+          `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
         )
         .order("popularity_score", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -81,7 +83,7 @@ export default async function SearchPage({
         )
         .eq("status", "active")
         .or(
-          `title.ilike.%${query}%,description.ilike.%${query}%`
+          `title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
         )
         .order("view_count", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -97,14 +99,14 @@ export default async function SearchPage({
         .from("marketplace_listings")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
-        .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+        .or(`title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`);
       marketplaceCount = count ?? 0;
     } else {
       const { count } = await supabase
         .from("models")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
-        .or(`name.ilike.%${query}%,provider.ilike.%${query}%,description.ilike.%${query}%`);
+        .or(`name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`);
       modelCount = count ?? 0;
     }
   }
