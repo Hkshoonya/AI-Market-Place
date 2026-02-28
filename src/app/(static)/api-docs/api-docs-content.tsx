@@ -742,7 +742,7 @@ curl -H "Authorization: Bearer aimk_your_key_here" \\
   https://aimarketcap.com/api/agents/chat \\
   -X POST \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "Compare top LLMs"}'`}
+  -d '{"agent_slug": "pipeline-engineer", "message": "Compare top LLMs"}'`}
         </pre>
       </div>
 

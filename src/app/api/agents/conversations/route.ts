@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { extractApiKey, validateApiKey } from "@/lib/agents/auth";
+import { assertUuid } from "@/lib/utils/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +42,11 @@ export async function GET(request: Request) {
     );
   }
 
-  const ownerId =
+  const ownerId = assertUuid(
     (auth.keyRecord.agent_id as string) ??
-    (auth.keyRecord.owner_id as string);
+      (auth.keyRecord.owner_id as string),
+    "owner_id"
+  );
 
   const { data, error } = await sb
     .from("agent_conversations")
