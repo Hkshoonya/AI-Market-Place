@@ -4,6 +4,8 @@ import {
   Code,
   Database,
   FileText,
+  Bot,
+  Server,
   type LucideIcon,
 } from "lucide-react";
 import type { ListingType, MarketplacePricingType } from "@/types/database";
@@ -57,6 +59,22 @@ export const LISTING_TYPES: ListingTypeConfig[] = [
     icon: FileText,
     description: "Optimized prompt libraries",
     color: "#06b6d4",
+  },
+  {
+    slug: "agent",
+    label: "AI Agents",
+    shortLabel: "Agent",
+    icon: Bot,
+    description: "Autonomous AI agents and bots",
+    color: "#10b981",
+  },
+  {
+    slug: "mcp_server",
+    label: "MCP Servers",
+    shortLabel: "MCP",
+    icon: Server,
+    description: "Model Context Protocol server endpoints",
+    color: "#3b82f6",
   },
 ];
 
