@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +30,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: [], marketplace: [] });
   }
 
+  const safeQuery = sanitizeFilterValue(query);
+  if (!safeQuery) {
+    return NextResponse.json({ data: [], marketplace: [] });
+  }
+
   // Try FTS first for models
   let { data: models, error } = await supabase
     .from("models")
     .select(
       "id, slug, name, provider, category, overall_rank, quality_score, is_open_weights, parameter_count"
     )
-    .textSearch("fts", query)
+    .textSearch("fts", safeQuery)
     .eq("status", "active")
     .order("popularity_score", { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("status", "active")
       .or(
-        `name.ilike.%${query}%,provider.ilike.%${query}%,description.ilike.%${query}%`
+        `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
       )
       .order("popularity_score", { ascending: false, nullsFirst: false })
       .limit(limit);
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest) {
     let { data: marketplaceResults } = await supabase
       .from("marketplace_listings")
       .select("id, slug, title, listing_type, price, avg_rating")
-      .textSearch("fts", query)
+      .textSearch("fts", safeQuery)
       .eq("status", "active")
       .order("view_count", { ascending: false, nullsFirst: false })
       .limit(4);
@@ -82,7 +88,7 @@ export async function GET(request: NextRequest) {
         .select("id, slug, title, listing_type, price, avg_rating")
         .eq("status", "active")
         .or(
-          `title.ilike.%${query}%,description.ilike.%${query}%`
+          `title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
         )
         .order("view_count", { ascending: false, nullsFirst: false })
         .limit(4);
