@@ -38,6 +38,9 @@ export const env = {
   STRIPE_WEBHOOK_SECRET: getEnvVar("STRIPE_WEBHOOK_SECRET", false),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: getEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", false),
 
+  // ── GitHub (optional — code quality agent) ──────────────────────
+  GITHUB_TOKEN: getEnvVar("GITHUB_TOKEN", false),
+
   // ── Site ──────────────────────────────────────────────────────────
   NEXT_PUBLIC_SITE_URL:
     getEnvVar("NEXT_PUBLIC_SITE_URL", false) || "https://aimarketcap.com",
