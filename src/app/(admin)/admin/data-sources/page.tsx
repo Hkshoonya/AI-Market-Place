@@ -332,11 +332,14 @@ export default function AdminDataSourcesPage() {
                 ))
               ) : sources.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-sm text-muted-foreground"
-                  >
-                    No data sources configured.
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Database className="h-10 w-10 text-muted-foreground/30" />
+                      <p className="text-sm font-medium text-muted-foreground">No data sources found</p>
+                      <p className="text-xs text-muted-foreground/70">
+                        {tierFilter ? "Try adjusting your tier filter" : "Data sources will appear here once configured"}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (

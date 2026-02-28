@@ -32,10 +32,10 @@ export default function PrivacyPage() {
 
           <p className="mt-2">
             <strong className="text-foreground">Account Information.</strong>{" "}
-            When you create an account, we collect your email address, display
-            name, and authentication credentials. If you sign in through a
-            third-party provider (Google or GitHub), we receive your name, email
-            address, and profile picture from that provider.
+            When you create an account, we collect your name, email address,
+            display name, and authentication credentials. If you sign in through
+            a third-party provider (Google or GitHub), we receive your name,
+            email address, and profile picture from that provider.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Profile Information.</strong>{" "}
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
           <p className="mt-2">
             <strong className="text-foreground">Usage Data.</strong> We
             automatically collect information about your interactions with the
-            Platform, including pages viewed, models browsed, search queries,
+            Platform, including pages visited, models browsed, search queries,
             watchlists created, marketplace interactions, comments, reviews,
             ratings, and bookmarks.
           </p>
@@ -135,7 +135,8 @@ export default function PrivacyPage() {
               <strong className="text-foreground">
                 Analytics providers
               </strong>{" "}
-              — aggregated usage analytics to improve the Platform experience
+              — aggregated, anonymous usage analytics to improve the Platform
+              experience
             </li>
           </ul>
           <p className="mt-2">
@@ -177,7 +178,7 @@ export default function PrivacyPage() {
             <li>Endpoints accessed and request timestamps</li>
             <li>IP address and user agent string</li>
             <li>Request and response sizes</li>
-            <li>Rate limit counters</li>
+            <li>Rate limit counters and usage metrics</li>
           </ul>
           <p className="mt-2">
             API usage logs are retained for 90 days for operational purposes and
@@ -202,26 +203,28 @@ export default function PrivacyPage() {
           <ul className="mt-2 list-disc list-inside space-y-1.5">
             <li>
               <strong className="text-foreground">Essential Cookies</strong> —
-              required for authentication, session management, and security.
-              These cannot be disabled without breaking Platform functionality.
+              required for authentication sessions, session management, and
+              security. These cannot be disabled without breaking Platform
+              functionality.
+            </li>
+            <li>
+              <strong className="text-foreground">Analytics Cookies</strong> —
+              help us understand how users navigate and interact with the
+              Platform so we can improve the experience. These collect
+              anonymized, aggregated usage data only.
             </li>
             <li>
               <strong className="text-foreground">Preference Cookies</strong> —
               store your settings such as theme (dark/light mode), default
               sorting preferences, and locale.
             </li>
-            <li>
-              <strong className="text-foreground">Analytics Cookies</strong> —
-              help us understand how users navigate and interact with the
-              Platform so we can improve the experience. These collect
-              anonymized, aggregated data.
-            </li>
           </ul>
           <p className="mt-2">
-            <strong className="text-foreground">Opt-Out.</strong> Most browsers
-            allow you to manage cookie preferences through their settings. You
-            can also clear cookies at any time. Note that disabling essential
-            cookies may prevent you from using features that require
+            <strong className="text-foreground">How to Opt Out.</strong> Most
+            browsers allow you to manage cookie preferences through their
+            settings. You can block or delete cookies at any time via your
+            browser&apos;s privacy or security settings. Note that disabling
+            essential cookies may prevent you from using features that require
             authentication.
           </p>
           <p className="mt-2">
@@ -238,15 +241,15 @@ export default function PrivacyPage() {
           <p className="mt-2">
             <strong className="text-foreground">Account Data.</strong> We retain
             your account information for as long as your account is active.
-            After account deletion, we remove your personal data within 30 days,
-            except where retention is required by law or for legitimate business
-            purposes (e.g., fraud prevention).
+            After you request account deletion, we remove your personal data
+            within 30 days, except where retention is required by law or for
+            legitimate business purposes (e.g., fraud prevention).
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Usage Data.</strong> Aggregated
-            and anonymized usage data may be retained indefinitely for analytics
-            and service improvement. Individual usage logs are retained for up
-            to 12 months.
+            <strong className="text-foreground">Usage Logs.</strong> Individual
+            usage logs are retained for 90 days and then automatically purged.
+            Aggregated and anonymized usage data may be retained indefinitely
+            for analytics and service improvement.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">
@@ -259,9 +262,15 @@ export default function PrivacyPage() {
           <p className="mt-2">
             <strong className="text-foreground">Deletion Requests.</strong> You
             may request deletion of your account and associated data at any time
-            through your account settings or by contacting us. We will process
-            deletion requests within 30 days, subject to any legal retention
-            requirements.
+            through your account settings or by contacting us at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>
+            . We will process deletion requests within 30 days, subject to any
+            legal retention requirements.
           </p>
         </section>
 
@@ -330,8 +339,8 @@ export default function PrivacyPage() {
               requirements
             </li>
             <li>
-              <strong className="text-foreground">Portability</strong> — request
-              a machine-readable export of your personal data
+              <strong className="text-foreground">Data Portability</strong> —
+              request a machine-readable export of your personal data
             </li>
             <li>
               <strong className="text-foreground">Restriction</strong> — request
@@ -349,14 +358,16 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="mt-2">
-            These rights are provided in alignment with the General Data
-            Protection Regulation (GDPR) and the California Consumer Privacy Act
-            (CCPA). To exercise any of these rights, please contact us through
-            our{" "}
-            <a href="/contact" className="text-neon underline hover:text-neon/80">
-              Contact page
+            To exercise any of these rights, please contact us at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
             </a>
-            . We will respond to requests within 30 days.
+            . We will respond to requests within 30 days. These rights are
+            provided in alignment with the General Data Protection Regulation
+            (GDPR) and the California Consumer Privacy Act (CCPA).
           </p>
           <p className="mt-2">
             <strong className="text-foreground">
@@ -376,14 +387,21 @@ export default function PrivacyPage() {
           </h2>
           <p className="mt-2">
             The Platform is not directed at children under the age of 13. We do
-            not knowingly collect personal information from children under 13. If
-            we become aware that we have collected personal information from a
-            child under 13, we will take steps to delete that information
-            promptly.
+            not knowingly or intentionally collect personal information from
+            children under 13. If we become aware that we have collected personal
+            information from a child under 13, we will take steps to delete that
+            information promptly.
           </p>
           <p className="mt-2">
             If you are a parent or guardian and believe your child has provided
             us with personal information without your consent, please contact us
+            at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>{" "}
             so we can take appropriate action.
           </p>
         </section>
@@ -394,16 +412,19 @@ export default function PrivacyPage() {
             10. International Data Transfers
           </h2>
           <p className="mt-2">
-            Your information may be transferred to and processed in countries
-            other than your country of residence, including countries that may
-            not provide the same level of data protection. Our service providers,
+            Your information may be transferred to and processed in the United
+            States and other countries that may not provide the same level of
+            data protection as your country of residence. Our service providers,
             including Supabase and Vercel, operate infrastructure globally.
           </p>
           <p className="mt-2">
-            Where we transfer personal data across borders, we ensure
-            appropriate safeguards are in place, including standard contractual
-            clauses approved by relevant authorities, to protect your
-            information in accordance with this Privacy Policy.
+            If you are located in the European Union or other regions with data
+            transfer regulations, you acknowledge that your data will be
+            transferred to and processed in the United States. Where we transfer
+            personal data across borders, we ensure appropriate safeguards are
+            in place, including standard contractual clauses approved by relevant
+            authorities, to protect your information in accordance with this
+            Privacy Policy.
           </p>
         </section>
 
@@ -413,10 +434,11 @@ export default function PrivacyPage() {
             11. Changes to This Policy
           </h2>
           <p className="mt-2">
-            We may update this Privacy Policy from time to time. When we make
-            material changes, we will update the &quot;Last updated&quot; date
-            at the top of this page and provide notice through the Platform
-            (such as a banner notification) or by email to registered users.
+            We may update this Privacy Policy from time to time. For material
+            changes, we will provide at least 30 days&apos; advance notice by
+            updating the &quot;Last updated&quot; date at the top of this page
+            and providing notification via email to registered users or through a
+            banner on the Platform.
           </p>
           <p className="mt-2">
             We encourage you to review this Privacy Policy periodically. Your
@@ -433,17 +455,33 @@ export default function PrivacyPage() {
           <p className="mt-2">
             If you have questions or concerns about this Privacy Policy, your
             personal data, or wish to exercise any of your data protection
-            rights, please contact us through our{" "}
+            rights, please contact us at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>{" "}
+            or through our{" "}
             <a href="/contact" className="text-neon underline hover:text-neon/80">
               Contact page
             </a>
             .
           </p>
           <p className="mt-2">
-            For data protection inquiries specifically, you may also reach our
-            data protection team by sending a message with the subject
-            &quot;Privacy Inquiry&quot; through the Contact page. We aim to
-            respond to all privacy-related requests within 30 days.
+            <strong className="text-foreground">
+              Data Protection Officer.
+            </strong>{" "}
+            For data protection inquiries specifically, you may reach our Data
+            Protection Officer by sending a message with the subject
+            &quot;Privacy Inquiry&quot; to{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>
+            . We aim to respond to all privacy-related requests within 30 days.
           </p>
         </section>
       </div>

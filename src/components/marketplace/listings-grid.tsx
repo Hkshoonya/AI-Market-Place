@@ -1,3 +1,4 @@
+import { Package } from "lucide-react";
 import { ListingCard } from "./listing-card";
 import type { MarketplaceListingWithSeller } from "@/types/database";
 
@@ -9,10 +10,13 @@ export function ListingsGrid({ listings }: ListingsGridProps) {
   if (listings.length === 0) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">No listings found.</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your filters or search query.
-        </p>
+        <div className="flex flex-col items-center gap-2">
+          <Package className="h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">No listings found</p>
+          <p className="text-xs text-muted-foreground/70">
+            Try adjusting your filters or search query.
+          </p>
+        </div>
       </div>
     );
   }

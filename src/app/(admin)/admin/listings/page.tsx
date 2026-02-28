@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Package,
   RotateCcw,
   Search,
   ShoppingBag,
@@ -202,8 +203,14 @@ export default function AdminListingsPage() {
                 ))
               ) : listings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No listings found.
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Package className="h-10 w-10 text-muted-foreground/30" />
+                      <p className="text-sm font-medium text-muted-foreground">No listings found</p>
+                      <p className="text-xs text-muted-foreground/70">
+                        {search ? "Try adjusting your search or filters" : "Listings will appear here once added"}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (

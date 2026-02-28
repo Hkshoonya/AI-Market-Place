@@ -30,6 +30,7 @@ export default function AdminReviewsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -101,8 +102,15 @@ export default function AdminReviewsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search reviews..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            defaultValue={search}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                setSearch(value);
+                setPage(1);
+              }, 300);
+            }}
             className="pl-9 bg-secondary"
           />
         </div>
@@ -132,9 +140,14 @@ export default function AdminReviewsPage() {
             <div key={i} className="h-24 animate-pulse rounded-xl bg-secondary" />
           ))
         ) : reviews.length === 0 ? (
-          <div className="rounded-xl border border-border/30 py-12 text-center">
-            <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40" />
-            <p className="mt-3 text-sm text-muted-foreground">No reviews found.</p>
+          <div className="rounded-xl border border-border/30 py-16 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <Star className="h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm font-medium text-muted-foreground">No reviews found</p>
+              <p className="text-xs text-muted-foreground/70">
+                {search ? "Try adjusting your search or filters" : "Reviews will appear here once submitted"}
+              </p>
+            </div>
           </div>
         ) : (
           reviews.map((r) => (
