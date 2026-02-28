@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
+import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 /**
  * Open LLM Leaderboard Adapter — HuggingFace Benchmark Rankings
@@ -152,7 +153,7 @@ const adapter: DataSourceAdapter = {
       const { data: existing } = await sb
         .from("models")
         .select("id")
-        .or(`slug.eq.${modelSlug},name.ilike.%${shortName}%`)
+        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(shortName)}%`)
         .limit(1);
 
       const model = existing?.[0];
