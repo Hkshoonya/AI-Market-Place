@@ -32,6 +32,15 @@ export async function GET(request: Request) {
     );
   }
 
+  // Verify agent scope
+  const scopes = (auth.keyRecord.scopes as string[]) ?? [];
+  if (!scopes.includes("agent")) {
+    return NextResponse.json(
+      { error: "API key missing 'agent' scope" },
+      { status: 403 }
+    );
+  }
+
   const ownerId =
     (auth.keyRecord.agent_id as string) ??
     (auth.keyRecord.owner_id as string);

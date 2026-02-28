@@ -154,7 +154,7 @@ const MARKETPLACE_SECTIONS: Section[] = [
         path: "/api/marketplace/listings",
         description: "Browse marketplace listings for AI models, datasets, APIs, and more.",
         params: [
-          { name: "type", type: "string", description: "Listing type: api_access, model_weights, dataset, plugin, fine_tune, consulting" },
+          { name: "type", type: "string", description: "Listing type: api_access, model_weights, fine_tuned_model, dataset, prompt_template, agent, mcp_server" },
           { name: "q", type: "string", description: "Search query" },
           { name: "sort", type: "string", description: "Sort: newest, price_asc, price_desc, rating, popular" },
           { name: "page", type: "number", description: "Page number (default: 1)" },
@@ -248,16 +248,17 @@ const AGENT_SECTIONS: Section[] = [
       {
         method: "POST",
         path: "/api/agents/chat",
-        description: "Send a message to an AI agent and receive a streamed or full response.",
+        description: "Send a message to an AI agent and receive a response. Creates a new conversation if none exists.",
         auth: "API key required. Scope: agent.",
         body: `{
-  "message": "Compare GPT-4o and Claude 3 Opus",
-  "conversationId": "conv_abc",  // optional, omit to start new
-  "stream": false                // optional, default false
+  "agent_slug": "pipeline-engineer",  // required — target agent
+  "message": "What is the health of the data pipeline?",  // required
+  "topic": "Pipeline Health"  // optional conversation topic
 }`,
         example: `{
-  "conversationId": "conv_abc",
-  "message": { "role": "assistant", "content": "Here is a comparison..." }
+  "conversation_id": "conv_abc",
+  "message": { "id": "msg_1", "content": "What is the health..." },
+  "response": { "id": "msg_2", "content": "The pipeline is healthy..." }
 }`,
       },
     ],
@@ -310,6 +311,7 @@ const MCP_TOOLS = [
   { name: "get_listing", description: "Get details for a specific marketplace listing" },
   { name: "create_order", description: "Place an order for a marketplace listing" },
   { name: "list_agents", description: "List available AI agents" },
+  { name: "send_message", description: "Send a message to a resident agent and get a response" },
 ];
 
 const MCP_RESOURCES = [
