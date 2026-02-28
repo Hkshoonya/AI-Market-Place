@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -42,7 +43,10 @@ export default function AdminReviewsPage() {
       query = query.eq("rating", parseInt(ratingFilter));
     }
     if (search) {
-      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+      const safeSearch = sanitizeFilterValue(search);
+      if (safeSearch) {
+        query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
+      }
     }
 
     query = query.order("created_at", { ascending: false });

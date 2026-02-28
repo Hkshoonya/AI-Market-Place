@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/format";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -43,7 +44,10 @@ export default function AdminUsersPage() {
     if (roleFilter === "verified_seller") query = query.eq("seller_verified", true);
 
     if (search) {
-      query = query.or(`display_name.ilike.%${search}%,email.ilike.%${search}%,username.ilike.%${search}%`);
+      const safeSearch = sanitizeFilterValue(search);
+      if (safeSearch) {
+        query = query.or(`display_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,username.ilike.%${safeSearch}%`);
+      }
     }
 
     query = query.order("joined_at", { ascending: false });
