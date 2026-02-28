@@ -134,23 +134,29 @@ export async function PATCH(request: NextRequest) {
       })
       .eq("id", verReq.user_id);
 
-    // Create notification for the user
-    await sb.from("notifications").insert({
+    // Create notification for the user (non-critical, log errors only)
+    const { error: notifError } = await sb.from("notifications").insert({
       user_id: verReq.user_id,
       type: "system",
       title: "Seller verification approved!",
       message: "Congratulations! Your seller account has been verified. You now have a verified badge.",
       link: "/dashboard/seller",
     });
+    if (notifError) {
+      console.error("Failed to insert approval notification:", notifError.message);
+    }
   } else {
-    // Rejected notification
-    await sb.from("notifications").insert({
+    // Rejected notification (non-critical, log errors only)
+    const { error: notifError } = await sb.from("notifications").insert({
       user_id: verReq.user_id,
       type: "system",
       title: "Seller verification update",
       message: admin_notes || "Your seller verification request was not approved at this time.",
       link: "/dashboard/seller",
     });
+    if (notifError) {
+      console.error("Failed to insert rejection notification:", notifError.message);
+    }
   }
 
   return NextResponse.json({ success: true, status: newStatus });

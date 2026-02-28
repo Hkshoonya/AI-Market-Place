@@ -119,15 +119,18 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Notify the other party
+  // Notify the other party (non-critical, log errors only)
   const otherUserId = order.buyer_id === user.id ? order.seller_id : order.buyer_id;
-  await sb.from("notifications").insert({
+  const { error: notifError } = await sb.from("notifications").insert({
     user_id: otherUserId,
     type: "order_update",
     title: "New message on your order",
     message: content.trim().substring(0, 100),
     link: `/orders/${orderId}`,
   });
+  if (notifError) {
+    console.error("Failed to insert order message notification:", notifError.message);
+  }
 
   return NextResponse.json({ data });
 }

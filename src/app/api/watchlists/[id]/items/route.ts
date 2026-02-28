@@ -39,7 +39,8 @@ export async function POST(
   }
 
   // Verify user owns the watchlist
-  const { data: watchlist } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: watchlist } = await (supabase as any)
     .from("watchlists")
     .select("id")
     .eq("id", watchlistId)
@@ -54,7 +55,8 @@ export async function POST(
   }
 
   // Check if model is already in watchlist
-  const { data: existing } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (supabase as any)
     .from("watchlist_items")
     .select("id")
     .eq("watchlist_id", watchlistId)
@@ -118,7 +120,8 @@ export async function DELETE(
   }
 
   // Verify user owns the watchlist
-  const { data: watchlist } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: watchlist } = await (supabase as any)
     .from("watchlists")
     .select("id")
     .eq("id", watchlistId)
@@ -132,7 +135,8 @@ export async function DELETE(
     );
   }
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from("watchlist_items")
     .delete()
     .eq("watchlist_id", watchlistId)

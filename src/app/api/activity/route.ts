@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Get all model IDs from user's watchlists
-  const { data: watchlistItems } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: watchlistItems } = await (supabase as any)
     .from("watchlist_items")
     .select("model_id, watchlists!inner(user_id)")
     .eq("watchlists.user_id", user.id);
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
 
   if (modelIds.length === 0) {
     // No watched models — return recent global updates
-    const { data: globalUpdates } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: globalUpdates } = await (supabase as any)
       .from("model_updates")
       .select("*, models(id, slug, name, provider)")
       .order("published_at", { ascending: false })
@@ -53,7 +55,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Get recent updates for watched models
-  const { data: updates, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updates, error } = await (supabase as any)
     .from("model_updates")
     .select("*, models(id, slug, name, provider)")
     .in("model_id", modelIds)

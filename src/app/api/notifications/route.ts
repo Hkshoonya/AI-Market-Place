@@ -84,17 +84,25 @@ export async function PATCH(request: NextRequest) {
   const sb = supabase as any;
 
   if (markAll) {
-    await sb
+    const { error } = await sb
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id)
       .eq("is_read", false);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   } else if (ids && Array.isArray(ids)) {
-    await sb
+    const { error } = await sb
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id)
       .in("id", ids);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ success: true });

@@ -35,12 +35,12 @@ export async function GET(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Increment view count (fire-and-forget)
-  supabase
+  // Note: non-atomic increment; acceptable for analytics-grade view counts
+  (supabase as any)
     .from("marketplace_listings")
     .update({ view_count: (data.view_count || 0) + 1 })
     .eq("id", data.id)
-    .then();
+    .then(() => {});
 
   return NextResponse.json({ data });
 }
@@ -60,6 +60,14 @@ export async function PATCH(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = rateLimit(`listing-edit:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
   }
 
   const body = await request.json();
@@ -135,6 +143,14 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = rateLimit(`listing-delete:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
   }
 
   const { error } = await (supabase as any)

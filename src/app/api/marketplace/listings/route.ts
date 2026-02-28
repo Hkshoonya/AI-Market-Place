@@ -107,6 +107,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = rateLimit(`listing-create:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const body = await request.json();
   const parsed = createListingSchema.safeParse(body);
 

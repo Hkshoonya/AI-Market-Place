@@ -73,6 +73,14 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = rateLimit(`review-create:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   const body = await request.json();
   const parsed = createReviewSchema.safeParse(body);
 
