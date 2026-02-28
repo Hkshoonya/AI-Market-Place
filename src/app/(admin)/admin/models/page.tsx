@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
+  Bot,
   Box,
   Check,
   ChevronLeft,
@@ -18,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatNumber, formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -148,9 +150,9 @@ export default function AdminModelsPage() {
                 ))
               ) : models.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={9} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
-                      <Box className="h-8 w-8 text-muted-foreground/50" />
+                      <Bot className="h-10 w-10 text-muted-foreground/30" />
                       <p className="text-sm font-medium text-muted-foreground">No models found</p>
                       <p className="text-xs text-muted-foreground/70">
                         {search ? "Try adjusting your search or filters" : "Models will appear here once added"}
@@ -200,14 +202,29 @@ export default function AdminModelsPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => toggleStatus(m.id, m.status)}
-                        >
-                          {m.status === "active" ? "Deactivate" : "Activate"}
-                        </Button>
+                        {m.status === "active" ? (
+                          <ConfirmDialog
+                            trigger={
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-loss">
+                                Deactivate
+                              </Button>
+                            }
+                            title="Deactivate Model"
+                            description={`Are you sure you want to deactivate "${m.name}"? It will be hidden from public listings.`}
+                            confirmLabel="Deactivate"
+                            variant="destructive"
+                            onConfirm={() => toggleStatus(m.id, m.status)}
+                          />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-gain"
+                            onClick={() => toggleStatus(m.id, m.status)}
+                          >
+                            Activate
+                          </Button>
+                        )}
                         <Link href={`/models/${m.slug}`}>
                           <Button variant="ghost" size="sm" className="h-7 px-2" aria-label={`View ${m.name}`}>
                             <ExternalLink className="h-3 w-3" />

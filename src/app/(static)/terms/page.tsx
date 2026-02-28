@@ -68,6 +68,14 @@ export default function TermsPage() {
             3. User Accounts
           </h2>
           <p className="mt-2">
+            <strong className="text-foreground">Age Requirement.</strong> You
+            must be at least 13 years of age to create an account or use the
+            Platform. If you are between 13 and 18 years of age (or the age of
+            majority in your jurisdiction), you may only use the Platform under
+            the supervision of a parent or legal guardian who agrees to be bound
+            by these Terms.
+          </p>
+          <p className="mt-2">
             <strong className="text-foreground">Registration.</strong> Certain
             features of the Platform require you to create an account. You may
             register using an email address and password or through supported
@@ -82,14 +90,6 @@ export default function TermsPage() {
             account. You agree to notify us immediately of any unauthorized use
             of your account or any other breach of security. We are not liable
             for any loss arising from unauthorized access to your account.
-          </p>
-          <p className="mt-2">
-            <strong className="text-foreground">Age Requirement.</strong> You
-            must be at least 13 years of age to create an account or use the
-            Platform. If you are between 13 and 18 years of age (or the age of
-            majority in your jurisdiction), you may only use the Platform under
-            the supervision of a parent or legal guardian who agrees to be bound
-            by these Terms.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Account Termination.</strong> We
@@ -108,10 +108,11 @@ export default function TermsPage() {
           <p className="mt-2">
             <strong className="text-foreground">Listing Policies.</strong>{" "}
             Sellers are responsible for ensuring that all marketplace listings
-            are accurate, complete, and not misleading. Listings must not
-            infringe on any third-party intellectual property rights, violate
-            applicable laws, or contain malicious code. We reserve the right to
-            remove any listing that violates these policies without notice.
+            are accurate, complete, and not misleading. All pricing must be
+            clearly stated and kept up to date. Listings must not infringe on
+            any third-party intellectual property rights, violate applicable
+            laws, or contain malicious code. We reserve the right to remove any
+            listing that violates these policies without notice.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Transaction Terms.</strong>{" "}
@@ -119,6 +120,13 @@ export default function TermsPage() {
             Market Cap facilitates the connection and provides the order tracking
             system but is not a party to the transaction itself. All pricing,
             delivery, and fulfillment terms are as described in each listing.
+          </p>
+          <p className="mt-2">
+            <strong className="text-foreground">No Guaranteed Outcomes.</strong>{" "}
+            AI Market Cap does not guarantee the performance, quality, or
+            suitability of any product or service listed on the marketplace.
+            Buyers acknowledge that outcomes may vary and that marketplace
+            listings are provided by third-party sellers, not by AI Market Cap.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">
@@ -134,17 +142,26 @@ export default function TermsPage() {
               Seller Responsibilities.
             </strong>{" "}
             Sellers agree to deliver products and services as described in their
-            listings, respond to buyer inquiries in a timely manner, and comply
-            with all applicable laws and regulations. Sellers are solely
-            responsible for any tax obligations arising from their sales.
+            listings, maintain pricing accuracy, respond to buyer inquiries in a
+            timely manner, and comply with all applicable laws and regulations.
+            Sellers are solely responsible for any tax obligations arising from
+            their sales.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Dispute Resolution.</strong> In
             the event of a dispute between a buyer and seller, we encourage
-            parties to resolve the matter directly. AI Market Cap may, at its
-            sole discretion, mediate disputes or take action including issuing
-            refunds, suspending accounts, or removing listings. Our decisions in
-            dispute resolution are final.
+            parties to resolve the matter directly. If direct resolution fails,
+            either party may contact our support team at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>{" "}
+            for mediation. AI Market Cap may, at its sole discretion, mediate
+            disputes or take action including issuing refunds, suspending
+            accounts, or removing listings. Our decisions in dispute resolution
+            are final.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Seller Verification.</strong>{" "}
@@ -175,21 +192,21 @@ export default function TermsPage() {
             limits at any time.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Acceptable Use.</strong> You may
-            use the API for building applications, performing research,
-            integrating data into your own tools, or enabling AI agents and bots
-            to interact with the Platform programmatically. Automated access
-            must use the API; direct scraping of the website is prohibited.
+            <strong className="text-foreground">No Scraping.</strong> Automated
+            scraping, crawling, or data extraction from the Platform website is
+            strictly prohibited without prior written consent. All programmatic
+            access to Platform data must be conducted through the authorized
+            API.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">
-              Bot &amp; Agent Interaction.
+              Bot &amp; Agent Identification.
             </strong>{" "}
             Bots, AI agents, and MCP servers may interact with the Platform
-            through the API. Automated actors must identify themselves
-            appropriately and comply with all API rate limits and usage policies.
-            Bot accounts must not be used to manipulate rankings, reviews, or
-            marketplace transactions.
+            through the API. All automated actors must identify themselves
+            appropriately via the User-Agent header and comply with all API rate
+            limits and usage policies. Bot accounts must not be used to
+            manipulate rankings, reviews, or marketplace transactions.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">Data Usage.</strong> Data
@@ -206,24 +223,33 @@ export default function TermsPage() {
             6. Intellectual Property
           </h2>
           <p className="mt-2">
-            <strong className="text-foreground">Platform Content.</strong> All
+            <strong className="text-foreground">Platform Ownership.</strong> All
             content on the Platform, including but not limited to text, graphics,
-            logos, icons, images, data compilations, and software, is the
-            property of AI Market Cap or its content suppliers and is protected
-            by intellectual property laws. You may not reproduce, distribute, or
-            create derivative works from Platform content without our prior
-            written consent.
+            logos, icons, images, data compilations, software, and the overall
+            design and architecture of the Platform, is the property of AI
+            Market Cap or its content suppliers and is protected by intellectual
+            property laws. You may not reproduce, distribute, or create
+            derivative works from Platform content without our prior written
+            consent.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">
-              User-Generated Content.
+              User Content Rights.
             </strong>{" "}
-            By submitting content to the Platform (including reviews, comments,
-            ratings, and marketplace listings), you grant AI Market Cap a
+            You retain ownership of all content you submit to the Platform,
+            including reviews, comments, ratings, and marketplace listings. You
+            may request removal of your content at any time, subject to our
+            operational requirements.
+          </p>
+          <p className="mt-2">
+            <strong className="text-foreground">
+              License for User-Generated Content.
+            </strong>{" "}
+            By submitting content to the Platform, you grant AI Market Cap a
             worldwide, non-exclusive, royalty-free, perpetual license to use,
             display, reproduce, and distribute such content in connection with
-            the operation of the Platform. You retain ownership of your content
-            and may request its removal, subject to our operational requirements.
+            the operation of the Platform. This license is necessary for us to
+            display your reviews, comments, and listings to other users.
           </p>
           <p className="mt-2">
             <strong className="text-foreground">DMCA &amp; Takedowns.</strong>{" "}
@@ -248,19 +274,23 @@ export default function TermsPage() {
           <p className="mt-2">You agree not to:</p>
           <ul className="mt-2 list-disc list-inside space-y-1.5">
             <li>
-              Scrape, crawl, or otherwise extract data from the Platform without
-              using the authorized API
-            </li>
-            <li>
-              Attempt to manipulate model rankings, ratings, or review scores
-              through fake accounts, automated voting, or any other deceptive
-              means
+              Attempt to manipulate or game model rankings, ratings, or review
+              scores through fake accounts, automated voting, coordinated
+              campaigns, or any other deceptive means
             </li>
             <li>
               Create false, misleading, or fraudulent marketplace listings
             </li>
             <li>
               Harass, abuse, threaten, or intimidate other users of the Platform
+            </li>
+            <li>
+              Scrape, crawl, or otherwise extract data from the Platform without
+              using the authorized API
+            </li>
+            <li>
+              Reverse engineer, decompile, or disassemble any portion of the
+              Platform software or attempt to derive its source code
             </li>
             <li>
               Upload or distribute malicious code, viruses, or any content
@@ -294,10 +324,10 @@ export default function TermsPage() {
           </p>
         </section>
 
-        {/* 8. Disclaimers & Limitation of Liability */}
+        {/* 8. Disclaimers */}
         <section>
           <h2 className="text-lg font-semibold text-foreground">
-            8. Disclaimers &amp; Limitation of Liability
+            8. Disclaimers
           </h2>
           <p className="mt-2">
             <strong className="text-foreground">
@@ -319,15 +349,25 @@ export default function TermsPage() {
             information from the Platform.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Data Accuracy.</strong> While we
-            strive to provide accurate and up-to-date information, we do not
-            warrant the accuracy, completeness, or reliability of any data
+            <strong className="text-foreground">
+              No Guarantee of Accuracy.
+            </strong>{" "}
+            While we strive to provide accurate and up-to-date information, we
+            do not warrant the accuracy, completeness, or reliability of any
+            model rankings, benchmark data, pricing information, or other data
             displayed on the Platform. Model data is aggregated from third-party
             sources and may contain errors, delays, or omissions.
           </p>
+        </section>
+
+        {/* 9. Limitation of Liability */}
+        <section>
+          <h2 className="text-lg font-semibold text-foreground">
+            9. Limitation of Liability
+          </h2>
           <p className="mt-2">
             <strong className="text-foreground">
-              Limitation of Damages.
+              No Indirect Damages.
             </strong>{" "}
             To the maximum extent permitted by applicable law, AI Market Cap and
             its officers, directors, employees, and agents shall not be liable
@@ -339,27 +379,12 @@ export default function TermsPage() {
             damages.
           </p>
           <p className="mt-2">
-            <strong className="text-foreground">Maximum Liability.</strong> In
-            no event shall our total aggregate liability exceed the greater of
+            <strong className="text-foreground">
+              Aggregate Liability Limited.
+            </strong>{" "}
+            In no event shall our total aggregate liability exceed the greater of
             one hundred US dollars (USD $100) or the amount you have paid us in
             the twelve (12) months preceding the event giving rise to the claim.
-          </p>
-        </section>
-
-        {/* 9. Privacy */}
-        <section>
-          <h2 className="text-lg font-semibold text-foreground">
-            9. Privacy
-          </h2>
-          <p className="mt-2">
-            Your use of the Platform is also governed by our{" "}
-            <a href="/privacy" className="text-neon underline hover:text-neon/80">
-              Privacy Policy
-            </a>
-            , which is incorporated into these Terms by reference. The Privacy
-            Policy describes how we collect, use, store, and share your personal
-            information. By using the Platform, you consent to the collection
-            and use of information as described in the Privacy Policy.
           </p>
         </section>
 
@@ -369,17 +394,18 @@ export default function TermsPage() {
             10. Modifications to Terms
           </h2>
           <p className="mt-2">
-            We reserve the right to modify these Terms at any time. When we make
-            material changes, we will update the &quot;Last updated&quot; date
-            at the top of this page and, where appropriate, provide additional
-            notice (such as a banner on the Platform or an email to registered
-            users). Changes are effective upon posting unless otherwise stated.
+            We reserve the right to modify these Terms at any time. For material
+            changes, we will provide at least 30 days&apos; advance notice by
+            updating the &quot;Last updated&quot; date at the top of this page
+            and providing additional notice (such as a banner on the Platform or
+            an email to registered users). Non-material changes take effect upon
+            posting.
           </p>
           <p className="mt-2">
-            Your continued use of the Platform after any modifications to these
-            Terms constitutes your acceptance of the revised Terms. If you do
-            not agree with the modified Terms, you must stop using the Platform
-            and may request deletion of your account.
+            Your continued use of the Platform after the notice period for any
+            modifications to these Terms constitutes your acceptance of the
+            revised Terms. If you do not agree with the modified Terms, you must
+            stop using the Platform and may request deletion of your account.
           </p>
         </section>
 
@@ -390,11 +416,10 @@ export default function TermsPage() {
           </h2>
           <p className="mt-2">
             These Terms shall be governed by and construed in accordance with
-            the laws of the jurisdiction in which AI Market Cap operates,
-            without regard to conflict of law principles. Any disputes arising
-            from or relating to these Terms or your use of the Platform shall be
-            subject to the exclusive jurisdiction of the courts in that
-            jurisdiction.
+            applicable laws, without regard to conflict of law principles. Any
+            disputes arising from or relating to these Terms or your use of the
+            Platform shall be subject to the exclusive jurisdiction of the
+            courts in the jurisdiction in which AI Market Cap operates.
           </p>
           <p className="mt-2">
             You agree to waive any right to a jury trial in connection with any
@@ -411,7 +436,14 @@ export default function TermsPage() {
           </h2>
           <p className="mt-2">
             If you have any questions about these Terms of Service, please
-            contact us through our{" "}
+            contact us at{" "}
+            <a
+              href="mailto:support@aimarketcap.com"
+              className="text-neon underline hover:text-neon/80"
+            >
+              support@aimarketcap.com
+            </a>{" "}
+            or through our{" "}
             <a href="/contact" className="text-neon underline hover:text-neon/80">
               Contact page
             </a>

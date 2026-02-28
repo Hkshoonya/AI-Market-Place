@@ -190,9 +190,9 @@ export default function AdminUsersPage() {
                 ))
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center">
+                  <td colSpan={6} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
-                      <Users className="h-8 w-8 text-muted-foreground/50" />
+                      <Users className="h-10 w-10 text-muted-foreground/30" />
                       <p className="text-sm font-medium text-muted-foreground">No users found</p>
                       <p className="text-xs text-muted-foreground/70">
                         {search ? "Try adjusting your search or filters" : "Users will appear here once they sign up"}
