@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,14 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = rateLimit(`api-keys-delete:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

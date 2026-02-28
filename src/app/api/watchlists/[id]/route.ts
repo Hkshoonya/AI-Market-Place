@@ -25,7 +25,8 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   // Fetch the watchlist
-  const { data: watchlist, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: watchlist, error } = await (supabase as any)
     .from("watchlists")
     .select(
       "*, watchlist_items(id, model_id, added_at, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes, release_date, parameter_count, context_window, is_open_weights))"
@@ -67,6 +68,14 @@ export async function PATCH(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = rateLimit(`watchlist-edit:${user.id}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
   }
 
   const body = await request.json();
@@ -122,7 +131,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { error } = await supabase
+  const rl2 = rateLimit(`watchlist-delete:${user.id}`, RATE_LIMITS.api);
+  if (!rl2.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl2) }
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from("watchlists")
     .delete()
     .eq("id", id)

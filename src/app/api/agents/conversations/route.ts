@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { extractApiKey, validateApiKey } from "@/lib/agents/auth";
 import { assertUuid } from "@/lib/utils/sanitize";
+import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,15 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: auth.error ?? "Invalid API key" },
       { status: 401 }
+    );
+  }
+
+  const keyId = auth.keyRecord.id as string;
+  const rl = rateLimit(`conversations:${keyId}`, RATE_LIMITS.api);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
     );
   }
 

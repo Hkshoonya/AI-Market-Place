@@ -35,7 +35,44 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const { data, error } = await (supabase as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
+  // Fetch the current order to validate ownership and status transition
+  const { data: currentOrder, error: fetchError } = await sb
+    .from("marketplace_orders")
+    .select("*")
+    .eq("id", id)
+    .eq("seller_id", user.id)
+    .single();
+
+  if (fetchError || !currentOrder) {
+    return NextResponse.json(
+      { error: "Not found or not authorized" },
+      { status: 404 }
+    );
+  }
+
+  // Validate status transition
+  const allowedTransitions: Record<string, string[]> = {
+    pending: ["approved", "rejected", "cancelled"],
+    approved: ["completed", "cancelled"],
+    rejected: [],
+    completed: [],
+    cancelled: [],
+  };
+
+  const allowed = allowedTransitions[currentOrder.status];
+  if (!allowed || !allowed.includes(status)) {
+    return NextResponse.json(
+      {
+        error: `Cannot transition from "${currentOrder.status}" to "${status}".`,
+      },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await sb
     .from("marketplace_orders")
     .update({ status })
     .eq("id", id)
@@ -45,13 +82,6 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!data) {
-    return NextResponse.json(
-      { error: "Not found or not authorized" },
-      { status: 404 }
-    );
   }
 
   return NextResponse.json({ data });

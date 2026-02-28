@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { assertUuid } from "@/lib/utils/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -46,27 +47,39 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    assertUuid(target_id, "target_id");
+  } catch {
+    return NextResponse.json({ error: "Invalid target_id format" }, { status: 400 });
+  }
+
+  try {
     switch (`${target_type}:${action}`) {
       // User actions
       case "user:ban": {
         await sb.from("profiles").update({ is_banned: true }).eq("id", target_id);
-        await sb.from("notifications").insert({
+        const { error: banNotifError } = await sb.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account suspended",
           message: reason || "Your account has been suspended due to policy violations.",
         });
+        if (banNotifError) {
+          console.error("Failed to insert ban notification:", banNotifError.message);
+        }
         return NextResponse.json({ success: true, message: "User banned" });
       }
 
       case "user:unban": {
         await sb.from("profiles").update({ is_banned: false }).eq("id", target_id);
-        await sb.from("notifications").insert({
+        const { error: unbanNotifError } = await sb.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account reinstated",
           message: "Your account has been reinstated.",
         });
+        if (unbanNotifError) {
+          console.error("Failed to insert unban notification:", unbanNotifError.message);
+        }
         return NextResponse.json({ success: true, message: "User unbanned" });
       }
 
@@ -84,13 +97,16 @@ export async function PATCH(request: NextRequest) {
           .eq("id", target_id);
 
         if (listing) {
-          await sb.from("notifications").insert({
+          const { error: listingNotifError } = await sb.from("notifications").insert({
             user_id: listing.seller_id,
             type: "marketplace",
             title: "Listing removed",
             message: reason || `Your listing "${listing.title}" has been removed by an administrator.`,
             link: "/dashboard/seller",
           });
+          if (listingNotifError) {
+            console.error("Failed to insert listing removal notification:", listingNotifError.message);
+          }
         }
         return NextResponse.json({ success: true, message: "Listing archived" });
       }

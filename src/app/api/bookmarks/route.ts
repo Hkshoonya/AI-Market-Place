@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from("user_bookmarks")
     .select("id, model_id, created_at, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads)")
     .eq("user_id", user.id)
@@ -115,7 +116,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "model_id is required" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from("user_bookmarks")
     .delete()
     .eq("user_id", user.id)

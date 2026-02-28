@@ -100,10 +100,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Ensure user is a seller
-  await sb
+  const { error: profileError } = await sb
     .from("profiles")
     .update({ is_seller: true, updated_at: new Date().toISOString() })
     .eq("id", user.id);
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
 
   // Create request
   const { data, error } = await sb

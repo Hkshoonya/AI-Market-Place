@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from("watchlists")
     .select(
       "*, watchlist_items(id, model_id, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes))"
