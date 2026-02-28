@@ -132,7 +132,16 @@ export async function executeAgent(
 
   try {
     await logger.info(`Starting task: ${taskType}`, { input });
-    result = await agent.run(ctx);
+
+    // Race agent execution against hard timeout for guaranteed termination
+    const timeoutPromise = new Promise<AgentTaskResult>((_, reject) => {
+      controller.signal.addEventListener("abort", () => {
+        reject(new Error(`Agent timed out after ${timeoutMs}ms`));
+      });
+    });
+
+    result = await Promise.race([agent.run(ctx), timeoutPromise]);
+
     await logger.info(`Task completed: ${result.success ? "success" : "failed"}`, {
       output: result.output,
       errors: result.errors,
@@ -153,7 +162,7 @@ export async function executeAgent(
   const taskStatus = result.success ? "completed" : "failed";
 
   // Update task record
-  await sb
+  const { error: taskUpdateErr } = await sb
     .from("agent_tasks")
     .update({
       status: taskStatus,
@@ -162,6 +171,10 @@ export async function executeAgent(
       completed_at: new Date().toISOString(),
     })
     .eq("id", task.id);
+
+  if (taskUpdateErr) {
+    console.error(`Failed to update task ${task.id}:`, taskUpdateErr.message);
+  }
 
   // Update agent stats
   const updates: Record<string, unknown> = {
@@ -184,7 +197,10 @@ export async function executeAgent(
     }
   }
 
-  await sb.from("agents").update(updates).eq("id", record.id);
+  const { error: agentUpdateErr } = await sb.from("agents").update(updates).eq("id", record.id);
+  if (agentUpdateErr) {
+    console.error(`Failed to update agent ${record.id}:`, agentUpdateErr.message);
+  }
 
   return {
     agentSlug: slug,
