@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "FAQ",
   description:
-    "Frequently asked questions about AI Market Cap — how we rank models, data sources, marketplace, and more.",
+    "Frequently asked questions about AI Market Cap — how we rank models, data sources, marketplace, API, agents, and more.",
 };
 
 const FAQ_SECTIONS = [
@@ -23,13 +23,17 @@ const FAQ_SECTIONS = [
         q: "Is AI Market Cap free to use?",
         a: "Yes — browsing models, comparing benchmarks, viewing leaderboards, and most features are completely free. The marketplace may have paid listings from sellers offering fine-tuned models, API access, or datasets.",
       },
+      {
+        q: "Is the data real-time?",
+        a: "Our data is near-real-time rather than strictly real-time. Model metrics (downloads, likes, trending scores) are refreshed every 6 hours. Benchmark scores update when new evaluations are published. Pricing data is updated as providers announce changes. Marketplace listings and reviews reflect changes immediately.",
+      },
     ],
   },
   {
     title: "Rankings & Scores",
     items: [
       {
-        q: "How are models ranked?",
+        q: "How are AI models ranked?",
         a: "Models are ranked using a composite scoring system that considers benchmark performance (quality score), community engagement (downloads and likes), pricing value, and Elo ratings from head-to-head arenas like LMSYS Chatbot Arena. Each factor is weighted to produce an overall rank.",
       },
       {
@@ -50,12 +54,41 @@ const FAQ_SECTIONS = [
         a: "The marketplace offers API access packages, model weights, fine-tuned models, datasets, prompt templates, AI agents, and MCP servers — all from verified sellers. Each listing includes ratings, reviews, and seller reputation scores.",
       },
       {
-        q: "How do I become a seller?",
-        a: 'To sell on the marketplace, sign in to your account and visit the "Sell" page. You can create listings immediately. Verified seller status (with higher visibility and trust badges) can be requested through your profile settings.',
+        q: "How do I list something on the marketplace?",
+        a: 'To sell on the marketplace, sign in to your account and visit the "Sell" page. You can create listings immediately by providing a title, description, category, pricing, and delivery details. Verified seller status (with higher visibility and trust badges) can be requested through your profile settings after your first listing.',
       },
       {
         q: "Are marketplace transactions secure?",
         a: "All transactions go through our order system which tracks status from inquiry through completion. Buyers can leave reviews and ratings. We recommend reviewing seller profiles and ratings before making purchases.",
+      },
+      {
+        q: "How do I report a problem with a listing or seller?",
+        a: "You can report problematic listings directly from the listing page using the report button. For issues with a specific order or seller, visit your Orders page and use the report option on the relevant order. Our moderation team reviews all reports and takes action within 48 hours. You can also reach us through the Contact page for urgent issues.",
+      },
+    ],
+  },
+  {
+    title: "API & Integrations",
+    items: [
+      {
+        q: "What are API keys and how do I get one?",
+        a: "API keys allow you to access AI Market Cap data programmatically — model rankings, benchmarks, pricing, and marketplace data. To get an API key, sign in to your account and visit your Settings page. You can generate and manage multiple API keys from there. Each key has configurable rate limits and permissions.",
+      },
+      {
+        q: "Can bots and AI agents interact with the platform?",
+        a: "Yes — bots, AI agents, and automated tools can interact with AI Market Cap through our API. Automated clients should use the API rather than scraping the website directly. Bots must respect rate limits and identify themselves via the User-Agent header. Bot accounts must not be used to manipulate rankings, reviews, or marketplace transactions.",
+      },
+      {
+        q: "What are resident agents?",
+        a: "Resident agents are persistent AI agents that can be configured to run on the platform and perform automated tasks like monitoring model changes, tracking price updates, curating watchlists, or managing marketplace listings on your behalf. They operate within your account's permissions and API rate limits.",
+      },
+      {
+        q: "How does the MCP server work?",
+        a: "MCP (Model Context Protocol) servers available on the marketplace provide standardized interfaces for AI models to interact with external tools and data sources. An MCP server listed on AI Market Cap can be purchased or subscribed to, then integrated into your AI workflow. Each MCP server listing includes documentation, compatibility information, and setup instructions.",
+      },
+      {
+        q: "What are the API rate limits?",
+        a: "Rate limits vary by plan. Free accounts receive a generous allocation for personal and research use. Rate limit details including requests per minute and daily quotas are documented on the API Documentation page. If you exceed your limits, requests will receive a 429 status code with a Retry-After header.",
       },
     ],
   },
@@ -71,8 +104,12 @@ const FAQ_SECTIONS = [
         a: "Yes — use the Compare feature to select up to 5 models for side-by-side comparison. You can compare benchmarks, pricing, capabilities, and specifications. Share comparison links with colleagues directly.",
       },
       {
-        q: "How do I get API access?",
-        a: "Our public API provides access to model data, rankings, benchmarks, and pricing. Visit the API Documentation page for endpoints, rate limits, and usage examples.",
+        q: "How do I delete my account?",
+        a: "You can delete your account from the Settings page under the Danger Zone section. Account deletion removes your profile, preferences, and personal data within 30 days. Note that public content such as reviews and comments may be anonymized rather than deleted, and marketplace transaction records are retained for legal compliance.",
+      },
+      {
+        q: "How do I report a bug or problem?",
+        a: "If you encounter a bug or technical issue, please visit our Contact page and select the appropriate category for your report. Include as much detail as possible — the page URL, what you expected to happen, and what actually happened. Screenshots are helpful. Our team reviews all reports and aims to respond within 48 hours.",
       },
     ],
   },
