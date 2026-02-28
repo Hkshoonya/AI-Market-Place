@@ -24,7 +24,10 @@ export async function PATCH(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to update this order." },
+      { status: 401 }
+    );
   }
 
   const body = await request.json();
@@ -32,7 +35,10 @@ export async function PATCH(
 
   const validStatuses = ["approved", "rejected", "completed", "cancelled"];
   if (!validStatuses.includes(status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    return NextResponse.json(
+      { error: `Invalid status "${status}". Must be one of: ${validStatuses.join(", ")}.` },
+      { status: 400 }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +54,7 @@ export async function PATCH(
 
   if (fetchError || !currentOrder) {
     return NextResponse.json(
-      { error: "Not found or not authorized" },
+      { error: "Order not found, or you do not have permission to update it." },
       { status: 404 }
     );
   }
@@ -81,7 +87,10 @@ export async function PATCH(
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update order status. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data });

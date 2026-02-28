@@ -108,10 +108,11 @@ export function CreateListingForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="create-listing-title" className="mb-2 block text-sm font-medium">
               Title <span className="text-red-500">*</span>
             </label>
             <Input
+              id="create-listing-title"
               placeholder="e.g., GPT-4 Fine-tuned for Medical Q&A"
               className="bg-secondary"
               value={title}
@@ -123,10 +124,11 @@ export function CreateListingForm() {
 
           {/* Short Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="create-listing-short-desc" className="mb-2 block text-sm font-medium">
               Short Description
             </label>
             <Input
+              id="create-listing-short-desc"
               placeholder="One-line summary shown in listing cards"
               className="bg-secondary"
               value={shortDescription}
@@ -137,10 +139,11 @@ export function CreateListingForm() {
 
           {/* Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="create-listing-description" className="mb-2 block text-sm font-medium">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="create-listing-description"
               placeholder="Detailed description of what you're offering, including features, use cases, and technical details..."
               className="flex min-h-[160px] w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={description}
@@ -153,7 +156,7 @@ export function CreateListingForm() {
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Listing Type */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="create-listing-type" className="mb-2 block text-sm font-medium">
                 Listing Type <span className="text-red-500">*</span>
               </label>
               <Select
@@ -175,7 +178,7 @@ export function CreateListingForm() {
 
             {/* Pricing Type */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="create-listing-pricing" className="mb-2 block text-sm font-medium">
                 Pricing Type <span className="text-red-500">*</span>
               </label>
               <Select
@@ -201,10 +204,11 @@ export function CreateListingForm() {
           {/* Price */}
           {showPriceInput && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="create-listing-price" className="mb-2 block text-sm font-medium">
                 Price (USD) <span className="text-red-500">*</span>
               </label>
               <Input
+                id="create-listing-price"
                 type="number"
                 min="0"
                 step="0.01"
@@ -225,8 +229,9 @@ export function CreateListingForm() {
 
           {/* Tags */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Tags</label>
+            <label htmlFor="create-listing-tags" className="mb-2 block text-sm font-medium">Tags</label>
             <Input
+              id="create-listing-tags"
               placeholder="e.g., medical, nlp, fine-tuned (comma-separated)"
               className="bg-secondary"
               value={tags}
@@ -240,8 +245,9 @@ export function CreateListingForm() {
           {/* URLs Row */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">Demo URL</label>
+              <label htmlFor="create-listing-demo-url" className="mb-2 block text-sm font-medium">Demo URL</label>
               <Input
+                id="create-listing-demo-url"
                 type="url"
                 placeholder="https://demo.example.com"
                 className="bg-secondary"
@@ -250,8 +256,9 @@ export function CreateListingForm() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Documentation URL</label>
+              <label htmlFor="create-listing-docs-url" className="mb-2 block text-sm font-medium">Documentation URL</label>
               <Input
+                id="create-listing-docs-url"
                 type="url"
                 placeholder="https://docs.example.com"
                 className="bg-secondary"

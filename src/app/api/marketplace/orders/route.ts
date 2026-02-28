@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to view your orders." },
+      { status: 401 }
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -53,7 +56,10 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch orders. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data });
@@ -76,7 +82,10 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required. Please sign in to place an order." },
+      { status: 401 }
+    );
   }
 
   const body = await request.json();
@@ -122,7 +131,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create order. Please try again later." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data }, { status: 201 });

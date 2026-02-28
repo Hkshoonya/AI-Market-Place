@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Archive,
@@ -34,6 +34,7 @@ export default function AdminListingsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -147,8 +148,15 @@ export default function AdminListingsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search listings..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            defaultValue={search}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                setSearch(value);
+                setPage(1);
+              }, 300);
+            }}
             className="pl-9 bg-secondary"
           />
         </div>
@@ -332,10 +340,10 @@ export default function AdminListingsPage() {
             Page {page} of {totalPages} ({totalCount} total)
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1} aria-label="Previous page">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
+            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages} aria-label="Next page">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

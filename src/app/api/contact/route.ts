@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the contact form submission server-side for monitoring
-    console.log("[Contact Form Submission]", {
+    console.info("[Contact Form Submission]", {
       name,
       email,
       category: category || "general",

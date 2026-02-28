@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Box,
@@ -31,6 +31,7 @@ export default function AdminModelsPage() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchModels = useCallback(async () => {
     setLoading(true);
@@ -92,8 +93,15 @@ export default function AdminModelsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search models..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            defaultValue={search}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                setSearch(value);
+                setPage(1);
+              }, 300);
+            }}
             className="pl-9 bg-secondary"
           />
         </div>
@@ -140,8 +148,14 @@ export default function AdminModelsPage() {
                 ))
               ) : models.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No models found.
+                  <td colSpan={9} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Box className="h-8 w-8 text-muted-foreground/50" />
+                      <p className="text-sm font-medium text-muted-foreground">No models found</p>
+                      <p className="text-xs text-muted-foreground/70">
+                        {search ? "Try adjusting your search or filters" : "Models will appear here once added"}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -195,7 +209,7 @@ export default function AdminModelsPage() {
                           {m.status === "active" ? "Deactivate" : "Activate"}
                         </Button>
                         <Link href={`/models/${m.slug}`}>
-                          <Button variant="ghost" size="sm" className="h-7 px-2">
+                          <Button variant="ghost" size="sm" className="h-7 px-2" aria-label={`View ${m.name}`}>
                             <ExternalLink className="h-3 w-3" />
                           </Button>
                         </Link>
@@ -221,6 +235,7 @@ export default function AdminModelsPage() {
               size="sm"
               onClick={() => setPage(page - 1)}
               disabled={page <= 1}
+              aria-label="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -229,6 +244,7 @@ export default function AdminModelsPage() {
               size="sm"
               onClick={() => setPage(page + 1)}
               disabled={page >= totalPages}
+              aria-label="Next page"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

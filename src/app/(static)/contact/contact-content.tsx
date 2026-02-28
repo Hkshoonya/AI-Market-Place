@@ -134,10 +134,11 @@ export default function ContactContent() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="contact-name" className="text-sm font-medium text-muted-foreground">
                   Name
                 </label>
                 <Input
+                  id="contact-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
@@ -146,10 +147,11 @@ export default function ContactContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="contact-email" className="text-sm font-medium text-muted-foreground">
                   Email
                 </label>
                 <Input
+                  id="contact-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -161,10 +163,11 @@ export default function ContactContent() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="contact-subject" className="text-sm font-medium text-muted-foreground">
                 Subject
               </label>
               <Input
+                id="contact-subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Brief summary of your message"
@@ -174,10 +177,11 @@ export default function ContactContent() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="contact-message" className="text-sm font-medium text-muted-foreground">
                 Message
               </label>
               <textarea
+                id="contact-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Tell us more..."

@@ -164,10 +164,11 @@ export function EditListingForm({ listing }: EditListingFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="edit-listing-title" className="mb-2 block text-sm font-medium">
               Title <span className="text-red-500">*</span>
             </label>
             <Input
+              id="edit-listing-title"
               placeholder="e.g., GPT-4 Fine-tuned for Medical Q&A"
               className="bg-secondary"
               value={title}
@@ -179,10 +180,11 @@ export function EditListingForm({ listing }: EditListingFormProps) {
 
           {/* Short Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="edit-listing-short-desc" className="mb-2 block text-sm font-medium">
               Short Description
             </label>
             <Input
+              id="edit-listing-short-desc"
               placeholder="One-line summary shown in listing cards"
               className="bg-secondary"
               value={shortDescription}
@@ -193,10 +195,11 @@ export function EditListingForm({ listing }: EditListingFormProps) {
 
           {/* Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <label htmlFor="edit-listing-description" className="mb-2 block text-sm font-medium">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="edit-listing-description"
               placeholder="Detailed description of what you're offering..."
               className="flex min-h-[160px] w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={description}
@@ -208,7 +211,7 @@ export function EditListingForm({ listing }: EditListingFormProps) {
           {/* Type & Pricing Row */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="edit-listing-type" className="mb-2 block text-sm font-medium">
                 Listing Type <span className="text-red-500">*</span>
               </label>
               <Select
@@ -229,7 +232,7 @@ export function EditListingForm({ listing }: EditListingFormProps) {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label htmlFor="edit-listing-pricing" className="mb-2 block text-sm font-medium">
                 Pricing Type <span className="text-red-500">*</span>
               </label>
               <Select
@@ -255,8 +258,9 @@ export function EditListingForm({ listing }: EditListingFormProps) {
           {/* Price */}
           {showPriceInput && (
             <div>
-              <label className="mb-2 block text-sm font-medium">Price (USD)</label>
+              <label htmlFor="edit-listing-price" className="mb-2 block text-sm font-medium">Price (USD)</label>
               <Input
+                id="edit-listing-price"
                 type="number"
                 min="0"
                 step="0.01"
@@ -276,8 +280,9 @@ export function EditListingForm({ listing }: EditListingFormProps) {
 
           {/* Tags */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Tags</label>
+            <label htmlFor="edit-listing-tags" className="mb-2 block text-sm font-medium">Tags</label>
             <Input
+              id="edit-listing-tags"
               placeholder="e.g., medical, nlp, fine-tuned (comma-separated)"
               className="bg-secondary"
               value={tags}
@@ -288,8 +293,9 @@ export function EditListingForm({ listing }: EditListingFormProps) {
           {/* URLs */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium">Demo URL</label>
+              <label htmlFor="edit-listing-demo-url" className="mb-2 block text-sm font-medium">Demo URL</label>
               <Input
+                id="edit-listing-demo-url"
                 type="url"
                 placeholder="https://demo.example.com"
                 className="bg-secondary"
@@ -298,8 +304,9 @@ export function EditListingForm({ listing }: EditListingFormProps) {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Documentation URL</label>
+              <label htmlFor="edit-listing-docs-url" className="mb-2 block text-sm font-medium">Documentation URL</label>
               <Input
+                id="edit-listing-docs-url"
                 type="url"
                 placeholder="https://docs.example.com"
                 className="bg-secondary"

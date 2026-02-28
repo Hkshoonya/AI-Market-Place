@@ -144,7 +144,7 @@ export default function ProfileContent() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.avatar_url}
-              alt="Avatar"
+              alt={`${profile.display_name || "User"} profile picture`}
               className="h-16 w-16 rounded-full object-cover"
             />
           ) : (
@@ -243,20 +243,22 @@ export default function ProfileContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="profile-email" className="text-sm font-medium text-muted-foreground">
                 Email
               </label>
               <Input
+                id="profile-email"
                 value={user.email ?? ""}
                 disabled
                 className="mt-1 bg-secondary/50"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="profile-display-name" className="text-sm font-medium text-muted-foreground">
                 Display Name
               </label>
               <Input
+                id="profile-display-name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your name"
@@ -264,10 +266,11 @@ export default function ProfileContent() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="profile-username" className="text-sm font-medium text-muted-foreground">
                 Username
               </label>
               <Input
+                id="profile-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="unique_username"
@@ -275,10 +278,11 @@ export default function ProfileContent() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label htmlFor="profile-bio" className="text-sm font-medium text-muted-foreground">
                 Bio
               </label>
               <textarea
+                id="profile-bio"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="Tell us about yourself..."
