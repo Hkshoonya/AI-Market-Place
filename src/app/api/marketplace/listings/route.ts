@@ -7,8 +7,8 @@ const createListingSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
   description: z.string().min(1, "Description is required").max(10000, "Description must be 10000 characters or less"),
   short_description: z.string().max(500, "Short description must be 500 characters or less").optional().nullable(),
-  listing_type: z.enum(["model", "dataset", "service", "plugin"], {
-    message: "listing_type must be one of: model, dataset, service, plugin",
+  listing_type: z.enum(["api_access", "model_weights", "fine_tuned_model", "dataset", "prompt_template", "agent", "mcp_server"], {
+    message: "listing_type must be one of: api_access, model_weights, fine_tuned_model, dataset, prompt_template, agent, mcp_server",
   }),
   pricing_type: z.enum(["free", "one_time", "subscription"]).optional().default("one_time"),
   price: z.number().min(0, "Price must be non-negative").optional().nullable(),
@@ -18,6 +18,8 @@ const createListingSchema = z.object({
   thumbnail_url: z.string().url("thumbnail_url must be a valid URL").optional().nullable(),
   demo_url: z.string().url("demo_url must be a valid URL").optional().nullable(),
   documentation_url: z.string().url("documentation_url must be a valid URL").optional().nullable(),
+  agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
+  mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 export const dynamic = "force-dynamic";
@@ -128,6 +130,8 @@ export async function POST(request: NextRequest) {
     thumbnail_url,
     demo_url,
     documentation_url,
+    agent_config,
+    mcp_manifest,
   } = parsed.data;
 
   // Generate slug from title
@@ -161,6 +165,8 @@ export async function POST(request: NextRequest) {
       thumbnail_url: thumbnail_url || null,
       demo_url: demo_url || null,
       documentation_url: documentation_url || null,
+      ...(listing_type === "agent" && agent_config ? { agent_config } : {}),
+      ...(listing_type === "mcp_server" && mcp_manifest ? { mcp_manifest } : {}),
     })
     .select()
     .single();
