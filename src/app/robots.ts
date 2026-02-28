@@ -17,6 +17,8 @@ export default function robots(): MetadataRoute.Robots {
           "/sell",
           "/login",
           "/signup",
+          "/settings/",
+          "/notifications",
         ],
       },
     ],

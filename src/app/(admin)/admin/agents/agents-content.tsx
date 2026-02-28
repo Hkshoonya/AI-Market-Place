@@ -99,10 +99,10 @@ export default function AgentsContent() {
     fetchData();
   };
 
-  const triggerAgent = async (slug: string) => {
-    setTriggering(slug);
+  const triggerAgent = async (id: string) => {
+    setTriggering(id);
     try {
-      await fetch(`/api/cron/agents/${slug}`);
+      await fetch(`/api/admin/agents/${id}`, { method: "POST" });
       // Refresh after a brief delay
       setTimeout(fetchData, 2000);
     } catch {
@@ -259,13 +259,13 @@ export default function AgentsContent() {
                     )}
                   </button>
                   <button
-                    onClick={() => triggerAgent(agent.slug)}
-                    disabled={triggering === agent.slug}
+                    onClick={() => triggerAgent(agent.id)}
+                    disabled={triggering === agent.id}
                     className="rounded-lg p-2 hover:bg-secondary transition-colors disabled:opacity-50"
                     title="Trigger manual run"
                   >
                     <RefreshCw
-                      className={`h-4 w-4 text-neon ${triggering === agent.slug ? "animate-spin" : ""}`}
+                      className={`h-4 w-4 text-neon ${triggering === agent.id ? "animate-spin" : ""}`}
                     />
                   </button>
                 </div>

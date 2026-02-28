@@ -29,18 +29,12 @@ export async function GET(
       "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales, seller_bio, seller_website, created_at)"
     )
     .eq("slug", slug)
+    .eq("status", "active")
     .single();
 
   if (error) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-
-  // Note: non-atomic increment; acceptable for analytics-grade view counts
-  (supabase as any)
-    .from("marketplace_listings")
-    .update({ view_count: (data.view_count || 0) + 1 })
-    .eq("id", data.id)
-    .then(() => {});
 
   return NextResponse.json({ data });
 }
@@ -87,6 +81,7 @@ export async function PATCH(
     "source_url",
     "agent_config",
     "mcp_manifest",
+    "status",
   ] as const;
 
   const updates: Record<string, unknown> = {};

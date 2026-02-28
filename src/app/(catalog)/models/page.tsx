@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
 import { Pagination } from "@/components/models/pagination";
@@ -95,9 +96,12 @@ export default async function ModelsPage({
 
   // Text search
   if (query) {
-    dbQuery = dbQuery.or(
-      `name.ilike.%${query}%,provider.ilike.%${query}%,description.ilike.%${query}%`
-    );
+    const sanitizedQuery = sanitizeFilterValue(query);
+    if (sanitizedQuery) {
+      dbQuery = dbQuery.or(
+        `name.ilike.%${sanitizedQuery}%,provider.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`
+      );
+    }
   }
 
   // Sort

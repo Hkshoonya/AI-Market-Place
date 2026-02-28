@@ -102,7 +102,7 @@ export function SellerListingsTable() {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">You haven&apos;t created any listings yet.</p>
-        <Link href="/marketplace/seller/new">
+        <Link href="/sell">
           <Button className="mt-4 bg-neon text-background font-semibold hover:bg-neon/90">
             Create Your First Listing
           </Button>
@@ -185,7 +185,7 @@ export function SellerListingsTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Link href={`/marketplace/seller/edit/${listing.slug}`}>
+                      <Link href={`/dashboard/seller/listings/${listing.slug}/edit`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-neon">
                           <Edit className="h-3.5 w-3.5" />
                         </Button>

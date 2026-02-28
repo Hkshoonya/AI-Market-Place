@@ -60,20 +60,22 @@ export function SellerOrdersTable() {
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     setProcessingId(orderId);
     try {
-      const supabase = createClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from("marketplace_orders")
-        .update({ status })
-        .eq("id", orderId);
+      const res = await fetch(`/api/marketplace/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update order status");
+      }
 
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status } : o))
       );
-    } catch {
-      console.error("Failed to update order status");
+    } catch (err) {
+      console.error("Failed to update order status:", err instanceof Error ? err.message : err);
     } finally {
       setProcessingId(null);
     }
