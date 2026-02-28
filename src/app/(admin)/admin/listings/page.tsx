@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
+import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -40,7 +41,10 @@ export default function AdminListingsPage() {
       .select("id, slug, title, listing_type, status, pricing_type, price, avg_rating, review_count, view_count, inquiry_count, is_featured, created_at, profiles!marketplace_listings_seller_id_fkey(display_name, username)", { count: "exact" });
 
     if (statusFilter !== "all") query = query.eq("status", statusFilter);
-    if (search) query = query.ilike("title", `%${search}%`);
+    if (search) {
+      const safeSearch = sanitizeFilterValue(search);
+      if (safeSearch) query = query.ilike("title", `%${safeSearch}%`);
+    }
 
     query = query.order("created_at", { ascending: false });
 
