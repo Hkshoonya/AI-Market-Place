@@ -64,9 +64,43 @@ export async function PATCH(
 
   const body = await request.json();
 
+  // Filter to only allowed fields (prevent mass assignment)
+  const ALLOWED_FIELDS = [
+    "title",
+    "short_description",
+    "description",
+    "listing_type",
+    "pricing_type",
+    "price",
+    "currency",
+    "tags",
+    "documentation_url",
+    "demo_url",
+    "source_url",
+    "agent_config",
+    "mcp_manifest",
+  ] as const;
+
+  const updates: Record<string, unknown> = {};
+  for (const field of ALLOWED_FIELDS) {
+    if (field in body) {
+      updates[field] = body[field];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 }
+    );
+  }
+
+  // Always set updated_at
+  updates.updated_at = new Date().toISOString();
+
   const { data, error } = await (supabase as any)
     .from("marketplace_listings")
-    .update(body)
+    .update(updates)
     .eq("slug", slug)
     .eq("seller_id", user.id)
     .select()
