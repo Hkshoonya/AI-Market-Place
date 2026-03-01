@@ -92,6 +92,7 @@ const CATEGORY_WEIGHTS: Record<string, WeightProfile> = {
   multimodal:       { popularity: 10, benchmarks: 25, elo: 25, recency: 15, community: 15, openness: 10 },
   image_generation: { popularity: 20, benchmarks: 15, elo: 10, recency: 20, community: 25, openness: 10 },
   code:             { popularity: 10, benchmarks: 35, elo: 25, recency: 10, community: 10, openness: 10 },
+  agentic_browser:  { popularity: 15, benchmarks: 30, elo: 15, recency: 15, community: 15, openness: 10 },
   default:          { popularity: 15, benchmarks: 25, elo: 20, recency: 15, community: 15, openness: 10 },
 };
 

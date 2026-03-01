@@ -195,14 +195,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 5b. Compute value metric (quality / price) using provider pricing + model_pricing
+    // 5b. Sync curated pricing to model_pricing table
+    // This ensures the UI (which reads model_pricing) shows correct prices
+    let pricingSynced = 0;
     const { data: allPricing } = await supabase
       .from("model_pricing")
-      .select("model_id, input_price_per_million")
+      .select("model_id, input_price_per_million, provider_name")
       .not("input_price_per_million", "is", null);
 
     // Build cheapest-price map from DB pricing
     const cheapestPriceMap = new Map<string, number>();
+    // Track which models already have pricing rows from their official provider
+    const modelsWithOfficialPricing = new Set<string>();
     for (const p of allPricing ?? []) {
       const price = Number(p.input_price_per_million);
       if (price > 0) {
@@ -210,6 +214,44 @@ export async function GET(request: NextRequest) {
         if (!existing || price < existing) {
           cheapestPriceMap.set(p.model_id, price);
         }
+      }
+      modelsWithOfficialPricing.add(p.model_id);
+    }
+
+    // Sync curated pricing → model_pricing (ALWAYS upsert — curated is authoritative)
+    // OpenRouter pricing may include markup; official provider pricing is preferred.
+    for (const m of models) {
+      const curatedPrice = lookupProviderPrice(m.slug as string);
+      if (!curatedPrice) continue;
+
+      const pricingModel = curatedPrice.inputPricePerMillion === 0
+        ? "free"
+        : "token_based";
+
+      const { error: upsertErr } = await supabase.from("model_pricing").upsert(
+        {
+          model_id: m.id,
+          provider_name: curatedPrice.provider,
+          pricing_model: pricingModel,
+          input_price_per_million: curatedPrice.inputPricePerMillion,
+          output_price_per_million: curatedPrice.outputPricePerMillion,
+          blended_price_per_million: curatedPrice.inputPricePerMillion,
+          source: curatedPrice.source,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "model_id,provider_name" }
+      );
+
+      if (!upsertErr) {
+        // Update cheapest price map — curated price is authoritative
+        const price = curatedPrice.inputPricePerMillion;
+        if (price > 0) {
+          const existing = cheapestPriceMap.get(m.id);
+          if (!existing || price < existing) {
+            cheapestPriceMap.set(m.id, price);
+          }
+        }
+        pricingSynced++;
       }
     }
 
@@ -431,6 +473,7 @@ export async function GET(request: NextRequest) {
       modelsWithAgentScore: agentScoreMap.size,
       modelsWithPopularity: popularityMap.size,
       modelsWithMarketCap: marketCapMap.size,
+      pricingSynced,
       stats,
     });
   } catch (err) {
