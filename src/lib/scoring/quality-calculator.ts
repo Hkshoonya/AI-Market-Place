@@ -341,15 +341,45 @@ export function computeRankings(
     id: string;
     category: string;
     qualityScore: number;
+    marketCap?: number;
+    popularityScore?: number;
   }>
 ): Array<{
   id: string;
   overall_rank: number;
   category_rank: number;
 }> {
-  const sorted = [...models]
-    .filter((m) => m.qualityScore > 0)
-    .sort((a, b) => b.qualityScore - a.qualityScore);
+  // Composite ranking: 50% market cap rank + 30% quality rank + 20% popularity rank
+  // This ensures models are ranked by real market importance first,
+  // with quality and popularity as secondary signals.
+  const withSignals = models.filter((m) => m.qualityScore > 0);
+
+  // Sort by each signal to get per-signal ranks
+  const byMarketCap = [...withSignals].sort(
+    (a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0)
+  );
+  const byQuality = [...withSignals].sort(
+    (a, b) => b.qualityScore - a.qualityScore
+  );
+  const byPopularity = [...withSignals].sort(
+    (a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0)
+  );
+
+  // Build rank maps (lower rank = better)
+  const mcapRank = new Map(byMarketCap.map((m, i) => [m.id, i + 1]));
+  const qualRank = new Map(byQuality.map((m, i) => [m.id, i + 1]));
+  const popRank = new Map(byPopularity.map((m, i) => [m.id, i + 1]));
+
+  // Composite score: weighted average of ranks
+  const compositeScores = withSignals.map((m) => ({
+    ...m,
+    compositeRank:
+      0.5 * (mcapRank.get(m.id) ?? withSignals.length) +
+      0.3 * (qualRank.get(m.id) ?? withSignals.length) +
+      0.2 * (popRank.get(m.id) ?? withSignals.length),
+  }));
+
+  const sorted = compositeScores.sort((a, b) => a.compositeRank - b.compositeRank);
 
   const result = sorted.map((m, i) => ({
     id: m.id,

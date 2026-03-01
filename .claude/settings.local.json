@@ -44,7 +44,13 @@
       "mcp__3e71e373-ccfa-4569-ae7b-418b530f1b81__list_migrations",
       "Bash(curl:*)",
       "WebFetch(domain:openrouter.ai)",
-      "WebFetch(domain:datasets-server.huggingface.co)"
+      "WebFetch(domain:datasets-server.huggingface.co)",
+      "WebFetch(domain:www.tbench.ai)",
+      "WebFetch(domain:www.swebench.com)",
+      "Bash(npm ls lightweight-charts)",
+      "mcp__plugin_supabase_supabase__list_migrations",
+      "mcp__plugin_supabase_supabase__list_tables",
+      "mcp__plugin_supabase_supabase__execute_sql"
     ]
   }
 }
