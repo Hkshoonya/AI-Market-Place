@@ -11,6 +11,7 @@ export type ModelCategory =
   | "speech_audio"
   | "video"
   | "code"
+  | "agentic_browser"
   | "specialized";
 
 export type ModelStatus = "active" | "deprecated" | "beta" | "preview" | "archived";

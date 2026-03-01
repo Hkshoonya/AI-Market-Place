@@ -7,6 +7,7 @@ import {
   Mic,
   Video,
   Code,
+  Globe,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,7 @@ export type ModelCategory =
   | "speech_audio"
   | "video"
   | "code"
+  | "agentic_browser"
   | "specialized";
 
 export interface CategoryConfig {
@@ -95,6 +97,14 @@ export const CATEGORIES: CategoryConfig[] = [
     icon: Code,
     description: "Code generation and understanding",
     color: "#22d3ee",
+  },
+  {
+    slug: "agentic_browser",
+    label: "Agentic Browsers",
+    shortLabel: "Agentic",
+    icon: Globe,
+    description: "AI-powered browser automation and web agents",
+    color: "#6366f1",
   },
   {
     slug: "specialized",
