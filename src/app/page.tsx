@@ -49,10 +49,10 @@ export const revalidate = 3600;
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Fetch top 10 models by market cap (usage-based ranking) with benchmarks
+  // Fetch top 10 models by market cap (usage-based ranking)
   const { data: topModelsRaw } = await supabase
     .from("models")
-    .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*))")
+    .select("*, rankings(*), model_pricing(*)")
     .eq("status", "active")
     .not("overall_rank", "is", null)
     .order("market_cap_estimate", { ascending: false, nullsFirst: false })
@@ -182,13 +182,6 @@ export default async function HomePage() {
     })
     .sort((a, b) => b.count - a.count);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function getBenchmarkScore(model: any, benchmarkSlug: string): number | null {
-    const scores = model.benchmark_scores as { score_normalized: number; benchmarks: { slug: string } | null }[];
-    const found = scores?.find((bs) => bs.benchmarks?.slug === benchmarkSlug);
-    return found ? Number(found.score_normalized) : null;
-  }
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -253,17 +246,11 @@ export default async function HomePage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Market Cap
                 </th>
+                <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
+                  Popularity
+                </th>
                 <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Quality
-                </th>
-                <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  MMLU
-                </th>
-                <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  HumanEval
-                </th>
-                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  MATH
                 </th>
                 <th className="hidden xl:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Price
@@ -277,9 +264,7 @@ export default async function HomePage() {
                 );
                 const rank = index + 1;
                 const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
-                const mmlu = getBenchmarkScore(model, "mmlu") ?? getBenchmarkScore(model, "mmlu-pro");
-                const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
-                const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
+                const popScore = model.popularity_score ? Number(model.popularity_score) : null;
                 const cheapestPricing = (
                   model.model_pricing as {
                     input_price_per_million: number | null;
@@ -351,33 +336,27 @@ export default async function HomePage() {
                         </span>
                       </Link>
                     </td>
+                    <td className="hidden px-4 py-3 text-right whitespace-nowrap md:table-cell">
+                      <Link href={`/models/${model.slug}`} className="block">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-neon/70"
+                              style={{ width: `${Math.min(popScore ?? 0, 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
+                            {popScore?.toFixed(0) ?? "—"}
+                          </span>
+                        </div>
+                      </Link>
+                    </td>
                     <td className="hidden px-4 py-3 text-right whitespace-nowrap lg:table-cell">
                       <Link href={`/models/${model.slug}`} className="block">
                         <span className="text-sm font-semibold tabular-nums">
                           {model.quality_score
                             ? Number(model.quality_score).toFixed(1)
                             : "—"}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="hidden px-4 py-3 text-right text-sm tabular-nums whitespace-nowrap md:table-cell">
-                      <Link href={`/models/${model.slug}`} className="block">
-                        <span className={mmlu ? "text-foreground" : "text-muted-foreground"}>
-                          {mmlu ? mmlu.toFixed(1) : "—"}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="hidden px-4 py-3 text-right text-sm tabular-nums whitespace-nowrap md:table-cell">
-                      <Link href={`/models/${model.slug}`} className="block">
-                        <span className={humanEval ? "text-foreground" : "text-muted-foreground"}>
-                          {humanEval ? humanEval.toFixed(1) : "—"}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="hidden px-4 py-3 text-right text-sm tabular-nums whitespace-nowrap lg:table-cell">
-                      <Link href={`/models/${model.slug}`} className="block">
-                        <span className={math ? "text-foreground" : "text-muted-foreground"}>
-                          {math ? math.toFixed(1) : "—"}
                         </span>
                       </Link>
                     </td>

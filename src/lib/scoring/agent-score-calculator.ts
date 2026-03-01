@@ -48,41 +48,66 @@ export interface BenchmarkWeight {
 
 /** Canonical agent benchmark slugs */
 const AGENT_BENCHMARK_SLUGS = [
+  "swe-bench",
+  "humaneval",
   "terminal-bench",
   "os-world",
   "gaia",
   "webarena",
   "tau-bench",
+  "livebench-coding",
 ] as const;
 
 /** Default weights when all benchmarks have equal coverage */
 const DEFAULT_WEIGHTS: Record<string, number> = {
-  "terminal-bench": 0.20,
-  "os-world": 0.20,
-  "gaia": 0.20,
-  "webarena": 0.20,
-  "tau-bench": 0.20,
+  "swe-bench": 0.20,
+  "humaneval": 0.18,
+  "terminal-bench": 0.12,
+  "os-world": 0.10,
+  "gaia": 0.10,
+  "webarena": 0.10,
+  "tau-bench": 0.08,
+  "livebench-coding": 0.12,
 };
 
 /** Minimum number of agent benchmarks required to compute a score */
-const MIN_BENCHMARKS_FOR_SCORE = 2;
+const MIN_BENCHMARKS_FOR_SCORE = 1;
 
 // --------------- Slug Normalization ---------------
 
 /** Map various slug formats to canonical agent benchmark slugs */
 const SLUG_ALIASES: Record<string, string> = {
+  // SWE-Bench (code agent)
+  "swe-bench": "swe-bench",
+  "swe_bench": "swe-bench",
+  "swe-bench-verified": "swe-bench",
+  "swe-bench-lite": "swe-bench",
+  "swebench": "swe-bench",
+  // HumanEval (code generation)
+  "humaneval": "humaneval",
+  "human-eval": "humaneval",
+  "human_eval": "humaneval",
+  "humaneval-plus": "humaneval",
+  // LiveBench Coding
+  "livebench-coding": "livebench-coding",
+  "livebench_coding": "livebench-coding",
+  // Terminal Bench
   "terminal-bench": "terminal-bench",
   "terminalbench": "terminal-bench",
   "terminal_bench": "terminal-bench",
+  // OS World
   "os-world": "os-world",
   "osworld": "os-world",
   "os_world": "os-world",
+  // GAIA
   "gaia": "gaia",
   "gaia-benchmark": "gaia",
   "gaia_benchmark": "gaia",
+  // WebArena
   "webarena": "webarena",
   "web-arena": "webarena",
   "web_arena": "webarena",
+  // TAU-Bench
   "tau-bench": "tau-bench",
   "taubench": "tau-bench",
   "tau_bench": "tau-bench",

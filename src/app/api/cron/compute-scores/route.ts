@@ -325,8 +325,13 @@ export async function GET(request: NextRequest) {
       .map(([id], i) => ({ id, rank: i + 1 }));
     const popRankMap = new Map(popRankedModels.map((r) => [r.id, r.rank]));
 
-    // 6. Compute rankings
-    const rankings = computeRankings(scoredModels);
+    // 6. Compute rankings (market cap + quality + popularity composite)
+    const rankingInput = scoredModels.map((sm) => ({
+      ...sm,
+      marketCap: marketCapMap.get(sm.id) ?? 0,
+      popularityScore: popularityMap.get(sm.id) ?? 0,
+    }));
+    const rankings = computeRankings(rankingInput);
     const rankMap = new Map(rankings.map((r) => [r.id, r]));
 
     // 7. Batch update models
@@ -343,7 +348,7 @@ export async function GET(request: NextRequest) {
 
         const updateData: Record<string, unknown> = {
           quality_score: sm.qualityScore,
-          popularity_score: mentions,
+          popularity_score: popularityMap.get(sm.id) ?? 0,
         };
 
         if (rank) {
