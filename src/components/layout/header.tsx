@@ -11,6 +11,7 @@ import {
   Newspaper,
   Search,
   ShoppingBag,
+  Sparkles,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { WalletBadge } from "@/components/marketplace/wallet-badge";
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
+  { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/providers", label: "Providers", icon: Building2 },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },

@@ -11,6 +11,7 @@ import {
   type SortingState,
   flexRender,
 } from "@tanstack/react-table";
+import RankingWeightControls from "./ranking-weight-controls";
 
 interface LeaderboardModel {
   name: string;
@@ -23,6 +24,11 @@ interface LeaderboardModel {
   value_score: number | null;
   is_open_weights: boolean;
   hf_downloads: number | null;
+  popularity_score: number | null;
+  agent_score: number | null;
+  agent_rank: number | null;
+  popularity_rank: number | null;
+  market_cap_estimate: number | null;
 }
 
 interface LeaderboardExplorerProps {
@@ -34,6 +40,7 @@ const CATEGORY_TABS = [
   { value: "llm", label: "LLMs" },
   { value: "multimodal", label: "Multimodal" },
   { value: "code", label: "Code" },
+  { value: "agentic_browser", label: "Agentic" },
   { value: "image_generation", label: "Image Gen" },
   { value: "embedding", label: "Embedding" },
   { value: "audio", label: "Audio" },
@@ -70,9 +77,10 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
   ]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [customSortedModels, setCustomSortedModels] = useState<LeaderboardModel[] | null>(null);
 
   const filteredModels = useMemo(() => {
-    let result = models;
+    let result = customSortedModels ?? models;
     if (categoryFilter) {
       result = result.filter((m) => m.category === categoryFilter);
     }
@@ -86,7 +94,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
       );
     }
     return result;
-  }, [models, categoryFilter, searchQuery]);
+  }, [models, customSortedModels, categoryFilter, searchQuery]);
 
   const columns = useMemo<ColumnDef<LeaderboardModel>[]>(
     () => [
@@ -175,6 +183,41 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         size: 80,
       },
       {
+        id: "market_cap_estimate",
+        accessorKey: "market_cap_estimate",
+        header: "Market Cap",
+        cell: ({ getValue }) => {
+          const val = getValue() as number | null;
+          if (val == null) return <span className="text-white/20">—</span>;
+          const formatted =
+            val >= 1_000_000
+              ? `$${(val / 1_000_000).toFixed(1)}M`
+              : val >= 1_000
+                ? `$${(val / 1_000).toFixed(0)}K`
+                : `$${val}`;
+          return <span className="text-xs text-[#00d4aa] font-semibold tabular-nums">{formatted}</span>;
+        },
+        size: 100,
+      },
+      {
+        id: "popularity_score",
+        accessorKey: "popularity_score",
+        header: "Popularity",
+        cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
+        size: 140,
+      },
+      {
+        id: "agent_score",
+        accessorKey: "agent_score",
+        header: "Agent",
+        cell: ({ getValue }) => {
+          const val = getValue() as number | null;
+          if (val == null) return <span className="text-white/20">—</span>;
+          return <span className="text-xs text-[#6366f1] font-semibold tabular-nums">{val.toFixed(1)}</span>;
+        },
+        size: 70,
+      },
+      {
         id: "hf_downloads",
         accessorKey: "hf_downloads",
         header: "Downloads",
@@ -242,6 +285,12 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
           {filteredModels.length} models
         </div>
       </div>
+
+      {/* Ranking Weight Controls */}
+      <RankingWeightControls
+        models={models}
+        onSortedModels={(sorted) => setCustomSortedModels(sorted)}
+      />
 
       {/* Table */}
       <div className="rounded-xl border border-white/[0.06] overflow-hidden">
