@@ -41,11 +41,10 @@ export async function GET(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  const { data, error } = await supabase
+  // Two-query approach: marketplace_reviews may not have FK to profiles
+  const { data: rawReviews, error } = await (supabase as any)
     .from("marketplace_reviews")
-    .select(
-      "*, profiles!marketplace_reviews_reviewer_id_fkey(display_name, avatar_url, username)"
-    )
+    .select("*")
     .eq("listing_id", listing.id)
     .order("created_at", { ascending: false });
 
@@ -54,6 +53,23 @@ export async function GET(
       { error: "Failed to fetch reviews. Please try again later." },
       { status: 500 }
     );
+  }
+
+  // Enrich with reviewer profiles
+  let data = rawReviews ?? [];
+  if (data.length > 0) {
+    const reviewerIds = [...new Set(data.map((r: any) => r.reviewer_id).filter(Boolean))];
+    if (reviewerIds.length > 0) {
+      const { data: profiles } = await (supabase as any)
+        .from("profiles")
+        .select("id, display_name, avatar_url, username")
+        .in("id", reviewerIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      data = data.map((r: any) => ({
+        ...r,
+        profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
+      }));
+    }
   }
 
   return NextResponse.json({ data });
@@ -87,7 +103,16 @@ export async function POST(
     );
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body." },
+      { status: 400 }
+    );
+  }
+
   const parsed = createReviewSchema.safeParse(body);
 
   if (!parsed.success) {

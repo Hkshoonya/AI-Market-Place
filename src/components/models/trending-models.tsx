@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { Flame, TrendingUp, Rocket, Crown } from "lucide-react";
+import { Flame, Rocket, Crown, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatParams } from "@/lib/format";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
@@ -24,14 +24,16 @@ interface TrendingModel {
   release_date: string | null;
   parameter_count: number | null;
   is_open_weights: boolean;
+  mention_count?: number;
 }
 
-type TabKey = "trending" | "recent" | "popular";
+type TabKey = "trending" | "recent" | "popular" | "discussed";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "trending", label: "Trending", icon: Flame },
   { key: "recent", label: "New Releases", icon: Rocket },
   { key: "popular", label: "Most Popular", icon: Crown },
+  { key: "discussed", label: "Most Discussed", icon: Newspaper },
 ];
 
 interface TrendingModelsProps {
@@ -45,6 +47,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
     trending: [],
     recent: [],
     popular: [],
+    discussed: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +64,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
             trending: json.trending ?? [],
             recent: json.recent ?? [],
             popular: json.popular ?? [],
+            discussed: json.discussed ?? [],
           });
         }
       } catch {
@@ -154,9 +158,15 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                       {Number(model.quality_score).toFixed(1)}
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {formatNumber(model.hf_downloads)}
-                  </span>
+                  {activeTab === "discussed" && model.mention_count ? (
+                    <span className="text-xs text-neon tabular-nums font-medium">
+                      {model.mention_count} mention{model.mention_count !== 1 ? "s" : ""}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatNumber(model.hf_downloads)}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

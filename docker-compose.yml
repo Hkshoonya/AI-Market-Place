@@ -1,0 +1,40 @@
+# AI Market Cap — Development Services
+# Usage: docker compose --env-file .env.local up -d
+#
+# Before starting, add TWITTER_AUTH_TOKEN to your .env.local:
+#   TWITTER_AUTH_TOKEN=YOUR_AUTH_TOKEN_VALUE
+#
+# How to get your Twitter auth token:
+#   1. Open Chrome -> x.com -> Log in
+#   2. F12 (DevTools) -> Application -> Cookies -> https://x.com
+#   3. Copy the value of the "auth_token" cookie
+#   4. Paste it as TWITTER_AUTH_TOKEN in .env.local
+
+services:
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: aimc-rsshub
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      # Twitter authentication (required for X.com feeds)
+      # New RSSHub uses TWITTER_AUTH_TOKEN (just the raw auth_token value)
+      TWITTER_AUTH_TOKEN: ${TWITTER_AUTH_TOKEN:-}
+      # Legacy cookie format (fallback for older RSSHub versions)
+      TWITTER_COOKIE: ${TWITTER_COOKIE:-}
+      # Cache settings (Redis disabled — uses memory cache)
+      CACHE_TYPE: memory
+      CACHE_EXPIRE: 600
+      # Rate limiting
+      REQUEST_RETRY: 3
+      REQUEST_TIMEOUT: 30000
+      # Misc
+      NODE_ENV: production
+      ALLOW_ORIGIN: "*"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

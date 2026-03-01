@@ -81,9 +81,13 @@ export default async function ProvidersPage() {
   });
 
   // Sort by model count (descending)
-  const providers = Array.from(providerMap.values()).sort(
+  const allProviders = Array.from(providerMap.values()).sort(
     (a, b) => b.modelCount - a.modelCount
   );
+
+  // Show top providers (2+ models) to keep the page fast
+  const providers = allProviders.filter((p) => p.modelCount >= 2);
+  const totalProviderCount = allProviders.length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -102,7 +106,7 @@ export default async function ProvidersPage() {
       {/* Stats Overview */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
         {[
-          { label: "Providers", value: providers.length },
+          { label: "Providers", value: totalProviderCount },
           {
             label: "Total Models",
             value: providers.reduce((s, p) => s + p.modelCount, 0),
@@ -127,9 +131,9 @@ export default async function ProvidersPage() {
         ))}
       </div>
 
-      {/* Charts */}
+      {/* Charts — top 20 for readability */}
       <ProviderCharts
-        providers={providers.map((p) => ({
+        providers={providers.slice(0, 20).map((p) => ({
           name: p.provider,
           models: p.modelCount,
           downloads: p.totalDownloads,

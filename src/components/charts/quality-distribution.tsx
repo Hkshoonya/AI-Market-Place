@@ -56,7 +56,10 @@ export function QualityDistribution({ data }: QualityDistributionProps) {
               height={60}
             />
             <YAxis
-              domain={[0, 100]}
+              domain={[
+                (dataMin: number) => Math.max(0, Math.floor(dataMin - 5)),
+                (dataMax: number) => Math.min(100, Math.ceil(dataMax + 5)),
+              ]}
               tick={{ fontSize: 11, fill: "#888" }}
               label={{ value: "Quality Score", angle: -90, position: "insideLeft", fill: "#888", fontSize: 11 }}
             />

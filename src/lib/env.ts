@@ -33,6 +33,12 @@ export const env = {
   CIVITAI_API_KEY: getEnvVar("CIVITAI_API_KEY", false),
   ARTIFICIAL_ANALYSIS_API_KEY: getEnvVar("ARTIFICIAL_ANALYSIS_API_KEY", false),
 
+  // ── OpenRouter (optional — free model discovery) ────────────────
+  OPENROUTER_API_KEY: getEnvVar("OPENROUTER_API_KEY", false),
+
+  // ── X/Twitter Social Feed (optional) ─────────────────────────────
+  RSSHUB_BASE_URL: getEnvVar("RSSHUB_BASE_URL", false),
+
   // ── Stripe (optional — marketplace payments) ──────────────────────
   STRIPE_SECRET_KEY: getEnvVar("STRIPE_SECRET_KEY", false),
   STRIPE_WEBHOOK_SECRET: getEnvVar("STRIPE_WEBHOOK_SECRET", false),

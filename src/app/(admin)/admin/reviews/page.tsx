@@ -34,10 +34,11 @@ export default function AdminReviewsPage() {
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
+    // Two-query approach: marketplace_reviews may not have FK to profiles or listings
     let query = (supabase as any)
       .from("marketplace_reviews")
       .select(
-        "id, rating, title, content, created_at, listing_id, marketplace_listings!marketplace_reviews_listing_id_fkey(title, slug), profiles!marketplace_reviews_reviewer_id_fkey(display_name, username)",
+        "id, rating, title, content, created_at, listing_id, reviewer_id",
         { count: "exact" }
       );
 
@@ -56,8 +57,40 @@ export default function AdminReviewsPage() {
     const from = (page - 1) * PAGE_SIZE;
     query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data, count } = await query;
-    setReviews((data as any[]) ?? []);
+    const { data: rawData, count } = await query;
+    let enriched = rawData ?? [];
+
+    if (enriched.length > 0) {
+      // Enrich with reviewer profiles
+      const reviewerIds = [...new Set(enriched.map((r: any) => r.reviewer_id).filter(Boolean))];
+      if (reviewerIds.length > 0) {
+        const { data: profiles } = await (supabase as any)
+          .from("profiles")
+          .select("id, display_name, username")
+          .in("id", reviewerIds);
+        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+        enriched = enriched.map((r: any) => ({
+          ...r,
+          profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
+        }));
+      }
+
+      // Enrich with listing info
+      const listingIds = [...new Set(enriched.map((r: any) => r.listing_id).filter(Boolean))];
+      if (listingIds.length > 0) {
+        const { data: listings } = await (supabase as any)
+          .from("marketplace_listings")
+          .select("id, title, slug")
+          .in("id", listingIds);
+        const listingMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
+        enriched = enriched.map((r: any) => ({
+          ...r,
+          marketplace_listings: r.listing_id ? listingMap.get(r.listing_id) ?? null : null,
+        }));
+      }
+    }
+
+    setReviews(enriched as any[]);
     setTotalCount(count ?? 0);
     setLoading(false);
   }, [search, ratingFilter, page]);

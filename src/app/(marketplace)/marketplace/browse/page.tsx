@@ -3,6 +3,7 @@ import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { Pagination } from "@/components/models/pagination";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
+import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -59,10 +60,7 @@ export default async function BrowsePage(props: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from("marketplace_listings")
-    .select(
-      "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales)",
-      { count: "exact" }
-    )
+    .select("*", { count: "exact" })
     .eq("status", "active");
 
   if (type) query = query.eq("listing_type", type);
@@ -86,8 +84,12 @@ export default async function BrowsePage(props: {
   const to = from + ITEMS_PER_PAGE - 1;
   query = query.range(from, to);
 
-  const { data, count } = await query;
+  const { data: rawData, count } = await query;
   const totalCount = count || 0;
+
+  // Enrich with seller profiles (no FK constraint exists, so fetch separately)
+  // Cast to any — shape is compatible with MarketplaceListingWithSeller
+  const data = await enrichListingsWithProfiles(supabase as any, rawData || []) as any[];
 
   const typeConfig = type
     ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]

@@ -8,6 +8,7 @@ import { PWARegister } from "@/components/pwa-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
+import { AmbientScene } from "@/components/three/ambient-scene";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -89,8 +90,9 @@ export default function RootLayout({
             >
               Skip to main content
             </a>
+            <AmbientScene />
             <Header />
-            <main id="main-content" className="min-h-[calc(100vh-4rem)]">{children}</main>
+            <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />
             <ScrollToTop />
             <PWARegister />

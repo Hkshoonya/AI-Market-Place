@@ -82,30 +82,49 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
 
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
+  // Group small providers (<2%) into "Others" for cleaner visualization
+  const threshold = total * 0.02;
+  const significantSlices: ProviderSlice[] = [];
+  let othersCount = 0;
+  for (const d of data) {
+    if (d.count >= threshold) {
+      significantSlices.push(d);
+    } else {
+      othersCount += d.count;
+    }
+  }
+  if (othersCount > 0) {
+    significantSlices.push({ provider: "Others", count: othersCount, color: "#444" });
+  }
+
+  // Dynamic chart height based on number of visible slices
+  const chartHeight = Math.max(350, significantSlices.length > 12 ? 420 : 380);
+  const legendHeight = significantSlices.length > 10 ? 60 : 36;
+
   return (
-    <div className="relative min-h-[350px] w-full" role="img" aria-label={`Provider market share pie chart showing distribution of ${total} models across ${data.length} providers`}>
-      <ResponsiveContainer width="100%" height={350}>
+    <div className="relative w-full" style={{ minHeight: chartHeight }} role="img" aria-label={`Provider market share pie chart showing distribution of ${total} models across ${data.length} providers`}>
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <PieChart>
           <Pie
-            data={data}
+            data={significantSlices}
             dataKey="count"
             nameKey="provider"
             cx="50%"
-            cy="45%"
-            innerRadius={60}
-            outerRadius={110}
+            cy="42%"
+            innerRadius="35%"
+            outerRadius="60%"
             paddingAngle={2}
             label={renderCustomLabel}
             labelLine={false}
           >
-            {data.map((entry, index) => (
+            {significantSlices.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
           <Legend
             verticalAlign="bottom"
-            height={36}
+            height={legendHeight}
             formatter={(value: string) => (
               <span className="text-xs text-[#999]">{value}</span>
             )}
@@ -113,7 +132,7 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
           {/* Center text */}
           <text
             x="50%"
-            y="45%"
+            y="42%"
             textAnchor="middle"
             dominantBaseline="central"
           >

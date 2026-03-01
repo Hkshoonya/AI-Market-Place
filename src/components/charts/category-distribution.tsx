@@ -68,6 +68,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
             tick={{ fill: "#999", fontSize: 11 }}
             axisLine={{ stroke: "#333" }}
             tickLine={false}
+            domain={[0, "dataMax"]}
           />
           <YAxis
             type="category"
@@ -78,7 +79,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
             width={120}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
+          <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20} label={{ position: "right", fill: "#999", fontSize: 11 }}>
             {sorted.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}

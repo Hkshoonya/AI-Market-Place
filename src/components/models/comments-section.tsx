@@ -42,18 +42,36 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [editText, setEditText] = useState("");
 
   const fetchComments = async () => {
-    const { data } = await supabase
+    // Two-query approach: comments table may not have FK to profiles
+    const { data: rawData } = await (supabase as any)
       .from("comments")
-      .select("*, profiles(display_name, avatar_url, username)")
+      .select("*")
       .eq("model_id", modelId)
       .order("created_at", { ascending: false });
 
-    if (data) {
+    if (rawData) {
+      // Enrich with profiles
+      let enriched = rawData as any[];
+      const userIds = [...new Set(enriched.map((c: any) => c.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await (supabase as any)
+          .from("profiles")
+          .select("id, display_name, avatar_url, username")
+          .in("id", userIds);
+        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+        enriched = enriched.map((c: any) => ({
+          ...c,
+          profiles: c.user_id ? profileMap.get(c.user_id) ?? null : null,
+        }));
+      } else {
+        enriched = enriched.map((c: any) => ({ ...c, profiles: null }));
+      }
+
       // Organize into threads
       const topLevel: Comment[] = [];
       const replyMap = new Map<string, Comment[]>();
 
-      for (const c of data as Comment[]) {
+      for (const c of enriched as Comment[]) {
         if (c.parent_id) {
           const existing = replyMap.get(c.parent_id) ?? [];
           existing.push(c);

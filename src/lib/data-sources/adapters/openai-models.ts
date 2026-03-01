@@ -1,22 +1,27 @@
 /**
  * OpenAI Models Adapter
  *
- * Fetches model catalog from the OpenAI API (GET /v1/models),
- * enriches minimal API data with a static KNOWN_MODELS metadata map,
- * and upserts into the models table.
+ * Data sourcing strategy (highest to lowest priority):
+ *   1. Live OpenAI API  — if OPENAI_API_KEY is present in ctx.secrets
+ *   2. Public HTML scrape — https://platform.openai.com/docs/models
+ *   3. KNOWN_MODELS static map — always available, guarantees at least one sync
+ *
+ * No API key is required. The static map alone is sufficient to produce a
+ * complete, meaningful sync of all current OpenAI models.
  */
 
 import type {
   DataSourceAdapter,
   SyncContext,
   SyncResult,
-  SyncError,
   HealthCheckResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { fetchWithRetry, upsertBatch, makeSlug } from "../utils";
+import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 
-// --------------- Static Metadata ---------------
+// ---------------------------------------------------------------------------
+// Static metadata
+// ---------------------------------------------------------------------------
 
 interface KnownModelMeta {
   name: string;
@@ -26,254 +31,536 @@ interface KnownModelMeta {
   context_window: number | null;
   release_date: string | null;
   architecture: string | null;
+  status: string;
   modalities: string[];
   capabilities: Record<string, boolean>;
-  status: string;
 }
 
 /**
- * The OpenAI /v1/models endpoint returns only id, object, created, and owned_by.
- * This map enriches known models with parameter counts, context windows, etc.
+ * Comprehensive static map of all current OpenAI models.
+ * This is the primary data source when no API key is available.
+ * Fields are kept accurate as of the adapter's last update (2026-02).
  */
 const KNOWN_MODELS: Record<string, KnownModelMeta> = {
-  "gpt-4o": {
-    name: "GPT-4o",
+  // ---- GPT-5 series ----
+  "gpt-5.2": {
+    name: "GPT-5.2",
     description:
-      "Multimodal flagship model with vision and audio capabilities. High intelligence with fast response times.",
+      "OpenAI's most advanced reasoning model. Incorporates significant improvements over GPT-5 in complex multi-step reasoning, coding, and instruction-following.",
     category: "llm",
-    parameter_count: null, // OpenAI has not disclosed
-    context_window: 128000,
-    release_date: "2024-05-13",
-    architecture: "transformer",
-    modalities: ["text", "image", "audio"],
+    parameter_count: null,
+    context_window: 256000,
+    release_date: "2025-12-01",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text", "image"],
     capabilities: {
-      chat: true,
-      function_calling: true,
+      reasoning: true,
+      coding: true,
       vision: true,
-      json_mode: true,
+      function_calling: true,
       streaming: true,
     },
-    status: "active",
   },
-  "gpt-4o-mini": {
-    name: "GPT-4o Mini",
+  "gpt-5.1": {
+    name: "GPT-5.1",
     description:
-      "Small, fast, and affordable model for lightweight tasks. Optimized for cost efficiency.",
+      "Refined version of GPT-5 with improved instruction-following, reduced hallucinations, and better performance across standard benchmarks.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 256000,
+    release_date: "2025-11-12",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-5": {
+    name: "GPT-5",
+    description:
+      "OpenAI's fifth-generation flagship language model. Delivers substantially improved intelligence and capability over GPT-4o across reasoning, coding, and creative tasks.",
     category: "llm",
     parameter_count: null,
     context_window: 128000,
-    release_date: "2024-07-18",
-    architecture: "transformer",
+    release_date: "2025-08-01",
+    architecture: "Transformer",
+    status: "active",
     modalities: ["text", "image"],
     capabilities: {
-      chat: true,
-      function_calling: true,
+      reasoning: true,
+      coding: true,
       vision: true,
-      json_mode: true,
+      function_calling: true,
       streaming: true,
     },
-    status: "active",
   },
-  "gpt-4-turbo": {
-    name: "GPT-4 Turbo",
+
+  // ---- GPT-4.1 series ----
+  "gpt-4.1": {
+    name: "GPT-4.1",
     description:
-      "GPT-4 Turbo with Vision. High-intelligence model with 128K context and lower cost than GPT-4.",
+      "High-intelligence multimodal model with a 1 million token context window. Excels at complex instruction-following and long-document analysis.",
     category: "llm",
     parameter_count: null,
-    context_window: 128000,
-    release_date: "2024-04-09",
-    architecture: "transformer",
+    context_window: 1048576,
+    release_date: "2025-04-14",
+    architecture: "Transformer",
+    status: "active",
     modalities: ["text", "image"],
     capabilities: {
-      chat: true,
-      function_calling: true,
+      reasoning: true,
+      coding: true,
       vision: true,
-      json_mode: true,
+      function_calling: true,
       streaming: true,
     },
-    status: "active",
   },
-  "gpt-4": {
-    name: "GPT-4",
+  "gpt-4.1-mini": {
+    name: "GPT-4.1 Mini",
     description:
-      "Large multimodal model capable of solving difficult problems with broad general knowledge.",
+      "Compact, cost-efficient version of GPT-4.1 retaining the 1 million token context window. Ideal for high-throughput, latency-sensitive applications.",
     category: "llm",
-    parameter_count: 1760000000000, // estimated ~1.76T MoE
-    context_window: 8192,
-    release_date: "2023-03-14",
-    architecture: "transformer",
+    parameter_count: null,
+    context_window: 1048576,
+    release_date: "2025-04-14",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-4.1-nano": {
+    name: "GPT-4.1 Nano",
+    description:
+      "Ultra-lightweight variant of GPT-4.1 optimised for edge deployments and cost-constrained workloads, while retaining the 1 million token context.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 1048576,
+    release_date: "2025-04-14",
+    architecture: "Transformer",
+    status: "active",
     modalities: ["text"],
     capabilities: {
-      chat: true,
       function_calling: true,
-      json_mode: true,
       streaming: true,
     },
-    status: "active",
   },
-  o1: {
-    name: "o1",
+
+  // ---- o-series reasoning models ----
+  "o4-mini": {
+    name: "o4-mini",
     description:
-      "Reasoning model designed for complex multi-step tasks. Uses chain-of-thought reasoning before responding.",
+      "Fast, cost-efficient reasoning model in the o-series. Balances strong STEM performance with lower inference cost and adjustable reasoning effort.",
     category: "llm",
     parameter_count: null,
     context_window: 200000,
-    release_date: "2024-12-17",
-    architecture: "transformer",
+    release_date: "2025-04-16",
+    architecture: "Transformer (reasoning)",
+    status: "active",
     modalities: ["text", "image"],
     capabilities: {
-      chat: true,
       reasoning: true,
-      function_calling: true,
+      coding: true,
       vision: true,
+      function_calling: true,
       streaming: true,
     },
-    status: "active",
   },
-  "o1-mini": {
-    name: "o1-mini",
+  o3: {
+    name: "o3",
     description:
-      "Faster, more affordable reasoning model optimized for coding and STEM tasks.",
+      "OpenAI's most powerful reasoning model. Achieves state-of-the-art results on complex math, science, and code tasks through extended chain-of-thought.",
     category: "llm",
     parameter_count: null,
-    context_window: 128000,
-    release_date: "2024-09-12",
-    architecture: "transformer",
-    modalities: ["text"],
+    context_window: 200000,
+    release_date: "2025-04-16",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text", "image"],
     capabilities: {
-      chat: true,
       reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
       streaming: true,
     },
-    status: "active",
   },
   "o3-mini": {
     name: "o3-mini",
     description:
-      "Cost-efficient reasoning model with adjustable reasoning effort for STEM and coding tasks.",
+      "Cost-efficient reasoning model with adjustable reasoning effort. Optimised for STEM and coding tasks at a fraction of o3's inference cost.",
     category: "llm",
     parameter_count: null,
     context_window: 200000,
     release_date: "2025-01-31",
-    architecture: "transformer",
+    architecture: "Transformer (reasoning)",
+    status: "active",
     modalities: ["text"],
     capabilities: {
-      chat: true,
       reasoning: true,
+      coding: true,
       function_calling: true,
       streaming: true,
     },
+  },
+  o1: {
+    name: "o1",
+    description:
+      "First-generation full o-series reasoning model. Uses extended internal chain-of-thought before responding, excelling at PhD-level science and math problems.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 200000,
+    release_date: "2024-12-17",
+    architecture: "Transformer (reasoning)",
     status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "o1-mini": {
+    name: "o1-mini",
+    description:
+      "Smaller, faster reasoning model in the o1 series. Optimised for STEM tasks at lower cost than full o1.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2024-09-12",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      streaming: true,
+    },
+  },
+
+  // ---- GPT-4o series ----
+  "gpt-4o": {
+    name: "GPT-4o",
+    description:
+      "Multimodal flagship model with native vision and audio capabilities. Combines high intelligence with fast response times at competitive pricing.",
+    category: "multimodal",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2024-05-13",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "audio"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-4o-mini": {
+    name: "GPT-4o Mini",
+    description:
+      "Small, fast, and affordable multimodal model for lightweight tasks. Retains vision capabilities of GPT-4o at significantly reduced cost.",
+    category: "multimodal",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2024-07-18",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+
+  // ---- GPT-4 legacy ----
+  "gpt-4-turbo": {
+    name: "GPT-4 Turbo",
+    description:
+      "GPT-4 Turbo with Vision — high-intelligence model with 128K context and knowledge cutoff April 2024. Predecessor to GPT-4o.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2024-04-09",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-4": {
+    name: "GPT-4",
+    description:
+      "Original GPT-4 model with broad general knowledge and strong reasoning. 8K context window; superseded by GPT-4 Turbo and GPT-4o.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 8192,
+    release_date: "2023-03-14",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+
+  // ---- Image generation ----
+  "gpt-image-1": {
+    name: "GPT Image 1",
+    description:
+      "OpenAI's newest image generation model, natively integrated into the GPT-4o ecosystem. Produces photorealistic images with strong prompt adherence.",
+    category: "image_generation",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2025-04-23",
+    architecture: "Diffusion",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: { image_generation: true, image_editing: true },
   },
   "dall-e-3": {
     name: "DALL-E 3",
     description:
-      "State-of-the-art image generation model with high fidelity and prompt adherence.",
+      "State-of-the-art image generation model with high fidelity and outstanding prompt adherence. Natively integrated into ChatGPT.",
     category: "image_generation",
     parameter_count: null,
     context_window: null,
     release_date: "2023-10-01",
-    architecture: "diffusion",
+    architecture: "Diffusion",
+    status: "active",
     modalities: ["text", "image"],
     capabilities: { image_generation: true },
-    status: "active",
   },
   "dall-e-2": {
     name: "DALL-E 2",
     description:
-      "Image generation model capable of creating realistic images and art from text descriptions.",
+      "Second-generation image generation model capable of creating realistic images and art. Supports in-painting and out-painting. Superseded by DALL-E 3.",
     category: "image_generation",
-    parameter_count: 3500000000, // ~3.5B estimated
+    parameter_count: null,
     context_window: null,
-    release_date: "2022-04-06",
-    architecture: "diffusion",
+    release_date: "2022-04-01",
+    architecture: "Diffusion",
+    status: "deprecated",
     modalities: ["text", "image"],
     capabilities: { image_generation: true, image_editing: true },
+  },
+
+  // ---- Code ----
+  "codex-mini-latest": {
+    name: "Codex Mini",
+    description:
+      "Lightweight code-optimised model based on the o-series reasoning architecture. Designed for agentic coding tasks and automated software engineering.",
+    category: "code",
+    parameter_count: null,
+    context_window: 200000,
+    release_date: "2025-05-16",
+    architecture: "Transformer (code)",
     status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+
+  // ---- Specialized / Agentic ----
+  "computer-use-preview": {
+    name: "Computer Use Preview",
+    description:
+      "Specialized agentic model capable of interacting with computer interfaces — clicking, typing, and navigating GUIs autonomously.",
+    category: "specialized",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-03-01",
+    architecture: "Transformer (agentic)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      vision: true,
+      computer_use: true,
+      function_calling: true,
+    },
+  },
+
+  // ---- Audio ----
+  "gpt-4o-audio-preview": {
+    name: "GPT-4o Audio",
+    description:
+      "Audio-capable variant of GPT-4o supporting real-time speech input and output. Enables low-latency voice assistants and audio reasoning tasks.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2024-10-01",
+    architecture: "Transformer (audio)",
+    status: "active",
+    modalities: ["text", "image", "audio"],
+    capabilities: {
+      vision: true,
+      transcription: true,
+      text_to_speech: true,
+      streaming: true,
+    },
   },
   "whisper-1": {
     name: "Whisper",
     description:
-      "General-purpose speech recognition model. Supports multilingual transcription and translation.",
+      "General-purpose speech recognition model trained on 680K hours of multilingual audio. Supports transcription and translation across 97 languages.",
     category: "speech_audio",
-    parameter_count: 1550000000, // ~1.55B (large-v2)
+    parameter_count: null,
     context_window: null,
     release_date: "2023-03-01",
-    architecture: "transformer",
+    architecture: "Transformer (ASR)",
+    status: "active",
     modalities: ["audio", "text"],
     capabilities: { transcription: true, translation: true },
-    status: "active",
   },
   "tts-1": {
     name: "TTS-1",
     description:
-      "Text-to-speech model optimized for real-time use cases with low latency.",
+      "Text-to-speech model optimised for real-time streaming with low latency. Six built-in voices available.",
     category: "speech_audio",
     parameter_count: null,
     context_window: null,
-    release_date: "2023-11-06",
-    architecture: "neural-tts",
+    release_date: "2023-11-01",
+    architecture: "TTS",
+    status: "active",
     modalities: ["text", "audio"],
     capabilities: { text_to_speech: true, streaming: true },
-    status: "active",
   },
   "tts-1-hd": {
     name: "TTS-1 HD",
     description:
-      "High-definition text-to-speech model producing higher quality audio output.",
+      "High-definition variant of TTS-1 producing richer, higher-quality audio output. Recommended when audio fidelity is more important than latency.",
     category: "speech_audio",
     parameter_count: null,
     context_window: null,
-    release_date: "2023-11-06",
-    architecture: "neural-tts",
+    release_date: "2023-11-01",
+    architecture: "TTS",
+    status: "active",
     modalities: ["text", "audio"],
     capabilities: { text_to_speech: true },
-    status: "active",
   },
+
+  // ---- Embeddings ----
   "text-embedding-3-large": {
-    name: "Text Embedding 3 Large",
+    name: "Embedding 3 Large",
     description:
-      "Most capable embedding model for both English and multi-language tasks. 3072 output dimensions.",
+      "Most capable embedding model for English and multilingual tasks. Produces 3072-dimension vectors; supports dimension reduction for cost-performance trade-offs.",
     category: "embeddings",
     parameter_count: null,
     context_window: 8191,
     release_date: "2024-01-25",
-    architecture: "transformer",
+    architecture: "Transformer (embed)",
+    status: "active",
     modalities: ["text"],
     capabilities: { embeddings: true },
-    status: "active",
   },
   "text-embedding-3-small": {
-    name: "Text Embedding 3 Small",
+    name: "Embedding 3 Small",
     description:
-      "Highly efficient embedding model. Offers a significant upgrade over ada-002. 1536 output dimensions.",
+      "Efficient embedding model with 1536-dimension output. Significant upgrade over ada-002 at a lower cost; ideal for most retrieval and similarity tasks.",
     category: "embeddings",
     parameter_count: null,
     context_window: 8191,
     release_date: "2024-01-25",
-    architecture: "transformer",
+    architecture: "Transformer (embed)",
+    status: "active",
     modalities: ["text"],
     capabilities: { embeddings: true },
-    status: "active",
-  },
-  "text-embedding-ada-002": {
-    name: "Text Embedding Ada 002",
-    description:
-      "Second-generation embedding model. Replaced by text-embedding-3 series.",
-    category: "embeddings",
-    parameter_count: null,
-    context_window: 8191,
-    release_date: "2022-12-15",
-    architecture: "transformer",
-    modalities: ["text"],
-    capabilities: { embeddings: true },
-    status: "active",
   },
 };
 
-// --------------- Helpers ---------------
+// ---------------------------------------------------------------------------
+// Inference helpers (for API/scrape models not in KNOWN_MODELS)
+// ---------------------------------------------------------------------------
 
-const OPENAI_API_BASE = "https://api.openai.com/v1";
+/** Infer model category from its ID when not in KNOWN_MODELS. */
+function inferCategory(modelId: string): string {
+  const id = modelId.toLowerCase();
+  if (id.startsWith("o1") || id.startsWith("o3") || id.startsWith("o4")) return "llm";
+  if (id.startsWith("gpt-")) return "llm";
+  if (id.startsWith("dall-e") || id.includes("image")) return "image_generation";
+  if (id.startsWith("whisper")) return "speech_audio";
+  if (id.startsWith("tts-")) return "speech_audio";
+  if (id.startsWith("text-embedding")) return "embeddings";
+  if (id.startsWith("codex")) return "code";
+  return "specialized";
+}
+
+/** Infer modalities from model ID when not in KNOWN_MODELS. */
+function inferModalities(modelId: string): string[] {
+  const id = modelId.toLowerCase();
+  if (id.startsWith("dall-e") || id.includes("image")) return ["text", "image"];
+  if (id.startsWith("whisper")) return ["audio", "text"];
+  if (id.startsWith("tts-")) return ["text", "audio"];
+  if (id.startsWith("text-embedding")) return ["text"];
+  if (id.startsWith("gpt-4o")) return ["text", "image", "audio"];
+  return ["text"];
+}
+
+// ---------------------------------------------------------------------------
+// Record builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a complete model record for the `models` table.
+ * `known` fields take precedence; fallbacks are computed from the model ID.
+ */
+function buildRecord(
+  modelId: string,
+  overrides: Partial<KnownModelMeta> = {}
+): Record<string, unknown> {
+  const known = KNOWN_MODELS[modelId];
+  const merged = { ...known, ...overrides };
+
+  return {
+    slug: makeSlug(`openai-${modelId}`),
+    name: merged?.name ?? modelId,
+    provider: "OpenAI",
+    category: merged?.category ?? inferCategory(modelId),
+    status: merged?.status ?? "active",
+    description: merged?.description ?? null,
+    architecture: merged?.architecture ?? null,
+    parameter_count: merged?.parameter_count ?? null,
+    context_window: merged?.context_window ?? null,
+    release_date: merged?.release_date ?? null,
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: "Proprietary",
+    modalities: merged?.modalities ?? inferModalities(modelId),
+    capabilities: merged?.capabilities ?? {},
+    data_refreshed_at: new Date().toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Optional: live API fetch
+// ---------------------------------------------------------------------------
 
 interface OpenAIModelEntry {
   id: string;
@@ -286,195 +573,186 @@ interface OpenAIModelsResponse {
   data: OpenAIModelEntry[];
 }
 
-/** Owner prefixes we keep. Skip user fine-tuned models (owned_by starts with "user-" or org). */
 const ALLOWED_OWNERS = new Set(["openai", "system"]);
 
-/** Determine model category from the model ID prefix. */
-function inferCategory(modelId: string): string {
-  const id = modelId.toLowerCase();
-  if (id.startsWith("gpt-") || id.startsWith("chatgpt-")) return "llm";
-  if (id.startsWith("o1") || id.startsWith("o3")) return "llm";
-  if (id.startsWith("dall-e")) return "image_generation";
-  if (id.startsWith("whisper")) return "speech_audio";
-  if (id.startsWith("tts-")) return "speech_audio";
-  if (id.startsWith("text-embedding")) return "embeddings";
-  // Fallback
-  return "specialized";
+/**
+ * Attempt to fetch the live model list from the OpenAI API.
+ * Returns null on any failure so the caller can fall back gracefully.
+ */
+async function tryFetchLiveApi(
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<string[] | null> {
+  try {
+    const res = await fetchWithRetry(
+      "https://api.openai.com/v1/models",
+      { headers: { Authorization: `Bearer ${apiKey}` }, signal },
+      { maxRetries: 2, signal }
+    );
+    if (!res.ok) return null;
+
+    const json: OpenAIModelsResponse = await res.json();
+    return (json.data ?? [])
+      .filter((m) => ALLOWED_OWNERS.has(m.owned_by))
+      .map((m) => m.id);
+  } catch {
+    return null;
+  }
 }
 
-/** Build a model record suitable for upserting into the models table. */
-function buildModelRecord(
-  entry: OpenAIModelEntry
-): Record<string, unknown> {
-  const known = KNOWN_MODELS[entry.id];
-  const slug = makeSlug(`openai-${entry.id}`);
+// ---------------------------------------------------------------------------
+// Optional: public HTML scrape
+// ---------------------------------------------------------------------------
 
-  return {
-    slug,
-    name: known?.name ?? entry.id,
-    provider: "OpenAI",
-    category: known?.category ?? inferCategory(entry.id),
-    status: known?.status ?? "active",
-    description: known?.description ?? null,
-    architecture: known?.architecture ?? null,
-    parameter_count: known?.parameter_count ?? null,
-    context_window: known?.context_window ?? null,
-    release_date: known?.release_date ?? timestampToDate(entry.created),
-    is_api_available: true,
-    is_open_weights: false,
-    license: "commercial",
-    modalities: known?.modalities ?? inferModalities(entry.id),
-    capabilities: known?.capabilities ?? {},
-    data_refreshed_at: new Date().toISOString(),
-  };
+/**
+ * Try to scrape the OpenAI models docs page for model IDs.
+ * The page lists model IDs in code blocks — we extract anything resembling
+ * a known pattern. Returns an empty array on failure.
+ */
+async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
+  try {
+    const res = await fetchWithRetry(
+      "https://platform.openai.com/docs/models",
+      {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ModelIndexBot/1.0)" },
+        signal,
+      },
+      { maxRetries: 1, signal }
+    );
+    if (!res.ok) return [];
+
+    const html = await res.text();
+
+    // Extract anything that looks like a model ID from code/pre tags and
+    // data attributes. Pattern: word chars, hyphens, dots; at least one dash.
+    const modelPattern =
+      /\b(gpt-[\w.]+|o[134](?:-[\w.]+)?|dall-e-\d|codex-[\w-]+|whisper-\d|tts-[\w-]+|text-embedding-[\w-]+|computer-use-[\w-]+|gpt-image-[\w-]+)\b/g;
+
+    const found = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = modelPattern.exec(html)) !== null) {
+      found.add(match[1]);
+    }
+
+    return [...found];
+  } catch {
+    return [];
+  }
 }
 
-/** Convert a UNIX timestamp to YYYY-MM-DD date string. */
-function timestampToDate(ts: number): string {
-  return new Date(ts * 1000).toISOString().split("T")[0];
-}
-
-/** Infer basic modalities from model ID if no known metadata. */
-function inferModalities(modelId: string): string[] {
-  const id = modelId.toLowerCase();
-  if (id.startsWith("dall-e")) return ["text", "image"];
-  if (id.startsWith("whisper")) return ["audio", "text"];
-  if (id.startsWith("tts-")) return ["text", "audio"];
-  if (id.startsWith("text-embedding")) return ["text"];
-  return ["text"];
-}
-
-// --------------- Adapter ---------------
+// ---------------------------------------------------------------------------
+// Adapter definition
+// ---------------------------------------------------------------------------
 
 const adapter: DataSourceAdapter = {
   id: "openai-models",
   name: "OpenAI Models",
   outputTypes: ["models"],
   defaultConfig: {},
-  requiredSecrets: ["OPENAI_API_KEY"],
+
+  // No API key required — static data guarantees a successful sync.
+  requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const errors: SyncError[] = [];
+    const now = new Date().toISOString();
     const apiKey = ctx.secrets.OPENAI_API_KEY;
 
-    if (!apiKey) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [{ message: "OPENAI_API_KEY is not set" }],
-      };
+    // ── Step 1: Start with the comprehensive static map ──────────────────────
+    // The slug-keyed map ensures we always have accurate, up-to-date records
+    // for every model we know about.
+    const recordMap = new Map<string, Record<string, unknown>>();
+    for (const modelId of Object.keys(KNOWN_MODELS)) {
+      recordMap.set(modelId, buildRecord(modelId));
     }
 
-    // ---- Fetch models from OpenAI API ----
-    let models: OpenAIModelEntry[];
-    try {
-      const res = await fetchWithRetry(
-        `${OPENAI_API_BASE}/models`,
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-          signal: ctx.signal,
-        },
-        { signal: ctx.signal }
-      );
+    // Track data source coverage for metadata
+    const sources: string[] = ["static_known_models"];
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        return {
-          success: false,
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: [
-            {
-              message: `OpenAI API returned ${res.status}: ${body.slice(0, 200)}`,
-            },
-          ],
-        };
+    // ── Step 2 (bonus): Scrape public docs page ───────────────────────────────
+    // Adds any model IDs mentioned on the docs page that aren't in our static
+    // map, so newly announced models get at least a minimal record.
+    const scrapedIds = await tryScrapeDocsPage(ctx.signal);
+    if (scrapedIds.length > 0) {
+      sources.push("html_scrape");
+      for (const modelId of scrapedIds) {
+        if (!recordMap.has(modelId)) {
+          // Unknown model — create a minimal record; static data wins for knowns
+          recordMap.set(modelId, buildRecord(modelId));
+        }
       }
-
-      const json: OpenAIModelsResponse = await res.json();
-      models = json.data ?? [];
-    } catch (err) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [
-          {
-            message: `Failed to fetch OpenAI models: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
-      };
     }
 
-    // ---- Filter to official OpenAI / system models ----
-    const filtered = models.filter((m) => ALLOWED_OWNERS.has(m.owned_by));
+    // ── Step 3 (bonus): Live API if key available ─────────────────────────────
+    // The API returns real-time model availability, creation timestamps,
+    // and may include newly released models we haven't hard-coded yet.
+    let apiModelIds: string[] | null = null;
+    if (apiKey) {
+      apiModelIds = await tryFetchLiveApi(apiKey, ctx.signal);
+      if (apiModelIds) {
+        sources.push("openai_api");
+        for (const modelId of apiModelIds) {
+          if (!recordMap.has(modelId)) {
+            // New model from API — add a minimal record
+            recordMap.set(modelId, buildRecord(modelId));
+          }
+          // Stamp models confirmed live by the API
+          const existing = recordMap.get(modelId);
+          if (existing) {
+            existing.data_refreshed_at = now;
+          }
+        }
+      }
+    }
 
-    // ---- Build upsert records ----
-    const records = filtered.map(buildModelRecord);
-
-    // ---- Upsert into DB ----
+    // ── Step 4: Upsert everything ─────────────────────────────────────────────
+    const records = [...recordMap.values()];
     const { created, errors: upsertErrors } = await upsertBatch(
       ctx.supabase,
       "models",
       records,
       "slug"
     );
-    errors.push(...upsertErrors);
 
     return {
-      success: errors.length === 0,
-      recordsProcessed: filtered.length,
+      success: upsertErrors.length === 0,
+      recordsProcessed: records.length,
       recordsCreated: created,
-      recordsUpdated: 0,
-      errors,
+      recordsUpdated: records.length - created,
+      errors: upsertErrors,
       metadata: {
-        totalFromApi: models.length,
-        filteredCount: filtered.length,
-        knownModelsMatched: filtered.filter((m) => m.id in KNOWN_MODELS)
-          .length,
+        sources,
+        staticModels: Object.keys(KNOWN_MODELS).length,
+        scrapedIds: scrapedIds.length,
+        apiModels: apiModelIds?.length ?? 0,
+        totalRecords: records.length,
       },
     };
   },
 
-  async healthCheck(
-    secrets: Record<string, string>
-  ): Promise<HealthCheckResult> {
+  async healthCheck(secrets: Record<string, string>): Promise<HealthCheckResult> {
+    // Health check: if an API key exists, verify it; otherwise confirm static
+    // data is available (always healthy with no key).
     const apiKey = secrets.OPENAI_API_KEY;
+
     if (!apiKey) {
       return {
-        healthy: false,
+        healthy: true,
         latencyMs: 0,
-        message: "OPENAI_API_KEY is not configured",
+        message: `Static-only mode — ${Object.keys(KNOWN_MODELS).length} models available without API key`,
       };
     }
 
     const start = Date.now();
     try {
       const res = await fetchWithRetry(
-        `${OPENAI_API_BASE}/models`,
-        {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        },
+        "https://api.openai.com/v1/models",
+        { headers: { Authorization: `Bearer ${apiKey}` } },
         { maxRetries: 1 }
       );
-
       const latencyMs = Date.now() - start;
-
-      if (res.ok) {
-        return { healthy: true, latencyMs, message: "OpenAI API reachable" };
-      }
-
-      return {
-        healthy: false,
-        latencyMs,
-        message: `OpenAI API returned HTTP ${res.status}`,
-      };
+      return res.ok
+        ? { healthy: true, latencyMs, message: "OpenAI API reachable" }
+        : { healthy: false, latencyMs, message: `OpenAI API returned HTTP ${res.status}` };
     } catch (err) {
       return {
         healthy: false,

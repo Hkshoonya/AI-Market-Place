@@ -1,0 +1,364 @@
+import type {
+  DataSourceAdapter,
+  SyncContext,
+  SyncResult,
+  HealthCheckResult,
+} from "../types";
+import { registerAdapter } from "../registry";
+import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
+import {
+  buildModelLookup,
+  resolveNewsRelations,
+  type ModelLookupEntry,
+} from "../model-matcher";
+
+/**
+ * X.com Model Announcements Adapter
+ *
+ * Monitors AI company X/Twitter accounts for model-related posts.
+ *
+ * Fetch strategy (tried in order per account):
+ *   1. Self-hosted RSSHub  — RSSHUB_BASE_URL/twitter/user/{handle} (needs TWITTER_COOKIE)
+ *   2. xcancel.com         — public Nitter fork RSS (unreliable)
+ *   3. Public RSSHub       — rsshub.app (often blocked without cookie)
+ *   4. rss.app             — fallback (often blocked)
+ *
+ * Setup for reliable feeds:
+ *   1. Add TWITTER_COOKIE to .env.local (auth_token + ct0 from browser)
+ *   2. Run: docker compose up -d  (starts local RSSHub on port 1200)
+ *   3. Optionally set RSSHUB_BASE_URL if not using default port
+ *
+ * Tweets are filtered by MODEL_KEYWORDS and upserted into model_news.
+ * If every RSS endpoint fails for every account the adapter returns
+ * success=true with 0 records (graceful disable).
+ */
+
+const MONITORED_ACCOUNTS = [
+  { handle: "OpenAI", provider: "OpenAI" },
+  { handle: "AnthropicAI", provider: "Anthropic" },
+  { handle: "GoogleDeepMind", provider: "Google" },
+  { handle: "GoogleAI", provider: "Google" },
+  { handle: "AIatMeta", provider: "Meta" },
+  { handle: "MistralAI", provider: "Mistral AI" },
+  { handle: "deepseek_ai", provider: "DeepSeek" },
+  { handle: "xai", provider: "xAI" },
+  { handle: "CohereAI", provider: "Cohere" },
+  { handle: "MicrosoftAI", provider: "Microsoft" },
+  { handle: "huggingface", provider: "Hugging Face" },
+  { handle: "StabilityAI", provider: "Stability AI" },
+];
+
+const MODEL_KEYWORDS = [
+  "model", "launch", "release", "introducing", "announce", "available",
+  "benchmark", "performance", "upgrade", "new version", "llm", "gpt",
+  "claude", "gemini", "llama", "mistral", "flux", "stable diffusion",
+  "parameter", "context window", "training", "fine-tun", "open source",
+  "api", "developer", "safety",
+];
+
+/**
+ * Build ordered list of RSS endpoint templates.
+ * Self-hosted RSSHub (if configured) is always tried first — it's the
+ * only reliable option since it uses the user's own Twitter cookie.
+ */
+function getRssEndpointTemplates(): Array<(handle: string) => string> {
+  const templates: Array<(handle: string) => string> = [];
+
+  // Priority 1: Self-hosted RSSHub (requires TWITTER_COOKIE in Docker env)
+  const rsshubUrl = process.env.RSSHUB_BASE_URL;
+  if (rsshubUrl) {
+    const base = rsshubUrl.replace(/\/+$/, "");
+    templates.push((handle: string) => `${base}/twitter/user/${handle}`);
+  }
+
+  // Priority 2: xcancel.com (community Nitter fork — free but unreliable)
+  templates.push((handle: string) => `https://xcancel.com/${handle}/rss`);
+  templates.push((handle: string) => `https://rss.xcancel.com/${handle}/rss`);
+
+  // Priority 3: Public RSSHub (usually blocked without cookie)
+  templates.push((handle: string) => `https://rsshub.app/twitter/user/${handle}`);
+
+  // Priority 4: rss.app (often blocked)
+  templates.push((handle: string) => `https://rss.app/feeds/twitter/${handle}`);
+
+  return templates;
+}
+
+// --------------- RSS XML helpers ---------------
+
+interface ParsedTweet {
+  id: string | null;
+  text: string;
+  url: string;
+  publishedAt: string;
+}
+
+/**
+ * Extract the numeric tweet ID from an item URL.
+ * Handles both x.com and twitter.com status URLs.
+ */
+function extractTweetId(url: string): string | null {
+  const m = url.match(/\/status(?:es)?\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+/** Decode common HTML entities in feed text. */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+/** Strip HTML tags and collapse whitespace. */
+function stripHtml(raw: string): string {
+  return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Parse RSS 2.0 / Atom XML into a flat array of tweet-like items.
+ * Works on both RSSHub (RSS 2.0) and xcancel/nitter (Atom) output formats.
+ */
+function parseRssFeed(xml: string, fallbackHandle: string): ParsedTweet[] {
+  const tweets: ParsedTweet[] = [];
+
+  // Match <item> (RSS 2.0) or <entry> (Atom) blocks
+  const itemPattern = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = itemPattern.exec(xml)) !== null) {
+    const block = match[1];
+
+    // Title / description — prefer <title>, fall back to <description> or <content>
+    const titleMatch =
+      block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ||
+      block.match(/<title[^>]*>([\s\S]*?)<\/title>/);
+
+    const descMatch =
+      block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ||
+      block.match(/<description[^>]*>([\s\S]*?)<\/description>/) ||
+      block.match(/<content[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/content>/) ||
+      block.match(/<content[^>]*>([\s\S]*?)<\/content>/);
+
+    const rawText = titleMatch?.[1] ?? descMatch?.[1] ?? "";
+    const text = decodeEntities(stripHtml(rawText));
+    if (!text) continue;
+
+    // Link — try <link> element then href attribute
+    const linkMatch =
+      block.match(/<link[^>]+href="([^"]+)"/) ||
+      block.match(/<link[^>]*>(https?:\/\/[^<]+)<\/link>/);
+    const itemUrl = linkMatch?.[1]?.trim() ??
+      `https://x.com/${fallbackHandle}`;
+
+    // Published date — try <pubDate>, <published>, <updated>
+    const dateMatch =
+      block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/) ||
+      block.match(/<published[^>]*>([\s\S]*?)<\/published>/) ||
+      block.match(/<updated[^>]*>([\s\S]*?)<\/updated>/);
+    const rawDate = dateMatch?.[1]?.trim() ?? "";
+    let publishedAt: string;
+    try {
+      publishedAt = rawDate ? new Date(rawDate).toISOString() : new Date().toISOString();
+    } catch {
+      publishedAt = new Date().toISOString();
+    }
+
+    const tweetId = extractTweetId(itemUrl);
+
+    tweets.push({ id: tweetId, text, url: itemUrl, publishedAt });
+  }
+
+  return tweets;
+}
+
+/** Return true if tweet text contains at least one model-related keyword. */
+function isModelRelated(text: string): boolean {
+  const lower = text.toLowerCase();
+  return MODEL_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Attempt to fetch an RSS feed from any of the configured endpoint templates.
+ * Returns the parsed XML string on first success, or null if all fail.
+ */
+async function fetchRssForHandle(
+  handle: string,
+  templates: Array<(handle: string) => string>,
+  signal?: AbortSignal
+): Promise<{ xml: string; source: string } | null> {
+  for (const template of templates) {
+    const url = template(handle);
+    try {
+      const res = await fetchWithRetry(
+        url,
+        { headers: { "User-Agent": "AI-Market-Cap-Bot/1.0", Accept: "application/rss+xml, application/xml, text/xml" } },
+        { signal, maxRetries: 1 }
+      );
+      if (!res.ok) continue;
+
+      const text = await res.text();
+      // Sanity check: must look like XML with feed items
+      if (text.includes("<item") || text.includes("<entry")) {
+        return { xml: text, source: new URL(url).hostname };
+      }
+    } catch {
+      // Try next endpoint
+    }
+  }
+  return null;
+}
+
+// --------------- Adapter ---------------
+
+const adapter: DataSourceAdapter = {
+  id: "x-announcements",
+  name: "X.com Model Announcements",
+  outputTypes: ["news"],
+  defaultConfig: {
+    maxTweetsPerAccount: 10,
+  },
+  requiredSecrets: [],
+
+  async sync(ctx: SyncContext): Promise<SyncResult> {
+    const maxTweetsPerAccount =
+      (ctx.config.maxTweetsPerAccount as number) ?? 10;
+
+    const errors: { message: string; context?: string }[] = [];
+    let recordsProcessed = 0;
+    const allRecords: Record<string, unknown>[] = [];
+    const templates = getRssEndpointTemplates();
+    let workingSource: string | null = null;
+
+    // Build model lookup for news-to-model linking
+    let modelLookup: ModelLookupEntry[] = [];
+    try {
+      modelLookup = await buildModelLookup(ctx.supabase);
+    } catch {
+      // Non-fatal — continue without model linking
+    }
+
+    for (const account of MONITORED_ACCOUNTS) {
+      try {
+        const result = await fetchRssForHandle(account.handle, templates, ctx.signal);
+
+        if (!result) {
+          // All RSS endpoints failed for this account — skip silently
+          errors.push({
+            message: `All RSS endpoints failed for @${account.handle}`,
+            context: `handle=${account.handle}`,
+          });
+          continue;
+        }
+
+        if (!workingSource) workingSource = result.source;
+
+        const tweets = parseRssFeed(result.xml, account.handle);
+        const relevant = tweets
+          .filter((t) => isModelRelated(t.text))
+          .slice(0, maxTweetsPerAccount);
+
+        recordsProcessed += relevant.length;
+
+        for (const tweet of relevant) {
+          // Build a stable source_id from tweet ID if available, otherwise date
+          const idSuffix = tweet.id ?? makeSlug(tweet.publishedAt);
+          const tweetUrl = tweet.id
+            ? `https://x.com/${account.handle}/status/${tweet.id}`
+            : tweet.url;
+
+          const tweetMeta = { handle: account.handle, provider: account.provider };
+          const { modelIds } = modelLookup.length > 0
+            ? resolveNewsRelations(tweet.text, null, tweetMeta, modelLookup)
+            : { modelIds: [] };
+
+          allRecords.push({
+            source: "x-twitter",
+            source_id: makeSlug(`x-${account.handle}-${idSuffix}`),
+            title: tweet.text.substring(0, 200),
+            summary: tweet.text,
+            url: tweetUrl,
+            published_at: tweet.publishedAt,
+            category: "social",
+            related_provider: account.provider,
+            related_model_ids: modelIds.length > 0 ? modelIds : [],
+            tags: [account.provider.toLowerCase(), "twitter", "x"],
+            metadata: tweetMeta,
+          });
+        }
+      } catch (err) {
+        errors.push({
+          message: `Error processing @${account.handle}: ${err instanceof Error ? err.message : String(err)}`,
+          context: `handle=${account.handle}`,
+        });
+        // Continue to next account regardless of error
+      }
+    }
+
+    if (allRecords.length > 0) {
+      const { errors: ue } = await upsertBatch(
+        ctx.supabase,
+        "model_news",
+        allRecords,
+        "source,source_id"
+      );
+      errors.push(...ue);
+    }
+
+    // Adapter is considered successful even if all RSS endpoints fail —
+    // the data source is optional and may be unavailable in some environments.
+    const fatalErrors = errors.filter((e) => !e.context?.startsWith("handle="));
+    return {
+      success: fatalErrors.length === 0,
+      recordsProcessed,
+      recordsCreated: allRecords.length,
+      recordsUpdated: 0,
+      errors,
+      metadata: {
+        rssSource: workingSource ?? "none",
+        rsshubConfigured: !!process.env.RSSHUB_BASE_URL,
+      },
+    };
+  },
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    const start = Date.now();
+    const templates = getRssEndpointTemplates();
+    const testHandle = MONITORED_ACCOUNTS[0].handle;
+
+    // Try each endpoint template until one works
+    for (const template of templates) {
+      const testUrl = template(testHandle);
+      try {
+        const res = await fetch(testUrl, {
+          headers: { "User-Agent": "AI-Market-Cap-Bot/1.0", Accept: "application/rss+xml, application/xml, text/xml" },
+        });
+        const text = res.ok ? await res.text() : "";
+        const validXml = text.includes("<item") || text.includes("<entry");
+        if (res.ok && validXml) {
+          return {
+            healthy: true,
+            latencyMs: Date.now() - start,
+            message: `RSS feeds available via ${new URL(testUrl).hostname}`,
+          };
+        }
+      } catch {
+        // Try next
+      }
+    }
+
+    return {
+      healthy: false,
+      latencyMs: Date.now() - start,
+      message: process.env.RSSHUB_BASE_URL
+        ? "Self-hosted RSSHub unreachable — check docker compose up"
+        : "No RSS bridge available — set RSSHUB_BASE_URL and run docker compose up",
+    };
+  },
+};
+
+registerAdapter(adapter);
+export default adapter;

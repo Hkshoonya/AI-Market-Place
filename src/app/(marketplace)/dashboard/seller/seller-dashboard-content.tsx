@@ -8,6 +8,7 @@ import {
   Loader2,
   Send,
   ShieldCheck,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -311,9 +312,20 @@ export default function SellerDashboardContent() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <LayoutDashboard className="h-6 w-6 text-neon" />
-        <h1 className="text-2xl font-bold">Seller Dashboard</h1>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <LayoutDashboard className="h-6 w-6 text-neon" />
+          <h1 className="text-2xl font-bold">Seller Dashboard</h1>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => router.push("/dashboard/seller/earnings")}
+        >
+          <Wallet className="h-4 w-4" />
+          Earnings & Payouts
+        </Button>
       </div>
 
       <VerificationBanner />

@@ -204,9 +204,10 @@ export async function executeTool(
       const sort = (params.sort as string) ?? "newest";
       const limit = Math.min((params.limit as number) ?? 20, 100);
 
+      // Two-query approach: marketplace_listings has no FK to profiles
       let q = sb
         .from("marketplace_listings")
-        .select("slug, title, short_description, listing_type, pricing_type, price, currency, avg_rating, review_count, view_count, is_featured, created_at, profiles:seller_id(display_name, username, seller_verified)")
+        .select("slug, title, short_description, listing_type, pricing_type, price, currency, avg_rating, review_count, view_count, is_featured, created_at, seller_id")
         .eq("status", "active")
         .limit(limit);
 
@@ -221,22 +222,47 @@ export async function executeTool(
         default: q = q.order("created_at", { ascending: false });
       }
 
-      const { data, error } = await q;
+      const { data: rawListings, error } = await q;
       if (error) throw new Error(error.message);
-      return { listings: data ?? [], count: (data ?? []).length };
+
+      // Enrich with seller profiles
+      let listings = rawListings ?? [];
+      if (listings.length > 0) {
+        const sellerIds = [...new Set(listings.map((l: any) => l.seller_id).filter(Boolean))];
+        if (sellerIds.length > 0) {
+          const { data: profiles } = await sb.from("profiles").select("id, display_name, username, seller_verified").in("id", sellerIds);
+          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+          listings = listings.map((l: any) => ({ ...l, profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null }));
+        }
+      }
+
+      return { listings, count: listings.length };
     }
 
     case "get_listing": {
       const slug = params.slug as string;
       if (!slug) throw new Error("slug is required");
 
-      const { data, error } = await sb
+      // Two-query approach: marketplace_listings has no FK to profiles
+      const { data: rawListing, error } = await sb
         .from("marketplace_listings")
-        .select("*, profiles:seller_id(id, display_name, username, avatar_url, seller_verified, seller_rating, total_sales, seller_bio, seller_website)")
+        .select("*")
         .eq("slug", slug)
         .single();
 
-      if (error) throw new Error(`Listing not found: ${slug}`);
+      if (error || !rawListing) throw new Error(`Listing not found: ${slug}`);
+
+      // Enrich with seller profile
+      let data = { ...rawListing, profiles: null as any };
+      if (rawListing.seller_id) {
+        const { data: profile } = await sb
+          .from("profiles")
+          .select("id, display_name, username, avatar_url, seller_verified, seller_rating, total_sales, seller_bio, seller_website")
+          .eq("id", rawListing.seller_id)
+          .single();
+        data.profiles = profile ?? null;
+      }
+
       return data;
     }
 

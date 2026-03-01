@@ -8,8 +8,10 @@ import {
   BarChart3,
   Building2,
   Menu,
+  Newspaper,
   Search,
   ShoppingBag,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -17,11 +19,13 @@ import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
 import { AuthButton } from "@/components/auth/auth-button";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { WalletBadge } from "@/components/marketplace/wallet-badge";
 
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
   { href: "/providers", label: "Providers", icon: Building2 },
+  { href: "/news", label: "News", icon: Newspaper },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
 ];
 
@@ -68,6 +72,11 @@ export function Header() {
         <div className="flex items-center gap-2">
           <SearchDialog />
 
+          {/* Wallet Badge */}
+          <div className="hidden md:flex">
+            <WalletBadge />
+          </div>
+
           {/* Notification Bell */}
           <div className="hidden md:flex">
             <NotificationBell />
@@ -113,6 +122,14 @@ export function Header() {
                   <NotificationBell />
                 </div>
                 <div className="my-4 border-t border-border" />
+                <Link
+                  href="/wallet"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
+                  <Wallet className="h-5 w-5" />
+                  Wallet
+                </Link>
                 <Link
                   href="/compare"
                   onClick={() => setMobileOpen(false)}

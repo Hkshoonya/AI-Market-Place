@@ -41,9 +41,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") || "pending";
 
-  const { data, error } = await sb
+  // Two-query approach: seller_verification_requests may not have FK to profiles
+  const { data: rawData, error } = await sb
     .from("seller_verification_requests")
-    .select("*, profiles:user_id(id, display_name, username, avatar_url, email, is_seller, seller_verified)")
+    .select("*")
     .eq("status", status)
     .order("created_at", { ascending: status === "pending" });
 
@@ -51,7 +52,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data: data ?? [] });
+  // Enrich with user profiles
+  let data = rawData ?? [];
+  if (data.length > 0) {
+    const userIds = [...new Set(data.map((r: any) => r.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profiles } = await sb
+        .from("profiles")
+        .select("id, display_name, username, avatar_url, email, is_seller, seller_verified")
+        .in("id", userIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      data = data.map((r: any) => ({
+        ...r,
+        profiles: r.user_id ? profileMap.get(r.user_id) ?? null : null,
+      }));
+    }
+  }
+
+  return NextResponse.json({ data });
 }
 
 // PATCH /api/admin/verifications — approve or reject a request

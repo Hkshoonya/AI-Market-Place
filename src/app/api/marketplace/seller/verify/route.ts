@@ -89,7 +89,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
+  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
   const { business_name, business_description, website_url, portfolio_url, reason } = body;
 
   if (!business_name || business_name.length < 2) {

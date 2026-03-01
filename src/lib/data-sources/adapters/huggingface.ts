@@ -165,9 +165,9 @@ function transformModel(hf: HFModel): Record<string, unknown> {
     license_name: license.name,
     is_open_weights: isOpenWeights,
     is_api_available: false,
-    supported_languages: JSON.stringify([]),
-    modalities: JSON.stringify(hf.pipeline_tag ? [hf.pipeline_tag] : []),
-    capabilities: JSON.stringify({}),
+    supported_languages: [],
+    modalities: hf.pipeline_tag ? [hf.pipeline_tag] : [],
+    capabilities: {},
     release_date: hf.createdAt ? hf.createdAt.split("T")[0] : null,
     data_refreshed_at: new Date().toISOString(),
   };
@@ -186,7 +186,7 @@ const adapter: DataSourceAdapter = {
     pageSize: 100,
     rateLimitDelayMs: 200,
   },
-  requiredSecrets: ["HUGGINGFACE_API_TOKEN"],
+  requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const maxPages = (ctx.config.maxPages as number) ?? 50;

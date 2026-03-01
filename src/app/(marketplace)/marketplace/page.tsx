@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, ShoppingBag, TrendingUp } from "lucide-react";
+import { ArrowRight, Gavel, ShoppingBag, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { createClient } from "@/lib/supabase/server";
+import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -30,13 +31,22 @@ export default async function MarketplacePage() {
   }
 
   // Fetch featured listings (up to 6)
-  const { data: featured } = await (supabase as any)
+  // NOTE: is_featured column may not exist yet — order by created_at only
+  // When migration adds the column, re-enable: .order("is_featured", { ascending: false })
+  const { data: rawFeatured } = await (supabase as any)
     .from("marketplace_listings")
-    .select("*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, seller_verified)")
+    .select("*")
     .eq("status", "active")
-    .order("is_featured", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(6);
+
+  // Enrich with seller profiles (no FK constraint exists, so fetch separately)
+  // Cast to any — shape is compatible with MarketplaceListingWithSeller
+  const featured = await enrichListingsWithProfiles(
+    supabase as any,
+    rawFeatured || [],
+    PROFILE_FIELDS_CARD
+  ) as any[];
 
   const totalCount = allListings?.length || 0;
 
@@ -56,6 +66,12 @@ export default async function MarketplacePage() {
             </p>
           </div>
           <div className="flex gap-3">
+            <Button variant="outline" asChild>
+              <Link href="/marketplace/auctions">
+                <Gavel className="mr-2 h-4 w-4" />
+                Auctions
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/marketplace/browse">
                 Browse All
