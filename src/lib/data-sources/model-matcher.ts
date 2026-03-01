@@ -286,6 +286,51 @@ export function matchModelsInText(
   return [...matchedIds];
 }
 
+// --------------- Fuzzy Model Matching ---------------
+
+/**
+ * Simple fuzzy match: find the best model match for a given name string.
+ * Used by static benchmark adapters to map model names to our DB models.
+ */
+export function fuzzyMatchModel(
+  name: string,
+  models: Array<{ id: string; name: string; slug: string; provider: string }>
+): { id: string; name: string } | null {
+  const nameLower = name.toLowerCase().trim();
+
+  // 1. Exact slug match
+  const slugMatch = models.find(m => m.slug.toLowerCase() === nameLower.replace(/\s+/g, '-'));
+  if (slugMatch) return { id: slugMatch.id, name: slugMatch.name };
+
+  // 2. Exact name match (case-insensitive)
+  const exactMatch = models.find(m => m.name.toLowerCase() === nameLower);
+  if (exactMatch) return { id: exactMatch.id, name: exactMatch.name };
+
+  // 3. Contains match (name includes search OR search includes name)
+  const containsMatch = models.find(m => {
+    const mLower = m.name.toLowerCase();
+    return mLower.includes(nameLower) || nameLower.includes(mLower);
+  });
+  if (containsMatch) return { id: containsMatch.id, name: containsMatch.name };
+
+  // 4. Token-based partial match (at least 60% of tokens match)
+  const nameTokens = nameLower.split(/[\s\-_]+/).filter(t => t.length > 1);
+  let bestMatch: { id: string; name: string } | null = null;
+  let bestScore = 0;
+
+  for (const m of models) {
+    const mTokens = m.name.toLowerCase().split(/[\s\-_]+/).filter(t => t.length > 1);
+    const matching = nameTokens.filter(t => mTokens.some(mt => mt.includes(t) || t.includes(mt)));
+    const score = matching.length / Math.max(nameTokens.length, 1);
+    if (score > bestScore && score >= 0.6) {
+      bestScore = score;
+      bestMatch = { id: m.id, name: m.name };
+    }
+  }
+
+  return bestMatch;
+}
+
 // --------------- Provider Detection ---------------
 
 /** Known AI providers and keywords for provider detection */

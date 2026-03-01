@@ -34,6 +34,9 @@ import { QualityTrend } from "@/components/charts/quality-trend";
 import { DownloadsTrend } from "@/components/charts/downloads-trend";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { NewsCard } from "@/components/news/news-card";
+import { DeployTab } from "@/components/models/deploy-tab";
+import { ModelOverview } from "@/components/models/model-overview";
+import { TradingChart } from "@/components/charts/trading-chart";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 
@@ -349,11 +352,18 @@ export default async function ModelDetailPage({
         ))}
       </div>
 
+      {/* Model Overview (AI-generated pros/cons) */}
+      <div className="mt-8">
+        <ModelOverview modelSlug={model.slug} />
+      </div>
+
       {/* Tabs */}
-      <Tabs defaultValue="benchmarks" className="mt-8">
-        <TabsList className="bg-secondary/50">
+      <Tabs defaultValue="benchmarks" className="mt-6">
+        <TabsList className="bg-secondary/50 flex-wrap">
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="deploy">Deploy</TabsTrigger>
+          <TabsTrigger value="trading">Trading</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="news">
             <Newspaper className="h-3.5 w-3.5 mr-1" />
@@ -566,6 +576,55 @@ export default async function ModelDetailPage({
               ) : (
                 <p className="text-center text-muted-foreground py-8">No pricing data available yet.</p>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Deploy Tab */}
+        <TabsContent value="deploy" className="mt-6">
+          <DeployTab
+            modelSlug={model.slug}
+            modelName={model.name}
+            isOpenWeights={!!model.is_open_weights}
+          />
+        </TabsContent>
+
+        {/* Trading Tab */}
+        <TabsContent value="trading" className="mt-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg">Popularity &amp; Market Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TradingChart modelSlug={model.slug} />
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums">
+                    {model.popularity_rank ? `#${model.popularity_rank}` : "---"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Popularity Rank</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums">
+                    {model.market_cap_estimate
+                      ? `$${(Number(model.market_cap_estimate) / 1_000_000).toFixed(1)}M`
+                      : "---"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Est. Market Cap</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums">
+                    {model.agent_score ? Number(model.agent_score).toFixed(1) : "---"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Agent Score</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums">
+                    {model.github_stars ? formatNumber(model.github_stars) : "---"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">GitHub Stars</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
