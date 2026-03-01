@@ -255,10 +255,12 @@ export default async function LeaderboardsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">#</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Market Cap</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Popularity</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Quality</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Quality</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">$/M tokens</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Downloads</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Popularity</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,6 +268,9 @@ export default async function LeaderboardsPage() {
                   const rank = index + 1;
                   const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
                   const popScore = model.popularity_score ? Number(model.popularity_score) : null;
+                  const mmlu = getBenchmarkScore(model, "mmlu") ?? getBenchmarkScore(model, "mmlu-pro");
+                  const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
+                  const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
                   const cheapestPricing = (model.model_pricing as { input_price_per_million: number | null }[])
                     ?.filter((p) => p.input_price_per_million != null)
                     .sort((a, b) =>
@@ -310,23 +315,29 @@ export default async function LeaderboardsPage() {
                       </td>
                       <td className="hidden px-4 py-3.5 text-right sm:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-neon/70"
-                                style={{ width: `${Math.min(popScore ?? 0, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
-                              {popScore?.toFixed(0) ?? "—"}
-                            </span>
-                          </div>
-                        </Link>
-                      </td>
-                      <td className="hidden px-4 py-3.5 text-right md:table-cell">
-                        <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-semibold tabular-nums">
                             {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className={mmlu ? "text-foreground" : "text-muted-foreground"}>
+                            {mmlu ? mmlu.toFixed(1) : "—"}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className={humanEval ? "text-foreground" : "text-muted-foreground"}>
+                            {humanEval ? humanEval.toFixed(1) : "—"}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className={math ? "text-foreground" : "text-muted-foreground"}>
+                            {math ? math.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
@@ -343,9 +354,19 @@ export default async function LeaderboardsPage() {
                           )}
                         </Link>
                       </td>
-                      <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
+                      <td className="hidden px-4 py-3.5 text-right xl:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
-                          {formatNumber(model.hf_downloads)}
+                          <div className="flex items-center justify-end gap-1.5">
+                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-neon/70"
+                                style={{ width: `${Math.min(popScore ?? 0, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
+                              {popScore?.toFixed(0) ?? "—"}
+                            </span>
+                          </div>
                         </Link>
                       </td>
                     </tr>
