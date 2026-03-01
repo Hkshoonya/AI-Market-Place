@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
-import { formatTokenPrice } from "@/lib/format";
+import { formatTokenPrice, formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { QualityDistribution } from "@/components/charts/quality-distribution";
@@ -25,13 +25,13 @@ export const revalidate = 1800;
 export default async function LeaderboardsPage() {
   const supabase = await createClient();
 
-  // Fetch ranked models with benchmarks, pricing, elo
+  // Fetch ranked models with benchmarks, pricing, elo — sorted by market cap
   const { data: rankedModelsRaw } = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
     .limit(20);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,10 +40,10 @@ export default async function LeaderboardsPage() {
   // Fetch ALL ranked models for the explorer (client component)
   const { data: explorerModelsRaw } = await supabase
     .from("models")
-    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, agent_score, agent_rank, popularity_rank, market_cap_estimate")
+    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
     .limit(500);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +59,7 @@ export default async function LeaderboardsPage() {
     value_score: m.value_score ? Number(m.value_score) : null,
     is_open_weights: !!(m.is_open_weights),
     hf_downloads: m.hf_downloads ? Number(m.hf_downloads) : null,
+    popularity_score: m.popularity_score ? Number(m.popularity_score) : null,
     agent_score: m.agent_score ? Number(m.agent_score) : null,
     agent_rank: m.agent_rank as number | null,
     popularity_rank: m.popularity_rank as number | null,
@@ -234,7 +235,7 @@ export default async function LeaderboardsPage() {
           </div>
         </TabsContent>
 
-        {/* Overall Tab — Classic top 20 */}
+        {/* Overall Tab — Top 20 by Market Cap */}
         <TabsContent value="overall" className="mt-6">
           {rankedModels && rankedModels.length > 0 && (
             <div className="mb-6">
@@ -253,47 +254,40 @@ export default async function LeaderboardsPage() {
                 <tr className="border-b border-border/50 bg-secondary/30">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">#</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Quality</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">MMLU</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">$/M tokens</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground w-16">Change</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Market Cap</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Popularity</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Quality</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">$/M tokens</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Downloads</th>
                 </tr>
               </thead>
               <tbody>
-                {rankedModels?.map((model) => {
-                  const rank = model.overall_rank ?? 0;
-                  const overallRanking = (model.rankings as { ranking_type: string; previous_rank: number | null }[])?.find(
-                    (r) => r.ranking_type === "overall"
-                  );
-                  const change = overallRanking?.previous_rank
-                    ? overallRanking.previous_rank - rank
-                    : 0;
+                {rankedModels?.map((model, index) => {
+                  const rank = index + 1;
+                  const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
+                  const popScore = model.popularity_score ? Number(model.popularity_score) : null;
                   const cheapestPricing = (model.model_pricing as { input_price_per_million: number | null }[])
                     ?.filter((p) => p.input_price_per_million != null)
                     .sort((a, b) =>
                       (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0)
                     )[0];
 
-                  const mmlu = getBenchmarkScore(model, "mmlu");
-                  const humaneval = getBenchmarkScore(model, "humaneval");
-                  const math = getBenchmarkScore(model, "math");
-
                   return (
-                    <tr key={model.id} className="border-b border-border/30 table-row-hover">
+                    <tr key={model.id} className="border-b border-border/30 table-row-hover cursor-pointer">
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1">
-                          {rank <= 3 && (
-                            <Crown className={`h-3.5 w-3.5 ${rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : "text-[#CD7F32]"}`} />
-                          )}
-                          <span className={`text-sm font-bold tabular-nums ${rank <= 3 ? "text-neon" : "text-muted-foreground"}`}>
-                            {rank}
-                          </span>
-                        </div>
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <div className="flex items-center gap-1">
+                            {rank <= 3 && (
+                              <Crown className={`h-3.5 w-3.5 ${rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : "text-[#CD7F32]"}`} />
+                            )}
+                            <span className={`text-sm font-bold tabular-nums ${rank <= 3 ? "text-neon" : "text-muted-foreground"}`}>
+                              {rank}
+                            </span>
+                          </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3.5">
-                        <Link href={`/models/${model.slug}`}>
+                        <Link href={`/models/${model.slug}`} className="block">
                           <div className="flex items-center gap-2">
                             <ProviderLogo provider={model.provider} size="sm" />
                             <div>
@@ -304,36 +298,55 @@ export default async function LeaderboardsPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <span className="text-sm font-bold tabular-nums text-neon">
-                          {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
-                        </span>
-                      </td>
-                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums sm:table-cell">
-                        {mmlu?.toFixed(1) ?? "—"}
-                      </td>
-                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
-                        {humaneval?.toFixed(1) ?? "—"}
-                      </td>
-                      <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
-                        {math?.toFixed(1) ?? "—"}
-                      </td>
-                      <td className="hidden px-4 py-3.5 text-right text-sm md:table-cell">
-                        {cheapestPricing ? (
-                          <span className="text-muted-foreground">
-                            {formatTokenPrice(cheapestPricing.input_price_per_million)}
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className="text-sm font-bold tabular-nums text-neon">
+                            {marketCap
+                              ? marketCap >= 1_000_000
+                                ? `$${(marketCap / 1_000_000).toFixed(1)}M`
+                                : `$${(marketCap / 1_000).toFixed(0)}K`
+                              : "—"}
                           </span>
-                        ) : model.is_open_weights ? (
-                          <span className="text-gain font-medium">Free</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        </Link>
                       </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <span className={`text-xs font-medium ${change > 0 ? "text-gain" : change < 0 ? "text-loss" : "text-muted-foreground"}`}>
-                          {change > 0 && `▲${change}`}
-                          {change < 0 && `▼${Math.abs(change)}`}
-                          {change === 0 && "—"}
-                        </span>
+                      <td className="hidden px-4 py-3.5 text-right sm:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-neon/70"
+                                style={{ width: `${Math.min(popScore ?? 0, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
+                              {popScore?.toFixed(0) ?? "—"}
+                            </span>
+                          </div>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right md:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className="text-sm font-semibold tabular-nums">
+                            {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          {cheapestPricing ? (
+                            <span className="text-muted-foreground">
+                              {formatTokenPrice(cheapestPricing.input_price_per_million)}
+                            </span>
+                          ) : model.is_open_weights ? (
+                            <span className="text-gain font-medium">Free</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          {formatNumber(model.hf_downloads)}
+                        </Link>
                       </td>
                     </tr>
                   );

@@ -49,13 +49,13 @@ export const revalidate = 3600;
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Fetch top 10 models by overall rank
+  // Fetch top 10 models by market cap (usage-based ranking)
   const { data: topModelsRaw } = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*)")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
     .limit(10);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,34 +244,27 @@ export default async function HomePage() {
                   Category
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Score
+                  Market Cap
                 </th>
                 <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Downloads
+                  Popularity
                 </th>
                 <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Price
+                  Quality
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Change
+                <th className="hidden xl:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
+                  Price
                 </th>
               </tr>
             </thead>
             <tbody>
-              {topModels?.map((model) => {
+              {topModels?.map((model, index) => {
                 const catConfig = CATEGORIES.find(
                   (c) => c.slug === model.category
                 );
-                const overallRanking = (
-                  model.rankings as {
-                    ranking_type: string;
-                    previous_rank: number | null;
-                  }[]
-                )?.find((r) => r.ranking_type === "overall");
-                const rank = model.overall_rank ?? 0;
-                const change = overallRanking?.previous_rank
-                  ? overallRanking.previous_rank - rank
-                  : 0;
+                const rank = index + 1;
+                const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
+                const popScore = model.popularity_score ? Number(model.popularity_score) : null;
                 const cheapestPricing = (
                   model.model_pricing as {
                     input_price_per_million: number | null;
@@ -287,10 +280,10 @@ export default async function HomePage() {
                 return (
                   <tr
                     key={model.id}
-                    className="border-b border-border/30 table-row-hover"
+                    className="border-b border-border/30 table-row-hover cursor-pointer"
                   >
                     <td className="px-4 py-3">
-                      <Link href={`/models/${model.slug}`}>
+                      <Link href={`/models/${model.slug}`} className="block">
                         <span
                           className={`text-sm font-bold tabular-nums ${
                             rank <= 3 ? "text-neon" : "text-muted-foreground"
@@ -301,7 +294,7 @@ export default async function HomePage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/models/${model.slug}`}>
+                      <Link href={`/models/${model.slug}`} className="block">
                         <div className="flex items-center gap-2">
                           <ProviderLogo provider={model.provider} size="sm" className="shrink-0" />
                           <div className="min-w-0">
@@ -316,59 +309,72 @@ export default async function HomePage() {
                       </Link>
                     </td>
                     <td className="hidden px-4 py-3 sm:table-cell">
-                      {catConfig && (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-transparent text-[11px]"
-                          style={{
-                            backgroundColor: `${catConfig.color}15`,
-                            color: catConfig.color,
-                          }}
-                        >
-                          <catConfig.icon className="h-3 w-3" />
-                          {catConfig.shortLabel}
-                        </Badge>
-                      )}
+                      <Link href={`/models/${model.slug}`} className="block">
+                        {catConfig && (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-transparent text-[11px]"
+                            style={{
+                              backgroundColor: `${catConfig.color}15`,
+                              color: catConfig.color,
+                            }}
+                          >
+                            <catConfig.icon className="h-3 w-3" />
+                            {catConfig.shortLabel}
+                          </Badge>
+                        )}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <span className="text-sm font-semibold tabular-nums">
-                        {model.quality_score
-                          ? Number(model.quality_score).toFixed(1)
-                          : "—"}
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground whitespace-nowrap md:table-cell">
-                      {formatNumber(model.hf_downloads)}
-                    </td>
-                    <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap lg:table-cell">
-                      {cheapestPricing ? (
-                        <span className="text-muted-foreground">
-                          {formatTokenPrice(
-                            cheapestPricing.input_price_per_million
-                          )}
-                          /M
+                      <Link href={`/models/${model.slug}`} className="block">
+                        <span className="text-sm font-bold tabular-nums text-neon">
+                          {marketCap
+                            ? marketCap >= 1_000_000
+                              ? `$${(marketCap / 1_000_000).toFixed(1)}M`
+                              : `$${(marketCap / 1_000).toFixed(0)}K`
+                            : "—"}
                         </span>
-                      ) : model.is_open_weights ? (
-                        <span className="text-gain font-medium">Free</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span
-                        className={`flex items-center justify-end gap-1 text-xs font-medium ${
-                          change > 0
-                            ? "text-gain"
-                            : change < 0
-                              ? "text-loss"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {change > 0 && "▲"}
-                        {change < 0 && "▼"}
-                        {change === 0 && "—"}
-                        {change !== 0 && Math.abs(change)}
-                      </span>
+                    <td className="hidden px-4 py-3 text-right whitespace-nowrap md:table-cell">
+                      <Link href={`/models/${model.slug}`} className="block">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-neon/70"
+                              style={{ width: `${Math.min(popScore ?? 0, 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
+                            {popScore?.toFixed(0) ?? "—"}
+                          </span>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="hidden px-4 py-3 text-right whitespace-nowrap lg:table-cell">
+                      <Link href={`/models/${model.slug}`} className="block">
+                        <span className="text-sm font-semibold tabular-nums">
+                          {model.quality_score
+                            ? Number(model.quality_score).toFixed(1)
+                            : "—"}
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap xl:table-cell">
+                      <Link href={`/models/${model.slug}`} className="block">
+                        {cheapestPricing ? (
+                          <span className="text-muted-foreground">
+                            {formatTokenPrice(
+                              cheapestPricing.input_price_per_million
+                            )}
+                            /M
+                          </span>
+                        ) : model.is_open_weights ? (
+                          <span className="text-gain font-medium">Free</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </Link>
                     </td>
                   </tr>
                 );
