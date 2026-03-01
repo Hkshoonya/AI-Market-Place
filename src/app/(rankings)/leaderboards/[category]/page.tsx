@@ -71,7 +71,7 @@ export default async function CategoryLeaderboardPage({
   function getBenchmarkScore(model: any, benchSlug: string): number | null {
     const scores = model.benchmark_scores ?? [];
     const match = scores.find((s: any) => s.benchmarks?.slug === benchSlug);
-    return match ? Number(match.score) : null;
+    return match ? Number(match.score_normalized) : null;
   }
 
   function getCheapestInput(model: any): number | null {

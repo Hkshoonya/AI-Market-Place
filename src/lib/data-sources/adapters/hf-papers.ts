@@ -6,6 +6,11 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, upsertBatch } from "../utils";
+import {
+  buildModelLookup,
+  resolveNewsRelations,
+  type ModelLookupEntry,
+} from "../model-matcher";
 
 const HF_PAPERS_API = "https://huggingface.co/api/daily_papers";
 
@@ -63,8 +68,20 @@ const adapter: DataSourceAdapter = {
       const papers = (await res.json()) as HFPaper[];
       recordsProcessed = papers.length;
 
+      // Build model lookup for news-to-model linking
+      let modelLookup: ModelLookupEntry[] = [];
+      try {
+        modelLookup = await buildModelLookup(ctx.supabase);
+      } catch {
+        // Non-fatal — continue without model linking
+      }
+
       const records = papers.map((item) => {
         const p = item.paper;
+        const { modelIds, provider } = modelLookup.length > 0
+          ? resolveNewsRelations(p.title || "", p.summary || "", null, modelLookup)
+          : { modelIds: [], provider: detectProvider(p.title || "", p.summary || "") };
+
         return {
           source: "hf-papers",
           source_id: p.id || "",
@@ -73,7 +90,8 @@ const adapter: DataSourceAdapter = {
           url: `https://huggingface.co/papers/${p.id}`,
           published_at: item.publishedAt || new Date().toISOString(),
           category: "research",
-          related_provider: detectProvider(p.title || "", p.summary || ""),
+          related_provider: provider,
+          related_model_ids: modelIds.length > 0 ? modelIds : [],
           tags: ["huggingface", "daily-papers"],
           metadata: {
             upvotes: p.upvotes ?? 0,

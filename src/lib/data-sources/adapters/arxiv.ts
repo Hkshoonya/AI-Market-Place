@@ -6,6 +6,11 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, upsertBatch } from "../utils";
+import {
+  buildModelLookup,
+  resolveNewsRelations,
+  type ModelLookupEntry,
+} from "../model-matcher";
 
 const ARXIV_API = "http://export.arxiv.org/api/query";
 
@@ -123,18 +128,33 @@ const adapter: DataSourceAdapter = {
       const entries = parseArxivXml(xml);
       recordsProcessed = entries.length;
 
-      const records = entries.map((e) => ({
-        source: "arxiv",
-        source_id: e.id,
-        title: e.title.slice(0, 500),
-        summary: e.summary.slice(0, 2000),
-        url: e.link,
-        published_at: e.published,
-        category: categorizePaper(e.categories),
-        related_provider: detectProvider(e.title, e.summary),
-        tags: e.categories,
-        metadata: { authors: e.authors.slice(0, 10) },
-      }));
+      // Build model lookup for news-to-model linking
+      let modelLookup: ModelLookupEntry[] = [];
+      try {
+        modelLookup = await buildModelLookup(ctx.supabase);
+      } catch {
+        // Non-fatal — continue without model linking
+      }
+
+      const records = entries.map((e) => {
+        const { modelIds, provider } = modelLookup.length > 0
+          ? resolveNewsRelations(e.title, e.summary, null, modelLookup)
+          : { modelIds: [], provider: detectProvider(e.title, e.summary) };
+
+        return {
+          source: "arxiv",
+          source_id: e.id,
+          title: e.title.slice(0, 500),
+          summary: e.summary.slice(0, 2000),
+          url: e.link,
+          published_at: e.published,
+          category: categorizePaper(e.categories),
+          related_provider: provider,
+          related_model_ids: modelIds.length > 0 ? modelIds : [],
+          tags: e.categories,
+          metadata: { authors: e.authors.slice(0, 10) },
+        };
+      });
 
       if (records.length > 0) {
         const { errors: ue } = await upsertBatch(

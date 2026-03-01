@@ -1,0 +1,531 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Wallet,
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useAuth } from "@/components/auth/auth-provider";
+import { formatCurrency, formatDate } from "@/lib/format";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const ITEMS_PER_PAGE = 10;
+
+const TX_TYPE_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "deposit", label: "Deposits" },
+  { key: "purchase", label: "Purchases" },
+  { key: "sale", label: "Sales" },
+  { key: "withdrawal", label: "Withdrawals" },
+] as const;
+
+type TxTypeFilter = (typeof TX_TYPE_FILTERS)[number]["key"];
+
+interface WalletData {
+  balance: number;
+  escrow_balance: number;
+  total_earned: number;
+  total_spent: number;
+  primary_chain: string | null;
+  solana_deposit_address: string | null;
+  evm_deposit_address: string | null;
+  transactions: Transaction[];
+  total_transactions: number;
+}
+
+interface Transaction {
+  id: string;
+  created_at: string;
+  type: string;
+  amount: number;
+  chain: string | null;
+  status: string;
+  description: string | null;
+}
+
+export default function WalletContent() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [filter, setFilter] = useState<TxTypeFilter>("all");
+  const [page, setPage] = useState(1);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const fetchWallet = useCallback(
+    async (txFilter?: TxTypeFilter, txPage?: number) => {
+      if (!user) return;
+      setLoading(true);
+      setError("");
+
+      try {
+        const params = new URLSearchParams();
+        const activeFilter = txFilter ?? filter;
+        const activePage = txPage ?? page;
+
+        if (activeFilter !== "all") params.set("type", activeFilter);
+        params.set("page", String(activePage));
+        params.set("limit", String(ITEMS_PER_PAGE));
+
+        const res = await fetch(`/api/marketplace/wallet?${params}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            // No wallet yet, that is fine
+            setWallet(null);
+            setLoading(false);
+            return;
+          }
+          throw new Error("Failed to fetch wallet data");
+        }
+        const data = await res.json();
+        setWallet(data);
+      } catch (err: any) {
+        setError(err.message || "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user, filter, page]
+  );
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login?redirect=/wallet");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) fetchWallet();
+  }, [user, fetchWallet]);
+
+  const handleGenerateAddress = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/wallet", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to generate deposit addresses");
+      await fetchWallet();
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleFilterChange = (newFilter: TxTypeFilter) => {
+    setFilter(newFilter);
+    setPage(1);
+    fetchWallet(newFilter, 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchWallet(filter, newPage);
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // Fallback ignored
+    }
+  };
+
+  const totalPages = wallet
+    ? Math.ceil(wallet.total_transactions / ITEMS_PER_PAGE)
+    : 0;
+
+  // Auth loading skeleton
+  if (authLoading) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-16">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 rounded bg-secondary" />
+          <div className="h-40 rounded-xl bg-secondary" />
+          <div className="h-64 rounded-xl bg-secondary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neon/10">
+          <Wallet className="h-5 w-5 text-neon" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">Wallet</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your balance, deposits, and transactions
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Section 1: Balance Card */}
+      <Card className="border-neon/20 bg-neon/5 mb-6">
+        <CardContent className="p-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Available balance */}
+            <div>
+              <p className="text-sm text-muted-foreground">Available Balance</p>
+              <p className="mt-1 text-3xl font-bold text-neon">
+                {loading ? (
+                  <span className="inline-block h-9 w-28 animate-pulse rounded bg-secondary" />
+                ) : (
+                  formatCurrency(wallet?.balance ?? 0)
+                )}
+              </p>
+            </div>
+
+            {/* Escrow */}
+            <div>
+              <p className="text-sm text-muted-foreground">Held in Escrow</p>
+              <p className="mt-1 text-xl font-semibold text-amber-400">
+                {loading ? (
+                  <span className="inline-block h-7 w-20 animate-pulse rounded bg-secondary" />
+                ) : (
+                  formatCurrency(wallet?.escrow_balance ?? 0)
+                )}
+              </p>
+            </div>
+
+            {/* Total earned */}
+            <div>
+              <p className="text-sm text-muted-foreground">Total Earned</p>
+              <p className="mt-1 text-xl font-semibold text-emerald-400">
+                {loading ? (
+                  <span className="inline-block h-7 w-20 animate-pulse rounded bg-secondary" />
+                ) : (
+                  formatCurrency(wallet?.total_earned ?? 0)
+                )}
+              </p>
+            </div>
+
+            {/* Total spent */}
+            <div>
+              <p className="text-sm text-muted-foreground">Total Spent</p>
+              <p className="mt-1 text-xl font-semibold text-red-400">
+                {loading ? (
+                  <span className="inline-block h-7 w-20 animate-pulse rounded bg-secondary" />
+                ) : (
+                  formatCurrency(wallet?.total_spent ?? 0)
+                )}
+              </p>
+            </div>
+          </div>
+
+          {wallet?.primary_chain && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-xs text-muted-foreground">
+                Primary Chain:{" "}
+                <Badge variant="outline" className="ml-1 text-xs">
+                  {wallet.primary_chain}
+                </Badge>
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Deposit Addresses */}
+      <Card className="border-border/50 bg-card mb-6">
+        <CardContent className="p-6">
+          <h2 className="text-lg font-semibold mb-1">Deposit Addresses</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Send USDC to these addresses to fund your wallet
+          </p>
+
+          {wallet?.solana_deposit_address || wallet?.evm_deposit_address ? (
+            <div className="space-y-3">
+              {/* Solana address */}
+              {wallet.solana_deposit_address && (
+                <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-secondary/30 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                      Solana (USDC)
+                    </p>
+                    <p className="truncate font-mono text-sm text-foreground">
+                      {wallet.solana_deposit_address}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() =>
+                      copyToClipboard(wallet.solana_deposit_address!, "solana")
+                    }
+                    className="shrink-0"
+                  >
+                    {copiedField === "solana" ? (
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* EVM address */}
+              {wallet.evm_deposit_address && (
+                <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-secondary/30 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                      EVM &mdash; Base &amp; Polygon (USDC)
+                    </p>
+                    <p className="truncate font-mono text-sm text-foreground">
+                      {wallet.evm_deposit_address}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() =>
+                      copyToClipboard(wallet.evm_deposit_address!, "evm")
+                    }
+                    className="shrink-0"
+                  >
+                    {copiedField === "evm" ? (
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border/50 bg-secondary/10 py-8 text-center">
+              <Wallet className="mx-auto h-8 w-8 text-muted-foreground/40" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                No deposit addresses generated yet
+              </p>
+              <Button
+                onClick={handleGenerateAddress}
+                disabled={generating}
+                className="mt-4 bg-neon text-background hover:bg-neon/90"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Address"
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Transaction History */}
+      <Card className="border-border/50 bg-card">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Transaction History</h2>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => fetchWallet()}
+              disabled={loading}
+              title="Refresh"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
+
+          {/* Type filter buttons */}
+          <div className="flex gap-1 mb-4 overflow-x-auto">
+            {TX_TYPE_FILTERS.map((f) => (
+              <Button
+                key={f.key}
+                variant={filter === f.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFilterChange(f.key)}
+                className={
+                  filter === f.key
+                    ? "bg-neon text-background hover:bg-neon/90"
+                    : ""
+                }
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-12 animate-pulse rounded bg-secondary"
+                />
+              ))}
+            </div>
+          ) : !wallet?.transactions?.length ? (
+            <div className="rounded-lg border border-dashed border-border/50 bg-secondary/10 py-12 text-center">
+              <RefreshCw className="mx-auto h-8 w-8 text-muted-foreground/30" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                No transactions found
+              </p>
+              <Button asChild className="mt-4 bg-neon text-background hover:bg-neon/90">
+                <Link href="/marketplace">Browse Marketplace</Link>
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Chain</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {wallet.transactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDate(tx.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 text-xs">
+                          {tx.type === "deposit" || tx.type === "sale" ? (
+                            <ArrowDownLeft className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <ArrowUpRight className="h-3 w-3 text-red-400" />
+                          )}
+                          <span className="capitalize">{tx.type}</span>
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        <span
+                          className={
+                            tx.type === "deposit" || tx.type === "sale" || tx.type === "refund"
+                              ? "text-emerald-400"
+                              : tx.type === "purchase"
+                                ? "text-red-400"
+                                : "text-amber-400"
+                          }
+                        >
+                          {tx.type === "deposit" || tx.type === "sale" || tx.type === "refund"
+                            ? "+"
+                            : "-"}
+                          {formatCurrency(Math.abs(tx.amount))}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {tx.chain ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px]"
+                          >
+                            {tx.chain}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            &mdash;
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${
+                            tx.status === "completed"
+                              ? "text-emerald-400 border-emerald-500/30"
+                              : tx.status === "pending"
+                                ? "text-amber-400 border-amber-500/30"
+                                : tx.status === "failed"
+                                  ? "text-red-400 border-red-500/30"
+                                  : "text-muted-foreground border-border"
+                          }`}
+                        >
+                          {tx.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
+                        {tx.description || "\u2014"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Page {page} of {totalPages} ({wallet.total_transactions}{" "}
+                    total)
+                  </p>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={page <= 1}
+                      onClick={() => handlePageChange(page - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={page >= totalPages}
+                      onClick={() => handlePageChange(page + 1)}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

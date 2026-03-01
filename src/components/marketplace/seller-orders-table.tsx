@@ -39,14 +39,32 @@ export function SellerOrdersTable() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      // Two-query approach: marketplace_orders may not have FK to profiles
+      const { data: rawData, error } = await (supabase as any)
         .from("marketplace_orders")
-        .select("*, marketplace_listings(title, slug, listing_type), profiles!marketplace_orders_buyer_id_fkey(display_name, avatar_url)")
+        .select("*, marketplace_listings(title, slug, listing_type)")
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders((data as MarketplaceOrder[]) || []);
+
+      let enriched = rawData ?? [];
+      if (enriched.length > 0) {
+        const buyerIds = [...new Set(enriched.map((o: any) => o.buyer_id).filter(Boolean))];
+        if (buyerIds.length > 0) {
+          const { data: profiles } = await (supabase as any)
+            .from("profiles")
+            .select("id, display_name, avatar_url")
+            .in("id", buyerIds);
+          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+          enriched = enriched.map((o: any) => ({
+            ...o,
+            profiles: o.buyer_id ? profileMap.get(o.buyer_id) ?? null : null,
+          }));
+        }
+      }
+
+      setOrders(enriched as MarketplaceOrder[]);
     } catch {
       console.error("Failed to fetch orders");
     } finally {

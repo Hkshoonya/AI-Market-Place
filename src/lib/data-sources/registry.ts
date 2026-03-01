@@ -40,6 +40,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/openai-models"),
     import("./adapters/anthropic-models"),
     import("./adapters/google-models"),
+    import("./adapters/openrouter-models"),
     import("./adapters/artificial-analysis"),
     import("./adapters/open-llm-leaderboard"),
     import("./adapters/chatbot-arena"),
@@ -47,5 +48,12 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/hf-papers"),
     import("./adapters/github-trending"),
     import("./adapters/civitai"),
+    import("./adapters/provider-news"),
+    import("./adapters/x-announcements"),
+    // New benchmark adapters (Phase 2)
+    import("./adapters/livebench"),
+    import("./adapters/seal-leaderboard"),
+    import("./adapters/bigcode-leaderboard"),
+    import("./adapters/open-vlm-leaderboard"),
   ]);
 }

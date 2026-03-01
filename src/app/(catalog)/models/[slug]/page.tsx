@@ -10,7 +10,10 @@ import {
   Globe,
   Heart,
   MessageSquare,
+  Newspaper,
   Shield,
+  Swords,
+  Trophy,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,7 @@ import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
 import { QualityTrend } from "@/components/charts/quality-trend";
 import { DownloadsTrend } from "@/components/charts/downloads-trend";
 import { PriceComparison } from "@/components/charts/price-comparison";
+import { NewsCard } from "@/components/news/news-card";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 
@@ -131,9 +135,42 @@ export default async function ModelDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const similarModels = (similarRaw as any[] | null) ?? [];
 
+  // Fetch news linked to this model
+  const { data: newsRaw } = await supabase
+    .from("model_news")
+    .select("id, title, summary, url, source, category, related_provider, tags, metadata, published_at")
+    .contains("related_model_ids", [model.id])
+    .order("published_at", { ascending: false })
+    .limit(20);
+  // Also get provider-level news that isn't model-specific yet
+  const { data: providerNewsRaw } = model.provider
+    ? await supabase
+        .from("model_news")
+        .select("id, title, summary, url, source, category, related_provider, tags, metadata, published_at")
+        .eq("related_provider", model.provider)
+        .or("related_model_ids.is.null,related_model_ids.eq.{}")
+        .order("published_at", { ascending: false })
+        .limit(10)
+    : { data: [] as typeof newsRaw };
+  // Merge and deduplicate by id
+  const seenNewsIds = new Set<string>();
+  const modelNews: Record<string, unknown>[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const item of [...(newsRaw ?? []), ...((providerNewsRaw ?? []) as any[])]) {
+    if (!seenNewsIds.has(item.id)) {
+      seenNewsIds.add(item.id);
+      modelNews.push(item as Record<string, unknown>);
+    }
+  }
+  // Sort merged results by date
+  modelNews.sort((a, b) =>
+    new Date(b.published_at as string).getTime() - new Date(a.published_at as string).getTime()
+  );
+
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
   const benchmarkScores = (model.benchmark_scores as {
     score: number;
+    score_normalized: number | null;
     benchmarks: { name: string; slug: string; category: string; max_score: number | null } | null;
   }[]) ?? [];
   const pricingData = (model.model_pricing as {
@@ -149,8 +186,31 @@ export default async function ModelDetailPage({
     update_type: string;
     published_at: string;
   }[]) ?? [];
-  const modalities = (model.modalities as string[]) ?? [];
-  const capabilities = (model.capabilities as Record<string, boolean>) ?? {};
+  // Extract ELO ratings — pick the highest-scored entry if multiple exist
+  const eloRatings = (model.elo_ratings as {
+    arena_name: string;
+    elo_score: number;
+    rank: number | null;
+    confidence_interval_low: number | null;
+    confidence_interval_high: number | null;
+    num_battles: number | null;
+    snapshot_date: string | null;
+  }[]) ?? [];
+  const bestElo = eloRatings.length > 0
+    ? eloRatings.reduce((best, curr) =>
+        (curr.elo_score > best.elo_score ? curr : best), eloRatings[0])
+    : null;
+  const rawModalities = model.modalities;
+  const modalities: string[] = Array.isArray(rawModalities)
+    ? rawModalities
+    : typeof rawModalities === "string"
+      ? rawModalities.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
+  const rawCapabilities = model.capabilities;
+  const capabilities: Record<string, boolean> =
+    rawCapabilities && typeof rawCapabilities === "object" && !Array.isArray(rawCapabilities)
+      ? (rawCapabilities as Record<string, boolean>)
+      : {};
 
   // JSON-LD structured data
   const jsonLd = {
@@ -209,13 +269,14 @@ export default async function ModelDetailPage({
         Back to Models
       </Link>
 
-      {/* Header */}
+      {/* Header with gradient mesh background */}
+      <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold">{model.name}</h1>
             {model.overall_rank && (
-              <Badge variant="outline" className="border-neon/30 bg-neon/10 text-sm text-neon font-bold">
+              <Badge className="rank-badge text-sm text-neon font-bold">
                 #{model.overall_rank}
               </Badge>
             )}
@@ -265,11 +326,13 @@ export default async function ModelDetailPage({
           <ShareModel modelSlug={model.slug} modelName={model.name} provider={model.provider} />
         </div>
       </div>
+      </div>
 
       {/* Quick Stats Row */}
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-7 stagger-enhanced">
         {[
           { label: "Quality Score", value: model.quality_score ? Number(model.quality_score).toFixed(1) : "—", icon: BarChart3 },
+          { label: "Arena ELO", value: bestElo ? String(bestElo.elo_score) : "—", icon: Trophy },
           { label: "Parameters", value: model.parameter_count ? formatParams(model.parameter_count) : "—", icon: Zap },
           { label: "Context", value: model.context_window ? formatContextWindow(model.context_window) : "—", icon: MessageSquare },
           { label: "Downloads", value: formatNumber(model.hf_downloads), icon: Download },
@@ -292,6 +355,10 @@ export default async function ModelDetailPage({
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="news">
+            <Newspaper className="h-3.5 w-3.5 mr-1" />
+            News{modelNews.length > 0 ? ` (${modelNews.length})` : ""}
+          </TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
         </TabsList>
@@ -309,15 +376,15 @@ export default async function ModelDetailPage({
                     <BenchmarkRadar
                       scores={benchmarkScores.map((bs) => ({
                         benchmark: bs.benchmarks?.name ?? "Unknown",
-                        score: Number(bs.score),
-                        maxScore: Number(bs.benchmarks?.max_score) || 100,
+                        score: Number(bs.score_normalized ?? bs.score),
+                        maxScore: 100,
                       }))}
                     />
                   </div>
                   <div className="space-y-4">
                   {benchmarkScores.map((bs, i) => {
-                    const maxScore = Number(bs.benchmarks?.max_score) || 100;
-                    const score = Number(bs.score);
+                    const maxScore = 100;
+                    const score = Number(bs.score_normalized ?? bs.score);
                     return (
                       <div key={i} className="flex items-center gap-4">
                         <div className="w-28 shrink-0">
@@ -327,8 +394,8 @@ export default async function ModelDetailPage({
                         <div className="flex-1">
                           <div className="relative h-3 overflow-hidden rounded-full bg-secondary">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-neon/70 to-neon transition-all"
-                              style={{ width: `${(score / maxScore) * 100}%` }}
+                              className="h-full rounded-full bg-gradient-to-r from-neon/70 to-neon animate-score-bar"
+                              style={{ width: `${(score / maxScore) * 100}%`, animationDelay: `${i * 80}ms` }}
                             />
                           </div>
                         </div>
@@ -345,6 +412,97 @@ export default async function ModelDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Arena ELO Section */}
+          {eloRatings.length > 0 && (
+            <Card className="border-border/50 mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Swords className="h-5 w-5 text-neon" />
+                  Arena ELO Ratings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {eloRatings.map((elo, i) => {
+                    const ciLow = elo.confidence_interval_low;
+                    const ciHigh = elo.confidence_interval_high;
+                    const ciWidth = ciLow && ciHigh ? ciHigh - ciLow : null;
+                    return (
+                      <div key={i} className="rounded-lg border border-border/50 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Trophy className="h-4 w-4 text-[#f5a623]" />
+                            <span className="text-sm font-medium capitalize">
+                              {elo.arena_name.replace(/-/g, " ")}
+                            </span>
+                          </div>
+                          {elo.rank && (
+                            <Badge className="bg-neon/10 text-neon text-xs">
+                              Arena Rank #{elo.rank}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                          <div>
+                            <p className="text-2xl font-bold tabular-nums">{elo.elo_score}</p>
+                            <p className="text-[11px] text-muted-foreground">ELO Score</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium tabular-nums">
+                              {ciLow && ciHigh
+                                ? `${ciLow} — ${ciHigh}`
+                                : "—"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">95% Confidence</p>
+                            {ciWidth != null && (
+                              <p className="text-[10px] text-muted-foreground/60">
+                                ±{(ciWidth / 2).toFixed(0)} points
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium tabular-nums">
+                              {elo.num_battles ? formatNumber(elo.num_battles) : "—"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Battles</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium tabular-nums">
+                              {elo.snapshot_date
+                                ? new Date(elo.snapshot_date).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : "—"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Last Updated</p>
+                          </div>
+                        </div>
+                        {/* ELO strength bar */}
+                        <div className="mt-3">
+                          <div className="relative h-2 overflow-hidden rounded-full bg-secondary">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#f5a623] to-neon transition-all duration-700"
+                              style={{
+                                width: `${Math.min(((elo.elo_score - 900) / 600) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-[9px] text-muted-foreground/40">900</span>
+                            <span className="text-[9px] text-muted-foreground/40">1200</span>
+                            <span className="text-[9px] text-muted-foreground/40">1500</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Pricing Tab */}
@@ -447,6 +605,94 @@ export default async function ModelDetailPage({
             <Card className="border-border/50">
               <CardContent className="py-8">
                 <p className="text-center text-muted-foreground">No historical trend data available yet.</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* News Tab */}
+        <TabsContent value="news" className="mt-6">
+          {modelNews.length > 0 ? (
+            <div className="space-y-4">
+              {/* Group by source type */}
+              {(() => {
+                const socialItems = modelNews.filter((n) =>
+                  ["x-twitter", "provider-blog"].includes(n.source as string)
+                );
+                const researchItems = modelNews.filter((n) =>
+                  ["arxiv", "hf-papers"].includes(n.source as string)
+                );
+                const benchmarkItems = modelNews.filter((n) =>
+                  ["artificial-analysis", "open-llm-leaderboard"].includes(n.source as string)
+                );
+                const otherItems = modelNews.filter(
+                  (n) =>
+                    !["x-twitter", "provider-blog", "arxiv", "hf-papers", "artificial-analysis", "open-llm-leaderboard"].includes(
+                      n.source as string
+                    )
+                );
+
+                return (
+                  <>
+                    {socialItems.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                          Social & Blog Posts
+                          <Badge variant="secondary" className="text-[10px]">{socialItems.length}</Badge>
+                        </h3>
+                        <div className="space-y-3">
+                          {socialItems.map((item) => (
+                            <NewsCard key={item.id as string} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {benchmarkItems.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                          Benchmarks & Rankings
+                          <Badge variant="secondary" className="text-[10px]">{benchmarkItems.length}</Badge>
+                        </h3>
+                        <div className="space-y-3">
+                          {benchmarkItems.map((item) => (
+                            <NewsCard key={item.id as string} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {researchItems.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                          Research Papers
+                          <Badge variant="secondary" className="text-[10px]">{researchItems.length}</Badge>
+                        </h3>
+                        <div className="space-y-3">
+                          {researchItems.map((item) => (
+                            <NewsCard key={item.id as string} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {otherItems.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3">Other</h3>
+                        <div className="space-y-3">
+                          {otherItems.map((item) => (
+                            <NewsCard key={item.id as string} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <Card className="border-border/50">
+              <CardContent className="py-8">
+                <p className="text-center text-muted-foreground">
+                  No news linked to this model yet. News is automatically linked during data sync.
+                </p>
               </CardContent>
             </Card>
           )}

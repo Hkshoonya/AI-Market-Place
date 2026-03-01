@@ -1,0 +1,110 @@
+/**
+ * Curated provider pricing data.
+ *
+ * Maps known model slugs to official pricing from their providers.
+ * This supplements the dynamic OpenRouter pricing with direct provider data.
+ * Updated manually when providers change pricing (infrequent).
+ */
+
+export interface ProviderPrice {
+  provider: string;
+  inputPricePerMillion: number;
+  outputPricePerMillion: number;
+  source: string;
+  lastUpdated: string;
+}
+
+// Prices as of March 2026. Input/Output per 1M tokens in USD.
+export const KNOWN_PRICES: Record<string, ProviderPrice> = {
+  // OpenAI — Legacy
+  "gpt-4o": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4o-mini": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4-turbo": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  // OpenAI — GPT-4.1 family
+  "gpt-4-1": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4.1": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4-1-mini": { provider: "OpenAI", inputPricePerMillion: 0.40, outputPricePerMillion: 1.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4.1-mini": { provider: "OpenAI", inputPricePerMillion: 0.40, outputPricePerMillion: 1.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4-1-nano": { provider: "OpenAI", inputPricePerMillion: 0.10, outputPricePerMillion: 0.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4.1-nano": { provider: "OpenAI", inputPricePerMillion: 0.10, outputPricePerMillion: 0.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  // OpenAI — GPT-4.5
+  "gpt-4-5": { provider: "OpenAI", inputPricePerMillion: 75.00, outputPricePerMillion: 150.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4.5": { provider: "OpenAI", inputPricePerMillion: 75.00, outputPricePerMillion: 150.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  // OpenAI — GPT-5 family
+  "gpt-5": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 40.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-5-mini": { provider: "OpenAI", inputPricePerMillion: 1.25, outputPricePerMillion: 5.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-5-nano": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  // OpenAI — o-series reasoning
+  "o1": { provider: "OpenAI", inputPricePerMillion: 15.00, outputPricePerMillion: 60.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o1-mini": { provider: "OpenAI", inputPricePerMillion: 3.00, outputPricePerMillion: 12.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o1-pro": { provider: "OpenAI", inputPricePerMillion: 150.00, outputPricePerMillion: 600.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o3": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 40.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o3-mini": { provider: "OpenAI", inputPricePerMillion: 1.10, outputPricePerMillion: 4.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o3-pro": { provider: "OpenAI", inputPricePerMillion: 150.00, outputPricePerMillion: 600.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "o4-mini": { provider: "OpenAI", inputPricePerMillion: 1.10, outputPricePerMillion: 4.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+
+  // Anthropic — Claude 3.x
+  "claude-3-5-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-3-5-haiku": { provider: "Anthropic", inputPricePerMillion: 0.80, outputPricePerMillion: 4.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-3-opus": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-3-haiku": { provider: "Anthropic", inputPricePerMillion: 0.25, outputPricePerMillion: 1.25, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  // Anthropic — Claude 4.x
+  "claude-4-opus": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-4-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-opus-4": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-opus-4-5": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-opus-4-6": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-4-5-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+
+  // Google — Gemini 2.x
+  "gemini-2-0-flash": { provider: "Google", inputPricePerMillion: 0.10, outputPricePerMillion: 0.40, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-2-0-flash-lite": { provider: "Google", inputPricePerMillion: 0.075, outputPricePerMillion: 0.30, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-2-5-pro": { provider: "Google", inputPricePerMillion: 1.25, outputPricePerMillion: 10.00, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-2-5-flash": { provider: "Google", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-2-5-flash-lite": { provider: "Google", inputPricePerMillion: 0.075, outputPricePerMillion: 0.30, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  // Google — Gemini 3.x
+  "gemini-3-pro": { provider: "Google", inputPricePerMillion: 1.25, outputPricePerMillion: 10.00, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-3-flash": { provider: "Google", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-1-5-pro": { provider: "Google", inputPricePerMillion: 1.25, outputPricePerMillion: 5.00, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+  "gemini-1-5-flash": { provider: "Google", inputPricePerMillion: 0.075, outputPricePerMillion: 0.30, source: "ai.google.dev/pricing", lastUpdated: "2026-03-01" },
+
+  // Mistral
+  "mistral-large": { provider: "Mistral", inputPricePerMillion: 2.00, outputPricePerMillion: 6.00, source: "mistral.ai/pricing", lastUpdated: "2026-03-01" },
+  "mistral-small": { provider: "Mistral", inputPricePerMillion: 0.10, outputPricePerMillion: 0.30, source: "mistral.ai/pricing", lastUpdated: "2026-03-01" },
+  "codestral": { provider: "Mistral", inputPricePerMillion: 0.30, outputPricePerMillion: 0.90, source: "mistral.ai/pricing", lastUpdated: "2026-03-01" },
+
+  // DeepSeek
+  "deepseek-r1": { provider: "DeepSeek", inputPricePerMillion: 0.55, outputPricePerMillion: 2.19, source: "deepseek.com/pricing", lastUpdated: "2026-03-01" },
+  "deepseek-v3": { provider: "DeepSeek", inputPricePerMillion: 0.27, outputPricePerMillion: 1.10, source: "deepseek.com/pricing", lastUpdated: "2026-03-01" },
+  "deepseek-r1-0528": { provider: "DeepSeek", inputPricePerMillion: 0.55, outputPricePerMillion: 2.19, source: "deepseek.com/pricing", lastUpdated: "2026-03-01" },
+
+  // xAI — Grok
+  "grok-3": { provider: "xAI", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "x.ai/pricing", lastUpdated: "2026-03-01" },
+  "grok-3-mini": { provider: "xAI", inputPricePerMillion: 0.30, outputPricePerMillion: 0.50, source: "x.ai/pricing", lastUpdated: "2026-03-01" },
+
+  // Meta (open weights, listed at zero for self-hosted)
+  "llama-4-maverick": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
+  "llama-4-scout": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
+  "llama-3-1-405b": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
+  "llama-3-1-70b": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
+  "llama-3-1-8b": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
+};
+
+/**
+ * Look up pricing for a model by slug.
+ * Tries exact match first, then partial match.
+ */
+export function lookupProviderPrice(slug: string): ProviderPrice | null {
+  // Exact match
+  if (KNOWN_PRICES[slug]) return KNOWN_PRICES[slug];
+
+  // Partial match -- model slug may include version suffixes or provider prefixes
+  const normalizedSlug = slug.toLowerCase().replace(/[_\s]/g, "-");
+  for (const [key, price] of Object.entries(KNOWN_PRICES)) {
+    if (normalizedSlug.includes(key) || key.includes(normalizedSlug)) {
+      return price;
+    }
+  }
+
+  return null;
+}

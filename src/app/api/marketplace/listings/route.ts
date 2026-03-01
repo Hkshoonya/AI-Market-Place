@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 
 const createListingSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
@@ -51,10 +52,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("marketplace_listings")
-    .select(
-      "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales)",
-      { count: "exact" }
-    )
+    .select("*", { count: "exact" })
     .eq("status", "active");
 
   if (type) query = query.eq("listing_type", type);
@@ -82,14 +80,18 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
 
   if (error) {
+    console.error("[listings] Query error:", JSON.stringify(error));
     return NextResponse.json(
       { error: "Failed to fetch marketplace listings. Please try again later." },
       { status: 500 }
     );
   }
 
+  // Enrich with seller profiles (no FK constraint exists, so fetch separately)
+  const enriched = await enrichListingsWithProfiles(supabase as any, data || []);
+
   return NextResponse.json({
-    data,
+    data: enriched,
     total: count,
     page,
     limit,
@@ -121,7 +123,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body." },
+      { status: 400 }
+    );
+  }
+
   const parsed = createListingSchema.safeParse(body);
 
   if (!parsed.success) {

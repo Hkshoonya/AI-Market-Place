@@ -24,7 +24,27 @@
       "mcp__3e71e373-ccfa-4569-ae7b-418b530f1b81__deploy_edge_function",
       "WebFetch(domain:www.besensable.com)",
       "Bash(npx next build)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(npx tsc:*)",
+      "Bash(gh auth:*)",
+      "Bash(git remote add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(where:*)",
+      "Bash(winget:*)",
+      "Bash(choco:*)",
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\")",
+      "Bash(gh:*)",
+      "Bash(git config:*)",
+      "Bash(printf:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(PATH=\"/c/Program Files/GitHub CLI:$PATH\" gh auth login:*)",
+      "Bash(curl -s -X POST -H \"Authorization: token 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\" -H \"Accept: application/vnd.github+json\" https://api.github.com/repos/Hkshoonya/AI-Market-Place/pulls -d '{:*)",
+      "Bash(curl -s -X POST -H \"Authorization: token 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\" -H \"Accept: application/vnd.github+json\" -H \"Content-Type: application/json\" https://api.github.com/repos/Hkshoonya/AI-Market-Place/pulls -d @pr-body.json)",
+      "mcp__3e71e373-ccfa-4569-ae7b-418b530f1b81__list_migrations",
+      "Bash(curl:*)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:datasets-server.huggingface.co)"
     ]
   }
 }

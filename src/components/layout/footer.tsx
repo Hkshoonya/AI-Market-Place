@@ -7,6 +7,7 @@ const FOOTER_LINKS = {
     { href: "/models", label: "Models" },
     { href: "/leaderboards", label: "Leaderboards" },
     { href: "/compare", label: "Compare" },
+    { href: "/news", label: "News" },
     { href: "/marketplace", label: "Marketplace" },
     { href: "/discover", label: "Discover Watchlists" },
   ],

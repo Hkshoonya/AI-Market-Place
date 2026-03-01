@@ -41,7 +41,7 @@ export default function AdminListingsPage() {
     setLoading(true);
     let query = (supabase as any)
       .from("marketplace_listings")
-      .select("id, slug, title, listing_type, status, pricing_type, price, avg_rating, review_count, view_count, inquiry_count, is_featured, created_at, profiles!marketplace_listings_seller_id_fkey(display_name, username)", { count: "exact" });
+      .select("id, slug, title, listing_type, status, pricing_type, price, avg_rating, review_count, view_count, inquiry_count, is_featured, created_at, seller_id", { count: "exact" });
 
     if (statusFilter !== "all") query = query.eq("status", statusFilter);
     if (search) {
@@ -54,8 +54,26 @@ export default function AdminListingsPage() {
     const from = (page - 1) * PAGE_SIZE;
     query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data, count } = await query;
-    setListings((data as any[]) ?? []);
+    const { data: rawData, count } = await query;
+
+    // Enrich with seller profiles (no FK constraint, fetch separately)
+    let enrichedData = rawData ?? [];
+    if (enrichedData.length > 0) {
+      const sellerIds = [...new Set(enrichedData.map((l: any) => l.seller_id).filter(Boolean))];
+      if (sellerIds.length > 0) {
+        const { data: profiles } = await (supabase as any)
+          .from("profiles")
+          .select("id, display_name, username")
+          .in("id", sellerIds);
+        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+        enrichedData = enrichedData.map((l: any) => ({
+          ...l,
+          profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null,
+        }));
+      }
+    }
+
+    setListings(enrichedData as any[]);
     setTotalCount(count ?? 0);
     setLoading(false);
   }, [search, statusFilter, page]);

@@ -27,10 +27,11 @@ export default async function DiscoverPage(props: {
   const supabase = await createClient();
 
   // Build query with pagination and optional search
-  let query = supabase
+  // Two-query approach: watchlists may not have FK to profiles
+  let query = (supabase as any)
     .from("watchlists")
     .select(
-      "id, name, description, is_public, created_at, updated_at, user_id, profiles(display_name, username, avatar_url), watchlist_items(id)",
+      "id, name, description, is_public, created_at, updated_at, user_id, watchlist_items(id)",
       { count: "exact" }
     )
     .eq("is_public", true)
@@ -48,8 +49,23 @@ export default async function DiscoverPage(props: {
 
   const { data: watchlistsRaw, count } = await query;
 
+  // Enrich with creator profiles
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const watchlists = (watchlistsRaw as any[] | null) ?? [];
+  let watchlists: any[] = (watchlistsRaw as any[] | null) ?? [];
+  if (watchlists.length > 0) {
+    const userIds = [...new Set(watchlists.map((w: any) => w.user_id).filter(Boolean))];
+    if (userIds.length > 0) {
+      const { data: profiles } = await (supabase as any)
+        .from("profiles")
+        .select("id, display_name, username, avatar_url")
+        .in("id", userIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      watchlists = watchlists.map((w: any) => ({
+        ...w,
+        profiles: w.user_id ? profileMap.get(w.user_id) ?? null : null,
+      }));
+    }
+  }
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   return (

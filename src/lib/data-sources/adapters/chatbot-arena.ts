@@ -2,7 +2,8 @@
  * Chatbot Arena / LMSYS Elo Ratings Adapter (Live API)
  *
  * Fetches the Chatbot Arena leaderboard data from the HuggingFace
- * datasets API (lmsys/chatbot_arena_leaderboard).
+ * datasets API (mathewhe/chatbot-arena-elo — a public mirror of the
+ * lmarena-ai leaderboard scores).
  * No static fallback — sync fails if the API is unreachable.
  */
 
@@ -37,7 +38,7 @@ interface HFRowsResponse {
 
 // --------------- Constants ---------------
 
-const HF_DATASET = "lmsys/chatbot_arena_leaderboard";
+const HF_DATASET = "mathewhe/chatbot-arena-elo";
 const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
 const PAGE_LENGTH = 100;
 
@@ -131,45 +132,54 @@ const adapter: DataSourceAdapter = {
     let recordsCreated = 0;
 
     for (const row of allRows) {
-      // The dataset may use different column names — try common ones
+      // mathewhe/chatbot-arena-elo columns:
+      // "Model", "Arena Score", "95% CI", "Votes", "Rank* (UB)", "Organization"
       const modelName =
-        (row["model"] as string) ??
         (row["Model"] as string) ??
+        (row["model"] as string) ??
         (row["model_name"] as string) ??
         (row["key"] as string);
 
       if (!modelName) continue;
 
-      // Extract Elo / Arena score — field names vary across dataset versions
+      // Extract Elo / Arena score
       const eloScore =
-        (row["arena_score"] as number) ??
         (row["Arena Score"] as number) ??
+        (row["arena_score"] as number) ??
         (row["elo"] as number) ??
         (row["rating"] as number) ??
         (row["score"] as number);
 
-      const ciLow =
+      // Parse "95% CI" field (format: "+5/-4") into low/high
+      let ciLow: number | null = null;
+      let ciHigh: number | null = null;
+      const ciStr = row["95% CI"] as string | undefined;
+      if (ciStr && eloScore != null) {
+        const ciMatch = ciStr.match(/\+(\d+)\/-(\d+)/);
+        if (ciMatch) {
+          ciHigh = eloScore + parseInt(ciMatch[1], 10);
+          ciLow = eloScore - parseInt(ciMatch[2], 10);
+        }
+      }
+      // Fallback to explicit fields if present
+      ciLow ??=
         (row["confidence_interval_low"] as number) ??
         (row["CI_low"] as number) ??
-        (row["ci_low"] as number) ??
-        (row["lower"] as number) ??
         null;
-
-      const ciHigh =
+      ciHigh ??=
         (row["confidence_interval_high"] as number) ??
         (row["CI_high"] as number) ??
-        (row["ci_high"] as number) ??
-        (row["upper"] as number) ??
         null;
 
       const votes =
-        (row["num_battles"] as number) ??
-        (row["votes"] as number) ??
-        (row["num_votes"] as number) ??
         (row["Votes"] as number) ??
+        (row["votes"] as number) ??
+        (row["num_battles"] as number) ??
+        (row["num_votes"] as number) ??
         null;
 
       const rank =
+        (row["Rank* (UB)"] as number) ??
         (row["rank"] as number) ??
         (row["Rank"] as number) ??
         (row["final_ranking"] as number) ??
@@ -202,7 +212,7 @@ const adapter: DataSourceAdapter = {
           rank,
           snapshot_date: today,
         },
-        { onConflict: "model_id,arena_name" }
+        { onConflict: "model_id,arena_name,snapshot_date" }
       );
 
       if (error) {

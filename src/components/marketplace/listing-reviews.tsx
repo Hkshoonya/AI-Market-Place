@@ -79,14 +79,32 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data, error: fetchError } = await supabase
+      // Two-query approach: marketplace_reviews has no FK to profiles
+      const { data: rawData, error: fetchError } = await (supabase as any)
         .from("marketplace_reviews")
-        .select("*, profiles(display_name, avatar_url, username)")
+        .select("*")
         .eq("listing_id", listingId)
         .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
-      setReviews((data as MarketplaceReview[]) || []);
+
+      let enriched = rawData ?? [];
+      if (enriched.length > 0) {
+        const reviewerIds = [...new Set(enriched.map((r: any) => r.reviewer_id).filter(Boolean))];
+        if (reviewerIds.length > 0) {
+          const { data: profiles } = await (supabase as any)
+            .from("profiles")
+            .select("id, display_name, avatar_url, username")
+            .in("id", reviewerIds);
+          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+          enriched = enriched.map((r: any) => ({
+            ...r,
+            profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
+          }));
+        }
+      }
+
+      setReviews(enriched as MarketplaceReview[]);
     } catch {
       console.error("Failed to fetch reviews");
     } finally {

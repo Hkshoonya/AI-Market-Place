@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Crown, Trophy, Zap } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CATEGORIES } from "@/lib/constants/categories";
@@ -10,6 +9,10 @@ import { ProviderLogo } from "@/components/shared/provider-logo";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { QualityDistribution } from "@/components/charts/quality-distribution";
 import { getProviderBrand } from "@/lib/constants/providers";
+import LeaderboardExplorer from "@/components/models/leaderboard-explorer";
+import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
+import BenchmarkHeatmap from "@/components/charts/benchmark-heatmap";
+import RankTimeline from "@/components/charts/rank-timeline";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -34,7 +37,31 @@ export default async function LeaderboardsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rankedModels = rankedModelsRaw as any[] | null;
 
-  // Fetch speed-ranked models (by median output tokens per second)
+  // Fetch ALL ranked models for the explorer (client component)
+  const { data: explorerModelsRaw } = await supabase
+    .from("models")
+    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads")
+    .eq("status", "active")
+    .not("overall_rank", "is", null)
+    .order("overall_rank", { ascending: true })
+    .limit(500);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const explorerModelsTyped = explorerModelsRaw as any[] | null;
+  const explorerModels = (explorerModelsTyped ?? []).map((m) => ({
+    name: m.name as string,
+    slug: m.slug as string,
+    provider: m.provider as string,
+    category: m.category as string,
+    overall_rank: m.overall_rank as number | null,
+    category_rank: m.category_rank as number | null,
+    quality_score: m.quality_score ? Number(m.quality_score) : null,
+    value_score: m.value_score ? Number(m.value_score) : null,
+    is_open_weights: !!(m.is_open_weights),
+    hf_downloads: m.hf_downloads ? Number(m.hf_downloads) : null,
+  }));
+
+  // Fetch speed-ranked models
   const { data: speedModelsRaw } = await supabase
     .from("model_pricing")
     .select("*, models!inner(id, slug, name, provider, category, overall_rank, quality_score, is_open_weights)")
@@ -45,7 +72,7 @@ export default async function LeaderboardsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const speedModels = speedModelsRaw as any[] | null;
 
-  // Fetch value-ranked models (cheapest with good quality)
+  // Fetch value-ranked models
   const { data: valueModelsRaw } = await supabase
     .from("model_pricing")
     .select("*, models!inner(id, slug, name, provider, category, overall_rank, quality_score, is_open_weights)")
@@ -56,12 +83,11 @@ export default async function LeaderboardsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const valueModels = valueModelsRaw as any[] | null;
 
-  // Helper to get benchmark score
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function getBenchmarkScore(model: any, benchmarkSlug: string): number | null {
-    const scores = model.benchmark_scores as { score: number; benchmarks: { slug: string } | null }[];
+    const scores = model.benchmark_scores as { score_normalized: number; benchmarks: { slug: string } | null }[];
     const found = scores?.find((bs) => bs.benchmarks?.slug === benchmarkSlug);
-    return found ? Number(found.score) : null;
+    return found ? Number(found.score_normalized) : null;
   }
 
   return (
@@ -96,23 +122,49 @@ export default async function LeaderboardsPage() {
       </div>
 
       {/* Main Leaderboard Tabs */}
-      <Tabs defaultValue="overall">
+      <Tabs defaultValue="explorer">
         <TabsList className="bg-secondary/50">
-          <TabsTrigger value="overall">Overall</TabsTrigger>
+          <TabsTrigger value="explorer">Explorer</TabsTrigger>
+          <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
+          <TabsTrigger value="frontier">Quality vs Price</TabsTrigger>
+          <TabsTrigger value="timeline">Rank History</TabsTrigger>
+          <TabsTrigger value="overall">Top 20</TabsTrigger>
           <TabsTrigger value="speed">Speed</TabsTrigger>
           <TabsTrigger value="value">Best Value</TabsTrigger>
         </TabsList>
 
-        {/* Overall Tab */}
+        {/* Explorer Tab — Bloomberg-style data grid */}
+        <TabsContent value="explorer" className="mt-6">
+          <LeaderboardExplorer models={explorerModels} />
+        </TabsContent>
+
+        {/* Benchmarks Tab — Heatmap */}
+        <TabsContent value="benchmarks" className="mt-6">
+          <BenchmarkHeatmap />
+        </TabsContent>
+
+        {/* Frontier Tab — Quality vs Price scatter */}
+        <TabsContent value="frontier" className="mt-6">
+          <QualityPriceFrontier />
+        </TabsContent>
+
+        {/* Timeline Tab — Rank movement */}
+        <TabsContent value="timeline" className="mt-6">
+          <RankTimeline />
+        </TabsContent>
+
+        {/* Overall Tab — Classic top 20 */}
         <TabsContent value="overall" className="mt-6">
           {rankedModels && rankedModels.length > 0 && (
-            <QualityDistribution
-              data={rankedModels.map((m: any) => ({
-                name: m.name,
-                quality: Number(m.quality_score) || 0,
-                provider: m.provider,
-              }))}
-            />
+            <div className="mb-6">
+              <QualityDistribution
+                data={rankedModels.map((m: any) => ({
+                  name: m.name,
+                  quality: Number(m.quality_score) || 0,
+                  provider: m.provider as string,
+                }))}
+              />
+            </div>
           )}
           <div className="overflow-hidden rounded-xl border border-border/50">
             <table className="w-full">
@@ -148,16 +200,11 @@ export default async function LeaderboardsPage() {
                   const math = getBenchmarkScore(model, "math");
 
                   return (
-                    <tr
-                      key={model.id}
-                      className="border-b border-border/30 transition-colors hover:bg-secondary/20"
-                    >
+                    <tr key={model.id} className="border-b border-border/30 table-row-hover">
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1">
                           {rank <= 3 && (
-                            <Crown
-                              className={`h-3.5 w-3.5 ${rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : "text-[#CD7F32]"}`}
-                            />
+                            <Crown className={`h-3.5 w-3.5 ${rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : "text-[#CD7F32]"}`} />
                           )}
                           <span className={`text-sm font-bold tabular-nums ${rank <= 3 ? "text-neon" : "text-muted-foreground"}`}>
                             {rank}
@@ -248,7 +295,7 @@ export default async function LeaderboardsPage() {
                 {speedModels?.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string };
                   return (
-                    <tr key={pricing.id} className="border-b border-border/30 transition-colors hover:bg-secondary/20">
+                    <tr key={pricing.id} className="border-b border-border/30 table-row-hover">
                       <td className="px-4 py-3.5">
                         <span className={`text-sm font-bold tabular-nums ${i < 3 ? "text-neon" : "text-muted-foreground"}`}>
                           {i + 1}
@@ -300,7 +347,7 @@ export default async function LeaderboardsPage() {
                 {valueModels?.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string; quality_score: number | null };
                   return (
-                    <tr key={pricing.id} className="border-b border-border/30 transition-colors hover:bg-secondary/20">
+                    <tr key={pricing.id} className="border-b border-border/30 table-row-hover">
                       <td className="px-4 py-3.5">
                         <span className={`text-sm font-bold tabular-nums ${i < 3 ? "text-neon" : "text-muted-foreground"}`}>
                           {i + 1}

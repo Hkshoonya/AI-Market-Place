@@ -10,7 +10,9 @@ import { ListingReviews } from "@/components/marketplace/listing-reviews";
 import { ContactForm } from "@/components/marketplace/contact-form";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { ReportListingButton } from "@/components/marketplace/report-listing-button";
+import { PurchaseButton } from "@/components/marketplace/purchase-button";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
+import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
@@ -49,13 +51,20 @@ export default async function ListingDetailPage(props: {
   const { slug } = await props.params;
   const supabase = await createClient();
 
-  const { data: listing, error } = await (supabase as any)
+  const { data: rawListing, error } = await (supabase as any)
     .from("marketplace_listings")
-    .select("*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales, seller_bio, seller_website, created_at)")
+    .select("*")
     .eq("slug", slug)
     .single();
 
-  if (error || !listing) notFound();
+  if (error || !rawListing) notFound();
+
+  // Enrich with seller profile (no FK exists, so fetch separately)
+  const listing = await enrichListingWithProfile(
+    supabase as any,
+    rawListing,
+    PROFILE_FIELDS_FULL
+  );
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
@@ -151,7 +160,15 @@ export default async function ListingDetailPage(props: {
                   )}
                 </p>
               </div>
-              <ContactForm listing={listing} />
+              <div className="flex items-center gap-3">
+                <PurchaseButton
+                  listingId={listing.id}
+                  price={listing.price}
+                  pricingType={listing.pricing_type}
+                  sellerName={listing.profiles?.display_name}
+                />
+                <ContactForm listing={listing} />
+              </div>
             </CardContent>
           </Card>
 

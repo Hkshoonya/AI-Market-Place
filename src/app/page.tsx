@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  BarChart3,
   Flame,
   Layers,
   Rocket,
   Scale,
+  Shuffle,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -22,6 +24,9 @@ import { CategoryDistribution } from "@/components/charts/category-distribution"
 import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
+import { CountUp } from "@/components/ui/count-up";
+import TopMovers from "@/components/charts/top-movers";
+import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
@@ -229,25 +234,25 @@ export default async function HomePage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/30">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                <th className="w-12 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                   Model
                 </th>
-                <th className="hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground sm:table-cell">
+                <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Category
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Score
                 </th>
-                <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">
+                <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Downloads
                 </th>
-                <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
+                <th className="hidden lg:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Price
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Change
                 </th>
               </tr>
@@ -282,7 +287,7 @@ export default async function HomePage() {
                 return (
                   <tr
                     key={model.id}
-                    className="border-b border-border/30 transition-colors hover:bg-secondary/20"
+                    className="border-b border-border/30 table-row-hover"
                   >
                     <td className="px-4 py-3">
                       <Link href={`/models/${model.slug}`}>
@@ -298,14 +303,14 @@ export default async function HomePage() {
                     <td className="px-4 py-3">
                       <Link href={`/models/${model.slug}`}>
                         <div className="flex items-center gap-2">
-                          <ProviderLogo provider={model.provider} size="sm" />
-                          <div>
-                            <span className="text-sm font-semibold hover:text-neon transition-colors">
+                          <ProviderLogo provider={model.provider} size="sm" className="shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold hover:text-neon transition-colors line-clamp-1 break-all">
                               {model.name}
-                            </span>
-                            <span className="ml-2 text-xs text-muted-foreground">
+                            </p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
                               {model.provider}
-                            </span>
+                            </p>
                           </div>
                         </div>
                       </Link>
@@ -325,17 +330,17 @@ export default async function HomePage() {
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <span className="text-sm font-semibold tabular-nums">
                         {model.quality_score
                           ? Number(model.quality_score).toFixed(1)
                           : "—"}
                       </span>
                     </td>
-                    <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground md:table-cell">
+                    <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground whitespace-nowrap md:table-cell">
                       {formatNumber(model.hf_downloads)}
                     </td>
-                    <td className="hidden px-4 py-3 text-right text-sm lg:table-cell">
+                    <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap lg:table-cell">
                       {cheapestPricing ? (
                         <span className="text-muted-foreground">
                           {formatTokenPrice(
@@ -379,40 +384,44 @@ export default async function HomePage() {
           <Scale className="h-5 w-5 text-neon" />
           <h2 className="text-xl font-bold">Market Overview</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-border/50 bg-card">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-enhanced">
+          <Card className="border-border/50 glass-card">
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">Total Models</p>
-              <p className="text-3xl font-bold tabular-nums mt-1">{modelCount ?? 0}</p>
+              <p className="text-3xl font-bold mt-1">
+                <CountUp end={modelCount ?? 0} className="text-3xl font-bold" />
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
                 across {uniqueProviders} providers
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="border-border/50 glass-card">
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">Avg Quality Score</p>
-              <p className="text-3xl font-bold tabular-nums mt-1 text-neon">
-                {avgQualityScore > 0 ? avgQualityScore.toFixed(1) : "—"}
+              <p className="text-3xl font-bold mt-1 text-neon">
+                <CountUp end={avgQualityScore} decimals={1} className="text-3xl font-bold text-neon" />
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 out of 100 across {qualityScores.length} models
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="border-border/50 glass-card">
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">Open Weight Models</p>
-              <p className="text-3xl font-bold tabular-nums mt-1">{openWeightCount ?? 0}</p>
+              <p className="text-3xl font-bold mt-1">
+                <CountUp end={openWeightCount ?? 0} className="text-3xl font-bold" />
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {modelCount ? ((((openWeightCount ?? 0) / modelCount) * 100).toFixed(0)) : 0}% of tracked models
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="border-border/50 glass-card">
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">Total Downloads</p>
-              <p className="text-3xl font-bold tabular-nums mt-1">{formatNumber(totalDownloads)}</p>
+              <p className="text-3xl font-bold mt-1">{formatNumber(totalDownloads)}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {formatNumber(totalLikes)} community likes
               </p>
@@ -514,19 +523,72 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Trending Section */}
+      {/* Dashboard Row: Top Movers + Trending */}
       <section className="mx-auto max-w-7xl px-4 py-12">
-        <Card className="border-border/50 bg-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-neon" />
-              Trending Models
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TrendingModels limit={8} />
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Top Movers — biggest rank changes */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <Shuffle className="h-5 w-5 text-neon" />
+              <h2 className="text-xl font-bold">Top Movers</h2>
+            </div>
+            <TopMovers />
+          </div>
+
+          {/* Trending Models */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Flame className="h-5 w-5 text-neon" />
+                <h2 className="text-xl font-bold">Trending Models</h2>
+              </div>
+            </div>
+            <Card className="border-border/50 bg-card">
+              <CardContent className="p-4">
+                <TrendingModels limit={8} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Quality vs Price Frontier — Interactive Scatter */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-5 w-5 text-neon" />
+            <h2 className="text-xl font-bold">Quality vs Price Frontier</h2>
+          </div>
+          <Button variant="ghost" size="sm" className="text-neon" asChild>
+            <Link href="/leaderboards?tab=frontier">
+              Explore <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+        <QualityPriceFrontier />
+      </section>
+
+      {/* Market Analytics: Provider + Category Distribution */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <h2 className="text-xl font-bold mb-6">Market Analytics</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="border-border/50 bg-card">
+            <CardHeader>
+              <CardTitle className="text-lg">Provider Market Share</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProviderMarketShare data={providerChartData} />
+            </CardContent>
+          </Card>
+          <Card className="border-border/50 bg-card">
+            <CardHeader>
+              <CardTitle className="text-lg">Models by Category</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CategoryDistribution data={categoryChartData} />
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       {/* Categories Grid */}
@@ -563,29 +625,6 @@ export default async function HomePage() {
               </Card>
             </Link>
           ))}
-        </div>
-      </section>
-
-      {/* Analytics Section */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <h2 className="text-xl font-bold mb-6">Market Analytics</h2>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Provider Market Share</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProviderMarketShare data={providerChartData} />
-            </CardContent>
-          </Card>
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Models by Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CategoryDistribution data={categoryChartData} />
-            </CardContent>
-          </Card>
         </div>
       </section>
 

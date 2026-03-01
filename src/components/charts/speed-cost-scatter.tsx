@@ -68,6 +68,14 @@ export function SpeedCostScatter({ data }: SpeedCostScatterProps) {
   const avgSpeed = data.reduce((sum, d) => sum + d.speed, 0) / data.length;
   const avgCost = data.reduce((sum, d) => sum + d.cost, 0) / data.length;
 
+  // Smart axis scaling: clip to 95th percentile to avoid outlier stretching
+  const sortedCosts = [...data].map((d) => d.cost).sort((a, b) => a - b);
+  const sortedSpeeds = [...data].map((d) => d.speed).sort((a, b) => a - b);
+  const p95Cost = sortedCosts[Math.floor(sortedCosts.length * 0.95)] ?? 10;
+  const p95Speed = sortedSpeeds[Math.floor(sortedSpeeds.length * 0.95)] ?? 200;
+  const xDomain: [number, number] = [0, Math.ceil(p95Cost * 1.15)];
+  const yDomain: [number, number] = [0, Math.ceil(p95Speed * 1.15)];
+
   // Group by provider for coloring
   const byProvider = new Map<string, DataPoint[]>();
   for (const point of data) {
@@ -89,6 +97,8 @@ export function SpeedCostScatter({ data }: SpeedCostScatterProps) {
             tick={{ fill: "#999", fontSize: 11 }}
             axisLine={{ stroke: "#333" }}
             tickLine={false}
+            domain={xDomain}
+            allowDataOverflow
             label={{
               value: "Cost ($/M tokens)",
               position: "insideBottom",
@@ -105,6 +115,8 @@ export function SpeedCostScatter({ data }: SpeedCostScatterProps) {
             axisLine={false}
             tickLine={false}
             width={50}
+            domain={yDomain}
+            allowDataOverflow
             label={{
               value: "Speed (tok/s)",
               angle: -90,

@@ -41,15 +41,27 @@ export async function validateApiKey(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
-  const { data, error } = await sb
+  // Two-query approach: api_keys may not have FK to profiles
+  const { data: rawData, error } = await sb
     .from("api_keys")
-    .select("*, profiles:owner_id(id, username, display_name, is_admin)")
+    .select("*")
     .eq("key_hash", hash)
     .eq("is_active", true)
     .single();
 
-  if (error || !data) {
+  if (error || !rawData) {
     return { valid: false, keyRecord: null, error: "Invalid or inactive API key" };
+  }
+
+  // Enrich with owner profile
+  let data = rawData;
+  if (rawData.owner_id) {
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("id, username, display_name, is_admin")
+      .eq("id", rawData.owner_id)
+      .single();
+    data = { ...rawData, profiles: profile ?? null };
   }
 
   // Check expiration

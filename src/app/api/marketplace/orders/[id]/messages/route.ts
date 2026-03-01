@@ -48,12 +48,29 @@ export async function GET(
     );
   }
 
-  // Get messages
-  const { data: messages } = await sb
+  // Get messages — two-query approach (order_messages may not have FK to profiles)
+  const { data: rawMessages } = await sb
     .from("order_messages")
-    .select("*, profiles:sender_id(display_name, avatar_url, username)")
+    .select("*")
     .eq("order_id", orderId)
     .order("created_at", { ascending: true });
+
+  // Enrich with sender profiles
+  let messages = rawMessages ?? [];
+  if (messages.length > 0) {
+    const senderIds = [...new Set(messages.map((m: any) => m.sender_id).filter(Boolean))];
+    if (senderIds.length > 0) {
+      const { data: profiles } = await sb
+        .from("profiles")
+        .select("id, display_name, avatar_url, username")
+        .in("id", senderIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      messages = messages.map((m: any) => ({
+        ...m,
+        profiles: m.sender_id ? profileMap.get(m.sender_id) ?? null : null,
+      }));
+    }
+  }
 
   // Mark unread messages from the other party as read
   await sb
@@ -63,7 +80,7 @@ export async function GET(
     .neq("sender_id", user.id)
     .eq("is_read", false);
 
-  return NextResponse.json({ data: messages ?? [] });
+  return NextResponse.json({ data: messages });
 }
 
 // POST /api/marketplace/orders/[id]/messages
@@ -110,21 +127,29 @@ export async function POST(
     );
   }
 
-  const body = await request.json();
+  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body." },
+      { status: 400 }
+    );
+  }
   const { content } = body;
 
   if (!content || content.trim().length === 0) {
     return NextResponse.json({ error: "Message content is required." }, { status: 400 });
   }
 
-  const { data, error } = await sb
+  const { data: rawMsg, error } = await sb
     .from("order_messages")
     .insert({
       order_id: orderId,
       sender_id: user.id,
       content: content.trim(),
     })
-    .select("*, profiles:sender_id(display_name, avatar_url, username)")
+    .select("*")
     .single();
 
   if (error) {
@@ -132,6 +157,17 @@ export async function POST(
       { error: "Failed to send message. Please try again later." },
       { status: 500 }
     );
+  }
+
+  // Enrich with sender profile
+  let data = rawMsg;
+  if (rawMsg?.sender_id) {
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("id, display_name, avatar_url, username")
+      .eq("id", rawMsg.sender_id)
+      .single();
+    data = { ...rawMsg, profiles: profile ?? null };
   }
 
   // Notify the other party (non-critical, log errors only)

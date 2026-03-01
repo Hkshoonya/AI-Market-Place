@@ -519,6 +519,86 @@ export interface AgentMessage {
   created_at: string;
 }
 
+// Wallet & Payment types
+export type WalletOwnerType = 'user' | 'agent';
+export type WalletTxType = 'deposit' | 'withdrawal' | 'purchase' | 'sale' | 'escrow_hold' | 'escrow_release' | 'bid_hold' | 'bid_release' | 'refund' | 'platform_fee' | 'api_charge';
+export type WalletTxStatus = 'pending' | 'confirmed' | 'failed';
+export type ChainType = 'solana' | 'base' | 'polygon' | 'internal';
+export type TokenType = 'USDC' | 'SOL' | 'ETH' | 'MATIC';
+export type EscrowStatus = 'held' | 'released' | 'refunded';
+export type EscrowReason = 'purchase' | 'bid' | 'auction';
+
+export interface Wallet {
+  id: string;
+  owner_id: string;
+  owner_type: WalletOwnerType;
+  balance: number;
+  held_balance: number;
+  total_earned: number;
+  total_spent: number;
+  primary_chain: ChainType;
+  deposit_address_solana: string | null;
+  deposit_address_evm: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  wallet_id: string;
+  type: WalletTxType;
+  amount: number;
+  fee: number;
+  net_amount: number;
+  reference_type: string | null;
+  reference_id: string | null;
+  chain: ChainType;
+  tx_hash: string | null;
+  token: TokenType;
+  status: WalletTxStatus;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface EscrowHold {
+  id: string;
+  wallet_id: string;
+  amount: number;
+  reason: EscrowReason;
+  reference_type: string;
+  reference_id: string;
+  status: EscrowStatus;
+  held_at: string;
+  released_at: string | null;
+  released_to_wallet_id: string | null;
+  platform_fee_amount: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PlatformFeeTier {
+  id: number;
+  min_lifetime_sales: number;
+  max_lifetime_sales: number | null;
+  fee_percentage: number;
+  created_at: string;
+}
+
+export interface ApiEndpointPricing {
+  id: number;
+  path_pattern: string;
+  method: string;
+  price_per_call: number;
+  is_free_for_humans: boolean;
+  rate_limit_free: number;
+  rate_limit_paid: number;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 // Model with all relations joined
 export interface ModelWithDetails extends Model {
   benchmark_scores?: BenchmarkScore[];
@@ -846,6 +926,31 @@ export interface Database {
         Insert: Partial<AgentMessage> & Pick<AgentMessage, "conversation_id" | "sender_id" | "sender_type" | "content">;
         Update: Partial<AgentMessage>;
       };
+      wallets: {
+        Row: Wallet;
+        Insert: Partial<Wallet> & Pick<Wallet, 'owner_id'>;
+        Update: Partial<Wallet>;
+      };
+      wallet_transactions: {
+        Row: WalletTransaction;
+        Insert: Partial<WalletTransaction> & Pick<WalletTransaction, 'wallet_id' | 'type' | 'amount' | 'net_amount'>;
+        Update: Partial<WalletTransaction>;
+      };
+      escrow_holds: {
+        Row: EscrowHold;
+        Insert: Partial<EscrowHold> & Pick<EscrowHold, 'wallet_id' | 'amount' | 'reason' | 'reference_type' | 'reference_id'>;
+        Update: Partial<EscrowHold>;
+      };
+      platform_fee_tiers: {
+        Row: PlatformFeeTier;
+        Insert: Partial<PlatformFeeTier> & Pick<PlatformFeeTier, 'min_lifetime_sales' | 'fee_percentage'>;
+        Update: Partial<PlatformFeeTier>;
+      };
+      api_endpoint_pricing: {
+        Row: ApiEndpointPricing;
+        Insert: Partial<ApiEndpointPricing> & Pick<ApiEndpointPricing, 'path_pattern' | 'price_per_call'>;
+        Update: Partial<ApiEndpointPricing>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -861,6 +966,13 @@ export interface Database {
       agent_type: AgentType;
       agent_status: AgentStatus;
       task_status: TaskStatus;
+      wallet_owner_type: WalletOwnerType;
+      wallet_tx_type: WalletTxType;
+      wallet_tx_status: WalletTxStatus;
+      chain_type: ChainType;
+      token_type: TokenType;
+      escrow_status: EscrowStatus;
+      escrow_reason: EscrowReason;
     };
   };
 }

@@ -28,7 +28,12 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
   const { model_id } = body;
 
   if (!model_id) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ export async function GET(request: NextRequest) {
       { status: 429, headers: rateLimitHeaders(rl) }
     );
   }
+
+  // Paywall check
+  const pw = await checkPaywall(request);
+  if (!pw.allowed) return paywallErrorResponse(pw);
 
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -35,14 +35,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const role = searchParams.get("role") || "buyer";
 
+  // Two-query approach: marketplace_orders may not have FK to profiles
   let query;
 
   if (role === "seller") {
     query = (supabase as any)
       .from("marketplace_orders")
-      .select(
-        "*, marketplace_listings(title, slug, listing_type), profiles!marketplace_orders_buyer_id_fkey(display_name, avatar_url)"
-      )
+      .select("*, marketplace_listings(title, slug, listing_type)")
       .eq("seller_id", user.id);
   } else {
     query = (supabase as any)
@@ -53,13 +52,30 @@ export async function GET(request: NextRequest) {
 
   query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
+  const { data: rawData, error } = await query;
 
   if (error) {
     return NextResponse.json(
       { error: "Failed to fetch orders. Please try again later." },
       { status: 500 }
     );
+  }
+
+  // Enrich seller orders with buyer profiles
+  let data = rawData ?? [];
+  if (role === "seller" && data.length > 0) {
+    const buyerIds = [...new Set(data.map((o: any) => o.buyer_id).filter(Boolean))];
+    if (buyerIds.length > 0) {
+      const { data: profiles } = await (supabase as any)
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", buyerIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      data = data.map((o: any) => ({
+        ...o,
+        profiles: o.buyer_id ? profileMap.get(o.buyer_id) ?? null : null,
+      }));
+    }
   }
 
   return NextResponse.json({ data });
@@ -88,7 +104,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body." },
+      { status: 400 }
+    );
+  }
   const parsed = createOrderSchema.safeParse(body);
 
   if (!parsed.success) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 
 export const dynamic = "force-dynamic";
 
@@ -23,18 +24,23 @@ export async function GET(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const { data, error } = await supabase
+  const { data: rawListing, error } = await supabase
     .from("marketplace_listings")
-    .select(
-      "*, profiles!marketplace_listings_seller_id_fkey(id, display_name, avatar_url, username, is_seller, seller_verified, seller_rating, total_sales, seller_bio, seller_website, created_at)"
-    )
+    .select("*")
     .eq("slug", slug)
     .eq("status", "active")
     .single();
 
-  if (error) {
+  if (error || !rawListing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
+
+  // Enrich with seller profile (no FK constraint exists, so fetch separately)
+  const data = await enrichListingWithProfile(
+    supabase as any,
+    rawListing,
+    PROFILE_FIELDS_FULL
+  );
 
   return NextResponse.json({ data });
 }
@@ -67,7 +73,12 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json();
+  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
 
   // Filter to only allowed fields (prevent mass assignment)
   const ALLOWED_FIELDS = [

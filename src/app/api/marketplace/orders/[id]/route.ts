@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { completePurchaseEscrow, refundPurchaseEscrow } from "@/lib/marketplace/escrow";
+import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -93,5 +95,25 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json({ data });
+  // After successful status update, handle escrow and delivery
+  let deliveryResult = null;
+
+  if (status === "completed") {
+    try {
+      await completePurchaseEscrow(id);
+      deliveryResult = await deliverDigitalGood(id, currentOrder.listing_id, currentOrder.buyer_id);
+    } catch (escrowErr) {
+      console.error("[orders] Escrow/delivery failed for order", id, escrowErr);
+    }
+  }
+
+  if (status === "cancelled" || status === "rejected") {
+    try {
+      await refundPurchaseEscrow(id);
+    } catch (refundErr) {
+      console.error("[orders] Escrow refund failed for order", id, refundErr);
+    }
+  }
+
+  return NextResponse.json({ data, delivery: deliveryResult });
 }

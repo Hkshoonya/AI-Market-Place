@@ -85,9 +85,41 @@ export async function GET(request: NextRequest) {
 
   const { data: popularModels } = await popularQuery;
 
+  // Get "most discussed" — models with most news mentions recently
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: discussedModels } = await (supabase.rpc as any)(
+    "get_most_discussed_models",
+    { days_back: 30, result_limit: limit }
+  );
+
+  // Map discussed models to the same shape as other tabs
+  const discussed = (discussedModels ?? []).map(
+    (m: {
+      model_id: string;
+      mention_count: number;
+      model_name: string;
+      model_slug: string;
+      model_provider: string;
+      quality_score: number | null;
+    }) => ({
+      id: m.model_id,
+      slug: m.model_slug,
+      name: m.model_name,
+      provider: m.model_provider,
+      quality_score: m.quality_score,
+      mention_count: m.mention_count,
+      category: null,
+      overall_rank: null,
+      hf_downloads: 0,
+      parameter_count: null,
+      is_open_weights: false,
+    })
+  );
+
   return NextResponse.json({
     trending: data ?? [],
     recent: recentModels ?? [],
     popular: popularModels ?? [],
+    discussed,
   });
 }
