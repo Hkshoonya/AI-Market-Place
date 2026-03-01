@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { AmbientScene } from "@/components/three/ambient-scene";
-import { MarketTicker } from "@/components/layout/market-ticker";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -93,7 +93,6 @@ export default function RootLayout({
             </a>
             <AmbientScene />
             <Header />
-            <MarketTicker />
             <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />
             <ScrollToTop />
