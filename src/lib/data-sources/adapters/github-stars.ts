@@ -1,0 +1,210 @@
+/**
+ * GitHub Stars Adapter
+ *
+ * Fetches star and fork counts from the GitHub API for models
+ * that have a github_url set in the database.
+ *
+ * Updates github_stars and github_forks columns on the models table.
+ * Handles rate limiting by breaking on 403 responses.
+ */
+
+import type {
+  DataSourceAdapter,
+  SyncContext,
+  SyncResult,
+  SyncError,
+  HealthCheckResult,
+} from "../types";
+import { registerAdapter } from "../registry";
+
+/** Extract owner/repo from a GitHub URL */
+function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes("github.com")) return null;
+
+    // Handle paths like /owner/repo, /owner/repo/tree/main, etc.
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+
+    return { owner: segments[0], repo: segments[1] };
+  } catch {
+    return null;
+  }
+}
+
+interface GitHubRepoResponse {
+  stargazers_count: number;
+  forks_count: number;
+  message?: string;
+}
+
+const adapter: DataSourceAdapter = {
+  id: "github-stars",
+  name: "GitHub Stars",
+  outputTypes: ["models"],
+  defaultConfig: {
+    /** Delay between API calls in ms to respect rate limits */
+    delayMs: 500,
+  },
+  requiredSecrets: ["GITHUB_TOKEN"],
+
+  async sync(ctx: SyncContext): Promise<SyncResult> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = ctx.supabase as any;
+    const delayMs = (ctx.config.delayMs as number) ?? 500;
+    const githubToken = ctx.secrets?.GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+
+    let recordsProcessed = 0;
+    let recordsCreated = 0;
+    let recordsUpdated = 0;
+    const errors: SyncError[] = [];
+
+    // Fetch all models with a github_url
+    const { data: models, error: fetchError } = await supabase
+      .from("models")
+      .select("id, name, slug, github_url")
+      .eq("status", "active")
+      .not("github_url", "is", null);
+
+    if (fetchError) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: `Failed to fetch models: ${fetchError.message}` }],
+      };
+    }
+
+    if (!models || models.length === 0) {
+      return {
+        success: true,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [],
+        metadata: { message: "No models with github_url found" },
+      };
+    }
+
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "AI-Market-Cap-Bot",
+    };
+    if (githubToken) {
+      headers["Authorization"] = `Bearer ${githubToken}`;
+    }
+
+    for (const model of models) {
+      recordsProcessed++;
+
+      const parsed = parseGitHubUrl(model.github_url);
+      if (!parsed) {
+        errors.push({ message: `Invalid GitHub URL for ${model.slug}: ${model.github_url}` });
+        continue;
+      }
+
+      try {
+        const apiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}`;
+        const res = await fetch(apiUrl, { headers, signal: ctx.signal });
+
+        // Rate limit hit - stop processing
+        if (res.status === 403) {
+          const rateLimitRemaining = res.headers.get("x-ratelimit-remaining");
+          errors.push({
+            message: `GitHub rate limit hit (remaining: ${rateLimitRemaining}). Stopping.`,
+            context: "rate_limit",
+          });
+          break;
+        }
+
+        if (res.status === 404) {
+          errors.push({ message: `Repo not found: ${parsed.owner}/${parsed.repo}` });
+          continue;
+        }
+
+        if (!res.ok) {
+          errors.push({ message: `GitHub API ${res.status} for ${parsed.owner}/${parsed.repo}` });
+          continue;
+        }
+
+        const data: GitHubRepoResponse = await res.json();
+
+        const { error: updateError } = await supabase
+          .from("models")
+          .update({
+            github_stars: data.stargazers_count,
+            github_forks: data.forks_count,
+          })
+          .eq("id", model.id);
+
+        if (updateError) {
+          errors.push({ message: `DB update failed for ${model.slug}: ${updateError.message}` });
+        } else {
+          recordsUpdated++;
+        }
+
+        // Respect rate limits
+        if (delayMs > 0) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      } catch (e) {
+        errors.push({
+          message: `Fetch error for ${model.slug}: ${e instanceof Error ? e.message : String(e)}`,
+        });
+      }
+    }
+
+    return {
+      success: errors.filter((e) => e.context === "rate_limit").length === 0,
+      recordsProcessed,
+      recordsCreated,
+      recordsUpdated,
+      errors,
+      metadata: {
+        modelsWithGithubUrl: models.length,
+      },
+    };
+  },
+
+  async healthCheck(secrets: Record<string, string>): Promise<HealthCheckResult> {
+    const start = Date.now();
+    try {
+      const token = secrets?.GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+      const headers: Record<string, string> = {
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "AI-Market-Cap-Bot",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch("https://api.github.com/rate_limit", { headers });
+      const latencyMs = Date.now() - start;
+
+      if (res.ok) {
+        const data = await res.json();
+        const remaining = data?.resources?.core?.remaining ?? "unknown";
+        return {
+          healthy: true,
+          latencyMs,
+          message: `GitHub API reachable. Rate limit remaining: ${remaining}`,
+        };
+      }
+
+      return {
+        healthy: false,
+        latencyMs,
+        message: `GitHub API returned HTTP ${res.status}`,
+      };
+    } catch (err) {
+      return {
+        healthy: false,
+        latencyMs: Date.now() - start,
+        message: `GitHub API unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  },
+};
+
+registerAdapter(adapter);
+export default adapter;

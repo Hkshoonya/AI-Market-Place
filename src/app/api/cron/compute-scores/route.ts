@@ -7,6 +7,18 @@ import {
   type QualityInputs,
 } from "@/lib/scoring/quality-calculator";
 import { lookupProviderPrice } from "@/lib/data-sources/adapters/provider-pricing";
+import {
+  computeAgentBenchmarkWeights,
+  computeAgentScore,
+  normalizeAgentSlug,
+  type AgentBenchmarkScore,
+} from "@/lib/scoring/agent-score-calculator";
+import {
+  computePopularityScore,
+  computePopularityStats,
+  computeMarketCap,
+  getProviderUsageEstimate,
+} from "@/lib/scoring/market-cap-calculator";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -43,7 +55,7 @@ export async function GET(request: NextRequest) {
     const { data: models, error: modelsError } = await supabase
       .from("models")
       .select(
-        "id, name, slug, provider, category, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, hf_trending_score, parameter_count"
+        "id, name, slug, provider, category, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, hf_trending_score, parameter_count, github_stars"
       )
       .eq("status", "active");
 
@@ -231,6 +243,88 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 5c. Compute agent scores
+    // Gather all agent benchmark scores
+    const agentScoresInput: Array<{ benchmarkSlug: string; modelId: string }> = [];
+    const modelAgentScoresMap = new Map<string, AgentBenchmarkScore[]>();
+    const allAgentScoresForRanking = new Map<string, number[]>();
+
+    for (const [modelId, details] of benchmarkDetailMap) {
+      const agentBenchmarks: AgentBenchmarkScore[] = [];
+      for (const d of details) {
+        const canonical = normalizeAgentSlug(d.slug);
+        if (canonical) {
+          agentScoresInput.push({ benchmarkSlug: d.slug, modelId });
+          agentBenchmarks.push({
+            benchmarkSlug: d.slug,
+            score: d.score,
+            scoreNormalized: d.score,
+          });
+          // Build ranking distribution
+          if (!allAgentScoresForRanking.has(canonical)) {
+            allAgentScoresForRanking.set(canonical, []);
+          }
+          allAgentScoresForRanking.get(canonical)!.push(d.score);
+        }
+      }
+      if (agentBenchmarks.length > 0) {
+        modelAgentScoresMap.set(modelId, agentBenchmarks);
+      }
+    }
+
+    const agentWeights = computeAgentBenchmarkWeights(agentScoresInput);
+    const agentScoreMap = new Map<string, number>();
+    for (const [modelId, scores] of modelAgentScoresMap) {
+      const result = computeAgentScore(scores, agentWeights, allAgentScoresForRanking);
+      if (result) {
+        agentScoreMap.set(modelId, result.agentScore);
+      }
+    }
+
+    // Compute agent ranks
+    const agentRankedModels = Array.from(agentScoreMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([id], i) => ({ id, rank: i + 1 }));
+    const agentRankMap = new Map(agentRankedModels.map((r) => [r.id, r.rank]));
+
+    // 5d. Compute popularity scores and market cap
+    const popularityInputs = models.map((m) => ({
+      id: m.id,
+      downloads: (m.hf_downloads as number) ?? 0,
+      likes: (m.hf_likes as number) ?? 0,
+      stars: (m.github_stars as number) ?? 0,
+      newsMentions: newsMentionMap.get(m.id) ?? 0,
+      providerUsageEstimate: getProviderUsageEstimate((m.provider as string) ?? ""),
+      trendingScore: m.hf_trending_score ? Number(m.hf_trending_score) : 0,
+    }));
+
+    const popStats = computePopularityStats(popularityInputs);
+    const popularityMap = new Map<string, number>();
+    const marketCapMap = new Map<string, number>();
+
+    for (const input of popularityInputs) {
+      const popScore = computePopularityScore(input, popStats);
+      popularityMap.set(input.id, popScore);
+
+      // Get blended API price for market cap
+      const m = models.find((x) => x.id === input.id);
+      const curatedPrice = m ? lookupProviderPrice(m.slug as string) : null;
+      const dbPrice = cheapestPriceMap.get(input.id);
+      const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? 0;
+      const blendedPrice = inputPrice; // Use input price as proxy for blended
+      const mktCap = computeMarketCap(popScore, blendedPrice);
+      if (mktCap > 0) {
+        marketCapMap.set(input.id, mktCap);
+      }
+    }
+
+    // Compute popularity ranks
+    const popRankedModels = Array.from(popularityMap.entries())
+      .filter(([, score]) => score > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id], i) => ({ id, rank: i + 1 }));
+    const popRankMap = new Map(popRankedModels.map((r) => [r.id, r.rank]));
+
     // 6. Compute rankings
     const rankings = computeRankings(scoredModels);
     const rankMap = new Map(rankings.map((r) => [r.id, r]));
@@ -260,6 +354,23 @@ export async function GET(request: NextRequest) {
         // Store normalized value score (0-100) or null if no pricing
         const valueScore = normalizedValueMap.get(sm.id);
         updateData.value_score = valueScore ?? null;
+
+        // Agent score + rank
+        const agentScore = agentScoreMap.get(sm.id);
+        if (agentScore !== undefined) {
+          updateData.agent_score = agentScore;
+          updateData.agent_rank = agentRankMap.get(sm.id) ?? null;
+        }
+
+        // Popularity + Market cap
+        const popRank = popRankMap.get(sm.id);
+        if (popRank !== undefined) {
+          updateData.popularity_rank = popRank;
+        }
+        const mktCap = marketCapMap.get(sm.id);
+        if (mktCap !== undefined) {
+          updateData.market_cap_estimate = mktCap;
+        }
 
         const { error } = await supabase
           .from("models")
@@ -292,6 +403,9 @@ export async function GET(request: NextRequest) {
           hf_downloads: m.hf_downloads,
           hf_likes: m.hf_likes,
           overall_rank: rank?.overall_rank ?? null,
+          popularity_score: popularityMap.get(sm.id) ?? null,
+          market_cap_estimate: marketCapMap.get(sm.id) ?? null,
+          agent_score: agentScoreMap.get(sm.id) ?? null,
         },
         { onConflict: "model_id,snapshot_date" }
       );
@@ -309,6 +423,9 @@ export async function GET(request: NextRequest) {
       snapshotsCreated,
       modelsWithValueMetric: valueMetricMap.size,
       modelsWithValueScore: normalizedValueMap.size,
+      modelsWithAgentScore: agentScoreMap.size,
+      modelsWithPopularity: popularityMap.size,
+      modelsWithMarketCap: marketCapMap.size,
       stats,
     });
   } catch (err) {

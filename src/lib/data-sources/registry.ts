@@ -55,5 +55,14 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/seal-leaderboard"),
     import("./adapters/bigcode-leaderboard"),
     import("./adapters/open-vlm-leaderboard"),
+    // Agent benchmark adapters (Phase 6)
+    import("./adapters/terminal-bench"),
+    import("./adapters/osworld"),
+    import("./adapters/gaia-benchmark"),
+    import("./adapters/webarena"),
+    import("./adapters/tau-bench"),
+    // Market data adapters (Phase 6)
+    import("./adapters/github-stars"),
+    import("./adapters/deployment-pricing"),
   ]);
 }

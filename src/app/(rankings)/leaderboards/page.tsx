@@ -40,7 +40,7 @@ export default async function LeaderboardsPage() {
   // Fetch ALL ranked models for the explorer (client component)
   const { data: explorerModelsRaw } = await supabase
     .from("models")
-    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads")
+    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, agent_score, agent_rank, popularity_rank, market_cap_estimate")
     .eq("status", "active")
     .not("overall_rank", "is", null)
     .order("overall_rank", { ascending: true })
@@ -59,6 +59,10 @@ export default async function LeaderboardsPage() {
     value_score: m.value_score ? Number(m.value_score) : null,
     is_open_weights: !!(m.is_open_weights),
     hf_downloads: m.hf_downloads ? Number(m.hf_downloads) : null,
+    agent_score: m.agent_score ? Number(m.agent_score) : null,
+    agent_rank: m.agent_rank as number | null,
+    popularity_rank: m.popularity_rank as number | null,
+    market_cap_estimate: m.market_cap_estimate ? Number(m.market_cap_estimate) : null,
   }));
 
   // Fetch speed-ranked models
@@ -128,6 +132,7 @@ export default async function LeaderboardsPage() {
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
           <TabsTrigger value="frontier">Quality vs Price</TabsTrigger>
           <TabsTrigger value="timeline">Rank History</TabsTrigger>
+          <TabsTrigger value="agent">Agent Score</TabsTrigger>
           <TabsTrigger value="overall">Top 20</TabsTrigger>
           <TabsTrigger value="speed">Speed</TabsTrigger>
           <TabsTrigger value="value">Best Value</TabsTrigger>
@@ -151,6 +156,82 @@ export default async function LeaderboardsPage() {
         {/* Timeline Tab — Rank movement */}
         <TabsContent value="timeline" className="mt-6">
           <RankTimeline />
+        </TabsContent>
+
+        {/* Agent Score Tab */}
+        <TabsContent value="agent" className="mt-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Zap className="h-5 w-5 text-neon" />
+              Agent Score Leaderboard
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Composite score from 9 agentic benchmarks: SWE-Bench, TerminalBench, OSWorld, GAIA, WebArena, Aider, HumanEval, TAU-Bench, AgentBench.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border/50">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/50 bg-secondary/30">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Agent Score</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Quality</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Popularity</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Market Cap</th>
+                </tr>
+              </thead>
+              <tbody>
+                {explorerModels
+                  .filter((m) => m.agent_score != null)
+                  .sort((a, b) => (a.agent_rank ?? 999) - (b.agent_rank ?? 999))
+                  .slice(0, 50)
+                  .map((model, i) => (
+                  <tr key={model.slug} className="border-b border-border/30 table-row-hover">
+                    <td className="px-4 py-3.5">
+                      <span className={`text-sm font-bold tabular-nums ${i < 3 ? "text-neon" : "text-muted-foreground"}`}>
+                        {model.agent_rank ?? i + 1}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Link href={`/models/${model.slug}`}>
+                        <div className="flex items-center gap-2">
+                          <ProviderLogo provider={model.provider} size="sm" />
+                          <div>
+                            <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{model.provider}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="text-sm font-bold tabular-nums text-neon">
+                        {model.agent_score?.toFixed(1) ?? "---"}
+                      </span>
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums sm:table-cell">
+                      {model.quality_score?.toFixed(1) ?? "---"}
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
+                      {model.popularity_rank ? `#${model.popularity_rank}` : "---"}
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
+                      {model.market_cap_estimate
+                        ? `$${(model.market_cap_estimate / 1_000_000).toFixed(1)}M`
+                        : "---"}
+                    </td>
+                  </tr>
+                ))}
+                {explorerModels.filter((m) => m.agent_score != null).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      No agent scores computed yet. Run compute-scores to populate.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </TabsContent>
 
         {/* Overall Tab — Classic top 20 */}

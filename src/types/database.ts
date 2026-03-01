@@ -49,6 +49,12 @@ export interface Model {
   popularity_score: number | null;
   quality_score: number | null;
   value_score: number | null;
+  market_cap_estimate: number | null;
+  popularity_rank: number | null;
+  github_stars: number | null;
+  github_forks: number | null;
+  agent_score: number | null;
+  agent_rank: number | null;
   created_at: string;
   updated_at: string;
   data_refreshed_at: string | null;
@@ -171,6 +177,9 @@ export interface ModelSnapshot {
   hf_likes: number | null;
   quality_score: number | null;
   overall_rank: number | null;
+  market_cap_estimate: number | null;
+  popularity_score: number | null;
+  agent_score: number | null;
   created_at: string;
 }
 
@@ -599,6 +608,61 @@ export interface ApiEndpointPricing {
   created_at: string;
 }
 
+// Phase 6: Deployment & Description types
+export type DeploymentPlatformType = 'api' | 'hosting' | 'subscription' | 'self-hosted' | 'local';
+export type DeploymentStatus = 'available' | 'coming_soon' | 'deprecated';
+export type DeploymentPricingModel = 'per-token' | 'per-second' | 'monthly' | 'free';
+export type DescriptionGeneratedBy = 'ai' | 'community' | 'curated';
+
+export interface DeploymentPlatform {
+  id: string;
+  slug: string;
+  name: string;
+  logo_url: string | null;
+  type: DeploymentPlatformType;
+  affiliate_url_template: string | null;
+  has_affiliate: boolean;
+  affiliate_commission: string | null;
+  base_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModelDeployment {
+  id: string;
+  model_id: string;
+  platform_id: string;
+  deploy_url: string | null;
+  pricing_model: DeploymentPricingModel | null;
+  price_per_unit: number | null;
+  unit_description: string | null;
+  free_tier: string | null;
+  one_click: boolean;
+  status: DeploymentStatus;
+  last_price_check: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  platform?: DeploymentPlatform;
+}
+
+export interface ModelDescription {
+  id: string;
+  model_id: string;
+  summary: string | null;
+  pros: Array<{ title: string; description: string; source: string }>;
+  cons: Array<{ title: string; description: string; source: string }>;
+  best_for: string[];
+  not_ideal_for: string[];
+  comparison_notes: string | null;
+  generated_by: DescriptionGeneratedBy;
+  last_generated: string | null;
+  upvotes: number;
+  downvotes: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Model with all relations joined
 export interface ModelWithDetails extends Model {
   benchmark_scores?: BenchmarkScore[];
@@ -950,6 +1014,21 @@ export interface Database {
         Row: ApiEndpointPricing;
         Insert: Partial<ApiEndpointPricing> & Pick<ApiEndpointPricing, 'path_pattern' | 'price_per_call'>;
         Update: Partial<ApiEndpointPricing>;
+      };
+      deployment_platforms: {
+        Row: DeploymentPlatform;
+        Insert: Partial<DeploymentPlatform> & Pick<DeploymentPlatform, 'slug' | 'name' | 'type' | 'base_url'>;
+        Update: Partial<DeploymentPlatform>;
+      };
+      model_deployments: {
+        Row: ModelDeployment;
+        Insert: Partial<ModelDeployment> & Pick<ModelDeployment, 'model_id' | 'platform_id'>;
+        Update: Partial<ModelDeployment>;
+      };
+      model_descriptions: {
+        Row: ModelDescription;
+        Insert: Partial<ModelDescription> & Pick<ModelDescription, 'model_id'>;
+        Update: Partial<ModelDescription>;
       };
     };
     Views: Record<string, never>;
