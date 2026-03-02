@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Send, CheckCircle } from "lucide-react";
+import { MessageSquare, Send, CheckCircle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +25,13 @@ export function ContactForm({ listing }: ContactFormProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const isGuest = !user;
 
   const buttonLabel =
     listing.pricing_type === "contact"
@@ -46,15 +49,27 @@ export function ContactForm({ listing }: ContactFormProps) {
       return;
     }
 
+    if (isGuest && (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const body: Record<string, string> = {
+        listing_id: listing.id,
+        message: message.trim(),
+      };
+
+      if (isGuest) {
+        body.guest_email = guestEmail.trim();
+        if (guestName.trim()) body.guest_name = guestName.trim();
+      }
+
       const res = await fetch("/api/marketplace/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listing_id: listing.id,
-          message: message.trim(),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -76,38 +91,26 @@ export function ContactForm({ listing }: ContactFormProps) {
   const handleOpenChange = (value: boolean) => {
     setOpen(value);
     if (!value) {
-      // Reset state when closing
       setMessage("");
+      setGuestEmail("");
+      setGuestName("");
       setError("");
       setSubmitted(false);
     }
   };
 
-  if (!user) {
-    return (
-      <div className="rounded-lg border border-border/50 bg-secondary/30 p-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          <Link href="/login" className="text-neon hover:underline">
-            Sign in
-          </Link>{" "}
-          to contact the seller.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="w-full bg-neon text-background font-semibold hover:bg-neon/90">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          {buttonLabel}
+        <Button variant="outline" className="gap-2">
+          <MessageSquare className="h-4 w-4 shrink-0" />
+          <span className="truncate">{buttonLabel}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-background border-border/50">
+      <DialogContent className="bg-background border-border/50 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{buttonLabel}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="break-words">
             Send a message to the seller about &ldquo;{listing.title}&rdquo;.
           </DialogDescription>
         </DialogHeader>
@@ -119,7 +122,8 @@ export function ContactForm({ listing }: ContactFormProps) {
             </div>
             <h3 className="text-lg font-semibold">Request Sent!</h3>
             <p className="text-center text-sm text-muted-foreground">
-              The seller has been notified. You&apos;ll receive a response once they review your request.
+              The seller has been notified. You&apos;ll receive a response
+              {isGuest ? ` at ${guestEmail || "your email"}` : " once they review your request"}.
             </p>
             <Button
               variant="outline"
@@ -131,6 +135,43 @@ export function ContactForm({ listing }: ContactFormProps) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Guest fields */}
+            {isGuest && (
+              <div className="space-y-3 rounded-lg border border-border/50 bg-secondary/10 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+                  <Mail className="h-4 w-4" />
+                  Your contact info
+                </div>
+                <div>
+                  <label htmlFor="contact-guest-email" className="mb-1 block text-sm font-medium">
+                    Email <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    id="contact-guest-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-secondary px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-guest-name" className="mb-1 block text-sm font-medium">
+                    Name <span className="text-xs text-muted-foreground">(optional)</span>
+                  </label>
+                  <input
+                    id="contact-guest-name"
+                    type="text"
+                    placeholder="Your name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-secondary px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label htmlFor="contact-seller-message" className="mb-2 block text-sm font-medium">
                 Your Message
@@ -157,9 +198,9 @@ export function ContactForm({ listing }: ContactFormProps) {
               </div>
             )}
 
-            {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+            {error && <p className="text-sm text-red-500 break-words" role="alert">{error}</p>}
 
-            <DialogFooter>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
@@ -182,6 +223,15 @@ export function ContactForm({ listing }: ContactFormProps) {
                 )}
               </Button>
             </DialogFooter>
+
+            {isGuest && (
+              <p className="text-center text-[11px] text-muted-foreground pt-1">
+                Already have an account?{" "}
+                <Link href="/login?redirect=/marketplace" className="text-neon hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            )}
           </form>
         )}
       </DialogContent>

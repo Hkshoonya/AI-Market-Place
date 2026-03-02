@@ -148,10 +148,10 @@ export default async function ListingDetailPage(props: {
 
           {/* Price Card */}
           <Card className="border-neon/20 bg-neon/5">
-            <CardContent className="flex items-center justify-between p-6">
-              <div>
+            <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Price</p>
-                <p className="text-3xl font-bold text-neon">
+                <p className="text-2xl font-bold text-neon sm:text-3xl">
                   {listing.pricing_type === "free" ? "Free" :
                    listing.pricing_type === "contact" ? "Contact for Pricing" :
                    formatCurrency(listing.price)}
@@ -160,7 +160,7 @@ export default async function ListingDetailPage(props: {
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
                 <PurchaseButton
                   listingId={listing.id}
                   price={listing.price}
@@ -173,18 +173,18 @@ export default async function ListingDetailPage(props: {
           </Card>
 
           {/* Stats */}
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground sm:gap-6">
             <div className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 shrink-0" />
               {formatNumber(listing.view_count)} views
             </div>
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-4 w-4 shrink-0" />
               Listed {formatDate(listing.created_at)}
             </div>
             {listing.tags?.length > 0 && (
               <div className="flex items-center gap-1">
-                <Tag className="h-4 w-4" />
+                <Tag className="h-4 w-4 shrink-0" />
                 {listing.tags.length} tags
               </div>
             )}
