@@ -1,0 +1,153 @@
+name: Data Sync Crons
+
+on:
+  schedule:
+    # Tier 1: Every 6 hours (core model data)
+    - cron: '0 */6 * * *'
+    # Tier 2: Every 12 hours (benchmarks, leaderboards)
+    - cron: '0 */12 * * *'
+    # Tier 3: Daily at 8 AM UTC (news, papers, social)
+    - cron: '0 8 * * *'
+    # Tier 4: Weekly Monday midnight (stars, pricing)
+    - cron: '0 0 * * 1'
+    # Compute scores: Every 6 hours at :45
+    - cron: '45 */6 * * *'
+    # Agent pipeline: Every 6 hours at :30
+    - cron: '30 */6 * * *'
+    # Code quality: Daily 9 AM UTC
+    - cron: '0 9 * * *'
+    # UX monitor: Weekly Monday 10 AM UTC
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: true
+        type: choice
+        options:
+          - all
+          - sync-tier-1
+          - sync-tier-2
+          - sync-tier-3
+          - sync-tier-4
+          - compute-scores
+          - agents-pipeline
+          - agents-code-quality
+          - agents-ux-monitor
+
+env:
+  SITE_URL: ${{ secrets.SITE_URL }}
+  CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+jobs:
+  sync-tier-1:
+    if: github.event.schedule == '0 */6 * * *' || github.event.inputs.job == 'sync-tier-1' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Tier 1 Sync
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/sync?tier=1" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  sync-tier-2:
+    if: github.event.schedule == '0 */12 * * *' || github.event.inputs.job == 'sync-tier-2' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Tier 2 Sync
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/sync?tier=2" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  sync-tier-3:
+    if: github.event.schedule == '0 8 * * *' || github.event.inputs.job == 'sync-tier-3' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Tier 3 Sync
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/sync?tier=3" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  sync-tier-4:
+    if: github.event.schedule == '0 0 * * 1' || github.event.inputs.job == 'sync-tier-4' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Tier 4 Sync
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/sync?tier=4" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  compute-scores:
+    if: github.event.schedule == '45 */6 * * *' || github.event.inputs.job == 'compute-scores' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Compute Scores
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/compute-scores" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  agents-pipeline:
+    if: github.event.schedule == '30 */6 * * *' || github.event.inputs.job == 'agents-pipeline' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Agent Pipeline
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/agents/pipeline" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  agents-code-quality:
+    if: github.event.schedule == '0 9 * * *' || github.event.inputs.job == 'agents-code-quality' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Code Quality Agent
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/agents/code-quality" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
+
+  agents-ux-monitor:
+    if: github.event.schedule == '0 10 * * 1' || github.event.inputs.job == 'agents-ux-monitor' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger UX Monitor Agent
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/agents/ux-monitor" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300)
+          echo "Response: $response"
+          if [ "$response" -ge 400 ]; then exit 1; fi
