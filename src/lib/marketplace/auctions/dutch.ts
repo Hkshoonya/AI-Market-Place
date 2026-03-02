@@ -6,6 +6,7 @@
 
 import {
   holdEscrow,
+  refundEscrow,
   releaseEscrow,
   calculatePlatformFee,
   getOrCreateWallet,
@@ -93,7 +94,28 @@ export async function acceptDutchAuction(
       starts_at: auction.starts_at,
     });
 
-    // 3. Hold escrow from buyer's wallet at current price
+    // 3. Atomically claim the auction FIRST (before holding escrow)
+    const { data: updatedAuction, error: updateError } = await sb
+      .from("auctions")
+      .update({
+        status: "ended",
+        winner_id: buyerId,
+        final_price: currentPrice,
+        current_price: currentPrice,
+      })
+      .eq("id", auctionId)
+      .eq("status", "active")
+      .select("id")
+      .single();
+
+    if (updateError || !updatedAuction) {
+      return {
+        success: false,
+        error: "Auction was accepted by another buyer.",
+      };
+    }
+
+    // 4. Hold escrow from buyer's wallet (we already won the auction)
     const buyerWallet = await getOrCreateWallet(buyerId, "user");
     let escrowId: string;
 
@@ -106,6 +128,11 @@ export async function acceptDutchAuction(
         auctionId
       );
     } catch (err) {
+      // Escrow failed after winning — revert auction to active
+      await sb
+        .from("auctions")
+        .update({ status: "active", winner_id: null, final_price: null })
+        .eq("id", auctionId);
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes("Insufficient balance")) {
         return {
@@ -114,35 +141,6 @@ export async function acceptDutchAuction(
         };
       }
       return { success: false, error: `Failed to hold escrow: ${message}` };
-    }
-
-    // 4. Atomically update auction to ended — if another buyer raced us,
-    //    the status will no longer be 'active' and the update won't match.
-    const { data: updatedAuction, error: updateError } = await sb
-      .from("auctions")
-      .update({
-        status: "ended",
-        winner_id: buyerId,
-        final_price: currentPrice,
-        current_price: currentPrice,
-      })
-      .eq("id", auctionId)
-      .eq("status", "active") // Optimistic concurrency check
-      .select("id")
-      .single();
-
-    if (updateError || !updatedAuction) {
-      // Race condition: another buyer accepted first. Refund our escrow.
-      try {
-        const { refundEscrow } = await import("@/lib/payments/wallet");
-        await refundEscrow(escrowId);
-      } catch {
-        // Best-effort refund
-      }
-      return {
-        success: false,
-        error: "Auction was accepted by another buyer. Your escrow has been refunded.",
-      };
     }
 
     // 5. Create a bid record with status='won'

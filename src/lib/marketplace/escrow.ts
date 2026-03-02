@@ -110,5 +110,22 @@ export async function refundPurchaseEscrow(orderId: string): Promise<void> {
     return;
   }
 
-  await refundEscrow(escrow.id);
+  // Retry with backoff (3 attempts) — escrow refunds are critical
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await refundEscrow(escrow.id);
+      return;
+    } catch (err) {
+      if (attempt === MAX_RETRIES) {
+        console.error(
+          `CRITICAL: Escrow refund failed after ${MAX_RETRIES} attempts for order ${orderId}, escrow ${escrow.id}:`,
+          err
+        );
+        throw err;
+      }
+      // Exponential backoff: 500ms, 1500ms
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
 }

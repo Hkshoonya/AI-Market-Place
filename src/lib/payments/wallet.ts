@@ -284,6 +284,11 @@ export async function refundEscrow(escrowId: string): Promise<void> {
 /**
  * Calculate the platform fee for a given wallet and transaction amount based
  * on the wallet's lifetime earnings and the `platform_fee_tiers` table.
+ *
+ * NOTE: Fee tier is based on total_earned at query time. A seller could
+ * theoretically game tiers by splitting sales across multiple wallets.
+ * This is an accepted limitation — enforcing single-wallet-per-user is
+ * handled by the UNIQUE constraint on wallets(owner_id, owner_type).
  */
 export async function calculatePlatformFee(
   walletId: string,

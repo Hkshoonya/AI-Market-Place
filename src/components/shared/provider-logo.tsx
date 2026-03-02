@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getProviderBrand } from "@/lib/constants/providers";
 
@@ -37,12 +38,13 @@ export function ProviderLogo({
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
       {logoUrl && !imgError ? (
-        <img
+        <Image
           src={logoUrl}
           alt={`${provider} logo`}
+          width={size === "lg" ? 36 : size === "md" ? 28 : 20}
+          height={size === "lg" ? 36 : size === "md" ? 28 : 20}
           className={cn(sizeConfig.container, "rounded-sm object-contain")}
           onError={() => setImgError(true)}
-          loading="lazy"
         />
       ) : (
         <span

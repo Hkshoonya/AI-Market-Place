@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -95,14 +96,22 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { business_name, business_description, website_url, portfolio_url, reason } = body;
+  const verifySchema = z.object({
+    business_name: z.string().min(2, "Business name must be at least 2 characters").max(200),
+    business_description: z.string().max(5000).optional(),
+    website_url: z.string().url().max(2048).optional().or(z.literal("")),
+    portfolio_url: z.string().url().max(2048).optional().or(z.literal("")),
+    reason: z.string().max(2000).optional(),
+  });
 
-  if (!business_name || business_name.length < 2) {
+  const parsed = verifySchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Business name is required." },
+      { error: parsed.error.issues[0]?.message || "Validation failed" },
       { status: 400 }
     );
   }
+  const { business_name, business_description, website_url, portfolio_url, reason } = parsed.data;
 
   // Ensure user is a seller
   const { error: profileError } = await sb

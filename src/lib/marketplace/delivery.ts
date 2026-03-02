@@ -97,14 +97,14 @@ async function deliverApiAccess(
     };
   }
 
-  // Store delivery info on the order
+  // Store only key reference on the order (not the raw key — shown once in response)
   await sb
     .from("marketplace_orders")
     .update({
       delivery_data: {
         type: "api_access",
-        api_key: rawKey,
         key_id: apiKey.id,
+        key_prefix: keyPrefix,
       },
     })
     .eq("id", orderId);

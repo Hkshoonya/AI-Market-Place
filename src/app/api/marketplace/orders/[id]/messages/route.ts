@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -136,11 +137,18 @@ export async function POST(
       { status: 400 }
     );
   }
-  const { content } = body;
+  const messageSchema = z.object({
+    content: z.string().min(1, "Message content is required").max(5000, "Message too long (max 5000 characters)"),
+  });
 
-  if (!content || content.trim().length === 0) {
-    return NextResponse.json({ error: "Message content is required." }, { status: 400 });
+  const parsed = messageSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message || "Validation failed" },
+      { status: 400 }
+    );
   }
+  const { content } = parsed.data;
 
   const { data: rawMsg, error } = await sb
     .from("order_messages")

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,11 @@ export function AuthButton() {
           aria-label={`User menu for ${displayName}`}
         >
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt={displayName}
+              width={32}
+              height={32}
               className="h-8 w-8 rounded-full object-cover"
             />
           ) : (

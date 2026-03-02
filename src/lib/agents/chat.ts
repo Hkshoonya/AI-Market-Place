@@ -16,7 +16,7 @@ export async function findOrCreateConversation(
   participantB: string,
   participantBType: "agent" | "user",
   topic?: string
-): Promise<AgentConversation> {
+): Promise<{ conversation: AgentConversation; created: boolean }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
@@ -35,7 +35,7 @@ export async function findOrCreateConversation(
     .limit(1)
     .single();
 
-  if (existing) return existing as AgentConversation;
+  if (existing) return { conversation: existing as AgentConversation, created: false };
 
   // Create new conversation (handle race condition with retry on conflict)
   const { data, error } = await sb
@@ -65,11 +65,11 @@ export async function findOrCreateConversation(
       .limit(1)
       .single();
 
-    if (retryExisting) return retryExisting as AgentConversation;
+    if (retryExisting) return { conversation: retryExisting as AgentConversation, created: false };
     throw new Error(`Failed to create conversation: ${error.message}`);
   }
 
-  return data as AgentConversation;
+  return { conversation: data as AgentConversation, created: true };
 }
 
 /** Send a message in a conversation */

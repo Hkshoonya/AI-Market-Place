@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
+import Image from "next/image";
 import Link from "next/link";
 
 const supabase = createClient();
@@ -40,6 +41,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const fetchComments = async () => {
     // Two-query approach: comments table may not have FK to profiles
@@ -47,7 +49,9 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       .from("comments")
       .select("*")
       .eq("model_id", modelId)
-      .order("created_at", { ascending: false });
+      .is("parent_id", null)
+      .order("created_at", { ascending: false })
+      .limit(visibleCount);
 
     if (rawData) {
       // Enrich with profiles
@@ -67,22 +71,43 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
         enriched = enriched.map((c: any) => ({ ...c, profiles: null }));
       }
 
-      // Organize into threads
-      const topLevel: Comment[] = [];
-      const replyMap = new Map<string, Comment[]>();
+      // Top-level comments already filtered by the query
+      const topLevel = enriched as Comment[];
+      const topLevelIds = topLevel.map((c: Comment) => c.id);
 
-      for (const c of enriched as Comment[]) {
-        if (c.parent_id) {
-          const existing = replyMap.get(c.parent_id) ?? [];
-          existing.push(c);
-          replyMap.set(c.parent_id, existing);
-        } else {
-          topLevel.push(c);
+      // Fetch replies for visible top-level comments
+      if (topLevelIds.length > 0) {
+        const { data: replyData } = await (supabase as any)
+          .from("comments")
+          .select("*")
+          .in("parent_id", topLevelIds)
+          .order("created_at", { ascending: true });
+
+        if (replyData) {
+          let replies = replyData as any[];
+          const replyUserIds = [...new Set(replies.map((c: any) => c.user_id).filter(Boolean))];
+          if (replyUserIds.length > 0) {
+            const { data: replyProfiles } = await (supabase as any)
+              .from("profiles")
+              .select("id, display_name, avatar_url, username")
+              .in("id", replyUserIds);
+            const rpMap = new Map((replyProfiles ?? []).map((p: any) => [p.id, p]));
+            replies = replies.map((c: any) => ({
+              ...c,
+              profiles: c.user_id ? rpMap.get(c.user_id) ?? null : null,
+            }));
+          }
+
+          const replyMap = new Map<string, Comment[]>();
+          for (const r of replies as Comment[]) {
+            const existing = replyMap.get(r.parent_id!) ?? [];
+            existing.push(r);
+            replyMap.set(r.parent_id!, existing);
+          }
+          for (const c of topLevel) {
+            c.replies = replyMap.get(c.id) ?? [];
+          }
         }
-      }
-
-      for (const c of topLevel) {
-        c.replies = replyMap.get(c.id) ?? [];
       }
 
       setComments(topLevel);
@@ -92,7 +117,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
   useEffect(() => {
     fetchComments();
-  }, [modelId]);
+  }, [modelId, visibleCount]);
 
   const submitComment = async (parentId: string | null = null) => {
     if (!user) return;
@@ -203,9 +228,11 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       >
         <div className="flex gap-3 py-3">
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt={authorName}
+              width={32}
+              height={32}
               className="h-8 w-8 rounded-full object-cover shrink-0"
             />
           ) : (
@@ -371,9 +398,22 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
             Loading comments...
           </div>
         ) : comments.length > 0 ? (
-          <div className="divide-y divide-border/30">
-            {comments.map((comment) => renderComment(comment))}
-          </div>
+          <>
+            <div className="divide-y divide-border/30">
+              {comments.map((comment) => renderComment(comment))}
+            </div>
+            {comments.length >= visibleCount && (
+              <div className="text-center mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleCount((prev) => prev + 20)}
+                >
+                  Load more comments
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No comments yet. Be the first to share your thoughts!

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const createOrderSchema = z.object({
@@ -22,17 +23,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Authenticate (session or API key)
+  const auth = await resolveAuthUser(request, ["marketplace", "read"]);
+  if (!auth) {
     return NextResponse.json(
       { error: "Authentication required. Please sign in to view your orders." },
       { status: 401 }
     );
+  }
+
+  // Use admin client for API key auth (no session), server client for session auth
+  let db: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (auth.authMethod === "api_key") {
+    db = createAdminClient();
+  } else {
+    const { createClient } = await import("@/lib/supabase/server");
+    db = await createClient();
   }
 
   const { searchParams } = new URL(request.url);
@@ -42,15 +48,15 @@ export async function GET(request: NextRequest) {
   let query;
 
   if (role === "seller") {
-    query = (supabase as any)
+    query = db
       .from("marketplace_orders")
       .select("*, marketplace_listings(title, slug, listing_type)")
-      .eq("seller_id", user.id);
+      .eq("seller_id", auth.userId);
   } else {
-    query = (supabase as any)
+    query = db
       .from("marketplace_orders")
       .select("*, marketplace_listings(title, slug, listing_type)")
-      .eq("buyer_id", user.id);
+      .eq("buyer_id", auth.userId);
   }
 
   query = query.order("created_at", { ascending: false });
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest) {
     const buyerIds = [...new Set(data.map((o: any) => o.buyer_id).filter(Boolean))];
     let profileMap = new Map();
     if (buyerIds.length > 0) {
-      const { data: profiles } = await (supabase as any)
+      const { data: profiles } = await db
         .from("profiles")
         .select("id, display_name, avatar_url")
         .in("id", buyerIds);

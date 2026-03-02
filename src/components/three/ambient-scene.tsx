@@ -150,7 +150,7 @@ export function AmbientScene() {
             alpha: false,
             powerPreference: "low-power",
           }}
-          frameloop="always"
+          frameloop="always" // Required: continuous particle animation uses useFrame
           style={{ background: "transparent" }}
         >
           <AmbientSceneContent />

@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -33,13 +34,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Authenticate (session or API key)
+  const auth = await resolveAuthUser(request, ["marketplace", "read"]);
+  if (!auth) {
     return NextResponse.json(
       {
         error:
@@ -50,7 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const wallet = await getOrCreateWallet(user.id);
+    const wallet = await getOrCreateWallet(auth.userId);
     const balance = await getWalletBalance(wallet.id);
 
     // Get the seller's current fee rate (use a $100 sample to determine tier)

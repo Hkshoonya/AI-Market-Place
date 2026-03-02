@@ -19,17 +19,49 @@ export async function GET(
   }
 
   const { slug } = await params;
+
+  // Check if admin is requesting (allows viewing non-active listings)
+  const adminParam = request.nextUrl.searchParams.get("admin");
+  let isAdmin = false;
+
+  if (adminParam === "true") {
+    try {
+      const { createClient: createServerClient } = await import(
+        "@/lib/supabase/server"
+      );
+      const serverSupabase = await createServerClient();
+      const {
+        data: { user },
+      } = await serverSupabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await (serverSupabase as any)
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .single();
+        isAdmin = profile?.is_admin === true;
+      }
+    } catch {
+      // Ignore — fall back to public view
+    }
+  }
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const { data: rawListing, error } = await supabase
+  let query = supabase
     .from("marketplace_listings")
     .select("*")
-    .eq("slug", slug)
-    .eq("status", "active")
-    .single();
+    .eq("slug", slug);
+
+  // Non-admin users can only see active listings
+  if (!isAdmin) {
+    query = query.eq("status", "active");
+  }
+
+  const { data: rawListing, error } = await query.single();
 
   if (error || !rawListing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -80,8 +112,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  // Filter to only allowed fields (prevent mass assignment)
-  const ALLOWED_FIELDS = [
+  // Split fields: sellers vs admin-only
+  const SELLER_FIELDS = [
     "title",
     "short_description",
     "description",
@@ -95,11 +127,27 @@ export async function PATCH(
     "source_url",
     "agent_config",
     "mcp_manifest",
-    "status",
+    "model_id",
+    "thumbnail_url",
   ] as const;
 
+  const ADMIN_ONLY_FIELDS = ["status", "is_featured"] as const;
+
+  // Check if user is admin
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.is_admin === true;
+
+  const allowedFields = isAdmin
+    ? [...SELLER_FIELDS, ...ADMIN_ONLY_FIELDS]
+    : [...SELLER_FIELDS];
+
   const updates: Record<string, unknown> = {};
-  for (const field of ALLOWED_FIELDS) {
+  for (const field of allowedFields) {
     if (field in body) {
       updates[field] = body[field];
     }
@@ -112,16 +160,33 @@ export async function PATCH(
     );
   }
 
+  // Basic type validation on critical fields
+  if ("price" in updates && updates.price !== null) {
+    const p = Number(updates.price);
+    if (isNaN(p) || p < 0 || p > 10_000_000) {
+      return NextResponse.json({ error: "Invalid price value" }, { status: 400 });
+    }
+  }
+  if ("title" in updates && typeof updates.title === "string") {
+    if (updates.title.length < 1 || updates.title.length > 500) {
+      return NextResponse.json({ error: "Title must be 1-500 characters" }, { status: 400 });
+    }
+  }
+
   // Always set updated_at
   updates.updated_at = new Date().toISOString();
 
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from("marketplace_listings")
     .update(updates)
-    .eq("slug", slug)
-    .eq("seller_id", user.id)
-    .select()
-    .single();
+    .eq("slug", slug);
+
+  // Non-admin users can only edit their own listings
+  if (!isAdmin) {
+    query = query.eq("seller_id", user.id);
+  }
+
+  const { data, error } = await query.select().single();
 
   if (error) {
     return NextResponse.json(

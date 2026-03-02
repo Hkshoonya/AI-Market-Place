@@ -121,11 +121,25 @@ const createBotListingSchema = z.object({
 
 const updateBotListingSchema = z.object({
   slug: z.string().min(1, "slug is required"),
+  title: z.string().min(1).max(200).optional(),
+  short_description: z.string().max(500).optional().nullable(),
+  listing_type: z.enum(LISTING_TYPES).optional(),
+  pricing_type: z
+    .enum([
+      "free",
+      "one_time",
+      "monthly_subscription",
+      "per_token",
+      "per_request",
+      "contact",
+    ])
+    .optional(),
   price: z
     .number()
     .min(0, "Price must be non-negative")
     .optional()
     .nullable(),
+  currency: z.string().max(10).optional(),
   status: z.enum(["active", "paused", "draft"]).optional(),
   description: z
     .string()
@@ -135,6 +149,12 @@ const updateBotListingSchema = z.object({
     .array(z.string().max(50))
     .max(20, "Maximum 20 tags allowed")
     .optional(),
+  thumbnail_url: z.string().url().optional().nullable(),
+  demo_url: z.string().url().optional().nullable(),
+  documentation_url: z.string().url().optional().nullable(),
+  agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
+  mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
+  model_id: z.string().uuid().optional().nullable(),
   skill_manifest: skillManifestSchema.optional().nullable(),
 });
 
@@ -397,7 +417,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const { slug, skill_manifest, ...fields } = parsed.data;
+  const { slug, skill_manifest, agent_config, ...fields } = parsed.data;
 
   const admin = createAdminClient();
   const sb = admin as any;
@@ -412,8 +432,9 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  // Handle skill_manifest update by merging into agent_config
+  // Handle agent_config and skill_manifest updates
   if (skill_manifest !== undefined) {
+    // skill_manifest is merged into agent_config
     // Fetch current agent_config to merge
     const { data: currentListing } = await sb
       .from("marketplace_listings")
@@ -429,9 +450,12 @@ export async function PATCH(request: NextRequest) {
         : {};
 
     updates.agent_config = {
-      ...existingConfig,
+      ...(agent_config !== undefined ? (agent_config ?? {}) : existingConfig),
       skill_manifest: skill_manifest,
     };
+  } else if (agent_config !== undefined) {
+    // Direct agent_config update (no skill_manifest merge needed)
+    updates.agent_config = agent_config;
   }
 
   if (Object.keys(updates).length === 0) {

@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -17,7 +18,7 @@ import {
 import { placeBid } from "@/lib/marketplace/auctions/english";
 
 const bidSchema = z.object({
-  amount: z.number().positive("Bid amount must be positive"),
+  amount: z.number().positive("Bid amount must be positive").max(10_000_000, "Bid amount exceeds maximum"),
   quantity: z.number().int().positive().optional().default(1),
 });
 
@@ -38,14 +39,9 @@ export async function POST(
 
   const { id: auctionId } = await params;
 
-  // Authenticate
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Authenticate (session or API key)
+  const auth = await resolveAuthUser(request, ["marketplace", "write"]);
+  if (!auth) {
     return NextResponse.json(
       { error: "Authentication required. Please sign in to place a bid." },
       { status: 401 }
@@ -74,9 +70,9 @@ export async function POST(
   // Place the bid via English auction logic
   const result = await placeBid(
     auctionId,
-    user.id,
+    auth.userId,
     parsed.data.amount,
-    "user"
+    auth.authMethod === "api_key" ? "agent" : "user"
   );
 
   if (!result.success) {
