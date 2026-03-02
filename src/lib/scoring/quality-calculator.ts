@@ -300,15 +300,17 @@ export function calculateQualityScore(
     0
   );
 
-  // Coverage penalty: softer curve based on signal count and weight coverage
-  // 3+ real signals = near full credit; 1-2 signals = moderate penalty
-  const signalCount = signals.length;
-  const weightCoverage = maxWeight > 0 ? totalWeight / maxWeight : 0;
-  // Use the better of count-based or weight-based coverage
-  const countCoverage = Math.min(signalCount / 4, 1.0);  // 4+ signals = full
-  const coverageFraction = Math.max(countCoverage, weightCoverage);
-  // Soft penalty: sqrt curve instead of linear (less harsh)
-  const coveragePenalty = Math.sqrt(Math.max(coverageFraction, 0.25));
+  // Coverage penalty: discrete steps based on EVIDENCE signal count.
+  // "openness" and "recency" are attributes, not evidence — don't count them.
+  const evidenceSignals = signals.filter(s => s.name !== "openness" && s.name !== "recency");
+  const evidenceCount = evidenceSignals.length;
+
+  let coveragePenalty: number;
+  if (evidenceCount === 0) return 0;
+  else if (evidenceCount === 1) coveragePenalty = 0.40;
+  else if (evidenceCount === 2) coveragePenalty = 0.65;
+  else if (evidenceCount === 3) coveragePenalty = 0.85;
+  else coveragePenalty = 1.00;
 
   let penalizedScore = weightedSum * coveragePenalty;
 

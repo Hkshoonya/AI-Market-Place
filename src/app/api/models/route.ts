@@ -44,7 +44,10 @@ export async function GET(request: NextRequest) {
 
   // Sorting
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
-    rank: { column: "overall_rank", ascending: true },
+    rank: { column: "balanced_rank", ascending: true },
+    capability: { column: "capability_rank", ascending: true },
+    usage: { column: "usage_rank", ascending: true },
+    expert: { column: "expert_rank", ascending: true },
     popular: { column: "popularity_score", ascending: false },
     newest: { column: "release_date", ascending: false },
     downloads: { column: "hf_downloads", ascending: false },
