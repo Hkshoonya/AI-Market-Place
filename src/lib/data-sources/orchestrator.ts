@@ -15,6 +15,7 @@ import type {
 } from "./types";
 import { getAdapter, loadAllAdapters } from "./registry";
 import { resolveSecrets, needsSync } from "./utils";
+import { recordSyncSuccess, recordSyncFailure } from "@/lib/pipeline-health";
 
 interface SourceDetail {
   source: string;
@@ -164,6 +165,13 @@ async function executeAdapter(
       updated_at: new Date().toISOString(),
     })
     .eq("id", source.id);
+
+  // Track pipeline health
+  if (status === "failed") {
+    await recordSyncFailure(source.slug).catch(() => {});
+  } else {
+    await recordSyncSuccess(source.slug).catch(() => {});
+  }
 
   return {
     source: source.slug,

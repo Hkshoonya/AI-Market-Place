@@ -215,35 +215,39 @@ export function computePopularityScore(
 /**
  * Compute an estimated "market cap" representing monthly revenue potential.
  *
- * Formula:
- *   marketCap = popularityScore^1.5 * blendedPrice * scaleFactor
+ * Revised formula:
+ *   marketCap = usageScore^1.2 * priceWeight * SCALE_FACTOR
  *
- * The power law (1.5) reflects that more popular models capture
- * disproportionately more revenue (winner-take-most dynamics).
+ * Where:
+ *   - usageScore = usage lens score (0-100)
+ *   - priceWeight = log10(blendedPrice + 1) / log10(20 + 1) — log-normalized
+ *   - SCALE_FACTOR calibrated so GPT-4o ~ $200M/month
  *
- * @param popularityScore - 0-100 composite popularity score
+ * @param usageScore - 0-100 usage lens score (replaces raw popularityScore)
  * @param blendedApiPrice - Average of input + output price per 1M tokens (USD)
- * @returns Estimated monthly revenue in USD (can be 0 for open-weight/free models)
+ * @returns Estimated monthly revenue in USD
  */
 export function computeMarketCap(
-  popularityScore: number,
+  usageScore: number,
   blendedApiPrice: number
 ): number {
-  if (popularityScore <= 0) return 0;
+  if (usageScore <= 0) return 0;
 
-  // For open-weight / free models, use a small nominal price
-  // to still rank them by popularity
-  const effectivePrice = Math.max(blendedApiPrice, 0.01);
+  // Minimum effective price: $0.10 for free/open models (was $0.01)
+  const effectivePrice = Math.max(blendedApiPrice, 0.10);
 
-  // Scale factor calibrated so that:
-  // - A model with 80 popularity and $5/M blended price ~ $50M/month
-  // - A model with 50 popularity and $1/M blended price ~ $5M/month
-  const SCALE_FACTOR = 1400;
+  // Log-normalize price so it matters but doesn't dominate
+  // $0.10 -> 0.08, $1 -> 0.23, $5 -> 0.53, $15 -> 0.90, $20 -> 1.0
+  const priceWeight = Math.log10(effectivePrice + 1) / Math.log10(20 + 1);
+
+  // Scale factor calibrated:
+  // usage=95, price=$15 (GPT-4o) -> 95^1.2 * 0.90 * 1300 ~ $200M
+  // usage=80, price=$5 (mid-tier) -> 80^1.2 * 0.53 * 1300 ~ $90M
+  const SCALE_FACTOR = 1300;
 
   const rawMarketCap =
-    Math.pow(popularityScore, 1.5) * effectivePrice * SCALE_FACTOR;
+    Math.pow(usageScore, 1.2) * priceWeight * SCALE_FACTOR;
 
-  // Round to nearest thousand
   return Math.round(rawMarketCap / 1000) * 1000;
 }
 
