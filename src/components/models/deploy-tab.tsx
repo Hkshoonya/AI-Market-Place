@@ -11,6 +11,8 @@ interface Platform {
   type: string;
   base_url: string;
   has_affiliate: boolean;
+  affiliate_url: string | null;
+  affiliate_tag: string | null;
 }
 
 interface Deployment {
@@ -31,6 +33,17 @@ interface DeployTabProps {
 }
 
 const UTM_PARAMS = "?ref=aimarketcap&utm_source=aimarketcap&utm_medium=deploy_tab";
+
+/** Returns the best URL for a platform: affiliate_url if set, otherwise base_url + UTM */
+function getPlatformUrl(platform: Platform, deployUrl?: string | null): string {
+  if (platform.affiliate_url) return platform.affiliate_url;
+  return `${deployUrl || platform.base_url}${UTM_PARAMS}`;
+}
+
+/** Returns proper rel attribute: sponsored for affiliate links */
+function getLinkRel(platform: Platform): string {
+  return platform.affiliate_url ? "noopener sponsored" : "noopener noreferrer";
+}
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   api: <Zap className="h-4 w-4" />,
@@ -136,6 +149,11 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                               BEST VALUE
                             </span>
                           )}
+                          {platform.affiliate_url && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
+                              Partner
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground capitalize">{platform.type.replace("-", " ")}</td>
@@ -157,9 +175,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                       </td>
                       <td className="px-4 py-3 text-right">
                         <a
-                          href={`${d.deploy_url || platform.base_url}${UTM_PARAMS}`}
+                          href={getPlatformUrl(platform, d.deploy_url)}
                           target="_blank"
-                          rel="noopener noreferrer"
+                          rel={getLinkRel(platform)}
                           className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition-colors"
                         >
                           Deploy <ExternalLink className="h-3 w-3" />
@@ -220,9 +238,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                     </div>
                   )}
                   <a
-                    href={`${platform.base_url}${UTM_PARAMS}`}
+                    href={getPlatformUrl(platform, deployment?.deploy_url)}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel={getLinkRel(platform)}
                     className="inline-flex items-center gap-1 text-xs text-[#00d4aa] hover:text-[#00d4aa]/80 transition-colors"
                   >
                     {deployment ? "Deploy" : "Visit"} <ExternalLink className="h-3 w-3" />
