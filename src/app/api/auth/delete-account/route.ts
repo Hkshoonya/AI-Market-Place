@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/auth/delete-account — soft-delete user account
+// POST /api/auth/delete-account — fully delete user account (anonymize profile + remove auth identity)
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = rateLimit(`delete-account:${ip}`, RATE_LIMITS.auth);
@@ -98,8 +99,21 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", user.id);
 
-    // 11. Sign out the user
+    // 11. Sign out the user's session
     await supabase.auth.signOut();
+
+    // 12. Fully delete the auth identity (GDPR compliance)
+    // Uses admin client (service role) to remove the user from auth.users
+    try {
+      const adminClient = createAdminClient();
+      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
+      if (deleteAuthError) {
+        console.error("Failed to delete auth user (profile already anonymized):", deleteAuthError);
+        // Don't fail the request — profile is already anonymized, auth deletion is best-effort
+      }
+    } catch (authDeleteErr) {
+      console.error("Auth user deletion threw (profile already anonymized):", authDeleteErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

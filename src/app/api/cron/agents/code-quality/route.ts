@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeAgent } from "@/lib/agents/runtime";
+import { trackCronRun } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes
@@ -13,10 +14,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const tracker = await trackCronRun("agent-code-quality");
+
   try {
     const result = await executeAgent("code-quality", "scheduled_run");
 
-    return NextResponse.json({
+    return tracker.complete({
       agent: result.agentSlug,
       taskId: result.taskId,
       success: result.success,
@@ -25,9 +28,6 @@ export async function GET(request: Request) {
       errors: result.errors,
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Agent execution failed" },
-      { status: 500 }
-    );
+    return tracker.fail(err);
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -24,16 +25,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log the contact form submission server-side for monitoring
-    console.info("[Contact Form Submission]", {
-      name,
-      email,
-      category: category || "general",
-      subject,
-      message,
-      timestamp: new Date().toISOString(),
-      ip,
-    });
+    // Persist to contact_submissions table
+    const supabase = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { error: insertError } = await sb
+      .from("contact_submissions")
+      .insert({
+        name,
+        email,
+        category: category || "general",
+        subject,
+        message,
+        metadata: { ip, user_agent: request.headers.get("user-agent") || "" },
+      });
+
+    if (insertError) {
+      console.error("[Contact Form] DB insert failed:", insertError.message);
+      // Still return success to user — log the error server-side
+      // and fall back to console logging
+      console.info("[Contact Form Submission - Fallback]", {
+        name, email, category: category || "general", subject, message,
+        timestamp: new Date().toISOString(), ip,
+      });
+    }
 
     return NextResponse.json({
       success: true,

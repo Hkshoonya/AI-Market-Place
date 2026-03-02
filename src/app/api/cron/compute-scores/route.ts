@@ -19,6 +19,7 @@ import {
   computeMarketCap,
   getProviderUsageEstimate,
 } from "@/lib/scoring/market-cap-calculator";
+import { trackCronRun } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const tracker = await trackCronRun("compute-scores");
 
   try {
     // 1. Fetch all active models
@@ -376,7 +378,7 @@ export async function GET(request: NextRequest) {
     const rankings = computeRankings(rankingInput);
     const rankMap = new Map(rankings.map((r) => [r.id, r]));
 
-    // 7. Batch update models
+    // 7. Batch update models (parallel within each batch of 50)
     let updated = 0;
     let errors = 0;
     const BATCH = 50;
@@ -384,9 +386,8 @@ export async function GET(request: NextRequest) {
     for (let i = 0; i < scoredModels.length; i += BATCH) {
       const batch = scoredModels.slice(i, i + BATCH);
 
-      for (const sm of batch) {
+      const promises = batch.map((sm) => {
         const rank = rankMap.get(sm.id);
-        const mentions = newsMentionMap.get(sm.id) ?? 0;
 
         const updateData: Record<string, unknown> = {
           quality_score: sm.qualityScore,
@@ -419,49 +420,57 @@ export async function GET(request: NextRequest) {
           updateData.market_cap_estimate = mktCap;
         }
 
-        const { error } = await supabase
+        return supabase
           .from("models")
           .update(updateData)
-          .eq("id", sm.id);
+          .eq("id", sm.id)
+          .then(({ error }) => ({ error }));
+      });
 
-        if (error) {
-          errors++;
-        } else {
-          updated++;
-        }
+      const results = await Promise.all(promises);
+      for (const r of results) {
+        if (r.error) errors++;
+        else updated++;
       }
     }
 
-    // 8. Create model_snapshots for trend tracking
+    // 8. Create model_snapshots for trend tracking (parallel batches)
     const today = new Date().toISOString().split("T")[0];
     let snapshotsCreated = 0;
+    const modelMap = new Map(models.map((m) => [m.id, m]));
 
-    for (const sm of scoredModels) {
-      const m = models.find((x) => x.id === sm.id);
-      if (!m) continue;
+    for (let i = 0; i < scoredModels.length; i += BATCH) {
+      const batch = scoredModels.slice(i, i + BATCH);
 
-      const rank = rankMap.get(sm.id);
+      const snapPromises = batch.map((sm) => {
+        const m = modelMap.get(sm.id);
+        if (!m) return Promise.resolve({ error: null, skipped: true });
 
-      const { error: snapError } = await supabase.from("model_snapshots").upsert(
-        {
-          model_id: sm.id,
-          snapshot_date: today,
-          quality_score: sm.qualityScore,
-          hf_downloads: m.hf_downloads,
-          hf_likes: m.hf_likes,
-          overall_rank: rank?.overall_rank ?? null,
-          popularity_score: popularityMap.get(sm.id) ?? null,
-          market_cap_estimate: marketCapMap.get(sm.id) ?? null,
-          agent_score: agentScoreMap.get(sm.id) ?? null,
-        },
-        { onConflict: "model_id,snapshot_date" }
-      );
+        const rank = rankMap.get(sm.id);
 
-      if (!snapError) snapshotsCreated++;
+        return supabase.from("model_snapshots").upsert(
+          {
+            model_id: sm.id,
+            snapshot_date: today,
+            quality_score: sm.qualityScore,
+            hf_downloads: m.hf_downloads,
+            hf_likes: m.hf_likes,
+            overall_rank: rank?.overall_rank ?? null,
+            popularity_score: popularityMap.get(sm.id) ?? null,
+            market_cap_estimate: marketCapMap.get(sm.id) ?? null,
+            agent_score: agentScoreMap.get(sm.id) ?? null,
+          },
+          { onConflict: "model_id,snapshot_date" }
+        ).then(({ error }) => ({ error, skipped: false }));
+      });
+
+      const snapResults = await Promise.all(snapPromises);
+      for (const r of snapResults) {
+        if (!r.skipped && !r.error) snapshotsCreated++;
+      }
     }
 
-    return NextResponse.json({
-      ok: true,
+    return tracker.complete({
       totalModels: models.length,
       scored: scoredModels.filter((s) => s.qualityScore > 0).length,
       ranked: rankings.length,
@@ -478,9 +487,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     console.error("[compute-scores] Error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
-    );
+    return tracker.fail(err);
   }
 }
