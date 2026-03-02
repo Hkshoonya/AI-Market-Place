@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
           pricing_model: pricingModel,
           input_price_per_million: curatedPrice.inputPricePerMillion,
           output_price_per_million: curatedPrice.outputPricePerMillion,
-          blended_price_per_million: curatedPrice.inputPricePerMillion,
+          blended_price_per_million: curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4,
           source: curatedPrice.source,
           updated_at: new Date().toISOString(),
         },

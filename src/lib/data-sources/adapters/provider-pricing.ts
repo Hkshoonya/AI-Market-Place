@@ -109,17 +109,32 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
 
 /**
  * Look up pricing for a model by slug.
- * Tries exact match first, then partial match.
+ * Tries exact match first, then checks if the model slug contains a known pricing key.
+ * Only matches in one direction (model slug contains known key) to avoid
+ * short slugs like "o1" matching unrelated models like "audio-1".
  */
 export function lookupProviderPrice(slug: string): ProviderPrice | null {
   // Exact match
   if (KNOWN_PRICES[slug]) return KNOWN_PRICES[slug];
 
-  // Partial match -- model slug may include version suffixes or provider prefixes
+  // Normalize slug for matching
   const normalizedSlug = slug.toLowerCase().replace(/[_\s]/g, "-");
-  for (const [key, price] of Object.entries(KNOWN_PRICES)) {
-    if (normalizedSlug.includes(key) || key.includes(normalizedSlug)) {
-      return price;
+  if (KNOWN_PRICES[normalizedSlug]) return KNOWN_PRICES[normalizedSlug];
+
+  // Partial match: model slug contains a known pricing key at a word boundary.
+  // Sort keys by length descending so longer (more specific) keys match first.
+  const sortedKeys = Object.keys(KNOWN_PRICES).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    // Only match if the known key appears as a suffix or standalone segment in the slug
+    // e.g. "anthropic-claude-4-opus" contains "claude-4-opus" ✓
+    // but "gpt-4-1" should NOT match "o1" via key.includes(normalizedSlug)
+    if (
+      normalizedSlug === key ||
+      normalizedSlug.endsWith("-" + key) ||
+      normalizedSlug.startsWith(key + "-") ||
+      normalizedSlug.includes("-" + key + "-")
+    ) {
+      return KNOWN_PRICES[key];
     }
   }
 

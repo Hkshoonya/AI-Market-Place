@@ -180,10 +180,53 @@ function mergeModalities(arch: OpenRouterArchitecture | undefined): string[] {
 }
 
 /**
+ * Known open-weight model provider prefixes on OpenRouter.
+ * Models from these providers are typically released with open weights.
+ */
+const OPEN_WEIGHT_PROVIDERS = new Set([
+  "meta-llama", "mistralai", "qwen", "deepseek", "google",
+  "microsoft", "nvidia", "01-ai", "nousresearch",
+  "cognitivecomputations", "thudm", "bigcode", "stabilityai",
+  "tiiuae", "databricks", "sophosympatheia", "neversleep",
+  "sao10k", "thedrummer", "eva-unit-01", "featherless",
+  "mancer", "lynn", "liquid", "bytedance-seed",
+]);
+
+/** Providers that are always proprietary / closed weights */
+const PROPRIETARY_PROVIDERS = new Set([
+  "openai", "anthropic", "cohere", "inflection",
+  "perplexity", "x-ai", "amazon",
+]);
+
+/**
+ * Infer whether a model has open weights based on provider prefix and description.
+ */
+function inferOpenWeights(id: string, description: string | undefined): boolean {
+  const prefix = id.split("/")[0];
+  if (PROPRIETARY_PROVIDERS.has(prefix)) return false;
+  if (OPEN_WEIGHT_PROVIDERS.has(prefix)) return true;
+
+  // Google models: Gemma is open, Gemini is not
+  if (prefix === "google") {
+    const modelPart = id.split("/")[1] ?? "";
+    return modelPart.toLowerCase().startsWith("gemma");
+  }
+
+  // Check description for open-weight signals
+  const desc = (description ?? "").toLowerCase();
+  if (desc.includes("open weight") || desc.includes("open-weight") || desc.includes("apache") || desc.includes("mit license")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Build the models table record for a single OpenRouter model entry.
  */
 function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> {
   const arch = model.architecture ?? {};
+  const isOpen = inferOpenWeights(model.id, model.description);
 
   return {
     slug: makeSlug(model.id),
@@ -195,8 +238,8 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     context_window: model.context_length ?? null,
     release_date: unixToDateString(model.created),
     is_api_available: true,
-    is_open_weights: false,
-    license: "commercial",
+    is_open_weights: isOpen,
+    license: isOpen ? "open" : "commercial",
     modalities: mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),
@@ -372,73 +415,34 @@ const adapter: DataSourceAdapter = {
       const outputPricePerMillion = completionPrice * 1_000_000;
       const isFree = promptPrice === 0 && completionPrice === 0;
 
+      const blendedPrice = inputPricePerMillion * 0.6 + outputPricePerMillion * 0.4;
+
       const pricingRecord = {
         model_id: found.id as string,
         provider_name: "OpenRouter",
         pricing_model: "token_based",
         input_price_per_million: inputPricePerMillion,
         output_price_per_million: outputPricePerMillion,
+        blended_price_per_million: blendedPrice,
         source: "openrouter",
         is_free_tier: isFree,
         currency: "USD",
         effective_date: new Date().toISOString().split("T")[0],
       };
 
-      // model_pricing has no UNIQUE constraint on (model_id, provider_name),
-      // so we check for an existing row and update it, or insert if absent.
-      const { data: existingPricing, error: pricingLookupError } = await sb
+      // model_pricing has UNIQUE constraint on (model_id, provider_name) — use upsert
+      const { error: upsertError } = await sb
         .from("model_pricing")
-        .select("id")
-        .eq("model_id", found.id)
-        .eq("provider_name", "OpenRouter")
-        .limit(1)
-        .maybeSingle();
+        .upsert(pricingRecord, { onConflict: "model_id,provider_name" });
 
-      if (pricingLookupError) {
+      if (upsertError) {
         errors.push({
-          message: `Pricing lookup failed for ${model.id}: ${pricingLookupError.message}`,
+          message: `Pricing upsert failed for ${model.id}: ${upsertError.message}`,
           context: `model_id=${found.id}`,
         });
         pricingSkipped++;
-        continue;
-      }
-
-      if (existingPricing?.id) {
-        // Update the existing pricing row
-        const { error: updateError } = await sb
-          .from("model_pricing")
-          .update({
-            input_price_per_million: inputPricePerMillion,
-            output_price_per_million: outputPricePerMillion,
-            is_free_tier: isFree,
-            effective_date: pricingRecord.effective_date,
-          })
-          .eq("id", existingPricing.id);
-
-        if (updateError) {
-          errors.push({
-            message: `Pricing update failed for ${model.id}: ${updateError.message}`,
-            context: `model_id=${found.id}`,
-          });
-          pricingSkipped++;
-        } else {
-          pricingInserted++;
-        }
       } else {
-        // Insert a new pricing row
-        const { error: insertError } = await sb
-          .from("model_pricing")
-          .insert(pricingRecord);
-
-        if (insertError) {
-          errors.push({
-            message: `Pricing insert failed for ${model.id}: ${insertError.message}`,
-            context: `model_id=${found.id}`,
-          });
-          pricingSkipped++;
-        } else {
-          pricingInserted++;
-        }
+        pricingInserted++;
       }
     }
 
