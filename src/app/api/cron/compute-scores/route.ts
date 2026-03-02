@@ -3,9 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import {
   calculateQualityScore,
   computeNormalizationStats,
-  computeRankings,
   type QualityInputs,
 } from "@/lib/scoring/quality-calculator";
+import { computeCapabilityScore, type CapabilityInputs } from "@/lib/scoring/capability-calculator";
+import { computeUsageScore, computeUsageNormStats, type UsageInputs } from "@/lib/scoring/usage-calculator";
+import { computeExpertScore, computeExpertNormStats, type ExpertInputs } from "@/lib/scoring/expert-calculator";
+import { computeBalancedRankings } from "@/lib/scoring/balanced-calculator";
 import { lookupProviderPrice } from "@/lib/data-sources/adapters/provider-pricing";
 import {
   computeAgentBenchmarkWeights,
@@ -20,6 +23,7 @@ import {
   getProviderUsageEstimate,
 } from "@/lib/scoring/market-cap-calculator";
 import { trackCronRun } from "@/lib/cron-tracker";
+import { getStaleSourceCount, buildSignalCoverage } from "@/lib/pipeline-health";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -173,7 +177,7 @@ export async function GET(request: NextRequest) {
         : paramCount;
 
       const inputs: QualityInputs = {
-        existingScore: null, // No longer blending with external AA scores
+        existingScore: null,
         hfDownloads: m.hf_downloads as number | null,
         hfLikes: m.hf_likes as number | null,
         avgBenchmarkScore: avgBenchmark,
@@ -198,16 +202,13 @@ export async function GET(request: NextRequest) {
     }
 
     // 5b. Sync curated pricing to model_pricing table
-    // This ensures the UI (which reads model_pricing) shows correct prices
     let pricingSynced = 0;
     const { data: allPricing } = await supabase
       .from("model_pricing")
       .select("model_id, input_price_per_million, provider_name")
       .not("input_price_per_million", "is", null);
 
-    // Build cheapest-price map from DB pricing
     const cheapestPriceMap = new Map<string, number>();
-    // Track which models already have pricing rows from their official provider
     const modelsWithOfficialPricing = new Set<string>();
     for (const p of allPricing ?? []) {
       const price = Number(p.input_price_per_million);
@@ -220,8 +221,6 @@ export async function GET(request: NextRequest) {
       modelsWithOfficialPricing.add(p.model_id);
     }
 
-    // Sync curated pricing → model_pricing (ALWAYS upsert — curated is authoritative)
-    // OpenRouter pricing may include markup; official provider pricing is preferred.
     for (const m of models) {
       const curatedPrice = lookupProviderPrice(m.slug as string);
       if (!curatedPrice) continue;
@@ -245,7 +244,6 @@ export async function GET(request: NextRequest) {
       );
 
       if (!upsertErr) {
-        // Update cheapest price map — curated price is authoritative
         const price = curatedPrice.inputPricePerMillion;
         if (price > 0) {
           const existing = cheapestPriceMap.get(m.id);
@@ -257,13 +255,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Blend with curated provider pricing for models that have slugs
+    // Value metric computation
     const valueMetricMap = new Map<string, number>();
     for (const m of models) {
       const sm = scoredModels.find((s) => s.id === m.id);
       if (!sm || sm.qualityScore <= 0) continue;
 
-      // Try curated pricing first, then DB pricing
       const curatedPrice = lookupProviderPrice(m.slug as string);
       const dbPrice = cheapestPriceMap.get(m.id);
       const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? null;
@@ -274,7 +271,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Normalize value metrics to 0-100 scale using log normalization
     let maxValueMetric = 0;
     for (const vm of valueMetricMap.values()) {
       if (vm > maxValueMetric) maxValueMetric = vm;
@@ -288,7 +284,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 5c. Compute agent scores
-    // Gather all agent benchmark scores
     const agentScoresInput: Array<{ benchmarkSlug: string; modelId: string }> = [];
     const modelAgentScoresMap = new Map<string, AgentBenchmarkScore[]>();
     const allAgentScoresForRanking = new Map<string, number[]>();
@@ -304,7 +299,6 @@ export async function GET(request: NextRequest) {
             score: d.score,
             scoreNormalized: d.score,
           });
-          // Build ranking distribution
           if (!allAgentScoresForRanking.has(canonical)) {
             allAgentScoresForRanking.set(canonical, []);
           }
@@ -325,11 +319,95 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Compute agent ranks
     const agentRankedModels = Array.from(agentScoreMap.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([id], i) => ({ id, rank: i + 1 }));
     const agentRankMap = new Map(agentRankedModels.map((r) => [r.id, r.rank]));
+
+    // --- LENS 1: Capability scores ---
+    const capabilityScoreMap = new Map<string, number | null>();
+    for (const m of models) {
+      const capInputs: CapabilityInputs = {
+        benchmarkScores: benchmarkDetailMap.get(m.id) ?? null,
+        eloScore: eloMap.get(m.id) ?? null,
+        releaseDate: m.release_date as string | null,
+        category: (m.category as string) ?? "other",
+      };
+      capabilityScoreMap.set(m.id, computeCapabilityScore(capInputs));
+    }
+
+    // Capability ranks (only ranked models)
+    const capRanked = Array.from(capabilityScoreMap.entries())
+      .filter(([, score]) => score != null)
+      .sort((a, b) => b[1]! - a[1]!)
+      .map(([id], i) => ({ id, rank: i + 1 }));
+    const capRankMap = new Map(capRanked.map(r => [r.id, r.rank]));
+
+    // --- LENS 2: Usage scores (with split normalization) ---
+    const usageInputsList: Array<UsageInputs & { id: string }> = models.map((m) => ({
+      id: m.id,
+      downloads: (m.hf_downloads as number) ?? 0,
+      likes: (m.hf_likes as number) ?? 0,
+      stars: (m.github_stars as number) ?? 0,
+      newsMentions: newsMentionMap.get(m.id) ?? 0,
+      providerUsageEstimate: getProviderUsageEstimate((m.provider as string) ?? ""),
+      trendingScore: m.hf_trending_score ? Number(m.hf_trending_score) : 0,
+      isOpenWeights: !!(m.is_open_weights),
+    }));
+    const usageNormStats = computeUsageNormStats(usageInputsList);
+    const usageScoreMap = new Map<string, number>();
+    for (const input of usageInputsList) {
+      usageScoreMap.set(input.id, computeUsageScore(input, usageNormStats));
+    }
+
+    // Usage ranks
+    const usageRanked = Array.from(usageScoreMap.entries())
+      .filter(([, score]) => score > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id], i) => ({ id, rank: i + 1 }));
+    const usageRankMap = new Map(usageRanked.map(r => [r.id, r.rank]));
+
+    // --- LENS 3: Expert consensus scores ---
+    const expertNormInput = models.map((m) => ({
+      hfLikes: (m.hf_likes as number) ?? 0,
+      githubStars: (m.github_stars as number) ?? 0,
+      newsMentions: newsMentionMap.get(m.id) ?? 0,
+    }));
+    const expertNormStats = computeExpertNormStats(expertNormInput);
+    const expertScoreMap = new Map<string, number>();
+    for (const m of models) {
+      const benchScores = benchmarkMap.get(m.id);
+      const avgBenchmark = benchScores && benchScores.length > 0
+        ? benchScores.reduce((a, b) => a + b, 0) / benchScores.length
+        : null;
+      const provider = (m.provider as string) ?? "";
+
+      const expertInputs: ExpertInputs = {
+        avgBenchmarkScore: avgBenchmark,
+        benchmarkScores: benchmarkDetailMap.get(m.id) ?? null,
+        eloScore: eloMap.get(m.id) ?? null,
+        hfLikes: (m.hf_likes as number) ?? null,
+        githubStars: (m.github_stars as number) ?? null,
+        newsMentions: newsMentionMap.get(m.id) ?? 0,
+        providerAvgBenchmark: providerBenchmarkAvg.get(provider) ?? null,
+        releaseDate: m.release_date as string | null,
+        isOpenWeights: !!(m.is_open_weights),
+      };
+      expertScoreMap.set(m.id, computeExpertScore(expertInputs, expertNormStats));
+    }
+
+    // Expert ranks
+    const expertRanked = Array.from(expertScoreMap.entries())
+      .filter(([, score]) => score > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id], i) => ({ id, rank: i + 1 }));
+    const expertRankMap = new Map(expertRanked.map(r => [r.id, r.rank]));
+
+    // --- Pipeline health check ---
+    const staleCount = await getStaleSourceCount();
+    if (staleCount > 3) {
+      console.warn(`[compute-scores] WARNING: ${staleCount} data sources are stale`);
+    }
 
     // 5d. Compute popularity scores and market cap
     const popularityInputs = models.map((m) => ({
@@ -350,13 +428,14 @@ export async function GET(request: NextRequest) {
       const popScore = computePopularityScore(input, popStats);
       popularityMap.set(input.id, popScore);
 
-      // Get blended API price for market cap
+      // Market cap now uses usage lens score (not raw popularity)
       const m = models.find((x) => x.id === input.id);
       const curatedPrice = m ? lookupProviderPrice(m.slug as string) : null;
       const dbPrice = cheapestPriceMap.get(input.id);
       const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? 0;
-      const blendedPrice = inputPrice; // Use input price as proxy for blended
-      const mktCap = computeMarketCap(popScore, blendedPrice);
+      const blendedPrice = inputPrice;
+      const uScore = usageScoreMap.get(input.id) ?? 0;
+      const mktCap = computeMarketCap(uScore, blendedPrice);
       if (mktCap > 0) {
         marketCapMap.set(input.id, mktCap);
       }
@@ -369,14 +448,26 @@ export async function GET(request: NextRequest) {
       .map(([id], i) => ({ id, rank: i + 1 }));
     const popRankMap = new Map(popRankedModels.map((r) => [r.id, r.rank]));
 
-    // 6. Compute rankings (market cap + quality + popularity composite)
-    const rankingInput = scoredModels.map((sm) => ({
-      ...sm,
-      marketCap: marketCapMap.get(sm.id) ?? 0,
-      popularityScore: popularityMap.get(sm.id) ?? 0,
+    // --- LENS 4: Balanced composite rankings ---
+    // Pre-compute value ranks (sorted descending by value score)
+    const valueRankMap = new Map<string, number>();
+    const valueSorted = Array.from(normalizedValueMap.entries())
+      .sort((a, b) => b[1] - a[1]);
+    valueSorted.forEach(([id], i) => { valueRankMap.set(id, i + 1); });
+
+    const defaultRank = models.length;
+    const balancedInput = models.map((m) => ({
+      id: m.id,
+      category: (m.category as string) ?? "other",
+      capabilityRank: capRankMap.get(m.id) ?? null,
+      usageRank: usageRankMap.get(m.id) ?? defaultRank,
+      expertRank: expertRankMap.get(m.id) ?? defaultRank,
+      valueRank: valueRankMap.get(m.id) ?? null,
     }));
-    const rankings = computeRankings(rankingInput);
-    const rankMap = new Map(rankings.map((r) => [r.id, r]));
+    const balancedRankings = computeBalancedRankings(balancedInput);
+    const balancedRankMap = new Map(
+      balancedRankings.map(r => [r.id, { overall: r.balanced_rank, category: r.category_balanced_rank }])
+    );
 
     // 7. Batch update models (parallel within each batch of 50)
     let updated = 0;
@@ -387,16 +478,27 @@ export async function GET(request: NextRequest) {
       const batch = scoredModels.slice(i, i + BATCH);
 
       const promises = batch.map((sm) => {
-        const rank = rankMap.get(sm.id);
-
         const updateData: Record<string, unknown> = {
           quality_score: sm.qualityScore,
           popularity_score: popularityMap.get(sm.id) ?? 0,
         };
 
-        if (rank) {
-          updateData.overall_rank = rank.overall_rank;
-          updateData.category_rank = rank.category_rank;
+        // Lens scores
+        const capScore = capabilityScoreMap.get(sm.id);
+        if (capScore != null) {
+          updateData.capability_score = capScore;
+          updateData.capability_rank = capRankMap.get(sm.id) ?? null;
+        }
+        updateData.usage_score = usageScoreMap.get(sm.id) ?? 0;
+        updateData.usage_rank = usageRankMap.get(sm.id) ?? null;
+        updateData.expert_score = expertScoreMap.get(sm.id) ?? 0;
+        updateData.expert_rank = expertRankMap.get(sm.id) ?? null;
+
+        const balRank = balancedRankMap.get(sm.id);
+        if (balRank) {
+          updateData.balanced_rank = balRank.overall;
+          updateData.overall_rank = balRank.overall;
+          updateData.category_rank = balRank.category;
         }
 
         // Store normalized value score (0-100) or null if no pricing
@@ -446,7 +548,17 @@ export async function GET(request: NextRequest) {
         const m = modelMap.get(sm.id);
         if (!m) return Promise.resolve({ error: null, skipped: true });
 
-        const rank = rankMap.get(sm.id);
+        const balRank = balancedRankMap.get(sm.id);
+
+        const signalCoverage = buildSignalCoverage({
+          hasBenchmarks: benchmarkMap.has(sm.id),
+          hasELO: eloMap.has(sm.id),
+          hasDownloads: !!m.hf_downloads,
+          hasLikes: !!m.hf_likes,
+          hasStars: !!m.github_stars,
+          hasNews: (newsMentionMap.get(sm.id) ?? 0) > 0,
+          hasPricing: cheapestPriceMap.has(sm.id),
+        });
 
         return supabase.from("model_snapshots").upsert(
           {
@@ -455,10 +567,14 @@ export async function GET(request: NextRequest) {
             quality_score: sm.qualityScore,
             hf_downloads: m.hf_downloads,
             hf_likes: m.hf_likes,
-            overall_rank: rank?.overall_rank ?? null,
+            overall_rank: balRank?.overall ?? null,
             popularity_score: popularityMap.get(sm.id) ?? null,
             market_cap_estimate: marketCapMap.get(sm.id) ?? null,
             agent_score: agentScoreMap.get(sm.id) ?? null,
+            capability_score: capabilityScoreMap.get(sm.id) ?? null,
+            usage_score: usageScoreMap.get(sm.id) ?? null,
+            expert_score: expertScoreMap.get(sm.id) ?? null,
+            signal_coverage: signalCoverage,
           },
           { onConflict: "model_id,snapshot_date" }
         ).then(({ error }) => ({ error, skipped: false }));
@@ -473,7 +589,7 @@ export async function GET(request: NextRequest) {
     return tracker.complete({
       totalModels: models.length,
       scored: scoredModels.filter((s) => s.qualityScore > 0).length,
-      ranked: rankings.length,
+      ranked: balancedRankings.length,
       updated,
       errors,
       snapshotsCreated,
@@ -482,6 +598,10 @@ export async function GET(request: NextRequest) {
       modelsWithAgentScore: agentScoreMap.size,
       modelsWithPopularity: popularityMap.size,
       modelsWithMarketCap: marketCapMap.size,
+      modelsWithCapabilityScore: capRanked.length,
+      modelsWithUsageScore: usageRanked.length,
+      modelsWithExpertScore: expertRanked.length,
+      staleDataSources: staleCount,
       pricingSynced,
       stats,
     });

@@ -30,6 +30,13 @@ interface RankableModel {
   agent_rank: number | null;
   popularity_rank: number | null;
   market_cap_estimate: number | null;
+  capability_score: number | null;
+  capability_rank: number | null;
+  usage_score: number | null;
+  usage_rank: number | null;
+  expert_score: number | null;
+  expert_rank: number | null;
+  balanced_rank: number | null;
 }
 
 interface RankingWeightControlsProps {

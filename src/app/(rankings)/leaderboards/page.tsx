@@ -40,7 +40,7 @@ export default async function LeaderboardsPage() {
   // Fetch ALL ranked models for the explorer (client component)
   const { data: explorerModelsRaw } = await supabase
     .from("models")
-    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate")
+    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
     .eq("status", "active")
     .not("overall_rank", "is", null)
     .order("overall_rank", { ascending: true })
@@ -64,6 +64,13 @@ export default async function LeaderboardsPage() {
     agent_rank: m.agent_rank as number | null,
     popularity_rank: m.popularity_rank as number | null,
     market_cap_estimate: m.market_cap_estimate ? Number(m.market_cap_estimate) : null,
+    capability_score: m.capability_score ? Number(m.capability_score) : null,
+    capability_rank: m.capability_rank as number | null,
+    usage_score: m.usage_score ? Number(m.usage_score) : null,
+    usage_rank: m.usage_rank as number | null,
+    expert_score: m.expert_score ? Number(m.expert_score) : null,
+    expert_rank: m.expert_rank as number | null,
+    balanced_rank: m.balanced_rank as number | null,
   }));
 
   // Fetch speed-ranked models

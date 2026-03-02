@@ -12,6 +12,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import RankingWeightControls from "./ranking-weight-controls";
+import { cn } from "@/lib/utils";
 
 interface LeaderboardModel {
   name: string;
@@ -29,6 +30,41 @@ interface LeaderboardModel {
   agent_rank: number | null;
   popularity_rank: number | null;
   market_cap_estimate: number | null;
+  // Lens fields
+  capability_score: number | null;
+  capability_rank: number | null;
+  usage_score: number | null;
+  usage_rank: number | null;
+  expert_score: number | null;
+  expert_rank: number | null;
+  balanced_rank: number | null;
+}
+
+type RankingLens = "capability" | "usage" | "expert" | "balanced";
+
+const LENS_TABS = [
+  { value: "capability" as const, label: "Capability", description: "Pure benchmark performance" },
+  { value: "usage" as const, label: "Usage", description: "What people actually use" },
+  { value: "expert" as const, label: "Expert", description: "Research consensus" },
+  { value: "balanced" as const, label: "Balanced", description: "Composite of all signals" },
+];
+
+function getLensRank(model: LeaderboardModel, lens: RankingLens): number | null {
+  switch (lens) {
+    case "capability": return model.capability_rank;
+    case "usage": return model.usage_rank;
+    case "expert": return model.expert_rank;
+    case "balanced": return model.balanced_rank;
+  }
+}
+
+function getLensScore(model: LeaderboardModel, lens: RankingLens): number | null {
+  switch (lens) {
+    case "capability": return model.capability_score;
+    case "usage": return model.usage_score;
+    case "expert": return model.expert_score;
+    case "balanced": return model.quality_score;
+  }
 }
 
 interface LeaderboardExplorerProps {
@@ -72,8 +108,9 @@ function ScoreBar({ value, max = 100 }: { value: number | null; max?: number }) 
 }
 
 export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps) {
+  const [activeLens, setActiveLens] = useState<RankingLens>("capability");
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "overall_rank", desc: false },
+    { id: "rank", desc: false },
   ]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,11 +136,10 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
   const columns = useMemo<ColumnDef<LeaderboardModel>[]>(
     () => [
       {
-        id: "overall_rank",
-        accessorKey: "overall_rank",
+        id: "rank",
+        accessorFn: (row) => getLensRank(row, activeLens),
         header: "#",
         cell: ({ row, table: tbl }) => {
-          // Show positional rank based on current sort order + pagination
           const pageIndex = tbl.getState().pagination.pageIndex;
           const pageSize = tbl.getState().pagination.pageSize;
           const displayRank = row.index + 1 + pageIndex * pageSize;
@@ -160,9 +196,9 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         size: 100,
       },
       {
-        id: "quality_score",
-        accessorKey: "quality_score",
-        header: "Quality",
+        id: "lens_score",
+        accessorFn: (row) => getLensScore(row, activeLens),
+        header: LENS_TABS.find(l => l.value === activeLens)?.label ?? "Score",
         cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
         size: 140,
       },
@@ -237,7 +273,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         size: 90,
       },
     ],
-    []
+    [activeLens]
   );
 
   const table = useReactTable({
@@ -255,6 +291,28 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
 
   return (
     <div>
+      {/* Lens Toggle */}
+      <div className="flex gap-2 mb-4">
+        {LENS_TABS.map((lens) => (
+          <button
+            key={lens.value}
+            onClick={() => {
+              setActiveLens(lens.value);
+              setSorting([{ id: "rank", desc: false }]);
+            }}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+              activeLens === lens.value
+                ? "bg-white text-black"
+                : "bg-white/10 text-white/60 hover:bg-white/20"
+            )}
+            title={lens.description}
+          >
+            {lens.label}
+          </button>
+        ))}
+      </div>
+
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Category tabs */}
@@ -341,7 +399,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
                       className="px-4 py-2.5"
                       style={{ width: cell.column.getSize() }}
                     >
-                      {cell.column.id === "overall_rank" ? (
+                      {cell.column.id === "rank" ? (
                         <span
                           className={`text-xs font-bold tabular-nums ${
                             displayRank <= 3 ? "text-[#f5a623]" : displayRank <= 10 ? "text-[#00d4aa]" : "text-white/50"
