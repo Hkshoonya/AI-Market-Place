@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -54,7 +55,15 @@ export async function GET(request: NextRequest) {
     .eq("user_id", user.id)
     .eq("is_read", false);
 
-  return NextResponse.json({ data: data ?? [], unreadCount: unreadCount ?? 0 });
+  // Sanitize notification links: must be relative paths
+  const sanitized = (data ?? []).map((n: any) => ({
+    ...n,
+    link: n.link && typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//")
+      ? n.link
+      : null,
+  }));
+
+  return NextResponse.json({ data: sanitized, unreadCount: unreadCount ?? 0 });
 }
 
 // PATCH /api/notifications — mark notifications as read
@@ -83,7 +92,18 @@ export async function PATCH(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { ids, markAll } = body;
+  const { markAll } = body;
+
+  // Validate ids array if provided
+  const idsSchema = z.array(z.string().uuid()).max(100);
+  let ids: string[] | undefined;
+  if (body.ids) {
+    const parsed = idsSchema.safeParse(body.ids);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid ids array" }, { status: 400 });
+    }
+    ids = parsed.data;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;

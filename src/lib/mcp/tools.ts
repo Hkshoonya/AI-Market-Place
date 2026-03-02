@@ -6,6 +6,9 @@
 
 import type { McpTool } from "./types";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
+import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
+import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 
 export const MCP_TOOLS: McpTool[] = [
   {
@@ -80,6 +83,18 @@ export const MCP_TOOLS: McpTool[] = [
   {
     name: "create_order",
     description: "Place an order on a marketplace listing (requires 'write' scope)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        listing_id: { type: "string", description: "Listing UUID" },
+        message: { type: "string", description: "Optional message to seller" },
+      },
+      required: ["listing_id"],
+    },
+  },
+  {
+    name: "purchase",
+    description: "Purchase a marketplace listing with wallet balance, escrow, and auto-delivery",
     inputSchema: {
       type: "object",
       properties: {
@@ -248,6 +263,7 @@ export async function executeTool(
         .from("marketplace_listings")
         .select("*")
         .eq("slug", slug)
+        .eq("status", "active")
         .single();
 
       if (error || !rawListing) throw new Error(`Listing not found: ${slug}`);
@@ -266,6 +282,7 @@ export async function executeTool(
       return data;
     }
 
+    case "purchase":
     case "create_order": {
       const scopes = (keyRecord?.scopes as string[]) ?? [];
       if (!scopes.includes("write") && !scopes.includes("marketplace")) {
@@ -275,19 +292,33 @@ export async function executeTool(
       const listingId = params.listing_id as string;
       if (!listingId) throw new Error("listing_id is required");
 
-      // Get listing
+      // Get listing (must be active)
       const { data: listing, error: listErr } = await sb
         .from("marketplace_listings")
-        .select("id, seller_id, price, status")
+        .select("id, seller_id, price, pricing_type, listing_type, status")
         .eq("id", listingId)
+        .eq("status", "active")
         .single();
 
-      if (listErr || !listing) throw new Error("Listing not found");
-      if (listing.status !== "active") throw new Error("Listing is not active");
+      if (listErr || !listing) throw new Error("Listing not found or not active");
 
       const ownerId = (keyRecord?.owner_id as string) ?? "";
       if (listing.seller_id === ownerId) throw new Error("Cannot order your own listing");
 
+      const price = listing.price ?? 0;
+
+      // Wallet & balance check
+      const wallet = await getOrCreateWallet(ownerId);
+      if (price > 0) {
+        const balance = await getWalletBalance(wallet.id);
+        if (balance.available < price) {
+          throw new Error(
+            `Insufficient wallet balance. Required: ${price}, available: ${balance.available}`
+          );
+        }
+      }
+
+      // Create order record
       const { data: order, error: orderErr } = await sb
         .from("marketplace_orders")
         .insert({
@@ -296,13 +327,56 @@ export async function executeTool(
           seller_id: listing.seller_id,
           status: "pending",
           message: (params.message as string) ?? null,
-          price_at_time: listing.price,
+          price_at_time: price,
         })
         .select("id, status, price_at_time, created_at")
         .single();
 
       if (orderErr) throw new Error(`Order failed: ${orderErr.message}`);
-      return order;
+
+      // Create escrow hold if price > 0
+      let escrowId: string | null = null;
+      if (price > 0) {
+        const escrowResult = await createPurchaseEscrow(
+          ownerId,
+          listing.seller_id,
+          price,
+          order.id
+        );
+        escrowId = escrowResult.escrowId;
+      }
+
+      // Auto-deliver for one_time or free listings
+      let delivery = null;
+      const pricingType = listing.pricing_type ?? "one_time";
+      if (pricingType === "one_time" || pricingType === "free") {
+        try {
+          delivery = await deliverDigitalGood(order.id, listingId, ownerId);
+
+          if (delivery.success) {
+            // Mark order completed
+            await sb
+              .from("marketplace_orders")
+              .update({ status: "completed" })
+              .eq("id", order.id);
+            order.status = "completed";
+
+            // Release escrow to seller if price > 0
+            if (price > 0 && escrowId) {
+              await completePurchaseEscrow(order.id);
+            }
+          }
+        } catch (deliveryErr) {
+          // Delivery failed but order is still created -- buyer can retry
+          delivery = {
+            success: false,
+            deliveryType: "unknown",
+            error: deliveryErr instanceof Error ? deliveryErr.message : "Delivery failed",
+          };
+        }
+      }
+
+      return { ...order, escrow_id: escrowId, delivery };
     }
 
     case "list_agents": {
@@ -349,7 +423,7 @@ export async function executeTool(
       const senderId = (keyRecord?.owner_id as string) ?? "";
       const senderType = keyRecord?.agent_id ? "agent" : "user";
 
-      const conversation = await findOrCreateConversation(
+      const { conversation } = await findOrCreateConversation(
         sb, senderId, senderType as "agent" | "user",
         agent.id, "agent", (params.topic as string) ?? undefined
       );

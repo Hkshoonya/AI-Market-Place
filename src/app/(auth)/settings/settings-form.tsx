@@ -122,7 +122,32 @@ export default function SettingsForm() {
       return;
     }
 
+    if (!currentPassword) {
+      setPasswordMessage("Current password is required.");
+      setPasswordError(true);
+      return;
+    }
+
+    if (!user?.email) {
+      setPasswordMessage("Unable to verify identity. Please sign in again.");
+      setPasswordError(true);
+      return;
+    }
+
     setPasswordLoading(true);
+
+    // Verify current password first
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      setPasswordMessage("Current password is incorrect.");
+      setPasswordError(true);
+      setPasswordLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
@@ -369,6 +394,19 @@ export default function SettingsForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Current Password
+                </label>
+                <Input
+                  type="password"
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  className="mt-1 bg-secondary"
+                />
+              </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
                   New Password

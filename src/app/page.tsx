@@ -21,12 +21,12 @@ import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ProviderMarketShare } from "@/components/charts/provider-market-share";
 import { CategoryDistribution } from "@/components/charts/category-distribution";
+import TopMovers from "@/components/charts/top-movers";
+import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
-import TopMovers from "@/components/charts/top-movers";
-import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
@@ -72,89 +72,53 @@ export default async function HomePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const newModels = newModelsRaw as any[] | null;
 
-  // Get counts
-  const { count: modelCount } = await supabase
-    .from("models")
-    .select("*", { count: "exact", head: true });
-
-  const { count: benchmarkCount } = await supabase
-    .from("benchmarks")
-    .select("*", { count: "exact", head: true });
-
-  const providerResult = await supabase
-    .from("models")
-    .select("provider")
-    .eq("status", "active");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const uniqueProviders = new Set(
-    (providerResult.data as any[])?.map((m) => m.provider)
-  ).size;
-
-  // Dynamic category count from active models
-  const categoryResult = await (supabase as any)
-    .from("models")
-    .select("category")
-    .eq("status", "active");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const categoryCount = new Set(
-    (categoryResult.data as any[])?.map((m: any) => m.category).filter(Boolean)
-  ).size;
-
-  // Aggregate stats: total downloads and HF likes
-  const { data: aggregateRaw } = await supabase
-    .from("models")
-    .select("hf_downloads, hf_likes")
-    .eq("status", "active");
+  // Consolidated query: fetch key fields from all active models in one go
+  const [
+    { count: modelCount },
+    { count: benchmarkCount },
+    { data: allActiveModels },
+  ] = await Promise.all([
+    supabase.from("models").select("*", { count: "exact", head: true }),
+    supabase.from("benchmarks").select("*", { count: "exact", head: true }),
+    supabase
+      .from("models")
+      .select("provider, category, hf_downloads, hf_likes, quality_score, is_open_weights")
+      .eq("status", "active"),
+  ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const aggregateData = aggregateRaw as any[] | null;
-  const totalDownloads = (aggregateData ?? []).reduce(
+  const activeModels = (allActiveModels as any[] | null) ?? [];
+
+  // Derive all aggregates from the single query result
+  const uniqueProviders = new Set(activeModels.map((m) => m.provider)).size;
+  const categoryCount = new Set(activeModels.map((m) => m.category).filter(Boolean)).size;
+
+  const totalDownloads = activeModels.reduce(
     (sum, m) => sum + (Number(m.hf_downloads) || 0),
     0
   );
-  const totalLikes = (aggregateData ?? []).reduce(
+  const totalLikes = activeModels.reduce(
     (sum, m) => sum + (Number(m.hf_likes) || 0),
     0
   );
 
-  // Market overview aggregates
-  const { count: openWeightCount } = await supabase
-    .from("models")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active")
-    .eq("is_open_weights", true);
+  const openWeightCount = activeModels.filter((m) => m.is_open_weights).length;
 
-  const { data: qualityScoresRaw } = await supabase
-    .from("models")
-    .select("quality_score")
-    .eq("status", "active")
-    .not("quality_score", "is", null);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const qualityScores = (qualityScoresRaw as any[] | null) ?? [];
+  const qualityScores = activeModels
+    .filter((m) => m.quality_score != null)
+    .map((m) => Number(m.quality_score));
   const avgQualityScore =
     qualityScores.length > 0
-      ? qualityScores.reduce((sum, m) => sum + Number(m.quality_score), 0) / qualityScores.length
+      ? qualityScores.reduce((sum, s) => sum + s, 0) / qualityScores.length
       : 0;
 
-  // Provider market share data
-  const { data: providerCounts } = await supabase
-    .from("models")
-    .select("provider")
-    .eq("status", "active");
-
-  // Category distribution data
-  const { data: categoryCounts } = await supabase
-    .from("models")
-    .select("category")
-    .eq("status", "active");
-
-  // Aggregate provider counts
+  // Derive provider & category chart data from consolidated query
   const providerMap = new Map<string, number>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (providerCounts ?? []).forEach((m: any) => {
+  const categoryMap = new Map<string, number>();
+  for (const m of activeModels) {
     providerMap.set(m.provider, (providerMap.get(m.provider) ?? 0) + 1);
-  });
+    if (m.category) categoryMap.set(m.category, (categoryMap.get(m.category) ?? 0) + 1);
+  }
 
   const providerChartData = Array.from(providerMap.entries())
     .map(([provider, count]) => ({
@@ -163,13 +127,6 @@ export default async function HomePage() {
       color: getProviderBrand(provider)?.color ?? "#666",
     }))
     .sort((a, b) => b.count - a.count);
-
-  // Aggregate category counts
-  const categoryMap = new Map<string, number>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (categoryCounts ?? []).forEach((m: any) => {
-    categoryMap.set(m.category, (categoryMap.get(m.category) ?? 0) + 1);
-  });
 
   const categoryChartData = Array.from(categoryMap.entries())
     .map(([cat, count]) => {
@@ -202,7 +159,7 @@ export default async function HomePage() {
     <div className="relative">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       {/* 3D Hero Section — Client Component Island */}
       <HeroSection

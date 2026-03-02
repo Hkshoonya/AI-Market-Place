@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -31,14 +32,9 @@ export async function POST(
 
   const { id: auctionId } = await params;
 
-  // Authenticate
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Authenticate (session or API key)
+  const auth = await resolveAuthUser(request, ["marketplace", "write"]);
+  if (!auth) {
     return NextResponse.json(
       { error: "Authentication required. Please sign in to accept this auction." },
       { status: 401 }
@@ -46,7 +42,7 @@ export async function POST(
   }
 
   // Accept the Dutch auction
-  const result = await acceptDutchAuction(auctionId, user.id, "user");
+  const result = await acceptDutchAuction(auctionId, auth.userId, auth.authMethod === "api_key" ? "agent" : "user");
 
   if (!result.success) {
     // Determine appropriate HTTP status

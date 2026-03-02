@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          {
+            // CSP: allow self, Supabase, Clearbit logos, inline styles (needed for Next.js)
+            // TODO: remove 'unsafe-eval' when moving to production (needed for dev hot-reload)
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://logo.clearbit.com https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';",
+          },
         ],
       },
     ];

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ExternalLink,
   Package,
+  Pencil,
   RotateCcw,
   Search,
   ShoppingBag,
@@ -16,18 +17,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
+
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
-import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const PAGE_SIZE = 20;
-const supabase = createClient();
-
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -39,43 +38,22 @@ export default function AdminListingsPage() {
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
-    let query = (supabase as any)
-      .from("marketplace_listings")
-      .select("id, slug, title, listing_type, status, pricing_type, price, avg_rating, review_count, view_count, inquiry_count, is_featured, created_at, seller_id", { count: "exact" });
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (search) params.set("search", search);
+      params.set("page", String(page));
 
-    if (statusFilter !== "all") query = query.eq("status", statusFilter);
-    if (search) {
-      const safeSearch = sanitizeFilterValue(search);
-      if (safeSearch) query = query.ilike("title", `%${safeSearch}%`);
+      const res = await fetch(`/api/admin/listings?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const json = await res.json();
+      setListings(json.data ?? []);
+      setTotalCount(json.count ?? 0);
+    } catch {
+      toast.error("Failed to load listings");
+    } finally {
+      setLoading(false);
     }
-
-    query = query.order("created_at", { ascending: false });
-
-    const from = (page - 1) * PAGE_SIZE;
-    query = query.range(from, from + PAGE_SIZE - 1);
-
-    const { data: rawData, count } = await query;
-
-    // Enrich with seller profiles (no FK constraint, fetch separately)
-    let enrichedData = rawData ?? [];
-    if (enrichedData.length > 0) {
-      const sellerIds = [...new Set(enrichedData.map((l: any) => l.seller_id).filter(Boolean))];
-      if (sellerIds.length > 0) {
-        const { data: profiles } = await (supabase as any)
-          .from("profiles")
-          .select("id, display_name, username")
-          .in("id", sellerIds);
-        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-        enrichedData = enrichedData.map((l: any) => ({
-          ...l,
-          profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null,
-        }));
-      }
-    }
-
-    setListings(enrichedData as any[]);
-    setTotalCount(count ?? 0);
-    setLoading(false);
   }, [search, statusFilter, page]);
 
   useEffect(() => {
@@ -84,12 +62,15 @@ export default function AdminListingsPage() {
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     try {
+      const listing = listings.find((l) => l.id === id);
+      if (!listing) return;
       const newStatus = currentStatus === "active" ? "paused" : "active";
-      const { error } = await (supabase as any)
-        .from("marketplace_listings")
-        .update({ status: newStatus })
-        .eq("id", id);
-      if (error) throw error;
+      const res = await fetch(`/api/marketplace/listings/${listing.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Request failed");
       toast.success(`Listing ${newStatus === "active" ? "activated" : "paused"}`);
       fetchListings();
     } catch {
@@ -99,11 +80,14 @@ export default function AdminListingsPage() {
 
   const toggleFeatured = async (id: string, currentValue: boolean) => {
     try {
-      const { error } = await (supabase as any)
-        .from("marketplace_listings")
-        .update({ is_featured: !currentValue })
-        .eq("id", id);
-      if (error) throw error;
+      const listing = listings.find((l) => l.id === id);
+      if (!listing) return;
+      const res = await fetch(`/api/marketplace/listings/${listing.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_featured: !currentValue }),
+      });
+      if (!res.ok) throw new Error("Request failed");
       toast.success(currentValue ? "Listing unfeatured" : "Listing featured");
       fetchListings();
     } catch {
@@ -342,6 +326,12 @@ export default function AdminListingsPage() {
                               onConfirm={() => removeListing(l.id)}
                             />
                           )}
+                          <Link href={`/admin/listings/${l.slug}/edit`}>
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-neon hover:text-neon" aria-label={`Edit ${l.title}`}>
+                              <Pencil className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          </Link>
                           <Link href={`/marketplace/${l.slug}`}>
                             <Button variant="ghost" size="sm" className="h-7 px-2" aria-label={`View ${l.title}`}>
                               <ExternalLink className="h-3 w-3" />

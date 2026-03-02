@@ -182,7 +182,29 @@ export async function placeBid(
       updatePayload.ends_at = newEndsAt;
     }
 
-    await sb.from("auctions").update(updatePayload).eq("id", auctionId);
+    // Optimistic lock: only update if current_price hasn't changed (another bid)
+    const { data: updatedAuction, error: updateError } = await sb
+      .from("auctions")
+      .update(updatePayload)
+      .eq("id", auctionId)
+      .eq("current_price", currentPrice)
+      .select("id")
+      .single();
+
+    if (updateError || !updatedAuction) {
+      // Race condition: another bid changed the price. Refund our escrow.
+      try {
+        await refundEscrow(escrowId);
+      } catch {
+        // Best-effort refund
+      }
+      // Mark our bid as cancelled
+      await sb.from("auction_bids").update({ status: "cancelled" }).eq("id", newBid.id);
+      return {
+        success: false,
+        error: "Another bid was placed simultaneously. Your escrow has been refunded. Please try again.",
+      };
+    }
 
     return {
       success: true,
@@ -301,14 +323,20 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
     const finalPrice = Number(winningBid.bid_amount);
 
     // Update auction
-    await sb
+    // Atomic settlement: only if still active (prevents double-settlement)
+    const { error: settleError } = await sb
       .from("auctions")
       .update({
         status: "ended",
         winner_id: winningBid.bidder_id,
         final_price: finalPrice,
       })
-      .eq("id", auctionId);
+      .eq("id", auctionId)
+      .eq("status", "active");
+
+    if (settleError) {
+      return { success: false, error: "Failed to settle auction (may already be settled)" };
+    }
 
     // Mark winning bid
     await sb

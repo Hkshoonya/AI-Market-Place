@@ -40,6 +40,26 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
+  // Check for remaining wallet funds
+  const { data: wallet } = await sb
+    .from("wallets")
+    .select("balance, held_balance")
+    .eq("owner_id", user.id)
+    .eq("owner_type", "user")
+    .single();
+
+  if (wallet) {
+    const totalFunds = Number(wallet.balance || 0) + Number(wallet.held_balance || 0);
+    if (totalFunds > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete account with remaining funds ($${totalFunds.toFixed(2)}). Please withdraw your balance first.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     // Delete user data in order (respecting foreign keys)
     // 1. Delete order messages

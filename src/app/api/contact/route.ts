@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+const contactSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  email: z.string().email("Invalid email").max(320),
+  category: z.string().max(100).optional(),
+  subject: z.string().min(1, "Subject is required").max(500),
+  message: z.string().min(1, "Message is required").max(10000),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +25,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, category, subject, message } = body;
-
-    if (!name || !email || !subject || !message) {
+    const parsed = contactSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "All fields are required." },
+        { error: "Validation failed", details: parsed.error.issues },
         { status: 400 }
       );
     }
+    const { name, email, category, subject, message } = parsed.data;
 
     // Persist to contact_submissions table
     const supabase = createAdminClient();

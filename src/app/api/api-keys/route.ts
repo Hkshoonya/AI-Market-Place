@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/agents/auth";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
@@ -72,14 +73,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: {
-    name: string;
-    scopes?: string[];
-    rate_limit?: number;
-    expires_in_days?: number;
-  };
+  const apiKeySchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters").max(100),
+    scopes: z.array(z.enum(["read", "write", "agent", "mcp", "marketplace"])).optional(),
+    rate_limit: z.number().int().min(1).max(1000).optional(),
+    expires_in_days: z.number().int().min(1).max(365).optional(),
+  });
+
+  let rawBody: unknown;
   try {
-    body = await request.json();
+    rawBody = await request.json();
   } catch {
     return NextResponse.json(
       { error: "Invalid JSON in request body. Please send a valid JSON object." },
@@ -87,12 +90,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!body.name || body.name.length < 2) {
+  const parsed = apiKeySchema.safeParse(rawBody);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Name is required (min 2 chars)" },
+      { error: parsed.error.issues[0]?.message || "Validation failed" },
       { status: 400 }
     );
   }
+  const body = parsed.data;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;

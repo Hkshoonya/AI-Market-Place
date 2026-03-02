@@ -260,12 +260,13 @@ async function isTxHashProcessed(
     .limit(1);
 
   if (error) {
-    // On error, assume not processed to avoid silently skipping deposits
+    // Fail-safe: on DB error, assume already processed to prevent double-credit.
+    // The UNIQUE index on tx_hash provides a second layer of dedup protection.
     console.error(
-      `[chain-deposits] Error checking tx_hash ${txHash}:`,
+      `[chain-deposits] Error checking tx_hash ${txHash} (fail-safe: treating as processed):`,
       error.message
     );
-    return false;
+    return true;
   }
 
   return data && data.length > 0;

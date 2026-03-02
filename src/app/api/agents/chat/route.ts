@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
   try {
     // Find or create conversation
-    const conversation = await findOrCreateConversation(
+    const { conversation, created } = await findOrCreateConversation(
       sb,
       senderId,
       senderType as "agent" | "user",
@@ -127,13 +127,16 @@ export async function POST(request: Request) {
       body.message
     );
 
-    // Update agent conversation count
+    // Update agent stats: only increment conversation count for new conversations
+    const agentUpdates: Record<string, unknown> = {
+      last_active_at: new Date().toISOString(),
+    };
+    if (created) {
+      agentUpdates.total_conversations = (targetAgent.total_conversations ?? 0) + 1;
+    }
     await sb
       .from("agents")
-      .update({
-        total_conversations: (targetAgent.total_conversations ?? 0) + 1,
-        last_active_at: new Date().toISOString(),
-      })
+      .update(agentUpdates)
       .eq("id", targetAgent.id);
 
     return NextResponse.json({

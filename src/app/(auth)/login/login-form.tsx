@@ -13,7 +13,11 @@ import { createClient } from "@/lib/supabase/client";
 function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/";
+  const rawRedirect = searchParams.get("redirect") ?? "/";
+  // Sanitize redirect: must be a relative path, no protocol or double-slash
+  const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") && !rawRedirect.includes(":")
+    ? rawRedirect
+    : "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -46,7 +50,7 @@ function LoginFormInner() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${redirectTo}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
       },
     });
 

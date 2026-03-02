@@ -261,7 +261,7 @@ export default async function ModelDetailPage({
     <div className="mx-auto max-w-7xl px-4 py-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       {/* Back nav */}
       <Link

@@ -10,13 +10,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   rateLimit,
   RATE_LIMITS,
   getClientIp,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
-import { getOrCreateWallet } from "@/lib/payments/wallet";
+import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import {
   processWithdrawal,
   getSupportedChains,
@@ -45,14 +47,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Auth
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Auth (session or API key)
+  const auth = await resolveAuthUser(request, ["marketplace", "write"]);
+  if (!auth) {
     return NextResponse.json(
       {
         error:
@@ -62,12 +59,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify seller status
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const { data: profile } = await sb
+  // Verify seller status (use admin client for profile query)
+  const adminSb = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const { data: profile } = await adminSb
     .from("profiles")
     .select("is_seller, seller_verified")
-    .eq("id", user.id)
+    .eq("id", auth.userId)
     .single();
 
   if (!profile?.is_seller) {
@@ -99,7 +96,18 @@ export async function POST(request: NextRequest) {
   const { amount, chain, wallet_address } = parsed.data;
 
   // Get wallet
-  const wallet = await getOrCreateWallet(user.id);
+  const wallet = await getOrCreateWallet(auth.userId);
+
+  // Verify available balance covers withdrawal
+  const balance = await getWalletBalance(wallet.id);
+  if (balance.available < amount) {
+    return NextResponse.json(
+      {
+        error: `Insufficient available balance. Available: $${balance.available.toFixed(2)}, Held in escrow: $${balance.held.toFixed(2)}, Requested: $${amount.toFixed(2)}`,
+      },
+      { status: 400 }
+    );
+  }
 
   // Process withdrawal
   const result = await processWithdrawal({
@@ -142,13 +150,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Authenticate (session or API key)
+  const authResult = await resolveAuthUser(request, ["marketplace", "read"]);
+  if (!authResult) {
     return NextResponse.json(
       { error: "Authentication required." },
       { status: 401 }

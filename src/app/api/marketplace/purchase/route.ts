@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import crypto from "crypto";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -25,6 +24,7 @@ import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
 
 const purchaseSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -35,50 +35,7 @@ const purchaseSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
-/**
- * Resolve the authenticated user from either a Supabase session or an API key.
- * Returns the user ID or null.
- */
-async function resolveAuthUser(
-  request: NextRequest
-): Promise<{ userId: string; authMethod: "session" | "api_key" } | null> {
-  // 1. Try Supabase session first
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    return { userId: user.id, authMethod: "session" };
-  }
-
-  // 2. Try API key auth (aimk_ prefix)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer aimk_")) {
-    const keyRaw = authHeader.slice(7); // Remove "Bearer "
-    const keyHash = crypto
-      .createHash("sha256")
-      .update(keyRaw)
-      .digest("hex");
-
-    const admin = createAdminClient();
-    const sb = admin as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-    const { data: apiKey } = await sb
-      .from("api_keys")
-      .select("owner_id, is_active, scopes")
-      .eq("key_hash", keyHash)
-      .eq("is_active", true)
-      .single();
-
-    if (apiKey) {
-      return { userId: apiKey.owner_id, authMethod: "api_key" };
-    }
-  }
-
-  return null;
-}
+// resolveAuthUser imported from @/lib/auth/resolve-user
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -112,7 +69,7 @@ export async function POST(request: NextRequest) {
   const { listing_id, guest_email, guest_name } = parsed.data;
 
   // Authenticate — may be null for guest checkout
-  const auth = await resolveAuthUser(request);
+  const auth = await resolveAuthUser(request, ["marketplace", "write", "marketplace_access"]);
 
   const admin = createAdminClient();
   const sb = admin as any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -158,6 +115,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Guest checkout dedup: prevent re-downloading same listing
+  if (isGuest && guest_email) {
+    const { data: existingOrder } = await sb
+      .from("marketplace_orders")
+      .select("id")
+      .eq("guest_email", guest_email)
+      .eq("listing_id", listing_id)
+      .eq("status", "completed")
+      .limit(1)
+      .single();
+
+    if (existingOrder) {
+      return NextResponse.json(
+        { error: "You have already downloaded this item. Check your email for the download link." },
+        { status: 409 }
+      );
+    }
+  }
+
   const userId = auth?.userId ?? null;
   const authMethod = auth?.authMethod ?? "guest";
 
@@ -181,7 +157,6 @@ export async function POST(request: NextRequest) {
           message: `Insufficient wallet balance. You need $${price.toFixed(2)} but have $${balance.available.toFixed(2)} available.`,
           required: price,
           balance: balance.available,
-          wallet_id: wallet.id,
         },
         { status: 402 }
       );
@@ -255,14 +230,8 @@ export async function POST(request: NextRequest) {
   const autoCompletePricing = ["one_time", "free"];
   if (autoCompletePricing.includes(listing.pricing_type)) {
     try {
-      // Complete escrow (release funds to seller minus fee)
-      let escrowResult = null;
-      if (price > 0 && userId) {
-        escrowResult = await completePurchaseEscrow(order.id);
-      }
-
-      // Deliver digital good (use a placeholder userId for guests)
-      const deliverUserId = userId || order.id; // order.id as fallback key for guest delivery
+      // Deliver digital good FIRST (before releasing escrow)
+      const deliverUserId = userId || order.id;
       const delivery = await deliverDigitalGood(
         order.id,
         listing_id,
@@ -270,31 +239,24 @@ export async function POST(request: NextRequest) {
       );
 
       if (!delivery.success) {
-        // Delivery failed — mark order as approved (paid) but not completed
-        await sb
-          .from("marketplace_orders")
-          .update({ status: "approved" })
-          .eq("id", order.id);
-
+        // Delivery failed — keep escrow held, leave order pending for manual resolution
         return NextResponse.json(
           {
             order_id: order.id,
-            status: "approved",
+            status: "pending",
             escrow_id: escrowId,
             delivery: null,
             message:
-              "Payment successful but delivery failed. The seller will fulfill your order manually.",
-            payment: escrowResult
-              ? {
-                  total: price,
-                  seller_received: escrowResult.sellerAmount,
-                  platform_fee: escrowResult.platformFee,
-                  fee_rate: escrowResult.feeRate,
-                }
-              : null,
+              "Delivery failed. Your payment is held safely in escrow and will be released once the seller fulfills the order.",
           },
           { status: 201 }
         );
+      }
+
+      // Delivery succeeded — now release escrow to seller
+      let escrowResult = null;
+      if (price > 0 && userId) {
+        escrowResult = await completePurchaseEscrow(order.id);
       }
 
       // Update order to completed

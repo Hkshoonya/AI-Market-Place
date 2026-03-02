@@ -95,12 +95,15 @@ export const RATE_LIMITS = {
  * Get client IP from request headers.
  */
 export function getClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
+  // Prefer x-real-ip (set by reverse proxy, harder to spoof)
   const realIp = request.headers.get("x-real-ip");
   if (realIp) return realIp;
+  // Fallback to last entry in x-forwarded-for (closest proxy)
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const parts = forwarded.split(",");
+    return parts[parts.length - 1].trim();
+  }
   return "unknown";
 }
 
