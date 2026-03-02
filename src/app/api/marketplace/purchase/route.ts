@@ -1,15 +1,15 @@
 /**
  * POST /api/marketplace/purchase
  *
- * Unified purchase endpoint for both humans and bots.
+ * Unified purchase endpoint for humans, bots, and guests.
  *
- * Human flow: Auth via Supabase session -> deduct from wallet balance -> escrow -> deliver
- * Bot flow:   Auth via API key (aimk_) -> deduct from wallet balance -> escrow -> deliver
+ * Authenticated flow: Auth via Supabase session or API key -> wallet balance -> escrow -> deliver
+ * Guest flow:         Free items only -> guest_email required -> deliver
  *
- * Body: { listing_id: string, payment_method?: "balance" }
+ * Body: { listing_id: string, payment_method?: "balance", guest_email?: string, guest_name?: string }
  *
  * Returns: { order_id, delivery?: { type, data }, escrow_id }
- * Or 402:  { error: "insufficient_balance", required, balance, deposit_address }
+ * Or 402:  { error: "insufficient_balance", required, balance }
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -29,6 +29,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const purchaseSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
   payment_method: z.enum(["balance"]).default("balance"),
+  guest_email: z.string().email("Invalid email address").optional(),
+  guest_name: z.string().max(200).optional(),
 });
 
 export const dynamic = "force-dynamic";
@@ -88,21 +90,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Authenticate
-  const auth = await resolveAuthUser(request);
-  if (!auth) {
-    return NextResponse.json(
-      {
-        error:
-          "Authentication required. Sign in or provide a valid API key in the Authorization header.",
-      },
-      { status: 401 }
-    );
-  }
-
-  const { userId, authMethod } = auth;
-
-  // Parse and validate body
+  // Parse and validate body first (needed for guest check)
   let body: unknown;
   try {
     body = await request.json();
@@ -121,7 +109,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { listing_id } = parsed.data;
+  const { listing_id, guest_email, guest_name } = parsed.data;
+
+  // Authenticate — may be null for guest checkout
+  const auth = await resolveAuthUser(request);
 
   const admin = createAdminClient();
   const sb = admin as any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -141,19 +132,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Cannot buy own listing
-  if (listing.seller_id === userId) {
+  const price = Number(listing.price) || 0;
+  const isFree = listing.pricing_type === "free" || price === 0;
+
+  // Determine if this is a guest checkout
+  const isGuest = !auth;
+
+  if (isGuest) {
+    // Guests can only get free items
+    if (!isFree) {
+      return NextResponse.json(
+        {
+          error: "Authentication required for paid purchases. Please sign in or create a free account.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Guest must provide email
+    if (!guest_email) {
+      return NextResponse.json(
+        { error: "Email address is required for guest checkout." },
+        { status: 400 }
+      );
+    }
+  }
+
+  const userId = auth?.userId ?? null;
+  const authMethod = auth?.authMethod ?? "guest";
+
+  // Cannot buy own listing (only applies to authenticated users)
+  if (userId && listing.seller_id === userId) {
     return NextResponse.json(
       { error: "Cannot purchase your own listing." },
       { status: 400 }
     );
   }
 
-  // Determine the price
-  const price = Number(listing.price) || 0;
-
-  // For paid listings, check wallet balance
-  if (price > 0) {
+  // For paid listings, check wallet balance (authenticated users only)
+  if (price > 0 && userId) {
     const wallet = await getOrCreateWallet(userId);
     const balance = await getWalletBalance(wallet.id);
 
@@ -172,20 +189,32 @@ export async function POST(request: NextRequest) {
   }
 
   // Create order record
+  const orderInsert: Record<string, any> = {
+    listing_id,
+    seller_id: listing.seller_id,
+    price_at_time: price,
+    status: "pending",
+  };
+
+  if (userId) {
+    orderInsert.buyer_id = userId;
+    if (authMethod === "api_key") orderInsert.message = "Purchased via API";
+  } else {
+    // Guest checkout
+    orderInsert.buyer_id = null;
+    orderInsert.guest_email = guest_email;
+    orderInsert.guest_name = guest_name || null;
+    orderInsert.message = `Guest checkout: ${guest_email}`;
+  }
+
   const { data: order, error: orderError } = await sb
     .from("marketplace_orders")
-    .insert({
-      listing_id,
-      buyer_id: userId,
-      seller_id: listing.seller_id,
-      price_at_time: price,
-      status: "pending",
-      message: authMethod === "api_key" ? "Purchased via API" : null,
-    })
+    .insert(orderInsert)
     .select()
     .single();
 
   if (orderError || !order) {
+    console.error("[purchase] Order creation failed:", orderError);
     return NextResponse.json(
       { error: "Failed to create order. Please try again later." },
       { status: 500 }
@@ -194,7 +223,7 @@ export async function POST(request: NextRequest) {
 
   // Create escrow hold for paid listings
   let escrowId: string | null = null;
-  if (price > 0) {
+  if (price > 0 && userId) {
     try {
       const result = await createPurchaseEscrow(
         userId,
@@ -228,15 +257,16 @@ export async function POST(request: NextRequest) {
     try {
       // Complete escrow (release funds to seller minus fee)
       let escrowResult = null;
-      if (price > 0) {
+      if (price > 0 && userId) {
         escrowResult = await completePurchaseEscrow(order.id);
       }
 
-      // Deliver digital good
+      // Deliver digital good (use a placeholder userId for guests)
+      const deliverUserId = userId || order.id; // order.id as fallback key for guest delivery
       const delivery = await deliverDigitalGood(
         order.id,
         listing_id,
-        userId
+        deliverUserId
       );
 
       if (!delivery.success) {

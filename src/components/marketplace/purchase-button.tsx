@@ -12,6 +12,7 @@ import {
   X,
   Wallet,
   ExternalLink,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -57,6 +58,13 @@ export function PurchaseButton({
   const [delivery, setDelivery] = useState<DeliveryData | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Guest checkout fields
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestName, setGuestName] = useState("");
+
+  const isFree = pricingType === "free" || (price != null && price === 0);
+  const isGuest = !user;
+
   const fetchBalance = useCallback(async () => {
     setLoadingWallet(true);
     try {
@@ -77,10 +85,10 @@ export function PurchaseButton({
   }, []);
 
   useEffect(() => {
-    if (showModal && user) {
+    if (showModal && user && !isFree) {
       fetchBalance();
     }
-  }, [showModal, user, fetchBalance]);
+  }, [showModal, user, isFree, fetchBalance]);
 
   const handleOpenModal = () => {
     setError("");
@@ -89,17 +97,33 @@ export function PurchaseButton({
   };
 
   const handlePurchase = async () => {
+    // Validate guest fields for free items
+    if (isGuest && isFree) {
+      if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+        setError("Please enter a valid email address.");
+        return;
+      }
+    }
+
     setPurchasing(true);
     setError("");
 
     try {
+      const body: Record<string, any> = {
+        listing_id: listingId,
+        payment_method: "balance",
+      };
+
+      // Add guest info for unauthenticated free purchases
+      if (isGuest && isFree) {
+        body.guest_email = guestEmail.trim();
+        if (guestName.trim()) body.guest_name = guestName.trim();
+      }
+
       const res = await fetch("/api/marketplace/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listing_id: listingId,
-          payment_method: "balance",
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.status === 402) {
@@ -135,32 +159,24 @@ export function PurchaseButton({
   const insufficientBalance =
     walletData != null && price != null && walletData.balance < price;
 
-  // Free listing
-  if (pricingType === "free") {
-    return (
-      <Button
-        className="bg-neon text-background hover:bg-neon/90"
-        onClick={handleOpenModal}
-      >
-        Free
-      </Button>
-    );
-  }
-
-  // Contact seller
+  // Contact seller — handled by ContactForm component
   if (pricingType === "contact") {
-    return null; // Handled by ContactForm component in listing page
+    return null;
   }
 
-  // Paid listing
+  // Button label
+  const buttonLabel = isFree
+    ? "Get Free"
+    : `Buy Now \u2014 ${price != null ? formatCurrency(price, currency) : ""}`;
+
   return (
     <>
       <Button
         className="bg-neon text-background hover:bg-neon/90 gap-2"
         onClick={handleOpenModal}
       >
-        <ShoppingCart className="h-4 w-4" />
-        Buy Now {price != null ? `\u2014 ${formatCurrency(price, currency)}` : ""}
+        {!isFree && <ShoppingCart className="h-4 w-4 shrink-0" />}
+        <span className="truncate">{buttonLabel}</span>
       </Button>
 
       {/* Modal overlay */}
@@ -171,40 +187,42 @@ export function PurchaseButton({
             if (e.target === e.currentTarget && !purchasing) setShowModal(false);
           }}
         >
-          <div className="relative w-full max-w-md rounded-xl border border-border/50 bg-card shadow-2xl">
+          <div className="relative w-full max-w-md rounded-xl border border-border/50 bg-card shadow-2xl overflow-hidden">
             {/* Close button */}
             {!purchasing && (
               <button
                 onClick={() => setShowModal(false)}
                 aria-label="Close dialog"
-                className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="absolute right-3 top-3 z-10 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
 
-            <div className="p-6">
-              {/* Success state: delivery data */}
+            <div className="max-h-[85vh] overflow-y-auto p-6">
+              {/* ───── Success state ───── */}
               {delivery ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
                     <h3 className="text-lg font-semibold">
-                      Purchase Complete!
+                      {isFree ? "Access Granted!" : "Purchase Complete!"}
                     </h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Your purchase was successful. Here are your delivery details:
+                    {isFree
+                      ? "You now have access. Here are your details:"
+                      : "Your purchase was successful. Here are your delivery details:"}
                   </p>
 
                   <div className="space-y-3 rounded-lg border border-border/50 bg-secondary/30 p-4">
                     {delivery.api_key && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">
                           API Key
                         </p>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 truncate rounded bg-background px-2 py-1 font-mono text-xs text-foreground">
+                          <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1 font-mono text-xs text-foreground">
                             {delivery.api_key}
                           </code>
                           <button
@@ -225,7 +243,7 @@ export function PurchaseButton({
                     )}
 
                     {delivery.download_url && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">
                           Download
                         </p>
@@ -233,16 +251,16 @@ export function PurchaseButton({
                           href={delivery.download_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-neon hover:underline"
+                          className="inline-flex items-center gap-1 text-sm text-neon hover:underline break-all"
                         >
                           Download File
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3 shrink-0" />
                         </a>
                       </div>
                     )}
 
                     {delivery.access_url && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">
                           Access URL
                         </p>
@@ -250,20 +268,20 @@ export function PurchaseButton({
                           href={delivery.access_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-neon hover:underline"
+                          className="inline-flex items-center gap-1 text-sm text-neon hover:underline break-all"
                         >
                           Open Access Link
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3 shrink-0" />
                         </a>
                       </div>
                     )}
 
                     {delivery.instructions && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">
                           Instructions
                         </p>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">
+                        <p className="text-sm text-foreground whitespace-pre-wrap break-words">
                           {delivery.instructions}
                         </p>
                       </div>
@@ -278,24 +296,132 @@ export function PurchaseButton({
                     >
                       Close
                     </Button>
-                    <Button asChild className="flex-1 bg-neon text-background hover:bg-neon/90">
-                      <Link href="/orders">View Orders</Link>
-                    </Button>
+                    {user && (
+                      <Button asChild className="flex-1 bg-neon text-background hover:bg-neon/90">
+                        <Link href="/orders">View Orders</Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
-              ) : !user ? (
-                /* Not logged in */
-                <div className="space-y-4 text-center">
-                  <Wallet className="mx-auto h-10 w-10 text-muted-foreground/40" />
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      Sign in to purchase
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      You need to be logged in to make a purchase.
-                    </p>
+              ) : isGuest && isFree ? (
+                /* ───── Guest checkout for free items ───── */
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neon/10">
+                      <Mail className="h-5 w-5 text-neon" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Get Free Access</h3>
+                      <p className="text-xs text-muted-foreground">No account required</p>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+
+                  {sellerName && (
+                    <p className="text-sm text-muted-foreground">
+                      From <span className="text-foreground">{sellerName}</span>
+                    </p>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="guest-email" className="mb-1.5 block text-sm font-medium">
+                        Email address <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        id="guest-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        required
+                        autoFocus
+                      />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Delivery details will be sent to this email
+                      </p>
+                    </div>
+                    <div>
+                      <label htmlFor="guest-name" className="mb-1.5 block text-sm font-medium">
+                        Name <span className="text-muted-foreground text-xs">(optional)</span>
+                      </label>
+                      <input
+                        id="guest-name"
+                        type="text"
+                        placeholder="Your name"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Error */}
+                  {error && (
+                    <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="break-words">{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowModal(false)}
+                      disabled={purchasing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 bg-neon text-background hover:bg-neon/90"
+                      disabled={purchasing}
+                      onClick={handlePurchase}
+                    >
+                      {purchasing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Get Access"
+                      )}
+                    </Button>
+                  </div>
+
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link href="/login?redirect=/marketplace" className="text-neon hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              ) : isGuest && !isFree ? (
+                /* ───── Guest on paid item — needs account for wallet ───── */
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neon/10">
+                      <Wallet className="h-5 w-5 text-neon" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Sign in to Purchase</h3>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border/50 bg-secondary/30 p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Item Price</span>
+                      <span className="font-semibold text-neon">
+                        {price != null ? formatCurrency(price, currency) : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Paid purchases use your wallet balance. Sign in or create a free account to continue.
+                  </p>
+
+                  <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline"
                       className="flex-1"
@@ -307,9 +433,66 @@ export function PurchaseButton({
                       <Link href="/login?redirect=/marketplace">Sign In</Link>
                     </Button>
                   </div>
+
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Don&apos;t have an account?{" "}
+                    <Link href="/signup?redirect=/marketplace" className="text-neon hover:underline">
+                      Sign up free
+                    </Link>
+                  </p>
+                </div>
+              ) : user && isFree ? (
+                /* ───── Logged-in user on free item — simple confirm ───── */
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Confirm Free Access</h3>
+
+                  {sellerName && (
+                    <p className="text-sm text-muted-foreground">
+                      From <span className="text-foreground">{sellerName}</span>
+                    </p>
+                  )}
+
+                  <div className="rounded-lg border border-neon/20 bg-neon/5 p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Price</span>
+                      <span className="font-semibold text-neon">Free</span>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span className="break-words">{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowModal(false)}
+                      disabled={purchasing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 bg-neon text-background hover:bg-neon/90"
+                      disabled={purchasing}
+                      onClick={handlePurchase}
+                    >
+                      {purchasing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Get Access"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                /* Confirmation / Insufficient balance */
+                /* ───── Logged-in user on paid item — wallet confirmation ───── */
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Confirm Purchase</h3>
 
@@ -363,7 +546,7 @@ export function PurchaseButton({
                   {error && (
                     <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>{error}</span>
+                      <span className="break-words">{error}</span>
                     </div>
                   )}
 
@@ -378,12 +561,12 @@ export function PurchaseButton({
                       </p>
 
                       {walletData?.solana_deposit_address && (
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                             Solana
                           </p>
                           <div className="flex items-center gap-2">
-                            <code className="flex-1 truncate rounded bg-background px-2 py-1 font-mono text-[11px] text-foreground">
+                            <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1 font-mono text-[11px] text-foreground">
                               {walletData.solana_deposit_address}
                             </code>
                             <button
@@ -407,12 +590,12 @@ export function PurchaseButton({
                       )}
 
                       {walletData?.evm_deposit_address && (
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                             Base / Polygon
                           </p>
                           <div className="flex items-center gap-2">
-                            <code className="flex-1 truncate rounded bg-background px-2 py-1 font-mono text-[11px] text-foreground">
+                            <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1 font-mono text-[11px] text-foreground">
                               {walletData.evm_deposit_address}
                             </code>
                             <button
