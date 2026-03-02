@@ -20,18 +20,18 @@ export const metadata: Metadata = {
   description: "Rankings of AI models across benchmarks, categories, and real-world performance.",
 };
 
-export const revalidate = 1800;
+export const revalidate = 60;
 
 export default async function LeaderboardsPage() {
   const supabase = await createClient();
 
-  // Fetch ranked models with benchmarks, pricing, elo — sorted by market cap
+  // Fetch ranked models with benchmarks, pricing, elo — sorted by overall rank
   const { data: rankedModelsRaw } = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
+    .order("overall_rank", { ascending: true })
     .limit(20);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,7 +43,7 @@ export default async function LeaderboardsPage() {
     .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
+    .order("overall_rank", { ascending: true })
     .limit(500);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -235,7 +235,7 @@ export default async function LeaderboardsPage() {
           </div>
         </TabsContent>
 
-        {/* Overall Tab — Top 20 by Market Cap */}
+        {/* Overall Tab — Top 20 by Composite Rank */}
         <TabsContent value="overall" className="mt-6">
           {rankedModels && rankedModels.length > 0 && (
             <div className="mb-6">
