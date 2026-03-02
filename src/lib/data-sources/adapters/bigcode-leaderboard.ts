@@ -1,12 +1,13 @@
 /**
- * Big Code Models Leaderboard Adapter — Code Benchmarks
+ * BigCodeBench Results Adapter — Code Benchmarks
  *
- * Fetches model benchmark scores from the BigCode Models Leaderboard
- * (bigcode/bigcode-models-leaderboard) on HuggingFace.
+ * Fetches model code benchmark scores from the BigCodeBench Results dataset
+ * (bigcode/bigcodebench-results) on HuggingFace.
  *
- * Provides code-specific benchmarks including HumanEval(+) and MultiPL-E
- * that fill the gap for code category models. These map to our
- * "humaneval" and "swe-bench" (as proxy) benchmark slugs.
+ * Columns: model, complete, instruct, size, date, type, moe
+ * Scores are mapped to our "humaneval" benchmark slug (code generation).
+ *
+ * Uses batch-loaded in-memory matching with 4 strategies.
  *
  * Tier: 4 (weekly sync)
  */
@@ -19,7 +20,6 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -42,32 +42,21 @@ interface HFRowsResponse {
 
 // --------------- Constants ---------------
 
-const HF_DATASET = "bigcode/bigcode-models-leaderboard";
+const HF_DATASET = "bigcode/bigcodebench-results";
 const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
 const PAGE_LENGTH = 100;
 
-/**
- * Map BigCode leaderboard columns to our benchmark slugs.
- * The dataset may have columns like:
- *   "humaneval", "HumanEval", "humaneval_pass@1", "MultiPL-E",
- *   "pass@1", "Python", "Average", etc.
- */
-const BENCHMARK_FIELD_MAP: Record<string, string> = {
-  // HumanEval variants
-  humaneval: "humaneval",
-  HumanEval: "humaneval",
-  "humaneval_pass@1": "humaneval",
-  "HumanEval (pass@1)": "humaneval",
-  "Python": "humaneval",
-  "pass@1": "humaneval",
-  // MultiPL-E maps to a general coding benchmark
-  "MultiPL-E": "humaneval",
-  "multipl-e": "humaneval",
-};
+// Known provider prefixes for slug matching
+const PROVIDER_PREFIXES = [
+  "anthropic-", "openai-", "google-", "meta-", "meta-llama-",
+  "deepseek-", "deepseek-ai-", "mistralai-", "cohere-",
+  "xai-", "amazon-", "microsoft-", "nvidia-", "alibaba-",
+  "qwen-", "01-ai-", "tiiuae-", "bigcode-", "stabilityai-",
+];
 
 const adapter: DataSourceAdapter = {
   id: "bigcode-leaderboard",
-  name: "BigCode Models Leaderboard",
+  name: "BigCodeBench Results",
   outputTypes: ["benchmarks"],
   defaultConfig: {
     maxEntries: 200,
@@ -86,7 +75,6 @@ const adapter: DataSourceAdapter = {
     let offset = 0;
     let totalRows = Infinity;
 
-    // Use HF token from env for higher rate limits
     const hfToken = process.env.HUGGINGFACE_API_TOKEN || ctx.secrets?.HUGGINGFACE_API_TOKEN || "";
     const fetchHeaders: Record<string, string> = {
       Accept: "application/json",
@@ -95,7 +83,7 @@ const adapter: DataSourceAdapter = {
     if (hfToken) fetchHeaders["Authorization"] = `Bearer ${hfToken}`;
 
     try {
-      while (offset < totalRows && allRows.length < maxEntries) {
+      while (offset < totalRows) {
         const url = new URL(HF_ROWS_API);
         url.searchParams.set("dataset", HF_DATASET);
         url.searchParams.set("config", "default");
@@ -105,10 +93,7 @@ const adapter: DataSourceAdapter = {
 
         const res = await fetchWithRetry(
           url.toString(),
-          {
-            headers: fetchHeaders,
-            signal: ctx.signal,
-          },
+          { headers: fetchHeaders, signal: ctx.signal },
           { signal: ctx.signal }
         );
 
@@ -119,23 +104,17 @@ const adapter: DataSourceAdapter = {
             recordsProcessed: 0,
             recordsCreated: 0,
             recordsUpdated: 0,
-            errors: [
-              {
-                message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-                context: "api_error",
-              },
-            ],
+            errors: [{
+              message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
+              context: "api_error",
+            }],
             metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
           };
         }
 
         const json: HFRowsResponse = await res.json();
         totalRows = json.num_rows_total;
-
-        for (const row of json.rows) {
-          allRows.push(row.row);
-        }
-
+        for (const row of json.rows) allRows.push(row.row);
         offset += PAGE_LENGTH;
         if (json.rows.length === 0) break;
       }
@@ -145,12 +124,10 @@ const adapter: DataSourceAdapter = {
         recordsProcessed: 0,
         recordsCreated: 0,
         recordsUpdated: 0,
-        errors: [
-          {
-            message: `Failed to fetch BigCode leaderboard: ${err instanceof Error ? err.message : String(err)}`,
-            context: "network_error",
-          },
-        ],
+        errors: [{
+          message: `Failed to fetch BigCodeBench results: ${err instanceof Error ? err.message : String(err)}`,
+          context: "network_error",
+        }],
         metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
       };
     }
@@ -161,86 +138,123 @@ const adapter: DataSourceAdapter = {
         recordsProcessed: 0,
         recordsCreated: 0,
         recordsUpdated: 0,
-        errors: [{ message: "BigCode leaderboard returned empty data", context: "empty_response" }],
+        errors: [{ message: "BigCodeBench returned empty data", context: "empty_response" }],
         metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
       };
     }
 
-    // Detect the model name column and numeric score columns
-    const firstRow = allRows[0];
-    const columns = Object.keys(firstRow);
-
-    const modelColumn = columns.find(c =>
-      /^(model|Model|fullname|name)/i.test(c)
-    ) ?? "Model";
-
-    // Find score columns by matching known benchmark names or checking for numeric values
-    const scoreColumns = columns.filter(c => {
-      const normalizedCol = c.toLowerCase().replace(/[\s_-]/g, "");
-      return (
-        BENCHMARK_FIELD_MAP[c] != null ||
-        /humaneval|pass@|multipl|python|average/i.test(c) ||
-        (typeof firstRow[c] === "number" && normalizedCol !== "rank" && normalizedCol !== "#params")
-      );
-    });
-
-    // Sort by first score column descending
-    const primaryScore = scoreColumns[0] ?? "Average";
-    allRows.sort((a, b) => (Number(b[primaryScore]) || 0) - (Number(a[primaryScore]) || 0));
+    // Sort by "complete" score descending (primary code gen score)
+    allRows.sort((a, b) => (Number(b["complete"]) || 0) - (Number(a["complete"]) || 0));
 
     const entries = allRows.slice(0, maxEntries);
     let recordsProcessed = 0;
     let recordsCreated = 0;
 
+    // ── Batch model lookup ──
+    const { data: allModelsRaw } = await sb
+      .from("models")
+      .select("id, slug, name, provider")
+      .eq("status", "active");
+    const allModels = (allModelsRaw ?? []) as {
+      id: string; slug: string; name: string; provider: string;
+    }[];
+
+    const slugToId = new Map<string, string>();
+    const nameLowerToId = new Map<string, string>();
+
+    for (const m of allModels) {
+      slugToId.set(m.slug, m.id);
+      nameLowerToId.set(m.name.toLowerCase(), m.id);
+      const providerSlug = makeSlug(m.provider);
+      if (m.slug.startsWith(providerSlug + "-")) {
+        const withoutPrefix = m.slug.slice(providerSlug.length + 1);
+        if (!slugToId.has(withoutPrefix)) slugToId.set(withoutPrefix, m.id);
+      }
+    }
+
+    // Pre-load benchmark IDs
+    const benchmarkIdCache = new Map<string, string | null>();
+    const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
+    for (const b of allBenchmarks ?? []) benchmarkIdCache.set(b.slug, b.id);
+
+    function findModelId(rawName: string): string | null {
+      // rawName is like "Magicoder-S-DS-6.7B" or "meta-llama/Llama-3.3-70B"
+      const slug = makeSlug(rawName);
+      const shortName = rawName.split("/").pop() ?? rawName;
+      const shortSlug = makeSlug(shortName);
+
+      // Strategy 1: Direct slug match
+      if (slugToId.has(slug)) return slugToId.get(slug)!;
+      if (slugToId.has(shortSlug)) return slugToId.get(shortSlug)!;
+
+      // Strategy 2: Provider-prefixed slug
+      for (const prefix of PROVIDER_PREFIXES) {
+        if (slugToId.has(prefix + slug)) return slugToId.get(prefix + slug)!;
+        if (slugToId.has(prefix + shortSlug)) return slugToId.get(prefix + shortSlug)!;
+      }
+
+      // Strategy 3: Fuzzy name match
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+
+      for (const [dbName, id] of nameLowerToId) {
+        if (dbName === nameWithSpaces || dbName === nameWithDots) return id;
+        if (dbName.includes(nameWithSpaces) || dbName.includes(nameWithDots)) return id;
+      }
+
+      // Strategy 4: Contained slug (endsWith)
+      for (const [dbSlug, id] of slugToId) {
+        if (dbSlug.endsWith("-" + slug) || dbSlug.endsWith("-" + shortSlug)) return id;
+      }
+
+      return null;
+    }
+
+    let matchedCount = 0;
+
     for (let i = 0; i < entries.length; i++) {
       const row = entries[i];
       const rank = i + 1;
 
-      const modelName = (row[modelColumn] as string) ?? "";
+      const modelName = (row["model"] as string) ?? "";
       if (!modelName) continue;
 
       recordsProcessed++;
 
       const modelSlug = makeSlug(modelName);
-      const shortName = modelName.split("/").pop() ?? modelName;
+      const modelId = findModelId(modelName);
 
-      // Match model in our DB
-      const { data: existing } = await sb
-        .from("models")
-        .select("id")
-        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(shortName)}%`)
-        .limit(1);
+      if (modelId) matchedCount++;
 
-      const model = existing?.[0];
-
-      // Build summary from score columns
+      // Build summary from complete and instruct scores
+      const completeScore = row["complete"] as number | null;
+      const instructScore = row["instruct"] as number | null;
       const summaryParts: string[] = [];
-      for (const col of scoreColumns) {
-        const val = row[col] as number | null;
-        if (val != null && typeof val === "number" && isFinite(val)) {
-          summaryParts.push(`${col}: ${val.toFixed(1)}`);
-        }
+      if (completeScore != null && isFinite(completeScore)) {
+        summaryParts.push(`Complete: ${completeScore.toFixed(1)}`);
       }
+      if (instructScore != null && isFinite(instructScore)) {
+        summaryParts.push(`Instruct: ${instructScore.toFixed(1)}`);
+      }
+      const size = row["size"] as number | null;
+      if (size != null) summaryParts.push(`${size}B params`);
 
-      // Store as news for traceability
+      // News entry
       const newsRecord = {
         source: "bigcode-leaderboard",
         source_id: `bigcode-${modelSlug}-${today}`,
-        title: `${modelName} — BigCode Leaderboard #${rank}`,
-        related_model_ids: model?.id ? [model.id] : [],
+        title: `${modelName} — BigCodeBench #${rank}`,
+        related_model_ids: modelId ? [modelId] : [],
         summary: summaryParts.join(" | "),
-        url: "https://huggingface.co/spaces/bigcode/bigcode-models-leaderboard",
+        url: "https://huggingface.co/spaces/bigcode/bigcodebench-leaderboard",
         published_at: new Date().toISOString(),
         category: "benchmark",
         related_provider: null,
         tags: ["benchmark", "bigcode", "code"],
-        metadata: {
-          rank,
-          model_id: model?.id ?? null,
-          scores: Object.fromEntries(
-            scoreColumns.map(c => [c, row[c]])
-          ),
-        },
+        metadata: { rank, model_id: modelId ?? null },
       };
 
       const { error: newsError } = await sb
@@ -251,50 +265,39 @@ const adapter: DataSourceAdapter = {
         errors.push({ message: `News upsert for ${modelName}: ${newsError.message}` });
       }
 
-      // Write structured benchmark_scores
-      if (!model?.id) continue;
+      // Write benchmark_scores for matched models
+      if (!modelId) continue;
 
-      for (const col of scoreColumns) {
-        const value = row[col] as number | null;
-        if (value == null || typeof value !== "number" || !isFinite(value)) continue;
+      const benchmarkId = benchmarkIdCache.get("humaneval");
+      if (!benchmarkId) continue;
 
-        // Map column to benchmark slug
-        const benchmarkSlug = BENCHMARK_FIELD_MAP[col] ?? null;
-        if (!benchmarkSlug) continue;
+      // Use "complete" score as the primary HumanEval equivalent
+      const value = completeScore;
+      if (value == null || typeof value !== "number" || !isFinite(value)) continue;
 
-        const { data: benchmarkRows } = await sb
-          .from("benchmarks")
-          .select("id")
-          .eq("slug", benchmarkSlug)
-          .limit(1);
+      const normalizedScore = value > 1 ? value : value * 100;
 
-        const benchmarkId = benchmarkRows?.[0]?.id;
-        if (!benchmarkId) continue;
+      const { error: scoreError } = await sb
+        .from("benchmark_scores")
+        .upsert(
+          {
+            model_id: modelId,
+            benchmark_id: benchmarkId,
+            score: value,
+            score_normalized: normalizedScore,
+            model_version: "",
+            source: "bigcode-leaderboard",
+            evaluation_date: today,
+          },
+          { onConflict: "model_id,benchmark_id,model_version" }
+        );
 
-        const normalizedScore = value > 1 ? value : value * 100;
-
-        const { error: scoreError } = await sb
-          .from("benchmark_scores")
-          .upsert(
-            {
-              model_id: model.id,
-              benchmark_id: benchmarkId,
-              score: value,
-              score_normalized: normalizedScore,
-              model_version: "",
-              source: "bigcode-leaderboard",
-              evaluation_date: today,
-            },
-            { onConflict: "model_id,benchmark_id,model_version" }
-          );
-
-        if (scoreError) {
-          errors.push({
-            message: `benchmark_scores upsert for ${modelName}/${benchmarkSlug}: ${scoreError.message}`,
-          });
-        } else {
-          recordsCreated++;
-        }
+      if (scoreError) {
+        errors.push({
+          message: `benchmark_scores upsert for ${modelName}/humaneval: ${scoreError.message}`,
+        });
+      } else {
+        recordsCreated++;
       }
     }
 
@@ -308,8 +311,8 @@ const adapter: DataSourceAdapter = {
         source: "hf_datasets_api",
         dataset: HF_DATASET,
         totalRowsFetched: allRows.length,
-        detectedColumns: columns,
-        scoreColumns,
+        matchedModels: matchedCount,
+        matchRate: `${((matchedCount / Math.max(recordsProcessed, 1)) * 100).toFixed(1)}%`,
       },
     };
   },
@@ -328,9 +331,8 @@ const adapter: DataSourceAdapter = {
       const latencyMs = Date.now() - start;
 
       if (res.ok) {
-        return { healthy: true, latencyMs, message: "HF Datasets API reachable for BigCode" };
+        return { healthy: true, latencyMs, message: "HF Datasets API reachable for BigCodeBench" };
       }
-
       return { healthy: false, latencyMs, message: `HF Datasets API returned HTTP ${res.status}` };
     } catch (err) {
       return {

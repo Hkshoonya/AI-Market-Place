@@ -9,6 +9,9 @@
  * SEAL provides high-quality independent evaluation covering both
  * proprietary and open models. Results are aggregated and written
  * to benchmark_scores with source="seal-leaderboard".
+ *
+ * Uses batch-loaded in-memory matching with 4 strategies for
+ * reliable model identification (LiveBench-style matching).
  */
 
 import type {
@@ -19,7 +22,6 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -47,9 +49,15 @@ const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
 const PAGE_LENGTH = 100;
 
 // SEAL benchmark field → our slug mapping
-// SEAL typically has columns like: Model, Score, Category, Provider, etc.
-// We map to a generic "seal" benchmark slug since SEAL is a composite score.
 const SEAL_BENCHMARK_SLUG = "seal";
+
+// Known provider prefixes for slug matching
+const PROVIDER_PREFIXES = [
+  "anthropic-", "openai-", "google-", "meta-", "meta-llama-",
+  "deepseek-", "deepseek-ai-", "mistralai-", "cohere-",
+  "xai-", "amazon-", "microsoft-", "nvidia-", "alibaba-",
+  "qwen-", "01-ai-", "tiiuae-", "bigcode-", "stabilityai-",
+];
 
 const adapter: DataSourceAdapter = {
   id: "seal-leaderboard",
@@ -184,6 +192,72 @@ const adapter: DataSourceAdapter = {
       .limit(1);
     const sealBenchmarkId = benchmarkRows?.[0]?.id ?? null;
 
+    // ── Batch model lookup for efficient matching ──
+    const { data: allModelsRaw } = await sb
+      .from("models")
+      .select("id, slug, name, provider")
+      .eq("status", "active");
+    const allModels = (allModelsRaw ?? []) as {
+      id: string;
+      slug: string;
+      name: string;
+      provider: string;
+    }[];
+
+    // Build multiple lookup indexes
+    const slugToId = new Map<string, string>();
+    const nameLowerToId = new Map<string, string>();
+
+    for (const m of allModels) {
+      slugToId.set(m.slug, m.id);
+      nameLowerToId.set(m.name.toLowerCase(), m.id);
+
+      const providerSlug = makeSlug(m.provider);
+      if (m.slug.startsWith(providerSlug + "-")) {
+        const withoutPrefix = m.slug.slice(providerSlug.length + 1);
+        if (!slugToId.has(withoutPrefix)) {
+          slugToId.set(withoutPrefix, m.id);
+        }
+      }
+    }
+
+    function findModelId(rawName: string): string | null {
+      const slug = makeSlug(rawName);
+      const shortName = rawName.split("/").pop() ?? rawName;
+      const shortSlug = makeSlug(shortName);
+
+      // Strategy 1: Direct slug match
+      if (slugToId.has(slug)) return slugToId.get(slug)!;
+      if (slugToId.has(shortSlug)) return slugToId.get(shortSlug)!;
+
+      // Strategy 2: Try with provider prefixes
+      for (const prefix of PROVIDER_PREFIXES) {
+        if (slugToId.has(prefix + slug)) return slugToId.get(prefix + slug)!;
+        if (slugToId.has(prefix + shortSlug)) return slugToId.get(prefix + shortSlug)!;
+      }
+
+      // Strategy 3: Fuzzy name match
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+
+      for (const [dbName, id] of nameLowerToId) {
+        if (dbName === nameWithSpaces || dbName === nameWithDots) return id;
+        if (dbName.includes(nameWithSpaces) || dbName.includes(nameWithDots)) return id;
+      }
+
+      // Strategy 4: Contained slug match
+      for (const [dbSlug, id] of slugToId) {
+        if (dbSlug.endsWith("-" + slug) || dbSlug.endsWith("-" + shortSlug)) return id;
+      }
+
+      return null;
+    }
+
+    let matchedCount = 0;
+
     for (let i = 0; i < entries.length; i++) {
       const row = entries[i];
       const rank = i + 1;
@@ -197,23 +271,16 @@ const adapter: DataSourceAdapter = {
       recordsProcessed++;
 
       const modelSlug = makeSlug(modelName);
-      const shortName = modelName.split("/").pop() ?? modelName;
+      const modelId = findModelId(modelName);
 
-      // Match model in our DB
-      const { data: existing } = await sb
-        .from("models")
-        .select("id")
-        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(shortName)}%`)
-        .limit(1);
-
-      const model = existing?.[0];
+      if (modelId) matchedCount++;
 
       // Store as news entry for traceability
       const newsRecord = {
         source: "seal-leaderboard",
         source_id: `seal-${modelSlug}-${today}`,
         title: `${modelName} — SEAL Leaderboard #${rank}`,
-        related_model_ids: model?.id ? [model.id] : [],
+        related_model_ids: modelId ? [modelId] : [],
         summary: `Score: ${score.toFixed(1)} | Rank: #${rank}`,
         url: "https://huggingface.co/spaces/lmarena-ai/SEAL-Leaderboard",
         published_at: new Date().toISOString(),
@@ -223,8 +290,7 @@ const adapter: DataSourceAdapter = {
         metadata: {
           rank,
           score,
-          model_id: model?.id ?? null,
-          raw_row: row,
+          model_id: modelId ?? null,
         },
       };
 
@@ -239,7 +305,7 @@ const adapter: DataSourceAdapter = {
       }
 
       // Write structured benchmark_score
-      if (!model?.id || !sealBenchmarkId) continue;
+      if (!modelId || !sealBenchmarkId) continue;
 
       const normalizedScore = score > 1 ? score : score * 100;
 
@@ -247,7 +313,7 @@ const adapter: DataSourceAdapter = {
         .from("benchmark_scores")
         .upsert(
           {
-            model_id: model.id,
+            model_id: modelId,
             benchmark_id: sealBenchmarkId,
             score,
             score_normalized: normalizedScore,
@@ -280,6 +346,8 @@ const adapter: DataSourceAdapter = {
         detectedColumns: columns,
         scoreColumn,
         modelColumn,
+        matchedModels: matchedCount,
+        matchRate: `${((matchedCount / Math.max(recordsProcessed, 1)) * 100).toFixed(1)}%`,
       },
     };
   },

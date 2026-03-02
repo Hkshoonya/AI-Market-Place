@@ -8,6 +8,8 @@
  * that fill a critical gap — multimodal/image categories currently have
  * ZERO benchmark data in our system.
  *
+ * Uses batch-loaded in-memory matching with 4 strategies.
+ *
  * Tier: 4 (weekly sync)
  */
 
@@ -19,7 +21,6 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -48,18 +49,13 @@ const PAGE_LENGTH = 100;
 
 /**
  * Map Open VLM Leaderboard column names to our benchmark slugs.
- * The dataset columns typically include:
- *   Method/Model, MMMU, MathVista, OCRBench, MMBench, HallusionBench,
- *   AI2D, MMStar, MME, etc.
  */
 const BENCHMARK_FIELD_MAP: Record<string, string> = {
-  // Primary vision benchmarks (stored in our benchmarks table)
   MMMU: "mmmu",
   "MMMU_VAL": "mmmu",
   MathVista: "mathvista",
   "MathVista_MINI": "mathvista",
   OCRBench: "ocrbench",
-  // Additional vision benchmarks (mapped to generic slugs)
   MMBench: "mmbench",
   "MMBench_V11": "mmbench",
   "MMBench_DEV_EN": "mmbench",
@@ -68,6 +64,14 @@ const BENCHMARK_FIELD_MAP: Record<string, string> = {
   MMStar: "mmstar",
   HallusionBench: "hallusionbench",
 };
+
+// Known provider prefixes for slug matching
+const PROVIDER_PREFIXES = [
+  "anthropic-", "openai-", "google-", "meta-", "meta-llama-",
+  "deepseek-", "deepseek-ai-", "mistralai-", "cohere-",
+  "xai-", "amazon-", "microsoft-", "nvidia-", "alibaba-",
+  "qwen-", "01-ai-", "tiiuae-", "bigcode-", "stabilityai-",
+];
 
 const adapter: DataSourceAdapter = {
   id: "open-vlm-leaderboard",
@@ -85,12 +89,10 @@ const adapter: DataSourceAdapter = {
     const sb = ctx.supabase as any;
     const today = new Date().toISOString().split("T")[0];
 
-    // Fetch rows from HF Datasets API
     const allRows: HFRowContent[] = [];
     let offset = 0;
     let totalRows = Infinity;
 
-    // Use HF token from env for higher rate limits
     const hfToken = process.env.HUGGINGFACE_API_TOKEN || ctx.secrets?.HUGGINGFACE_API_TOKEN || "";
     const fetchHeaders: Record<string, string> = {
       Accept: "application/json",
@@ -109,10 +111,7 @@ const adapter: DataSourceAdapter = {
 
         const res = await fetchWithRetry(
           url.toString(),
-          {
-            headers: fetchHeaders,
-            signal: ctx.signal,
-          },
+          { headers: fetchHeaders, signal: ctx.signal },
           { signal: ctx.signal }
         );
 
@@ -123,23 +122,17 @@ const adapter: DataSourceAdapter = {
             recordsProcessed: 0,
             recordsCreated: 0,
             recordsUpdated: 0,
-            errors: [
-              {
-                message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-                context: "api_error",
-              },
-            ],
+            errors: [{
+              message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
+              context: "api_error",
+            }],
             metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
           };
         }
 
         const json: HFRowsResponse = await res.json();
         totalRows = json.num_rows_total;
-
-        for (const row of json.rows) {
-          allRows.push(row.row);
-        }
-
+        for (const row of json.rows) allRows.push(row.row);
         offset += PAGE_LENGTH;
         if (json.rows.length === 0) break;
       }
@@ -149,12 +142,10 @@ const adapter: DataSourceAdapter = {
         recordsProcessed: 0,
         recordsCreated: 0,
         recordsUpdated: 0,
-        errors: [
-          {
-            message: `Failed to fetch Open VLM Leaderboard: ${err instanceof Error ? err.message : String(err)}`,
-            context: "network_error",
-          },
-        ],
+        errors: [{
+          message: `Failed to fetch Open VLM Leaderboard: ${err instanceof Error ? err.message : String(err)}`,
+          context: "network_error",
+        }],
         metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
       };
     }
@@ -170,19 +161,15 @@ const adapter: DataSourceAdapter = {
       };
     }
 
-    // Detect columns
     const firstRow = allRows[0];
     const columns = Object.keys(firstRow);
 
-    // Identify the model name column
     const modelColumn = columns.find(c =>
       /^(method|model|Model|name|fullname)/i.test(c)
     ) ?? "Method";
 
-    // Identify score columns
     const knownBenchmarkColumns = columns.filter(c => BENCHMARK_FIELD_MAP[c] != null);
 
-    // Sort by average of known benchmark scores
     allRows.sort((a, b) => {
       const avgA = knownBenchmarkColumns.reduce((sum, c) => sum + (Number(a[c]) || 0), 0) / Math.max(knownBenchmarkColumns.length, 1);
       const avgB = knownBenchmarkColumns.reduce((sum, c) => sum + (Number(b[c]) || 0), 0) / Math.max(knownBenchmarkColumns.length, 1);
@@ -193,8 +180,65 @@ const adapter: DataSourceAdapter = {
     let recordsProcessed = 0;
     let recordsCreated = 0;
 
-    // Cache benchmark IDs
+    // ── Batch model lookup ──
+    const { data: allModelsRaw } = await sb
+      .from("models")
+      .select("id, slug, name, provider")
+      .eq("status", "active");
+    const allModels = (allModelsRaw ?? []) as {
+      id: string; slug: string; name: string; provider: string;
+    }[];
+
+    const slugToId = new Map<string, string>();
+    const nameLowerToId = new Map<string, string>();
+
+    for (const m of allModels) {
+      slugToId.set(m.slug, m.id);
+      nameLowerToId.set(m.name.toLowerCase(), m.id);
+      const providerSlug = makeSlug(m.provider);
+      if (m.slug.startsWith(providerSlug + "-")) {
+        const withoutPrefix = m.slug.slice(providerSlug.length + 1);
+        if (!slugToId.has(withoutPrefix)) slugToId.set(withoutPrefix, m.id);
+      }
+    }
+
+    // Pre-load benchmark IDs
     const benchmarkIdCache = new Map<string, string | null>();
+    const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
+    for (const b of allBenchmarks ?? []) benchmarkIdCache.set(b.slug, b.id);
+
+    function findModelId(rawName: string): string | null {
+      const slug = makeSlug(rawName);
+      const shortName = rawName.split("/").pop() ?? rawName;
+      const shortSlug = makeSlug(shortName);
+
+      if (slugToId.has(slug)) return slugToId.get(slug)!;
+      if (slugToId.has(shortSlug)) return slugToId.get(shortSlug)!;
+
+      for (const prefix of PROVIDER_PREFIXES) {
+        if (slugToId.has(prefix + slug)) return slugToId.get(prefix + slug)!;
+        if (slugToId.has(prefix + shortSlug)) return slugToId.get(prefix + shortSlug)!;
+      }
+
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+
+      for (const [dbName, id] of nameLowerToId) {
+        if (dbName === nameWithSpaces || dbName === nameWithDots) return id;
+        if (dbName.includes(nameWithSpaces) || dbName.includes(nameWithDots)) return id;
+      }
+
+      for (const [dbSlug, id] of slugToId) {
+        if (dbSlug.endsWith("-" + slug) || dbSlug.endsWith("-" + shortSlug)) return id;
+      }
+
+      return null;
+    }
+
+    let matchedCount = 0;
 
     for (let i = 0; i < entries.length; i++) {
       const row = entries[i];
@@ -206,16 +250,9 @@ const adapter: DataSourceAdapter = {
       recordsProcessed++;
 
       const modelSlug = makeSlug(modelName);
-      const shortName = modelName.split("/").pop() ?? modelName;
+      const modelId = findModelId(modelName);
 
-      // Match model in our DB
-      const { data: existing } = await sb
-        .from("models")
-        .select("id")
-        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(shortName)}%`)
-        .limit(1);
-
-      const model = existing?.[0];
+      if (modelId) matchedCount++;
 
       // Build summary
       const summaryParts: string[] = [];
@@ -226,25 +263,19 @@ const adapter: DataSourceAdapter = {
         }
       }
 
-      // Store as news for traceability
+      // News entry
       const newsRecord = {
         source: "open-vlm-leaderboard",
         source_id: `vlm-${modelSlug}-${today}`,
         title: `${modelName} — Open VLM Leaderboard #${rank}`,
-        related_model_ids: model?.id ? [model.id] : [],
+        related_model_ids: modelId ? [modelId] : [],
         summary: summaryParts.join(" | "),
         url: "https://huggingface.co/spaces/opencompass/open_vlm_leaderboard",
         published_at: new Date().toISOString(),
         category: "benchmark",
         related_provider: null,
         tags: ["benchmark", "vlm", "vision", "multimodal"],
-        metadata: {
-          rank,
-          model_id: model?.id ?? null,
-          scores: Object.fromEntries(
-            knownBenchmarkColumns.map(c => [c, row[c]])
-          ),
-        },
+        metadata: { rank, model_id: modelId ?? null },
       };
 
       const { error: newsError } = await sb
@@ -255,8 +286,8 @@ const adapter: DataSourceAdapter = {
         errors.push({ message: `News upsert for ${modelName}: ${newsError.message}` });
       }
 
-      // Write structured benchmark_scores
-      if (!model?.id) continue;
+      // Write benchmark_scores
+      if (!modelId) continue;
 
       for (const col of knownBenchmarkColumns) {
         const value = row[col] as number | null;
@@ -265,21 +296,10 @@ const adapter: DataSourceAdapter = {
         const benchmarkSlug = BENCHMARK_FIELD_MAP[col];
         if (!benchmarkSlug) continue;
 
-        // Get benchmark ID from cache or DB
-        if (!benchmarkIdCache.has(benchmarkSlug)) {
-          const { data: benchmarkRows } = await sb
-            .from("benchmarks")
-            .select("id")
-            .eq("slug", benchmarkSlug)
-            .limit(1);
-          benchmarkIdCache.set(benchmarkSlug, benchmarkRows?.[0]?.id ?? null);
-        }
-
         const benchmarkId = benchmarkIdCache.get(benchmarkSlug);
         if (!benchmarkId) continue;
 
         // OCRBench is 0-1000 scale, normalize to 0-100
-        // MMMU, MathVista are typically 0-100 already
         let normalizedScore = value;
         if (benchmarkSlug === "ocrbench" && value > 100) {
           normalizedScore = (value / 1000) * 100;
@@ -291,7 +311,7 @@ const adapter: DataSourceAdapter = {
           .from("benchmark_scores")
           .upsert(
             {
-              model_id: model.id,
+              model_id: modelId,
               benchmark_id: benchmarkId,
               score: value,
               score_normalized: normalizedScore,
@@ -324,6 +344,8 @@ const adapter: DataSourceAdapter = {
         totalRowsFetched: allRows.length,
         detectedColumns: columns,
         benchmarkColumns: knownBenchmarkColumns,
+        matchedModels: matchedCount,
+        matchRate: `${((matchedCount / Math.max(recordsProcessed, 1)) * 100).toFixed(1)}%`,
       },
     };
   },
@@ -344,7 +366,6 @@ const adapter: DataSourceAdapter = {
       if (res.ok) {
         return { healthy: true, latencyMs, message: "HF Datasets API reachable for Open VLM Leaderboard" };
       }
-
       return { healthy: false, latencyMs, message: `HF Datasets API returned HTTP ${res.status}` };
     } catch (err) {
       return {
