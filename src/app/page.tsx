@@ -44,18 +44,18 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Fetch top 10 models by market cap (usage-based ranking)
+  // Fetch top 10 models by composite overall rank
   const { data: topModelsRaw } = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*)")
     .eq("status", "active")
     .not("overall_rank", "is", null)
-    .order("market_cap_estimate", { ascending: false, nullsFirst: false })
+    .order("overall_rank", { ascending: true })
     .limit(10);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

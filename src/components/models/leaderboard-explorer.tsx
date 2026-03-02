@@ -326,7 +326,11 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
               ))}
             </thead>
             <tbody>
-              {table.getRowModel().rows.map((row) => (
+              {table.getRowModel().rows.map((row, visualIndex) => {
+                const pageIndex = table.getState().pagination.pageIndex;
+                const pageSize = table.getState().pagination.pageSize;
+                const displayRank = visualIndex + 1 + pageIndex * pageSize;
+                return (
                 <tr
                   key={row.id}
                   className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
@@ -337,11 +341,21 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
                       className="px-4 py-2.5"
                       style={{ width: cell.column.getSize() }}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {cell.column.id === "overall_rank" ? (
+                        <span
+                          className={`text-xs font-bold tabular-nums ${
+                            displayRank <= 3 ? "text-[#f5a623]" : displayRank <= 10 ? "text-[#00d4aa]" : "text-white/50"
+                          }`}
+                        >
+                          {displayRank}
+                        </span>
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
                     </td>
                   ))}
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>
