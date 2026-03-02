@@ -8,7 +8,7 @@ import { PWARegister } from "@/components/pwa-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
-import { AmbientScene } from "@/components/three/ambient-scene";
+import { LazyAmbientScene } from "@/components/three/lazy-ambient-scene";
 
 import "./globals.css";
 
@@ -91,7 +91,7 @@ export default function RootLayout({
             >
               Skip to main content
             </a>
-            <AmbientScene />
+            <LazyAmbientScene />
             <Header />
             <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />

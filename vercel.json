@@ -7,7 +7,6 @@
     { "path": "/api/cron/agents/pipeline", "schedule": "30 */6 * * *" },
     { "path": "/api/cron/agents/code-quality", "schedule": "0 9 * * *" },
     { "path": "/api/cron/agents/ux-monitor", "schedule": "0 10 * * 1" },
-    { "path": "/api/cron/auctions", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/compute-scores", "schedule": "45 */6 * * *" }
   ]
 }
