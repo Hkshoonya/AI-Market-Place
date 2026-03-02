@@ -56,6 +56,13 @@ export interface Model {
   github_forks: number | null;
   agent_score: number | null;
   agent_rank: number | null;
+  capability_score: number | null;
+  capability_rank: number | null;
+  usage_score: number | null;
+  usage_rank: number | null;
+  expert_score: number | null;
+  expert_rank: number | null;
+  balanced_rank: number | null;
   created_at: string;
   updated_at: string;
   data_refreshed_at: string | null;
@@ -181,6 +188,10 @@ export interface ModelSnapshot {
   market_cap_estimate: number | null;
   popularity_score: number | null;
   agent_score: number | null;
+  capability_score: number | null;
+  usage_score: number | null;
+  expert_score: number | null;
+  signal_coverage: Record<string, boolean> | null;
   created_at: string;
 }
 
