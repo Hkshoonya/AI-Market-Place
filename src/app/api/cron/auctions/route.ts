@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { settleEnglishAuction } from "@/lib/marketplace/auctions/english";
 import { refundEscrow } from "@/lib/payments/wallet";
+import { trackCronRun } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const tracker = await trackCronRun("auctions");
 
   const results = {
     activated: 0,
@@ -168,17 +170,10 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     console.error("Auction cron job failed:", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 }
-    );
+    return tracker.fail(err);
   }
 
-  return NextResponse.json({
-    ok: true,
+  return tracker.complete({
     activated: results.activated,
     settled: results.settled,
     cancelled: results.cancelled,

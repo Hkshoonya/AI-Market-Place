@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runTierSync } from "@/lib/data-sources/orchestrator";
+import { trackCronRun } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max (Vercel Pro)
@@ -30,11 +31,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const tracker = await trackCronRun(`sync-tier-${tier}`);
+
   try {
     const result = await runTierSync(tier);
 
-    return NextResponse.json({
-      ok: true,
+    const summary = {
       tier: result.tier,
       sourcesRun: result.sourcesRun,
       sourcesSucceeded: result.sourcesSucceeded,
@@ -46,15 +48,10 @@ export async function GET(request: NextRequest) {
         durationMs: d.durationMs,
         errors: d.errors.length,
       })),
-    });
+    };
+
+    return tracker.complete(summary);
   } catch (err) {
-    console.error("Cron sync failed:", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 }
-    );
+    return tracker.fail(err);
   }
 }
