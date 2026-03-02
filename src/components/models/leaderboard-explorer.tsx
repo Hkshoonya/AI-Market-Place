@@ -102,16 +102,18 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         id: "overall_rank",
         accessorKey: "overall_rank",
         header: "#",
-        cell: ({ getValue }) => {
-          const rank = getValue() as number | null;
-          if (rank == null) return <span className="text-white/20">—</span>;
+        cell: ({ row, table: tbl }) => {
+          // Show positional rank based on current sort order + pagination
+          const pageIndex = tbl.getState().pagination.pageIndex;
+          const pageSize = tbl.getState().pagination.pageSize;
+          const displayRank = row.index + 1 + pageIndex * pageSize;
           return (
             <span
               className={`text-xs font-bold tabular-nums ${
-                rank <= 3 ? "text-[#f5a623]" : rank <= 10 ? "text-[#00d4aa]" : "text-white/50"
+                displayRank <= 3 ? "text-[#f5a623]" : displayRank <= 10 ? "text-[#00d4aa]" : "text-white/50"
               }`}
             >
-              {rank}
+              {displayRank}
             </span>
           );
         },

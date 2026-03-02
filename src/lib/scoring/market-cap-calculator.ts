@@ -182,7 +182,32 @@ export function computePopularityScore(
     0
   );
 
-  return Math.round(Math.min(weightedSum, 100) * 10) / 10;
+  // Signal coverage penalty: models with fewer active signals get a lower
+  // confidence multiplier. This prevents a single signal (e.g., provider
+  // usage alone) from inflating a model to 100 when there's no community
+  // engagement data. Without this, every OpenAI model scores 100 regardless
+  // of whether it's GPT-4o or a niche moderation endpoint.
+  //
+  // Coverage factors:
+  //   1 signal  → 0.50 (max score ~50)
+  //   2 signals → 0.70 (max score ~70)
+  //   3 signals → 0.85 (max score ~85)
+  //   4+ signals → 1.00 (full score)
+  const TOTAL_POSSIBLE_SIGNALS = 6;
+  let coverageFactor: number;
+  if (signals.length >= 4) {
+    coverageFactor = 1.0;
+  } else if (signals.length === 3) {
+    coverageFactor = 0.85;
+  } else if (signals.length === 2) {
+    coverageFactor = 0.70;
+  } else {
+    coverageFactor = 0.50;
+  }
+
+  const adjustedScore = weightedSum * coverageFactor;
+
+  return Math.round(Math.min(adjustedScore, 100) * 10) / 10;
 }
 
 // --------------- Market Cap ---------------
