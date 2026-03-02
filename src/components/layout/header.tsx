@@ -10,6 +10,7 @@ import {
   Menu,
   Newspaper,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Wallet,
@@ -19,6 +20,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
 import { AuthButton } from "@/components/auth/auth-button";
+import { useAuth } from "@/components/auth/auth-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { WalletBadge } from "@/components/marketplace/wallet-badge";
 
@@ -34,6 +36,7 @@ const NAV_ITEMS = [
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { profile } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -68,6 +71,20 @@ export function Header() {
               </Link>
             );
           })}
+          {profile?.is_admin && (
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname.startsWith("/admin")
+                  ? "bg-neon/10 text-neon"
+                  : "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+              )}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Right side */}
@@ -118,6 +135,24 @@ export function Header() {
                     </Link>
                   );
                 })}
+                {profile?.is_admin && (
+                  <>
+                    <div className="my-4 border-t border-border" />
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname.startsWith("/admin")
+                          ? "bg-neon/10 text-neon"
+                          : "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                      )}
+                    >
+                      <ShieldCheck className="h-5 w-5" />
+                      Admin Dashboard
+                    </Link>
+                  </>
+                )}
                 <div className="my-4 border-t border-border" />
                 <div className="flex flex-col gap-2">
                   <AuthButton />
