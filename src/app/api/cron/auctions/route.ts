@@ -1,7 +1,7 @@
 /**
- * POST /api/cron/auctions
+ * GET /api/cron/auctions
  *
- * Auction settlement cron job. Runs every minute via Vercel cron.
+ * Auction settlement cron job. Runs every 5 minutes via Vercel cron.
  *
  * 1. Activates upcoming auctions whose starts_at <= now
  * 2. Settles English auctions where ends_at < now AND status = 'active'
@@ -16,7 +16,7 @@ import { refundEscrow } from "@/lib/payments/wallet";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;

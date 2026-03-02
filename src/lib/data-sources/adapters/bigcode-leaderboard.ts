@@ -5,7 +5,7 @@
  * (bigcode/bigcodebench-results) on HuggingFace.
  *
  * Columns: model, complete, instruct, size, date, type, moe
- * Scores are mapped to our "humaneval" benchmark slug (code generation).
+ * Scores are mapped to our "bigcodebench" benchmark slug (code generation).
  *
  * Uses batch-loaded in-memory matching with 4 strategies.
  *
@@ -268,10 +268,10 @@ const adapter: DataSourceAdapter = {
       // Write benchmark_scores for matched models
       if (!modelId) continue;
 
-      const benchmarkId = benchmarkIdCache.get("humaneval");
+      const benchmarkId = benchmarkIdCache.get("bigcodebench");
       if (!benchmarkId) continue;
 
-      // Use "complete" score as the primary HumanEval equivalent
+      // Use "complete" score as the primary BigCodeBench score
       const value = completeScore;
       if (value == null || typeof value !== "number" || !isFinite(value)) continue;
 
@@ -294,7 +294,7 @@ const adapter: DataSourceAdapter = {
 
       if (scoreError) {
         errors.push({
-          message: `benchmark_scores upsert for ${modelName}/humaneval: ${scoreError.message}`,
+          message: `benchmark_scores upsert for ${modelName}/bigcodebench: ${scoreError.message}`,
         });
       } else {
         recordsCreated++;

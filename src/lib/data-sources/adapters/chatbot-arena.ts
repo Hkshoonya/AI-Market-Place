@@ -15,7 +15,6 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -131,6 +130,40 @@ const adapter: DataSourceAdapter = {
     let recordsProcessed = 0;
     let recordsCreated = 0;
 
+    // ── Batch model lookup (avoid N+1 queries) ──
+    const { data: allModelsRaw } = await sb
+      .from("models")
+      .select("id, slug, name, provider")
+      .eq("status", "active");
+    const allModels = (allModelsRaw ?? []) as {
+      id: string; slug: string; name: string; provider: string;
+    }[];
+
+    const slugToId = new Map<string, string>();
+    const nameLowerToId = new Map<string, string>();
+    for (const m of allModels) {
+      slugToId.set(m.slug, m.id);
+      nameLowerToId.set(m.name.toLowerCase(), m.id);
+    }
+
+    function findModelId(rawName: string): string | null {
+      const slug = makeSlug(rawName);
+      // Direct slug match
+      if (slugToId.has(slug)) return slugToId.get(slug)!;
+      // Name match (case-insensitive)
+      const lowerName = rawName.toLowerCase();
+      if (nameLowerToId.has(lowerName)) return nameLowerToId.get(lowerName)!;
+      // Partial name match
+      for (const [dbName, id] of nameLowerToId) {
+        if (dbName.includes(lowerName) || lowerName.includes(dbName)) return id;
+      }
+      // Partial slug match (endsWith)
+      for (const [dbSlug, id] of slugToId) {
+        if (dbSlug.endsWith("-" + slug) || slug.endsWith("-" + dbSlug)) return id;
+      }
+      return null;
+    }
+
     for (const row of allRows) {
       // mathewhe/chatbot-arena-elo columns:
       // "Model", "Arena Score", "95% CI", "Votes", "Rank* (UB)", "Organization"
@@ -189,21 +222,12 @@ const adapter: DataSourceAdapter = {
 
       recordsProcessed++;
 
-      const modelSlug = makeSlug(modelName);
-
-      // Find model in our DB by slug or name
-      const { data: models } = await sb
-        .from("models")
-        .select("id")
-        .or(`slug.eq.${sanitizeSlug(modelSlug)},name.ilike.%${sanitizeFilterValue(modelName)}%`)
-        .limit(1);
-
-      const model = models?.[0];
-      if (!model?.id) continue;
+      const modelId = findModelId(modelName);
+      if (!modelId) continue;
 
       const { error } = await sb.from("elo_ratings").upsert(
         {
-          model_id: model.id,
+          model_id: modelId,
           arena_name: "chatbot-arena",
           elo_score: eloScore,
           confidence_interval_low: ciLow,

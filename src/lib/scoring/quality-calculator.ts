@@ -133,6 +133,8 @@ const BENCHMARK_IMPORTANCE: Record<string, number> = {
   "mmmu": 1.0,
   "mathvista": 1.0,
   "ocrbench": 0.9,
+  // BigCodeBench
+  "bigcodebench": 1.2,
 };
 
 function computeWeightedBenchmarkAvg(scores: Array<{ slug: string; score: number }>): number {
