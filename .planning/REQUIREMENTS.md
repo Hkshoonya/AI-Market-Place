@@ -57,13 +57,13 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 ### Constants
 
-- [ ] **CONST-01**: Market cap formula constants (1300 scale, 1.2 exponent, 20 max price) are named constants in a config file
-- [ ] **CONST-02**: Coverage penalty thresholds are lookup tables, not inline literals
-- [ ] **CONST-03**: Provider MAU estimates are externalized to a config file, not hardcoded in calculator source
+- [x] **CONST-01**: Market cap formula constants (1300 scale, 1.2 exponent, 20 max price) are named constants in a config file
+- [x] **CONST-02**: Coverage penalty thresholds are lookup tables, not inline literals
+- [x] **CONST-03**: Provider MAU estimates are externalized to a config file, not hardcoded in calculator source
 
 ### Testing
 
-- [ ] **TEST-01**: Vitest is configured with TypeScript support and path aliases
+- [x] **TEST-01**: Vitest is configured with TypeScript support and path aliases
 - [ ] **TEST-02**: All 7 scoring calculators have unit tests covering normal, edge, and null-input cases
 - [ ] **TEST-03**: Market cap formula has regression tests with known model inputs/outputs
 - [ ] **TEST-04**: Compute-scores decomposed functions have integration tests
@@ -98,10 +98,10 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 1 | Pending |
-| CONST-01 | Phase 1 | Pending |
-| CONST-02 | Phase 1 | Pending |
-| CONST-03 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Complete |
+| CONST-01 | Phase 1 | Complete |
+| CONST-02 | Phase 1 | Complete |
+| CONST-03 | Phase 1 | Complete |
 | SCORE-01 | Phase 2 | Pending |
 | SCORE-02 | Phase 2 | Pending |
 | SCORE-03 | Phase 2 | Pending |
