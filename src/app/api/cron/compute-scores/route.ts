@@ -16,11 +16,11 @@ import {
   normalizeAgentSlug,
   type AgentBenchmarkScore,
 } from "@/lib/scoring/agent-score-calculator";
+import { getProviderUsageEstimate } from "@/lib/constants/scoring";
 import {
   computePopularityScore,
   computePopularityStats,
   computeMarketCap,
-  getProviderUsageEstimate,
 } from "@/lib/scoring/market-cap-calculator";
 import { trackCronRun } from "@/lib/cron-tracker";
 import { getStaleSourceCount, buildSignalCoverage } from "@/lib/pipeline-health";
