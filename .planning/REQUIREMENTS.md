@@ -12,8 +12,8 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 - [x] **SCORE-01**: Scoring calculators use shared `addSignal()` and `logNormalizeSignal()` helpers instead of duplicated blocks
 - [x] **SCORE-02**: Usage calculator has a single code path for open and proprietary models instead of duplicated branches
 - [x] **SCORE-03**: Coverage penalty logic uses lookup tables instead of if/else chains across all calculators
-- [ ] **SCORE-04**: `calculateQualityScore()` is decomposed into sub-functions under 50 lines each
-- [ ] **SCORE-05**: `computeCommunitySignal()` is extracted as a standalone function from quality-calculator
+- [x] **SCORE-04**: `calculateQualityScore()` is decomposed into sub-functions under 50 lines each
+- [x] **SCORE-05**: `computeCommunitySignal()` is extracted as a standalone function from quality-calculator
 
 ### API Route Decomposition
 
@@ -105,8 +105,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | SCORE-01 | Phase 2 | Complete |
 | SCORE-02 | Phase 2 | Complete |
 | SCORE-03 | Phase 2 | Complete |
-| SCORE-04 | Phase 2 | Pending |
-| SCORE-05 | Phase 2 | Pending |
+| SCORE-04 | Phase 2 | Complete |
+| SCORE-05 | Phase 2 | Complete |
 | API-01 | Phase 3 | Pending |
 | API-02 | Phase 3 | Pending |
 | API-03 | Phase 3 | Pending |

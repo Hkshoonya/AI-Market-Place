@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-scoring-simplification plan 02-01 (Shared scoring helpers + calculator wiring)
-last_updated: "2026-03-03T23:27:24.304Z"
+stopped_at: Completed 02-scoring-simplification plan 02-02 (Quality calculator decomposition + computeCommunitySignal export)
+last_updated: "2026-03-03T23:36:02.187Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 ---
@@ -68,6 +68,7 @@ Progress: [████████████████████] 2/2 pla
 | Phase 01-test-infrastructure-constants P01 | 4 | 2 tasks | 3 files |
 | Phase 01-test-infrastructure-constants P02 | 8min | 3 tasks | 4 files |
 | Phase 02-scoring-simplification P01 | 4 | 2 tasks | 5 files |
+| Phase 02-scoring-simplification P02 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 02-scoring-simplification]: BENCHMARK_IMPORTANCE canonical 28-entry list lives in scoring-helpers.ts; quality-calculator wired in Plan 02
 - [Phase 02-scoring-simplification]: usage-calculator unified into single code path using per-signal pool selection (newsMax, trendingMax)
 - [Phase 02-scoring-simplification]: computeRecencyScore defaults halfLifeMonths=18; expert/capability pass halfLifeMonths=12
+- [Phase 02-scoring-simplification]: calculateQualityScore refactored to coordinator calling 6 named sub-functions; computeCommunitySignal exported standalone (SCORE-04, SCORE-05)
+- [Phase 02-scoring-simplification]: maxWeight accumulator removed as dead code from quality-calculator — computed but never read in score calculation
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T23:27:24.299Z
-Stopped at: Completed 02-scoring-simplification plan 02-01 (Shared scoring helpers + calculator wiring)
+Last session: 2026-03-03T23:36:02.184Z
+Stopped at: Completed 02-scoring-simplification plan 02-02 (Quality calculator decomposition + computeCommunitySignal export)
 Resume file: None
