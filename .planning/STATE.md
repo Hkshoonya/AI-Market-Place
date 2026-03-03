@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-test-infrastructure-constants plan 01-01 (Vitest config + scoring constants)
-last_updated: "2026-03-03T22:38:36.478Z"
+stopped_at: Completed 01-test-infrastructure-constants plan 01-02 (Wire calculators to scoring constants)
+last_updated: "2026-03-03T22:45:58.868Z"
 last_activity: 2026-03-03 — Roadmap created, 34 requirements mapped to 8 phases
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 50
 ---
 
@@ -51,6 +51,7 @@ Progress: [█████░░░░░] 50%
 
 *Updated after each plan completion*
 | Phase 01-test-infrastructure-constants P01 | 4 | 2 tasks | 3 files |
+| Phase 01-test-infrastructure-constants P02 | 8min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 01-test-infrastructure-constants]: passWithNoTests: true added to vitest config so runner exits 0 when no test files exist yet
 - [Phase 01-test-infrastructure-constants]: Two separate coverage penalty tables: POPULARITY_COVERAGE_PENALTY (market-cap) and EVIDENCE_COVERAGE_PENALTY (quality/expert)
 - [Phase 01-test-infrastructure-constants]: DEFAULT_PROVIDER_MAU exported as named constant so fallback value is a single source of truth
+- [Phase 01-test-infrastructure-constants]: market-cap-calculator re-exports PROVIDER_USAGE_ESTIMATES and getProviderUsageEstimate from constants for backward compat
+- [Phase 01-test-infrastructure-constants]: agent-score-calculator.ts intentionally NOT modified: continuous sqrt formula is algorithmic not a lookup table
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:38:36.475Z
-Stopped at: Completed 01-test-infrastructure-constants plan 01-01 (Vitest config + scoring constants)
+Last session: 2026-03-03T22:45:58.863Z
+Stopped at: Completed 01-test-infrastructure-constants plan 01-02 (Wire calculators to scoring constants)
 Resume file: None
