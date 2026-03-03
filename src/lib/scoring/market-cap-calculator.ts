@@ -11,6 +11,18 @@
  * not an actual financial valuation.
  */
 
+import {
+  MARKET_CAP_SCALE_FACTOR,
+  USAGE_EXPONENT,
+  MAX_PRICE_NORMALIZATION,
+  MIN_EFFECTIVE_PRICE,
+  POPULARITY_COVERAGE_PENALTY,
+  getCoveragePenalty,
+} from "@/lib/constants/scoring";
+
+// Re-export for backward compatibility (consumers should import from @/lib/constants/scoring)
+export { PROVIDER_USAGE_ESTIMATES, getProviderUsageEstimate } from "@/lib/constants/scoring";
+
 // --------------- Types ---------------
 
 export interface PopularityInputs {
@@ -41,69 +53,6 @@ export interface PopularityStats {
   maxUsageEstimate: number;
   /** Maximum trending score */
   maxTrendingScore: number;
-}
-
-// --------------- Provider Usage Estimates ---------------
-
-/**
- * Curated monthly active user estimates for major AI providers.
- * These are rough order-of-magnitude estimates used as a proxy signal.
- * Source: public reports, press releases, third-party analytics.
- *
- * Key: provider name (lowercase). Value: estimated monthly active users.
- */
-export const PROVIDER_USAGE_ESTIMATES: Record<string, number> = {
-  openai: 400_000_000,
-  anthropic: 50_000_000,
-  google: 200_000_000,
-  meta: 100_000_000,
-  mistral: 15_000_000,
-  "mistral ai": 15_000_000,
-  deepseek: 40_000_000,
-  xai: 20_000_000,
-  cohere: 5_000_000,
-  amazon: 10_000_000,
-  microsoft: 30_000_000,
-  nvidia: 8_000_000,
-  perplexity: 25_000_000,
-  alibaba: 20_000_000,
-  "alibaba cloud": 20_000_000,
-  "alibaba / qwen": 20_000_000,
-  qwen: 20_000_000,
-  "stability ai": 10_000_000,
-  "hugging face": 5_000_000,
-  "ai21 labs": 3_000_000,
-  "moonshot ai": 5_000_000,
-  moonshotai: 5_000_000,
-  "zhipu ai": 5_000_000,
-  "01.ai": 3_000_000,
-  "together ai": 2_000_000,
-  databricks: 5_000_000,
-  minimax: 5_000_000,
-  minimaxai: 5_000_000,
-};
-
-/**
- * Look up the estimated monthly active users for a model's provider.
- * Falls back to 1M for unknown providers.
- */
-export function getProviderUsageEstimate(providerName: string): number {
-  const normalized = providerName.toLowerCase().trim();
-
-  // Direct match
-  if (PROVIDER_USAGE_ESTIMATES[normalized] !== undefined) {
-    return PROVIDER_USAGE_ESTIMATES[normalized];
-  }
-
-  // Partial match
-  for (const [key, value] of Object.entries(PROVIDER_USAGE_ESTIMATES)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
-      return value;
-    }
-  }
-
-  // Default fallback for unknown providers
-  return 1_000_000;
 }
 
 // --------------- Popularity Score ---------------
@@ -188,22 +137,13 @@ export function computePopularityScore(
   // engagement data. Without this, every OpenAI model scores 100 regardless
   // of whether it's GPT-4o or a niche moderation endpoint.
   //
-  // Coverage factors:
+  // Coverage factors (from POPULARITY_COVERAGE_PENALTY):
   //   1 signal  → 0.50 (max score ~50)
   //   2 signals → 0.70 (max score ~70)
   //   3 signals → 0.85 (max score ~85)
   //   4+ signals → 1.00 (full score)
   const TOTAL_POSSIBLE_SIGNALS = 6;
-  let coverageFactor: number;
-  if (signals.length >= 4) {
-    coverageFactor = 1.0;
-  } else if (signals.length === 3) {
-    coverageFactor = 0.85;
-  } else if (signals.length === 2) {
-    coverageFactor = 0.70;
-  } else {
-    coverageFactor = 0.50;
-  }
+  const coverageFactor = getCoveragePenalty(POPULARITY_COVERAGE_PENALTY, signals.length);
 
   const adjustedScore = weightedSum * coverageFactor;
 
@@ -216,12 +156,12 @@ export function computePopularityScore(
  * Compute an estimated "market cap" representing monthly revenue potential.
  *
  * Revised formula:
- *   marketCap = usageScore^1.2 * priceWeight * SCALE_FACTOR
+ *   marketCap = usageScore^USAGE_EXPONENT * priceWeight * MARKET_CAP_SCALE_FACTOR
  *
  * Where:
  *   - usageScore = usage lens score (0-100)
- *   - priceWeight = log10(blendedPrice + 1) / log10(20 + 1) — log-normalized
- *   - SCALE_FACTOR calibrated so GPT-4o ~ $200M/month
+ *   - priceWeight = log10(blendedPrice + 1) / log10(MAX_PRICE_NORMALIZATION + 1) — log-normalized
+ *   - MARKET_CAP_SCALE_FACTOR calibrated so GPT-4o ~ $200M/month
  *
  * @param usageScore - 0-100 usage lens score (replaces raw popularityScore)
  * @param blendedApiPrice - Average of input + output price per 1M tokens (USD)
@@ -233,20 +173,18 @@ export function computeMarketCap(
 ): number {
   if (usageScore <= 0) return 0;
 
-  // Minimum effective price: $0.10 for free/open models (was $0.01)
-  const effectivePrice = Math.max(blendedApiPrice, 0.10);
+  // Minimum effective price: MIN_EFFECTIVE_PRICE for free/open models
+  const effectivePrice = Math.max(blendedApiPrice, MIN_EFFECTIVE_PRICE);
 
   // Log-normalize price so it matters but doesn't dominate
   // $0.10 -> 0.08, $1 -> 0.23, $5 -> 0.53, $15 -> 0.90, $20 -> 1.0
-  const priceWeight = Math.log10(effectivePrice + 1) / Math.log10(20 + 1);
+  const priceWeight = Math.log10(effectivePrice + 1) / Math.log10(MAX_PRICE_NORMALIZATION + 1);
 
-  // Scale factor calibrated:
+  // MARKET_CAP_SCALE_FACTOR calibrated:
   // usage=95, price=$15 (GPT-4o) -> 95^1.2 * 0.90 * 1300 ~ $200M
   // usage=80, price=$5 (mid-tier) -> 80^1.2 * 0.53 * 1300 ~ $90M
-  const SCALE_FACTOR = 1300;
-
   const rawMarketCap =
-    Math.pow(usageScore, 1.2) * priceWeight * SCALE_FACTOR;
+    Math.pow(usageScore, USAGE_EXPONENT) * priceWeight * MARKET_CAP_SCALE_FACTOR;
 
   return Math.round(rawMarketCap / 1000) * 1000;
 }
