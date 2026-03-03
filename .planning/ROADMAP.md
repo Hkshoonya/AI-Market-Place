@@ -11,7 +11,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - Decimal phases: Urgent insertions via `/gsd:insert-phase`
 
 - [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
-- [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators
+- [x] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators (completed 2026-03-03)
 - [ ] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions
 - [ ] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication
 - [ ] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks
@@ -45,7 +45,7 @@ Plans:
   3. `calculateQualityScore()` is composed of sub-functions, each under 50 lines, with no sub-function exceeding 4 nesting levels
   4. `computeCommunitySignal()` is a standalone exported function in its own module, no longer embedded in quality-calculator
   5. `npx tsc --noEmit` passes clean after all scoring changes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 02-01-PLAN.md — Create shared scoring helpers + wire calculators + unify usage calculator
 - [ ] 02-02-PLAN.md — Decompose quality-calculator into sub-functions + final verification
@@ -130,7 +130,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
-| 2. Scoring Simplification | 1/2 | In Progress|  |
+| 2. Scoring Simplification | 2/2 | Complete   | 2026-03-03 |
 | 3. API Route Decomposition | 0/TBD | Not started | - |
 | 4. Adapter Deduplication | 0/TBD | Not started | - |
 | 5. Component Decomposition | 0/TBD | Not started | - |
