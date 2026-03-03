@@ -10,7 +10,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - Integer phases (1–8): Planned milestone work
 - Decimal phases: Urgent insertions via `/gsd:insert-phase`
 
-- [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
+- [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators
 - [ ] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions
 - [ ] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication
@@ -45,7 +45,10 @@ Plans:
   3. `calculateQualityScore()` is composed of sub-functions, each under 50 lines, with no sub-function exceeding 4 nesting levels
   4. `computeCommunitySignal()` is a standalone exported function in its own module, no longer embedded in quality-calculator
   5. `npx tsc --noEmit` passes clean after all scoring changes
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Create shared scoring helpers + wire calculators + unify usage calculator
+- [ ] 02-02-PLAN.md — Decompose quality-calculator into sub-functions + final verification
 
 ### Phase 3: API Route Decomposition
 **Goal**: The compute-scores route and purchase route are split into discrete, named functions that can be called and tested independently
@@ -127,7 +130,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
-| 2. Scoring Simplification | 0/TBD | Not started | - |
+| 2. Scoring Simplification | 0/2 | Planning complete | - |
 | 3. API Route Decomposition | 0/TBD | Not started | - |
 | 4. Adapter Deduplication | 0/TBD | Not started | - |
 | 5. Component Decomposition | 0/TBD | Not started | - |
