@@ -11,6 +11,8 @@
  * No coverage penalty — missing signals contribute 0, remaining reweighted.
  */
 
+import { logNormalizeSignal } from "@/lib/scoring/scoring-helpers";
+
 export interface UsageInputs {
   downloads: number;
   likes: number;
@@ -43,11 +45,6 @@ const WEIGHTS = {
   usage: 0.20,
   trending: 0.10,
 };
-
-function logNorm(value: number, max: number): number {
-  if (value <= 0 || max <= 0) return 0;
-  return Math.min((Math.log10(value + 1) / Math.log10(max + 1)) * 100, 100);
-}
 
 /**
  * Compute normalization stats with separate pools for open vs proprietary.
@@ -90,51 +87,45 @@ export function computeUsageScore(
 ): number {
   const signals: Array<{ score: number; weight: number }> = [];
 
-  if (inputs.isOpenWeights) {
-    // Open model signals
-    if (inputs.downloads > 0) {
-      signals.push({ score: logNorm(inputs.downloads, stats.openMaxDownloads), weight: WEIGHTS.downloads });
-    }
-    if (inputs.likes > 0) {
-      signals.push({ score: logNorm(inputs.likes, stats.openMaxLikes), weight: WEIGHTS.likes });
-    }
-    if (inputs.stars > 0) {
-      signals.push({ score: logNorm(inputs.stars, stats.openMaxStars), weight: WEIGHTS.stars });
-    }
-    if (inputs.trendingScore > 0) {
-      const norm = stats.openMaxTrending > 0 ? (inputs.trendingScore / stats.openMaxTrending) * 100 : 0;
-      signals.push({ score: Math.min(norm, 100), weight: WEIGHTS.trending });
-    }
-    // Open models can also have news
-    if (inputs.newsMentions > 0) {
-      signals.push({ score: logNorm(inputs.newsMentions, stats.maxNews), weight: WEIGHTS.news });
-    }
-    // Provider MAU still applies (e.g., Meta's LLaMA has Meta's MAU)
-    if (inputs.providerUsageEstimate > 0) {
-      signals.push({ score: logNorm(inputs.providerUsageEstimate, stats.propMaxMAU), weight: WEIGHTS.usage });
-    }
-  } else {
-    // Proprietary model signals
-    if (inputs.providerUsageEstimate > 0) {
-      signals.push({ score: logNorm(inputs.providerUsageEstimate, stats.propMaxMAU), weight: WEIGHTS.usage });
-    }
-    if (inputs.newsMentions > 0) {
-      signals.push({ score: logNorm(inputs.newsMentions, stats.propMaxNews), weight: WEIGHTS.news });
-    }
-    if (inputs.trendingScore > 0) {
-      const norm = stats.propMaxTrending > 0 ? (inputs.trendingScore / stats.propMaxTrending) * 100 : 0;
-      signals.push({ score: Math.min(norm, 100), weight: WEIGHTS.trending });
-    }
-    // Proprietary models might have HF downloads (rare but possible)
-    if (inputs.downloads > 0) {
-      signals.push({ score: logNorm(inputs.downloads, stats.openMaxDownloads), weight: WEIGHTS.downloads });
-    }
-    if (inputs.likes > 0) {
-      signals.push({ score: logNorm(inputs.likes, stats.openMaxLikes), weight: WEIGHTS.likes });
-    }
-    if (inputs.stars > 0) {
-      signals.push({ score: logNorm(inputs.stars, stats.openMaxStars), weight: WEIGHTS.stars });
-    }
+  // Single code path: select the correct normalization pool per signal based on isOpenWeights.
+  // Downloads, likes, and stars always use the open-model pool (proprietary models rarely have
+  // HF presence but when they do, they are benchmarked against open-model peers).
+  // News max: open uses the global pool, proprietary uses its own pool.
+  // Trending max: open uses its pool, proprietary uses its pool.
+  // Provider MAU (usage): always uses the proprietary pool.
+
+  const newsMax = inputs.isOpenWeights ? stats.maxNews : stats.propMaxNews;
+  const trendingMax = inputs.isOpenWeights ? stats.openMaxTrending : stats.propMaxTrending;
+
+  // Downloads (HF; open pool for both)
+  if (inputs.downloads > 0) {
+    signals.push({ score: logNormalizeSignal(inputs.downloads, stats.openMaxDownloads), weight: WEIGHTS.downloads });
+  }
+
+  // Likes (HF; open pool for both)
+  if (inputs.likes > 0) {
+    signals.push({ score: logNormalizeSignal(inputs.likes, stats.openMaxLikes), weight: WEIGHTS.likes });
+  }
+
+  // Stars (GitHub; open pool for both)
+  if (inputs.stars > 0) {
+    signals.push({ score: logNormalizeSignal(inputs.stars, stats.openMaxStars), weight: WEIGHTS.stars });
+  }
+
+  // News mentions (pool differs by model type)
+  if (inputs.newsMentions > 0) {
+    signals.push({ score: logNormalizeSignal(inputs.newsMentions, newsMax), weight: WEIGHTS.news });
+  }
+
+  // Provider MAU / usage estimate (proprietary pool)
+  if (inputs.providerUsageEstimate > 0) {
+    signals.push({ score: logNormalizeSignal(inputs.providerUsageEstimate, stats.propMaxMAU), weight: WEIGHTS.usage });
+  }
+
+  // Trending score (linear, not log; pool differs by model type)
+  if (inputs.trendingScore > 0) {
+    const norm = trendingMax > 0 ? (inputs.trendingScore / trendingMax) * 100 : 0;
+    signals.push({ score: Math.min(norm, 100), weight: WEIGHTS.trending });
   }
 
   if (signals.length === 0) return 0;

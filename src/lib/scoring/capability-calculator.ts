@@ -10,6 +10,8 @@
  * Models with ZERO benchmarks AND zero ELO are unranked (null).
  */
 
+import { normalizeElo, computeRecencyScore } from "@/lib/scoring/scoring-helpers";
+
 export interface CapabilityInputs {
   benchmarkScores: Array<{ slug: string; score: number }> | null;
   eloScore: number | null;
@@ -110,16 +112,11 @@ export function computeCapabilityScore(inputs: CapabilityInputs): number | null 
   // ELO sub-score (0-100), normalized from 800-1400 range
   let eloNormalized = 0;
   if (hasELO) {
-    eloNormalized = Math.min(Math.max((inputs.eloScore! - 800) / (1400 - 800) * 100, 0), 100);
+    eloNormalized = normalizeElo(inputs.eloScore!);
   }
 
   // Recency bonus (0-100), exponential decay with 12-month half-life
-  let recencyBonus = 50; // default if no release date
-  if (inputs.releaseDate) {
-    const ageMs = Date.now() - new Date(inputs.releaseDate).getTime();
-    const ageMonths = ageMs / (30 * 24 * 60 * 60 * 1000);
-    recencyBonus = Math.max(100 * Math.exp(-ageMonths / 12), 10);
-  }
+  const recencyBonus = computeRecencyScore(inputs.releaseDate, { halfLifeMonths: 12 });
 
   // Weight distribution
   let benchWeight = 0.60;
