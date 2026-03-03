@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-test-infrastructure-constants plan 01-01 (Vitest config + scoring constants)
+last_updated: "2026-03-03T22:38:36.478Z"
+last_activity: 2026-03-03 — Roadmap created, 34 requirements mapped to 8 phases
+progress:
+  total_phases: 8
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
+---
+
 # Project State
 
 ## Project Reference
@@ -14,7 +30,7 @@ Plan: 0 of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-03-03 — Roadmap created, 34 requirements mapped to 8 phases
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -34,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-test-infrastructure-constants P01 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -45,6 +62,9 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Setup]: Constants externalization happens in Phase 1 before any refactoring touches them
 - [Setup]: Complexity phases (1-5) must complete before Type Safety (Phase 6)
 - [Setup]: Zero behavior change constraint — build must stay green after every phase
+- [Phase 01-test-infrastructure-constants]: passWithNoTests: true added to vitest config so runner exits 0 when no test files exist yet
+- [Phase 01-test-infrastructure-constants]: Two separate coverage penalty tables: POPULARITY_COVERAGE_PENALTY (market-cap) and EVIDENCE_COVERAGE_PENALTY (quality/expert)
+- [Phase 01-test-infrastructure-constants]: DEFAULT_PROVIDER_MAU exported as named constant so fallback value is a single source of truth
 
 ### Pending Todos
 
@@ -56,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Roadmap created, requirements mapped, ready to plan Phase 1
+Last session: 2026-03-03T22:38:36.475Z
+Stopped at: Completed 01-test-infrastructure-constants plan 01-01 (Vitest config + scoring constants)
 Resume file: None
