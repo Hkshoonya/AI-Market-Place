@@ -10,6 +10,8 @@
  *               + recency * 0.10
  */
 
+import { EVIDENCE_COVERAGE_PENALTY, getCoveragePenalty } from "@/lib/constants/scoring";
+
 export interface ExpertInputs {
   avgBenchmarkScore: number | null;
   benchmarkScores: Array<{ slug: string; score: number }> | null;
@@ -128,12 +130,8 @@ export function computeExpertScore(
   if (communitySignal > 0) evidenceCount++;
   if (citationProxy > 0) evidenceCount++;
 
-  let penalty: number;
   if (evidenceCount === 0) return 0;
-  else if (evidenceCount === 1) penalty = 0.40;
-  else if (evidenceCount === 2) penalty = 0.65;
-  else if (evidenceCount === 3) penalty = 0.85;
-  else penalty = 1.00;
+  const penalty = getCoveragePenalty(EVIDENCE_COVERAGE_PENALTY, evidenceCount);
 
   const score = rawScore * penalty;
   return Math.round(Math.min(Math.max(score, 0), 100) * 10) / 10;
