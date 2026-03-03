@@ -17,6 +17,13 @@
  */
 
 import { EVIDENCE_COVERAGE_PENALTY, getCoveragePenalty } from "@/lib/constants/scoring";
+import {
+  logNormalizeSignal,
+  addSignal,
+  weightedBenchmarkAvg,
+  normalizeElo,
+  computeRecencyScore,
+} from "@/lib/scoring/scoring-helpers";
 
 export interface QualityInputs {
   /** Existing value_score from Artificial Analysis (may be null) */
@@ -98,60 +105,141 @@ const CATEGORY_WEIGHTS: Record<string, WeightProfile> = {
   default:          { popularity: 15, benchmarks: 25, elo: 20, recency: 15, community: 15, openness: 10 },
 };
 
-/**
- * Benchmark importance weights for weighted averaging.
- * Multiple slug variants are listed to handle DB inconsistencies
- * (some use hyphens, some use underscores).
- */
-const BENCHMARK_IMPORTANCE: Record<string, number> = {
-  // Core benchmarks (Artificial Analysis + Open LLM Leaderboard)
-  "mmlu": 1.0,
-  "humaneval": 1.2,
-  "math": 1.1,
-  "math-benchmark": 1.1,
-  "gpqa": 1.3,
-  "ifeval": 0.9,
-  "bbh": 1.0,
-  "musr": 0.8,
-  "mmlu-pro": 1.2,
-  "mmlu_pro": 1.2,
-  // SWE-bench (both slug forms)
-  "swe-bench": 1.3,
-  "swe_bench": 1.3,
-  // ARC (both slug forms)
-  "arc-challenge": 0.9,
-  "arc": 0.9,
-  "hellaswag": 0.8,
-  "winogrande": 0.8,
-  "truthfulqa": 0.9,
-  // LiveBench benchmarks
-  "livebench-reasoning": 1.1,
-  "livebench-math": 1.1,
-  "livebench-coding": 1.2,
-  "livebench-language": 0.9,
-  "livebench-if": 0.9,
-  "livebench-data-analysis": 1.0,
-  // Vision/multimodal benchmarks
-  "mmmu": 1.0,
-  "mathvista": 1.0,
-  "ocrbench": 0.9,
-  // BigCodeBench
-  "bigcodebench": 1.2,
-};
+type Signal = { name: string; score: number; weight: number } | null;
 
-function computeWeightedBenchmarkAvg(scores: Array<{ slug: string; score: number }>): number {
-  if (scores.length === 0) return 0;
-  let weightedSum = 0;
-  let totalImportance = 0;
-  for (const s of scores) {
-    // Normalize slug to handle both hyphen and underscore variants
-    const normalizedSlug = s.slug.toLowerCase().replace(/_/g, "-");
-    const importance = BENCHMARK_IMPORTANCE[s.slug] ?? BENCHMARK_IMPORTANCE[normalizedSlug] ?? 1.0;
-    weightedSum += s.score * importance;
-    totalImportance += importance;
-  }
-  return totalImportance > 0 ? weightedSum / totalImportance : 0;
+// --------------- Sub-functions ---------------
+
+/**
+ * Compute popularity signal from HF downloads (log-normalized).
+ * Returns null if HF signals are not available for this model type,
+ * or if there are no downloads to normalize.
+ */
+function computePopularitySignal(
+  inputs: QualityInputs,
+  stats: NormalizationStats,
+  weights: WeightProfile,
+  isHfAvailable: boolean
+): Signal {
+  if (!isHfAvailable) return null;
+  if (inputs.hfDownloads == null || inputs.hfDownloads <= 0) return null;
+  const logScore = logNormalizeSignal(inputs.hfDownloads, stats.maxDownloads);
+  return { name: "popularity", score: logScore, weight: weights.popularity };
 }
+
+/**
+ * Compute benchmark signal from individual or aggregated scores.
+ * Returns null if no benchmark data is available.
+ */
+function computeBenchmarkSignal(
+  inputs: QualityInputs,
+  weights: WeightProfile
+): Signal {
+  const benchmarkScore =
+    inputs.benchmarkScores && inputs.benchmarkScores.length > 0
+      ? weightedBenchmarkAvg(inputs.benchmarkScores)
+      : inputs.avgBenchmarkScore;
+
+  if (benchmarkScore == null || benchmarkScore <= 0) return null;
+  return { name: "benchmarks", score: benchmarkScore, weight: weights.benchmarks };
+}
+
+/**
+ * Compute ELO signal from Chatbot Arena rating.
+ * When benchmarks are absent, ELO absorbs benchmark weight (both measure quality).
+ * Returns null if no ELO score is available.
+ */
+function computeEloSignal(
+  inputs: QualityInputs,
+  weights: WeightProfile,
+  hasBenchmarks: boolean
+): Signal {
+  if (inputs.eloScore == null || inputs.eloScore <= 0) return null;
+  const normalizedElo = normalizeElo(inputs.eloScore);
+  let eloWeight = weights.elo;
+  if (!hasBenchmarks) {
+    eloWeight += weights.benchmarks;
+  }
+  return { name: "elo", score: normalizedElo, weight: eloWeight };
+}
+
+/**
+ * Compute recency signal using exponential decay (half-life 18 months, floor 10).
+ * Returns null if no release date is available.
+ */
+function computeRecencySignal(
+  inputs: QualityInputs,
+  weights: WeightProfile
+): Signal {
+  if (!inputs.releaseDate) return null;
+  const recencyScore = computeRecencyScore(inputs.releaseDate, {
+    halfLifeMonths: 18,
+    floor: 10,
+  });
+  return { name: "recency", score: recencyScore, weight: weights.recency };
+}
+
+/**
+ * Compute community signal from HF likes, news mentions, and trending score.
+ *
+ * For open models: community = (likes + news) / 2 (or news-only if no likes).
+ * For proprietary models: community = news-only (HF likes not applicable).
+ * A trending boost of up to +20 is applied regardless of model type.
+ *
+ * Returns null if no community data is available for this model type.
+ *
+ * SCORE-05: Exported as a standalone function for use outside quality-calculator.
+ */
+export function computeCommunitySignal(
+  inputs: QualityInputs,
+  stats: NormalizationStats,
+  weights: WeightProfile,
+  isProprietary: boolean,
+  isHfAvailable: boolean
+): Signal {
+  const hasLikes = inputs.hfLikes != null && inputs.hfLikes > 0;
+  const hasNews = inputs.newsMentions > 0;
+
+  if (!isHfAvailable && !hasNews) return null;
+  if (!hasLikes && !hasNews) return null;
+
+  const likeScore = hasLikes
+    ? logNormalizeSignal(inputs.hfLikes!, stats.maxLikes)
+    : 0;
+  const newsScore = hasNews
+    ? logNormalizeSignal(inputs.newsMentions, stats.maxNewsMentions)
+    : 0;
+
+  // Proprietary models: community = news only (HF likes not applicable)
+  // Open models: community = (likes + news) / 2
+  let communityScore = hasLikes
+    ? Math.min((likeScore + newsScore) / 2, 100)
+    : Math.min(newsScore, 100);
+
+  // Trending boost: up to +20 on community sub-score
+  if (inputs.trendingScore != null && inputs.trendingScore > 0) {
+    const trendingBoost = Math.min((inputs.trendingScore / 50) * 20, 20);
+    communityScore = Math.min(communityScore + trendingBoost, 100);
+  }
+
+  return { name: "community", score: communityScore, weight: weights.community };
+}
+
+/**
+ * Compute openness signal (open weights bonus).
+ * Always returns a signal — open=100, proprietary=50.
+ */
+function computeOpennessSignal(
+  inputs: QualityInputs,
+  weights: WeightProfile
+): Signal {
+  return {
+    name: "openness",
+    score: inputs.isOpenWeights ? 100 : 50,
+    weight: weights.openness,
+  };
+}
+
+// --------------- Proxy Quality Gate ---------------
 
 /**
  * Compute a proxy quality signal for models without direct benchmarks/ELO.
@@ -163,23 +251,23 @@ function computeProxyQualitySignal(inputs: QualityInputs): number {
 
   // Provider reputation: if other models from this provider score well
   if (inputs.providerAvgBenchmark != null && inputs.providerAvgBenchmark > 0) {
-    // Normalize to 0-1 (assuming avg benchmark around 50-80)
     const providerSignal = Math.min(inputs.providerAvgBenchmark / 80, 1.0);
-    proxyScore += providerSignal * 0.6; // 60% weight to provider reputation
+    proxyScore += providerSignal * 0.6;
     proxySignals++;
   }
 
   // Parameter count: larger models in same family tend to be better
   if (inputs.parameterCount != null && inputs.parameterCount > 0) {
-    // Log-scale: 1B=0.0, 10B=0.33, 100B=0.67, 1000B=1.0
     const paramSignal = Math.min(Math.log10(inputs.parameterCount) / 3, 1.0);
-    proxyScore += paramSignal * 0.4; // 40% weight to model size
+    proxyScore += paramSignal * 0.4;
     proxySignals++;
   }
 
   if (proxySignals === 0) return 0;
   return Math.min(proxyScore, 1.0);
 }
+
+// --------------- Coordinator ---------------
 
 /**
  * Calculate quality score for a single model.
@@ -196,102 +284,25 @@ export function calculateQualityScore(
 ): number {
   const weights = CATEGORY_WEIGHTS[inputs.category] ?? CATEGORY_WEIGHTS.default;
   const isProprietary = !inputs.isOpenWeights;
-
-  // Track which signals are structurally available for this model type
-  // Proprietary models can't have HF downloads/likes — don't penalize them
   const isHfAvailable = !isProprietary || (inputs.hfDownloads != null && inputs.hfDownloads > 0);
 
   const signals: Array<{ name: string; score: number; weight: number }> = [];
-  let maxWeight = 0; // Total weight of signals that COULD be available
 
-  // 1. Popularity: log-normalized downloads
-  if (isHfAvailable) {
-    maxWeight += weights.popularity;
-    if (inputs.hfDownloads != null && inputs.hfDownloads > 0) {
-      const logScore =
-        (Math.log10(inputs.hfDownloads + 1) /
-          Math.log10(stats.maxDownloads + 1)) *
-        100;
-      signals.push({ name: "popularity", score: Math.min(logScore, 100), weight: weights.popularity });
-    }
+  // Collect signals (each sub-function returns null when data is unavailable)
+  const benchmarkSignal = computeBenchmarkSignal(inputs, weights);
+  const hasBenchmarks = benchmarkSignal != null;
+
+  const rawSignals = [
+    computePopularitySignal(inputs, stats, weights, isHfAvailable),
+    benchmarkSignal,
+    computeEloSignal(inputs, weights, hasBenchmarks),
+    computeRecencySignal(inputs, weights),
+    computeCommunitySignal(inputs, stats, weights, isProprietary, isHfAvailable),
+    computeOpennessSignal(inputs, weights),
+  ];
+  for (const sig of rawSignals) {
+    if (sig) addSignal(signals, sig.name, sig.score, sig.weight);
   }
-
-  // 2. Benchmarks: use weighted average if individual scores available
-  const benchmarkScore = inputs.benchmarkScores && inputs.benchmarkScores.length > 0
-    ? computeWeightedBenchmarkAvg(inputs.benchmarkScores)
-    : inputs.avgBenchmarkScore;
-
-  maxWeight += weights.benchmarks;
-  if (benchmarkScore != null && benchmarkScore > 0) {
-    signals.push({ name: "benchmarks", score: benchmarkScore, weight: weights.benchmarks });
-  }
-
-  // 3. ELO (Chatbot Arena)
-  // If benchmarks are missing but ELO is present, ELO absorbs benchmark weight
-  maxWeight += weights.elo;
-  if (inputs.eloScore != null && inputs.eloScore > 0) {
-    const normalizedElo = Math.min(Math.max((inputs.eloScore - 800) / (1400 - 800) * 100, 0), 100);
-    let eloWeight = weights.elo;
-
-    // If no benchmarks, let ELO absorb benchmark weight (both measure quality)
-    if (benchmarkScore == null || benchmarkScore <= 0) {
-      eloWeight += weights.benchmarks;
-    }
-
-    signals.push({ name: "elo", score: normalizedElo, weight: eloWeight });
-  }
-
-  // 4. Recency: smooth exponential decay (half-life ~12 months, floor at 10)
-  maxWeight += weights.recency;
-  if (inputs.releaseDate) {
-    const ageMs = Date.now() - new Date(inputs.releaseDate).getTime();
-    const ageMonths = ageMs / (30 * 24 * 60 * 60 * 1000);
-    const recencyScore = Math.max(100 * Math.exp(-ageMonths / 18), 10);
-    signals.push({ name: "recency", score: recencyScore, weight: weights.recency });
-  }
-
-  // 5. Community: log-normalized likes + news mentions + trending boost
-  // For proprietary models without HF likes, only news matters
-  const hasLikes = inputs.hfLikes != null && inputs.hfLikes > 0;
-  const hasNews = inputs.newsMentions > 0;
-
-  if (isHfAvailable || hasNews) {
-    maxWeight += weights.community;
-    if (hasLikes || hasNews) {
-      const likeScore = hasLikes
-        ? (Math.log10(inputs.hfLikes! + 1) / Math.log10(stats.maxLikes + 1)) * 100
-        : 0;
-      const newsScore = hasNews
-        ? (Math.log10(inputs.newsMentions + 1) / Math.log10(stats.maxNewsMentions + 1)) * 100
-        : 0;
-      // For proprietary models, community = news only (full weight)
-      // For open models, community = (likes + news) / 2
-      let communityScore = hasLikes
-        ? Math.min((likeScore + newsScore) / 2, 100)
-        : Math.min(newsScore, 100);
-
-      // Blend trendingScore as a boost (up to +20 on community sub-score)
-      if (inputs.trendingScore != null && inputs.trendingScore > 0) {
-        const trendingBoost = Math.min((inputs.trendingScore / 50) * 20, 20);
-        communityScore = Math.min(communityScore + trendingBoost, 100);
-      }
-
-      signals.push({ name: "community", score: communityScore, weight: weights.community });
-    }
-  } else if (isProprietary && hasNews) {
-    // Proprietary model with only news mentions
-    maxWeight += weights.community;
-    const newsScore = (Math.log10(inputs.newsMentions + 1) / Math.log10(stats.maxNewsMentions + 1)) * 100;
-    signals.push({ name: "community", score: Math.min(newsScore, 100), weight: weights.community });
-  }
-
-  // 6. Openness: open weights get bonus
-  maxWeight += weights.openness;
-  signals.push({
-    name: "openness",
-    score: inputs.isOpenWeights ? 100 : 50,
-    weight: weights.openness,
-  });
 
   // Compute weighted average (reweight proportionally for present signals)
   if (signals.length === 0) return 0;
@@ -303,7 +314,6 @@ export function calculateQualityScore(
   );
 
   // Coverage penalty: discrete steps based on EVIDENCE signal count.
-  // "openness" and "recency" are attributes, not evidence — don't count them.
   const evidenceSignals = signals.filter(s => s.name !== "openness" && s.name !== "recency");
   const evidenceCount = evidenceSignals.length;
 
@@ -313,15 +323,10 @@ export function calculateQualityScore(
   let penalizedScore = weightedSum * coveragePenalty;
 
   // Quality-signal gate: models without ANY quality signal (benchmarks or ELO)
-  // are capped based on proxy signals.
-  // - No proxy signals: hard cap at 50
-  // - With proxy signals: cap at 50 + (proxy * 15), max 65
-  // This prevents popular-but-unverified models from ranking above quality-verified flagships,
-  // while still allowing well-known models from top providers to score reasonably.
   const hasQualitySignal = signals.some(s => s.name === "benchmarks" || s.name === "elo");
   if (!hasQualitySignal) {
     const proxyScore = computeProxyQualitySignal(inputs);
-    const cap = 50 + proxyScore * 15; // max 65
+    const cap = 50 + proxyScore * 15;
     penalizedScore = Math.min(penalizedScore, cap);
   }
 
@@ -353,11 +358,8 @@ export function computeRankings(
   category_rank: number;
 }> {
   // Composite ranking: 50% market cap rank + 30% quality rank + 20% popularity rank
-  // This ensures models are ranked by real market importance first,
-  // with quality and popularity as secondary signals.
   const withSignals = models.filter((m) => m.qualityScore > 0);
 
-  // Sort by each signal to get per-signal ranks
   const byMarketCap = [...withSignals].sort(
     (a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0)
   );
@@ -368,12 +370,10 @@ export function computeRankings(
     (a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0)
   );
 
-  // Build rank maps (lower rank = better)
   const mcapRank = new Map(byMarketCap.map((m, i) => [m.id, i + 1]));
   const qualRank = new Map(byQuality.map((m, i) => [m.id, i + 1]));
   const popRank = new Map(byPopularity.map((m, i) => [m.id, i + 1]));
 
-  // Composite score: weighted average of ranks
   const compositeScores = withSignals.map((m) => ({
     ...m,
     compositeRank:
