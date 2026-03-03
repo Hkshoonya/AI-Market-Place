@@ -16,6 +16,8 @@
  *    above the base cap (up to 65) based on provider reputation and model size.
  */
 
+import { EVIDENCE_COVERAGE_PENALTY, getCoveragePenalty } from "@/lib/constants/scoring";
+
 export interface QualityInputs {
   /** Existing value_score from Artificial Analysis (may be null) */
   existingScore: number | null;
@@ -305,12 +307,8 @@ export function calculateQualityScore(
   const evidenceSignals = signals.filter(s => s.name !== "openness" && s.name !== "recency");
   const evidenceCount = evidenceSignals.length;
 
-  let coveragePenalty: number;
   if (evidenceCount === 0) return 0;
-  else if (evidenceCount === 1) coveragePenalty = 0.40;
-  else if (evidenceCount === 2) coveragePenalty = 0.65;
-  else if (evidenceCount === 3) coveragePenalty = 0.85;
-  else coveragePenalty = 1.00;
+  const coveragePenalty = getCoveragePenalty(EVIDENCE_COVERAGE_PENALTY, evidenceCount);
 
   let penalizedScore = weightedSum * coveragePenalty;
 
