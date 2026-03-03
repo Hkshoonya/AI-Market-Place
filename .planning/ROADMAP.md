@@ -10,7 +10,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - Integer phases (1–8): Planned milestone work
 - Decimal phases: Urgent insertions via `/gsd:insert-phase`
 
-- [ ] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins
+- [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators
 - [ ] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions
 - [ ] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication
@@ -30,7 +30,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
   2. The market cap formula constants (1300, 1.2, 20) are imported from a config file in all files that use them — no inline literals
   3. Coverage penalty thresholds are defined as lookup table entries, not scattered if/else literals
   4. Provider MAU estimates are in a config file and the usage calculator imports from it
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 01-01-PLAN.md — Set up Vitest + create scoring constants file
 - [ ] 01-02-PLAN.md — Wire all calculators to import from constants
@@ -126,7 +126,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Infrastructure + Constants | 1/2 | In Progress|  |
+| 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
 | 2. Scoring Simplification | 0/TBD | Not started | - |
 | 3. API Route Decomposition | 0/TBD | Not started | - |
 | 4. Adapter Deduplication | 0/TBD | Not started | - |
