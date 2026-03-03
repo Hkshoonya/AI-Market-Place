@@ -11,6 +11,12 @@
  */
 
 import { EVIDENCE_COVERAGE_PENALTY, getCoveragePenalty } from "@/lib/constants/scoring";
+import {
+  weightedBenchmarkAvg,
+  logNormalizeSignal,
+  normalizeElo,
+  computeRecencyScore,
+} from "@/lib/scoring/scoring-helpers";
 
 export interface ExpertInputs {
   avgBenchmarkScore: number | null;
@@ -30,30 +36,6 @@ export interface ExpertNormStats {
   maxNewsMentions: number;
 }
 
-const BENCHMARK_IMPORTANCE: Record<string, number> = {
-  "mmlu": 1.0, "humaneval": 1.2, "math": 1.1, "math-benchmark": 1.1,
-  "gpqa": 1.3, "ifeval": 0.9, "bbh": 1.0, "musr": 0.8, "mmlu-pro": 1.2,
-  "swe-bench": 1.3, "swe_bench": 1.3, "hellaswag": 0.8, "truthfulqa": 0.9,
-  "livebench-reasoning": 1.1, "livebench-coding": 1.2, "mmmu": 1.0,
-  "mathvista": 1.0, "bigcodebench": 1.2,
-};
-
-function weightedBenchmarkAvg(scores: Array<{ slug: string; score: number }>): number {
-  if (scores.length === 0) return 0;
-  let wSum = 0, wTotal = 0;
-  for (const s of scores) {
-    const norm = s.slug.toLowerCase().replace(/_/g, "-");
-    const imp = BENCHMARK_IMPORTANCE[s.slug] ?? BENCHMARK_IMPORTANCE[norm] ?? 1.0;
-    wSum += s.score * imp;
-    wTotal += imp;
-  }
-  return wTotal > 0 ? wSum / wTotal : 0;
-}
-
-function logNorm(value: number, max: number): number {
-  if (value <= 0 || max <= 0) return 0;
-  return Math.min((Math.log10(value + 1) / Math.log10(max + 1)) * 100, 100);
-}
 
 export function computeExpertNormStats(
   models: Array<{ hfLikes: number; githubStars: number; newsMentions: number }>
@@ -87,12 +69,12 @@ export function computeExpertScore(
 
   let eloNorm = 0;
   if (inputs.eloScore != null && inputs.eloScore > 0) {
-    eloNorm = Math.min(Math.max((inputs.eloScore - 800) / (1400 - 800) * 100, 0), 100);
+    eloNorm = normalizeElo(inputs.eloScore);
   }
 
-  const likesNorm = inputs.hfLikes ? logNorm(inputs.hfLikes, stats.maxLikes) : 0;
-  const starsNorm = inputs.githubStars ? logNorm(inputs.githubStars, stats.maxStars) : 0;
-  const newsNorm = inputs.newsMentions > 0 ? logNorm(inputs.newsMentions, stats.maxNewsMentions) : 0;
+  const likesNorm = inputs.hfLikes ? logNormalizeSignal(inputs.hfLikes, stats.maxLikes) : 0;
+  const starsNorm = inputs.githubStars ? logNormalizeSignal(inputs.githubStars, stats.maxStars) : 0;
+  const newsNorm = inputs.newsMentions > 0 ? logNormalizeSignal(inputs.newsMentions, stats.maxNewsMentions) : 0;
 
   const communityParts: number[] = [];
   if (likesNorm > 0) communityParts.push(likesNorm);
@@ -107,12 +89,7 @@ export function computeExpertScore(
     citationProxy = Math.min(inputs.providerAvgBenchmark / 80 * 100, 100);
   }
 
-  let recency = 50;
-  if (inputs.releaseDate) {
-    const ageMs = Date.now() - new Date(inputs.releaseDate).getTime();
-    const ageMonths = ageMs / (30 * 24 * 60 * 60 * 1000);
-    recency = Math.max(100 * Math.exp(-ageMonths / 12), 10);
-  }
+  const recency = computeRecencyScore(inputs.releaseDate, { halfLifeMonths: 12 });
 
   let bWeight = 0.35, eWeight = 0.25;
   const cWeight = 0.20, ciWeight = 0.10, rWeight = 0.10;
