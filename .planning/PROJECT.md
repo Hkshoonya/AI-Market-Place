@@ -51,7 +51,7 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 
 - **Codebase size:** 394 TypeScript files, 63,961 LOC
 - **Build health:** `npx tsc --noEmit` passes clean, zero compilation errors
-- **Test coverage:** Zero — no test files, no test framework configured
+- **Test coverage:** Vitest 4 configured, zero test files yet (Phase 8 adds tests)
 - **Complexity hotspots:** quality-calculator.ts (35+ branches, 4 nesting levels), compute-scores route (612 lines, 8+ responsibilities), auction-detail-content.tsx (985 lines), model-matcher.ts (7 nesting levels)
 - **Duplication:** 904 lines of KNOWN_MODELS blocks repeated across 4 adapters, inferCategory() reimplemented 4 times, buildRecord() pattern in 3+ adapters
 - **Domain:** aimarketcap.com
@@ -69,9 +69,10 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Single milestone for complexity + quality | Natural dependency: structural cleanup enables type safety work | — Pending |
-| Vitest over Jest | Faster, better ESM support, native TypeScript | — Pending |
+| Vitest over Jest | Faster, better ESM support, native TypeScript | ✓ Phase 1 |
+| Two coverage penalty tables | Market-cap uses distinct thresholds from quality/expert | ✓ Phase 1 |
 | Complexity before quality | Must decompose monoliths before fixing types within them | — Pending |
 | Include testing in this milestone | Scoring calculators are the core product, need regression safety | — Pending |
 
 ---
-*Last updated: 2026-03-03 after milestone v1.0 initialization*
+*Last updated: 2026-03-03 after Phase 1*
