@@ -98,13 +98,46 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| TEST-01 | Phase 1 | Pending |
+| CONST-01 | Phase 1 | Pending |
+| CONST-02 | Phase 1 | Pending |
+| CONST-03 | Phase 1 | Pending |
+| SCORE-01 | Phase 2 | Pending |
+| SCORE-02 | Phase 2 | Pending |
+| SCORE-03 | Phase 2 | Pending |
+| SCORE-04 | Phase 2 | Pending |
+| SCORE-05 | Phase 2 | Pending |
+| API-01 | Phase 3 | Pending |
+| API-02 | Phase 3 | Pending |
+| API-03 | Phase 3 | Pending |
+| ADAPT-01 | Phase 4 | Pending |
+| ADAPT-02 | Phase 4 | Pending |
+| ADAPT-03 | Phase 4 | Pending |
+| ADAPT-04 | Phase 4 | Pending |
+| COMP-01 | Phase 5 | Pending |
+| COMP-02 | Phase 5 | Pending |
+| COMP-03 | Phase 5 | Pending |
+| COMP-04 | Phase 5 | Pending |
+| TYPE-01 | Phase 6 | Pending |
+| TYPE-02 | Phase 6 | Pending |
+| TYPE-03 | Phase 6 | Pending |
+| TYPE-04 | Phase 6 | Pending |
+| TYPE-05 | Phase 6 | Pending |
+| ERR-01 | Phase 7 | Pending |
+| ERR-02 | Phase 7 | Pending |
+| ERR-03 | Phase 7 | Pending |
+| LOG-01 | Phase 7 | Pending |
+| LOG-02 | Phase 7 | Pending |
+| LOG-03 | Phase 7 | Pending |
+| TEST-02 | Phase 8 | Pending |
+| TEST-03 | Phase 8 | Pending |
+| TEST-04 | Phase 8 | Pending |
 
 **Coverage:**
-- v1.0 requirements: 27 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 27
+- v1.0 requirements: 34 total
+- Mapped to phases: 34
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-03*
-*Last updated: 2026-03-03 after initial definition*
+*Last updated: 2026-03-03 after roadmap creation — traceability populated*
