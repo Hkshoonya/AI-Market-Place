@@ -7,15 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { type Transaction } from "@/hooks/use-earnings-data";
 
-// ---------------------------------------------------------------------------
-// Pagination constant
-// ---------------------------------------------------------------------------
-
 const ITEMS_PER_PAGE = 10;
-
-// ---------------------------------------------------------------------------
-// Transaction styling helpers (module-private)
-// ---------------------------------------------------------------------------
 
 function txTypeLabel(type: string): string {
   const labels: Record<string, string> = {
@@ -29,7 +21,6 @@ function txTypeLabel(type: string): string {
   };
   return labels[type] || type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
 function txTypeColor(type: string): string {
   switch (type) {
     case "sale":
@@ -45,7 +36,6 @@ function txTypeColor(type: string): string {
       return "text-muted-foreground";
   }
 }
-
 function txStatusBadge(status: string) {
   switch (status) {
     case "confirmed":
@@ -75,7 +65,6 @@ function txStatusBadge(status: string) {
       );
   }
 }
-
 function txAmountPrefix(type: string): string {
   switch (type) {
     case "sale":
@@ -91,19 +80,9 @@ function txAmountPrefix(type: string): string {
       return "";
   }
 }
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface TransactionTableProps {
   transactions: Transaction[];
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function TransactionTable({ transactions }: TransactionTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
