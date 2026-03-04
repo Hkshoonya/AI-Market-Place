@@ -13,7 +13,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators (gap closure in progress)
 - [x] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions (completed 2026-03-04)
-- [ ] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication
+- [x] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication (completed 2026-03-04)
 - [ ] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks
 - [ ] **Phase 6: Type Safety** - Replace all `any` types with proper TypeScript types now that structure is clean
 - [ ] **Phase 7: Error Handling + Logging** - Standardize error patterns and structured logging across codebase
@@ -75,7 +75,7 @@ Plans:
   3. All model adapters use a shared `buildRecord()` factory function rather than local implementations
   4. A `createAdapterSyncer()` factory encapsulates the static → scrape → API → upsert pipeline, used by adapters that previously duplicated this flow
   5. `npx tsc --noEmit` passes clean after adapter deduplication
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 04-01-PLAN.md — Extract KNOWN_MODELS data files + unified KnownModelMeta + shared inferCategory/inferModalities
 - [ ] 04-02-PLAN.md — Implement buildRecord() factory + rewire replicate/openrouter/github-trending
@@ -140,7 +140,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
 | 2. Scoring Simplification | 2/3 | Gap closure | - |
 | 3. API Route Decomposition | 2/2 | Complete   | 2026-03-04 |
-| 4. Adapter Deduplication | 2/3 | In Progress|  |
+| 4. Adapter Deduplication | 3/3 | Complete   | 2026-03-04 |
 | 5. Component Decomposition | 0/TBD | Not started | - |
 | 6. Type Safety | 0/TBD | Not started | - |
 | 7. Error Handling + Logging | 0/TBD | Not started | - |

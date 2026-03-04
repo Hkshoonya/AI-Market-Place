@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-adapter-deduplication plan 04-02 (buildRecord factory + 3 adapter rewires)
-last_updated: "2026-03-04T05:07:45.287Z"
+stopped_at: Completed 04-adapter-deduplication plan 04-03 (createAdapterSyncer factory + 3 main adapter rewires)
+last_updated: "2026-03-04T05:18:35.930Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 ---
@@ -74,6 +74,7 @@ Progress: [████████████████████] 2/2 pla
 | Phase 03-api-route-decomposition P01 | 8 | 2 tasks | 5 files |
 | Phase 04-adapter-deduplication P01 | 6 | 2 tasks | 7 files |
 | Phase 04-adapter-deduplication P02 | 7 | 2 tasks | 5 files |
+| Phase 04-adapter-deduplication P03 | 7 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 04-adapter-deduplication]: Replicate KNOWN_MODELS stays as KnownReplicateModel[] array (not Record) matching adapter .map() iteration
 - [Phase 04-adapter-deduplication]: buildRecord() uses 'license_name' in defaults check to distinguish explicit null from not provided
 - [Phase 04-adapter-deduplication]: replicate.ts transformKnownModel and transformModel kept as local functions — Replicate-specific and excluded from buildRecord() factory
+- [Phase 04-adapter-deduplication]: AdapterSyncerConfig.healthCheckUrl supports string | function overload for providers passing API key as query param (Google pattern)
+- [Phase 04-adapter-deduplication]: buildRecord() return type widened to Record<string, unknown> — ModelRecord interface kept as documentation only
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:07:45.284Z
-Stopped at: Completed 04-adapter-deduplication plan 04-02 (buildRecord factory + 3 adapter rewires)
+Last session: 2026-03-04T05:18:35.927Z
+Stopped at: Completed 04-adapter-deduplication plan 04-03 (createAdapterSyncer factory + 3 main adapter rewires)
 Resume file: None
