@@ -32,8 +32,8 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 - [x] **COMP-01**: `auction-detail-content.tsx` is split into BidHistoryTable, EnglishBidPanel, DutchBidPanel sub-components plus `useAuctionTimer()` hook
 - [x] **COMP-02**: `seller-earnings-content.tsx` is split into BalanceCards, WithdrawalForm, TransactionTable sub-components plus `useEarningsData()` hook
-- [ ] **COMP-03**: `purchase-button.tsx` is split into GuestCheckoutForm, WalletDepositPanel sub-components plus `useWalletBalance()` hook
-- [ ] **COMP-04**: `benchmark-heatmap.tsx` is split into HeatmapGrid sub-component plus `useHeatmapTooltip()` hook
+- [x] **COMP-03**: `purchase-button.tsx` is split into GuestCheckoutForm, WalletDepositPanel sub-components plus `useWalletBalance()` hook
+- [x] **COMP-04**: `benchmark-heatmap.tsx` is split into HeatmapGrid sub-component plus `useHeatmapTooltip()` hook
 
 ### Type Safety
 
@@ -116,8 +116,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | ADAPT-04 | Phase 4 | Complete |
 | COMP-01 | Phase 5 | Complete |
 | COMP-02 | Phase 5 | Complete |
-| COMP-03 | Phase 5 | Pending |
-| COMP-04 | Phase 5 | Pending |
+| COMP-03 | Phase 5 | Complete |
+| COMP-04 | Phase 5 | Complete |
 | TYPE-01 | Phase 6 | Pending |
 | TYPE-02 | Phase 6 | Pending |
 | TYPE-03 | Phase 6 | Pending |
