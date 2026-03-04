@@ -45,7 +45,7 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 ### Error Handling
 
-- [ ] **ERR-01**: Silent `.catch(() => {})` handlers are replaced with proper error logging
+- [x] **ERR-01**: Silent `.catch(() => {})` handlers are replaced with proper error logging
 - [x] **ERR-02**: Error handling follows a consistent pattern across all API routes (ApiError class)
 - [ ] **ERR-03**: All client components use structured error state with user-facing messages
 
@@ -123,7 +123,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TYPE-03 | Phase 6 | Complete |
 | TYPE-04 | Phase 6 | Complete |
 | TYPE-05 | Phase 6 | Complete |
-| ERR-01 | Phase 7 | Pending |
+| ERR-01 | Phase 7 | Complete |
 | ERR-02 | Phase 7 | Complete |
 | ERR-03 | Phase 7 | Pending |
 | LOG-01 | Phase 7 | Complete |
