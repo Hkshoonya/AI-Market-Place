@@ -57,11 +57,11 @@ See: .planning/PROJECT.md (updated 2026-03-03 after Phase 1)
 ## Current Position
 
 Phase: 6 of 8 (Type Safety)
-Plan: 4 of 5 in current phase
-Status: In progress — plan 04 complete
-Last activity: 2026-03-04 — Phase 06 Plan 04 complete (compare-client + admin + marketplace type safety)
+Plan: 5 of 5 in current phase (plan 02 retroactively completed)
+Status: In progress — plan 04 complete, plan 02 complete
+Last activity: 2026-03-04 — Phase 06 Plan 02 complete (remove supabase-as-any from src/lib/)
 
-Progress: [████████████████████] 4/5 plans (80%)
+Progress: [████████████████████] 5/5 plans (100%)
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Progress: [████████████████████] 4/5 pla
 | Phase 06-type-safety P01 | 4 | 2 tasks | 7 files |
 | Phase 06-type-safety P04 | ~180 | 2 tasks | 27 files |
 | Phase 06-type-safety P03 | 90 | 2 tasks | 25 files |
+| Phase 06-type-safety P02 | ~180 | 2 tasks | 38 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,11 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 06-type-safety]: Relationships: [] added as empty arrays — actual FK definitions not needed for string-based .select() patterns
 - [Phase 06-type-safety]: Embedded join queries use (await query) as unknown as QueryResult pattern instead of supabase as any
 - [Phase 06-type-safety]: Standalone flat types used instead of interface intersection for enriched query results to avoid profiles field type conflicts
+- [Phase 06-type-safety P02]: upsertBatch internal `as any` retained — dynamic table string param architecturally incompatible with typed client; outer signature uses TypedSupabaseClient
+- [Phase 06-type-safety P02]: cron_runs and system_logs tables added to database.ts — existed in DB but had no type definitions
+- [Phase 06-type-safety P02]: Wallet RPC functions (credit_wallet, debit_wallet, hold_escrow, release_escrow, refund_escrow, increment_seller_sales, increment_listing_purchases) typed in database.ts Functions section
+- [Phase 06-type-safety P02]: supabase: unknown -> TypedSupabaseClient in agents/chat, logger, utils, auth — pure type import avoids circular deps
+- [Phase 06-type-safety P02]: delivery_data field added to MarketplaceOrder interface — used by delivery.ts but missing from type definition
 
 ### Pending Todos
 
@@ -156,6 +162,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T07:18:02.067Z
-Stopped at: Completed 06-type-safety plan 06-03 (remove supabase-as-any from all 38 API route files)
+Last session: 2026-03-04
+Stopped at: Completed 06-type-safety plan 06-02 (remove supabase-as-any from src/lib/ — adapters, agents, marketplace, MCP, payments, logging)
 Resume file: None
