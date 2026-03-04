@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
+stopped_at: Completed 06-type-safety plan 06-05 (final any audit — 96 to 8, TYPE-05 complete, Phase 6 complete)
+last_updated: "2026-03-04T12:05:29.871Z"
+last_activity: 2026-03-04 — Phase 06 Plan 02 complete (remove supabase-as-any from src/lib/)
+progress:
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 18
+  percent: 100
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
 stopped_at: Completed 06-type-safety plan 06-03 (remove supabase-as-any from all 38 API route files)
 last_updated: "2026-03-04T07:18:02.071Z"
 last_activity: 2026-03-04 — Phase 06 Plan 04 complete (compare-client + admin + marketplace type safety)
 progress:
-  total_phases: 8
+  [██████████] 100%
   completed_phases: 5
   total_plans: 18
   completed_plans: 16
@@ -98,6 +114,7 @@ Progress: [████████████████████] 5/5 pla
 | Phase 06-type-safety P04 | ~180 | 2 tasks | 27 files |
 | Phase 06-type-safety P03 | 90 | 2 tasks | 25 files |
 | Phase 06-type-safety P02 | ~180 | 2 tasks | 38 files |
+| Phase 06-type-safety P05 | ~240 | 1 tasks | 39 files |
 
 ## Accumulated Context
 
@@ -151,6 +168,9 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 06-type-safety P02]: Wallet RPC functions (credit_wallet, debit_wallet, hold_escrow, release_escrow, refund_escrow, increment_seller_sales, increment_listing_purchases) typed in database.ts Functions section
 - [Phase 06-type-safety P02]: supabase: unknown -> TypedSupabaseClient in agents/chat, logger, utils, auth — pure type import avoids circular deps
 - [Phase 06-type-safety P02]: delivery_data field added to MarketplaceOrder interface — used by delivery.ts but missing from type definition
+- [Phase 06-type-safety P05]: createAdminClient() already returns SupabaseClient<Database> — all admin as any casts were unnecessary false assumptions masking real types
+- [Phase 06-type-safety P05]: 8 justified any remain: 4 unregistered RPCs (supabase.rpc as any), 3 lightweight-charts setData(), 1 upsertBatch dynamic table
+- [Phase 06-type-safety P05]: string[] DB column types cause typeof checks to narrow to never — must break via rawX: unknown intermediate
 
 ### Pending Todos
 
@@ -162,6 +182,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04
-Stopped at: Completed 06-type-safety plan 06-02 (remove supabase-as-any from src/lib/ — adapters, agents, marketplace, MCP, payments, logging)
+Last session: 2026-03-04T12:05:29.868Z
+Stopped at: Completed 06-type-safety plan 06-05 (final any audit — 96 to 8, TYPE-05 complete, Phase 6 complete)
 Resume file: None

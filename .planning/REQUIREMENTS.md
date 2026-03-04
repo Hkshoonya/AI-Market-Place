@@ -120,8 +120,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | COMP-04 | Phase 5 | Complete |
 | TYPE-01 | Phase 6 | Complete |
 | TYPE-02 | Phase 6 | Complete |
-| TYPE-03 | Phase 6 | Pending |
-| TYPE-04 | Phase 6 | Pending |
+| TYPE-03 | Phase 6 | Complete |
+| TYPE-04 | Phase 6 | Complete |
 | TYPE-05 | Phase 6 | Complete |
 | ERR-01 | Phase 7 | Pending |
 | ERR-02 | Phase 7 | Pending |
