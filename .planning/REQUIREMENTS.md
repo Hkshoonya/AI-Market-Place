@@ -17,9 +17,9 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 ### API Route Decomposition
 
-- [ ] **API-01**: Compute-scores route is split into `fetchInputs()`, `computeAllLenses()`, and `persistResults()` phases
-- [ ] **API-02**: Purchase route separates guest and authenticated flows into distinct functions
-- [ ] **API-03**: Each compute-scores phase is independently testable
+- [x] **API-01**: Compute-scores route is split into `fetchInputs()`, `computeAllLenses()`, and `persistResults()` phases
+- [x] **API-02**: Purchase route separates guest and authenticated flows into distinct functions
+- [x] **API-03**: Each compute-scores phase is independently testable
 
 ### Adapter Deduplication
 
@@ -107,9 +107,9 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | SCORE-03 | Phase 2 | Complete |
 | SCORE-04 | Phase 2 | Complete |
 | SCORE-05 | Phase 2 | Complete |
-| API-01 | Phase 3 | Pending |
-| API-02 | Phase 3 | Pending |
-| API-03 | Phase 3 | Pending |
+| API-01 | Phase 3 | Complete |
+| API-02 | Phase 3 | Complete |
+| API-03 | Phase 3 | Complete |
 | ADAPT-01 | Phase 4 | Pending |
 | ADAPT-02 | Phase 4 | Pending |
 | ADAPT-03 | Phase 4 | Pending |

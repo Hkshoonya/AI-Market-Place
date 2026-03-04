@@ -12,7 +12,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 
 - [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators (gap closure in progress)
-- [ ] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions
+- [x] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions (completed 2026-03-04)
 - [ ] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication
 - [ ] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks
 - [ ] **Phase 6: Type Safety** - Replace all `any` types with proper TypeScript types now that structure is clean
@@ -60,7 +60,7 @@ Plans:
   2. The purchase route has distinct `handleGuestCheckout()` and `handleAuthenticatedCheckout()` functions rather than a single branching block
   3. Each decomposed compute-scores function can be imported and called in a Vitest test file without instantiating a Next.js server
   4. `npx tsc --noEmit` passes clean after route decomposition
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 03-01-PLAN.md — Extract compute-scores pipeline into fetchInputs + computeAllLenses + persistResults
 - [ ] 03-02-PLAN.md — Decompose purchase route into handleGuestCheckout + handleAuthenticatedCheckout
@@ -135,7 +135,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
 | 2. Scoring Simplification | 2/3 | Gap closure | - |
-| 3. API Route Decomposition | 0/2 | Planned | - |
+| 3. API Route Decomposition | 2/2 | Complete   | 2026-03-04 |
 | 4. Adapter Deduplication | 0/TBD | Not started | - |
 | 5. Component Decomposition | 0/TBD | Not started | - |
 | 6. Type Safety | 0/TBD | Not started | - |
