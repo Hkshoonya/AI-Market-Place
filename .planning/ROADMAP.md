@@ -107,7 +107,7 @@ Plans:
   3. Compare-client benchmark and pricing functions have explicit parameter and return types for model data
   4. Admin enrichment operations use typed interfaces for joined row data
   5. `grep -r "any" src/ --include="*.ts" --include="*.tsx" | grep -v "//.*any" | wc -l` reports under 20
-**Plans:** 4/5 plans executed
+**Plans:** 3/5 plans executed
 Plans:
 - [x] 06-01-PLAN.md — Database type foundation (add Relationships to all tables) + catch block fixes
 - [x] 06-02-PLAN.md — Remove supabase-as-any from src/lib/ (adapters, agents, marketplace, utilities)
@@ -152,6 +152,6 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 3. API Route Decomposition | 2/2 | Complete   | 2026-03-04 |
 | 4. Adapter Deduplication | 3/3 | Complete   | 2026-03-04 |
 | 5. Component Decomposition | 3/3 | Complete   | 2026-03-04 |
-| 6. Type Safety | 1/5 | In Progress|  |
+| 6. Type Safety | 3/5 | In Progress|  |
 | 7. Error Handling + Logging | 0/TBD | Not started | - |
 | 8. Regression Testing | 0/TBD | Not started | - |
