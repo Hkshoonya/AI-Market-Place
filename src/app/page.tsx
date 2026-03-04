@@ -58,8 +58,7 @@ export default async function HomePage() {
     .order("overall_rank", { ascending: true })
     .limit(10);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const topModels = topModelsRaw as any[] | null;
+  const topModels = topModelsRaw as unknown as Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; market_cap_estimate: number | null; popularity_score: number | null; is_open_weights: boolean | null; rankings: Array<{ balanced_rank: number | null }>; model_pricing: Array<{ input_price_per_million: number | null }> }> | null;
 
   // Fetch newest models
   const { data: newModelsRaw } = await supabase
@@ -69,8 +68,7 @@ export default async function HomePage() {
     .order("release_date", { ascending: false })
     .limit(4);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const newModels = newModelsRaw as any[] | null;
+  const newModels = newModelsRaw;
 
   // Consolidated query: fetch key fields from all active models in one go
   const [
@@ -86,8 +84,7 @@ export default async function HomePage() {
       .eq("status", "active"),
   ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeModels = (allActiveModels as any[] | null) ?? [];
+  const activeModels = allActiveModels ?? [];
 
   // Derive all aggregates from the single query result
   const uniqueProviders = new Set(activeModels.map((m) => m.provider)).size;

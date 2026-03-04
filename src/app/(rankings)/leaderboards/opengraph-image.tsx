@@ -84,8 +84,7 @@ export default async function OGImage() {
         >
           {models.map(
             (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              model: any,
+              model,
               i: number
             ) => (
               <div

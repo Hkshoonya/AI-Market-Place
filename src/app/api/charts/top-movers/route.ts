@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing config" }, { status: 500 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient<Database>(supabaseUrl, supabaseKey);
   const { searchParams } = new URL(request.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
 
@@ -81,8 +82,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function computeMovers(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient<Database>>,
   currentSnaps: Array<{ model_id: string; overall_rank: number | null; quality_score: number | null }>,
   previousSnaps: Array<{ model_id: string; overall_rank: number | null; quality_score: number | null }>,
   limit: number,
@@ -135,12 +135,11 @@ async function computeMovers(
     .select("id, name, slug, provider, category")
     .in("id", allModelIds);
 
-  const modelMap = new Map((models ?? []).map((m: { id: string }) => [m.id, m]));
+  const modelMap = new Map((models ?? []).map((m) => [m.id, m]));
 
   const formatMovers = (items: typeof risers) =>
     items.map((d) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const m = modelMap.get(d.modelId) as any;
+      const m = modelMap.get(d.modelId);
       return {
         name: m?.name ?? "Unknown",
         slug: m?.slug ?? "",

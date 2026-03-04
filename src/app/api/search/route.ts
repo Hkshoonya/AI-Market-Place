@@ -73,8 +73,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Search marketplace listings too
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let marketplace: any[] = [];
+  let marketplace: Array<{ id: string; slug: string; title: string; listing_type: string; price: number | null; avg_rating: number | null }> = [];
 
   if (includeMarketplace && query.length >= 2) {
     // Try FTS first for marketplace

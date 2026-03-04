@@ -35,8 +35,7 @@ function CustomTooltip({
   label,
 }: {
   active?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload?: any[];
+  payload?: Array<{ name: string; value: number; color?: string }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;

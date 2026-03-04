@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import {
   ArrowLeft,
   Box,
@@ -39,14 +40,14 @@ export default async function SearchPage({
   const activeTab = tab === "marketplace" ? "marketplace" : "models";
   const PAGE_SIZE = 20;
 
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  let models: any[] = [];
+  let models: Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null; parameter_count: number | null; short_description: string | null }> = [];
   let modelCount = 0;
-  let marketplace: any[] = [];
+  let marketplace: Array<{ id: string; slug: string; title: string; listing_type: string; price: number | null; avg_rating: number | null; short_description: string | null; pricing_type: string; review_count: number | null }> = [];
   let marketplaceCount = 0;
 
   if (query.length >= 2) {
@@ -192,7 +193,7 @@ export default async function SearchPage({
                   No models found for &ldquo;{query}&rdquo;
                 </div>
               ) : (
-                models.map((model: any) => (
+                models.map((model) => (
                   <Link
                     key={model.id}
                     href={`/models/${model.slug}`}
@@ -240,7 +241,7 @@ export default async function SearchPage({
                   No listings found for &ldquo;{query}&rdquo;
                 </div>
               ) : (
-                marketplace.map((item: any) => (
+                marketplace.map((item) => (
                   <Link
                     key={item.id}
                     href={`/marketplace/${item.slug}`}
@@ -274,7 +275,7 @@ export default async function SearchPage({
                             {item.avg_rating.toFixed(1)}
                           </span>
                         )}
-                        {item.review_count > 0 && (
+                        {(item.review_count ?? 0) > 0 && (
                           <span>{item.review_count} reviews</span>
                         )}
                       </div>

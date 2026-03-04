@@ -23,9 +23,8 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
   const itemCount = watchlist.watchlist_items?.length ?? 0;
   const previewModels = (watchlist.watchlist_items ?? [])
     .slice(0, 5)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((item: any) => item.models)
-    .filter(Boolean);
+    .map((item) => item.models)
+    .filter((m): m is NonNullable<typeof m> => m != null);
 
   return (
     <div className="group rounded-xl border border-border/50 bg-card p-5 transition-all hover:border-neon/20 hover:shadow-lg hover:shadow-neon/5">
@@ -60,7 +59,7 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
 
           {previewModels.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {previewModels.map((m: { name: string; provider: string; slug: string }, i: number) => (
+              {previewModels.map((m, i: number) => (
                 <span
                   key={i}
                   className="inline-flex rounded-md bg-secondary/80 px-2 py-0.5 text-xs text-muted-foreground"

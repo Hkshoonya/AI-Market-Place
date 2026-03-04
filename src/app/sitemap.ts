@@ -48,8 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("status", "active")
     .order("overall_rank", { ascending: true });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const modelRoutes: MetadataRoute.Sitemap = ((modelsRaw as any[]) ?? []).map((m) => ({
+  const modelRoutes: MetadataRoute.Sitemap = (modelsRaw ?? []).map((m) => ({
     url: `${SITE_URL}/models/${m.slug}`,
     lastModified: m.updated_at ? new Date(m.updated_at) : new Date(),
     changeFrequency: "weekly" as const,
@@ -62,8 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select("slug, updated_at")
     .eq("status", "active");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const listingRoutes: MetadataRoute.Sitemap = ((listingsRaw as any[]) ?? []).map((l) => ({
+  const listingRoutes: MetadataRoute.Sitemap = (listingsRaw ?? []).map((l) => ({
     url: `${SITE_URL}/marketplace/${l.slug}`,
     lastModified: l.updated_at ? new Date(l.updated_at) : new Date(),
     changeFrequency: "weekly" as const,
@@ -76,8 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select("provider")
     .eq("status", "active");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const uniqueProviders = [...new Set(((providerRowsRaw as any[]) ?? []).map((p: any) => p.provider))];
+  const uniqueProviders = [...new Set((providerRowsRaw ?? []).map((p) => p.provider))];
   const providerRoutes: MetadataRoute.Sitemap = uniqueProviders.map((p) => ({
     url: `${SITE_URL}/providers/${encodeURIComponent(p.toLowerCase().replace(/\s+/g, "-"))}`,
     lastModified: new Date(),

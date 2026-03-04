@@ -17,7 +17,7 @@ const COLORS = [
   "#666", "#666", "#666", "#666", "#666", "#666", "#666", "#666",
 ];
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { name: string; quality: number; provider: string } }> }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (

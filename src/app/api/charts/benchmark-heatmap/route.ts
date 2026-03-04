@@ -66,10 +66,10 @@ export async function GET(request: NextRequest) {
       .order("slug");
 
     // Build the heatmap matrix
+    type ScoreWithBenchmark = { model_id: string; score_normalized: number | null; benchmarks?: { slug: string; name: string } | null };
     const scoreMap = new Map<string, Map<string, number>>();
-    for (const s of scores ?? []) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const benchSlug = (s as any).benchmarks?.slug as string | undefined;
+    for (const s of (scores as unknown as ScoreWithBenchmark[] ?? [])) {
+      const benchSlug = s.benchmarks?.slug;
       if (!benchSlug || s.score_normalized == null) continue;
 
       if (!scoreMap.has(s.model_id)) scoreMap.set(s.model_id, new Map());

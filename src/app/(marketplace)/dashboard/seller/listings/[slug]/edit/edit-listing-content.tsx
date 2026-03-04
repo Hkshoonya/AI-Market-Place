@@ -12,7 +12,7 @@ export default function EditListingContent(props: {
   const { slug } = use(props.params);
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [listing, setListing] = useState<any>(null);
+  const [listing, setListing] = useState<import("@/types/database").MarketplaceListing | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function EditListingContent(props: {
         .then((r) => r.json())
         .then((res) => {
           if (res.data && res.data.seller_id === user.id) {
-            setListing(res.data);
+            setListing(res.data as import("@/types/database").MarketplaceListing);
           }
           setFetchLoading(false);
         })

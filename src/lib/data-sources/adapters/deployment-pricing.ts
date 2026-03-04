@@ -16,7 +16,7 @@ import { registerAdapter } from "../registry";
 interface PricingEntry {
   platformSlug: string;
   modelPattern: string;
-  pricingModel: string;
+  pricingModel: import("@/types/database").DeploymentPricingModel;
   pricePerUnit: number;
   unitDescription: string;
   freeTier: string | null;
@@ -61,7 +61,7 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const { supabase } = ctx as { supabase: any };
+    const { supabase } = ctx;
     let recordsProcessed = 0;
     let recordsCreated = 0;
     const errors: { message: string; context?: string }[] = [];

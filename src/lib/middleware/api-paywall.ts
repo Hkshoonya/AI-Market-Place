@@ -66,9 +66,7 @@ async function loadPricingRules(): Promise<PricingRule[]> {
     return pricingRulesCache;
   }
 
-  const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   const { data } = await sb
     .from("api_endpoint_pricing")
@@ -159,9 +157,7 @@ async function handleBotRequest(
   apiKey: string,
   rule: PricingRule | null
 ): Promise<PaywallResult> {
-  const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   // Validate API key by hashing and looking it up
   const keyHash = crypto.createHash("sha256").update(apiKey).digest("hex");

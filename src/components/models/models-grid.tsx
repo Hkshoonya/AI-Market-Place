@@ -7,8 +7,7 @@ import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 
 interface ModelsGridProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  models: any[];
+  models: Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null; parameter_count?: number | null; hf_downloads?: number | null; model_pricing?: Array<{ input_price_per_million: number | null }> }>;
 }
 
 export function ModelsGrid({ models }: ModelsGridProps) {

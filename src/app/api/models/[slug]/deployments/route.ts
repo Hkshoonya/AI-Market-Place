@@ -17,29 +17,26 @@ export async function GET(
     .eq("slug", slug)
     .single();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const model = modelRaw as any;
-
-  if (!model) {
+  if (!modelRaw) {
     return NextResponse.json({ error: "Model not found" }, { status: 404 });
   }
 
   // Get deployments with platform info
   const { data: deployments } = await supabase
-    .from("model_deployments" as any)
+    .from("model_deployments")
     .select("*, deployment_platforms(*)")
-    .eq("model_id", model.id)
+    .eq("model_id", modelRaw.id)
     .eq("status", "available")
     .order("price_per_unit", { ascending: true });
 
   // Get all platforms for showing availability
   const { data: platforms } = await supabase
-    .from("deployment_platforms" as any)
+    .from("deployment_platforms")
     .select("*")
     .order("name");
 
   return NextResponse.json({
-    model: { id: model.id, name: model.name, provider: model.provider, is_open_weights: model.is_open_weights },
+    model: { id: modelRaw.id, name: modelRaw.name, provider: modelRaw.provider, is_open_weights: modelRaw.is_open_weights },
     deployments: deployments || [],
     platforms: platforms || [],
   });

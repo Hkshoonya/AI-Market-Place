@@ -41,8 +41,7 @@ export default async function ProvidersPage() {
   // Aggregate stats by provider
   const providerMap = new Map<string, ProviderStats>();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (models as any[] ?? []).forEach((m) => {
+  (models ?? []).forEach((m) => {
     const existing = providerMap.get(m.provider);
     if (existing) {
       existing.modelCount++;

@@ -113,8 +113,7 @@ export default async function ModelDetailPage({
     notFound();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const model = data as any;
+  const model = data as unknown as import("@/types/database").ModelWithDetails;
 
   // Fetch historical snapshots for trends
   const { data: snapshotsRaw } = await supabase
@@ -122,7 +121,7 @@ export default async function ModelDetailPage({
     .select("snapshot_date, quality_score, hf_downloads, hf_likes, overall_rank")
     .eq("model_id", model.id)
     .order("snapshot_date", { ascending: true });
-  const snapshots = (snapshotsRaw as any[] | null) ?? [];
+  const snapshots = snapshotsRaw ?? [];
 
   // Fetch similar models (same category, excluding current model)
   const { data: similarRaw } = await supabase
@@ -135,8 +134,7 @@ export default async function ModelDetailPage({
     .neq("id", model.id)
     .order("quality_score", { ascending: false, nullsFirst: false })
     .limit(5);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const similarModels = (similarRaw as any[] | null) ?? [];
+  const similarModels = similarRaw ?? [];
 
   // Fetch news linked to this model
   const { data: newsRaw } = await supabase
@@ -158,8 +156,7 @@ export default async function ModelDetailPage({
   // Merge and deduplicate by id
   const seenNewsIds = new Set<string>();
   const modelNews: Record<string, unknown>[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const item of [...(newsRaw ?? []), ...((providerNewsRaw ?? []) as any[])]) {
+  for (const item of [...(newsRaw ?? []), ...(providerNewsRaw ?? [])]) {
     if (!seenNewsIds.has(item.id)) {
       seenNewsIds.add(item.id);
       modelNews.push(item as Record<string, unknown>);
@@ -171,7 +168,7 @@ export default async function ModelDetailPage({
   );
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
-  const benchmarkScores = (model.benchmark_scores as {
+  const benchmarkScores = (model.benchmark_scores as unknown as {
     score: number;
     score_normalized: number | null;
     benchmarks: { name: string; slug: string; category: string; max_score: number | null } | null;
@@ -203,11 +200,11 @@ export default async function ModelDetailPage({
     ? eloRatings.reduce((best, curr) =>
         (curr.elo_score > best.elo_score ? curr : best), eloRatings[0])
     : null;
-  const rawModalities = model.modalities;
+  const rawModalities: unknown = model.modalities;
   const modalities: string[] = Array.isArray(rawModalities)
-    ? rawModalities
+    ? rawModalities as string[]
     : typeof rawModalities === "string"
-      ? rawModalities.split(",").map((s: string) => s.trim()).filter(Boolean)
+      ? (rawModalities as string).split(",").map((s: string) => s.trim()).filter(Boolean)
       : [];
   const rawCapabilities = model.capabilities;
   const capabilities: Record<string, boolean> =
@@ -639,7 +636,7 @@ export default async function ModelDetailPage({
                 </CardHeader>
                 <CardContent>
                   <QualityTrend
-                    snapshots={snapshots.map((s: any) => ({
+                    snapshots={snapshots.map((s) => ({
                       snapshot_date: s.snapshot_date,
                       quality_score: s.quality_score,
                     }))}
@@ -652,7 +649,7 @@ export default async function ModelDetailPage({
                 </CardHeader>
                 <CardContent>
                   <DownloadsTrend
-                    snapshots={snapshots.map((s: any) => ({
+                    snapshots={snapshots.map((s) => ({
                       snapshot_date: s.snapshot_date,
                       hf_downloads: s.hf_downloads,
                     }))}
