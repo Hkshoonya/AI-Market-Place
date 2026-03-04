@@ -10,6 +10,9 @@ import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import type { TypedSupabaseClient } from "@/types/database";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("marketplace/purchase");
 
 export interface PurchaseResult {
   success: boolean;
@@ -70,7 +73,7 @@ async function createOrderRecord(
     .single();
 
   if (orderError || !order) {
-    console.error("[purchase] Order creation failed:", orderError);
+    void log.error("Order creation failed", { error: orderError });
     return null;
   }
 
@@ -125,7 +128,7 @@ async function autoCompleteOrder(
       await sb.rpc("increment_listing_purchases", { p_listing_id: listingId });
     } catch {
       // Non-critical — log but don't fail the purchase
-      console.error("[purchase] Failed to increment listing purchases for", listingId);
+      void log.error("Failed to increment listing purchases", { listingId });
     }
 
     return {
@@ -146,7 +149,7 @@ async function autoCompleteOrder(
     };
   } catch (err) {
     // Auto-complete failed -- leave order as pending for manual resolution
-    console.error("[purchase] Auto-complete failed:", err);
+    void log.error("Auto-complete failed", { error: err instanceof Error ? err.message : String(err) });
 
     return {
       success: true,

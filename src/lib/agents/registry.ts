@@ -5,15 +5,16 @@
  */
 
 import type { ResidentAgent } from "./types";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("agents/registry");
 
 const agents = new Map<string, ResidentAgent>();
 
 /** Register an agent. Called once per agent module at import time. */
 export function registerAgent(agent: ResidentAgent): void {
   if (agents.has(agent.slug)) {
-    console.warn(
-      `[registry] Agent "${agent.slug}" already registered, overwriting.`
-    );
+    void log.warn(`Agent already registered, overwriting`, { slug: agent.slug });
   }
   agents.set(agent.slug, agent);
 }

@@ -9,6 +9,9 @@ import { createClient } from "@supabase/supabase-js";
 import type { AgentRecord, AgentTask, AgentContext, AgentTaskResult } from "./types";
 import { getAgent, loadAllAgents } from "./registry";
 import { createAgentLogger } from "./logger";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("agents/runtime");
 
 function createServiceClient() {
   return createClient(
@@ -172,7 +175,7 @@ export async function executeAgent(
     .eq("id", task.id);
 
   if (taskUpdateErr) {
-    console.error(`Failed to update task ${task.id}:`, taskUpdateErr.message);
+    void log.error("Failed to update task", { taskId: task.id, error: taskUpdateErr.message });
   }
 
   // Update agent stats
@@ -198,7 +201,7 @@ export async function executeAgent(
 
   const { error: agentUpdateErr } = await sb.from("agents").update(updates).eq("id", record.id);
   if (agentUpdateErr) {
-    console.error(`Failed to update agent ${record.id}:`, agentUpdateErr.message);
+    void log.error("Failed to update agent", { agentId: record.id, error: agentUpdateErr.message });
   }
 
   return {

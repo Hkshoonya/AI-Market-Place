@@ -13,6 +13,9 @@ import {
   calculatePlatformFee,
 } from "@/lib/payments/wallet";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("marketplace/auction-english");
 
 export interface PlaceBidResult {
   success: boolean;
@@ -126,10 +129,10 @@ export async function placeBid(
         await refundEscrow(previousBid.escrow_hold_id);
       } catch (err) {
         // Log but don't fail the bid — the previous hold may already be handled
-        console.error(
-          `Failed to refund previous bid escrow ${previousBid.escrow_hold_id}:`,
-          err
-        );
+        void log.error("Failed to refund previous bid escrow", {
+          escrowHoldId: previousBid.escrow_hold_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -214,7 +217,7 @@ export async function placeBid(
       autoExtended,
     };
   } catch (err) {
-    console.error("placeBid unexpected error:", err);
+    void log.error("placeBid unexpected error", { error: err instanceof Error ? err.message : String(err) });
     return {
       success: false,
       error: err instanceof Error ? err.message : "Unexpected error placing bid",
@@ -302,10 +305,10 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
             try {
               await refundEscrow(bid.escrow_hold_id);
             } catch (err) {
-              console.error(
-                `Failed to refund escrow ${bid.escrow_hold_id} during auction cancellation:`,
-                err
-              );
+              void log.error("Failed to refund escrow during auction cancellation", {
+                escrowHoldId: bid.escrow_hold_id,
+                error: err instanceof Error ? err.message : String(err),
+              });
             }
           }
         }
@@ -360,10 +363,10 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
           feeAmount
         );
       } catch (err) {
-        console.error(
-          `Failed to release escrow ${winningBid.escrow_hold_id} to seller:`,
-          err
-        );
+        void log.error("Failed to release escrow to seller", {
+          escrowHoldId: winningBid.escrow_hold_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
         return {
           success: false,
           error: `Escrow release failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -377,7 +380,7 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
       finalPrice,
     };
   } catch (err) {
-    console.error("settleEnglishAuction unexpected error:", err);
+    void log.error("settleEnglishAuction unexpected error", { error: err instanceof Error ? err.message : String(err) });
     return {
       success: false,
       error: err instanceof Error ? err.message : "Unexpected error settling auction",

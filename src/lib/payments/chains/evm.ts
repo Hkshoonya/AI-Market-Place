@@ -19,6 +19,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { base, polygon } from "viem/chains";
 import { createHash } from "crypto";
 import type { Chain, Token } from "../wallet";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("payments/evm");
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -233,7 +236,7 @@ export async function checkEvmDeposits(
           }
         }
       } catch (err) {
-        console.error(`[${chain}] Error fetching USDC logs:`, err);
+        void log.error("Error fetching USDC logs", { chain, error: err instanceof Error ? err.message : String(err) });
       }
     }
 
@@ -281,7 +284,7 @@ export async function checkEvmDeposits(
       }
     }
   } catch (err) {
-    console.error(`[${chain}] Error checking deposits:`, err);
+    void log.error("Error checking deposits", { chain, error: err instanceof Error ? err.message : String(err) });
   }
 
   return deposits;
@@ -359,7 +362,7 @@ export async function sendEvmTransfer(
       };
     }
   } catch (err) {
-    console.error(`[${chain}] Transfer failed:`, err);
+    void log.error("Transfer failed", { chain, error: err instanceof Error ? err.message : String(err) });
     return {
       txHash: "",
       status: "failed",
