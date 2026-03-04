@@ -17,18 +17,15 @@ export async function GET(
     .eq("slug", slug)
     .single();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const model = modelRaw as any;
-
-  if (!model) {
+  if (!modelRaw) {
     return NextResponse.json({ error: "Model not found" }, { status: 404 });
   }
 
   // Get description
   const { data: description } = await supabase
-    .from("model_descriptions" as any)
+    .from("model_descriptions")
     .select("*")
-    .eq("model_id", model.id)
+    .eq("model_id", modelRaw.id)
     .single();
 
   if (!description) {

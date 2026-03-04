@@ -30,7 +30,7 @@ export async function generateMetadata({
   };
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export default async function CategoryLeaderboardPage({
   params,
@@ -54,7 +54,8 @@ export default async function CategoryLeaderboardPage({
     .eq("category", category as import("@/types/database").ModelCategory)
     .order("quality_score", { ascending: false, nullsFirst: false });
 
-  const models = (modelsRaw as any[] | null) ?? [];
+  type CategoryModel = { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; category_rank: number | null; quality_score: number | null; is_open_weights: boolean | null; parameter_count: number | null; benchmark_scores: Array<{ score_normalized: number | null; benchmarks: { slug: string; name: string } | null }>; model_pricing: Array<{ input_price_per_million: number | null; median_output_tokens_per_second: number | null }> };
+  const models = (modelsRaw as unknown as CategoryModel[] | null) ?? [];
 
   // Collect all benchmarks that appear in this category
   const benchmarkMap = new Map<string, { name: string; slug: string }>();
@@ -68,25 +69,25 @@ export default async function CategoryLeaderboardPage({
   }
   const benchmarks = Array.from(benchmarkMap.values());
 
-  function getBenchmarkScore(model: any, benchSlug: string): number | null {
+  function getBenchmarkScore(model: CategoryModel, benchSlug: string): number | null {
     const scores = model.benchmark_scores ?? [];
-    const match = scores.find((s: any) => s.benchmarks?.slug === benchSlug);
+    const match = scores.find((s) => s.benchmarks?.slug === benchSlug);
     return match ? Number(match.score_normalized) : null;
   }
 
-  function getCheapestInput(model: any): number | null {
+  function getCheapestInput(model: CategoryModel): number | null {
     const pricing = model.model_pricing ?? [];
     const prices = pricing
-      .map((p: any) => Number(p.input_price_per_million))
-      .filter((p: number) => !isNaN(p) && p > 0);
+      .map((p) => Number(p.input_price_per_million))
+      .filter((p) => !isNaN(p) && p > 0);
     return prices.length > 0 ? Math.min(...prices) : null;
   }
 
-  function getBestSpeed(model: any): number | null {
+  function getBestSpeed(model: CategoryModel): number | null {
     const pricing = model.model_pricing ?? [];
     const speeds = pricing
-      .map((p: any) => Number(p.median_output_tokens_per_second))
-      .filter((s: number) => !isNaN(s) && s > 0);
+      .map((p) => Number(p.median_output_tokens_per_second))
+      .filter((s) => !isNaN(s) && s > 0);
     return speeds.length > 0 ? Math.max(...speeds) : null;
   }
 
@@ -131,7 +132,7 @@ export default async function CategoryLeaderboardPage({
         <Card className="border-border/50">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">
-              {new Set(models.map((m: any) => m.provider)).size}
+              {new Set(models.map((m) => m.provider)).size}
             </p>
             <p className="text-xs text-muted-foreground">Providers</p>
           </CardContent>
@@ -139,7 +140,7 @@ export default async function CategoryLeaderboardPage({
         <Card className="border-border/50">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">
-              {models.filter((m: any) => m.is_open_weights).length}
+              {models.filter((m) => m.is_open_weights).length}
             </p>
             <p className="text-xs text-muted-foreground">Open Weight</p>
           </CardContent>
@@ -210,7 +211,7 @@ export default async function CategoryLeaderboardPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {models.map((model: any, i: number) => {
+                  {models.map((model, i: number) => {
                     const price = getCheapestInput(model);
                     const speed = getBestSpeed(model);
                     return (

@@ -47,8 +47,7 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
       const json = await res.json();
       if (res.ok && json.data) {
         setWatchlists(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          json.data.map((w: any) => ({
+          (json.data as Array<{ id: string; name: string; watchlist_items?: { model_id: string }[] }>).map((w) => ({
             id: w.id,
             name: w.name,
             watchlist_items: w.watchlist_items ?? [],
@@ -70,8 +69,7 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
   };
 
   const isInWatchlist = (wl: WatchlistSummary) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    wl.watchlist_items.some((item: any) => {
+    wl.watchlist_items.some((item: { model_id: string; models?: { id: string } }) => {
       const mid = item.model_id ?? item.models?.id;
       return mid === modelId;
     });

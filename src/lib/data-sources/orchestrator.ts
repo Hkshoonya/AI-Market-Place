@@ -13,6 +13,7 @@ import type {
   SyncResult,
   SyncError,
 } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 import { getAdapter, loadAllAdapters } from "./registry";
 import { resolveSecrets, needsSync } from "./utils";
 import { recordSyncSuccess, recordSyncFailure } from "@/lib/pipeline-health";
@@ -34,8 +35,8 @@ export interface OrchestratorResult {
 }
 
 /** Create a service-role Supabase client (bypasses RLS) */
-function createServiceClient() {
-  return createClient(
+function createServiceClient(): TypedSupabaseClient {
+  return createClient<import("@/types/database").Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -43,8 +44,7 @@ function createServiceClient() {
 
 /** Run a single adapter with timeout, job tracking, and error handling */
 async function executeAdapter(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sb: any,
+  sb: TypedSupabaseClient,
   source: DataSourceRecord,
   trigger: "scheduled" | "manual"
 ): Promise<SourceDetail> {

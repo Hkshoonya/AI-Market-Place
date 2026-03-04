@@ -49,8 +49,7 @@ export async function generateMetadata({
       .select("provider")
       .eq("status", "active");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allProviders = [...new Set((data as any[] ?? []).map((m) => m.provider))];
+    const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
     providerName = allProviders.find(
       (p) => p.toLowerCase().replace(/\s+/g, "-") === slug
     ) ?? null;
@@ -94,8 +93,7 @@ export default async function ProviderDetailPage({
       .select("provider")
       .eq("status", "active");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allProviders = [...new Set((data as any[] ?? []).map((m) => m.provider))];
+    const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
     providerName = allProviders.find(
       (p) => p.toLowerCase().replace(/\s+/g, "-") === slug
     ) ?? null;
@@ -113,8 +111,8 @@ export default async function ProviderDetailPage({
     .eq("provider", providerName)
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const models = (modelsRaw as any[] | null) ?? [];
+  type ProviderModelRow = import("@/types/database").Model & { model_pricing?: Array<{ input_price_per_million: number | null }> };
+  const models = (modelsRaw as unknown as ProviderModelRow[] | null) ?? [];
 
   if (models.length === 0) {
     notFound();

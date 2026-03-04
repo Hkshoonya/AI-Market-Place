@@ -34,8 +34,8 @@ export default async function LeaderboardsPage() {
     .order("overall_rank", { ascending: true })
     .limit(20);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rankedModels = rankedModelsRaw as any[] | null;
+  type RankedModel = { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; market_cap_estimate: number | null; popularity_score: number | null; is_open_weights: boolean | null; benchmark_scores: Array<{ score_normalized: number; benchmarks: { slug: string } | null }>; model_pricing: Array<{ input_price_per_million: number | null }> };
+  const rankedModels = rankedModelsRaw as unknown as RankedModel[] | null;
 
   // Fetch ALL ranked models for the explorer (client component)
   const { data: explorerModelsRaw } = await supabase
@@ -46,31 +46,30 @@ export default async function LeaderboardsPage() {
     .order("overall_rank", { ascending: true })
     .limit(500);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const explorerModelsTyped = explorerModelsRaw as any[] | null;
-  const explorerModels = (explorerModelsTyped ?? []).map((m) => ({
-    name: m.name as string,
-    slug: m.slug as string,
-    provider: m.provider as string,
-    category: m.category as string,
-    overall_rank: m.overall_rank as number | null,
-    category_rank: m.category_rank as number | null,
+  type ExplorerModel = { name: string; slug: string; provider: string; category: string; overall_rank: number | null; category_rank: number | null; quality_score: number | null; value_score: number | null; is_open_weights: boolean | null; hf_downloads: number | null; popularity_score: number | null; agent_score: number | null; agent_rank: number | null; popularity_rank: number | null; market_cap_estimate: number | null; capability_score: number | null; capability_rank: number | null; usage_score: number | null; usage_rank: number | null; expert_score: number | null; expert_rank: number | null; balanced_rank: number | null };
+  const explorerModels = ((explorerModelsRaw as unknown as ExplorerModel[] | null) ?? []).map((m) => ({
+    name: m.name,
+    slug: m.slug,
+    provider: m.provider,
+    category: m.category,
+    overall_rank: m.overall_rank,
+    category_rank: m.category_rank,
     quality_score: m.quality_score ? Number(m.quality_score) : null,
     value_score: m.value_score ? Number(m.value_score) : null,
     is_open_weights: !!(m.is_open_weights),
     hf_downloads: m.hf_downloads ? Number(m.hf_downloads) : null,
     popularity_score: m.popularity_score ? Number(m.popularity_score) : null,
     agent_score: m.agent_score ? Number(m.agent_score) : null,
-    agent_rank: m.agent_rank as number | null,
-    popularity_rank: m.popularity_rank as number | null,
+    agent_rank: m.agent_rank,
+    popularity_rank: m.popularity_rank,
     market_cap_estimate: m.market_cap_estimate ? Number(m.market_cap_estimate) : null,
     capability_score: m.capability_score ? Number(m.capability_score) : null,
-    capability_rank: m.capability_rank as number | null,
+    capability_rank: m.capability_rank,
     usage_score: m.usage_score ? Number(m.usage_score) : null,
-    usage_rank: m.usage_rank as number | null,
+    usage_rank: m.usage_rank,
     expert_score: m.expert_score ? Number(m.expert_score) : null,
-    expert_rank: m.expert_rank as number | null,
-    balanced_rank: m.balanced_rank as number | null,
+    expert_rank: m.expert_rank,
+    balanced_rank: m.balanced_rank,
   }));
 
   // Fetch speed-ranked models
@@ -81,8 +80,8 @@ export default async function LeaderboardsPage() {
     .order("median_output_tokens_per_second", { ascending: false })
     .limit(10);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const speedModels = speedModelsRaw as any[] | null;
+  type SpeedModel = { id: string; median_output_tokens_per_second: number | null; median_time_to_first_token: number | null; input_price_per_million: number | null; provider_name: string | null; models: { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null } };
+  const speedModels = speedModelsRaw as unknown as SpeedModel[] | null;
 
   // Fetch value-ranked models
   const { data: valueModelsRaw } = await supabase
@@ -92,12 +91,11 @@ export default async function LeaderboardsPage() {
     .order("input_price_per_million", { ascending: true })
     .limit(10);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const valueModels = valueModelsRaw as any[] | null;
+  type ValueModel = { id: string; input_price_per_million: number | null; output_price_per_million?: number | null; provider_name: string | null; models: { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null } };
+  const valueModels = valueModelsRaw as unknown as ValueModel[] | null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function getBenchmarkScore(model: any, benchmarkSlug: string): number | null {
-    const scores = model.benchmark_scores as { score_normalized: number; benchmarks: { slug: string } | null }[];
+  function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
+    const scores = model.benchmark_scores;
     const found = scores?.find((bs) => bs.benchmarks?.slug === benchmarkSlug);
     return found ? Number(found.score_normalized) : null;
   }
@@ -247,7 +245,7 @@ export default async function LeaderboardsPage() {
           {rankedModels && rankedModels.length > 0 && (
             <div className="mb-6">
               <QualityDistribution
-                data={rankedModels.map((m: any) => ({
+                data={rankedModels.map((m) => ({
                   name: m.name,
                   quality: Number(m.quality_score) || 0,
                   provider: m.provider as string,
@@ -390,13 +388,13 @@ export default async function LeaderboardsPage() {
             <div className="mb-6">
               <SpeedCostScatter
                 data={speedModels
-                  .filter((p: any) => p.input_price_per_million != null)
-                  .map((p: any) => ({
+                  .filter((p) => p.input_price_per_million != null)
+                  .map((p) => ({
                     name: p.models.name,
                     speed: Number(p.median_output_tokens_per_second),
                     cost: Number(p.input_price_per_million),
-                    provider: p.provider_name,
-                    color: getProviderBrand(p.provider_name)?.color ?? "#666",
+                    provider: p.provider_name ?? "",
+                    color: getProviderBrand(p.provider_name ?? "")?.color ?? "#666",
                   }))}
               />
             </div>

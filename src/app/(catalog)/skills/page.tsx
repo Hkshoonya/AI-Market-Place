@@ -160,8 +160,14 @@ export default async function SkillsPage() {
     .order("score", { ascending: false })
     .limit(2000);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const benchmarkData = (benchmarkDataRaw as any[] | null) ?? [];
+  type BenchmarkScoreEntry = {
+    score: number | null;
+    score_normalized: number | null;
+    model_id: string;
+    models: { id: string; slug: string; name: string; provider: string; category: string; quality_score: number | null; market_cap_estimate: number | null; is_open_weights: boolean } | null;
+    benchmarks: { slug: string; name: string } | null;
+  };
+  const benchmarkData = (benchmarkDataRaw as unknown as BenchmarkScoreEntry[] | null) ?? [];
 
   // Fetch affiliate deployment platforms
   const { data: platformsRaw } = await supabase
@@ -169,8 +175,7 @@ export default async function SkillsPage() {
     .select("*")
     .eq("has_affiliate", true);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const affiliatePlatforms = (platformsRaw as any[] | null) ?? [];
+  const affiliatePlatforms = (platformsRaw as unknown as AffiliatePlatform[] | null) ?? [];
 
   // Fetch model deployments that link to affiliate platforms
   const affiliatePlatformIds = affiliatePlatforms.map((p) => p.id);
@@ -181,8 +186,7 @@ export default async function SkillsPage() {
       .select("model_id, deploy_url, platform_id, deployment_platforms(*)")
       .in("platform_id", affiliatePlatformIds);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    deployments = (deploymentsRaw as any[] | null) ?? [];
+    deployments = (deploymentsRaw as unknown as DeploymentRow[] | null) ?? [];
   }
 
   // Build a map: model_id -> affiliate deploy info
@@ -191,8 +195,7 @@ export default async function SkillsPage() {
     { url: string; platformName: string }
   >();
   for (const dep of deployments) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const platform = dep.deployment_platforms as any;
+    const platform = dep.deployment_platforms;
     if (!platform) continue;
     const template: string | null = platform.affiliate_url_template;
     const deployUrl: string | null = dep.deploy_url;
@@ -225,10 +228,8 @@ export default async function SkillsPage() {
     >();
 
     for (const entry of benchmarkData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const benchmark = entry.benchmarks as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const model = entry.models as any;
+      const benchmark = entry.benchmarks;
+      const model = entry.models;
       if (!benchmark || !model) continue;
 
       const benchSlug: string = benchmark.slug;

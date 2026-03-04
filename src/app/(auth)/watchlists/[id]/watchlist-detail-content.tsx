@@ -371,10 +371,8 @@ export default function WatchlistDetailContent() {
           <Button variant="outline" className="gap-2" asChild>
             <Link
               href={`/compare?models=${watchlist.watchlist_items
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .slice(0, 5)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((item: any) => item.models?.slug)
+                .map((item) => item.models?.slug)
                 .filter(Boolean)
                 .join(",")}`}
             >

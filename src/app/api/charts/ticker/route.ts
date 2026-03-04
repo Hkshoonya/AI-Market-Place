@@ -17,11 +17,8 @@ export async function GET() {
 
   if (!models || models.length === 0) return NextResponse.json([]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const typedModels = models as any[];
-
   // Get previous snapshots for delta calculation
-  const modelIds = typedModels.map((m) => m.id);
+  const modelIds = models.map((m) => m.id);
   const { data: snapshots } = await supabase
     .from("model_snapshots")
     .select("model_id, popularity_score, snapshot_date")
@@ -31,8 +28,7 @@ export async function GET() {
 
   const previousScores = new Map<string, number>();
   const seen = new Set<string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const s of (snapshots as any[] ?? [])) {
+  for (const s of (snapshots ?? [])) {
     if (s.popularity_score == null) continue;
     if (seen.has(s.model_id)) {
       if (!previousScores.has(s.model_id)) {
@@ -43,7 +39,7 @@ export async function GET() {
     }
   }
 
-  const tickerData = typedModels.map((m: any) => {
+  const tickerData = models.map((m) => {
     const prev = previousScores.get(m.id);
     const delta = prev != null && m.popularity_score != null
       ? Math.round((m.popularity_score - prev) * 10) / 10

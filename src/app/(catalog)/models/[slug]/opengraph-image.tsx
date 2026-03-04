@@ -22,10 +22,7 @@ export default async function OGImage({
     .eq("slug", slug)
     .single();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const model = data as any;
-
-  if (!model) {
+  if (!data) {
     return new ImageResponse(
       (
         <div
@@ -91,7 +88,7 @@ export default async function OGImage({
 
         {/* Header: Rank + Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {model.overall_rank && (
+          {data.overall_rank && (
             <div
               style={{
                 display: "flex",
@@ -106,7 +103,7 @@ export default async function OGImage({
                 fontWeight: 800,
               }}
             >
-              #{model.overall_rank}
+              #{data.overall_rank}
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -118,10 +115,10 @@ export default async function OGImage({
                 lineHeight: 1.1,
               }}
             >
-              {model.name}
+              {data.name}
             </span>
             <span style={{ color: "#8888a8", fontSize: 24, marginTop: 4 }}>
-              by {model.provider}
+              by {data.provider}
             </span>
           </div>
         </div>
@@ -134,23 +131,23 @@ export default async function OGImage({
             marginTop: 50,
           }}
         >
-          {model.quality_score && (
+          {data.quality_score && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ color: "#8888a8", fontSize: 16, marginBottom: 4 }}>
                 Quality Score
               </span>
               <span style={{ color: "#00d4aa", fontSize: 40, fontWeight: 800 }}>
-                {Number(model.quality_score).toFixed(1)}
+                {Number(data.quality_score).toFixed(1)}
               </span>
             </div>
           )}
-          {model.parameter_count && (
+          {data.parameter_count && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ color: "#8888a8", fontSize: 16, marginBottom: 4 }}>
                 Parameters
               </span>
               <span style={{ color: "#e8e8f0", fontSize: 40, fontWeight: 800 }}>
-                {formatParams(model.parameter_count)}
+                {formatParams(data.parameter_count)}
               </span>
             </div>
           )}
@@ -159,7 +156,7 @@ export default async function OGImage({
               Downloads
             </span>
             <span style={{ color: "#e8e8f0", fontSize: 40, fontWeight: 800 }}>
-              {formatDownloads(model.hf_downloads)}
+              {formatDownloads(data.hf_downloads)}
             </span>
           </div>
         </div>
@@ -176,9 +173,9 @@ export default async function OGImage({
               fontSize: 18,
             }}
           >
-            {model.category?.replace(/_/g, " ").toUpperCase()}
+            {data.category?.replace(/_/g, " ").toUpperCase()}
           </div>
-          {model.is_open_weights && (
+          {data.is_open_weights && (
             <div
               style={{
                 display: "flex",

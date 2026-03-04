@@ -3,6 +3,7 @@ import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TypedSupabaseClient } from "@/types/database";
 
 const createOrderSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Use admin client for API key auth (no session), server client for session auth
-  let db: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let db: TypedSupabaseClient;
   if (auth.authMethod === "api_key") {
     db = createAdminClient();
   } else {
@@ -71,18 +72,19 @@ export async function GET(request: NextRequest) {
   }
 
   // Enrich seller orders with buyer profiles (or guest info)
-  let data = rawData ?? [];
-  if (role === "seller" && data.length > 0) {
-    const buyerIds = [...new Set(data.map((o: any) => o.buyer_id).filter(Boolean))];
-    let profileMap = new Map();
+  type OrderRow = { buyer_id: string | null; guest_email?: string | null; guest_name?: string | null; [key: string]: unknown };
+  let responseData: OrderRow[] = (rawData ?? []) as unknown as OrderRow[];
+  if (role === "seller" && responseData.length > 0) {
+    const buyerIds = [...new Set(responseData.map((o) => o.buyer_id).filter(Boolean))] as string[];
+    let profileMap = new Map<string, { id: string; display_name: string | null; avatar_url: string | null }>();
     if (buyerIds.length > 0) {
       const { data: profiles } = await db
         .from("profiles")
         .select("id, display_name, avatar_url")
         .in("id", buyerIds);
-      profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
     }
-    data = data.map((o: any) => ({
+    responseData = responseData.map((o) => ({
       ...o,
       profiles: o.buyer_id
         ? profileMap.get(o.buyer_id) ?? null
@@ -92,7 +94,7 @@ export async function GET(request: NextRequest) {
     }));
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: responseData });
 }
 
 export async function POST(request: NextRequest) {
@@ -143,7 +145,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Use admin client for guest inserts (bypasses RLS)
-  const adminSb = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const adminSb = createAdminClient();
 
   // Get listing to find seller and price
   const { data: listing } = await adminSb
@@ -164,25 +166,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Build insert payload
-  const orderInsert: Record<string, any> = {
+  // Build insert payload — buyer_id is nullable for guest orders
+  const baseInsert = {
     listing_id,
     seller_id: listing.seller_id,
     message: message || null,
     price_at_time: listing.price,
+    buyer_id: user ? user.id : (null as unknown as string), // null for guest orders
+    ...((!user && guest_email) ? { guest_email, guest_name: guest_name || null } : {}),
   };
-
-  if (user) {
-    orderInsert.buyer_id = user.id;
-  } else {
-    orderInsert.buyer_id = null;
-    orderInsert.guest_email = guest_email;
-    orderInsert.guest_name = guest_name || null;
-  }
 
   const { data, error } = await adminSb
     .from("marketplace_orders")
-    .insert(orderInsert)
+    .insert(baseInsert)
     .select()
     .single();
 

@@ -80,8 +80,7 @@ export async function PATCH(
     .update(keyRaw)
     .digest("hex");
 
-  const admin = createAdminClient();
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   const { data: apiKey, error: keyError } = await sb
     .from("api_keys")
@@ -98,10 +97,11 @@ export async function PATCH(
   }
 
   // Verify the key has the "marketplace" scope
-  const scopes: string[] = Array.isArray(apiKey.scopes)
-    ? apiKey.scopes
-    : typeof apiKey.scopes === "string"
-      ? apiKey.scopes.split(",").map((s: string) => s.trim())
+  const rawScopes: unknown = apiKey.scopes;
+  const scopes: string[] = Array.isArray(rawScopes)
+    ? rawScopes as string[]
+    : typeof rawScopes === "string"
+      ? (rawScopes as string).split(",").map((s: string) => s.trim())
       : [];
 
   if (!scopes.includes("marketplace")) {

@@ -193,8 +193,7 @@ async function authenticateBot(
     .update(keyRaw)
     .digest("hex");
 
-  const admin = createAdminClient();
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   const { data: apiKey, error } = await sb
     .from("api_keys")
@@ -211,10 +210,11 @@ async function authenticateBot(
   }
 
   // Verify the key has the "marketplace" scope
-  const scopes: string[] = Array.isArray(apiKey.scopes)
-    ? apiKey.scopes
-    : typeof apiKey.scopes === "string"
-      ? apiKey.scopes.split(",").map((s: string) => s.trim())
+  const rawScopes: unknown = apiKey.scopes;
+  const scopes: string[] = Array.isArray(rawScopes)
+    ? rawScopes as string[]
+    : typeof rawScopes === "string"
+      ? (rawScopes as string).split(",").map((s: string) => s.trim())
       : [];
 
   if (!scopes.includes("marketplace")) {
@@ -273,8 +273,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   // Ensure the bot's owner has is_seller: true
   const { data: profile } = await sb
@@ -419,8 +418,7 @@ export async function PATCH(request: NextRequest) {
 
   const { slug, skill_manifest, agent_config, ...fields } = parsed.data;
 
-  const admin = createAdminClient();
-  const sb = admin as any;
+  const sb = createAdminClient();
 
   // If skill_manifest is being updated, we need to merge it into agent_config
   const updates: Record<string, unknown> = {};

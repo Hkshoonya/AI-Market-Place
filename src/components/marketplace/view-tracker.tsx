@@ -10,10 +10,10 @@ export function ViewTracker({ listingId }: { listingId: string }) {
     if (tracked.current) return;
     tracked.current = true;
 
+    const supabase = createClient();
+    // increment_view_count is a database RPC not registered in the TypedSupabaseClient Functions type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createClient() as any;
-    supabase
-      .rpc("increment_view_count", { listing_id: listingId })
+    (supabase.rpc as any)("increment_view_count", { listing_id: listingId })
       .then(() => {})
       .catch(() => {
         // RPC not available; silently skip

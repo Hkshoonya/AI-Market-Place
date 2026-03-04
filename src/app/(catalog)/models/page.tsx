@@ -146,8 +146,8 @@ export default async function ModelsPage({
 
   const { data: modelsRaw, count } = await dbQuery;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const models = (modelsRaw as any[] | null) ?? [];
+  type ModelPageRow = import("@/types/database").Model & { model_pricing?: Array<{ input_price_per_million: number | null }> };
+  const models = (modelsRaw as unknown as ModelPageRow[] | null) ?? [];
   const totalCount = count ?? 0;
 
   return (

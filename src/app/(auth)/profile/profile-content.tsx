@@ -99,12 +99,11 @@ export default function ProfileContent() {
 
     const { error } = await supabase
       .from("profiles")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({
         display_name: displayName || null,
         username: username || null,
         bio: bio || null,
-      } as any)
+      })
       .eq("id", user.id);
 
     if (error) {

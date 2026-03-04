@@ -35,9 +35,10 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     .from("benchmark_scores")
     .select("model_id, score_normalized, benchmarks(slug)");
 
+  type BenchmarkScoreWithSlug = { model_id: string; score_normalized: number | null; benchmarks?: { slug: string } | null };
   const benchmarkMap = new Map<string, number[]>();
   const benchmarkDetailMap = new Map<string, Array<{ slug: string; score: number }>>();
-  for (const bs of benchmarkAvgs ?? []) {
+  for (const bs of (benchmarkAvgs as unknown as BenchmarkScoreWithSlug[] ?? [])) {
     if (bs.score_normalized == null) continue;
     const modelId = bs.model_id;
     const score = Number(bs.score_normalized);
@@ -45,8 +46,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     if (!benchmarkMap.has(modelId)) benchmarkMap.set(modelId, []);
     benchmarkMap.get(modelId)!.push(score);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const benchSlug = (bs as any).benchmarks?.slug as string | undefined;
+    const benchSlug = bs.benchmarks?.slug;
     if (benchSlug) {
       if (!benchmarkDetailMap.has(modelId)) benchmarkDetailMap.set(modelId, []);
       benchmarkDetailMap.get(modelId)!.push({ slug: benchSlug, score });

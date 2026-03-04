@@ -36,20 +36,16 @@ export async function GET(request: NextRequest) {
     if (!model) {
       return NextResponse.json({ error: "Model not found" }, { status: 404 });
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    query = query.eq("model_id", (model as any).id);
+    query = query.eq("model_id", model.id);
   }
 
   const { data: snapshots } = await query.limit(1000);
   if (!snapshots) return NextResponse.json([]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const typedSnapshots = snapshots as any[];
-
   // Group by date for OHLC-style data
   const byDate = new Map<string, number[]>();
-  for (const s of typedSnapshots) {
-    const value = s[metric] as number | null;
+  for (const s of snapshots) {
+    const value = (s as Record<string, unknown>)[metric] as number | null;
     if (value == null) continue;
     const date = s.snapshot_date as string;
     if (!byDate.has(date)) byDate.set(date, []);

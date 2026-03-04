@@ -16,7 +16,7 @@ import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
-import type { MarketplaceListing } from "@/types/database";
+import type { MarketplaceListing, Profile } from "@/types/database";
 
 export const revalidate = 3600;
 
@@ -245,8 +245,7 @@ export default async function ListingDetailPage(props: {
         {/* Sidebar */}
         <div className="space-y-6">
           {listing.profiles && (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <SellerCard seller={listing.profiles as any} />
+            <SellerCard seller={listing.profiles as unknown as Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "seller_bio" | "seller_website" | "seller_verified" | "seller_rating" | "total_sales" | "created_at">} />
           )}
         </div>
       </div>

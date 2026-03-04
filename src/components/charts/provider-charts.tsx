@@ -20,12 +20,12 @@ const CHART_COLORS = [
 ];
 
 // Custom dark tooltip matching the site theme
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number | string; color?: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border/50 bg-card px-3 py-2 shadow-xl">
       <p className="text-xs font-semibold text-foreground">{label || payload[0]?.name}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i: number) => (
         <p key={i} className="text-xs text-muted-foreground">
           {entry.name}: <span className="font-medium text-foreground">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>

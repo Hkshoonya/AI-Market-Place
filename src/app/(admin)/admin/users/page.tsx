@@ -73,10 +73,7 @@ export default function AdminUsersPage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        // Explicit cast needed: TypeScript incorrectly infers update arg as never
-        // due to Supabase's type inference limitations with the profiles table
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({ is_admin: !currentValue } as any)
+        .update({ is_admin: !currentValue })
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Admin role removed" : "Admin role granted");
@@ -90,8 +87,7 @@ export default function AdminUsersPage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({ seller_verified: !currentValue } as any)
+        .update({ seller_verified: !currentValue })
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Seller verification removed" : "Seller verified successfully");
