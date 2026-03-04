@@ -13,7 +13,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - [x] **Phase 1: Test Infrastructure + Constants** - Configure Vitest and externalize all magic numbers before any refactoring begins (completed 2026-03-03)
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators (gap closure in progress)
 - [x] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions (completed 2026-03-04)
-- [x] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication (completed 2026-03-04)
+- [x] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication (completed 2026-03-04)
 - [ ] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks
 - [ ] **Phase 6: Type Safety** - Replace all `any` types with proper TypeScript types now that structure is clean
 - [ ] **Phase 7: Error Handling + Logging** - Standardize error patterns and structured logging across codebase
@@ -91,7 +91,11 @@ Plans:
   3. `purchase-button.tsx` delegates to GuestCheckoutForm and WalletDepositPanel; wallet state lives in `useWalletBalance()` hook
   4. `benchmark-heatmap.tsx` delegates to HeatmapGrid; tooltip state lives in `useHeatmapTooltip()` hook
   5. The application builds and all decomposed components render correctly (`next build` passes)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 05-01-PLAN.md — Decompose auction-detail-content into sub-components + useAuctionTimer hook
+- [ ] 05-02-PLAN.md — Decompose seller-earnings-content into sub-components + useEarningsData hook
+- [ ] 05-03-PLAN.md — Decompose purchase-button + benchmark-heatmap into sub-components + hooks
 
 ### Phase 6: Type Safety
 **Goal**: The `any` type count is reduced from 152 to under 20, with all catch blocks and Supabase joins using properly typed interfaces
@@ -141,7 +145,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 2. Scoring Simplification | 2/3 | Gap closure | - |
 | 3. API Route Decomposition | 2/2 | Complete   | 2026-03-04 |
 | 4. Adapter Deduplication | 3/3 | Complete   | 2026-03-04 |
-| 5. Component Decomposition | 0/TBD | Not started | - |
+| 5. Component Decomposition | 0/3 | Planned | - |
 | 6. Type Safety | 0/TBD | Not started | - |
 | 7. Error Handling + Logging | 0/TBD | Not started | - |
 | 8. Regression Testing | 0/TBD | Not started | - |
