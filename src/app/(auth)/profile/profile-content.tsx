@@ -57,16 +57,17 @@ export default function ProfileContent() {
     if (user) {
       // Fetch user bookmarks
       const fetchBookmarks = async () => {
-        const { data } = await supabase
+        type BookmarkWithModel = { id: string; model_id: string; models?: { slug?: string; name?: string; provider?: string } | null };
+        const { data: rawData } = await supabase
           .from("user_bookmarks")
           .select("id, model_id, models(slug, name, provider)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
+        const data = (rawData ?? []) as unknown as BookmarkWithModel[];
         if (data) {
           setBookmarks(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data.map((b: any) => ({
+            data.map((b) => ({
               id: b.id,
               slug: b.models?.slug ?? "",
               name: b.models?.name ?? "Unknown",
@@ -96,14 +97,14 @@ export default function ProfileContent() {
     setSaving(true);
     setMessage(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({
         display_name: displayName || null,
         username: username || null,
         bio: bio || null,
-      })
+      } as any)
       .eq("id", user.id);
 
     if (error) {

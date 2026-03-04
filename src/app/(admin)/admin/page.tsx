@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/format";
+import type { Model, Profile } from "@/types/database";
 
 interface AdminStats {
   totalModels: number;
@@ -36,8 +37,6 @@ export default function AdminOverviewPage() {
     const fetchStats = async () => {
       const supabase = createClient();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
       const [
         { count: totalModels },
         { count: activeModels },
@@ -49,20 +48,19 @@ export default function AdminOverviewPage() {
         { data: recentModels },
         { data: recentUsers },
       ] = await Promise.all([
-        sb.from("models").select("*", { count: "exact", head: true }),
-        sb.from("models").select("*", { count: "exact", head: true }).eq("status", "active"),
-        sb.from("profiles").select("*", { count: "exact", head: true }),
-        sb.from("marketplace_listings").select("*", { count: "exact", head: true }),
-        sb.from("marketplace_listings").select("*", { count: "exact", head: true }).eq("status", "active"),
-        sb.from("marketplace_orders").select("*", { count: "exact", head: true }),
-        sb.from("models").select("hf_downloads").eq("status", "active"),
-        sb.from("models").select("name, provider, slug, created_at").order("created_at", { ascending: false }).limit(5),
-        sb.from("profiles").select("display_name, email, joined_at").order("joined_at", { ascending: false }).limit(5),
+        supabase.from("models").select("*", { count: "exact", head: true }),
+        supabase.from("models").select("*", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
+        supabase.from("marketplace_listings").select("*", { count: "exact", head: true }),
+        supabase.from("marketplace_listings").select("*", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("marketplace_orders").select("*", { count: "exact", head: true }),
+        supabase.from("models").select("hf_downloads").eq("status", "active"),
+        supabase.from("models").select("name, provider, slug, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("profiles").select("display_name, email, joined_at").order("joined_at", { ascending: false }).limit(5),
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const totalDownloads = ((modelsAgg as any[]) ?? []).reduce(
-        (sum, m) => sum + (Number(m.hf_downloads) || 0),
+      const totalDownloads = (modelsAgg ?? []).reduce(
+        (sum: number, m: Pick<Model, "hf_downloads">) => sum + (Number(m.hf_downloads) || 0),
         0
       );
 
@@ -75,8 +73,8 @@ export default function AdminOverviewPage() {
         totalOrders: totalOrders ?? 0,
         totalViews: 0,
         totalDownloads,
-        recentModels: (recentModels ?? []) as any[],
-        recentUsers: (recentUsers ?? []) as any[],
+        recentModels: (recentModels ?? []) as AdminStats["recentModels"],
+        recentUsers: (recentUsers ?? []) as AdminStats["recentUsers"],
       });
       setLoading(false);
     };

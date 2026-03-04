@@ -17,8 +17,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatCurrency } from "@/lib/format";
+import type { MarketplaceOrder } from "@/types/database";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// Orders from buyer view with joined seller profile and listing
+type OrderWithJoins = MarketplaceOrder & {
+  marketplace_listings?: { title: string | null; slug: string | null; listing_type: string | null; thumbnail_url?: string | null } | null;
+  seller?: { display_name: string | null; avatar_url: string | null; username: string | null } | null;
+};
 
 const supabase = createClient();
 
@@ -33,7 +38,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; label: 
 export default function OrdersContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderWithJoins[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
 
@@ -41,7 +46,7 @@ export default function OrdersContent() {
     if (!user) return;
     setLoading(true);
 
-    let query = (supabase as any)
+    let query = supabase
       .from("marketplace_orders")
       .select(
         "*, marketplace_listings(title, slug, listing_type, thumbnail_url), seller:seller_id(display_name, avatar_url, username)"
@@ -50,11 +55,11 @@ export default function OrdersContent() {
       .order("created_at", { ascending: false });
 
     if (filter !== "all") {
-      query = query.eq("status", filter);
+      query = query.eq("status", filter as import("@/types/database").OrderStatus);
     }
 
     const { data } = await query;
-    setOrders((data as any[]) ?? []);
+    setOrders((data as unknown as OrderWithJoins[]) ?? []);
     setLoading(false);
   }, [user, filter]);
 

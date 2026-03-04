@@ -19,8 +19,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, formatRelativeDate, formatCurrency } from "@/lib/format";
+import type { MarketplaceOrder } from "@/types/database";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+type OrderParty = { display_name: string | null; avatar_url: string | null; username: string | null };
+
+type OrderWithParties = MarketplaceOrder & {
+  marketplace_listings?: { title: string | null; slug: string | null; listing_type: string | null } | null;
+  buyer?: OrderParty | null;
+  seller?: OrderParty | null;
+};
+
+type OrderMessage = {
+  id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  profiles?: { display_name: string | null; username: string | null } | null;
+};
 
 const supabase = createClient();
 
@@ -40,8 +55,8 @@ export default function OrderDetailContent({
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [orderId, setOrderId] = useState<string>("");
-  const [order, setOrder] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [order, setOrder] = useState<OrderWithParties | null>(null);
+  const [messages, setMessages] = useState<OrderMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,7 +69,7 @@ export default function OrderDetailContent({
   const fetchOrder = useCallback(async () => {
     if (!user || !orderId) return;
 
-    const { data } = await (supabase as any)
+    const { data: rawData } = await supabase
       .from("marketplace_orders")
       .select(
         "*, marketplace_listings(title, slug, listing_type), buyer:buyer_id(display_name, avatar_url, username), seller:seller_id(display_name, avatar_url, username)"
@@ -62,6 +77,7 @@ export default function OrderDetailContent({
       .eq("id", orderId)
       .single();
 
+    const data = rawData as unknown as OrderWithParties | null;
     if (data && (data.buyer_id === user.id || data.seller_id === user.id)) {
       setOrder(data);
     }

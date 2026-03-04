@@ -5,6 +5,7 @@ import { Pagination } from "@/components/models/pagination";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
+import type { MarketplaceListing } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -57,13 +58,12 @@ export default async function BrowsePage(props: {
 
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from("marketplace_listings")
     .select("*", { count: "exact" })
     .eq("status", "active");
 
-  if (type) query = query.eq("listing_type", type);
+  if (type) query = query.eq("listing_type", type as import("@/types/database").ListingType);
   if (search) query = query.textSearch("fts", search);
 
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
@@ -84,12 +84,12 @@ export default async function BrowsePage(props: {
   const to = from + ITEMS_PER_PAGE - 1;
   query = query.range(from, to);
 
-  const { data: rawData, count } = await query;
+  const { data: queryData, count } = await query;
   const totalCount = count || 0;
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
-  // Cast to any — shape is compatible with MarketplaceListingWithSeller
-  const data = await enrichListingsWithProfiles(supabase as any, rawData || []) as any[];
+  const rawData = (queryData || []) as unknown as MarketplaceListing[];
+  const data = await enrichListingsWithProfiles(supabase, rawData);
 
   const typeConfig = type
     ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]
@@ -118,7 +118,7 @@ export default async function BrowsePage(props: {
       <MarketplaceFilterBar totalCount={totalCount} />
 
       <div className="mt-6">
-        <ListingsGrid listings={data || []} />
+        <ListingsGrid listings={data as import("@/types/database").MarketplaceListingWithSeller[]} />
       </div>
 
       {totalCount > ITEMS_PER_PAGE && (

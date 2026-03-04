@@ -19,15 +19,28 @@ import { SellerStatsCards } from "@/components/marketplace/seller-stats-cards";
 import { SellerListingsTable } from "@/components/marketplace/seller-listings-table";
 import { SellerOrdersTable } from "@/components/marketplace/seller-orders-table";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface SellerVerificationForm {
+  business_name: string;
+  business_description: string;
+  website_url: string;
+  portfolio_url: string;
+  reason: string;
+}
+
+interface VerificationStatus {
+  request?: {
+    status: string;
+    admin_notes?: string | null;
+  } | null;
+}
 
 function VerificationBanner() {
   const { profile } = useAuth();
-  const [verStatus, setVerStatus] = useState<any>(null);
+  const [verStatus, setVerStatus] = useState<VerificationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<SellerVerificationForm>({
     business_name: "",
     business_description: "",
     website_url: "",
@@ -163,8 +176,8 @@ function VerificationForm({
   submitting,
   onCancel,
 }: {
-  form: any;
-  setForm: (fn: any) => void;
+  form: SellerVerificationForm;
+  setForm: (fn: (prev: SellerVerificationForm) => SellerVerificationForm) => void;
   onSubmit: (e: React.FormEvent) => void;
   submitting: boolean;
   onCancel: () => void;
@@ -188,7 +201,7 @@ function VerificationForm({
               placeholder="Your business or brand name"
               value={form.business_name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setForm((p: any) => ({ ...p, business_name: e.target.value }))
+                setForm((p) => ({ ...p, business_name: e.target.value }))
               }
               className="mt-1 bg-secondary"
             />
@@ -201,7 +214,7 @@ function VerificationForm({
               placeholder="Describe your business and what you sell..."
               value={form.business_description}
               onChange={(e) =>
-                setForm((p: any) => ({ ...p, business_description: e.target.value }))
+                setForm((p) => ({ ...p, business_description: e.target.value }))
               }
               className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-neon/50"
               rows={3}
@@ -217,7 +230,7 @@ function VerificationForm({
                 placeholder="https://example.com"
                 value={form.website_url}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setForm((p: any) => ({ ...p, website_url: e.target.value }))
+                  setForm((p) => ({ ...p, website_url: e.target.value }))
                 }
                 className="mt-1 bg-secondary"
               />
@@ -231,7 +244,7 @@ function VerificationForm({
                 placeholder="https://github.com/you"
                 value={form.portfolio_url}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setForm((p: any) => ({ ...p, portfolio_url: e.target.value }))
+                  setForm((p) => ({ ...p, portfolio_url: e.target.value }))
                 }
                 className="mt-1 bg-secondary"
               />
@@ -245,7 +258,7 @@ function VerificationForm({
               placeholder="Tell us why you should be a verified seller..."
               value={form.reason}
               onChange={(e) =>
-                setForm((p: any) => ({ ...p, reason: e.target.value }))
+                setForm((p) => ({ ...p, reason: e.target.value }))
               }
               className="mt-1 w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-neon/50"
               rows={2}
@@ -275,10 +288,19 @@ function VerificationForm({
   );
 }
 
+interface SellerStats {
+  totalListings: number;
+  activeListings: number;
+  totalViews: number;
+  totalInquiries: number;
+  avgRating: number | null;
+  pendingOrders: number;
+}
+
 export default function SellerDashboardContent() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<SellerStats | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {

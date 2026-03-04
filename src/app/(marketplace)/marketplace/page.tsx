@@ -6,6 +6,7 @@ import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { createClient } from "@/lib/supabase/server";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
+import type { MarketplaceListing } from "@/types/database";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
@@ -18,10 +19,12 @@ export default async function MarketplacePage() {
   const supabase = await createClient();
 
   // Fetch type counts
-  const { data: allListings } = await (supabase as any)
+  const { data: allListingsRaw } = await supabase
     .from("marketplace_listings")
     .select("listing_type")
     .eq("status", "active");
+
+  const allListings = (allListingsRaw ?? []) as unknown as { listing_type: string }[];
 
   const counts: Record<string, number> = {};
   if (allListings) {
@@ -33,20 +36,21 @@ export default async function MarketplacePage() {
   // Fetch featured listings (up to 6)
   // NOTE: is_featured column may not exist yet — order by created_at only
   // When migration adds the column, re-enable: .order("is_featured", { ascending: false })
-  const { data: rawFeatured } = await (supabase as any)
+  const { data: rawFeaturedData } = await supabase
     .from("marketplace_listings")
     .select("*")
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(6);
 
+  const rawFeatured = (rawFeaturedData || []) as unknown as MarketplaceListing[];
+
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
-  // Cast to any — shape is compatible with MarketplaceListingWithSeller
   const featured = await enrichListingsWithProfiles(
-    supabase as any,
-    rawFeatured || [],
+    supabase,
+    rawFeatured,
     PROFILE_FIELDS_CARD
-  ) as any[];
+  );
 
   const totalCount = allListings?.length || 0;
 
@@ -106,7 +110,7 @@ export default async function MarketplacePage() {
         </div>
 
         <div className="mt-6">
-          <ListingsGrid listings={featured || []} />
+          <ListingsGrid listings={featured as import("@/types/database").MarketplaceListingWithSeller[]} />
         </div>
       </div>
 

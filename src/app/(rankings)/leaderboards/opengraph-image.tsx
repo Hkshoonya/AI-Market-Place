@@ -9,10 +9,7 @@ export const contentType = "image/png";
 export default async function OGImage() {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { data: topModels } = await sb
+  const { data: topModels } = await supabase
     .from("models")
     .select("name, provider, overall_rank, quality_score")
     .eq("status", "active")
@@ -20,8 +17,7 @@ export default async function OGImage() {
     .order("overall_rank", { ascending: true })
     .limit(3);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const models = (topModels as any[]) ?? [];
+  const models = topModels ?? [];
 
   const medals = ["#FFD700", "#C0C0C0", "#CD7F32"];
 

@@ -18,7 +18,12 @@ import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { MarketplaceOrder, OrderStatus } from "@/types/database";
+import type { MarketplaceOrder, OrderStatus, Profile } from "@/types/database";
+
+type SellerOrderRow = MarketplaceOrder & {
+  marketplace_listings?: { title: string | null; slug: string | null; listing_type: string | null } | null;
+  profiles?: Pick<Profile, "display_name" | "avatar_url"> | null;
+};
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "border-amber-500/30 bg-amber-500/10 text-amber-400",
@@ -30,7 +35,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 export function SellerOrdersTable() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<MarketplaceOrder[]>([]);
+  const [orders, setOrders] = useState<SellerOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -40,7 +45,7 @@ export function SellerOrdersTable() {
     try {
       const supabase = createClient();
       // Two-query approach: marketplace_orders may not have FK to profiles
-      const { data: rawData, error } = await (supabase as any)
+      const { data: rawData, error } = await supabase
         .from("marketplace_orders")
         .select("*, marketplace_listings(title, slug, listing_type)")
         .eq("seller_id", user.id)
@@ -48,23 +53,25 @@ export function SellerOrdersTable() {
 
       if (error) throw error;
 
-      let enriched = rawData ?? [];
+      let enriched: SellerOrderRow[] = (rawData ?? []) as unknown as SellerOrderRow[];
       if (enriched.length > 0) {
-        const buyerIds = [...new Set(enriched.map((o: any) => o.buyer_id).filter(Boolean))];
+        const buyerIds = [...new Set(enriched.map((o) => o.buyer_id).filter(Boolean))];
         if (buyerIds.length > 0) {
-          const { data: profiles } = await (supabase as any)
+          const { data: profilesRaw } = await supabase
             .from("profiles")
             .select("id, display_name, avatar_url")
             .in("id", buyerIds);
-          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-          enriched = enriched.map((o: any) => ({
+          type OrderProfileRow = { id: string; display_name: string | null; avatar_url: string | null };
+          const profiles = (profilesRaw ?? []) as unknown as OrderProfileRow[];
+          const profileMap = new Map(profiles.map((p) => [p.id, p]));
+          enriched = enriched.map((o) => ({
             ...o,
-            profiles: o.buyer_id ? profileMap.get(o.buyer_id) ?? null : null,
-          }));
+            profiles: o.buyer_id ? (profileMap.get(o.buyer_id) ?? null) : null,
+          })) as SellerOrderRow[];
         }
       }
 
-      setOrders(enriched as MarketplaceOrder[]);
+      setOrders(enriched);
     } catch {
       console.error("Failed to fetch orders");
     } finally {

@@ -17,14 +17,18 @@ import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { MarketplaceReview, Profile, MarketplaceListing } from "@/types/database";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+type EnrichedReview = Omit<MarketplaceReview, "profiles"> & {
+  profiles?: Pick<Profile, "display_name" | "username"> | null;
+  marketplace_listings?: Pick<MarketplaceListing, "id" | "title" | "slug"> | null;
+};
 
 const PAGE_SIZE = 20;
 const supabase = createClient();
 
 export default function AdminReviewsPage() {
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<EnrichedReview[]>([]);
   const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -35,7 +39,7 @@ export default function AdminReviewsPage() {
   const fetchReviews = useCallback(async () => {
     setLoading(true);
     // Two-query approach: marketplace_reviews may not have FK to profiles or listings
-    let query = (supabase as any)
+    let query = supabase
       .from("marketplace_reviews")
       .select(
         "id, rating, title, content, created_at, listing_id, reviewer_id",
@@ -58,39 +62,43 @@ export default function AdminReviewsPage() {
     query = query.range(from, from + PAGE_SIZE - 1);
 
     const { data: rawData, count } = await query;
-    let enriched = rawData ?? [];
+    let enriched: EnrichedReview[] = (rawData ?? []) as EnrichedReview[];
 
     if (enriched.length > 0) {
       // Enrich with reviewer profiles
-      const reviewerIds = [...new Set(enriched.map((r: any) => r.reviewer_id).filter(Boolean))];
+      const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
       if (reviewerIds.length > 0) {
-        const { data: profiles } = await (supabase as any)
+        const { data: profilesRaw } = await supabase
           .from("profiles")
           .select("id, display_name, username")
           .in("id", reviewerIds);
-        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-        enriched = enriched.map((r: any) => ({
+        type ProfileRow = Pick<Profile, "id" | "display_name" | "username">;
+        const profiles = (profilesRaw ?? []) as unknown as ProfileRow[];
+        const profileMap = new Map(profiles.map((p) => [p.id, p]));
+        enriched = enriched.map((r) => ({
           ...r,
-          profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
+          profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
         }));
       }
 
       // Enrich with listing info
-      const listingIds = [...new Set(enriched.map((r: any) => r.listing_id).filter(Boolean))];
+      const listingIds = [...new Set(enriched.map((r) => r.listing_id).filter(Boolean))];
       if (listingIds.length > 0) {
-        const { data: listings } = await (supabase as any)
+        const { data: listingsRaw } = await supabase
           .from("marketplace_listings")
           .select("id, title, slug")
           .in("id", listingIds);
-        const listingMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
-        enriched = enriched.map((r: any) => ({
+        type ListingRow = Pick<MarketplaceListing, "id" | "title" | "slug">;
+        const listings = (listingsRaw ?? []) as unknown as ListingRow[];
+        const listingMap = new Map(listings.map((l) => [l.id, l]));
+        enriched = enriched.map((r) => ({
           ...r,
-          marketplace_listings: r.listing_id ? listingMap.get(r.listing_id) ?? null : null,
+          marketplace_listings: r.listing_id ? (listingMap.get(r.listing_id) ?? null) : null,
         }));
       }
     }
 
-    setReviews(enriched as any[]);
+    setReviews(enriched);
     setTotalCount(count ?? 0);
     setLoading(false);
   }, [search, ratingFilter, page]);

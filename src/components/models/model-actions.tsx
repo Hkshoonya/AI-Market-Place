@@ -86,8 +86,7 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
         setIsBookmarked(false);
         setShowToast(`${modelName} removed from bookmarks`);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
+        await supabase
           .from("user_bookmarks")
           .insert({ user_id: user.id, model_id: modelId });
         setIsBookmarked(true);

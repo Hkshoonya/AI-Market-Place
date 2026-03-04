@@ -19,14 +19,16 @@ import { formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { Profile } from "@/types/database";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// Admin view extends Profile with optional fields not in base type
+type AdminUserRow = Profile & { email?: string | null; is_banned?: boolean };
 
 const PAGE_SIZE = 20;
 const supabase = createClient();
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -36,9 +38,9 @@ export default function AdminUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    let query = (supabase as any)
+    let query = supabase
       .from("profiles")
-      .select("id, username, display_name, email, avatar_url, is_admin, is_seller, seller_verified, is_banned, joined_at, total_sales", { count: "exact" });
+      .select("id, username, display_name, avatar_url, is_admin, is_seller, seller_verified, joined_at, total_sales, reputation_score, is_seller, seller_bio, seller_website, seller_rating, bio, created_at, updated_at", { count: "exact" });
 
     if (roleFilter === "admin") query = query.eq("is_admin", true);
     if (roleFilter === "seller") query = query.eq("is_seller", true);
@@ -58,7 +60,7 @@ export default function AdminUsersPage() {
     query = query.range(from, from + PAGE_SIZE - 1);
 
     const { data, count } = await query;
-    setUsers((data as any[]) ?? []);
+    setUsers((data as AdminUserRow[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
   }, [search, roleFilter, page]);
@@ -69,9 +71,12 @@ export default function AdminUsersPage() {
 
   const toggleAdmin = async (id: string, currentValue: boolean) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("profiles")
-        .update({ is_admin: !currentValue })
+        // Explicit cast needed: TypeScript incorrectly infers update arg as never
+        // due to Supabase's type inference limitations with the profiles table
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ is_admin: !currentValue } as any)
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Admin role removed" : "Admin role granted");
@@ -83,9 +88,10 @@ export default function AdminUsersPage() {
 
   const toggleSellerVerified = async (id: string, currentValue: boolean) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("profiles")
-        .update({ seller_verified: !currentValue })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ seller_verified: !currentValue } as any)
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Seller verification removed" : "Seller verified successfully");
@@ -303,7 +309,7 @@ export default function AdminUsersPage() {
                           }
                           confirmLabel={u.is_banned ? "Unban" : "Ban"}
                           variant={u.is_banned ? "default" : "destructive"}
-                          onConfirm={() => toggleBan(u.id, u.is_banned)}
+                          onConfirm={() => toggleBan(u.id, u.is_banned ?? false)}
                         />
                       </div>
                     </td>

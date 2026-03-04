@@ -9,16 +9,12 @@ export const contentType = "image/png";
 export default async function OGImage() {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { data: listings, count } = await sb
+  const { data: listingsRaw, count } = await supabase
     .from("marketplace_listings")
     .select("listing_type", { count: "exact", head: false })
     .eq("status", "active");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allListings = (listings as any[]) ?? [];
+  const allListings = (listingsRaw ?? []) as unknown as { listing_type: string }[];
   const totalCount = count ?? allListings.length;
 
   // Aggregate by type

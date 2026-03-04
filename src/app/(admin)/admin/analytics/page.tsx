@@ -19,7 +19,11 @@ import { createClient } from "@/lib/supabase/client";
 import { formatNumber } from "@/lib/format";
 import { CATEGORIES } from "@/lib/constants/categories";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface TooltipEntry {
+  name: string;
+  value: number;
+  color: string;
+}
 
 interface AnalyticsData {
   categoryBreakdown: { category: string; count: number; label: string; color: string }[];
@@ -29,12 +33,12 @@ interface AnalyticsData {
   openVsClosed: { open: number; closed: number };
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border/50 bg-card px-3 py-2 shadow-xl">
       <p className="text-xs font-semibold">{label || payload[0]?.name}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry: TooltipEntry, i: number) => (
         <p key={i} className="text-xs text-muted-foreground">
           {entry.name}: <span className="font-medium text-foreground">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
         </p>
@@ -51,19 +55,24 @@ export default function AdminAnalyticsPage() {
     const fetchAnalytics = async () => {
       const supabase = createClient();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
       const [
-        { data: allModels },
-        { data: topDownloaded },
-        { data: topRated },
+        { data: allModelsRaw },
+        { data: topDownloadedRaw },
+        { data: topRatedRaw },
       ] = await Promise.all([
-        sb.from("models").select("category, provider, is_open_weights").eq("status", "active"),
-        sb.from("models").select("name, provider, hf_downloads").eq("status", "active").order("hf_downloads", { ascending: false, nullsFirst: false }).limit(10),
-        sb.from("models").select("name, provider, quality_score").eq("status", "active").not("quality_score", "is", null).order("quality_score", { ascending: false }).limit(10),
+        supabase.from("models").select("category, provider, is_open_weights").eq("status", "active"),
+        supabase.from("models").select("name, provider, hf_downloads").eq("status", "active").order("hf_downloads", { ascending: false, nullsFirst: false }).limit(10),
+        supabase.from("models").select("name, provider, quality_score").eq("status", "active").not("quality_score", "is", null).order("quality_score", { ascending: false }).limit(10),
       ]);
 
-      const models = (allModels as any[]) ?? [];
+      type ModelCat = { category: string; provider: string; is_open_weights: boolean };
+      type ModelDl = { name: string; provider: string; hf_downloads: number | null };
+      type ModelRated = { name: string; provider: string; quality_score: number | null };
+      const allModels = (allModelsRaw ?? []) as unknown as ModelCat[];
+      const topDownloaded = (topDownloadedRaw ?? []) as unknown as ModelDl[];
+      const topRated = (topRatedRaw ?? []) as unknown as ModelRated[];
+
+      const models = allModels;
 
       // Category breakdown
       const catMap = new Map<string, number>();
@@ -89,12 +98,12 @@ export default function AdminAnalyticsPage() {
       setData({
         categoryBreakdown,
         providerBreakdown,
-        topDownloaded: ((topDownloaded as any[]) ?? []).map((m) => ({
+        topDownloaded: topDownloaded.map((m) => ({
           name: m.name,
           provider: m.provider,
           hf_downloads: Number(m.hf_downloads) || 0,
         })),
-        topRated: ((topRated as any[]) ?? []).map((m) => ({
+        topRated: topRated.map((m) => ({
           name: m.name,
           provider: m.provider,
           quality_score: Number(m.quality_score) || 0,

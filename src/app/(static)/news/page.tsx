@@ -19,9 +19,6 @@ export const revalidate = 1800;
 export default async function NewsPage() {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   const NEWS_FIELDS =
     "id, title, summary, url, source, category, related_provider, related_model_ids, tags, metadata, published_at";
 
@@ -37,43 +34,43 @@ export default async function NewsPage() {
     byModelRes,
   ] = await Promise.all([
     // Model updates (internal changelog)
-    sb
+    supabase
       .from("model_updates")
       .select("*, models(slug, name, provider)")
       .order("published_at", { ascending: false })
       .limit(20),
     // X/Twitter posts
-    sb
+    supabase
       .from("model_news")
       .select(NEWS_FIELDS)
       .eq("source", "x-twitter")
       .order("published_at", { ascending: false })
       .limit(15),
     // Provider blog posts
-    sb
+    supabase
       .from("model_news")
       .select(NEWS_FIELDS)
       .eq("source", "provider-blog")
       .order("published_at", { ascending: false })
       .limit(15),
     // Research papers
-    sb
+    supabase
       .from("model_news")
       .select(NEWS_FIELDS)
       .in("source", ["arxiv", "hf-papers"])
       .order("published_at", { ascending: false })
       .limit(25),
     // Benchmarks
-    sb
+    supabase
       .from("model_news")
       .select(NEWS_FIELDS)
       .in("source", ["artificial-analysis", "open-llm-leaderboard"])
       .order("published_at", { ascending: false })
       .limit(25),
     // Count for badge
-    sb.from("model_news").select("id", { count: "exact", head: true }),
+    supabase.from("model_news").select("id", { count: "exact", head: true }),
     // By Provider: group news by related_provider (latest 5 per provider)
-    sb
+    supabase
       .from("model_news")
       .select("id, title, url, source, related_provider, published_at")
       .not("related_provider", "is", null)
@@ -81,7 +78,7 @@ export default async function NewsPage() {
       .limit(100),
     // By Model: models that have linked news (from RPC function)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (sb.rpc as any)("get_most_discussed_models", { days_back: 90, result_limit: 30 }),
+    (supabase.rpc as any)("get_most_discussed_models", { days_back: 90, result_limit: 30 }),
   ]);
 
   const updates = (updatesRes.data ?? []) as Record<string, unknown>[];
