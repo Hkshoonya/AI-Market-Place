@@ -113,7 +113,7 @@ export function buildRecord(
   knownData: KnownModelMeta | undefined,
   overrides: Partial<KnownModelMeta>,
   defaults: ProviderDefaults
-): ModelRecord {
+): Record<string, unknown> {
   // Merge known static data with per-call overrides (overrides win)
   const merged: Partial<KnownModelMeta> = { ...knownData, ...overrides };
 

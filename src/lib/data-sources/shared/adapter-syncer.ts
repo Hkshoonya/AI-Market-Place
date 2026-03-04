@@ -85,10 +85,17 @@ export interface AdapterSyncerConfig<TApiResult> {
     ) => Record<string, unknown>
   ) => void;
 
-  /** URL to ping during healthCheck (if API key is present). */
-  healthCheckUrl: string;
+  /**
+   * URL to ping during healthCheck (if API key is present).
+   * Accepts a static string or a function that receives the resolved API key
+   * (useful for providers like Google that pass the key as a query parameter).
+   */
+  healthCheckUrl: string | ((apiKey: string) => string);
 
-  /** Build the request headers for the health check ping. */
+  /**
+   * Build the request headers for the health check ping.
+   * Return an empty object for providers that pass credentials via URL params.
+   */
   healthCheckHeaders: (apiKey: string) => Record<string, string>;
 
   /** Message returned in HealthCheckResult when the API is reachable. */
@@ -180,10 +187,15 @@ export function createAdapterSyncer<TApiResult>(
       };
     }
 
+    const healthUrl =
+      typeof config.healthCheckUrl === "function"
+        ? config.healthCheckUrl(apiKey)
+        : config.healthCheckUrl;
+
     const start = Date.now();
     try {
       const res = await fetchWithRetry(
-        config.healthCheckUrl,
+        healthUrl,
         { headers: config.healthCheckHeaders(apiKey) },
         { maxRetries: 1 }
       );
