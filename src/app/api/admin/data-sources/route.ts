@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -39,7 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("data_sources")
     .select("*")
     .order("tier", { ascending: true })
@@ -70,9 +68,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -81,22 +77,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { id, is_enabled } = body;
+  const { id: idRaw, is_enabled } = body as { id: number | string; is_enabled: boolean };
+  // data_sources.id is a number in the DB schema
+  const id = typeof idRaw === "string" ? parseInt(idRaw, 10) : idRaw;
 
-  if (!id || typeof is_enabled !== "boolean") {
+  if (!id || isNaN(id) || typeof is_enabled !== "boolean") {
     return NextResponse.json(
       { error: "Missing id or is_enabled" },
       { status: 400 }
     );
   }
 
-  const { error } = await sb
+  const { error } = await supabase
     .from("data_sources")
     .update({ is_enabled, updated_at: new Date().toISOString() })
     .eq("id", id);

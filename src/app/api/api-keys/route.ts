@@ -29,10 +29,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("api_keys")
     .select(
       "id, name, key_prefix, scopes, rate_limit_per_minute, last_used_at, expires_at, is_active, created_at"
@@ -99,11 +96,8 @@ export async function POST(request: NextRequest) {
   }
   const body = parsed.data;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Check max keys per user (limit: 10)
-  const { count } = await sb
+  const { count } = await supabase
     .from("api_keys")
     .select("*", { count: "exact", head: true })
     .eq("owner_id", user.id)
@@ -129,7 +123,7 @@ export async function POST(request: NextRequest) {
       ).toISOString()
     : null;
 
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("api_keys")
     .insert({
       owner_id: user.id,

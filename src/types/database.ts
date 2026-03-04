@@ -4,6 +4,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Helper type: converts an interface to a mapped object type compatible with
+// Record<string, unknown>, which is required by the Supabase SDK's GenericTable constraint.
+// Without this, interface types cause Supabase query builder to infer `never` for Row/Insert types.
+type AsRow<T> = { [K in keyof T]: T[K] };
+
 export type ModelCategory =
   | "llm"
   | "image_generation"
@@ -268,6 +273,7 @@ export interface Profile {
   bio: string | null;
   reputation_score: number;
   is_admin: boolean;
+  is_banned: boolean;
   is_seller: boolean;
   seller_bio: string | null;
   seller_website: string | null;
@@ -275,6 +281,7 @@ export interface Profile {
   total_sales: number;
   seller_rating: number | null;
   joined_at: string | null;
+  email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -694,53 +701,53 @@ export interface Database {
   public: {
     Tables: {
       models: {
-        Row: Model;
+        Row: AsRow<Model>;
         Insert: Partial<Model> & Pick<Model, "slug" | "name" | "provider" | "category">;
         Update: Partial<Model>;
         Relationships: [];
       };
       benchmarks: {
-        Row: Benchmark;
+        Row: AsRow<Benchmark>;
         Insert: Partial<Benchmark> & Pick<Benchmark, "slug" | "name">;
         Update: Partial<Benchmark>;
         Relationships: [];
       };
       benchmark_scores: {
-        Row: BenchmarkScore;
+        Row: AsRow<BenchmarkScore>;
         Insert: Partial<BenchmarkScore> &
           Pick<BenchmarkScore, "model_id" | "benchmark_id" | "score">;
         Update: Partial<BenchmarkScore>;
         Relationships: [];
       };
       model_pricing: {
-        Row: ModelPricing;
+        Row: AsRow<ModelPricing>;
         Insert: Partial<ModelPricing> &
           Pick<ModelPricing, "model_id" | "provider_name" | "pricing_model">;
         Update: Partial<ModelPricing>;
         Relationships: [];
       };
       elo_ratings: {
-        Row: EloRating;
+        Row: AsRow<EloRating>;
         Insert: Partial<EloRating> &
           Pick<EloRating, "model_id" | "elo_score" | "snapshot_date">;
         Update: Partial<EloRating>;
         Relationships: [];
       };
       rankings: {
-        Row: Ranking;
+        Row: AsRow<Ranking>;
         Insert: Partial<Ranking> & Pick<Ranking, "model_id" | "ranking_type" | "rank">;
         Update: Partial<Ranking>;
         Relationships: [];
       };
       model_updates: {
-        Row: ModelUpdate;
+        Row: AsRow<ModelUpdate>;
         Insert: Partial<ModelUpdate> &
           Pick<ModelUpdate, "model_id" | "update_type" | "title">;
         Update: Partial<ModelUpdate>;
         Relationships: [];
       };
       tags: {
-        Row: Tag;
+        Row: AsRow<Tag>;
         Insert: Partial<Tag> & Pick<Tag, "name" | "slug">;
         Update: Partial<Tag>;
         Relationships: [];
@@ -752,19 +759,19 @@ export interface Database {
         Relationships: [];
       };
       providers: {
-        Row: Provider;
+        Row: AsRow<Provider>;
         Insert: Partial<Provider> & Pick<Provider, "slug" | "name">;
         Update: Partial<Provider>;
         Relationships: [];
       };
       model_snapshots: {
-        Row: ModelSnapshot;
+        Row: AsRow<ModelSnapshot>;
         Insert: Partial<ModelSnapshot> & Pick<ModelSnapshot, "model_id">;
         Update: Partial<ModelSnapshot>;
         Relationships: [];
       };
       profiles: {
-        Row: Profile;
+        Row: AsRow<Profile>;
         Insert: {
           id: string;
           username?: string | null;
@@ -773,6 +780,7 @@ export interface Database {
           bio?: string | null;
           reputation_score?: number;
           is_admin?: boolean;
+          is_banned?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
           seller_website?: string | null;
@@ -780,6 +788,7 @@ export interface Database {
           total_sales?: number;
           seller_rating?: number | null;
           joined_at?: string | null;
+          email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -791,6 +800,7 @@ export interface Database {
           bio?: string | null;
           reputation_score?: number;
           is_admin?: boolean;
+          is_banned?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
           seller_website?: string | null;
@@ -798,13 +808,14 @@ export interface Database {
           total_sales?: number;
           seller_rating?: number | null;
           joined_at?: string | null;
+          email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
       };
       user_bookmarks: {
-        Row: UserBookmark;
+        Row: AsRow<UserBookmark>;
         Insert: {
           id?: string;
           user_id: string;
@@ -820,7 +831,7 @@ export interface Database {
         Relationships: [];
       };
       comments: {
-        Row: ModelComment;
+        Row: AsRow<ModelComment>;
         Insert: {
           id?: string;
           model_id: string;
@@ -846,7 +857,7 @@ export interface Database {
         Relationships: [];
       };
       user_ratings: {
-        Row: UserRating;
+        Row: AsRow<UserRating>;
         Insert: {
           id?: string;
           user_id: string;
@@ -868,7 +879,7 @@ export interface Database {
         Relationships: [];
       };
       watchlists: {
-        Row: Watchlist;
+        Row: AsRow<Watchlist>;
         Insert: {
           id?: string;
           user_id: string;
@@ -890,7 +901,7 @@ export interface Database {
         Relationships: [];
       };
       watchlist_items: {
-        Row: WatchlistItem;
+        Row: AsRow<WatchlistItem>;
         Insert: {
           id?: string;
           watchlist_id: string;
@@ -906,13 +917,13 @@ export interface Database {
         Relationships: [];
       };
       marketplace_listings: {
-        Row: MarketplaceListing;
+        Row: AsRow<MarketplaceListing>;
         Insert: Partial<MarketplaceListing> & Pick<MarketplaceListing, "seller_id" | "slug" | "title" | "description" | "listing_type">;
         Update: Partial<MarketplaceListing>;
         Relationships: [];
       };
       marketplace_reviews: {
-        Row: MarketplaceReview;
+        Row: AsRow<MarketplaceReview>;
         Insert: {
           id?: string;
           listing_id: string;
@@ -929,7 +940,7 @@ export interface Database {
         Relationships: [];
       };
       marketplace_orders: {
-        Row: MarketplaceOrder;
+        Row: AsRow<MarketplaceOrder>;
         Insert: {
           id?: string;
           listing_id: string;
@@ -945,7 +956,7 @@ export interface Database {
         Relationships: [];
       };
       notifications: {
-        Row: Notification;
+        Row: AsRow<Notification>;
         Insert: {
           id?: string;
           user_id: string;
@@ -960,7 +971,7 @@ export interface Database {
         Relationships: [];
       };
       notification_preferences: {
-        Row: NotificationPreferences;
+        Row: AsRow<NotificationPreferences>;
         Insert: {
           user_id: string;
           email_model_updates?: boolean;
@@ -978,105 +989,312 @@ export interface Database {
         Relationships: [];
       };
       data_sources: {
-        Row: DataSource;
+        Row: AsRow<DataSource>;
         Insert: Partial<DataSource> & Pick<DataSource, "slug" | "name" | "adapter_type">;
         Update: Partial<DataSource>;
         Relationships: [];
       };
       model_news: {
-        Row: ModelNews;
+        Row: AsRow<ModelNews>;
         Insert: Partial<ModelNews> & Pick<ModelNews, "source" | "source_id" | "title" | "url" | "published_at">;
         Update: Partial<ModelNews>;
         Relationships: [];
       };
       sync_jobs: {
-        Row: SyncJob;
+        Row: AsRow<SyncJob>;
         Insert: Partial<SyncJob> & Pick<SyncJob, "source" | "job_type" | "status">;
         Update: Partial<SyncJob>;
         Relationships: [];
       };
       agents: {
-        Row: Agent;
+        Row: AsRow<Agent>;
         Insert: Partial<Agent> & Pick<Agent, "slug" | "name" | "agent_type">;
         Update: Partial<Agent>;
         Relationships: [];
       };
       agent_tasks: {
-        Row: AgentTask;
+        Row: AsRow<AgentTask>;
         Insert: Partial<AgentTask> & Pick<AgentTask, "agent_id" | "task_type">;
         Update: Partial<AgentTask>;
         Relationships: [];
       };
       agent_logs: {
-        Row: AgentLog;
+        Row: AsRow<AgentLog>;
         Insert: Partial<AgentLog> & Pick<AgentLog, "agent_id" | "level" | "message">;
         Update: Partial<AgentLog>;
         Relationships: [];
       };
       api_keys: {
-        Row: ApiKeyRecord;
+        Row: AsRow<ApiKeyRecord>;
         Insert: Partial<ApiKeyRecord> & Pick<ApiKeyRecord, "owner_id" | "name" | "key_prefix" | "key_hash">;
         Update: Partial<ApiKeyRecord>;
         Relationships: [];
       };
       agent_conversations: {
-        Row: AgentConversation;
+        Row: AsRow<AgentConversation>;
         Insert: Partial<AgentConversation> & Pick<AgentConversation, "participant_a" | "participant_b" | "participant_a_type" | "participant_b_type">;
         Update: Partial<AgentConversation>;
         Relationships: [];
       };
       agent_messages: {
-        Row: AgentMessage;
+        Row: AsRow<AgentMessage>;
         Insert: Partial<AgentMessage> & Pick<AgentMessage, "conversation_id" | "sender_id" | "sender_type" | "content">;
         Update: Partial<AgentMessage>;
         Relationships: [];
       };
       wallets: {
-        Row: Wallet;
+        Row: AsRow<Wallet>;
         Insert: Partial<Wallet> & Pick<Wallet, 'owner_id'>;
         Update: Partial<Wallet>;
         Relationships: [];
       };
       wallet_transactions: {
-        Row: WalletTransaction;
+        Row: AsRow<WalletTransaction>;
         Insert: Partial<WalletTransaction> & Pick<WalletTransaction, 'wallet_id' | 'type' | 'amount' | 'net_amount'>;
         Update: Partial<WalletTransaction>;
         Relationships: [];
       };
       escrow_holds: {
-        Row: EscrowHold;
+        Row: AsRow<EscrowHold>;
         Insert: Partial<EscrowHold> & Pick<EscrowHold, 'wallet_id' | 'amount' | 'reason' | 'reference_type' | 'reference_id'>;
         Update: Partial<EscrowHold>;
         Relationships: [];
       };
       platform_fee_tiers: {
-        Row: PlatformFeeTier;
+        Row: AsRow<PlatformFeeTier>;
         Insert: Partial<PlatformFeeTier> & Pick<PlatformFeeTier, 'min_lifetime_sales' | 'fee_percentage'>;
         Update: Partial<PlatformFeeTier>;
         Relationships: [];
       };
       api_endpoint_pricing: {
-        Row: ApiEndpointPricing;
+        Row: AsRow<ApiEndpointPricing>;
         Insert: Partial<ApiEndpointPricing> & Pick<ApiEndpointPricing, 'path_pattern' | 'price_per_call'>;
         Update: Partial<ApiEndpointPricing>;
         Relationships: [];
       };
       deployment_platforms: {
-        Row: DeploymentPlatform;
+        Row: AsRow<DeploymentPlatform>;
         Insert: Partial<DeploymentPlatform> & Pick<DeploymentPlatform, 'slug' | 'name' | 'type' | 'base_url'>;
         Update: Partial<DeploymentPlatform>;
         Relationships: [];
       };
       model_deployments: {
-        Row: ModelDeployment;
+        Row: AsRow<ModelDeployment>;
         Insert: Partial<ModelDeployment> & Pick<ModelDeployment, 'model_id' | 'platform_id'>;
         Update: Partial<ModelDeployment>;
         Relationships: [];
       };
       model_descriptions: {
-        Row: ModelDescription;
+        Row: AsRow<ModelDescription>;
         Insert: Partial<ModelDescription> & Pick<ModelDescription, 'model_id'>;
         Update: Partial<ModelDescription>;
+        Relationships: [];
+      };
+      seller_verification_requests: {
+        Row: AsRow<SellerVerificationRequest>;
+        Insert: {
+          id?: string;
+          user_id: string;
+          status?: VerificationStatus;
+          business_name: string;
+          business_description?: string | null;
+          website_url?: string | null;
+          portfolio_url?: string | null;
+          reason?: string | null;
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<SellerVerificationRequest>;
+        Relationships: [];
+      };
+      order_messages: {
+        Row: AsRow<OrderMessage>;
+        Insert: {
+          id?: string;
+          order_id: string;
+          sender_id: string;
+          content: string;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<OrderMessage>;
+        Relationships: [];
+      };
+      contact_submissions: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          category: string;
+          subject: string;
+          message: string;
+          metadata: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          category?: string;
+          subject: string;
+          message: string;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          email?: string;
+          category?: string;
+          subject?: string;
+          message?: string;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      listing_reports: {
+        Row: {
+          id: string;
+          listing_id: string;
+          reporter_id: string;
+          reason: string;
+          details: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id: string;
+          reporter_id: string;
+          reason: string;
+          details?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string;
+          reporter_id?: string;
+          reason?: string;
+          details?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      auctions: {
+        Row: {
+          id: string;
+          listing_id: string;
+          seller_id: string;
+          auction_type: "english" | "dutch" | "batch";
+          status: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          start_price: number;
+          reserve_price: number | null;
+          floor_price: number | null;
+          current_price: number;
+          bid_increment_min: number;
+          price_decrement: number | null;
+          decrement_interval_seconds: number | null;
+          quantity: number;
+          remaining_quantity: number;
+          starts_at: string;
+          ends_at: string;
+          auto_extend_minutes: number;
+          settled_at: string | null;
+          winner_id: string | null;
+          winning_bid_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id: string;
+          seller_id: string;
+          auction_type: "english" | "dutch" | "batch";
+          status?: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          start_price: number;
+          reserve_price?: number | null;
+          floor_price?: number | null;
+          current_price?: number;
+          bid_increment_min?: number;
+          price_decrement?: number | null;
+          decrement_interval_seconds?: number | null;
+          quantity?: number;
+          remaining_quantity?: number;
+          starts_at: string;
+          ends_at: string;
+          auto_extend_minutes?: number;
+          settled_at?: string | null;
+          winner_id?: string | null;
+          winning_bid_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string;
+          seller_id?: string;
+          auction_type?: "english" | "dutch" | "batch";
+          status?: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          start_price?: number;
+          reserve_price?: number | null;
+          floor_price?: number | null;
+          current_price?: number;
+          bid_increment_min?: number;
+          price_decrement?: number | null;
+          decrement_interval_seconds?: number | null;
+          quantity?: number;
+          remaining_quantity?: number;
+          starts_at?: string;
+          ends_at?: string;
+          auto_extend_minutes?: number;
+          settled_at?: string | null;
+          winner_id?: string | null;
+          winning_bid_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      auction_bids: {
+        Row: {
+          id: string;
+          auction_id: string;
+          bidder_id: string;
+          bidder_type: "user" | "agent";
+          bid_amount: number;
+          quantity: number;
+          status: "active" | "outbid" | "won" | "cancelled" | "refunded";
+          escrow_hold_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          auction_id: string;
+          bidder_id: string;
+          bidder_type?: "user" | "agent";
+          bid_amount: number;
+          quantity?: number;
+          status?: "active" | "outbid" | "won" | "cancelled" | "refunded";
+          escrow_hold_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          auction_id?: string;
+          bidder_id?: string;
+          bidder_type?: "user" | "agent";
+          bid_amount?: number;
+          quantity?: number;
+          status?: "active" | "outbid" | "won" | "cancelled" | "refunded";
+          escrow_hold_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
         Relationships: [];
       };
     };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import type { VerificationStatus, SellerVerificationRequest } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Check admin
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -39,10 +37,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") || "pending";
+  const rawStatus = searchParams.get("status") || "pending";
+  const validStatuses: VerificationStatus[] = ["pending", "approved", "rejected"];
+  const status = validStatuses.includes(rawStatus as VerificationStatus)
+    ? (rawStatus as VerificationStatus)
+    : "pending";
 
   // Two-query approach: seller_verification_requests may not have FK to profiles
-  const { data: rawData, error } = await sb
+  const { data: rawData, error } = await supabase
     .from("seller_verification_requests")
     .select("*")
     .eq("status", status)
@@ -53,16 +55,18 @@ export async function GET(request: NextRequest) {
   }
 
   // Enrich with user profiles
-  let data = rawData ?? [];
+  // Cast: select("*") on seller_verification_requests may infer {} in some SDK versions
+  type VerReqWithProfile = SellerVerificationRequest & { profiles: Record<string, unknown> | null };
+  let data: VerReqWithProfile[] = (rawData ?? []) as VerReqWithProfile[];
   if (data.length > 0) {
-    const userIds = [...new Set(data.map((r: any) => r.user_id).filter(Boolean))];
+    const userIds = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
     if (userIds.length > 0) {
-      const { data: profiles } = await sb
+      const { data: profiles } = await supabase
         .from("profiles")
         .select("id, display_name, username, avatar_url, email, is_seller, seller_verified")
         .in("id", userIds);
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      data = data.map((r: any) => ({
+      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      data = data.map((r) => ({
         ...r,
         profiles: r.user_id ? profileMap.get(r.user_id) ?? null : null,
       }));
@@ -92,11 +96,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Check admin
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -107,14 +108,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { request_id, action, admin_notes } = body;
+  const { request_id, action, admin_notes } = body as { request_id: string; action: string; admin_notes?: string };
 
   if (!request_id || !["approve", "reject"].includes(action)) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
   // Get the request
-  const { data: verReq } = await sb
+  const { data: verReq } = await supabase
     .from("seller_verification_requests")
     .select("user_id, status")
     .eq("id", request_id)
@@ -127,7 +128,7 @@ export async function PATCH(request: NextRequest) {
   const newStatus = action === "approve" ? "approved" : "rejected";
 
   // Update the request
-  const { error: updateError } = await sb
+  const { error: updateError } = await supabase
     .from("seller_verification_requests")
     .update({
       status: newStatus,
@@ -144,7 +145,7 @@ export async function PATCH(request: NextRequest) {
 
   // If approved, update the user's profile
   if (action === "approve") {
-    await sb
+    await supabase
       .from("profiles")
       .update({
         seller_verified: true,
@@ -153,7 +154,7 @@ export async function PATCH(request: NextRequest) {
       .eq("id", verReq.user_id);
 
     // Create notification for the user (non-critical, log errors only)
-    const { error: notifError } = await sb.from("notifications").insert({
+    const { error: notifError } = await supabase.from("notifications").insert({
       user_id: verReq.user_id,
       type: "system",
       title: "Seller verification approved!",
@@ -165,7 +166,7 @@ export async function PATCH(request: NextRequest) {
     }
   } else {
     // Rejected notification (non-critical, log errors only)
-    const { error: notifError } = await sb.from("notifications").insert({
+    const { error: notifError } = await supabase.from("notifications").insert({
       user_id: verReq.user_id,
       type: "system",
       title: "Seller verification update",

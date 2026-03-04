@@ -24,15 +24,24 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch the watchlist
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: watchlist, error } = await (supabase as any)
+  // Fetch the watchlist with items and models joined.
+  // NOTE: Without FK Relationships in the DB type, the embedded join causes the SDK
+  // to infer `never` for the result. Cast to the expected shape at runtime.
+  type WatchlistWithItems = {
+    id: string; user_id: string; name: string; description: string | null;
+    is_public: boolean; created_at: string; updated_at: string;
+    watchlist_items: Array<{
+      id: string; model_id: string; added_at: string;
+      models: Record<string, unknown> | null;
+    }> | null;
+  };
+  const { data: watchlist, error } = (await supabase
     .from("watchlists")
     .select(
       "*, watchlist_items(id, model_id, added_at, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes, release_date, parameter_count, context_window, is_open_weights))"
     )
     .eq("id", id)
-    .single();
+    .single()) as unknown as { data: WatchlistWithItems | null; error: unknown };
 
   if (error || !watchlist) {
     return NextResponse.json(
@@ -41,11 +50,8 @@ export async function GET(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wl = watchlist as any;
-
   // Check access: must be owner or watchlist must be public
-  if (!wl.is_public && (!user || wl.user_id !== user.id)) {
+  if (!watchlist.is_public && (!user || watchlist.user_id !== user.id)) {
     return NextResponse.json(
       { error: "Watchlist not found" },
       { status: 404 }
@@ -78,18 +84,19 @@ export async function PATCH(
     );
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
+  const bodyObj = body as { name?: string; description?: string | null; is_public?: boolean };
   const updates: Record<string, unknown> = {};
 
-  if (body.name !== undefined) updates.name = body.name.trim();
-  if (body.description !== undefined)
-    updates.description = body.description?.trim() || null;
-  if (body.is_public !== undefined) updates.is_public = body.is_public;
+  if (bodyObj.name !== undefined) updates.name = bodyObj.name.trim();
+  if (bodyObj.description !== undefined)
+    updates.description = bodyObj.description?.trim() || null;
+  if (bodyObj.is_public !== undefined) updates.is_public = bodyObj.is_public;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json(
@@ -98,8 +105,7 @@ export async function PATCH(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("watchlists")
     .update(updates)
     .eq("id", id)
@@ -144,8 +150,7 @@ export async function DELETE(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("watchlists")
     .delete()
     .eq("id", id)

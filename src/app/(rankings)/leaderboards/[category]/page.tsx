@@ -51,7 +51,7 @@ export default async function CategoryLeaderboardPage({
     .from("models")
     .select("*, benchmark_scores(*, benchmarks(*)), model_pricing(*), rankings(*)")
     .eq("status", "active")
-    .eq("category", category)
+    .eq("category", category as import("@/types/database").ModelCategory)
     .order("quality_score", { ascending: false, nullsFirst: false });
 
   const models = (modelsRaw as any[] | null) ?? [];

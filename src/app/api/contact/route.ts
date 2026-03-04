@@ -36,10 +36,8 @@ export async function POST(request: NextRequest) {
 
     // Persist to contact_submissions table
     const supabase = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
 
-    const { error: insertError } = await sb
+    const { error: insertError } = await supabase
       .from("contact_submissions")
       .insert({
         name,

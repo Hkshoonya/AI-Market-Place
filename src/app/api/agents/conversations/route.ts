@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { extractApiKey, validateApiKey } from "@/lib/agents/auth";
 import { assertUuid } from "@/lib/utils/sanitize";
 import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
@@ -7,7 +8,7 @@ import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 function createServiceClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -15,8 +16,6 @@ function createServiceClient() {
 
 export async function GET(request: Request) {
   const supabase = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
 
   const apiKey = extractApiKey(request);
   if (!apiKey) {
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const auth = await validateApiKey(sb, apiKey);
+  const auth = await validateApiKey(supabase, apiKey);
   if (!auth.valid || !auth.keyRecord) {
     return NextResponse.json(
       { error: auth.error ?? "Invalid API key" },
@@ -58,7 +57,7 @@ export async function GET(request: Request) {
     "owner_id"
   );
 
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("agent_conversations")
     .select("*")
     .or(`participant_a.eq.${ownerId},participant_b.eq.${ownerId}`)

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await (supabase as any)
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Use admin client to bypass RLS
-  const admin = createAdminClient() as any;
+  const admin = createAdminClient();
 
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get("status") || "all";
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     .from("marketplace_listings")
     .select("id, slug, title, listing_type, status, pricing_type, price, avg_rating, review_count, view_count, inquiry_count, is_featured, created_at, seller_id", { count: "exact" });
 
-  if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  if (statusFilter !== "all") query = query.eq("status", statusFilter as import("@/types/database").ListingStatus);
   if (search) {
     const safeSearch = sanitizeFilterValue(search);
     if (safeSearch) query = query.ilike("title", `%${safeSearch}%`);
@@ -66,14 +66,14 @@ export async function GET(request: NextRequest) {
   // Enrich with seller profiles
   let enrichedData = rawData ?? [];
   if (enrichedData.length > 0) {
-    const sellerIds = [...new Set(enrichedData.map((l: any) => l.seller_id).filter(Boolean))];
+    const sellerIds = [...new Set(enrichedData.map((l) => l.seller_id).filter(Boolean))];
     if (sellerIds.length > 0) {
       const { data: profiles } = await admin
         .from("profiles")
         .select("id, display_name, username")
         .in("id", sellerIds);
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      enrichedData = enrichedData.map((l: any) => ({
+      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      enrichedData = enrichedData.map((l) => ({
         ...l,
         profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null,
       }));

@@ -27,11 +27,8 @@ export async function DELETE(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Soft delete: deactivate the key
-  const { error } = await sb
+  const { error } = await supabase
     .from("api_keys")
     .update({ is_active: false })
     .eq("id", id)

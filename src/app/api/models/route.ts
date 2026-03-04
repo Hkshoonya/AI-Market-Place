@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     .select("*, rankings(*), model_pricing(*)", { count: "exact" })
     .eq("status", "active");
 
-  if (category) query = query.eq("category", category);
+  if (category) query = query.eq("category", category as import("@/types/database").ModelCategory);
   if (openOnly) query = query.eq("is_open_weights", true);
   if (search) query = query.textSearch("fts", search);
 

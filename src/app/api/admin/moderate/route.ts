@@ -25,11 +25,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Verify admin
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -39,13 +36,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { action, target_type, target_id, reason } = body;
+  const { action, target_type, target_id, reason } = body as { action: string; target_type: string; target_id: string; reason?: string };
 
   if (!action || !target_type || !target_id) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -61,8 +58,8 @@ export async function PATCH(request: NextRequest) {
     switch (`${target_type}:${action}`) {
       // User actions
       case "user:ban": {
-        await sb.from("profiles").update({ is_banned: true }).eq("id", target_id);
-        const { error: banNotifError } = await sb.from("notifications").insert({
+        await supabase.from("profiles").update({ is_banned: true }).eq("id", target_id);
+        const { error: banNotifError } = await supabase.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account suspended",
@@ -75,8 +72,8 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "user:unban": {
-        await sb.from("profiles").update({ is_banned: false }).eq("id", target_id);
-        const { error: unbanNotifError } = await sb.from("notifications").insert({
+        await supabase.from("profiles").update({ is_banned: false }).eq("id", target_id);
+        const { error: unbanNotifError } = await supabase.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account reinstated",
@@ -90,19 +87,19 @@ export async function PATCH(request: NextRequest) {
 
       // Listing actions
       case "listing:remove": {
-        const { data: listing } = await sb
+        const { data: listing } = await supabase
           .from("marketplace_listings")
           .select("seller_id, title")
           .eq("id", target_id)
           .single();
 
-        await sb
+        await supabase
           .from("marketplace_listings")
           .update({ status: "archived" })
           .eq("id", target_id);
 
         if (listing) {
-          const { error: listingNotifError } = await sb.from("notifications").insert({
+          const { error: listingNotifError } = await supabase.from("notifications").insert({
             user_id: listing.seller_id,
             type: "marketplace",
             title: "Listing removed",
@@ -117,7 +114,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "listing:restore": {
-        await sb
+        await supabase
           .from("marketplace_listings")
           .update({ status: "active" })
           .eq("id", target_id);
@@ -126,13 +123,13 @@ export async function PATCH(request: NextRequest) {
 
       // Review actions
       case "review:remove": {
-        await sb.from("marketplace_reviews").delete().eq("id", target_id);
+        await supabase.from("marketplace_reviews").delete().eq("id", target_id);
         return NextResponse.json({ success: true, message: "Review deleted" });
       }
 
       // Comment actions
       case "comment:remove": {
-        await sb.from("comments").delete().eq("id", target_id);
+        await supabase.from("comments").delete().eq("id", target_id);
         return NextResponse.json({ success: true, message: "Comment deleted" });
       }
 
