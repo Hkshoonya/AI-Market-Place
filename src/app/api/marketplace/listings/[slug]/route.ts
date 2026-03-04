@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 
@@ -34,7 +35,7 @@ export async function GET(
         data: { user },
       } = await serverSupabase.auth.getUser();
       if (user) {
-        const { data: profile } = await (serverSupabase as any)
+        const { data: profile } = await serverSupabase
           .from("profiles")
           .select("is_admin")
           .eq("id", user.id)
@@ -46,7 +47,7 @@ export async function GET(
     }
   }
 
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
@@ -68,8 +69,9 @@ export async function GET(
   }
 
   // Enrich with seller profile (no FK constraint exists, so fetch separately)
+  // enrichListingWithProfile accepts AnyClient internally
   const data = await enrichListingWithProfile(
-    supabase as any,
+    supabase,
     rawListing,
     PROFILE_FIELDS_FULL
   );
@@ -105,12 +107,13 @@ export async function PATCH(
     );
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
+  const bodyObj = body as Record<string, unknown>;
 
   // Split fields: sellers vs admin-only
   const SELLER_FIELDS = [
@@ -134,7 +137,7 @@ export async function PATCH(
   const ADMIN_ONLY_FIELDS = ["status", "is_featured"] as const;
 
   // Check if user is admin
-  const { data: profile } = await (supabase as any)
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -148,8 +151,8 @@ export async function PATCH(
 
   const updates: Record<string, unknown> = {};
   for (const field of allowedFields) {
-    if (field in body) {
-      updates[field] = body[field];
+    if (field in bodyObj) {
+      updates[field] = bodyObj[field];
     }
   }
 
@@ -176,9 +179,9 @@ export async function PATCH(
   // Always set updated_at
   updates.updated_at = new Date().toISOString();
 
-  let query = (supabase as any)
+  let query = supabase
     .from("marketplace_listings")
-    .update(updates)
+    .update(updates as unknown as import("@/types/database").MarketplaceListing)
     .eq("slug", slug);
 
   // Non-admin users can only edit their own listings
@@ -233,7 +236,7 @@ export async function DELETE(
     );
   }
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("marketplace_listings")
     .delete()
     .eq("slug", slug)

@@ -113,8 +113,7 @@ const adapter: DataSourceAdapter = {
     // This covers all categories while making only ~100 API requests.
     const maxRows = (ctx.config.maxRows as number) ?? 15000;
     const errors: { message: string; context?: string }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     // ────────────────────────────────────────────────────────────────
     // 1. Fetch raw per-question scores from HF Datasets API
@@ -289,9 +288,9 @@ const adapter: DataSourceAdapter = {
     let recordsCreated = 0;
 
     // Cache benchmark row lookups
-    const benchmarkIdCache = new Map<string, string | null>();
+    const benchmarkIdCache = new Map<string, number | null>();
 
-    async function getBenchmarkId(slug: string): Promise<string | null> {
+    async function getBenchmarkId(slug: string): Promise<number | null> {
       if (benchmarkIdCache.has(slug)) return benchmarkIdCache.get(slug)!;
       const { data } = await sb
         .from("benchmarks")

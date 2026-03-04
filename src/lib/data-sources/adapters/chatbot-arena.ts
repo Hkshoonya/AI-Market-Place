@@ -52,8 +52,7 @@ const adapter: DataSourceAdapter = {
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const errors: { message: string; context?: string }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
     // Fetch all rows from the HuggingFace datasets API with pagination

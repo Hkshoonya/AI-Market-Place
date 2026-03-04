@@ -215,8 +215,7 @@ const adapter: DataSourceAdapter = {
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const errors: { message: string; context?: string }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     let models: AAModel[] = [];
     let dataSource = "static_fallback";
 
@@ -286,7 +285,7 @@ const adapter: DataSourceAdapter = {
 
     // Pre-load benchmark ID lookup
     const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
-    const benchmarkIdMap = new Map<string, string>();
+    const benchmarkIdMap = new Map<string, number>();
     for (const b of allBenchmarks ?? []) {
       benchmarkIdMap.set(b.slug, b.id);
     }

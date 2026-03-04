@@ -87,8 +87,7 @@ const adapter: DataSourceAdapter = {
       const repos = (data.items ?? []) as GitHubRepo[];
       recordsProcessed = repos.length;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = ctx.supabase as any;
+      const sb = ctx.supabase;
 
       // First try to enrich existing models with github_url
       for (const repo of repos) {

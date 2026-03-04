@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -10,6 +11,19 @@ const createReviewSchema = z.object({
 });
 
 export const dynamic = "force-dynamic";
+
+// Standalone flat type — avoids intersection conflict with MarketplaceReview.profiles optional field
+type ReviewWithProfile = {
+  id: string;
+  listing_id: string;
+  reviewer_id: string;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  created_at: string;
+  updated_at: string;
+  profiles: Record<string, unknown> | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -25,7 +39,7 @@ export async function GET(
   }
 
   const { slug } = await params;
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
@@ -42,7 +56,7 @@ export async function GET(
   }
 
   // Two-query approach: marketplace_reviews may not have FK to profiles
-  const { data: rawReviews, error } = await (supabase as any)
+  const { data: rawReviews, error } = await supabase
     .from("marketplace_reviews")
     .select("*")
     .eq("listing_id", listing.id)
@@ -56,16 +70,16 @@ export async function GET(
   }
 
   // Enrich with reviewer profiles
-  let data = rawReviews ?? [];
+  let data: ReviewWithProfile[] = (rawReviews ?? []) as unknown as ReviewWithProfile[];
   if (data.length > 0) {
-    const reviewerIds = [...new Set(data.map((r: any) => r.reviewer_id).filter(Boolean))];
+    const reviewerIds = [...new Set(data.map((r) => r.reviewer_id).filter(Boolean))];
     if (reviewerIds.length > 0) {
-      const { data: profiles } = await (supabase as any)
+      const { data: profiles } = await supabase
         .from("profiles")
         .select("id, display_name, avatar_url, username")
         .in("id", reviewerIds);
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      data = data.map((r: any) => ({
+      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      data = data.map((r) => ({
         ...r,
         profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
       }));
@@ -125,7 +139,7 @@ export async function POST(
   const { rating, title, content } = parsed.data;
 
   // Get listing ID
-  const { data: listing } = await (supabase as any)
+  const { data: listing } = await supabase
     .from("marketplace_listings")
     .select("id")
     .eq("slug", slug)
@@ -135,7 +149,7 @@ export async function POST(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("marketplace_reviews")
     .insert({
       listing_id: listing.id,

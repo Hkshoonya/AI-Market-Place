@@ -110,8 +110,7 @@ const adapter: DataSourceAdapter = {
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const maxEntries = (ctx.config.maxEntries as number) ?? 200;
     const errors: { message: string; context?: string }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
     // Use HF token from env for higher rate limits
@@ -257,7 +256,7 @@ const adapter: DataSourceAdapter = {
 
     // Pre-load benchmark ID lookup
     const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
-    const benchmarkIdMap = new Map<string, string>();
+    const benchmarkIdMap = new Map<string, number>();
     for (const b of allBenchmarks ?? []) {
       benchmarkIdMap.set(b.slug, b.id);
     }

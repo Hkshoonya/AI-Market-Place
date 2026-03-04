@@ -248,8 +248,7 @@ const adapter: DataSourceAdapter = {
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const errors: SyncError[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     // Optional API key — endpoint is public without auth
     const apiKey = ctx.secrets.OPENROUTER_API_KEY ?? process.env.OPENROUTER_API_KEY ?? "";

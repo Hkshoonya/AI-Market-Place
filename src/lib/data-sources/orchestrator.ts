@@ -189,8 +189,7 @@ export async function runTierSync(
   await loadAllAdapters();
 
   const supabase = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Fetch enabled sources for this tier, ordered by priority
   const { data: sources, error: fetchErr } = await sb
@@ -246,8 +245,7 @@ export async function runSingleSync(
   await loadAllAdapters();
 
   const supabase = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const { data: source, error } = await sb
     .from("data_sources")

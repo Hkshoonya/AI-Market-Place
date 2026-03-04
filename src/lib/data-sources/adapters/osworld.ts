@@ -32,8 +32,7 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = ctx.supabase as any;
+    const supabase = ctx.supabase;
     let recordsProcessed = 0;
     let recordsCreated = 0;
     const recordsUpdated = 0;
