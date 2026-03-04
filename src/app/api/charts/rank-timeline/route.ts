@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -94,9 +95,6 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/charts/rank-timeline");
   }
 }
