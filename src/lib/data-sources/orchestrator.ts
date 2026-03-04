@@ -17,6 +17,7 @@ import type { TypedSupabaseClient } from "@/types/database";
 import { getAdapter, loadAllAdapters } from "./registry";
 import { resolveSecrets, needsSync } from "./utils";
 import { recordSyncSuccess, recordSyncFailure } from "@/lib/pipeline-health";
+import { systemLog } from "@/lib/logging";
 
 interface SourceDetail {
   source: string;
@@ -168,9 +169,19 @@ async function executeAdapter(
 
   // Track pipeline health
   if (status === "failed") {
-    await recordSyncFailure(source.slug).catch(() => {});
+    await recordSyncFailure(source.slug).catch((err: unknown) => {
+      void systemLog.warn("sync-orchestrator", "Failed to record sync failure status", {
+        slug: source.slug,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
   } else {
-    await recordSyncSuccess(source.slug).catch(() => {});
+    await recordSyncSuccess(source.slug).catch((err: unknown) => {
+      void systemLog.warn("sync-orchestrator", "Failed to record sync success status", {
+        slug: source.slug,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
   }
 
   return {

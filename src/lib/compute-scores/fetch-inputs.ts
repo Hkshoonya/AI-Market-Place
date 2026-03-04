@@ -9,6 +9,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStaleSourceCount } from "@/lib/pipeline-health";
 import type { ScoringInputs } from "./types";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("compute-scores");
 
 /**
  * Fetch all scoring inputs from Supabase.
@@ -108,7 +111,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
   // Pipeline health check
   const staleCount = await getStaleSourceCount();
   if (staleCount > 3) {
-    console.warn(`[compute-scores] WARNING: ${staleCount} data sources are stale`);
+    void log.warn(`WARNING: ${staleCount} data sources are stale`, { staleCount });
   }
 
   return {

@@ -13,6 +13,9 @@
  */
 
 import type { TypedSupabaseClient } from "@/types/database";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("data-sources/model-matcher");
 
 export interface ModelLookupEntry {
   id: string;
@@ -171,7 +174,7 @@ export async function buildModelLookup(
     .eq("status", "active");
 
   if (error) {
-    console.error("[model-matcher] Failed to fetch models:", error.message);
+    void log.error("Failed to fetch models", { error: error.message });
     return [];
   }
 
