@@ -23,6 +23,10 @@ import {
 } from "@/lib/format";
 import { createBrowserClient } from "@supabase/ssr";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import type { ModelWithDetails, BenchmarkScore, ModelPricing, Benchmark } from "@/types/database";
+
+// Supabase joins benchmark_scores with benchmarks table using plural name
+type BenchmarkScoreWithBenchmarks = BenchmarkScore & { benchmarks?: Benchmark };
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,8 +38,6 @@ import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { ShareComparison } from "@/components/compare/share-comparison";
 import { getProviderBrand } from "@/lib/constants/providers";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface ModelOption {
   id: string;
   slug: string;
@@ -46,7 +48,7 @@ interface ModelOption {
 
 interface CompareClientProps {
   allModels: ModelOption[];
-  initialModels: Record<string, any>[];
+  initialModels: ModelWithDetails[];
   initialSlugs: string[];
 }
 
@@ -200,7 +202,7 @@ export function CompareClient({
   initialSlugs,
 }: CompareClientProps) {
   const router = useRouter();
-  const [models, setModels] = useState<Record<string, any>[]>(initialModels);
+  const [models, setModels] = useState<ModelWithDetails[]>(initialModels);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>(initialSlugs);
   const [loading, setLoading] = useState(false);
 
@@ -231,7 +233,7 @@ export function CompareClient({
     if (data) {
       const newSlugs = [...selectedSlugs, slug];
       setSelectedSlugs(newSlugs);
-      setModels((prev) => [...prev, data as Record<string, any>]);
+      setModels((prev) => [...prev, data as ModelWithDetails]);
       router.replace(`/compare?models=${newSlugs.join(",")}`, { scroll: false });
     }
     setLoading(false);
@@ -252,34 +254,34 @@ export function CompareClient({
   const allBenchmarks: { name: string; slug: string; category: string }[] = [];
   const seenBenchmarks = new Set<string>();
   for (const m of models) {
-    for (const bs of m.benchmark_scores ?? []) {
+    for (const bs of (m.benchmark_scores as BenchmarkScoreWithBenchmarks[] | undefined) ?? []) {
       const bm = bs.benchmarks;
       if (bm && !seenBenchmarks.has(bm.slug)) {
         seenBenchmarks.add(bm.slug);
-        allBenchmarks.push({ name: bm.name, slug: bm.slug, category: bm.category });
+        allBenchmarks.push({ name: bm.name, slug: bm.slug, category: bm.category ?? "" });
       }
     }
   }
 
-  function getBenchmarkScore(model: any, benchSlug: string): number | null {
+  function getBenchmarkScore(model: ModelWithDetails, benchSlug: string): number | null {
     const scores = model.benchmark_scores ?? [];
-    const match = scores.find((s: any) => s.benchmarks?.slug === benchSlug);
+    const match = (scores as BenchmarkScoreWithBenchmarks[]).find((s) => s.benchmarks?.slug === benchSlug);
     return match ? Number(match.score) : null;
   }
 
-  function getCheapestPrice(model: any): number | null {
+  function getCheapestPrice(model: ModelWithDetails): number | null {
     const pricing = model.model_pricing ?? [];
     if (pricing.length === 0) return null;
     const prices = pricing
-      .map((p: any) => Number(p.input_price_per_million))
+      .map((p: ModelPricing) => Number(p.input_price_per_million))
       .filter((p: number) => !isNaN(p) && p > 0);
     return prices.length > 0 ? Math.min(...prices) : null;
   }
 
-  function getSpeed(model: any): number | null {
+  function getSpeed(model: ModelWithDetails): number | null {
     const pricing = model.model_pricing ?? [];
     const speeds = pricing
-      .map((p: any) => Number(p.median_output_tokens_per_second))
+      .map((p: ModelPricing) => Number(p.median_output_tokens_per_second))
       .filter((s: number) => !isNaN(s) && s > 0);
     return speeds.length > 0 ? Math.max(...speeds) : null;
   }
@@ -551,7 +553,7 @@ export function CompareClient({
                         const pricing = m.model_pricing ?? [];
                         if (pricing.length === 0) return null;
                         const prices = pricing
-                          .map((p: any) =>
+                          .map((p: ModelPricing) =>
                             Number(p.output_price_per_million)
                           )
                           .filter(
@@ -577,7 +579,7 @@ export function CompareClient({
                       label="Free Tier"
                       values={models.map((m) => {
                         const pricing = m.model_pricing ?? [];
-                        return pricing.some((p: any) => p.is_free_tier)
+                        return pricing.some((p: ModelPricing) => p.is_free_tier)
                           ? "Yes"
                           : "No";
                       })}
@@ -591,7 +593,7 @@ export function CompareClient({
           {/* Visual Comparison */}
           <div className="grid gap-6 md:grid-cols-2">
             {/* Overlaid Benchmark Radar for all models */}
-            {models.some((m: any) => (m.benchmark_scores ?? []).length > 0) && (
+            {models.some((m) => (m.benchmark_scores ?? []).length > 0) && (
               <Card className="border-border/50 overflow-hidden">
                 <CardHeader className="bg-secondary/20">
                   <CardTitle className="text-lg">
@@ -601,11 +603,11 @@ export function CompareClient({
                 <CardContent className="pt-4">
                   <BenchmarkRadarOverlay
                     models={models
-                      .filter((m: any) => (m.benchmark_scores ?? []).length > 0)
-                      .map((m: any, i: number) => ({
+                      .filter((m) => (m.benchmark_scores ?? []).length > 0)
+                      .map((m, i) => ({
                         modelName: m.name,
                         color: ["#00d4aa", "#f59e0b", "#ec4899", "#6366f1", "#ef4444"][i % 5],
-                        scores: (m.benchmark_scores as any[]).map((bs: any) => ({
+                        scores: ((m.benchmark_scores ?? []) as BenchmarkScoreWithBenchmarks[]).map((bs) => ({
                           benchmark: bs.benchmarks?.name ?? "Unknown",
                           score: Number(bs.score),
                           maxScore: Number(bs.benchmarks?.max_score) || 100,
@@ -617,7 +619,7 @@ export function CompareClient({
             )}
 
             {/* Price Comparison across all models */}
-            {models.some((m: any) => (m.model_pricing ?? []).length > 0) && (
+            {models.some((m) => (m.model_pricing ?? []).length > 0) && (
               <Card className="border-border/50 overflow-hidden">
                 <CardHeader className="bg-secondary/20">
                   <CardTitle className="text-lg">
@@ -626,11 +628,11 @@ export function CompareClient({
                 </CardHeader>
                 <CardContent className="pt-4">
                   <PriceComparison
-                    models={models.map((m: any) => {
-                      const pricing = (m.model_pricing as any[]) ?? [];
+                    models={models.map((m) => {
+                      const pricing = m.model_pricing ?? [];
                       const cheapest = pricing
-                        .filter((p: any) => p.input_price_per_million != null)
-                        .sort((a: any, b: any) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0];
+                        .filter((p: ModelPricing) => p.input_price_per_million != null)
+                        .sort((a: ModelPricing, b: ModelPricing) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0];
                       return {
                         name: m.name,
                         inputPrice: cheapest?.input_price_per_million ?? null,
@@ -644,10 +646,10 @@ export function CompareClient({
           </div>
 
           {/* Speed vs Cost Scatter */}
-          {models.some((m: any) => {
+          {models.some((m) => {
             const pricing = m.model_pricing ?? [];
             return pricing.some(
-              (p: any) =>
+              (p: ModelPricing) =>
                 p.median_output_tokens_per_second != null &&
                 p.input_price_per_million != null
             );
@@ -659,10 +661,10 @@ export function CompareClient({
               <CardContent className="pt-4">
                 <SpeedCostScatter
                   data={models
-                    .map((m: any) => {
+                    .map((m) => {
                       const pricing = m.model_pricing ?? [];
                       const best = pricing.find(
-                        (p: any) =>
+                        (p: ModelPricing) =>
                           p.median_output_tokens_per_second != null &&
                           p.input_price_per_million != null
                       );

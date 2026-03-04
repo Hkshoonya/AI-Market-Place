@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { CompareClient } from "./compare-client";
+import type { ModelWithDetails } from "@/types/database";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -63,7 +64,7 @@ export default async function ComparePage({
     ? modelsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 5)
     : [];
 
-  let selectedModels: Record<string, unknown>[] = [];
+  let selectedModels: ModelWithDetails[] = [];
 
   if (selectedSlugs.length > 0) {
     const { data } = await supabase
@@ -80,7 +81,7 @@ export default async function ComparePage({
       .in("slug", selectedSlugs)
       .eq("status", "active");
 
-    selectedModels = (data as Record<string, unknown>[] | null) ?? [];
+    selectedModels = (data as ModelWithDetails[] | null) ?? [];
   }
 
   return (
