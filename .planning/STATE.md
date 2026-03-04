@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-error-handling-logging plan 07-02 (console migration to structured logging)
-last_updated: "2026-03-04T18:59:04.787Z"
+stopped_at: Completed 07-error-handling-logging plan 07-04 (marketplace, seller, webhook route migration)
+last_updated: "2026-03-04T19:04:56.298Z"
 last_activity: 2026-03-04 — Phase 06 Plan 02 complete (remove supabase-as-any from src/lib/)
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 100
 ---
 
@@ -118,6 +118,7 @@ Progress: [████████████████████] 5/5 pla
 | Phase 06-type-safety P06 | 6 | 2 tasks | 6 files |
 | Phase 07-error-handling-logging P01 | 5 | 2 tasks | 2 files |
 | Phase 07-error-handling-logging P02 | 8 | 2 tasks | 14 files |
+| Phase 07-error-handling-logging P04 | 25 | 2 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 07-error-handling-logging]: createTaggedLogger factory pre-binds source string — reduces call-site boilerplate for downstream plans
 - [Phase 07-error-handling-logging]: void prefix used on fire-and-forget tagged logger calls to match semantics without blocking execution
 - [Phase 07-error-handling-logging]: orchestrator uses systemLog directly for catch callbacks — per-source context makes tagged logger less appropriate
+- [Phase 07-error-handling-logging]: handleApiError try/catch wraps full handler body — rate limit 429 and auth 401 remain outside
+- [Phase 07-error-handling-logging]: webhook/chain-deposits uses createTaggedLogger (not inline systemLog) — pre-binds source for 7 call sites
 
 ### Pending Todos
 
@@ -193,6 +196,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T18:59:04.783Z
-Stopped at: Completed 07-error-handling-logging plan 07-02 (console migration to structured logging)
+Last session: 2026-03-04T19:04:56.295Z
+Stopped at: Completed 07-error-handling-logging plan 07-04 (marketplace, seller, webhook route migration)
 Resume file: None
