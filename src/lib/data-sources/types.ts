@@ -6,6 +6,8 @@
  * and calls adapter.sync() with a SyncContext.
  */
 
+import type { TypedSupabaseClient } from "@/types/database";
+
 export type SyncOutputType =
   | "models"
   | "benchmarks"
@@ -41,7 +43,7 @@ export interface DataSourceRecord {
 /** Passed to every adapter.sync() call */
 export interface SyncContext {
   /** Service-role Supabase client — full DB access */
-  supabase: unknown;
+  supabase: TypedSupabaseClient;
   /** Adapter-specific config from data_sources.config JSONB */
   config: Record<string, unknown>;
   /** Resolved env var values keyed by the var name */

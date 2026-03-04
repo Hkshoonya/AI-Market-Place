@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -73,8 +71,8 @@ export function EnglishBidPanel({
 
       setSuccess(true);
       onBidPlaced();
-    } catch (err: any) {
-      setError(err.message || "Failed to place bid");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to place bid");
     } finally {
       setSubmitting(false);
     }

@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -60,8 +58,8 @@ export function DutchBidPanel({
 
       setSuccess(true);
       onAccepted();
-    } catch (err: any) {
-      setError(err.message || "Failed to accept price");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to accept price");
     } finally {
       setSubmitting(false);
     }

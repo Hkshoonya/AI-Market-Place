@@ -29,8 +29,6 @@ import {
 import { useAuth } from "@/components/auth/auth-provider";
 import { formatCurrency, formatDate } from "@/lib/format";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const ITEMS_PER_PAGE = 10;
 
 const TX_TYPE_FILTERS = [
@@ -103,8 +101,8 @@ export default function WalletContent() {
         }
         const data = await res.json();
         setWallet(data);
-      } catch (err: any) {
-        setError(err.message || "Something went wrong");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setLoading(false);
       }
@@ -129,8 +127,8 @@ export default function WalletContent() {
       const res = await fetch("/api/marketplace/wallet", { method: "POST" });
       if (!res.ok) throw new Error("Failed to generate deposit addresses");
       await fetchWallet();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGenerating(false);
     }
