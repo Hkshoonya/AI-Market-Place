@@ -3,6 +3,7 @@
  */
 
 import type { McpPrompt } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 
 export const MCP_PROMPTS: McpPrompt[] = [
   {
@@ -25,12 +26,11 @@ export const MCP_PROMPTS: McpPrompt[] = [
 
 /** Generate a prompt by name */
 export async function generatePrompt(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   name: string,
   args: Record<string, unknown>
 ): Promise<{ messages: { role: string; content: string }[] }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   switch (name) {
     case "compare_models": {

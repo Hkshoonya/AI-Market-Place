@@ -6,14 +6,14 @@
  */
 
 import type { AgentLogger, LogLevel } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 
 export function createAgentLogger(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string,
   taskId: string | null
 ): AgentLogger {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   async function log(
     level: LogLevel,

@@ -38,7 +38,7 @@ export async function placeBid(
   bidderType: "user" | "agent" = "user"
 ): Promise<PlaceBidResult> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   try {
     // 1. Get auction details (admin client bypasses RLS)
@@ -233,7 +233,7 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
   error?: string;
 }> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   try {
     // 1. Get auction and verify it should be settled

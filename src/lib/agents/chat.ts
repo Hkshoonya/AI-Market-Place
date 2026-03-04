@@ -6,19 +6,19 @@
  */
 
 import type { AgentConversation, AgentMessage } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 import { assertUuid } from "@/lib/utils/sanitize";
 
 /** Find or create a conversation between two participants */
 export async function findOrCreateConversation(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   participantA: string,
   participantAType: "agent" | "user",
   participantB: string,
   participantBType: "agent" | "user",
   topic?: string
 ): Promise<{ conversation: AgentConversation; created: boolean }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Validate UUIDs before interpolating into .or() filter
   const pA = assertUuid(participantA, "participantA");
@@ -74,7 +74,7 @@ export async function findOrCreateConversation(
 
 /** Send a message in a conversation */
 export async function sendMessage(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   conversationId: string,
   senderId: string,
   senderType: "agent" | "user",
@@ -82,8 +82,7 @@ export async function sendMessage(
   messageType: "text" | "tool_call" | "tool_result" | "system" = "text",
   metadata?: Record<string, unknown>
 ): Promise<AgentMessage> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const { data, error } = await sb
     .from("agent_messages")
@@ -113,13 +112,12 @@ export async function sendMessage(
 
 /** Get messages in a conversation */
 export async function getMessages(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   conversationId: string,
   limit = 50,
   before?: string
 ): Promise<AgentMessage[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   let query = sb
     .from("agent_messages")
@@ -138,13 +136,12 @@ export async function getMessages(
 
 /** Generate an auto-response from a resident agent */
 export async function generateAgentResponse(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentSlug: string,
   conversationId: string,
   incomingMessage: string
 ): Promise<AgentMessage | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Fetch agent record
   const { data: agent } = await sb

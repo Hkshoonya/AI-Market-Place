@@ -7,13 +7,14 @@
 
 import type { JsonRpcRequest, JsonRpcResponse } from "./types";
 import { JSON_RPC_ERRORS } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 import { MCP_TOOLS, executeTool } from "./tools";
 import { MCP_RESOURCES, readResource } from "./resources";
 import { MCP_PROMPTS, generatePrompt } from "./prompts";
 
 /** Handle an MCP JSON-RPC request */
 export async function handleMcpRequest(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   request: JsonRpcRequest,
   keyRecord?: Record<string, unknown>
 ): Promise<JsonRpcResponse> {

@@ -390,6 +390,7 @@ export interface MarketplaceOrder {
   status: OrderStatus;
   message: string | null;
   price_at_time: number | null;
+  delivery_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -949,6 +950,7 @@ export interface Database {
           status?: OrderStatus;
           message?: string | null;
           price_at_time?: number | null;
+          delivery_data?: Record<string, unknown> | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1297,9 +1299,129 @@ export interface Database {
         };
         Relationships: [];
       };
+      cron_runs: {
+        Row: {
+          id: string;
+          job_name: string;
+          status: "running" | "completed" | "failed";
+          started_at: string;
+          finished_at: string | null;
+          duration_ms: number | null;
+          result_summary: Record<string, unknown> | null;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_name: string;
+          status?: "running" | "completed" | "failed";
+          started_at?: string;
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          result_summary?: Record<string, unknown> | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          status?: "running" | "completed" | "failed";
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          result_summary?: Record<string, unknown> | null;
+          error_message?: string | null;
+        };
+        Relationships: [];
+      };
+      system_logs: {
+        Row: {
+          id: string;
+          level: "info" | "warn" | "error";
+          source: string;
+          message: string;
+          metadata: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          level: "info" | "warn" | "error";
+          source: string;
+          message: string;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: {
+          level?: "info" | "warn" | "error";
+          source?: string;
+          message?: string;
+          metadata?: Record<string, unknown>;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      credit_wallet: {
+        Args: {
+          p_wallet_id: string;
+          p_amount: number;
+          p_tx_type: string;
+          p_chain: string;
+          p_tx_hash: string | null;
+          p_token: string;
+          p_reference_type: string | null;
+          p_reference_id: string | null;
+          p_description: string | null;
+        };
+        Returns: string;
+      };
+      debit_wallet: {
+        Args: {
+          p_wallet_id: string;
+          p_amount: number;
+          p_tx_type: string;
+          p_reference_type: string | null;
+          p_reference_id: string | null;
+          p_description: string | null;
+        };
+        Returns: string;
+      };
+      hold_escrow: {
+        Args: {
+          p_wallet_id: string;
+          p_amount: number;
+          p_reason: string;
+          p_reference_type: string;
+          p_reference_id: string;
+        };
+        Returns: string;
+      };
+      release_escrow: {
+        Args: {
+          p_escrow_id: string;
+          p_to_wallet_id: string;
+          p_platform_fee: number;
+        };
+        Returns: void;
+      };
+      refund_escrow: {
+        Args: {
+          p_escrow_id: string;
+        };
+        Returns: void;
+      };
+      increment_seller_sales: {
+        Args: {
+          p_seller_id: string;
+          p_amount: number;
+        };
+        Returns: void;
+      };
+      increment_listing_purchases: {
+        Args: {
+          p_listing_id: string;
+        };
+        Returns: void;
+      };
+    };
     Enums: {
       model_category: ModelCategory;
       model_status: ModelStatus;

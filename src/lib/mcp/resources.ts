@@ -3,6 +3,7 @@
  */
 
 import type { McpResource } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 
 export const MCP_RESOURCES: McpResource[] = [
   {
@@ -33,11 +34,10 @@ export const MCP_RESOURCES: McpResource[] = [
 
 /** Read a resource by URI */
 export async function readResource(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   uri: string
 ): Promise<unknown> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   switch (uri) {
     case "models://catalog": {

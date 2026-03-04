@@ -5,6 +5,7 @@
  */
 
 import type { McpTool } from "./types";
+import type { TypedSupabaseClient, ModelCategory, ListingType, AgentType, AgentStatus } from "@/types/database";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
@@ -132,18 +133,17 @@ export const MCP_TOOLS: McpTool[] = [
 
 /** Execute a tool call and return the result */
 export async function executeTool(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   toolName: string,
   params: Record<string, unknown>,
   keyRecord?: Record<string, unknown>
 ): Promise<unknown> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   switch (toolName) {
     case "search_models": {
       const query = (params.query as string) ?? "";
-      const category = params.category as string | undefined;
+      const category = params.category as ModelCategory | undefined;
       const limit = Math.min((params.limit as number) ?? 20, 100);
 
       let q = sb
@@ -176,7 +176,7 @@ export async function executeTool(
     }
 
     case "list_rankings": {
-      const category = params.category as string | undefined;
+      const category = params.category as ModelCategory | undefined;
       const limit = Math.min((params.limit as number) ?? 20, 100);
 
       let q = sb
@@ -214,7 +214,7 @@ export async function executeTool(
     }
 
     case "browse_marketplace": {
-      const type = params.type as string | undefined;
+      const type = params.type as ListingType | undefined;
       const query = params.query as string | undefined;
       const sort = (params.sort as string) ?? "newest";
       const limit = Math.min((params.limit as number) ?? 20, 100);
@@ -243,11 +243,12 @@ export async function executeTool(
       // Enrich with seller profiles
       let listings = rawListings ?? [];
       if (listings.length > 0) {
-        const sellerIds = [...new Set(listings.map((l: any) => l.seller_id).filter(Boolean))];
+        type ListingRow = (typeof listings)[number] & { seller_id?: string | null };
+        const sellerIds = [...new Set((listings as ListingRow[]).map((l) => l.seller_id).filter((id): id is string => !!id))];
         if (sellerIds.length > 0) {
           const { data: profiles } = await sb.from("profiles").select("id, display_name, username, seller_verified").in("id", sellerIds);
-          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-          listings = listings.map((l: any) => ({ ...l, profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null }));
+          const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+          listings = (listings as ListingRow[]).map((l) => ({ ...l, profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null })) as typeof listings;
         }
       }
 
@@ -269,7 +270,7 @@ export async function executeTool(
       if (error || !rawListing) throw new Error(`Listing not found: ${slug}`);
 
       // Enrich with seller profile
-      let data = { ...rawListing, profiles: null as any };
+      let data: Record<string, unknown> = { ...rawListing, profiles: null };
       if (rawListing.seller_id) {
         const { data: profile } = await sb
           .from("profiles")
@@ -380,8 +381,8 @@ export async function executeTool(
     }
 
     case "list_agents": {
-      const type = params.type as string | undefined;
-      const status = params.status as string | undefined;
+      const type = params.type as AgentType | undefined;
+      const status = params.status as AgentStatus | undefined;
 
       let q = sb
         .from("agents")

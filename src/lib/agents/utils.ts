@@ -7,14 +7,15 @@
  * - Conversation helpers
  */
 
+import type { TypedSupabaseClient } from "@/types/database";
+
 /** Get recent tasks for an agent */
 export async function getRecentTasks(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string,
   limit = 20
 ): Promise<unknown[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
   const { data } = await sb
     .from("agent_tasks")
     .select("*")
@@ -26,13 +27,12 @@ export async function getRecentTasks(
 
 /** Get recent logs for an agent */
 export async function getRecentLogs(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string,
   level?: string,
   limit = 50
 ): Promise<unknown[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
   let query = sb
     .from("agent_logs")
     .select("*")
@@ -50,12 +50,11 @@ export async function getRecentLogs(
 
 /** Get error count in the last N hours */
 export async function getErrorCount(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string,
   hours = 24
 ): Promise<number> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const { count } = await sb
     .from("agent_logs")
@@ -68,7 +67,7 @@ export async function getErrorCount(
 
 /** Get task stats for an agent */
 export async function getTaskStats(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string
 ): Promise<{
   total: number;
@@ -77,8 +76,7 @@ export async function getTaskStats(
   pending: number;
   running: number;
 }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const { data } = await sb
     .from("agent_tasks")
@@ -98,14 +96,13 @@ export async function getTaskStats(
 
 /** Create a pending task for an agent */
 export async function createTask(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   agentId: string,
   taskType: string,
   input: Record<string, unknown> = {},
   priority = 5
 ): Promise<string | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
   const { data, error } = await sb
     .from("agent_tasks")
     .insert({

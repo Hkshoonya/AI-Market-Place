@@ -8,6 +8,7 @@ import type {
   ChainType,
   TokenType,
   EscrowReason,
+  TypedSupabaseClient,
 } from "@/types/database";
 
 // Re-export domain aliases for convenience
@@ -34,12 +35,8 @@ export interface WalletBalance {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function adminClient() {
-  const supabase = createAdminClient();
-  // Cast so we can call .rpc() / .from() on tables the generated types
-  // may not know about yet.
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  return sb;
+function adminClient(): TypedSupabaseClient {
+  return createAdminClient();
 }
 
 // ---------------------------------------------------------------------------
