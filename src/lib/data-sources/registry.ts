@@ -5,15 +5,16 @@
  */
 
 import type { DataSourceAdapter } from "./types";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("data-sources/registry");
 
 const adapters = new Map<string, DataSourceAdapter>();
 
 /** Register an adapter. Called once per adapter module at import time. */
 export function registerAdapter(adapter: DataSourceAdapter): void {
   if (adapters.has(adapter.id)) {
-    console.warn(
-      `[registry] Adapter "${adapter.id}" already registered, overwriting.`
-    );
+    void log.warn("Adapter already registered, overwriting", { adapterId: adapter.id });
   }
   adapters.set(adapter.id, adapter);
 }

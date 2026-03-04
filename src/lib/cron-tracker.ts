@@ -20,7 +20,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
-import { systemLog } from "@/lib/logging";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("cron-tracker");
 
 export interface CronTracker {
   /** Mark the run as completed. Returns a NextResponse with the result. */
@@ -55,10 +57,10 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
     if (!error && data) {
       runId = data.id;
     } else {
-      console.error("[cron-tracker] Failed to create cron_runs row:", error?.message);
+      void log.error("Failed to create cron_runs row", { error: error?.message });
     }
   } catch (err) {
-    console.error("[cron-tracker] Exception creating cron_runs row:", err);
+    void log.error("Exception creating cron_runs row", { error: err instanceof Error ? err.message : String(err) });
   }
 
   return {
@@ -82,11 +84,11 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
             })
             .eq("id", runId);
         } catch (err) {
-          console.error("[cron-tracker] Failed to update cron_runs:", err);
+          void log.error("Failed to update cron_runs on complete", { error: err instanceof Error ? err.message : String(err) });
         }
       }
 
-      await systemLog.info(jobName, `Cron job completed in ${durationMs}ms`, {
+      await log.info(`Cron job completed in ${durationMs}ms`, {
         runId,
         durationMs,
         ...result,
@@ -114,11 +116,11 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
             })
             .eq("id", runId);
         } catch (updateErr) {
-          console.error("[cron-tracker] Failed to update cron_runs:", updateErr);
+          void log.error("Failed to update cron_runs on fail", { error: updateErr instanceof Error ? updateErr.message : String(updateErr) });
         }
       }
 
-      await systemLog.error(jobName, `Cron job failed: ${errorMessage}`, {
+      await log.error(`Cron job failed: ${errorMessage}`, {
         runId,
         durationMs,
       });
