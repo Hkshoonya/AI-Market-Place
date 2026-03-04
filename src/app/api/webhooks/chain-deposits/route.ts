@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TypedSupabaseClient } from "@/types/database";
 import { creditWallet, type Chain, type Token } from "@/lib/payments/wallet";
 import {
   checkSolanaDeposits,
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient();
 
     // Determine which chains to check
     const chainsToCheck: DepositChain[] = targetChain
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 async function processSolanaDeposits(
-  supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  supabase: TypedSupabaseClient,
   summary: DepositSummary
 ) {
   // Get all wallets with a Solana deposit address
@@ -181,7 +182,7 @@ async function processSolanaDeposits(
 }
 
 async function processEvmDeposits(
-  supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  supabase: TypedSupabaseClient,
   chain: "base" | "polygon",
   summary: DepositSummary
 ) {
@@ -250,7 +251,7 @@ async function processEvmDeposits(
  * Check if a transaction hash has already been processed (de-duplication).
  */
 async function isTxHashProcessed(
-  supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  supabase: TypedSupabaseClient,
   txHash: string
 ): Promise<boolean> {
   const { data, error } = await supabase

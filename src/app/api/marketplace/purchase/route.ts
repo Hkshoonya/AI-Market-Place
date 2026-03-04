@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   const auth = await resolveAuthUser(request, ["marketplace", "write", "marketplace_access"]);
 
   const admin = createAdminClient();
-  const sb = admin as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = admin;
 
   // Fetch listing (shared between both flows)
   const { data: listing, error: listingError } = await sb
