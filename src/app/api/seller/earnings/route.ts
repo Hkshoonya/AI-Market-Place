@@ -21,6 +21,7 @@ import {
   getTransactionHistory,
   calculatePlatformFee,
 } from "@/lib/payments/wallet";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -80,14 +81,6 @@ export async function GET(request: NextRequest) {
       recentTransactions,
     });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch earnings. Please try again later.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/seller/earnings");
   }
 }
