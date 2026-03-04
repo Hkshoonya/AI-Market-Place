@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runTierSync } from "@/lib/data-sources/orchestrator";
 import { trackCronRun } from "@/lib/cron-tracker";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max (Vercel Pro)
@@ -52,6 +53,6 @@ export async function GET(request: NextRequest) {
 
     return tracker.complete(summary);
   } catch (err) {
-    return tracker.fail(err);
+    return handleApiError(err, "cron/sync");
   }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { assertUuid } from "@/lib/utils/sanitize";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 
@@ -16,45 +18,45 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Verify admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.is_admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-  const { action, target_type, target_id, reason } = body as { action: string; target_type: string; target_id: string; reason?: string };
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!action || !target_type || !target_id) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  try {
-    assertUuid(target_id, "target_id");
-  } catch {
-    return NextResponse.json({ error: "Invalid target_id format" }, { status: 400 });
-  }
+    // Verify admin
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
 
-  try {
+    if (!profile?.is_admin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    const { action, target_type, target_id, reason } = body as { action: string; target_type: string; target_id: string; reason?: string };
+
+    if (!action || !target_type || !target_id) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    try {
+      assertUuid(target_id, "target_id");
+    } catch {
+      return NextResponse.json({ error: "Invalid target_id format" }, { status: 400 });
+    }
+
     switch (`${target_type}:${action}`) {
       // User actions
       case "user:ban": {
@@ -66,7 +68,7 @@ export async function PATCH(request: NextRequest) {
           message: reason || "Your account has been suspended due to policy violations.",
         });
         if (banNotifError) {
-          console.error("Failed to insert ban notification:", banNotifError.message);
+          void systemLog.warn("api/admin/moderate", "Failed to insert ban notification", { error: banNotifError.message });
         }
         return NextResponse.json({ success: true, message: "User banned" });
       }
@@ -80,7 +82,7 @@ export async function PATCH(request: NextRequest) {
           message: "Your account has been reinstated.",
         });
         if (unbanNotifError) {
-          console.error("Failed to insert unban notification:", unbanNotifError.message);
+          void systemLog.warn("api/admin/moderate", "Failed to insert unban notification", { error: unbanNotifError.message });
         }
         return NextResponse.json({ success: true, message: "User unbanned" });
       }
@@ -107,7 +109,7 @@ export async function PATCH(request: NextRequest) {
             link: "/dashboard/seller",
           });
           if (listingNotifError) {
-            console.error("Failed to insert listing removal notification:", listingNotifError.message);
+            void systemLog.warn("api/admin/moderate", "Failed to insert listing removal notification", { error: listingNotifError.message });
           }
         }
         return NextResponse.json({ success: true, message: "Listing archived" });
@@ -137,7 +139,6 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
   } catch (err) {
-    console.error("Moderation error:", err);
-    return NextResponse.json({ error: "Action failed" }, { status: 500 });
+    return handleApiError(err, "api/admin/moderate");
   }
 }
