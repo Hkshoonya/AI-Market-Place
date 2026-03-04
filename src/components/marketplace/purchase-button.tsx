@@ -24,8 +24,6 @@ import { GuestCheckoutForm } from "./guest-checkout-form";
 import { WalletDepositPanel } from "./wallet-deposit-panel";
 import { PurchaseSuccess } from "./purchase-success";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface PurchaseButtonProps {
   listingId: string;
   price: number | null;
@@ -39,7 +37,7 @@ interface DeliveryData {
   download_url?: string;
   access_url?: string;
   instructions?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function PurchaseButton({
@@ -90,7 +88,7 @@ export function PurchaseButton({
     setError("");
 
     try {
-      const body: Record<string, any> = {
+      const body: Record<string, unknown> = {
         listing_id: listingId,
         payment_method: "balance",
       };
@@ -119,8 +117,8 @@ export function PurchaseButton({
 
       const data = await res.json();
       setDelivery(data.delivery ?? data);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setPurchasing(false);
     }

@@ -6,6 +6,8 @@
  * creates tasks, and executes them via the agent's run() method.
  */
 
+import type { TypedSupabaseClient } from "@/types/database";
+
 export type AgentType = "resident" | "marketplace" | "visitor";
 export type AgentStatus = "active" | "paused" | "disabled" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -105,7 +107,7 @@ export interface AgentMessage {
 /** Context passed to resident agent run() */
 export interface AgentContext {
   /** Service-role Supabase client — full DB access */
-  supabase: unknown;
+  supabase: TypedSupabaseClient;
   /** Agent record from the database */
   agent: AgentRecord;
   /** Task being executed */
