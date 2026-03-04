@@ -32,6 +32,15 @@ const createAuctionSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
+type AuctionWithListing = Record<string, unknown>;
+type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled" | "settled";
+
+type AuctionQueryResult = {
+  data: AuctionWithListing[] | null;
+  error: { message: string; details: string; hint: string; code: string } | null;
+  count: number | null;
+};
+
 /**
  * GET /api/marketplace/auctions
  * Browse auctions with filters: auction_type, status, listing_type, page, limit.
@@ -60,43 +69,8 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
 
-  // NOTE: embedded join "marketplace_listings" has no FK Relationship in DB type.
-  // Cast to any to avoid SDK `never` inference for joined shape.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  type AuctionWithListing = Record<string, unknown>;
-
-  let query = sb
-    .from("auctions")
-    .select(
-      "*, marketplace_listings(id, title, slug, listing_type, thumbnail_url, short_description)",
-      { count: "exact" }
-    )
-    .in(
-      "status",
-      (
-        status === "all"
-          ? ["upcoming", "active", "ended"]
-          : [status]
-      ) as (
-        | "upcoming"
-        | "active"
-        | "ended"
-        | "cancelled"
-        | "settled"
-      )[]
-    );
-
-  if (auctionType) {
-    query = query.eq(
-      "auction_type",
-      auctionType as "english" | "dutch" | "batch"
-    );
-  }
-
-  if (listingType) {
-    query = query.eq("marketplace_listings.listing_type", listingType);
-  }
+  const statusFilter: AuctionStatus[] =
+    status === "all" ? ["upcoming", "active", "ended"] : [status as AuctionStatus];
 
   // Sorting
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
@@ -105,20 +79,45 @@ export async function GET(request: NextRequest) {
     price_asc: { column: "current_price", ascending: true },
     price_desc: { column: "current_price", ascending: false },
   };
-
   const sortConfig = sortMap[sort] || sortMap.ending_soon;
-  query = query.order(sortConfig.column, {
+
+  // NOTE: embedded join "marketplace_listings" has no FK Relationship in DB type.
+  // The SDK infers `never` for the joined shape. We build the query via the typed
+  // client (for .from/.in/.eq/.order type-checking) then cast the awaited result
+  // to a known shape — no `supabase as any` needed.
+  let baseQuery = supabase
+    .from("auctions")
+    .select(
+      "*, marketplace_listings(id, title, slug, listing_type, thumbnail_url, short_description)",
+      { count: "exact" }
+    )
+    .in("status", statusFilter);
+
+  if (auctionType) {
+    baseQuery = baseQuery.eq(
+      "auction_type",
+      auctionType as "english" | "dutch" | "batch"
+    );
+  }
+
+  if (listingType) {
+    baseQuery = baseQuery.eq(
+      "marketplace_listings.listing_type",
+      listingType as import("@/types/database").ListingType
+    );
+  }
+
+  baseQuery = baseQuery.order(sortConfig.column, {
     ascending: sortConfig.ascending,
     nullsFirst: false,
   });
 
-  query = query.range((page - 1) * limit, page * limit - 1);
+  baseQuery = baseQuery.range((page - 1) * limit, page * limit - 1);
 
-  const { data, error } = await query;
+  const { data, error } = (await baseQuery) as unknown as AuctionQueryResult;
 
   if (error) {
     // Gracefully handle missing table (migration not yet applied)
-    // Supabase/PostgREST errors may use: code, message, details, hint
     const msg =
       (error.message || "") + (error.details || "") + (error.hint || "");
     const code = error.code || "";
@@ -248,10 +247,7 @@ export async function POST(request: NextRequest) {
     .from("auctions")
     .select("id")
     .eq("listing_id", parsed.data.listing_id)
-    .in("status", [
-      "upcoming",
-      "active",
-    ] as ("upcoming" | "active" | "ended" | "cancelled" | "settled")[])
+    .in("status", ["upcoming", "active"] as AuctionStatus[])
     .limit(1)
     .single();
 
