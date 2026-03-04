@@ -2,6 +2,8 @@
 // These will be auto-generated later with `supabase gen types typescript`
 // For now, manual types matching our schema
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export type ModelCategory =
   | "llm"
   | "image_generation"
@@ -675,6 +677,8 @@ export interface ModelDescription {
   updated_at: string;
 }
 
+export type TypedSupabaseClient = SupabaseClient<Database>;
+
 // Model with all relations joined
 export interface ModelWithDetails extends Model {
   benchmark_scores?: BenchmarkScore[];
@@ -693,60 +697,71 @@ export interface Database {
         Row: Model;
         Insert: Partial<Model> & Pick<Model, "slug" | "name" | "provider" | "category">;
         Update: Partial<Model>;
+        Relationships: [];
       };
       benchmarks: {
         Row: Benchmark;
         Insert: Partial<Benchmark> & Pick<Benchmark, "slug" | "name">;
         Update: Partial<Benchmark>;
+        Relationships: [];
       };
       benchmark_scores: {
         Row: BenchmarkScore;
         Insert: Partial<BenchmarkScore> &
           Pick<BenchmarkScore, "model_id" | "benchmark_id" | "score">;
         Update: Partial<BenchmarkScore>;
+        Relationships: [];
       };
       model_pricing: {
         Row: ModelPricing;
         Insert: Partial<ModelPricing> &
           Pick<ModelPricing, "model_id" | "provider_name" | "pricing_model">;
         Update: Partial<ModelPricing>;
+        Relationships: [];
       };
       elo_ratings: {
         Row: EloRating;
         Insert: Partial<EloRating> &
           Pick<EloRating, "model_id" | "elo_score" | "snapshot_date">;
         Update: Partial<EloRating>;
+        Relationships: [];
       };
       rankings: {
         Row: Ranking;
         Insert: Partial<Ranking> & Pick<Ranking, "model_id" | "ranking_type" | "rank">;
         Update: Partial<Ranking>;
+        Relationships: [];
       };
       model_updates: {
         Row: ModelUpdate;
         Insert: Partial<ModelUpdate> &
           Pick<ModelUpdate, "model_id" | "update_type" | "title">;
         Update: Partial<ModelUpdate>;
+        Relationships: [];
       };
       tags: {
         Row: Tag;
         Insert: Partial<Tag> & Pick<Tag, "name" | "slug">;
         Update: Partial<Tag>;
+        Relationships: [];
       };
       model_tags: {
         Row: { model_id: string; tag_id: number };
         Insert: { model_id: string; tag_id: number };
         Update: { model_id?: string; tag_id?: number };
+        Relationships: [];
       };
       providers: {
         Row: Provider;
         Insert: Partial<Provider> & Pick<Provider, "slug" | "name">;
         Update: Partial<Provider>;
+        Relationships: [];
       };
       model_snapshots: {
         Row: ModelSnapshot;
         Insert: Partial<ModelSnapshot> & Pick<ModelSnapshot, "model_id">;
         Update: Partial<ModelSnapshot>;
+        Relationships: [];
       };
       profiles: {
         Row: Profile;
@@ -894,6 +909,7 @@ export interface Database {
         Row: MarketplaceListing;
         Insert: Partial<MarketplaceListing> & Pick<MarketplaceListing, "seller_id" | "slug" | "title" | "description" | "listing_type">;
         Update: Partial<MarketplaceListing>;
+        Relationships: [];
       };
       marketplace_reviews: {
         Row: MarketplaceReview;
@@ -910,6 +926,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<MarketplaceReview>;
+        Relationships: [];
       };
       marketplace_orders: {
         Row: MarketplaceOrder;
@@ -925,6 +942,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<MarketplaceOrder>;
+        Relationships: [];
       };
       notifications: {
         Row: Notification;
@@ -939,6 +957,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Notification>;
+        Relationships: [];
       };
       notification_preferences: {
         Row: NotificationPreferences;
@@ -956,91 +975,109 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<NotificationPreferences>;
+        Relationships: [];
       };
       data_sources: {
         Row: DataSource;
         Insert: Partial<DataSource> & Pick<DataSource, "slug" | "name" | "adapter_type">;
         Update: Partial<DataSource>;
+        Relationships: [];
       };
       model_news: {
         Row: ModelNews;
         Insert: Partial<ModelNews> & Pick<ModelNews, "source" | "source_id" | "title" | "url" | "published_at">;
         Update: Partial<ModelNews>;
+        Relationships: [];
       };
       sync_jobs: {
         Row: SyncJob;
         Insert: Partial<SyncJob> & Pick<SyncJob, "source" | "job_type" | "status">;
         Update: Partial<SyncJob>;
+        Relationships: [];
       };
       agents: {
         Row: Agent;
         Insert: Partial<Agent> & Pick<Agent, "slug" | "name" | "agent_type">;
         Update: Partial<Agent>;
+        Relationships: [];
       };
       agent_tasks: {
         Row: AgentTask;
         Insert: Partial<AgentTask> & Pick<AgentTask, "agent_id" | "task_type">;
         Update: Partial<AgentTask>;
+        Relationships: [];
       };
       agent_logs: {
         Row: AgentLog;
         Insert: Partial<AgentLog> & Pick<AgentLog, "agent_id" | "level" | "message">;
         Update: Partial<AgentLog>;
+        Relationships: [];
       };
       api_keys: {
         Row: ApiKeyRecord;
         Insert: Partial<ApiKeyRecord> & Pick<ApiKeyRecord, "owner_id" | "name" | "key_prefix" | "key_hash">;
         Update: Partial<ApiKeyRecord>;
+        Relationships: [];
       };
       agent_conversations: {
         Row: AgentConversation;
         Insert: Partial<AgentConversation> & Pick<AgentConversation, "participant_a" | "participant_b" | "participant_a_type" | "participant_b_type">;
         Update: Partial<AgentConversation>;
+        Relationships: [];
       };
       agent_messages: {
         Row: AgentMessage;
         Insert: Partial<AgentMessage> & Pick<AgentMessage, "conversation_id" | "sender_id" | "sender_type" | "content">;
         Update: Partial<AgentMessage>;
+        Relationships: [];
       };
       wallets: {
         Row: Wallet;
         Insert: Partial<Wallet> & Pick<Wallet, 'owner_id'>;
         Update: Partial<Wallet>;
+        Relationships: [];
       };
       wallet_transactions: {
         Row: WalletTransaction;
         Insert: Partial<WalletTransaction> & Pick<WalletTransaction, 'wallet_id' | 'type' | 'amount' | 'net_amount'>;
         Update: Partial<WalletTransaction>;
+        Relationships: [];
       };
       escrow_holds: {
         Row: EscrowHold;
         Insert: Partial<EscrowHold> & Pick<EscrowHold, 'wallet_id' | 'amount' | 'reason' | 'reference_type' | 'reference_id'>;
         Update: Partial<EscrowHold>;
+        Relationships: [];
       };
       platform_fee_tiers: {
         Row: PlatformFeeTier;
         Insert: Partial<PlatformFeeTier> & Pick<PlatformFeeTier, 'min_lifetime_sales' | 'fee_percentage'>;
         Update: Partial<PlatformFeeTier>;
+        Relationships: [];
       };
       api_endpoint_pricing: {
         Row: ApiEndpointPricing;
         Insert: Partial<ApiEndpointPricing> & Pick<ApiEndpointPricing, 'path_pattern' | 'price_per_call'>;
         Update: Partial<ApiEndpointPricing>;
+        Relationships: [];
       };
       deployment_platforms: {
         Row: DeploymentPlatform;
         Insert: Partial<DeploymentPlatform> & Pick<DeploymentPlatform, 'slug' | 'name' | 'type' | 'base_url'>;
         Update: Partial<DeploymentPlatform>;
+        Relationships: [];
       };
       model_deployments: {
         Row: ModelDeployment;
         Insert: Partial<ModelDeployment> & Pick<ModelDeployment, 'model_id' | 'platform_id'>;
         Update: Partial<ModelDeployment>;
+        Relationships: [];
       };
       model_descriptions: {
         Row: ModelDescription;
         Insert: Partial<ModelDescription> & Pick<ModelDescription, 'model_id'>;
         Update: Partial<ModelDescription>;
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
