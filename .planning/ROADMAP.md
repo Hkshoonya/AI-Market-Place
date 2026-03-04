@@ -60,7 +60,10 @@ Plans:
   2. The purchase route has distinct `handleGuestCheckout()` and `handleAuthenticatedCheckout()` functions rather than a single branching block
   3. Each decomposed compute-scores function can be imported and called in a Vitest test file without instantiating a Next.js server
   4. `npx tsc --noEmit` passes clean after route decomposition
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Extract compute-scores pipeline into fetchInputs + computeAllLenses + persistResults
+- [ ] 03-02-PLAN.md — Decompose purchase route into handleGuestCheckout + handleAuthenticatedCheckout
 
 ### Phase 4: Adapter Deduplication
 **Goal**: The ~904 lines of KNOWN_MODELS duplication and the repeated inferCategory/buildRecord patterns across adapters are replaced by shared modules
@@ -132,7 +135,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure + Constants | 2/2 | Complete   | 2026-03-03 |
 | 2. Scoring Simplification | 2/3 | Gap closure | - |
-| 3. API Route Decomposition | 0/TBD | Not started | - |
+| 3. API Route Decomposition | 0/2 | Planned | - |
 | 4. Adapter Deduplication | 0/TBD | Not started | - |
 | 5. Component Decomposition | 0/TBD | Not started | - |
 | 6. Type Safety | 0/TBD | Not started | - |
