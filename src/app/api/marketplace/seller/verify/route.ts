@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import type { SellerVerificationRequest } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Get latest verification request
-  const { data } = await sb
+  const { data: rawRequest } = await supabase
     .from("seller_verification_requests")
     .select("*")
     .eq("user_id", user.id)
@@ -37,15 +35,17 @@ export async function GET(request: NextRequest) {
     .limit(1)
     .single();
 
+  const verificationRequest = rawRequest as SellerVerificationRequest | null;
+
   // Get current seller status from profile
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_seller, seller_verified")
     .eq("id", user.id)
     .single();
 
   return NextResponse.json({
-    request: data ?? null,
+    request: verificationRequest ?? null,
     is_seller: profile?.is_seller ?? false,
     seller_verified: profile?.seller_verified ?? false,
   });
@@ -71,11 +71,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Check if already has pending request
-  const { data: existing } = await sb
+  const { data: existing } = await supabase
     .from("seller_verification_requests")
     .select("id, status")
     .eq("user_id", user.id)
@@ -90,7 +87,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -114,7 +111,7 @@ export async function POST(request: NextRequest) {
   const { business_name, business_description, website_url, portfolio_url, reason } = parsed.data;
 
   // Ensure user is a seller
-  const { error: profileError } = await sb
+  const { error: profileError } = await supabase
     .from("profiles")
     .update({ is_seller: true, updated_at: new Date().toISOString() })
     .eq("id", user.id);
@@ -124,7 +121,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Create request
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("seller_verification_requests")
     .insert({
       user_id: user.id,

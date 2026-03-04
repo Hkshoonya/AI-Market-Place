@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -37,12 +38,12 @@ export async function GET(
 
   const { slug } = await params;
 
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const { data: listing, error } = await (supabase as any)
+  const { data: listing, error } = await supabase
     .from("marketplace_listings")
     .select(
       "id, slug, title, listing_type, pricing_type, price, currency, agent_config, status"

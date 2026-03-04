@@ -1,24 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { z } from "zod";
-import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 
 const createListingSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
-  description: z.string().min(1, "Description is required").max(10000, "Description must be 10000 characters or less"),
-  short_description: z.string().max(500, "Short description must be 500 characters or less").optional().nullable(),
-  listing_type: z.enum(["api_access", "model_weights", "fine_tuned_model", "dataset", "prompt_template", "agent", "mcp_server"], {
-    message: "listing_type must be one of: api_access, model_weights, fine_tuned_model, dataset, prompt_template, agent, mcp_server",
-  }),
-  pricing_type: z.enum(["free", "one_time", "monthly_subscription", "per_token", "per_request", "contact"]).optional().default("one_time"),
-  price: z.number().min(0, "Price must be non-negative").optional().nullable(),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be 200 characters or less"),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(10000, "Description must be 10000 characters or less"),
+  short_description: z
+    .string()
+    .max(500, "Short description must be 500 characters or less")
+    .optional()
+    .nullable(),
+  listing_type: z.enum(
+    [
+      "api_access",
+      "model_weights",
+      "fine_tuned_model",
+      "dataset",
+      "prompt_template",
+      "agent",
+      "mcp_server",
+    ],
+    {
+      message:
+        "listing_type must be one of: api_access, model_weights, fine_tuned_model, dataset, prompt_template, agent, mcp_server",
+    }
+  ),
+  pricing_type: z
+    .enum([
+      "free",
+      "one_time",
+      "monthly_subscription",
+      "per_token",
+      "per_request",
+      "contact",
+    ])
+    .optional()
+    .default("one_time"),
+  price: z
+    .number()
+    .min(0, "Price must be non-negative")
+    .optional()
+    .nullable(),
   currency: z.string().max(10).optional().default("USD"),
-  model_id: z.string().uuid("model_id must be a valid UUID").optional().nullable(),
-  tags: z.array(z.string().max(50)).max(20, "Maximum 20 tags allowed").optional().default([]),
-  thumbnail_url: z.string().url("thumbnail_url must be a valid URL").optional().nullable(),
-  demo_url: z.string().url("demo_url must be a valid URL").optional().nullable(),
-  documentation_url: z.string().url("documentation_url must be a valid URL").optional().nullable(),
+  model_id: z
+    .string()
+    .uuid("model_id must be a valid UUID")
+    .optional()
+    .nullable(),
+  tags: z
+    .array(z.string().max(50))
+    .max(20, "Maximum 20 tags allowed")
+    .optional()
+    .default([]),
+  thumbnail_url: z
+    .string()
+    .url("thumbnail_url must be a valid URL")
+    .optional()
+    .nullable(),
+  demo_url: z
+    .string()
+    .url("demo_url must be a valid URL")
+    .optional()
+    .nullable(),
+  documentation_url: z
+    .string()
+    .url("documentation_url must be a valid URL")
+    .optional()
+    .nullable(),
   agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
   mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
 });
@@ -35,7 +97,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
@@ -55,8 +117,13 @@ export async function GET(request: NextRequest) {
     .select("*", { count: "exact" })
     .eq("status", "active");
 
-  if (type) query = query.eq("listing_type", type);
-  if (pricingType) query = query.eq("pricing_type", pricingType);
+  if (type)
+    query = query.eq("listing_type", type as import("@/types/database").ListingType);
+  if (pricingType)
+    query = query.eq(
+      "pricing_type",
+      pricingType as import("@/types/database").MarketplacePricingType
+    );
   if (search) query = query.textSearch("fts", search);
   if (minPrice) query = query.gte("price", parseFloat(minPrice));
   if (maxPrice) query = query.lte("price", parseFloat(maxPrice));
@@ -82,13 +149,17 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("[listings] Query error:", JSON.stringify(error));
     return NextResponse.json(
-      { error: "Failed to fetch marketplace listings. Please try again later." },
+      {
+        error:
+          "Failed to fetch marketplace listings. Please try again later.",
+      },
       { status: 500 }
     );
   }
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
-  const enriched = await enrichListingsWithProfiles(supabase as any, data || []);
+  // enrichListingsWithProfiles accepts AnyClient internally
+  const enriched = await enrichListingsWithProfiles(supabase, data || []);
 
   return NextResponse.json({
     data: enriched,
@@ -110,7 +181,10 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json(
-      { error: "Authentication required. Please sign in to create a listing." },
+      {
+        error:
+          "Authentication required. Please sign in to create a listing.",
+      },
       { status: 401 }
     );
   }
@@ -167,12 +241,12 @@ export async function POST(request: NextRequest) {
   const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
   // Mark user as seller if not already
-  await (supabase as any)
+  await supabase
     .from("profiles")
     .update({ is_seller: true })
     .eq("id", user.id);
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("marketplace_listings")
     .insert({
       seller_id: user.id,
@@ -191,14 +265,19 @@ export async function POST(request: NextRequest) {
       demo_url: demo_url || null,
       documentation_url: documentation_url || null,
       ...(listing_type === "agent" && agent_config ? { agent_config } : {}),
-      ...(listing_type === "mcp_server" && mcp_manifest ? { mcp_manifest } : {}),
+      ...(listing_type === "mcp_server" && mcp_manifest
+        ? { mcp_manifest }
+        : {}),
     })
     .select()
     .single();
 
   if (error) {
     return NextResponse.json(
-      { error: "Failed to create listing. Please check your input and try again." },
+      {
+        error:
+          "Failed to create listing. Please check your input and try again.",
+      },
       { status: 500 }
     );
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { completePurchaseEscrow, refundPurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
+import type { MarketplaceOrder } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,13 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json();
-  const { status } = body;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+  const { status } = body as { status: string };
 
   const validStatuses = ["approved", "rejected", "completed", "cancelled"];
   if (!validStatuses.includes(status)) {
@@ -43,16 +49,15 @@ export async function PATCH(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Fetch the current order to validate ownership and status transition
-  const { data: currentOrder, error: fetchError } = await sb
+  const { data: rawOrder, error: fetchError } = await supabase
     .from("marketplace_orders")
     .select("*")
     .eq("id", id)
     .eq("seller_id", user.id)
     .single();
+
+  const currentOrder = rawOrder as MarketplaceOrder | null;
 
   if (fetchError || !currentOrder) {
     return NextResponse.json(
@@ -80,9 +85,9 @@ export async function PATCH(
     );
   }
 
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("marketplace_orders")
-    .update({ status })
+    .update({ status: status as MarketplaceOrder["status"] })
     .eq("id", id)
     .eq("seller_id", user.id)
     .select()

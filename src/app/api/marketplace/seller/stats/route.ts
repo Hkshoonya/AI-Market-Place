@@ -26,37 +26,40 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  type ListingStat = {
+    id: string;
+    status: string;
+    view_count: number | null;
+    inquiry_count: number | null;
+    avg_rating: number | null;
+    review_count: number | null;
+  };
+
   // Get listing stats
-  const { data: listings } = await (supabase as any)
+  const { data: rawListings } = await supabase
     .from("marketplace_listings")
     .select("id, status, view_count, inquiry_count, avg_rating, review_count")
     .eq("seller_id", user.id);
 
-  const activeListings =
-    listings?.filter((l: any) => l.status === "active").length || 0;
-  const totalListings = listings?.length || 0;
-  const totalViews =
-    listings?.reduce(
-      (sum: number, l: any) => sum + (l.view_count || 0),
-      0
-    ) || 0;
-  const totalInquiries =
-    listings?.reduce(
-      (sum: number, l: any) => sum + (l.inquiry_count || 0),
-      0
-    ) || 0;
-  const ratingsArr =
-    listings
-      ?.filter((l: any) => l.avg_rating != null)
-      .map((l: any) => l.avg_rating) || [];
+  const listings = (rawListings ?? []) as ListingStat[];
+
+  const activeListings = listings.filter((l) => l.status === "active").length;
+  const totalListings = listings.length;
+  const totalViews = listings.reduce((sum, l) => sum + (l.view_count || 0), 0);
+  const totalInquiries = listings.reduce(
+    (sum, l) => sum + (l.inquiry_count || 0),
+    0
+  );
+  const ratingsArr = listings
+    .filter((l) => l.avg_rating != null)
+    .map((l) => l.avg_rating as number);
   const avgRating =
     ratingsArr.length > 0
-      ? ratingsArr.reduce((a: number, b: number) => a + b, 0) /
-        ratingsArr.length
+      ? ratingsArr.reduce((a, b) => a + b, 0) / ratingsArr.length
       : null;
 
   // Get pending orders count
-  const { count: pendingOrders } = await (supabase as any)
+  const { count: pendingOrders } = await supabase
     .from("marketplace_orders")
     .select("id", { count: "exact", head: true })
     .eq("seller_id", user.id)

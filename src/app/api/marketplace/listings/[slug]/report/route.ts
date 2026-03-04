@@ -31,7 +31,7 @@ export async function POST(
     );
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -40,17 +40,14 @@ export async function POST(
       { status: 400 }
     );
   }
-  const { reason, details } = body;
+  const { reason, details } = body as { reason?: string; details?: string };
 
   if (!reason || typeof reason !== "string") {
     return NextResponse.json({ error: "Reason is required" }, { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Get listing ID from slug
-  const { data: listing } = await sb
+  const { data: listing } = await supabase
     .from("marketplace_listings")
     .select("id")
     .eq("slug", slug)
@@ -60,13 +57,13 @@ export async function POST(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  const { error } = await sb
+  const { error } = await supabase
     .from("listing_reports")
     .insert({
       listing_id: listing.id,
       reporter_id: user.id,
-      reason,
-      details: details?.trim() || null,
+      reason: reason as string,
+      details: typeof details === "string" ? details.trim() || null : null,
     });
 
   if (error) {
