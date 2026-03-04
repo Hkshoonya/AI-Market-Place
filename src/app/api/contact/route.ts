@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
@@ -49,23 +51,15 @@ export async function POST(request: NextRequest) {
       });
 
     if (insertError) {
-      console.error("[Contact Form] DB insert failed:", insertError.message);
+      void systemLog.error("api/contact", "DB insert failed", { error: insertError.message });
       // Still return success to user — log the error server-side
-      // and fall back to console logging
-      console.info("[Contact Form Submission - Fallback]", {
-        name, email, category: category || "general", subject, message,
-        timestamp: new Date().toISOString(), ip,
-      });
     }
 
     return NextResponse.json({
       success: true,
       message: "Thank you for your message! We've received it and will respond soon.",
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to process contact form." },
-      { status: 500 }
-    );
+  } catch (err) {
+    return handleApiError(err, "api/contact");
   }
 }

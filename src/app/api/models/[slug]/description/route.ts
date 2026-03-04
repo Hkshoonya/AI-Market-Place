@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "@/lib/api-error";
 
 export const revalidate = 300;
 
@@ -8,29 +9,34 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const supabase = await createClient();
 
-  // Get model
-  const { data: modelRaw } = await supabase
-    .from("models")
-    .select("id")
-    .eq("slug", slug)
-    .single();
+  try {
+    const supabase = await createClient();
 
-  if (!modelRaw) {
-    return NextResponse.json({ error: "Model not found" }, { status: 404 });
+    // Get model
+    const { data: modelRaw } = await supabase
+      .from("models")
+      .select("id")
+      .eq("slug", slug)
+      .single();
+
+    if (!modelRaw) {
+      return NextResponse.json({ error: "Model not found" }, { status: 404 });
+    }
+
+    // Get description
+    const { data: description } = await supabase
+      .from("model_descriptions")
+      .select("*")
+      .eq("model_id", modelRaw.id)
+      .single();
+
+    if (!description) {
+      return NextResponse.json({ error: "No description available" }, { status: 404 });
+    }
+
+    return NextResponse.json(description);
+  } catch (err) {
+    return handleApiError(err, "api/models/description");
   }
-
-  // Get description
-  const { data: description } = await supabase
-    .from("model_descriptions")
-    .select("*")
-    .eq("model_id", modelRaw.id)
-    .single();
-
-  if (!description) {
-    return NextResponse.json({ error: "No description available" }, { status: 404 });
-  }
-
-  return NextResponse.json(description);
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import type { Notification } from "@/types/database";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -17,55 +18,59 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const unreadOnly = searchParams.get("unread") === "true";
+    const limit = Math.min(parseInt(searchParams.get("limit") || "30"), 100);
+
+    let query = supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (unreadOnly) {
+      query = query.eq("is_read", false);
+    }
+
+    const { data: rawData, error } = await query;
+    // Cast to Notification[] — the typed client returns the correct shape at runtime
+    // but the let-query reassignment pattern widens the inferred type in some TS versions.
+    const data = (rawData ?? []) as Notification[];
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Count unread
+    const { count: unreadCount } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+
+    // Sanitize notification links: must be relative paths
+    const sanitized = data.map((n) => ({
+      ...n,
+      link: n.link && typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//")
+        ? n.link
+        : null,
+    }));
+
+    return NextResponse.json({ data: sanitized, unreadCount: unreadCount ?? 0 });
+  } catch (err) {
+    return handleApiError(err, "api/notifications");
   }
-
-  const { searchParams } = new URL(request.url);
-  const unreadOnly = searchParams.get("unread") === "true";
-  const limit = Math.min(parseInt(searchParams.get("limit") || "30"), 100);
-
-  let query = supabase
-    .from("notifications")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (unreadOnly) {
-    query = query.eq("is_read", false);
-  }
-
-  const { data: rawData, error } = await query;
-  // Cast to Notification[] — the typed client returns the correct shape at runtime
-  // but the let-query reassignment pattern widens the inferred type in some TS versions.
-  const data = (rawData ?? []) as Notification[];
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Count unread
-  const { count: unreadCount } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("is_read", false);
-
-  // Sanitize notification links: must be relative paths
-  const sanitized = data.map((n) => ({
-    ...n,
-    link: n.link && typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//")
-      ? n.link
-      : null,
-  }));
-
-  return NextResponse.json({ data: sanitized, unreadCount: unreadCount ?? 0 });
 }
 
 // PATCH /api/notifications — mark notifications as read
@@ -79,56 +84,60 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-  const { markAll } = body as { markAll?: boolean; ids?: string[] };
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  // Validate ids array if provided
-  const idsSchema = z.array(z.string().uuid()).max(100);
-  let ids: string[] | undefined;
-  const bodyObj = body as { markAll?: boolean; ids?: unknown };
-  if (bodyObj.ids) {
-    const parsed = idsSchema.safeParse(bodyObj.ids);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid ids array" }, { status: 400 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    ids = parsed.data;
-  }
 
-  if (markAll) {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
     }
-  } else if (ids && Array.isArray(ids)) {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", user.id)
-      .in("id", ids);
+    const { markAll } = body as { markAll?: boolean; ids?: string[] };
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Validate ids array if provided
+    const idsSchema = z.array(z.string().uuid()).max(100);
+    let ids: string[] | undefined;
+    const bodyObj = body as { markAll?: boolean; ids?: unknown };
+    if (bodyObj.ids) {
+      const parsed = idsSchema.safeParse(bodyObj.ids);
+      if (!parsed.success) {
+        return NextResponse.json({ error: "Invalid ids array" }, { status: 400 });
+      }
+      ids = parsed.data;
     }
-  }
 
-  return NextResponse.json({ success: true });
+    if (markAll) {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    } else if (ids && Array.isArray(ids)) {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", user.id)
+        .in("id", ids);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return handleApiError(err, "api/notifications");
+  }
 }

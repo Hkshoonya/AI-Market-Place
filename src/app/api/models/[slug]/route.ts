@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -19,38 +20,42 @@ export async function GET(
     );
   }
 
-  // Paywall check
-  const pw = await checkPaywall(request);
-  if (!pw.allowed) return paywallErrorResponse(pw);
+  try {
+    // Paywall check
+    const pw = await checkPaywall(request);
+    if (!pw.allowed) return paywallErrorResponse(pw);
 
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
-  const { slug } = await params;
+    const { slug } = await params;
 
-  const { data, error } = await supabase
-    .from("models")
-    .select(
+    const { data, error } = await supabase
+      .from("models")
+      .select(
+        `
+        *,
+        benchmark_scores(*, benchmarks(*)),
+        model_pricing(*),
+        elo_ratings(*),
+        rankings(*),
+        model_updates(*)
       `
-      *,
-      benchmark_scores(*, benchmarks(*)),
-      model_pricing(*),
-      elo_ratings(*),
-      rankings(*),
-      model_updates(*)
-    `
-    )
-    .eq("slug", slug)
-    .single();
+      )
+      .eq("slug", slug)
+      .single();
 
-  if (error) {
-    if (error.code === "PGRST116") {
-      return NextResponse.json({ error: "Model not found" }, { status: 404 });
+    if (error) {
+      if (error.code === "PGRST116") {
+        return NextResponse.json({ error: "Model not found" }, { status: 404 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 
-  return NextResponse.json(data);
+    return NextResponse.json(data);
+  } catch (err) {
+    return handleApiError(err, "api/models");
+  }
 }
