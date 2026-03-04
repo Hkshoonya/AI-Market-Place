@@ -19,6 +19,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
+import { inferCategory } from "../shared/infer-category";
 
 // --------------- Constants ---------------
 
@@ -104,30 +105,6 @@ interface OpenRouterModelsResponse {
 }
 
 // --------------- Helper Functions ---------------
-
-/**
- * Infer the model category from the architecture's input/output modalities.
- * Priority order: image generation > video > speech/audio > multimodal > llm.
- */
-function inferCategory(arch: {
-  input_modalities?: string[];
-  output_modalities?: string[];
-  modality?: string;
-}): string {
-  const inputs = new Set(arch.input_modalities ?? []);
-  const outputs = new Set(arch.output_modalities ?? []);
-
-  if (outputs.has("image")) return "image_generation";
-  if (outputs.has("video")) return "video";
-  if (outputs.has("audio")) return "speech_audio";
-  if (
-    (inputs.has("image") || inputs.has("video") || inputs.has("audio")) &&
-    outputs.has("text")
-  ) {
-    return "multimodal";
-  }
-  return "llm";
-}
 
 /**
  * Extract the display name for the provider from the model ID.
@@ -232,7 +209,7 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     slug: makeSlug(model.id),
     name: extractModelName(model.name, model.id),
     provider: extractProvider(model.id),
-    category: inferCategory(arch),
+    category: inferCategory({ mode: "arch", arch }),
     status: "active",
     description: model.description || null,
     context_window: model.context_length ?? null,
