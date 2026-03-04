@@ -7,6 +7,7 @@ import type {
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch, sleep } from "../utils";
 import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
+import { inferCategory } from "../shared/infer-category";
 
 /**
  * GitHub Trending ML Repos Adapter
@@ -29,20 +30,6 @@ interface GitHubRepo {
   created_at: string;
   updated_at: string;
   license: { spdx_id: string } | null;
-}
-
-/** Infer model category from GitHub topics and description */
-function inferCategory(topics: string[], description: string): string {
-  const text = `${topics.join(" ")} ${description}`.toLowerCase();
-  if (text.includes("llm") || text.includes("language-model") || text.includes("chatbot")) return "llm";
-  if (text.includes("diffusion") || text.includes("image-generation") || text.includes("text-to-image")) return "image_generation";
-  if (text.includes("vision") || text.includes("object-detection") || text.includes("image-classification")) return "vision";
-  if (text.includes("multimodal") || text.includes("vlm")) return "multimodal";
-  if (text.includes("embedding") || text.includes("sentence-transformer")) return "embeddings";
-  if (text.includes("speech") || text.includes("tts") || text.includes("asr") || text.includes("audio")) return "speech_audio";
-  if (text.includes("video")) return "video";
-  if (text.includes("code") || text.includes("coding")) return "code";
-  return "specialized";
 }
 
 const adapter: DataSourceAdapter = {
@@ -136,7 +123,7 @@ const adapter: DataSourceAdapter = {
           slug: makeSlug(repo.full_name),
           name: repo.name,
           provider: repo.owner.login,
-          category: inferCategory(repo.topics, repo.description ?? ""),
+          category: inferCategory({ mode: "topics", topics: repo.topics, description: repo.description ?? "" }),
           status: "active",
           description: (repo.description ?? "").slice(0, 500),
           github_url: repo.html_url,
