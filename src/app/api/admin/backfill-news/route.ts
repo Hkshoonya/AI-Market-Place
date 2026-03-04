@@ -4,6 +4,8 @@ import {
   buildModelLookup,
   resolveNewsRelations,
 } from "@/lib/data-sources/model-matcher";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes
@@ -117,10 +119,9 @@ export async function POST(request: NextRequest) {
           .eq("id", update.id);
 
         if (updateError) {
-          console.error(
-            `[backfill-news] Failed to update ${update.id}:`,
-            updateError.message
-          );
+          void systemLog.warn("api/admin/backfill-news", `Failed to update news item ${update.id}`, {
+            error: updateError.message,
+          });
         }
       }
 
@@ -147,10 +148,6 @@ export async function POST(request: NextRequest) {
       message: `Backfilled ${totalLinked}/${totalProcessed} news items with model links (${totalModelsLinked} total model associations)`,
     });
   } catch (err) {
-    console.error("[backfill-news] Error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/admin/backfill-news");
   }
 }

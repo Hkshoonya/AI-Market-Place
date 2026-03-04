@@ -8,6 +8,7 @@ import {
   sendMessage,
   generateAgentResponse,
 } from "@/lib/agents/chat";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -19,85 +20,85 @@ function createServiceClient() {
 }
 
 export async function POST(request: Request) {
-  const supabase = createServiceClient();
-
-  // Authenticate
-  const apiKey = extractApiKey(request);
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "API key required. Use Authorization: Bearer aimk_..." },
-      { status: 401 }
-    );
-  }
-
-  const auth = await validateApiKey(supabase, apiKey);
-  if (!auth.valid || !auth.keyRecord) {
-    return NextResponse.json(
-      { error: auth.error ?? "Invalid API key" },
-      { status: 401 }
-    );
-  }
-
-  if (!hasScope(auth.keyRecord, "agent")) {
-    return NextResponse.json(
-      { error: "API key missing 'agent' scope" },
-      { status: 403 }
-    );
-  }
-
-  // Rate limit per API key
-  const keyId = auth.keyRecord.id as string;
-  const rl = rateLimit(`agent-chat:${keyId}`, RATE_LIMITS.api);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded" },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
-  }
-
-  // Parse request body
-  let body: { agent_slug: string; message: string; topic?: string };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const supabase = createServiceClient();
 
-  if (!body.agent_slug || !body.message) {
-    return NextResponse.json(
-      { error: "agent_slug and message are required" },
-      { status: 400 }
-    );
-  }
+    // Authenticate
+    const apiKey = extractApiKey(request);
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API key required. Use Authorization: Bearer aimk_..." },
+        { status: 401 }
+      );
+    }
 
-  // Find the target agent
-  const { data: targetAgent, error: agentErr } = await supabase
-    .from("agents")
-    .select("id, slug, name, status, total_conversations")
-    .eq("slug", body.agent_slug)
-    .single();
+    const auth = await validateApiKey(supabase, apiKey);
+    if (!auth.valid || !auth.keyRecord) {
+      return NextResponse.json(
+        { error: auth.error ?? "Invalid API key" },
+        { status: 401 }
+      );
+    }
 
-  if (agentErr || !targetAgent) {
-    return NextResponse.json(
-      { error: `Agent "${body.agent_slug}" not found` },
-      { status: 404 }
-    );
-  }
+    if (!hasScope(auth.keyRecord, "agent")) {
+      return NextResponse.json(
+        { error: "API key missing 'agent' scope" },
+        { status: 403 }
+      );
+    }
 
-  if (targetAgent.status !== "active") {
-    return NextResponse.json(
-      { error: `Agent "${body.agent_slug}" is ${targetAgent.status}` },
-      { status: 400 }
-    );
-  }
+    // Rate limit per API key
+    const keyId = auth.keyRecord.id as string;
+    const rl = rateLimit(`agent-chat:${keyId}`, RATE_LIMITS.api);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429, headers: rateLimitHeaders(rl) }
+      );
+    }
 
-  // Determine sender identity
-  const senderId =
-    (auth.keyRecord.agent_id as string) ??
-    (auth.keyRecord.owner_id as string);
-  const senderType = auth.keyRecord.agent_id ? "agent" : "user";
+    // Parse request body
+    let body: { agent_slug: string; message: string; topic?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
-  try {
+    if (!body.agent_slug || !body.message) {
+      return NextResponse.json(
+        { error: "agent_slug and message are required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the target agent
+    const { data: targetAgent, error: agentErr } = await supabase
+      .from("agents")
+      .select("id, slug, name, status, total_conversations")
+      .eq("slug", body.agent_slug)
+      .single();
+
+    if (agentErr || !targetAgent) {
+      return NextResponse.json(
+        { error: `Agent "${body.agent_slug}" not found` },
+        { status: 404 }
+      );
+    }
+
+    if (targetAgent.status !== "active") {
+      return NextResponse.json(
+        { error: `Agent "${body.agent_slug}" is ${targetAgent.status}` },
+        { status: 400 }
+      );
+    }
+
+    // Determine sender identity
+    const senderId =
+      (auth.keyRecord.agent_id as string) ??
+      (auth.keyRecord.owner_id as string);
+    const senderType = auth.keyRecord.agent_id ? "agent" : "user";
+
     // Find or create conversation
     const { conversation, created } = await findOrCreateConversation(
       supabase,
@@ -144,9 +145,6 @@ export async function POST(request: Request) {
       response: agentResponse,
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Chat failed" },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/agents/chat");
   }
 }

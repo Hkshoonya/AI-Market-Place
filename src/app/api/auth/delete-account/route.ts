@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 
@@ -16,48 +18,48 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-  const { confirmation } = body as { confirmation: string };
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (confirmation !== "DELETE") {
-    return NextResponse.json({ error: "Invalid confirmation" }, { status: 400 });
-  }
-
-  // Check for remaining wallet funds
-  const { data: wallet } = await supabase
-    .from("wallets")
-    .select("balance, held_balance")
-    .eq("owner_id", user.id)
-    .eq("owner_type", "user")
-    .single();
-
-  if (wallet) {
-    const totalFunds = Number(wallet.balance || 0) + Number(wallet.held_balance || 0);
-    if (totalFunds > 0) {
-      return NextResponse.json(
-        {
-          error: `Cannot delete account with remaining funds ($${totalFunds.toFixed(2)}). Please withdraw your balance first.`,
-        },
-        { status: 400 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  }
 
-  try {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+    const { confirmation } = body as { confirmation: string };
+
+    if (confirmation !== "DELETE") {
+      return NextResponse.json({ error: "Invalid confirmation" }, { status: 400 });
+    }
+
+    // Check for remaining wallet funds
+    const { data: wallet } = await supabase
+      .from("wallets")
+      .select("balance, held_balance")
+      .eq("owner_id", user.id)
+      .eq("owner_type", "user")
+      .single();
+
+    if (wallet) {
+      const totalFunds = Number(wallet.balance || 0) + Number(wallet.held_balance || 0);
+      if (totalFunds > 0) {
+        return NextResponse.json(
+          {
+            error: `Cannot delete account with remaining funds ($${totalFunds.toFixed(2)}). Please withdraw your balance first.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Delete user data in order (respecting foreign keys)
     // 1. Delete order messages
     await supabase.from("order_messages").delete().eq("sender_id", user.id);
@@ -125,19 +127,19 @@ export async function POST(request: NextRequest) {
       const adminClient = createAdminClient();
       const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
       if (deleteAuthError) {
-        console.error("Failed to delete auth user (profile already anonymized):", deleteAuthError);
+        void systemLog.warn("api/auth/delete-account", "Failed to delete auth user (profile already anonymized)", {
+          error: deleteAuthError.message,
+        });
         // Don't fail the request — profile is already anonymized, auth deletion is best-effort
       }
     } catch (authDeleteErr) {
-      console.error("Auth user deletion threw (profile already anonymized):", authDeleteErr);
+      void systemLog.warn("api/auth/delete-account", "Auth user deletion threw (profile already anonymized)", {
+        error: authDeleteErr instanceof Error ? authDeleteErr.message : String(authDeleteErr),
+      });
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Account deletion error:", err);
-    return NextResponse.json(
-      { error: "Failed to delete account. Please try again." },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/auth/delete-account");
   }
 }

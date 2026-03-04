@@ -13,9 +13,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { settleEnglishAuction } from "@/lib/marketplace/auctions/english";
 import { refundEscrow } from "@/lib/payments/wallet";
 import { trackCronRun } from "@/lib/cron-tracker";
+import { handleApiError } from "@/lib/api-error";
+import { createTaggedLogger } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const log = createTaggedLogger("cron/auctions");
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
@@ -148,10 +152,9 @@ export async function GET(request: NextRequest) {
                   try {
                     await refundEscrow(bid.escrow_hold_id);
                   } catch (err) {
-                    console.error(
-                      `Cron: Failed to refund escrow ${bid.escrow_hold_id}:`,
-                      err
-                    );
+                    void log.error(`Failed to refund escrow ${bid.escrow_hold_id}`, {
+                      error: err instanceof Error ? err.message : String(err),
+                    });
                   }
                 }
               }
@@ -168,8 +171,7 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch (err) {
-    console.error("Auction cron job failed:", err);
-    return tracker.fail(err);
+    return handleApiError(err, "cron/auctions");
   }
 
   return tracker.complete({

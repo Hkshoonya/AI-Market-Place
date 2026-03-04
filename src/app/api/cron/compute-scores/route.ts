@@ -4,9 +4,13 @@ import { trackCronRun } from "@/lib/cron-tracker";
 import { fetchInputs } from "@/lib/compute-scores/fetch-inputs";
 import { computeAllLenses } from "@/lib/compute-scores/compute-all-lenses";
 import { persistResults } from "@/lib/compute-scores/persist-results";
+import { handleApiError } from "@/lib/api-error";
+import { createTaggedLogger } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+
+const log = createTaggedLogger("cron/compute-scores");
 
 /**
  * Compute quality scores and rankings for ALL active models.
@@ -61,7 +65,9 @@ export async function GET(request: NextRequest) {
       stats: results.stats,
     });
   } catch (err) {
-    console.error("[compute-scores] Error:", err);
-    return tracker.fail(err);
+    void log.error("Score computation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return handleApiError(err, "cron/compute-scores");
   }
 }
