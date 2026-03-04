@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-component-decomposition plan 05-01 (auction-detail-content decomposition)
-last_updated: "2026-03-04T05:52:47.633Z"
+stopped_at: Completed 05-component-decomposition plan 05-02 (seller earnings content decomposition)
+last_updated: "2026-03-04T05:52:58.119Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
@@ -112,6 +112,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 04-adapter-deduplication]: buildRecord() return type widened to Record<string, unknown> — ModelRecord interface kept as documentation only
 - [Phase 05-component-decomposition]: Shared Auction and Bid types extracted to src/types/auction.ts — cleaner import paths, avoids circular imports
 - [Phase 05-component-decomposition]: useAuctionTimer hook consolidates all three timer effects — single responsibility for teardown
+- [Phase 05-component-decomposition]: Shared types (EarningsData, Transaction, ChainInfo) defined in use-earnings-data.ts and re-exported — exclusively earnings-feature types, no separate types file needed
+- [Phase 05-component-decomposition]: useEarningsData accepts userId parameter instead of calling useAuth internally — parent retains auth redirect responsibility
 
 ### Pending Todos
 
@@ -123,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:52:21.647Z
-Stopped at: Completed 05-component-decomposition plan 05-01 (auction-detail-content decomposition)
+Last session: 2026-03-04T05:52:58.115Z
+Stopped at: Completed 05-component-decomposition plan 05-02 (seller earnings content decomposition)
 Resume file: None
