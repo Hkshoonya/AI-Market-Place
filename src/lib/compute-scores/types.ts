@@ -7,6 +7,8 @@
  *   persistResults()   -> PersistStats
  */
 
+import type { NormalizationStats } from "@/lib/scoring/quality-calculator";
+
 export interface ScoringInputs {
   models: Array<{
     id: string;
@@ -51,8 +53,7 @@ export interface ScoringResults {
   normalizedValueMap: Map<string, number>;
   valueRankMap: Map<string, number>;
   pricingSynced: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stats: any; // NormalizationStats — leave as any for Phase 6
+  stats: NormalizationStats;
 }
 
 export interface PersistStats {

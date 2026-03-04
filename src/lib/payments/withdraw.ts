@@ -116,7 +116,7 @@ export async function processWithdrawal(
     }
 
     // Step 3: Update transaction with on-chain tx hash
-    const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const supabase = createAdminClient();
     await supabase
       .from("wallet_transactions")
       .update({ tx_hash: txHash, chain, status: "confirmed" })
@@ -132,7 +132,7 @@ export async function processWithdrawal(
       });
 
       // Mark original tx as failed
-      const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const supabase = createAdminClient();
       await supabase
         .from("wallet_transactions")
         .update({ status: "failed" })
