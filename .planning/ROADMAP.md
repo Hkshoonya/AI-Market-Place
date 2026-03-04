@@ -127,7 +127,13 @@ Plans:
   3. All client components surface error state to users with a visible message rather than silently failing
   4. All `console.error` and `console.warn` calls in `src/lib/` are replaced with calls to the structured logger from `logging.ts`
   5. All cron job and adapter log calls use tagged loggers that include a source identifier in every log entry
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 07-01-PLAN.md — Enhance api-error.ts + create tagged logger factory in logging.ts
+- [ ] 07-02-PLAN.md — Replace console.error/warn in all src/lib/ files with structured logging
+- [ ] 07-03-PLAN.md — Migrate non-marketplace API routes to handleApiError + structured logging
+- [ ] 07-04-PLAN.md — Migrate marketplace/webhook API routes to handleApiError + structured logging
+- [ ] 07-05-PLAN.md — Fix client component error surfaces and silent catches
 
 ### Phase 8: Regression Testing
 **Goal**: All 7 scoring calculators have unit tests covering normal, edge, and null cases; the market cap formula has regression tests; decomposed API functions have integration tests
@@ -155,5 +161,5 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 4. Adapter Deduplication | 3/3 | Complete   | 2026-03-04 |
 | 5. Component Decomposition | 3/3 | Complete   | 2026-03-04 |
 | 6. Type Safety | 6/7 | In Progress|  |
-| 7. Error Handling + Logging | 0/TBD | Not started | - |
+| 7. Error Handling + Logging | 0/5 | Not started | - |
 | 8. Regression Testing | 0/TBD | Not started | - |
