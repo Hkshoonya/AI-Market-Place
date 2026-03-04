@@ -4,6 +4,7 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { MarketplaceListing } from "@/types/database";
 
 export interface DeliveryResult {
   success: boolean;
@@ -63,7 +64,7 @@ export async function deliverDigitalGood(
 
 async function deliverApiAccess(
   orderId: string,
-  listing: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  listing: MarketplaceListing,
   buyerId: string
 ): Promise<DeliveryResult> {
   // Generate a scoped API key for the buyer
@@ -118,7 +119,7 @@ async function deliverApiAccess(
 
 async function deliverDownloadable(
   orderId: string,
-  listing: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  listing: MarketplaceListing
 ): Promise<DeliveryResult> {
   // Generate a time-limited download reference
   // For now, return the documentation_url or demo_url as the download source
@@ -149,7 +150,7 @@ async function deliverDownloadable(
 
 async function deliverPromptTemplate(
   orderId: string,
-  listing: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  listing: MarketplaceListing
 ): Promise<DeliveryResult> {
   // Prompt templates are delivered as content
   const content =
@@ -170,7 +171,7 @@ async function deliverPromptTemplate(
 
 async function deliverAgent(
   orderId: string,
-  listing: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  listing: MarketplaceListing,
   buyerId: string
 ): Promise<DeliveryResult> {
   // Deploy agent config and return agent_id + slug
@@ -180,18 +181,26 @@ async function deliverAgent(
   const sb = supabase;
 
   // Create an agent instance for the buyer
+  const capabilities = Array.isArray(agentConfig.capabilities)
+    ? (agentConfig.capabilities as string[])
+    : [];
+  const mcpEndpoint =
+    typeof listing.mcp_manifest?.endpoint === "string"
+      ? listing.mcp_manifest.endpoint
+      : null;
+
   const { data: agent, error } = await sb
     .from("agents")
     .insert({
       slug: `${listing.slug}-${buyerId.slice(0, 8)}`,
       name: listing.title,
       description: `Purchased agent: ${listing.title}`,
-      agent_type: "marketplace",
+      agent_type: "marketplace" as const,
       owner_id: buyerId,
-      status: "active",
-      capabilities: agentConfig.capabilities || [],
+      status: "active" as const,
+      capabilities,
       config: agentConfig,
-      mcp_endpoint: listing.mcp_manifest?.endpoint || null,
+      mcp_endpoint: mcpEndpoint,
     })
     .select("id, slug")
     .single();
@@ -224,7 +233,7 @@ async function deliverAgent(
 
 async function deliverMcpServer(
   orderId: string,
-  listing: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  listing: MarketplaceListing
 ): Promise<DeliveryResult> {
   // Return MCP endpoint URL + tool definitions
   const manifest = listing.mcp_manifest || {};

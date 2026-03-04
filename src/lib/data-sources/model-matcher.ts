@@ -12,8 +12,7 @@
  * 5. Longest-match-first with range tracking to prevent substring overlap
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
+import type { TypedSupabaseClient } from "@/types/database";
 
 export interface ModelLookupEntry {
   id: string;
@@ -164,7 +163,7 @@ export function generateAliases(name: string): string[] {
  * Call once per sync cycle, then pass to matchModelsInText().
  */
 export async function buildModelLookup(
-  supabase: SupabaseClient
+  supabase: TypedSupabaseClient
 ): Promise<ModelLookupEntry[]> {
   const { data: models, error } = await supabase
     .from("models")
