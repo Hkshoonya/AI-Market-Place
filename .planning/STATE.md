@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-type-safety plan 06-05 (final any audit — 96 to 8, TYPE-05 complete, Phase 6 complete)
-last_updated: "2026-03-04T12:05:29.871Z"
+stopped_at: Completed 06-type-safety plan 06-06 (gap closure — 12 any fixes in marketplace, payments, data-sources, compute-scores)
+last_updated: "2026-03-04T16:54:25.815Z"
 last_activity: 2026-03-04 — Phase 06 Plan 02 complete (remove supabase-as-any from src/lib/)
 progress:
   total_phases: 8
-  completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
+  completed_phases: 5
+  total_plans: 20
+  completed_plans: 19
   percent: 100
 ---
 
@@ -115,6 +115,7 @@ Progress: [████████████████████] 5/5 pla
 | Phase 06-type-safety P03 | 90 | 2 tasks | 25 files |
 | Phase 06-type-safety P02 | ~180 | 2 tasks | 38 files |
 | Phase 06-type-safety P05 | ~240 | 1 tasks | 39 files |
+| Phase 06-type-safety P06 | 6 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -171,6 +172,9 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 06-type-safety P05]: createAdminClient() already returns SupabaseClient<Database> — all admin as any casts were unnecessary false assumptions masking real types
 - [Phase 06-type-safety P05]: 8 justified any remain: 4 unregistered RPCs (supabase.rpc as any), 3 lightweight-charts setData(), 1 upsertBatch dynamic table
 - [Phase 06-type-safety P05]: string[] DB column types cause typeof checks to narrow to never — must break via rawX: unknown intermediate
+- [Phase 06-type-safety]: Dynamic select(fields: string) with TypedSupabaseClient returns GenericStringError — cast via 'as unknown as T[]'
+- [Phase 06-type-safety]: orderInsert refactored from dynamic Record<string, unknown> to flat typed object; marketplace_orders Insert type updated to include guest_email, guest_name, buyer_id nullable
+- [Phase 06-type-safety]: compute-scores/types.ts: stats: NormalizationStats replacing stats: any — Phase 6 type-safety fully complete
 
 ### Pending Todos
 
@@ -182,6 +186,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T12:05:29.868Z
-Stopped at: Completed 06-type-safety plan 06-05 (final any audit — 96 to 8, TYPE-05 complete, Phase 6 complete)
+Last session: 2026-03-04T16:54:25.812Z
+Stopped at: Completed 06-type-safety plan 06-06 (gap closure — 12 any fixes in marketplace, payments, data-sources, compute-scores)
 Resume file: None
