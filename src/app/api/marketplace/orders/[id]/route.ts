@@ -3,6 +3,8 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { completePurchaseEscrow, refundPurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import type { MarketplaceOrder } from "@/types/database";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`order-update:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -108,7 +111,7 @@ export async function PATCH(
       await completePurchaseEscrow(id);
       deliveryResult = await deliverDigitalGood(id, currentOrder.listing_id, currentOrder.buyer_id);
     } catch (escrowErr) {
-      console.error("[orders] Escrow/delivery failed for order", id, escrowErr);
+      void systemLog.error("api/marketplace/orders", "Escrow/delivery failed for order", { orderId: id, error: escrowErr instanceof Error ? escrowErr.message : String(escrowErr) });
     }
   }
 
@@ -116,9 +119,12 @@ export async function PATCH(
     try {
       await refundPurchaseEscrow(id);
     } catch (refundErr) {
-      console.error("[orders] Escrow refund failed for order", id, refundErr);
+      void systemLog.error("api/marketplace/orders", "Escrow refund failed for order", { orderId: id, error: refundErr instanceof Error ? refundErr.message : String(refundErr) });
     }
   }
 
   return NextResponse.json({ data, delivery: deliveryResult });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/orders");
+  }
 }

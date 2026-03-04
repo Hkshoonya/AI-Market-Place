@@ -12,6 +12,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { calculateDutchPrice } from "@/lib/marketplace/auctions/dutch";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`auction-detail:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -168,4 +170,7 @@ export async function GET(
     bid_count: activeBids.length,
     high_bid: highBid,
   });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/auctions");
+  }
 }

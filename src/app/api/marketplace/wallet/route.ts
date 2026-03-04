@@ -17,6 +17,7 @@ import {
   getWalletBalance,
   getTransactionHistory,
 } from "@/lib/payments/wallet";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -61,15 +62,7 @@ export async function GET(request: NextRequest) {
       total_transactions: transactions.length,
     });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch wallet. Please try again later.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/marketplace/wallet");
   }
 }
 
@@ -116,14 +109,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Failed to create wallet. Please try again later.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(err, "api/marketplace/wallet");
   }
 }

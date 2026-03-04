@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`report:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -77,4 +79,7 @@ export async function POST(
   }
 
   return NextResponse.json({ success: true }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/report");
+  }
 }

@@ -14,6 +14,8 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { calculateDutchPrice } from "@/lib/marketplace/auctions/dutch";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 const createAuctionSchema = z.object({
   listing_id: z.string().uuid(),
@@ -46,6 +48,7 @@ type AuctionQueryResult = {
  * Browse auctions with filters: auction_type, status, listing_type, page, limit.
  */
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`auctions:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -166,6 +169,9 @@ export async function GET(request: NextRequest) {
 
   // Return flat array — client (auctions-browse-content.tsx) expects data.auctions or falls back to data
   return NextResponse.json(enriched);
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/auctions");
+  }
 }
 
 /**
@@ -173,6 +179,7 @@ export async function GET(request: NextRequest) {
  * Create a new auction. Requires authentication. Seller must own the listing.
  */
 export async function POST(request: NextRequest) {
+  try {
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
   );
@@ -319,7 +326,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (createError) {
-    console.error("Failed to create auction:", createError);
+    void systemLog.error("api/marketplace/auctions", "Failed to create auction", { error: createError.message });
     return NextResponse.json(
       { error: "Failed to create auction. Please try again later." },
       { status: 500 }
@@ -327,4 +334,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data: auction }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/auctions");
+  }
 }

@@ -18,6 +18,7 @@ import {
 } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateWallet } from "@/lib/payments/wallet";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -239,6 +240,7 @@ async function authenticateBot(
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`bot-listing-create:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
@@ -375,6 +377,9 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/bot");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +387,7 @@ export async function POST(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 export async function PATCH(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`bot-listing-update:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
@@ -493,4 +499,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/bot");
+  }
 }

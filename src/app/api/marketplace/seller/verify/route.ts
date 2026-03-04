@@ -3,11 +3,13 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import type { SellerVerificationRequest } from "@/types/database";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/marketplace/seller/verify — get user's verification status
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`seller-verify:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -49,10 +51,14 @@ export async function GET(request: NextRequest) {
     is_seller: profile?.is_seller ?? false,
     seller_verified: profile?.seller_verified ?? false,
   });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/seller/verify");
+  }
 }
 
 // POST /api/marketplace/seller/verify — submit verification request
 export async function POST(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`seller-verify-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -139,4 +145,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/seller/verify");
+  }
 }

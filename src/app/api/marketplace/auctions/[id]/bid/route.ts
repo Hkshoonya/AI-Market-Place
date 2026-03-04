@@ -16,6 +16,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { placeBid } from "@/lib/marketplace/auctions/english";
+import { handleApiError } from "@/lib/api-error";
 
 const bidSchema = z.object({
   amount: z.number().positive("Bid amount must be positive").max(10_000_000, "Bid amount exceeds maximum"),
@@ -28,6 +29,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`auction-bid:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -102,4 +104,7 @@ export async function POST(
     },
     { status: 201 }
   );
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/auctions/bid");
+  }
 }
