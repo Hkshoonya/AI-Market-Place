@@ -19,8 +19,6 @@ import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { toast } from "sonner";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const supabase = createClient();
 
 const TIER_LABELS: Record<number, string> = {
@@ -85,8 +83,7 @@ export default function AdminDataSourcesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
-    const sb = supabase as any;
-    let query = sb
+    let query = supabase
       .from("data_sources")
       .select("*")
       .order("tier", { ascending: true })

@@ -55,7 +55,7 @@ export function SellerListingsTable() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setListings(data || []);
+      setListings((data || []) as unknown as MarketplaceListing[]);
     } catch {
       console.error("Failed to fetch listings");
     } finally {

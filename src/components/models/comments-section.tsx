@@ -45,7 +45,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
   const fetchComments = async () => {
     // Two-query approach: comments table may not have FK to profiles
-    const { data: rawData } = await (supabase as any)
+    const { data: rawData } = await supabase
       .from("comments")
       .select("*")
       .eq("model_id", modelId)
@@ -55,46 +55,46 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
     if (rawData) {
       // Enrich with profiles
-      let enriched = rawData as any[];
-      const userIds = [...new Set(enriched.map((c: any) => c.user_id).filter(Boolean))];
+      let enriched: Comment[] = rawData as Comment[];
+      const userIds = [...new Set(enriched.map((c) => c.user_id).filter(Boolean))];
       if (userIds.length > 0) {
-        const { data: profiles } = await (supabase as any)
+        const { data: profiles } = await supabase
           .from("profiles")
           .select("id, display_name, avatar_url, username")
           .in("id", userIds);
-        const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-        enriched = enriched.map((c: any) => ({
+        const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+        enriched = enriched.map((c) => ({
           ...c,
-          profiles: c.user_id ? profileMap.get(c.user_id) ?? null : null,
+          profiles: c.user_id ? (profileMap.get(c.user_id) ?? null) : null,
         }));
       } else {
-        enriched = enriched.map((c: any) => ({ ...c, profiles: null }));
+        enriched = enriched.map((c) => ({ ...c, profiles: null }));
       }
 
       // Top-level comments already filtered by the query
-      const topLevel = enriched as Comment[];
-      const topLevelIds = topLevel.map((c: Comment) => c.id);
+      const topLevel = enriched;
+      const topLevelIds = topLevel.map((c) => c.id);
 
       // Fetch replies for visible top-level comments
       if (topLevelIds.length > 0) {
-        const { data: replyData } = await (supabase as any)
+        const { data: replyData } = await supabase
           .from("comments")
           .select("*")
           .in("parent_id", topLevelIds)
           .order("created_at", { ascending: true });
 
         if (replyData) {
-          let replies = replyData as any[];
-          const replyUserIds = [...new Set(replies.map((c: any) => c.user_id).filter(Boolean))];
+          let replies: Comment[] = replyData as Comment[];
+          const replyUserIds = [...new Set(replies.map((c) => c.user_id).filter(Boolean))];
           if (replyUserIds.length > 0) {
-            const { data: replyProfiles } = await (supabase as any)
+            const { data: replyProfiles } = await supabase
               .from("profiles")
               .select("id, display_name, avatar_url, username")
               .in("id", replyUserIds);
-            const rpMap = new Map((replyProfiles ?? []).map((p: any) => [p.id, p]));
-            replies = replies.map((c: any) => ({
+            const rpMap = new Map((replyProfiles ?? []).map((p) => [p.id, p]));
+            replies = replies.map((c) => ({
               ...c,
-              profiles: c.user_id ? rpMap.get(c.user_id) ?? null : null,
+              profiles: c.user_id ? (rpMap.get(c.user_id) ?? null) : null,
             }));
           }
 
@@ -126,8 +126,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
     setSubmitting(true);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from("comments").insert({
+    const { error } = await supabase.from("comments").insert({
       model_id: modelId,
       user_id: user.id,
       content: content.trim(),
@@ -167,8 +166,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
-    const { error } = await sb.rpc("increment_comment_upvote", { comment_id: commentId });
+    const { error } = await (supabase.rpc as any)("increment_comment_upvote", { comment_id: commentId });
 
     if (error) {
       // Revert optimistic update on failure
@@ -191,8 +189,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
   const handleEdit = async (commentId: string) => {
     if (!user || !editText.trim()) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
+    await supabase
       .from("comments")
       .update({ content: editText.trim() })
       .eq("id", commentId)

@@ -6,6 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import type { Metadata } from "next";
+import type { Watchlist, Profile } from "@/types/database";
+
+type EnrichedWatchlist = Watchlist & {
+  watchlist_items?: { id: string }[];
+  profiles?: Pick<Profile, "display_name" | "username" | "avatar_url"> | null;
+};
 
 export const metadata: Metadata = {
   title: "Discover Watchlists",
@@ -28,7 +34,7 @@ export default async function DiscoverPage(props: {
 
   // Build query with pagination and optional search
   // Two-query approach: watchlists may not have FK to profiles
-  let query = (supabase as any)
+  let query = supabase
     .from("watchlists")
     .select(
       "id, name, description, is_public, created_at, updated_at, user_id, watchlist_items(id)",
@@ -50,19 +56,20 @@ export default async function DiscoverPage(props: {
   const { data: watchlistsRaw, count } = await query;
 
   // Enrich with creator profiles
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let watchlists: any[] = (watchlistsRaw as any[] | null) ?? [];
+  let watchlists: EnrichedWatchlist[] = (watchlistsRaw as EnrichedWatchlist[] | null) ?? [];
   if (watchlists.length > 0) {
-    const userIds = [...new Set(watchlists.map((w: any) => w.user_id).filter(Boolean))];
+    const userIds = [...new Set(watchlists.map((w) => w.user_id).filter(Boolean))];
     if (userIds.length > 0) {
-      const { data: profiles } = await (supabase as any)
+      const { data: profilesRaw } = await supabase
         .from("profiles")
         .select("id, display_name, username, avatar_url")
         .in("id", userIds);
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      watchlists = watchlists.map((w: any) => ({
+      type ProfileRow = Pick<Profile, "id" | "display_name" | "username" | "avatar_url">;
+      const profiles = (profilesRaw ?? []) as unknown as ProfileRow[];
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
+      watchlists = watchlists.map((w) => ({
         ...w,
-        profiles: w.user_id ? profileMap.get(w.user_id) ?? null : null,
+        profiles: w.user_id ? (profileMap.get(w.user_id) ?? null) : null,
       }));
     }
   }

@@ -16,18 +16,21 @@ import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
+import type { MarketplaceListing } from "@/types/database";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any)
+  const { data: rawMeta } = await supabase
     .from("marketplace_listings")
     .select("title, short_description, listing_type")
     .eq("slug", slug)
     .single();
+
+  type ListingMeta = Pick<MarketplaceListing, "title" | "short_description" | "listing_type">;
+  const data = rawMeta as unknown as ListingMeta | null;
 
   const title = data?.title || "Marketplace Listing";
   const description =
@@ -51,17 +54,19 @@ export default async function ListingDetailPage(props: {
   const { slug } = await props.params;
   const supabase = await createClient();
 
-  const { data: rawListing, error } = await (supabase as any)
+  const { data: rawData, error } = await supabase
     .from("marketplace_listings")
     .select("*")
     .eq("slug", slug)
     .single();
 
-  if (error || !rawListing) notFound();
+  if (error || !rawData) notFound();
+
+  const rawListing = rawData as unknown as MarketplaceListing;
 
   // Enrich with seller profile (no FK exists, so fetch separately)
   const listing = await enrichListingWithProfile(
-    supabase as any,
+    supabase,
     rawListing,
     PROFILE_FIELDS_FULL
   );
@@ -69,8 +74,7 @@ export default async function ListingDetailPage(props: {
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
   // Build JSON-LD Product structured data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const jsonLd: Record<string, any> = {
+  const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: listing.title,
@@ -165,7 +169,7 @@ export default async function ListingDetailPage(props: {
                   listingId={listing.id}
                   price={listing.price}
                   pricingType={listing.pricing_type}
-                  sellerName={listing.profiles?.display_name}
+                  sellerName={(listing.profiles?.display_name as string | null) ?? undefined}
                 />
                 <ContactForm listing={listing} />
               </div>
@@ -240,7 +244,10 @@ export default async function ListingDetailPage(props: {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <SellerCard seller={listing.profiles} />
+          {listing.profiles && (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <SellerCard seller={listing.profiles as any} />
+          )}
         </div>
       </div>
     </div>

@@ -20,14 +20,13 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Model } from "@/types/database";
 
 const PAGE_SIZE = 20;
 const supabase = createClient();
 
 export default function AdminModelsPage() {
-  const [models, setModels] = useState<any[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -37,12 +36,12 @@ export default function AdminModelsPage() {
 
   const fetchModels = useCallback(async () => {
     setLoading(true);
-    let query = (supabase as any)
+    let query = supabase
       .from("models")
       .select("id, slug, name, provider, category, status, overall_rank, quality_score, hf_downloads, created_at, is_open_weights", { count: "exact" });
 
     if (statusFilter !== "all") {
-      query = query.eq("status", statusFilter);
+      query = query.eq("status", statusFilter as import("@/types/database").ModelStatus);
     }
     if (search) {
       const safeSearch = sanitizeFilterValue(search);
@@ -57,7 +56,7 @@ export default function AdminModelsPage() {
     query = query.range(from, from + PAGE_SIZE - 1);
 
     const { data, count } = await query;
-    setModels((data as any[]) ?? []);
+    setModels((data as Model[]) ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
   }, [search, statusFilter, page]);
@@ -68,8 +67,8 @@ export default function AdminModelsPage() {
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     try {
-      const newStatus = currentStatus === "active" ? "inactive" : "active";
-      const { error } = await (supabase as any).from("models").update({ status: newStatus }).eq("id", id);
+      const newStatus = (currentStatus === "active" ? "archived" : "active") as import("@/types/database").ModelStatus;
+      const { error } = await supabase.from("models").update({ status: newStatus }).eq("id", id);
       if (error) throw error;
       toast.success(`Model ${newStatus === "active" ? "activated" : "deactivated"}`);
       fetchModels();

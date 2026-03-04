@@ -20,8 +20,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { use } from "react";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { MarketplaceListing } from "@/types/database";
 
 type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template";
 type PricingType = "one_time" | "monthly_subscription" | "per_token" | "per_request" | "free" | "contact";
@@ -45,7 +44,7 @@ export default function AdminEditListingPage({
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [listing, setListing] = useState<any>(null);
+  const [listing, setListing] = useState<MarketplaceListing | null>(null);
   const [error, setError] = useState("");
 
   // Form state
@@ -65,23 +64,24 @@ export default function AdminEditListingPage({
   useEffect(() => {
     async function fetchListing() {
       // Fetch listing directly via admin query (bypasses active-only filter)
-      const { data, error: fetchError } = await (supabase as any)
+      const { data: rawData, error: fetchError } = await supabase
         .from("marketplace_listings")
         .select("*")
         .eq("slug", slug)
         .single();
 
-      if (fetchError || !data) {
+      if (fetchError || !rawData) {
         setError("Listing not found");
         setLoading(false);
         return;
       }
 
+      const data = rawData as unknown as MarketplaceListing;
       setListing(data);
       setTitle(data.title);
       setDescription(data.description);
       setShortDescription(data.short_description || "");
-      setListingType(data.listing_type);
+      setListingType(data.listing_type as ListingType);
       setPricingType(data.pricing_type);
       setPrice(data.price?.toString() || "");
       setTags(data.tags?.join(", ") || "");
@@ -108,6 +108,10 @@ export default function AdminEditListingPage({
     }
     if (!description.trim()) {
       setError("Description is required.");
+      return;
+    }
+    if (!listing) {
+      setError("Listing not loaded.");
       return;
     }
 
@@ -468,7 +472,7 @@ export default function AdminEditListingPage({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Purchases</span>
-                  <span className="tabular-nums">{listing.purchase_count || 0}</span>
+                  <span className="tabular-nums">{(listing as MarketplaceListing & { purchase_count?: number }).purchase_count || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Reviews</span>

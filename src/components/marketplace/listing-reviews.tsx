@@ -11,7 +11,11 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { MarketplaceReview } from "@/types/database";
+import type { MarketplaceReview, Profile } from "@/types/database";
+
+type ReviewWithProfile = MarketplaceReview & {
+  profiles?: Pick<Profile, "display_name" | "avatar_url" | "username"> | null;
+};
 
 interface ListingReviewsProps {
   listingId: string;
@@ -63,7 +67,7 @@ function StarRating({
 
 export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) {
   const { user } = useAuth();
-  const [reviews, setReviews] = useState<MarketplaceReview[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -80,7 +84,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
     try {
       const supabase = createClient();
       // Two-query approach: marketplace_reviews has no FK to profiles
-      const { data: rawData, error: fetchError } = await (supabase as any)
+      const { data: rawData, error: fetchError } = await supabase
         .from("marketplace_reviews")
         .select("*")
         .eq("listing_id", listingId)
@@ -88,23 +92,25 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
 
       if (fetchError) throw fetchError;
 
-      let enriched = rawData ?? [];
+      let enriched: ReviewWithProfile[] = (rawData ?? []) as unknown as ReviewWithProfile[];
       if (enriched.length > 0) {
-        const reviewerIds = [...new Set(enriched.map((r: any) => r.reviewer_id).filter(Boolean))];
+        const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
         if (reviewerIds.length > 0) {
-          const { data: profiles } = await (supabase as any)
+          const { data: profilesRaw } = await supabase
             .from("profiles")
             .select("id, display_name, avatar_url, username")
             .in("id", reviewerIds);
-          const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-          enriched = enriched.map((r: any) => ({
+          type ReviewProfileRow = { id: string; display_name: string | null; avatar_url: string | null; username: string | null };
+          const profiles = (profilesRaw ?? []) as unknown as ReviewProfileRow[];
+          const profileMap = new Map(profiles.map((p) => [p.id, p]));
+          enriched = enriched.map((r) => ({
             ...r,
-            profiles: r.reviewer_id ? profileMap.get(r.reviewer_id) ?? null : null,
-          }));
+            profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
+          })) as ReviewWithProfile[];
         }
       }
 
-      setReviews(enriched as MarketplaceReview[]);
+      setReviews(enriched);
     } catch {
       console.error("Failed to fetch reviews");
     } finally {

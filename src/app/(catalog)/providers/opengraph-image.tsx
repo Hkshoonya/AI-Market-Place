@@ -9,16 +9,12 @@ export const contentType = "image/png";
 export default async function OGImage() {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { data: models } = await sb
+  const { data: modelsRaw } = await supabase
     .from("models")
     .select("provider")
     .eq("status", "active");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allModels = (models as any[]) ?? [];
+  const allModels = (modelsRaw ?? []) as unknown as { provider: string }[];
 
   // Aggregate provider counts
   const providerCounts = new Map<string, number>();
