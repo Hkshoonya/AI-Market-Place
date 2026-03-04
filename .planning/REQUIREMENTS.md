@@ -38,10 +38,10 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 ### Type Safety
 
 - [x] **TYPE-01**: All `catch (err: any)` blocks use `unknown` type with proper narrowing
-- [ ] **TYPE-02**: Supabase join `.map()` operations use typed interfaces instead of `any`
+- [x] **TYPE-02**: Supabase join `.map()` operations use typed interfaces instead of `any`
 - [x] **TYPE-03**: Compare-client benchmark/pricing functions have proper model types instead of `any`
 - [x] **TYPE-04**: Admin enrichment operations use typed interfaces for joined data
-- [ ] **TYPE-05**: Total `any` count is reduced from 152 to under 20
+- [x] **TYPE-05**: Total `any` count is reduced from 152 to under 20
 
 ### Error Handling
 
@@ -119,10 +119,10 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | COMP-03 | Phase 5 | Complete |
 | COMP-04 | Phase 5 | Complete |
 | TYPE-01 | Phase 6 | Complete |
-| TYPE-02 | Phase 6 | Pending |
+| TYPE-02 | Phase 6 | Complete |
 | TYPE-03 | Phase 6 | Pending |
 | TYPE-04 | Phase 6 | Pending |
-| TYPE-05 | Phase 6 | Pending |
+| TYPE-05 | Phase 6 | Complete |
 | ERR-01 | Phase 7 | Pending |
 | ERR-02 | Phase 7 | Pending |
 | ERR-03 | Phase 7 | Pending |
