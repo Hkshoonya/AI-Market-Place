@@ -51,8 +51,7 @@ export async function executeAgent(
   }
 
   const supabase = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
   const startTime = Date.now();
 
   // Fetch agent record from DB

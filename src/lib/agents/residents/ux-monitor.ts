@@ -17,8 +17,7 @@ const uxMonitor: ResidentAgent = {
 
   async run(ctx: AgentContext): Promise<AgentTaskResult> {
     const { supabase, log } = ctx;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     const errors: string[] = [];
     const output: Record<string, unknown> = {
       contentQuality: {},
@@ -174,12 +173,13 @@ const uxMonitor: ResidentAgent = {
         .eq("status", "active")
         .not("avg_rating", "is", null);
 
+      const ratingRows = ratingData ?? [];
       const avgRating =
-        (ratingData ?? []).length > 0
-          ? (ratingData as { avg_rating: number }[]).reduce(
+        ratingRows.length > 0
+          ? (ratingRows as { avg_rating: number }[]).reduce(
               (sum, r) => sum + r.avg_rating,
               0
-            ) / ratingData.length
+            ) / ratingRows.length
           : null;
 
       output.marketplaceHealth = {

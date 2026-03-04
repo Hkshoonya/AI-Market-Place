@@ -55,7 +55,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
     if (rawData) {
       // Enrich with profiles
-      let enriched: Comment[] = rawData as Comment[];
+      let enriched: Comment[] = rawData as unknown as Comment[];
       const userIds = [...new Set(enriched.map((c) => c.user_id).filter(Boolean))];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -84,7 +84,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
           .order("created_at", { ascending: true });
 
         if (replyData) {
-          let replies: Comment[] = replyData as Comment[];
+          let replies: Comment[] = replyData as unknown as Comment[];
           const replyUserIds = [...new Set(replies.map((c) => c.user_id).filter(Boolean))];
           if (replyUserIds.length > 0) {
             const { data: replyProfiles } = await supabase

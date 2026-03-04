@@ -49,7 +49,7 @@ export async function acceptDutchAuction(
   error?: string;
 }> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   try {
     // 1. Get auction details (admin client — bypasses RLS, acts as lock)

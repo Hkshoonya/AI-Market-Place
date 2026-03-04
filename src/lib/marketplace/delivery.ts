@@ -22,7 +22,7 @@ export async function deliverDigitalGood(
   buyerId: string
 ): Promise<DeliveryResult> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   // Get listing details
   const { data: listing } = await sb
@@ -68,7 +68,7 @@ async function deliverApiAccess(
 ): Promise<DeliveryResult> {
   // Generate a scoped API key for the buyer
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   const crypto = await import("crypto");
   const rawKey = `aimk_${crypto.randomBytes(24).toString("hex")}`;
@@ -125,7 +125,7 @@ async function deliverDownloadable(
   const downloadUrl = listing.documentation_url || listing.demo_url;
 
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   await sb
     .from("marketplace_orders")
@@ -156,7 +156,7 @@ async function deliverPromptTemplate(
     listing.agent_config?.prompt_content || listing.description;
 
   const supabase = createAdminClient();
-  await (supabase as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+  await supabase
     .from("marketplace_orders")
     .update({ delivery_data: { type: "prompt_template", content } })
     .eq("id", orderId);
@@ -177,7 +177,7 @@ async function deliverAgent(
   const agentConfig = listing.agent_config || {};
 
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   // Create an agent instance for the buyer
   const { data: agent, error } = await sb
@@ -230,7 +230,7 @@ async function deliverMcpServer(
   const manifest = listing.mcp_manifest || {};
 
   const supabase = createAdminClient();
-  await (supabase as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+  await supabase
     .from("marketplace_orders")
     .update({
       delivery_data: {

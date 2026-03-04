@@ -7,6 +7,7 @@
  */
 
 import { createHash, randomBytes } from "crypto";
+import type { TypedSupabaseClient } from "@/types/database";
 
 const KEY_PREFIX = "aimk_";
 
@@ -26,7 +27,7 @@ export function hashApiKey(key: string): string {
 
 /** Validate an API key and return the key record if valid */
 export async function validateApiKey(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   key: string
 ): Promise<{
   valid: boolean;
@@ -38,8 +39,7 @@ export async function validateApiKey(
   }
 
   const hash = hashApiKey(key);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Two-query approach: api_keys may not have FK to profiles
   const { data: rawData, error } = await sb
@@ -54,28 +54,29 @@ export async function validateApiKey(
   }
 
   // Enrich with owner profile
-  let data = rawData;
+  let enrichedData: Record<string, unknown> = rawData as Record<string, unknown>;
   if (rawData.owner_id) {
     const { data: profile } = await sb
       .from("profiles")
       .select("id, username, display_name, is_admin")
       .eq("id", rawData.owner_id)
       .single();
-    data = { ...rawData, profiles: profile ?? null };
+    enrichedData = { ...rawData, profiles: profile ?? null };
   }
 
   // Check expiration
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
+  const expiresAt = enrichedData.expires_at as string | null | undefined;
+  if (expiresAt && new Date(expiresAt) < new Date()) {
     return { valid: false, keyRecord: null, error: "API key expired" };
   }
 
   // Update last_used_at (fire and forget)
   sb.from("api_keys")
     .update({ last_used_at: new Date().toISOString() })
-    .eq("id", data.id)
+    .eq("id", rawData.id)
     .then(() => {});
 
-  return { valid: true, keyRecord: data };
+  return { valid: true, keyRecord: enrichedData };
 }
 
 /** Check if a key has a required scope */
@@ -110,7 +111,7 @@ export function extractApiKey(request: Request): string | null {
  * Returns the validated key record or a 401 Response.
  */
 export async function authenticateApiKey(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   request: Request,
   requiredScope?: string
 ): Promise<

@@ -47,7 +47,7 @@ export async function completePurchaseEscrow(orderId: string): Promise<{
   feeRate: number;
 }> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   // 1. Find the escrow hold for this order
   const { data: escrow, error } = await sb
@@ -95,7 +95,7 @@ export async function completePurchaseEscrow(orderId: string): Promise<{
  */
 export async function refundPurchaseEscrow(orderId: string): Promise<void> {
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sb = supabase;
 
   const { data: escrow } = await sb
     .from("escrow_holds")

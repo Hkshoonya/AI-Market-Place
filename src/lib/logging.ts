@@ -36,8 +36,7 @@ async function writeLog(entry: LogEntry): Promise<string | null> {
 
   try {
     const supabase = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data, error } = await sb
       .from("system_logs")

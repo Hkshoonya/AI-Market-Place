@@ -40,8 +40,7 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
 
   try {
     const supabase = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data, error } = await sb
       .from("cron_runs")
@@ -72,8 +71,7 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
       if (runId) {
         try {
           const supabase = createAdminClient();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sb = supabase as any;
+          const sb = supabase;
           await sb
             .from("cron_runs")
             .update({
@@ -105,8 +103,7 @@ export async function trackCronRun(jobName: string): Promise<CronTracker> {
       if (runId) {
         try {
           const supabase = createAdminClient();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sb = supabase as any;
+          const sb = supabase;
           await sb
             .from("cron_runs")
             .update({

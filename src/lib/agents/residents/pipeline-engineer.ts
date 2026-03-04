@@ -21,8 +21,7 @@ const pipelineEngineer: ResidentAgent = {
 
   async run(ctx: AgentContext): Promise<AgentTaskResult> {
     const { supabase, log } = ctx;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     const errors: string[] = [];
     const output: Record<string, unknown> = {
       healthChecks: [],
