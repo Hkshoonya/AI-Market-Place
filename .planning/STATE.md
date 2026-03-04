@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-component-decomposition plan 05-02 (seller earnings content decomposition)
-last_updated: "2026-03-04T05:52:58.119Z"
+stopped_at: Completed 05-component-decomposition plan 05-03 (purchase-button + benchmark-heatmap decomposition)
+last_updated: "2026-03-04T05:54:21.434Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 ---
@@ -77,6 +77,7 @@ Progress: [████████████████████] 2/2 pla
 | Phase 04-adapter-deduplication P03 | 7 | 2 tasks | 5 files |
 | Phase 05-component-decomposition P01 | 5 | 2 tasks | 6 files |
 | Phase 05-component-decomposition P05-02 | 15 | 2 tasks | 5 files |
+| Phase 05-component-decomposition P03 | 7 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 05-component-decomposition]: useAuctionTimer hook consolidates all three timer effects — single responsibility for teardown
 - [Phase 05-component-decomposition]: Shared types (EarningsData, Transaction, ChainInfo) defined in use-earnings-data.ts and re-exported — exclusively earnings-feature types, no separate types file needed
 - [Phase 05-component-decomposition]: useEarningsData accepts userId parameter instead of calling useAuth internally — parent retains auth redirect responsibility
+- [Phase 05-component-decomposition]: PurchaseSuccess extracted as unplanned 4th sub-component to meet 420-line done criteria for purchase-button.tsx
+- [Phase 05-component-decomposition]: WalletBalance interface defined and exported from use-wallet-balance.ts so wallet-deposit-panel.tsx imports type without duplication
+- [Phase 05-component-decomposition]: TooltipState exported from use-heatmap-tooltip.ts for use as HeatmapGrid prop type
 
 ### Pending Todos
 
@@ -125,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:52:58.115Z
-Stopped at: Completed 05-component-decomposition plan 05-02 (seller earnings content decomposition)
+Last session: 2026-03-04T05:54:21.431Z
+Stopped at: Completed 05-component-decomposition plan 05-03 (purchase-button + benchmark-heatmap decomposition)
 Resume file: None

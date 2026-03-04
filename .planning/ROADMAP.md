@@ -14,7 +14,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - [ ] **Phase 2: Scoring Simplification** - Decompose quality-calculator and eliminate duplicated branches across all 7 scoring calculators (gap closure in progress)
 - [x] **Phase 3: API Route Decomposition** - Split compute-scores and purchase routes into independently testable functions (completed 2026-03-04)
 - [x] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication (completed 2026-03-04)
-- [ ] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks
+- [x] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks (completed 2026-03-04)
 - [ ] **Phase 6: Type Safety** - Replace all `any` types with proper TypeScript types now that structure is clean
 - [ ] **Phase 7: Error Handling + Logging** - Standardize error patterns and structured logging across codebase
 - [ ] **Phase 8: Regression Testing** - Add unit and integration tests for scoring calculators and decomposed API functions
@@ -91,7 +91,7 @@ Plans:
   3. `purchase-button.tsx` delegates to GuestCheckoutForm and WalletDepositPanel; wallet state lives in `useWalletBalance()` hook
   4. `benchmark-heatmap.tsx` delegates to HeatmapGrid; tooltip state lives in `useHeatmapTooltip()` hook
   5. The application builds and all decomposed components render correctly (`next build` passes)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 05-01-PLAN.md — Decompose auction-detail-content into sub-components + useAuctionTimer hook
 - [ ] 05-02-PLAN.md — Decompose seller-earnings-content into sub-components + useEarningsData hook
@@ -145,7 +145,7 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 2. Scoring Simplification | 2/3 | Gap closure | - |
 | 3. API Route Decomposition | 2/2 | Complete   | 2026-03-04 |
 | 4. Adapter Deduplication | 3/3 | Complete   | 2026-03-04 |
-| 5. Component Decomposition | 2/3 | In Progress|  |
+| 5. Component Decomposition | 3/3 | Complete   | 2026-03-04 |
 | 6. Type Safety | 0/TBD | Not started | - |
 | 7. Error Handling + Logging | 0/TBD | Not started | - |
 | 8. Regression Testing | 0/TBD | Not started | - |
