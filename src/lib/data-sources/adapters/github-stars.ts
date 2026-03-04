@@ -50,8 +50,7 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: ["GITHUB_TOKEN"],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = ctx.supabase as any;
+    const supabase = ctx.supabase;
     const delayMs = (ctx.config.delayMs as number) ?? 500;
     const githubToken = ctx.secrets?.GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
 
@@ -99,7 +98,7 @@ const adapter: DataSourceAdapter = {
     for (const model of models) {
       recordsProcessed++;
 
-      const parsed = parseGitHubUrl(model.github_url);
+      const parsed = parseGitHubUrl(model.github_url ?? "");
       if (!parsed) {
         errors.push({ message: `Invalid GitHub URL for ${model.slug}: ${model.github_url}` });
         continue;

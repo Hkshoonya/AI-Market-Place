@@ -66,8 +66,7 @@ const adapter: DataSourceAdapter = {
   async sync(ctx: SyncContext): Promise<SyncResult> {
     const maxEntries = (ctx.config.maxEntries as number) ?? 200;
     const errors: { message: string; context?: string }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
     // Fetch rows from HF Datasets API
@@ -173,7 +172,7 @@ const adapter: DataSourceAdapter = {
     }
 
     // Pre-load benchmark IDs
-    const benchmarkIdCache = new Map<string, string | null>();
+    const benchmarkIdCache = new Map<string, number | null>();
     const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
     for (const b of allBenchmarks ?? []) benchmarkIdCache.set(b.slug, b.id);
 

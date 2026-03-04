@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -45,29 +46,52 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   const { searchParams } = new URL(request.url);
 
-  const auctionType = searchParams.get("auction_type") || searchParams.get("type");
+  const auctionType =
+    searchParams.get("auction_type") || searchParams.get("type");
   const status = searchParams.get("status") || "active";
   const listingType = searchParams.get("listing_type");
   const sort = searchParams.get("sort") || "ending_soon";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
 
-  let query = (supabase as any)
+  // NOTE: embedded join "marketplace_listings" has no FK Relationship in DB type.
+  // Cast to any to avoid SDK `never` inference for joined shape.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  type AuctionWithListing = Record<string, unknown>;
+
+  let query = sb
     .from("auctions")
     .select(
       "*, marketplace_listings(id, title, slug, listing_type, thumbnail_url, short_description)",
       { count: "exact" }
     )
-    .in("status", status === "all" ? ["upcoming", "active", "ended"] : [status]);
+    .in(
+      "status",
+      (
+        status === "all"
+          ? ["upcoming", "active", "ended"]
+          : [status]
+      ) as (
+        | "upcoming"
+        | "active"
+        | "ended"
+        | "cancelled"
+        | "settled"
+      )[]
+    );
 
   if (auctionType) {
-    query = query.eq("auction_type", auctionType);
+    query = query.eq(
+      "auction_type",
+      auctionType as "english" | "dutch" | "batch"
+    );
   }
 
   if (listingType) {
@@ -95,7 +119,8 @@ export async function GET(request: NextRequest) {
   if (error) {
     // Gracefully handle missing table (migration not yet applied)
     // Supabase/PostgREST errors may use: code, message, details, hint
-    const msg = (error.message || "") + (error.details || "") + (error.hint || "");
+    const msg =
+      (error.message || "") + (error.details || "") + (error.hint || "");
     const code = error.code || "";
     if (
       msg.includes("does not exist") ||
@@ -115,18 +140,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Enrich auctions: remap listing relation and calculate Dutch prices
-  const enriched = (data || []).map((auction: any) => {
-    const mapped = {
+  const enriched = ((data || []) as AuctionWithListing[]).map((auction) => {
+    const mapped: AuctionWithListing = {
       ...auction,
       // Remap nested relation to match client Auction.listing interface
       listing: auction.marketplace_listings ?? null,
       marketplace_listings: undefined,
     };
 
-    if (
-      auction.auction_type === "dutch" &&
-      auction.status === "active"
-    ) {
+    if (auction.auction_type === "dutch" && auction.status === "active") {
       mapped.calculated_current_price = calculateDutchPrice({
         start_price: Number(auction.start_price),
         floor_price: auction.floor_price
@@ -135,8 +157,8 @@ export async function GET(request: NextRequest) {
         price_decrement: auction.price_decrement
           ? Number(auction.price_decrement)
           : null,
-        decrement_interval_seconds: auction.decrement_interval_seconds,
-        starts_at: auction.starts_at,
+        decrement_interval_seconds: (auction.decrement_interval_seconds as number | null | undefined) ?? null,
+        starts_at: auction.starts_at as string,
       });
     }
 
@@ -162,7 +184,10 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json(
-      { error: "Authentication required. Please sign in to create an auction." },
+      {
+        error:
+          "Authentication required. Please sign in to create an auction.",
+      },
       { status: 401 }
     );
   }
@@ -193,20 +218,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-
   // Verify seller owns the listing and listing is active
-  const { data: listing, error: listingError } = await sb
+  const { data: listing, error: listingError } = await supabase
     .from("marketplace_listings")
     .select("id, seller_id, status")
     .eq("id", parsed.data.listing_id)
     .single();
 
   if (listingError || !listing) {
-    return NextResponse.json(
-      { error: "Listing not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
   if (listing.seller_id !== user.id) {
@@ -224,17 +244,23 @@ export async function POST(request: NextRequest) {
   }
 
   // Check that there isn't already an active/upcoming auction for this listing
-  const { data: existingAuction } = await sb
+  const { data: existingAuction } = await supabase
     .from("auctions")
     .select("id")
     .eq("listing_id", parsed.data.listing_id)
-    .in("status", ["upcoming", "active"])
+    .in("status", [
+      "upcoming",
+      "active",
+    ] as ("upcoming" | "active" | "ended" | "cancelled" | "settled")[])
     .limit(1)
     .single();
 
   if (existingAuction) {
     return NextResponse.json(
-      { error: "An active or upcoming auction already exists for this listing" },
+      {
+        error:
+          "An active or upcoming auction already exists for this listing",
+      },
       { status: 409 }
     );
   }
@@ -252,7 +278,10 @@ export async function POST(request: NextRequest) {
 
   // Dutch auction validations
   if (parsed.data.auction_type === "dutch") {
-    if (!parsed.data.price_decrement || !parsed.data.decrement_interval_seconds) {
+    if (
+      !parsed.data.price_decrement ||
+      !parsed.data.decrement_interval_seconds
+    ) {
       return NextResponse.json(
         {
           error:
@@ -265,9 +294,11 @@ export async function POST(request: NextRequest) {
 
   // Determine initial status: active if starts_at <= now, otherwise upcoming
   const initialStatus =
-    startsAt <= new Date() ? "active" : "upcoming";
+    startsAt <= new Date()
+      ? ("active" as const)
+      : ("upcoming" as const);
 
-  const { data: auction, error: createError } = await sb
+  const { data: auction, error: createError } = await supabase
     .from("auctions")
     .insert({
       listing_id: parsed.data.listing_id,
