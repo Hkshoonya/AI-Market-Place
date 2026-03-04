@@ -30,7 +30,6 @@ const TERMINAL_BENCH_MODELS: Array<{ name: string; score: number }> = [
   { name: "Grok 3", score: 44.5 },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adapter: DataSourceAdapter = {
   id: "terminal-bench",
   name: "TerminalBench 2.0",
