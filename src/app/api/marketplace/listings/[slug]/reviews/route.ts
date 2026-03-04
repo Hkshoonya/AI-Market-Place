@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
 
 const createReviewSchema = z.object({
   rating: z.number().int("Rating must be a whole number").min(1, "Rating must be at least 1").max(5, "Rating must be at most 5"),
@@ -29,6 +30,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`reviews:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -87,12 +89,16 @@ export async function GET(
   }
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/reviews");
+  }
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const { slug } = await params;
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
@@ -175,4 +181,7 @@ export async function POST(
   }
 
   return NextResponse.json({ data }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/reviews");
+  }
 }

@@ -7,6 +7,8 @@ import {
   getClientIp,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
   const { id: orderId } = await params;
   const ip = getClientIp(request);
   const rl = rateLimit(`order-messages:${ip}`, RATE_LIMITS.public);
@@ -103,6 +106,9 @@ export async function GET(
     .eq("is_read", false);
 
   return NextResponse.json({ data: messages });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/orders/messages");
+  }
 }
 
 // POST /api/marketplace/orders/[id]/messages
@@ -110,6 +116,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
   const { id: orderId } = await params;
   const ip = getClientIp(request);
   const rl = rateLimit(`order-messages-write:${ip}`, RATE_LIMITS.write);
@@ -219,11 +226,11 @@ export async function POST(
     link: `/orders/${orderId}`,
   });
   if (notifError) {
-    console.error(
-      "Failed to insert order message notification:",
-      notifError.message
-    );
+    void systemLog.warn("api/marketplace/orders/messages", "Failed to insert order message notification", { error: notifError.message });
   }
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/orders/messages");
+  }
 }

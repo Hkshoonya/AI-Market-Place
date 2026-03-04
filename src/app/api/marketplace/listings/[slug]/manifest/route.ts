@@ -20,6 +20,7 @@ import {
   getClientIp,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`manifest:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -110,4 +112,7 @@ export async function GET(
   };
 
   return NextResponse.json({ manifest: response });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/manifest");
+  }
 }

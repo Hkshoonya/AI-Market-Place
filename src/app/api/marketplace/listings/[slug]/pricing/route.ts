@@ -21,6 +21,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`bot-pricing:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
@@ -184,4 +186,7 @@ export async function PATCH(
       updated_at: data.updated_at,
     },
   });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings/pricing");
+  }
 }

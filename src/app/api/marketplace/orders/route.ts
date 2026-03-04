@@ -4,6 +4,8 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TypedSupabaseClient } from "@/types/database";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 const createOrderSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -15,6 +17,7 @@ const createOrderSchema = z.object({
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`orders:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -95,9 +98,13 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data: responseData });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/orders");
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`orders-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -183,7 +190,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error("[orders] Insert failed:", error);
+    void systemLog.error("api/marketplace/orders", "Order insert failed", { error: error.message, listing_id });
     return NextResponse.json(
       { error: "Failed to create order. Please try again later." },
       { status: 500 }
@@ -191,4 +198,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/orders");
+  }
 }

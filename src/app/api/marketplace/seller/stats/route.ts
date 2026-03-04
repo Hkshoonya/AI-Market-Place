@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`seller-stats:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -73,4 +75,7 @@ export async function GET(request: NextRequest) {
     avgRating: avgRating ? Number(avgRating.toFixed(2)) : null,
     pendingOrders: pendingOrders || 0,
   });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/seller/stats");
+  }
 }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`listing-detail:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -77,12 +79,16 @@ export async function GET(
   );
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings");
+  }
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const { slug } = await params;
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
@@ -206,12 +212,16 @@ export async function PATCH(
   }
 
   return NextResponse.json({ data });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings");
+  }
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  try {
   const { slug } = await params;
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
@@ -250,4 +260,7 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings");
+  }
 }

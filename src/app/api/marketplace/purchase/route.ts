@@ -19,6 +19,7 @@ import {
   handleAuthenticatedCheckout,
   type PurchaseResult,
 } from "@/lib/marketplace/purchase-handlers";
+import { handleApiError } from "@/lib/api-error";
 
 const purchaseSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -52,6 +53,7 @@ function toResponse(result: PurchaseResult): NextResponse {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`purchase:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -116,4 +118,7 @@ export async function POST(request: NextRequest) {
   }
 
   return toResponse(result);
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/purchase");
+  }
 }

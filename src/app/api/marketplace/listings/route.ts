@@ -9,6 +9,8 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
+import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
 
 const createListingSchema = z.object({
   title: z
@@ -88,6 +90,7 @@ const createListingSchema = z.object({
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`listings:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -147,7 +150,7 @@ export async function GET(request: NextRequest) {
   const { data, error, count } = await query;
 
   if (error) {
-    console.error("[listings] Query error:", JSON.stringify(error));
+    void systemLog.error("api/marketplace/listings", "Query error", { error: JSON.stringify(error) });
     return NextResponse.json(
       {
         error:
@@ -168,9 +171,13 @@ export async function GET(request: NextRequest) {
     limit,
     totalPages: Math.ceil((count || 0) / limit),
   });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings");
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
   );
@@ -283,4 +290,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
+  } catch (err) {
+    return handleApiError(err, "api/marketplace/listings");
+  }
 }
