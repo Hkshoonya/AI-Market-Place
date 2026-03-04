@@ -26,7 +26,7 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 - [x] **ADAPT-01**: KNOWN_MODELS data is extracted from adapter files into shared JSON/TS data files
 - [x] **ADAPT-02**: `inferCategory()` logic uses a shared function with provider-specific keyword maps
 - [x] **ADAPT-03**: `buildRecord()` pattern is a shared factory function used by all model adapters
-- [ ] **ADAPT-04**: Adapter sync pipeline has a reusable `createAdapterSyncer()` factory for the static→scrape→API→upsert pattern
+- [x] **ADAPT-04**: Adapter sync pipeline has a reusable `createAdapterSyncer()` factory for the static→scrape→API→upsert pattern
 
 ### Component Decomposition
 
@@ -113,7 +113,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | ADAPT-01 | Phase 4 | Complete |
 | ADAPT-02 | Phase 4 | Complete |
 | ADAPT-03 | Phase 4 | Complete |
-| ADAPT-04 | Phase 4 | Pending |
+| ADAPT-04 | Phase 4 | Complete |
 | COMP-01 | Phase 5 | Pending |
 | COMP-02 | Phase 5 | Pending |
 | COMP-03 | Phase 5 | Pending |
