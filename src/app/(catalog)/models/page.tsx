@@ -57,7 +57,7 @@ export default async function ModelsPage({
 
   // Category filter
   if (category) {
-    dbQuery = dbQuery.eq("category", category);
+    dbQuery = dbQuery.eq("category", category as import("@/types/database").ModelCategory);
   }
 
   // Open weights filter
@@ -91,7 +91,7 @@ export default async function ModelsPage({
 
   // License filter
   if (licenseFilter) {
-    dbQuery = dbQuery.eq("license", licenseFilter);
+    dbQuery = dbQuery.eq("license", licenseFilter as import("@/types/database").LicenseType);
   }
 
   // Text search

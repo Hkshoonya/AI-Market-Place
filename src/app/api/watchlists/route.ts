@@ -31,8 +31,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("watchlists")
     .select(
       "*, watchlist_items(id, model_id, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes))"
@@ -84,8 +83,7 @@ export async function POST(request: NextRequest) {
 
   const { name, description, is_public } = parsed.data;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("watchlists")
     .insert({
       user_id: user.id,

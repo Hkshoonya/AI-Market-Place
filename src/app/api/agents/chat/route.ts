@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { extractApiKey, validateApiKey, hasScope } from "@/lib/agents/auth";
 import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import {
@@ -11,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 function createServiceClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -19,8 +20,6 @@ function createServiceClient() {
 
 export async function POST(request: Request) {
   const supabase = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
 
   // Authenticate
   const apiKey = extractApiKey(request);
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const auth = await validateApiKey(sb, apiKey);
+  const auth = await validateApiKey(supabase, apiKey);
   if (!auth.valid || !auth.keyRecord) {
     return NextResponse.json(
       { error: auth.error ?? "Invalid API key" },
@@ -72,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // Find the target agent
-  const { data: targetAgent, error: agentErr } = await sb
+  const { data: targetAgent, error: agentErr } = await supabase
     .from("agents")
     .select("id, slug, name, status, total_conversations")
     .eq("slug", body.agent_slug)
@@ -101,7 +100,7 @@ export async function POST(request: Request) {
   try {
     // Find or create conversation
     const { conversation, created } = await findOrCreateConversation(
-      sb,
+      supabase,
       senderId,
       senderType as "agent" | "user",
       targetAgent.id,
@@ -111,7 +110,7 @@ export async function POST(request: Request) {
 
     // Send the user/bot message
     const sentMessage = await sendMessage(
-      sb,
+      supabase,
       conversation.id,
       senderId,
       senderType as "agent" | "user",
@@ -121,7 +120,7 @@ export async function POST(request: Request) {
 
     // Generate auto-response from resident agent
     const agentResponse = await generateAgentResponse(
-      sb,
+      supabase,
       body.agent_slug,
       conversation.id,
       body.message
@@ -134,7 +133,7 @@ export async function POST(request: Request) {
     if (created) {
       agentUpdates.total_conversations = (targetAgent.total_conversations ?? 0) + 1;
     }
-    await sb
+    await supabase
       .from("agents")
       .update(agentUpdates)
       .eq("id", targetAgent.id);

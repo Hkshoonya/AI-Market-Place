@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (category) {
-    query = query.eq("category", category);
+    query = query.eq("category", category as import("@/types/database").ModelCategory);
   }
 
   const { data, error } = await query;

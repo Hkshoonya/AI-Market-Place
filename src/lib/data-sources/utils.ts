@@ -8,6 +8,7 @@
  */
 
 import type { SyncError } from "./types";
+import type { TypedSupabaseClient } from "@/types/database";
 
 // --------------- Retry & Fetch ---------------
 
@@ -89,7 +90,7 @@ export function createRateLimitedFetch(delayMs: number) {
  * Uses ON CONFLICT to handle duplicates.
  */
 export async function upsertBatch(
-  supabase: unknown,
+  supabase: TypedSupabaseClient,
   table: string,
   records: Record<string, unknown>[],
   conflictColumn: string,

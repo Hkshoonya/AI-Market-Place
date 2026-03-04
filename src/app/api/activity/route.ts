@@ -25,23 +25,25 @@ export async function GET(request: NextRequest) {
   }
 
   // Get all model IDs from user's watchlists
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: watchlistItems } = await (supabase as any)
+  // NOTE: embedded join `watchlists!inner(user_id)` returns a runtime join but
+  // the SDK infers `never` without FK Relationships — cast to the expected shape.
+  const { data: watchlistItems } = await supabase
     .from("watchlist_items")
     .select("model_id, watchlists!inner(user_id)")
-    .eq("watchlists.user_id", user.id);
+    .eq("watchlists.user_id", user.id) as unknown as {
+      data: Array<{ model_id: string }> | null;
+      error: null;
+    };
 
   const modelIds = [
     ...new Set(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (watchlistItems ?? []).map((item: any) => item.model_id as string)
+      (watchlistItems ?? []).map((item) => item.model_id)
     ),
   ];
 
   if (modelIds.length === 0) {
     // No watched models — return recent global updates
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: globalUpdates } = await (supabase as any)
+    const { data: globalUpdates } = await supabase
       .from("model_updates")
       .select("*, models(id, slug, name, provider)")
       .order("published_at", { ascending: false })
@@ -55,8 +57,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Get recent updates for watched models
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: updates, error } = await (supabase as any)
+  const { data: updates, error } = await supabase
     .from("model_updates")
     .select("*, models(id, slug, name, provider)")
     .in("model_id", modelIds)

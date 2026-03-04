@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const sb = supabase as any; // eslint-disable-line @typescript-eslint/no-explicit-any
   const tracker = await trackCronRun("auctions");
 
   const results = {
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Quick check: if the auctions table doesn't exist yet, exit gracefully
-    const { error: tableCheck } = await sb
+    const { error: tableCheck } = await supabase
       .from("auctions")
       .select("id")
       .limit(0);
@@ -68,7 +67,7 @@ export async function GET(request: NextRequest) {
     // ---------------------------------------------------------------
     // Step 1: Activate upcoming auctions whose start time has passed
     // ---------------------------------------------------------------
-    const { data: upcomingAuctions, error: upcomingError } = await sb
+    const { data: upcomingAuctions, error: upcomingError } = await supabase
       .from("auctions")
       .select("id")
       .eq("status", "upcoming")
@@ -77,8 +76,8 @@ export async function GET(request: NextRequest) {
     if (upcomingError) {
       results.errors.push(`Failed to query upcoming auctions: ${upcomingError.message}`);
     } else if (upcomingAuctions && upcomingAuctions.length > 0) {
-      const ids = upcomingAuctions.map((a: any) => a.id);
-      const { error: activateError, count } = await sb
+      const ids = upcomingAuctions.map((a) => a.id);
+      const { error: activateError, count } = await supabase
         .from("auctions")
         .update({ status: "active" })
         .in("id", ids)
@@ -94,7 +93,7 @@ export async function GET(request: NextRequest) {
     // ---------------------------------------------------------------
     // Step 2: Find all expired active auctions
     // ---------------------------------------------------------------
-    const { data: expiredAuctions, error: expiredError } = await sb
+    const { data: expiredAuctions, error: expiredError } = await supabase
       .from("auctions")
       .select("id, auction_type")
       .eq("status", "active")
@@ -124,7 +123,7 @@ export async function GET(request: NextRequest) {
             // Step 2b: Cancel expired Dutch auctions (unsold)
             // Dutch auctions that ended without being accepted are cancelled.
             // -------------------------------------------------------
-            await sb
+            await supabase
               .from("auctions")
               .update({ status: "cancelled" })
               .eq("id", auction.id)
@@ -132,7 +131,7 @@ export async function GET(request: NextRequest) {
 
             // Refund any escrow holds (shouldn't normally exist for Dutch,
             // but handle edge cases)
-            const { data: activeBids } = await sb
+            const { data: activeBids } = await supabase
               .from("auction_bids")
               .select("id, escrow_hold_id")
               .eq("auction_id", auction.id)
@@ -140,7 +139,7 @@ export async function GET(request: NextRequest) {
 
             if (activeBids && activeBids.length > 0) {
               for (const bid of activeBids) {
-                await sb
+                await supabase
                   .from("auction_bids")
                   .update({ status: "cancelled" })
                   .eq("id", bid.id);

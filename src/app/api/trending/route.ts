@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     .eq("status", "active");
 
   if (category) {
-    query = query.eq("category", category);
+    query = query.eq("category", category as import("@/types/database").ModelCategory);
   }
 
   // Sort by trending score (if available), then by downloads
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     .limit(6);
 
   if (category) {
-    recentQuery = recentQuery.eq("category", category);
+    recentQuery = recentQuery.eq("category", category as import("@/types/database").ModelCategory);
   }
 
   const { data: recentModels } = await recentQuery;
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     .limit(6);
 
   if (category) {
-    popularQuery = popularQuery.eq("category", category);
+    popularQuery = popularQuery.eq("category", category as import("@/types/database").ModelCategory);
   }
 
   const { data: popularModels } = await popularQuery;

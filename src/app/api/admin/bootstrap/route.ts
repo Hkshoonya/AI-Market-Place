@@ -21,11 +21,8 @@ export async function POST(_request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Admin check — use `any` cast to match the untyped Supabase client
-  // pattern used across this project (see /api/admin/sync/[source]/route.ts)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: profile } = await sb
+  // 2. Admin check
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)

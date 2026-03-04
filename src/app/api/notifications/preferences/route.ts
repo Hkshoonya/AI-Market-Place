@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any)
+  const { data } = await supabase
     .from("notification_preferences")
     .select("*")
     .eq("user_id", user.id)
@@ -67,7 +66,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -88,17 +87,15 @@ export async function PUT(request: NextRequest) {
   ];
 
   const updates: Record<string, boolean> = {};
+  const bodyRecord = body as Record<string, unknown>;
   for (const key of allowed) {
-    if (typeof body[key] === "boolean") {
-      updates[key] = body[key];
+    if (typeof bodyRecord[key] === "boolean") {
+      updates[key] = bodyRecord[key] as boolean;
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   // Upsert preferences
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from("notification_preferences")
     .upsert(
       { user_id: user.id, ...updates, updated_at: new Date().toISOString() },

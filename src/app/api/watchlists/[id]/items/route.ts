@@ -28,13 +28,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { model_id } = body;
+  const { model_id } = body as { model_id?: string };
 
   if (!model_id) {
     return NextResponse.json(
@@ -44,8 +44,7 @@ export async function POST(
   }
 
   // Verify user owns the watchlist
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: watchlist } = await (supabase as any)
+  const { data: watchlist } = await supabase
     .from("watchlists")
     .select("id")
     .eq("id", watchlistId)
@@ -60,8 +59,7 @@ export async function POST(
   }
 
   // Check if model is already in watchlist
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existing } = await (supabase as any)
+  const { data: existing } = await supabase
     .from("watchlist_items")
     .select("id")
     .eq("watchlist_id", watchlistId)
@@ -75,8 +73,7 @@ export async function POST(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("watchlist_items")
     .insert({
       watchlist_id: watchlistId,
@@ -90,8 +87,7 @@ export async function POST(
   }
 
   // Touch the watchlist updated_at
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await supabase
     .from("watchlists")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", watchlistId);
@@ -125,8 +121,7 @@ export async function DELETE(
   }
 
   // Verify user owns the watchlist
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: watchlist } = await (supabase as any)
+  const { data: watchlist } = await supabase
     .from("watchlists")
     .select("id")
     .eq("id", watchlistId)
@@ -140,8 +135,7 @@ export async function DELETE(
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("watchlist_items")
     .delete()
     .eq("watchlist_id", watchlistId)

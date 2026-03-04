@@ -29,8 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("user_bookmarks")
     .select("id, model_id, created_at, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads)")
     .eq("user_id", user.id)
@@ -80,8 +79,7 @@ export async function POST(request: NextRequest) {
 
   const { model_id } = parsed.data;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("user_bookmarks")
     .upsert({ user_id: user.id, model_id }, { onConflict: "user_id,model_id" })
     .select()
@@ -121,8 +119,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "model_id is required" }, { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("user_bookmarks")
     .delete()
     .eq("user_id", user.id)

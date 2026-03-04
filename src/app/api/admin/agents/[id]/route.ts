@@ -35,9 +35,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -46,21 +44,21 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { status } = body;
+  const { status } = body as { status: string };
 
   if (!["active", "paused", "disabled"].includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const { error } = await sb
+  const { error } = await supabase
     .from("agents")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status: status as "active" | "paused" | "disabled", updated_at: new Date().toISOString() })
     .eq("id", id);
 
   if (error) {
@@ -94,9 +92,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: profile } = await sb
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
@@ -106,7 +102,7 @@ export async function POST(
   }
 
   // Look up agent slug by id
-  const { data: agent } = await sb
+  const { data: agent } = await supabase
     .from("agents")
     .select("slug")
     .eq("id", id)

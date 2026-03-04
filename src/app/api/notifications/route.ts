@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import type { Notification } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,7 @@ export async function GET(request: NextRequest) {
   const unreadOnly = searchParams.get("unread") === "true";
   const limit = Math.min(parseInt(searchParams.get("limit") || "30"), 100);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from("notifications")
     .select("*")
     .eq("user_id", user.id)
@@ -41,22 +41,24 @@ export async function GET(request: NextRequest) {
     query = query.eq("is_read", false);
   }
 
-  const { data, error } = await query;
+  const { data: rawData, error } = await query;
+  // Cast to Notification[] — the typed client returns the correct shape at runtime
+  // but the let-query reassignment pattern widens the inferred type in some TS versions.
+  const data = (rawData ?? []) as Notification[];
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   // Count unread
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { count: unreadCount } = await (supabase as any)
+  const { count: unreadCount } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
     .eq("is_read", false);
 
   // Sanitize notification links: must be relative paths
-  const sanitized = (data ?? []).map((n: any) => ({
+  const sanitized = data.map((n) => ({
     ...n,
     link: n.link && typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//")
       ? n.link
@@ -86,30 +88,28 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { markAll } = body;
+  const { markAll } = body as { markAll?: boolean; ids?: string[] };
 
   // Validate ids array if provided
   const idsSchema = z.array(z.string().uuid()).max(100);
   let ids: string[] | undefined;
-  if (body.ids) {
-    const parsed = idsSchema.safeParse(body.ids);
+  const bodyObj = body as { markAll?: boolean; ids?: unknown };
+  if (bodyObj.ids) {
+    const parsed = idsSchema.safeParse(bodyObj.ids);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid ids array" }, { status: 400 });
     }
     ids = parsed.data;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
   if (markAll) {
-    const { error } = await sb
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id)
@@ -119,7 +119,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
   } else if (ids && Array.isArray(ids)) {
-    const { error } = await sb
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id)
