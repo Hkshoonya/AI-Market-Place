@@ -9,9 +9,7 @@
 import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
+import type { TypedSupabaseClient } from "@/types/database";
 
 export interface PurchaseResult {
   success: boolean;
@@ -29,7 +27,7 @@ export interface PurchaseResult {
 export interface ListingData {
   id: string;
   seller_id: string;
-  price: number | string;
+  price: number | string | null;
   pricing_type: string;
   listing_type: string;
   slug: string;
@@ -42,7 +40,7 @@ export interface ListingData {
 // ---------------------------------------------------------------------------
 
 async function createOrderRecord(
-  sb: SupabaseClient,
+  sb: TypedSupabaseClient,
   listing: ListingData,
   orderData: {
     buyerId: string | null;
@@ -52,28 +50,22 @@ async function createOrderRecord(
     authMethod?: string;
   }
 ): Promise<{ id: string } | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orderInsert: Record<string, any> = {
+  const baseInsert = {
     listing_id: listing.id,
     seller_id: listing.seller_id,
     price_at_time: orderData.price,
-    status: "pending",
+    status: "pending" as const,
+    buyer_id: orderData.buyerId ?? null,
+    message: orderData.buyerId
+      ? (orderData.authMethod === "api_key" ? "Purchased via API" : null)
+      : (`Guest checkout: ${orderData.guestEmail}` as string | null),
+    guest_email: orderData.buyerId ? null : (orderData.guestEmail ?? null),
+    guest_name: orderData.buyerId ? null : (orderData.guestName ?? null),
   };
-
-  if (orderData.buyerId) {
-    orderInsert.buyer_id = orderData.buyerId;
-    if (orderData.authMethod === "api_key") orderInsert.message = "Purchased via API";
-  } else {
-    // Guest checkout
-    orderInsert.buyer_id = null;
-    orderInsert.guest_email = orderData.guestEmail;
-    orderInsert.guest_name = orderData.guestName || null;
-    orderInsert.message = `Guest checkout: ${orderData.guestEmail}`;
-  }
 
   const { data: order, error: orderError } = await sb
     .from("marketplace_orders")
-    .insert(orderInsert)
+    .insert(baseInsert)
     .select()
     .single();
 
@@ -86,7 +78,7 @@ async function createOrderRecord(
 }
 
 async function autoCompleteOrder(
-  sb: SupabaseClient,
+  sb: TypedSupabaseClient,
   orderId: string,
   listingId: string,
   deliverUserId: string,
@@ -179,7 +171,7 @@ async function autoCompleteOrder(
  * Guest must provide email. Dedup check prevents re-downloading the same item.
  */
 export async function handleGuestCheckout(
-  sb: SupabaseClient,
+  sb: TypedSupabaseClient,
   listing: ListingData,
   guestEmail: string | undefined,
   guestName: string | undefined
@@ -284,7 +276,7 @@ export async function handleGuestCheckout(
  * Validates ownership, checks wallet balance for paid items, creates escrow.
  */
 export async function handleAuthenticatedCheckout(
-  sb: SupabaseClient,
+  sb: TypedSupabaseClient,
   listing: ListingData,
   userId: string,
   authMethod: string

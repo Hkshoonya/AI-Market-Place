@@ -13,8 +13,7 @@
  * This keeps the shape identical to what components expect: `listing.profiles.*`
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyClient = any;
+import type { TypedSupabaseClient } from "@/types/database";
 
 /** Minimal profile fields used by listing cards */
 export const PROFILE_FIELDS_CARD =
@@ -39,7 +38,7 @@ export const PROFILE_FIELDS_ADMIN =
 export async function enrichListingsWithProfiles<
   T extends { seller_id?: string | null }
 >(
-  supabase: AnyClient,
+  supabase: TypedSupabaseClient,
   listings: T[],
   fields: string = PROFILE_FIELDS_CARD
 ): Promise<(T & { profiles: Record<string, unknown> | null })[]> {
@@ -60,15 +59,16 @@ export async function enrichListingsWithProfiles<
     return listings.map((l) => ({ ...l, profiles: null }));
   }
 
-  const { data: profiles } = await supabase
+  const { data: profilesRaw } = await supabase
     .from("profiles")
     .select(fields)
     .in("id", sellerIds);
 
+  const profiles = profilesRaw as unknown as Record<string, unknown>[] | null;
   const profileMap = new Map<string, Record<string, unknown>>();
   if (profiles) {
     for (const p of profiles) {
-      profileMap.set(p.id, p);
+      profileMap.set(p.id as string, p);
     }
   }
 
@@ -84,7 +84,7 @@ export async function enrichListingsWithProfiles<
 export async function enrichListingWithProfile<
   T extends { seller_id?: string | null }
 >(
-  supabase: AnyClient,
+  supabase: TypedSupabaseClient,
   listing: T,
   fields: string = PROFILE_FIELDS_FULL
 ): Promise<T & { profiles: Record<string, unknown> | null }> {
@@ -92,11 +92,12 @@ export async function enrichListingWithProfile<
     return { ...listing, profiles: null };
   }
 
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await supabase
     .from("profiles")
     .select(fields)
     .eq("id", listing.seller_id)
     .single();
 
+  const profile = profileRaw as unknown as Record<string, unknown> | null;
   return { ...listing, profiles: profile ?? null };
 }
