@@ -12,6 +12,9 @@ import {
 import { sendSolanaTransfer, isSolanaConfigured } from "./chains/solana";
 import { sendEvmTransfer, isEvmConfigured } from "./chains/evm";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("payments/withdraw");
 
 export interface WithdrawalRequest {
   walletId: string;
@@ -139,15 +142,12 @@ export async function processWithdrawal(
         .eq("id", txId);
     } catch (refundErr) {
       // Critical: refund failed -- log for manual intervention
-      console.error(
-        "[withdraw] CRITICAL: Failed to refund wallet after failed withdrawal",
-        {
-          walletId,
-          txId,
-          amount,
-          error: refundErr,
-        }
-      );
+      void log.error("CRITICAL: Failed to refund wallet after failed withdrawal", {
+        walletId,
+        txId,
+        amount,
+        error: refundErr instanceof Error ? refundErr.message : String(refundErr),
+      });
     }
 
     return {

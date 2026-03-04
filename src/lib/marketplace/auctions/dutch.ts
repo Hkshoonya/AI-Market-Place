@@ -12,6 +12,9 @@ import {
   getOrCreateWallet,
 } from "@/lib/payments/wallet";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("marketplace/auction-dutch");
 
 /**
  * Calculate current Dutch auction price based on elapsed time.
@@ -159,7 +162,7 @@ export async function acceptDutchAuction(
       .single();
 
     if (bidError) {
-      console.error("Failed to create bid record for Dutch auction:", bidError);
+      void log.error("Failed to create bid record for Dutch auction", { error: bidError.message });
     }
 
     // 6. Release escrow to seller minus platform fee
@@ -172,10 +175,10 @@ export async function acceptDutchAuction(
     try {
       await releaseEscrow(escrowId, sellerWallet.id, feeAmount);
     } catch (err) {
-      console.error(
-        `Failed to release escrow ${escrowId} to seller:`,
-        err
-      );
+      void log.error("Failed to release escrow to seller", {
+        escrowId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return {
         success: false,
         error: `Payment settlement failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -188,7 +191,7 @@ export async function acceptDutchAuction(
       price: currentPrice,
     };
   } catch (err) {
-    console.error("acceptDutchAuction unexpected error:", err);
+    void log.error("acceptDutchAuction unexpected error", { error: err instanceof Error ? err.message : String(err) });
     return {
       success: false,
       error: err instanceof Error ? err.message : "Unexpected error accepting auction",

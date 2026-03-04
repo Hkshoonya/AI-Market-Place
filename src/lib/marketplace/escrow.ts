@@ -11,6 +11,9 @@ import {
   getOrCreateWallet,
 } from "@/lib/payments/wallet";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("marketplace/escrow");
 
 /**
  * Create an escrow hold for a marketplace purchase.
@@ -118,10 +121,12 @@ export async function refundPurchaseEscrow(orderId: string): Promise<void> {
       return;
     } catch (err) {
       if (attempt === MAX_RETRIES) {
-        console.error(
-          `CRITICAL: Escrow refund failed after ${MAX_RETRIES} attempts for order ${orderId}, escrow ${escrow.id}:`,
-          err
-        );
+        void log.error("CRITICAL: Escrow refund failed after max attempts", {
+          orderId,
+          escrowId: escrow.id,
+          attempts: MAX_RETRIES,
+          error: err instanceof Error ? err.message : String(err),
+        });
         throw err;
       }
       // Exponential backoff: 500ms, 1500ms

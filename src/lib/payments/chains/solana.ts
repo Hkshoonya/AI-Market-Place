@@ -18,6 +18,9 @@ import {
 import { createHash } from "crypto";
 import bs58 from "bs58";
 import type { Chain, Token } from "../wallet";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("payments/solana");
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -219,7 +222,7 @@ export async function checkSolanaDeposits(
       }
     }
   } catch (err) {
-    console.error("[solana] Error checking deposits:", err);
+    void log.error("Error checking deposits", { error: err instanceof Error ? err.message : String(err) });
   }
 
   return deposits;
@@ -260,7 +263,7 @@ export async function sendSolanaTransfer(
         token: "SOL",
       };
     } catch (err) {
-      console.error("[solana] Transfer failed:", err);
+      void log.error("Transfer failed", { error: err instanceof Error ? err.message : String(err) });
       return {
         txHash: "",
         status: "failed",
