@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify seller status (use admin client for profile query)
-  const adminSb = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const adminSb = createAdminClient();
   const { data: profile } = await adminSb
     .from("profiles")
     .select("is_seller, seller_verified")

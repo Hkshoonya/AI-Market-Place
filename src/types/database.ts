@@ -945,12 +945,14 @@ export interface Database {
         Insert: {
           id?: string;
           listing_id: string;
-          buyer_id: string;
+          buyer_id?: string | null;
           seller_id: string;
           status?: OrderStatus;
           message?: string | null;
           price_at_time?: number | null;
           delivery_data?: Record<string, unknown> | null;
+          guest_email?: string | null;
+          guest_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
