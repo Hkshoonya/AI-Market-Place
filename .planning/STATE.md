@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-adapter-deduplication plan 04-01 (shared types, data files, inferCategory)
-last_updated: "2026-03-04T04:58:07.787Z"
+stopped_at: Completed 04-adapter-deduplication plan 04-02 (buildRecord factory + 3 adapter rewires)
+last_updated: "2026-03-04T05:07:45.287Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 ---
@@ -73,6 +73,7 @@ Progress: [████████████████████] 2/2 pla
 | Phase 03-api-route-decomposition P02 | 232 | 2 tasks | 2 files |
 | Phase 03-api-route-decomposition P01 | 8 | 2 tasks | 5 files |
 | Phase 04-adapter-deduplication P01 | 6 | 2 tasks | 7 files |
+| Phase 04-adapter-deduplication P02 | 7 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,8 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 04-adapter-deduplication]: gpt-image prefix must appear before gpt- in ID_PREFIX_CATEGORY
 - [Phase 04-adapter-deduplication]: inferCategory module has no imports from build-record.ts to avoid circular dependencies
 - [Phase 04-adapter-deduplication]: Replicate KNOWN_MODELS stays as KnownReplicateModel[] array (not Record) matching adapter .map() iteration
+- [Phase 04-adapter-deduplication]: buildRecord() uses 'license_name' in defaults check to distinguish explicit null from not provided
+- [Phase 04-adapter-deduplication]: replicate.ts transformKnownModel and transformModel kept as local functions — Replicate-specific and excluded from buildRecord() factory
 
 ### Pending Todos
 
@@ -113,6 +116,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T04:58:07.784Z
-Stopped at: Completed 04-adapter-deduplication plan 04-01 (shared types, data files, inferCategory)
+Last session: 2026-03-04T05:07:45.284Z
+Stopped at: Completed 04-adapter-deduplication plan 04-02 (buildRecord factory + 3 adapter rewires)
 Resume file: None
