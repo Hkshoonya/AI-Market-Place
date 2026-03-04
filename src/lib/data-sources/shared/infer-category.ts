@@ -49,11 +49,11 @@ const ID_PREFIX_CATEGORY: Array<[string, string]> = [
   ["o1", "llm"],
   ["o3", "llm"],
   ["o4", "llm"],
-  // OpenAI GPT
-  ["gpt-", "llm"],
-  // OpenAI image generation
-  ["dall-e", "image_generation"],
+  // OpenAI image generation (gpt-image MUST appear before gpt- so prefix matching is correct)
   ["gpt-image", "image_generation"],
+  ["dall-e", "image_generation"],
+  // OpenAI GPT (broad match — comes after more-specific gpt-image)
+  ["gpt-", "llm"],
   // OpenAI speech / audio
   ["whisper", "speech_audio"],
   ["tts-", "speech_audio"],
@@ -147,7 +147,7 @@ const DESC_KEYWORD_CATEGORY: Array<[string[], string]> = [
  * Order matters — more specific checks first.
  */
 const TOPICS_KEYWORD_CATEGORY: Array<[string[], string]> = [
-  [["llm", "language-model", "chatbot"], "llm"],
+  [["llm", "language-model", "language model", "chatbot", "chat"], "llm"],
   [["diffusion", "image-generation", "text-to-image"], "image_generation"],
   [["vision", "object-detection", "image-classification"], "vision"],
   [["multimodal", "vlm"], "multimodal"],
