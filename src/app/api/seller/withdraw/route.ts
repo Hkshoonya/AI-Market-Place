@@ -23,6 +23,7 @@ import {
   processWithdrawal,
   getSupportedChains,
 } from "@/lib/payments/withdraw";
+import { handleApiError } from "@/lib/api-error";
 
 const withdrawSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
@@ -38,6 +39,7 @@ const withdrawSchema = z.object({
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`seller-withdraw:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -134,6 +136,9 @@ export async function POST(request: NextRequest) {
     wallet_address,
     message: `Withdrawal of $${amount.toFixed(2)} initiated on ${chain}.`,
   });
+  } catch (err) {
+    return handleApiError(err, "api/seller/withdraw");
+  }
 }
 
 /**
@@ -141,6 +146,7 @@ export async function POST(request: NextRequest) {
  * Returns supported chains and their configuration.
  */
 export async function GET(request: NextRequest) {
+  try {
   const ip = getClientIp(request);
   const rl = rateLimit(`seller-withdraw-info:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
@@ -162,4 +168,7 @@ export async function GET(request: NextRequest) {
   const chains = getSupportedChains();
 
   return NextResponse.json({ chains });
+  } catch (err) {
+    return handleApiError(err, "api/seller/withdraw");
+  }
 }

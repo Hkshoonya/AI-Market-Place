@@ -10,6 +10,10 @@ import {
   checkEvmDeposits,
   isEvmConfigured,
 } from "@/lib/payments/chains/evm";
+import { handleApiError } from "@/lib/api-error";
+import { createTaggedLogger } from "@/lib/logging";
+
+const log = createTaggedLogger("webhook/chain-deposits");
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // 2 minutes max
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
   // Parse optional body
   let targetChain: DepositChain | undefined;
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => { void log.warn("Invalid JSON body"); return {}; });
     if (body.chain && ["solana", "base", "polygon"].includes(body.chain)) {
       targetChain = body.chain as DepositChain;
     }
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         const msg = `Failed to process ${chain} deposits: ${err instanceof Error ? err.message : String(err)}`;
-        console.error(`[chain-deposits] ${msg}`);
+        void log.error(msg, { chain });
         summary.errors.push(msg);
       }
     }
@@ -105,15 +109,8 @@ export async function POST(request: NextRequest) {
       ...summary,
     });
   } catch (err) {
-    console.error("[chain-deposits] Unexpected error:", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-        ...summary,
-      },
-      { status: 500 }
-    );
+    void log.error("Unexpected error in chain-deposits webhook", { error: err instanceof Error ? err.message : String(err) });
+    return handleApiError(err, "webhook/chain-deposits");
   }
 }
 
@@ -169,13 +166,13 @@ async function processSolanaDeposits(
           summary.credited++;
         } catch (creditErr) {
           const msg = `Failed to credit wallet ${wallet.id} for tx ${deposit.txHash}: ${creditErr instanceof Error ? creditErr.message : String(creditErr)}`;
-          console.error(`[chain-deposits] ${msg}`);
+          void log.error(msg, { walletId: wallet.id, txHash: deposit.txHash });
           summary.errors.push(msg);
         }
       }
     } catch (err) {
       const msg = `Error checking deposits for Solana address ${wallet.deposit_address_solana}: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[chain-deposits] ${msg}`);
+      void log.error(msg, { address: wallet.deposit_address_solana });
       summary.errors.push(msg);
     }
   }
@@ -231,13 +228,13 @@ async function processEvmDeposits(
           summary.credited++;
         } catch (creditErr) {
           const msg = `Failed to credit wallet ${wallet.id} for tx ${deposit.txHash}: ${creditErr instanceof Error ? creditErr.message : String(creditErr)}`;
-          console.error(`[chain-deposits] ${msg}`);
+          void log.error(msg, { walletId: wallet.id, txHash: deposit.txHash, chain });
           summary.errors.push(msg);
         }
       }
     } catch (err) {
       const msg = `Error checking deposits for ${chain} address ${wallet.deposit_address_evm}: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[chain-deposits] ${msg}`);
+      void log.error(msg, { address: wallet.deposit_address_evm, chain });
       summary.errors.push(msg);
     }
   }
@@ -263,10 +260,7 @@ async function isTxHashProcessed(
   if (error) {
     // Fail-safe: on DB error, assume already processed to prevent double-credit.
     // The UNIQUE index on tx_hash provides a second layer of dedup protection.
-    console.error(
-      `[chain-deposits] Error checking tx_hash ${txHash} (fail-safe: treating as processed):`,
-      error.message
-    );
+    void log.error(`Error checking tx_hash ${txHash} (fail-safe: treating as processed)`, { error: error.message, txHash });
     return true;
   }
 
