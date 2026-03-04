@@ -11,7 +11,7 @@
  * No coverage penalty — missing signals contribute 0, remaining reweighted.
  */
 
-import { logNormalizeSignal } from "@/lib/scoring/scoring-helpers";
+import { logNormalizeSignal, addSignal } from "@/lib/scoring/scoring-helpers";
 
 export interface UsageInputs {
   downloads: number;
@@ -85,7 +85,7 @@ export function computeUsageScore(
   inputs: UsageInputs,
   stats: UsageNormStats
 ): number {
-  const signals: Array<{ score: number; weight: number }> = [];
+  const signals: Array<{ name: string; score: number; weight: number }> = [];
 
   // Single code path: select the correct normalization pool per signal based on isOpenWeights.
   // Downloads, likes, and stars always use the open-model pool (proprietary models rarely have
@@ -99,33 +99,33 @@ export function computeUsageScore(
 
   // Downloads (HF; open pool for both)
   if (inputs.downloads > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.downloads, stats.openMaxDownloads), weight: WEIGHTS.downloads });
+    addSignal(signals, "downloads", logNormalizeSignal(inputs.downloads, stats.openMaxDownloads), WEIGHTS.downloads);
   }
 
   // Likes (HF; open pool for both)
   if (inputs.likes > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.likes, stats.openMaxLikes), weight: WEIGHTS.likes });
+    addSignal(signals, "likes", logNormalizeSignal(inputs.likes, stats.openMaxLikes), WEIGHTS.likes);
   }
 
   // Stars (GitHub; open pool for both)
   if (inputs.stars > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.stars, stats.openMaxStars), weight: WEIGHTS.stars });
+    addSignal(signals, "stars", logNormalizeSignal(inputs.stars, stats.openMaxStars), WEIGHTS.stars);
   }
 
   // News mentions (pool differs by model type)
   if (inputs.newsMentions > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.newsMentions, newsMax), weight: WEIGHTS.news });
+    addSignal(signals, "news", logNormalizeSignal(inputs.newsMentions, newsMax), WEIGHTS.news);
   }
 
   // Provider MAU / usage estimate (proprietary pool)
   if (inputs.providerUsageEstimate > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.providerUsageEstimate, stats.propMaxMAU), weight: WEIGHTS.usage });
+    addSignal(signals, "usage", logNormalizeSignal(inputs.providerUsageEstimate, stats.propMaxMAU), WEIGHTS.usage);
   }
 
   // Trending score (linear, not log; pool differs by model type)
   if (inputs.trendingScore > 0) {
     const norm = trendingMax > 0 ? (inputs.trendingScore / trendingMax) * 100 : 0;
-    signals.push({ score: Math.min(norm, 100), weight: WEIGHTS.trending });
+    addSignal(signals, "trending", Math.min(norm, 100), WEIGHTS.trending);
   }
 
   if (signals.length === 0) return 0;

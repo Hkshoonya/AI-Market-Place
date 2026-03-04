@@ -19,7 +19,7 @@ import {
   POPULARITY_COVERAGE_PENALTY,
   getCoveragePenalty,
 } from "@/lib/constants/scoring";
-import { logNormalizeSignal } from "@/lib/scoring/scoring-helpers";
+import { logNormalizeSignal, addSignal } from "@/lib/scoring/scoring-helpers";
 
 // Re-export for backward compatibility (consumers should import from @/lib/constants/scoring)
 export { PROVIDER_USAGE_ESTIMATES, getProviderUsageEstimate } from "@/lib/constants/scoring";
@@ -85,37 +85,37 @@ export function computePopularityScore(
     trending: 0.10,
   };
 
-  const signals: Array<{ score: number; weight: number }> = [];
+  const signals: Array<{ name: string; score: number; weight: number }> = [];
 
   // Downloads (log-normalized)
   if (inputs.downloads > 0 && stats.maxDownloads > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.downloads, stats.maxDownloads), weight: weights.downloads });
+    addSignal(signals, "downloads", logNormalizeSignal(inputs.downloads, stats.maxDownloads), weights.downloads);
   }
 
   // Likes (log-normalized)
   if (inputs.likes > 0 && stats.maxLikes > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.likes, stats.maxLikes), weight: weights.likes });
+    addSignal(signals, "likes", logNormalizeSignal(inputs.likes, stats.maxLikes), weights.likes);
   }
 
   // Stars (log-normalized)
   if (inputs.stars > 0 && stats.maxStars > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.stars, stats.maxStars), weight: weights.stars });
+    addSignal(signals, "stars", logNormalizeSignal(inputs.stars, stats.maxStars), weights.stars);
   }
 
   // News mentions (log-normalized)
   if (inputs.newsMentions > 0 && stats.maxNewsMentions > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.newsMentions, stats.maxNewsMentions), weight: weights.news });
+    addSignal(signals, "news", logNormalizeSignal(inputs.newsMentions, stats.maxNewsMentions), weights.news);
   }
 
   // Provider usage estimate (log-normalized)
   if (inputs.providerUsageEstimate > 0 && stats.maxUsageEstimate > 0) {
-    signals.push({ score: logNormalizeSignal(inputs.providerUsageEstimate, stats.maxUsageEstimate), weight: weights.usage });
+    addSignal(signals, "usage", logNormalizeSignal(inputs.providerUsageEstimate, stats.maxUsageEstimate), weights.usage);
   }
 
   // Trending score (direct, already 0-100 scale)
   if (inputs.trendingScore > 0 && stats.maxTrendingScore > 0) {
     const score = (inputs.trendingScore / stats.maxTrendingScore) * 100;
-    signals.push({ score: Math.min(score, 100), weight: weights.trending });
+    addSignal(signals, "trending", Math.min(score, 100), weights.trending);
   }
 
   if (signals.length === 0) return 0;
