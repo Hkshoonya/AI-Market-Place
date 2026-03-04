@@ -46,14 +46,14 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 ### Error Handling
 
 - [ ] **ERR-01**: Silent `.catch(() => {})` handlers are replaced with proper error logging
-- [ ] **ERR-02**: Error handling follows a consistent pattern across all API routes (ApiError class)
+- [x] **ERR-02**: Error handling follows a consistent pattern across all API routes (ApiError class)
 - [ ] **ERR-03**: All client components use structured error state with user-facing messages
 
 ### Logging
 
-- [ ] **LOG-01**: All `console.error` / `console.warn` calls in src/lib/ use the structured logger from `logging.ts`
-- [ ] **LOG-02**: All API routes use structured logging with request context (route, method, duration)
-- [ ] **LOG-03**: Cron jobs and adapters use tagged loggers with source identification
+- [x] **LOG-01**: All `console.error` / `console.warn` calls in src/lib/ use the structured logger from `logging.ts`
+- [x] **LOG-02**: All API routes use structured logging with request context (route, method, duration)
+- [x] **LOG-03**: Cron jobs and adapters use tagged loggers with source identification
 
 ### Constants
 
@@ -124,11 +124,11 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TYPE-04 | Phase 6 | Complete |
 | TYPE-05 | Phase 6 | Complete |
 | ERR-01 | Phase 7 | Pending |
-| ERR-02 | Phase 7 | Pending |
+| ERR-02 | Phase 7 | Complete |
 | ERR-03 | Phase 7 | Pending |
-| LOG-01 | Phase 7 | Pending |
-| LOG-02 | Phase 7 | Pending |
-| LOG-03 | Phase 7 | Pending |
+| LOG-01 | Phase 7 | Complete |
+| LOG-02 | Phase 7 | Complete |
+| LOG-03 | Phase 7 | Complete |
 | TEST-02 | Phase 8 | Pending |
 | TEST-03 | Phase 8 | Pending |
 | TEST-04 | Phase 8 | Pending |
