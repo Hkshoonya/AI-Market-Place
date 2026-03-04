@@ -74,3 +74,27 @@ export const systemLog = {
   error: (source: string, message: string, metadata?: Record<string, unknown>) =>
     writeLog({ level: "error", source, message, metadata }),
 };
+
+/**
+ * Tagged logger interface — all methods have source pre-filled.
+ */
+export interface TaggedLogger {
+  info: (message: string, metadata?: Record<string, unknown>) => Promise<string | null>;
+  warn: (message: string, metadata?: Record<string, unknown>) => Promise<string | null>;
+  error: (message: string, metadata?: Record<string, unknown>) => Promise<string | null>;
+}
+
+/**
+ * Factory that returns a logger with `source` pre-bound.
+ *
+ * Usage:
+ *   const log = createTaggedLogger("cron/compute-scores");
+ *   log.error("Failed to update", { modelId });
+ */
+export function createTaggedLogger(source: string): TaggedLogger {
+  return {
+    info: (message, metadata) => systemLog.info(source, message, metadata),
+    warn: (message, metadata) => systemLog.warn(source, message, metadata),
+    error: (message, metadata) => systemLog.error(source, message, metadata),
+  };
+}
