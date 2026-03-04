@@ -14,11 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
+import type { SellerVerificationRequest } from "@/types/database";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface VerificationRequestWithProfile extends SellerVerificationRequest {
+  profiles: { id: string; display_name: string | null; username: string | null; avatar_url: string | null; email: string | null; is_seller: boolean; seller_verified: boolean } | null;
+}
 
 export default function AdminVerificationsPage() {
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<VerificationRequestWithProfile[]>([]);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);

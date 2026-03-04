@@ -24,11 +24,27 @@ import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface AdminListing {
+  id: string;
+  slug: string;
+  title: string;
+  listing_type: string;
+  status: string;
+  pricing_type: string;
+  price: number | null;
+  avg_rating: number | null;
+  review_count: number;
+  view_count: number;
+  inquiry_count: number;
+  is_featured: boolean;
+  created_at: string;
+  seller_id: string;
+  profiles: { id: string; display_name: string | null; username: string | null } | null;
+}
 
 const PAGE_SIZE = 20;
 export default function AdminListingsPage() {
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<AdminListing[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
