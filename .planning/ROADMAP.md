@@ -107,12 +107,12 @@ Plans:
   3. Compare-client benchmark and pricing functions have explicit parameter and return types for model data
   4. Admin enrichment operations use typed interfaces for joined row data
   5. `grep -r "any" src/ --include="*.ts" --include="*.tsx" | grep -v "//.*any" | wc -l` reports under 20
-**Plans:** 1/5 plans executed
+**Plans:** 4/5 plans executed
 Plans:
-- [ ] 06-01-PLAN.md — Database type foundation (add Relationships to all tables) + catch block fixes
-- [ ] 06-02-PLAN.md — Remove supabase-as-any from src/lib/ (adapters, agents, marketplace, utilities)
-- [ ] 06-03-PLAN.md — Remove supabase-as-any from API routes
-- [ ] 06-04-PLAN.md — Fix compare-client types + admin enrichment + pages/components
+- [x] 06-01-PLAN.md — Database type foundation (add Relationships to all tables) + catch block fixes
+- [x] 06-02-PLAN.md — Remove supabase-as-any from src/lib/ (adapters, agents, marketplace, utilities)
+- [x] 06-03-PLAN.md — Remove supabase-as-any from API routes
+- [x] 06-04-PLAN.md — Fix compare-client types + admin enrichment + pages/components
 - [ ] 06-05-PLAN.md — Final any count verification + remaining cleanup
 
 ### Phase 7: Error Handling + Logging

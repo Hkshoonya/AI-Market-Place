@@ -39,8 +39,8 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 - [x] **TYPE-01**: All `catch (err: any)` blocks use `unknown` type with proper narrowing
 - [ ] **TYPE-02**: Supabase join `.map()` operations use typed interfaces instead of `any`
-- [ ] **TYPE-03**: Compare-client benchmark/pricing functions have proper model types instead of `any`
-- [ ] **TYPE-04**: Admin enrichment operations use typed interfaces for joined data
+- [x] **TYPE-03**: Compare-client benchmark/pricing functions have proper model types instead of `any`
+- [x] **TYPE-04**: Admin enrichment operations use typed interfaces for joined data
 - [ ] **TYPE-05**: Total `any` count is reduced from 152 to under 20
 
 ### Error Handling

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-type-safety plan 06-01 (Database type foundation and catch block safety)
-last_updated: "2026-03-04T06:28:15.798Z"
+stopped_at: Completed 06-type-safety plan 06-04 (compare-client, admin enrichment, marketplace pages, components)
+last_updated: "2026-03-04T07:01:24Z"
 last_activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
 progress:
   total_phases: 8
@@ -40,12 +40,12 @@ See: .planning/PROJECT.md (updated 2026-03-03 after Phase 1)
 
 ## Current Position
 
-Phase: 2 of 8 (Scoring Simplification)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-03 — Phase 1 complete (2 plans, 7 commits, verification passed)
+Phase: 6 of 8 (Type Safety)
+Plan: 4 of 5 in current phase
+Status: In progress — plan 04 complete
+Last activity: 2026-03-04 — Phase 06 Plan 04 complete (compare-client + admin + marketplace type safety)
 
-Progress: [████████████████████] 2/2 plans (100%)
+Progress: [████████████████████] 4/5 plans (80%)
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [████████████████████] 2/2 pla
 | Phase 05-component-decomposition P05-02 | 15 | 2 tasks | 5 files |
 | Phase 05-component-decomposition P03 | 7 | 2 tasks | 8 files |
 | Phase 06-type-safety P01 | 4 | 2 tasks | 7 files |
+| Phase 06-type-safety P04 | ~180 | 2 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,10 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 05-component-decomposition]: Shared types (EarningsData, Transaction, ChainInfo) defined in use-earnings-data.ts and re-exported — exclusively earnings-feature types, no separate types file needed
 - [Phase 05-component-decomposition]: useEarningsData accepts userId parameter instead of calling useAuth internally — parent retains auth redirect responsibility
 - [Phase 05-component-decomposition]: PurchaseSuccess extracted as unplanned 4th sub-component to meet 420-line done criteria for purchase-button.tsx
+- [Phase 06-type-safety P04]: BenchmarkScoreWithBenchmarks intersection type bridges Supabase join naming (table plural `benchmarks(*)` vs interface singular `benchmark?`)
+- [Phase 06-type-safety P04]: `as unknown as T` cast pattern used for Supabase tables with Record<string,unknown> fields (capabilities, agent_config) causing `never` return type
+- [Phase 06-type-safety P04]: upsertBatch utility keeps `supabase as any` — dynamic `table: string` arg is architecturally incompatible with typed Supabase client
+- [Phase 06-type-safety P04]: ModelStatus has no "inactive" value; toggleStatus uses "archived" instead
 - [Phase 05-component-decomposition]: WalletBalance interface defined and exported from use-wallet-balance.ts so wallet-deposit-panel.tsx imports type without duplication
 - [Phase 05-component-decomposition]: TooltipState exported from use-heatmap-tooltip.ts for use as HeatmapGrid prop type
 - [Phase 06-type-safety]: TypedSupabaseClient = SupabaseClient<Database> exported from database.ts as single import point for typed client
