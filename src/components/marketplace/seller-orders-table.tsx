@@ -37,6 +37,7 @@ export function SellerOrdersTable() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<SellerOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
@@ -72,8 +73,9 @@ export function SellerOrdersTable() {
       }
 
       setOrders(enriched);
-    } catch {
-      console.error("Failed to fetch orders");
+    } catch (err) {
+      console.warn("[seller-orders-table] Failed to fetch orders:", err);
+      setError("Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -114,6 +116,14 @@ export function SellerOrdersTable() {
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-16 animate-pulse rounded-lg bg-secondary/50" />
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-sm text-red-500">{error}</p>
       </div>
     );
   }

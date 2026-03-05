@@ -16,7 +16,7 @@ export function ViewTracker({ listingId }: { listingId: string }) {
     (supabase.rpc as any)("increment_view_count", { listing_id: listingId })
       .then(() => {})
       .catch(() => {
-        // RPC not available; silently skip
+        console.warn("[view-tracker] Failed to record view");
       });
   }, [listingId]);
 

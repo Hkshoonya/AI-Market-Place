@@ -55,7 +55,10 @@ function VerificationBanner() {
         setVerStatus(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.warn("[seller-dashboard] Failed to fetch verification status:", err);
+        setLoading(false);
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,8 +75,8 @@ function VerificationBanner() {
         const data = await fetch("/api/marketplace/seller/verify").then((r) => r.json());
         setVerStatus(data);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn("[seller-dashboard] Verification submission failed:", err);
     } finally {
       setSubmitting(false);
     }
@@ -301,6 +304,7 @@ export default function SellerDashboardContent() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [stats, setStats] = useState<SellerStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -313,7 +317,10 @@ export default function SellerDashboardContent() {
       fetch("/api/marketplace/seller/stats")
         .then((r) => r.json())
         .then(setStats)
-        .catch(console.error);
+        .catch((err) => {
+          console.warn("[seller-dashboard] Failed to fetch stats:", err);
+          setStatsError("Failed to load seller stats");
+        });
     }
   }, [user]);
 
@@ -352,6 +359,9 @@ export default function SellerDashboardContent() {
 
       <VerificationBanner />
 
+      {statsError && (
+        <p className="text-sm text-red-500 mb-4">{statsError}</p>
+      )}
       {stats && <SellerStatsCards stats={stats} />}
 
       <div className="mt-8 space-y-8">

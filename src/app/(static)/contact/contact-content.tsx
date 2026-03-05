@@ -29,10 +29,12 @@ export default function ContactContent() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       const res = await fetch("/api/contact", {
@@ -49,10 +51,9 @@ export default function ContactContent() {
       setSent(true);
       toast.success("Message sent successfully");
     } catch (err) {
-      console.error("Contact form error:", err);
+      console.warn("[contact] Form submission failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to send message. Please try again.");
       toast.error("Failed to send message. Please try again.");
-      // Still show success to the user since the message was attempted
-      setSent(true);
     } finally {
       setLoading(false);
     }
@@ -190,6 +191,12 @@ export default function ContactContent() {
                 className="mt-1 w-full rounded-md border border-border/50 bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon/30"
               />
             </div>
+
+            {error && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                <p className="text-sm text-red-500">{error}</p>
+              </div>
+            )}
 
             <Button
               type="submit"

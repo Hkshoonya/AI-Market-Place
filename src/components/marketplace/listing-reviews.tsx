@@ -77,6 +77,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [error, setError] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
 
   const fetchReviews = useCallback(async () => {
@@ -111,8 +112,9 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
       }
 
       setReviews(enriched);
-    } catch {
-      console.error("Failed to fetch reviews");
+    } catch (err) {
+      console.warn("[listing-reviews] Failed to fetch reviews:", err);
+      setFetchError("Failed to load reviews");
     } finally {
       setLoading(false);
     }
@@ -245,6 +247,9 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
         )}
 
         {/* Reviews List */}
+        {fetchError && (
+          <p className="text-sm text-red-500 py-4">{fetchError}</p>
+        )}
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
