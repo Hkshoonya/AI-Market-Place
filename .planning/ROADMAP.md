@@ -16,7 +16,7 @@ This milestone eliminates structural complexity accumulated during rapid feature
 - [x] **Phase 4: Adapter Deduplication** - Extract KNOWN_MODELS, shared factory functions, and reusable syncer to eliminate ~904 lines of duplication (completed 2026-03-04)
 - [x] **Phase 5: Component Decomposition** - Break 4 oversized components into focused sub-components and hooks (completed 2026-03-04)
 - [ ] **Phase 6: Type Safety** - Replace all `any` types with proper TypeScript types now that structure is clean (gap closure in progress)
-- [x] **Phase 7: Error Handling + Logging** - Standardize error patterns and structured logging across codebase (completed 2026-03-05)
+- [x] **Phase 7: Error Handling + Logging** - Standardize error patterns and structured logging across codebase (completed 2026-03-05)
 - [ ] **Phase 8: Regression Testing** - Add unit and integration tests for scoring calculators and decomposed API functions
 
 ## Phase Details
@@ -144,7 +144,11 @@ Plans:
   2. The market cap formula test suite contains at least 5 known-input/expected-output assertions using real model data snapshots
   3. The decomposed compute-scores functions (`fetchInputs`, `computeAllLenses`, `persistResults`) each have at least one integration test that calls them directly
   4. All tests pass; `npx vitest run` exits with code 0
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 08-01-PLAN.md — Unit tests for scoring-helpers, community-signal, capability, usage, balanced calculators
+- [ ] 08-02-PLAN.md — Unit tests for quality, expert, agent-score calculators + market cap regression tests
+- [ ] 08-03-PLAN.md — Integration tests for compute-scores pipeline (fetchInputs, computeAllLenses, persistResults)
 
 ## Progress
 
@@ -162,4 +166,4 @@ Note: Phase 4 (Adapter Deduplication) depends only on Phase 1 and can run in par
 | 5. Component Decomposition | 3/3 | Complete   | 2026-03-04 |
 | 6. Type Safety | 6/7 | In Progress|  |
 | 7. Error Handling + Logging | 5/5 | Complete   | 2026-03-05 |
-| 8. Regression Testing | 0/TBD | Not started | - |
+| 8. Regression Testing | 0/3 | Not started | - |
