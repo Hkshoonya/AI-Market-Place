@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
 
     let totalProcessed = 0;
     let totalCreated = 0;
-    let totalUpdated = 0;
+    const totalUpdated = 0;
 
     for (let page = 0; page < MAX_PAGES; page++) {
       try {

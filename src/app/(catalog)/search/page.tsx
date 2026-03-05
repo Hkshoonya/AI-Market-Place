@@ -56,7 +56,7 @@ export default async function SearchPage({
 
     if (activeTab === "models") {
       // Search models
-      let modelQuery = supabase
+      const modelQuery = supabase
         .from("models")
         .select(
           "id, slug, name, provider, category, overall_rank, quality_score, is_open_weights, parameter_count, short_description",
@@ -76,7 +76,7 @@ export default async function SearchPage({
 
     if (activeTab === "marketplace") {
       // Search marketplace
-      let mkQuery = supabase
+      const mkQuery = supabase
         .from("marketplace_listings")
         .select(
           "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count",
