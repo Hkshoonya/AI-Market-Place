@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-error-handling-logging plan 07-05 (client component error handling)
-last_updated: "2026-03-05T04:04:51.807Z"
+stopped_at: Completed 08-regression-testing plan 08-01 (scoring module unit tests)
+last_updated: "2026-03-05T04:22:45.913Z"
 last_activity: 2026-03-05 — Phase 07 Plan 05 complete (client component error handling)
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 25
-  completed_plans: 25
+  completed_phases: 8
+  total_plans: 28
+  completed_plans: 28
   percent: 100
 ---
 
@@ -137,6 +137,9 @@ Progress: [████████████████████] 5/5 pla
 | Phase 07-error-handling-logging P04 | 25 | 2 tasks | 21 files |
 | Phase 07-error-handling-logging PP03 | 35 | 2 tasks | 44 files |
 | Phase 07-error-handling-logging P05 | 4 | 2 tasks | 7 files |
+| Phase 08-regression-testing P03 | 3 | 2 tasks | 3 files |
+| Phase 08-regression-testing P01 | 5 | 2 tasks | 5 files |
+| Phase 08-regression-testing P02 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -207,6 +210,10 @@ Decisions logged in PROJECT.md Key Decisions table. Key decisions affecting curr
 - [Phase 07-error-handling-logging]: Task 1 chart/model/layout components already had proper error handling from prior plans — no changes needed
 - [Phase 07-error-handling-logging]: contact-content.tsx was showing success on failure (setSent(true) in catch) — fixed to show error message instead
 - [Phase 07-error-handling-logging]: Non-critical catches (view-tracker, use-earnings-data chain fetch) use console.warn, not UI errors
+- [Phase 08-regression-testing]: Proxy-based mock Supabase client handles arbitrary chained query patterns for test isolation
+- [Phase 08-regression-testing]: Thenable pattern { then: (fn) => Promise.resolve(fn(value)) } for mocking Supabase PostgREST builder .then() chains
+- [Phase 08-regression-testing]: vi.useFakeTimers used for computeRecencyScore tests to ensure deterministic date-based results
+- [Phase 08-regression-testing]: Regression snapshots use exact hand-computed values for maximum formula drift detection
 
 ### Pending Todos
 
@@ -218,6 +225,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T03:58:00Z
-Stopped at: Completed 07-error-handling-logging plan 07-05 (client component error handling)
+Last session: 2026-03-05T04:22:37.956Z
+Stopped at: Completed 08-regression-testing plan 08-01 (scoring module unit tests)
 Resume file: None
