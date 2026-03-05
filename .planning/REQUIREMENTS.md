@@ -65,7 +65,7 @@ Requirements for the Codebase Health milestone. Each maps to roadmap phases.
 
 - [x] **TEST-01**: Vitest is configured with TypeScript support and path aliases
 - [x] **TEST-02**: All 7 scoring calculators have unit tests covering normal, edge, and null-input cases
-- [ ] **TEST-03**: Market cap formula has regression tests with known model inputs/outputs
+- [x] **TEST-03**: Market cap formula has regression tests with known model inputs/outputs
 - [x] **TEST-04**: Compute-scores decomposed functions have integration tests
 
 ## v2 Requirements
@@ -130,7 +130,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | LOG-02 | Phase 7 | Complete |
 | LOG-03 | Phase 7 | Complete |
 | TEST-02 | Phase 8 | Complete |
-| TEST-03 | Phase 8 | Pending |
+| TEST-03 | Phase 8 | Complete |
 | TEST-04 | Phase 8 | Complete |
 
 **Coverage:**
