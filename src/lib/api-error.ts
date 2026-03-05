@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { systemLog } from "@/lib/logging";
 
 export class ApiError extends Error {
@@ -14,6 +15,7 @@ export function handleApiError(error: unknown, source: string): Response {
       { status: error.statusCode }
     );
   }
+  Sentry.captureException(error, { tags: { source } });
   void systemLog.error(source, "Unexpected error", {
     error: error instanceof Error ? error.message : String(error),
   });
