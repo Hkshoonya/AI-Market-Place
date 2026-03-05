@@ -27,7 +27,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Harden the platform for production with observability, testing, CI/CD, performance, and code quality improvements.
 
-- [ ] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact
+- [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
 - [ ] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR
 - [ ] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries
 - [ ] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components
@@ -48,7 +48,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. Key user actions (viewing a model, comparing models, marketplace interactions) generate PostHog custom events
   4. Application loads without CSP violations in browser console after Sentry and PostHog domains are allowed
   5. Production bundle size increase from Sentry + PostHog is under 50KB gzipped via tree-shaking and lazy loading
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 09-01-PLAN.md -- Sentry error tracking, CSP headers, source map upload, Dockerfile
 - [ ] 09-02-PLAN.md -- PostHog analytics, pageview tracking, user identification, custom events
@@ -140,7 +140,7 @@ Plans:
 | 6. Type Safety | v1.0 | 7/7 | Complete | 2026-03-04 |
 | 7. Error Handling + Logging | v1.0 | 5/5 | Complete | 2026-03-05 |
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
-| 9. Observability | v1.1 | 1/2 | In Progress | - |
+| 9. Observability | 2/2 | Complete   | 2026-03-05 | - |
 | 10. CI Pipeline | v1.1 | 0/? | Not started | - |
 | 11. Zod Runtime Validation | v1.1 | 0/? | Not started | - |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
