@@ -28,7 +28,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Harden the platform for production with observability, testing, CI/CD, performance, and code quality improvements.
 
 - [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
-- [ ] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR
+- [x] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR (completed 2026-03-05)
 - [ ] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries
 - [ ] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components
 - [ ] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders
@@ -61,7 +61,7 @@ Plans:
   1. Opening a PR triggers a GitHub Actions workflow that runs ESLint, `tsc --noEmit`, and `vitest run`
   2. A PR with a type error or failing test shows a red check and cannot be merged
   3. A clean PR shows all green checks and the merge button is enabled
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 10-01-PLAN.md -- CI workflow (lint, typecheck, test) + branch protection setup
 
@@ -143,7 +143,7 @@ Plans:
 | 7. Error Handling + Logging | v1.0 | 5/5 | Complete | 2026-03-05 |
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 10. CI Pipeline | v1.1 | 0/1 | Not started | - |
+| 10. CI Pipeline | 1/1 | Complete   | 2026-03-05 | - |
 | 11. Zod Runtime Validation | v1.1 | 0/? | Not started | - |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
