@@ -78,7 +78,7 @@ function normalizeModelName(name: string): {
   slug: string;
   shortName: string;
 } {
-  let cleaned = name
+  const cleaned = name
     // Remove date suffixes like -20241022, -2025-01-29
     .replace(/-\d{8}$/, "")
     .replace(/-\d{4}-\d{2}-\d{2}$/, "")
@@ -119,7 +119,7 @@ const adapter: DataSourceAdapter = {
     // 1. Fetch raw per-question scores from HF Datasets API
     // ────────────────────────────────────────────────────────────────
     const allRows: HFRowContent[] = [];
-    let offset = 0;
+    const offset = 0;
     let totalRows = Infinity;
 
     // Use HF token from env for higher rate limits

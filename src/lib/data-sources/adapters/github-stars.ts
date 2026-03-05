@@ -55,7 +55,7 @@ const adapter: DataSourceAdapter = {
     const githubToken = ctx.secrets?.GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
 
     let recordsProcessed = 0;
-    let recordsCreated = 0;
+    const recordsCreated = 0;
     let recordsUpdated = 0;
     const errors: SyncError[] = [];
 

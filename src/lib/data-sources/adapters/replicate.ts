@@ -175,7 +175,7 @@ const adapter: DataSourceAdapter = {
 
     let totalProcessed = 0;
     let totalCreated = 0;
-    let totalUpdated = 0;
+    const totalUpdated = 0;
     const errors: SyncError[] = [];
 
     // First page URL; subsequent pages use the cursor URL from `next`

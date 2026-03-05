@@ -84,7 +84,7 @@ function normalizeHFName(fullname: string): {
   const modelPart = parts.length > 1 ? parts.slice(1).join("/") : fullname;
 
   // Clean up: remove -Instruct, -Chat, -GGUF suffixes that aren't in our DB
-  let cleaned = modelPart
+  const cleaned = modelPart
     .replace(/-Instruct$/i, "")
     .replace(/-Chat$/i, "")
     .replace(/-GGUF$/i, "")

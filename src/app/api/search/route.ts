@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Try FTS first for models
-    let { data: models, error } = await supabase
+    const result = await supabase
       .from("models")
       .select(
         "id, slug, name, provider, category, overall_rank, quality_score, is_open_weights, parameter_count"
@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
       .eq("status", "active")
       .order("popularity_score", { ascending: false, nullsFirst: false })
       .limit(limit);
+
+    let models = result.data;
+    const error = result.error;
 
     // Fallback to ilike if FTS returns no results
     if ((!models || models.length === 0) && !error) {

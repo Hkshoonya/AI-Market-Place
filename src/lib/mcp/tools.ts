@@ -270,7 +270,7 @@ export async function executeTool(
       if (error || !rawListing) throw new Error(`Listing not found: ${slug}`);
 
       // Enrich with seller profile
-      let data: Record<string, unknown> = { ...rawListing, profiles: null };
+      const data: Record<string, unknown> = { ...rawListing, profiles: null };
       if (rawListing.seller_id) {
         const { data: profile } = await sb
           .from("profiles")
