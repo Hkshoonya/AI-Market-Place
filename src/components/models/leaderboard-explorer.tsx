@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-table";
 import RankingWeightControls from "./ranking-weight-controls";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/posthog";
 
 interface LeaderboardModel {
   name: string;
@@ -297,6 +298,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
           <button
             key={lens.value}
             onClick={() => {
+              analytics.lensSwitched(activeLens, lens.value);
               setActiveLens(lens.value);
               setSorting([{ id: "rank", desc: false }]);
             }}
@@ -336,7 +338,14 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            const q = e.target.value;
+            setSearchQuery(q);
+            if (q.length >= 3) {
+              // Debounce-friendly: only track meaningful queries
+              analytics.searchPerformed(q, filteredModels.length);
+            }
+          }}
           placeholder="Search models..."
           className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-sm text-white/80 placeholder:text-white/20 outline-none focus:border-[#00d4aa]/30 w-48"
         />

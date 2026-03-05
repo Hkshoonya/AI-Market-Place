@@ -37,6 +37,7 @@ import { NewsCard } from "@/components/news/news-card";
 import { DeployTab } from "@/components/models/deploy-tab";
 import { ModelOverview } from "@/components/models/model-overview";
 import { TradingChart } from "@/components/charts/trading-chart";
+import { ModelViewTracker } from "@/components/models/model-view-tracker";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 
@@ -256,6 +257,7 @@ export default async function ModelDetailPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      <ModelViewTracker modelId={model.id} modelName={model.name} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
