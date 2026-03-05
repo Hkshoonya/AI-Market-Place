@@ -17,10 +17,10 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### CI/CD
 
-- [ ] **CICD-01**: GitHub Actions workflow runs lint on every PR
-- [ ] **CICD-02**: GitHub Actions workflow runs `tsc --noEmit` on every PR
-- [ ] **CICD-03**: GitHub Actions workflow runs `vitest run` on every PR
-- [ ] **CICD-04**: PR merges blocked unless all CI checks pass
+- [x] **CICD-01**: GitHub Actions workflow runs lint on every PR
+- [x] **CICD-02**: GitHub Actions workflow runs `tsc --noEmit` on every PR
+- [x] **CICD-03**: GitHub Actions workflow runs `vitest run` on every PR
+- [x] **CICD-04**: PR merges blocked unless all CI checks pass
 
 ### Runtime Type Safety
 
@@ -101,10 +101,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | OBS-04 | Phase 9 | Complete |
 | OBS-05 | Phase 9 | Complete |
 | PERF-03 | Phase 9 | Complete |
-| CICD-01 | Phase 10 | Pending |
-| CICD-02 | Phase 10 | Pending |
-| CICD-03 | Phase 10 | Pending |
-| CICD-04 | Phase 10 | Pending |
+| CICD-01 | Phase 10 | Complete |
+| CICD-02 | Phase 10 | Complete |
+| CICD-03 | Phase 10 | Complete |
+| CICD-04 | Phase 10 | Complete |
 | TYPE-01 | Phase 11 | Pending |
 | TYPE-02 | Phase 11 | Pending |
 | TYPE-03 | Phase 11 | Pending |
