@@ -11,8 +11,8 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 - [x] **OBS-01**: Sentry SDK integrated with automatic exception capture on all 65 API routes via handleApiError
 - [x] **OBS-02**: Sentry source maps uploaded during Docker build for readable stack traces
-- [ ] **OBS-03**: PostHog client-side SDK tracks page views and user identification
-- [ ] **OBS-04**: PostHog custom events capture key user actions (model view, comparison, marketplace interaction)
+- [x] **OBS-03**: PostHog client-side SDK tracks page views and user identification
+- [x] **OBS-04**: PostHog custom events capture key user actions (model view, comparison, marketplace interaction)
 - [x] **OBS-05**: CSP headers updated in next.config.ts to allow Sentry and PostHog domains
 
 ### CI/CD
@@ -97,8 +97,8 @@ Deferred to future release. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | OBS-01 | Phase 9 | Complete |
 | OBS-02 | Phase 9 | Complete |
-| OBS-03 | Phase 9 | Pending |
-| OBS-04 | Phase 9 | Pending |
+| OBS-03 | Phase 9 | Complete |
+| OBS-04 | Phase 9 | Complete |
 | OBS-05 | Phase 9 | Complete |
 | PERF-03 | Phase 9 | Complete |
 | CICD-01 | Phase 10 | Pending |
