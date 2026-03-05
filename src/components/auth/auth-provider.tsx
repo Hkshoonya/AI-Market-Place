@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import posthog from "posthog-js";
 import type { User } from "@supabase/supabase-js";
 
 interface Profile {
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser) {
           const profileData = await fetchProfile(currentUser.id);
           setProfile(profileData);
+          posthog.identify(currentUser.id, { email: currentUser.email });
         }
       } catch (err) {
         console.warn("Auth initialization failed:", err);
@@ -94,7 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         const profileData = await fetchProfile(currentUser.id);
         setProfile(profileData);
+        posthog.identify(currentUser.id, { email: currentUser.email });
       } else {
+        posthog.reset();
         setProfile(null);
       }
 
@@ -108,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    posthog.reset();
     setUser(null);
     setProfile(null);
   };
