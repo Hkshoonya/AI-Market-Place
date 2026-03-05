@@ -14,6 +14,7 @@ export default function EditListingContent(props: {
   const { user, loading } = useAuth();
   const [listing, setListing] = useState<import("@/types/database").MarketplaceListing | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -31,7 +32,11 @@ export default function EditListingContent(props: {
           }
           setFetchLoading(false);
         })
-        .catch(() => setFetchLoading(false));
+        .catch((err) => {
+          console.warn("[edit-listing] Failed to fetch listing:", err);
+          setFetchError("Failed to load listing");
+          setFetchLoading(false);
+        });
     }
   }, [user, slug]);
 
@@ -42,6 +47,14 @@ export default function EditListingContent(props: {
           <div className="h-8 w-48 rounded bg-secondary" />
           <div className="h-96 rounded-xl bg-secondary" />
         </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <p className="text-sm text-red-500">{fetchError}</p>
       </div>
     );
   }

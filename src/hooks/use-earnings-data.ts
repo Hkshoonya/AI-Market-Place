@@ -150,8 +150,8 @@ export function useEarningsData(userId: string | undefined): UseEarningsDataRetu
       if (firstConfigured) {
         setSelectedChain(firstConfigured.chain);
       }
-    } catch {
-      // Non-critical
+    } catch (err) {
+      console.warn("[use-earnings-data] Failed to fetch chain info:", err);
     }
   }, []);
 
