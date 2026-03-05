@@ -35,17 +35,22 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 
 ### Active
 
-<!-- Next milestone scope — to be defined -->
+<!-- v1.1 Production Readiness scope -->
 
-(None yet — define with `/gsd:new-milestone`)
+- [ ] Observability — Sentry error tracking, PostHog product analytics
+- [ ] Testing expansion — Component tests (Vitest + Testing Library), E2E (Playwright) for critical paths
+- [ ] CI/CD pipeline — Lint + typecheck + test enforcement on PRs
+- [ ] Performance optimization — React.memo, SWR/React Query for data fetching
+- [ ] Runtime type safety — Zod validation for Supabase joins replacing `as unknown as` casts
+- [ ] Remaining component decomposition — Leaderboard + any other 500+ line mega-components
+- [ ] Code simplification — Simplify pass over codebase
 
 ### Out of Scope
 
-- Performance optimization (React.memo, SWR/React Query) — separate milestone
-- Redis-backed rate limiting — separate milestone (scaling)
 - WebSocket/real-time updates — separate milestone (UX)
 - Email notifications — separate milestone (engagement)
 - Audit logging for financial transactions — separate milestone (compliance)
+- Redis caching — Next.js built-in sufficient for current scale
 
 ## Context
 
@@ -77,4 +82,17 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 | TypedSupabaseClient from database.ts | Single source of truth for Supabase types | ✓ Good — used in 16+ files |
 
 ---
-*Last updated: 2026-03-05 after v1.0 Codebase Health milestone*
+## Current Milestone: v1.1 Production Readiness
+
+**Goal:** Harden the platform for production with observability, testing, CI/CD, performance, and code quality improvements.
+
+**Target features:**
+- Sentry error tracking + PostHog product analytics
+- Component tests + E2E tests (Playwright)
+- CI/CD pipeline enforcing lint/typecheck/tests on PRs
+- Performance optimization (React.memo, SWR/React Query)
+- Zod runtime validation for Supabase joins
+- Remaining component decomposition + simplification pass
+
+---
+*Last updated: 2026-03-05 after v1.1 Production Readiness milestone started*
