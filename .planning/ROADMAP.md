@@ -48,7 +48,10 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. Key user actions (viewing a model, comparing models, marketplace interactions) generate PostHog custom events
   4. Application loads without CSP violations in browser console after Sentry and PostHog domains are allowed
   5. Production bundle size increase from Sentry + PostHog is under 50KB gzipped via tree-shaking and lazy loading
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 09-01-PLAN.md -- Sentry error tracking, CSP headers, source map upload, Dockerfile
+- [ ] 09-02-PLAN.md -- PostHog analytics, pageview tracking, user identification, custom events
 
 ### Phase 10: CI Pipeline
 **Goal**: No PR can merge without passing lint, typecheck, and all tests
@@ -137,7 +140,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 6. Type Safety | v1.0 | 7/7 | Complete | 2026-03-04 |
 | 7. Error Handling + Logging | v1.0 | 5/5 | Complete | 2026-03-05 |
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
-| 9. Observability | v1.1 | 0/? | Not started | - |
+| 9. Observability | v1.1 | 0/2 | Planned | - |
 | 10. CI Pipeline | v1.1 | 0/? | Not started | - |
 | 11. Zod Runtime Validation | v1.1 | 0/? | Not started | - |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
