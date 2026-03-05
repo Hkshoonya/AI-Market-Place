@@ -27,7 +27,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Harden the platform for production with observability, testing, CI/CD, performance, and code quality improvements.
 
-- [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
+- [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
 - [ ] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR
 - [ ] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries
 - [ ] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components
@@ -61,7 +61,9 @@ Plans:
   1. Opening a PR triggers a GitHub Actions workflow that runs ESLint, `tsc --noEmit`, and `vitest run`
   2. A PR with a type error or failing test shows a red check and cannot be merged
   3. A clean PR shows all green checks and the merge button is enabled
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 10-01-PLAN.md -- CI workflow (lint, typecheck, test) + branch protection setup
 
 ### Phase 11: Zod Runtime Validation
 **Goal**: Supabase query results are validated at runtime instead of silently cast with `as unknown as`
@@ -140,8 +142,8 @@ Plans:
 | 6. Type Safety | v1.0 | 7/7 | Complete | 2026-03-04 |
 | 7. Error Handling + Logging | v1.0 | 5/5 | Complete | 2026-03-05 |
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
-| 9. Observability | 2/2 | Complete    | 2026-03-05 | - |
-| 10. CI Pipeline | v1.1 | 0/? | Not started | - |
+| 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
+| 10. CI Pipeline | v1.1 | 0/1 | Not started | - |
 | 11. Zod Runtime Validation | v1.1 | 0/? | Not started | - |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
