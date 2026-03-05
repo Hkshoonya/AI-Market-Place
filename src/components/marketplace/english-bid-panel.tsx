@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { useAuth } from "@/components/auth/auth-provider";
+import { analytics } from "@/lib/posthog";
 import type { Auction } from "@/types/auction";
 
 interface EnglishBidPanelProps {
@@ -70,6 +71,7 @@ export function EnglishBidPanel({
       }
 
       setSuccess(true);
+      analytics.auctionBid(auction.id, amount);
       onBidPlaced();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to place bid");

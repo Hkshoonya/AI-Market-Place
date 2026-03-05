@@ -37,6 +37,7 @@ import { PriceComparison } from "@/components/charts/price-comparison";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { ShareComparison } from "@/components/compare/share-comparison";
 import { getProviderBrand } from "@/lib/constants/providers";
+import { analytics } from "@/lib/posthog";
 
 interface ModelOption {
   id: string;
@@ -205,6 +206,14 @@ export function CompareClient({
   const [models, setModels] = useState<ModelWithDetails[]>(initialModels);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>(initialSlugs);
   const [loading, setLoading] = useState(false);
+  const comparedRef = useRef(false);
+
+  // Track initial comparison on mount when models are pre-selected via URL
+  useEffect(() => {
+    if (comparedRef.current || models.length < 2) return;
+    comparedRef.current = true;
+    analytics.modelCompared(models.map((m) => m.id));
+  }, [models]);
 
   const fetchModel = useCallback(
     async (slug: string) => {
