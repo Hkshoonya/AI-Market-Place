@@ -453,7 +453,7 @@ export default function RankTimeline() {
                 content={({ active, payload, label }) => (
                   <CustomTooltip
                     active={active}
-                    payload={payload as Array<{ color: string; name: string; value: number }>}
+                    payload={payload as unknown as Array<{ color: string; name: string; value: number }>}
                     label={label as string}
                     metric={metric}
                   />
