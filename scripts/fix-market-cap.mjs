@@ -65,7 +65,6 @@ async function main() {
   for (const m of models) {
     const providerMau = PROVIDER_MAU[m.provider] || 1_000_000; // Default 1M for unknown
     const qs = Number(m.quality_score) || 30;
-    const totalQs = providerQualityTotals[m.provider] || 1;
     // Use quality^2 for power-law distribution (flagships capture most users)
     const qsSquared = qs * qs;
     const totalQsSquared = models

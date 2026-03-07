@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Save, Trash2, Star, ExternalLink } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Star, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +38,6 @@ export default function AdminEditListingPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const router = useRouter();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
