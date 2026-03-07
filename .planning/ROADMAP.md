@@ -73,7 +73,11 @@ Plans:
   1. All 56 `as unknown as` casts across 38 files are replaced with Zod `.parse()` or `.safeParse()` calls
   2. A Supabase query returning unexpected shape logs a Zod validation error to Sentry (distinct from application errors) and falls back gracefully
   3. `npx tsc --noEmit` passes clean and all 170+ existing tests still pass
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md -- parseQueryResult utilities, domain-grouped Zod schemas, unit tests
+- [ ] 11-02-PLAN.md -- Migrate server pages, API routes, and lib utilities (~35 casts)
+- [ ] 11-03-PLAN.md -- Migrate client components (~10 casts) and fix Recharts casts
 
 ### Phase 12: Component Testing Infrastructure
 **Goal**: High-value interactive components have render and interaction tests proving they work correctly
@@ -144,7 +148,7 @@ Plans:
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | 1/1 | Complete   | 2026-03-05 | - |
-| 11. Zod Runtime Validation | v1.1 | 0/? | Not started | - |
+| 11. Zod Runtime Validation | v1.1 | 0/3 | Planned | - |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
