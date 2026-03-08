@@ -153,12 +153,8 @@ export const HomeTopModelSchema = ModelBaseSchema.pick({
   popularity_score: true,
   is_open_weights: true,
 }).extend({
-  rankings: z.array(z.object({
-    balanced_rank: z.number().nullable(),
-  })),
-  model_pricing: z.array(z.object({
-    input_price_per_million: z.number().nullable(),
-  })),
+  rankings: z.array(RankingSchema.partial()).optional(),
+  model_pricing: z.array(ModelPricingSchema.partial()).optional(),
 });
 
 export type HomeTopModel = z.infer<typeof HomeTopModelSchema>;
@@ -194,49 +190,23 @@ export type ExplorerModel = z.infer<typeof ExplorerModelSchema>;
 // Model detail page (src/app/(catalog)/models/[slug]/page.tsx)
 // Full model + all relation joins from the detail query
 export const ModelWithDetailsSchema = ModelBaseSchema.extend({
-  benchmark_scores: z.array(z.object({
-    id: z.string(),
-    model_id: z.string(),
-    benchmark_id: z.number(),
-    score: z.number(),
-    score_normalized: z.number().nullable(),
-    evaluation_date: z.string().nullable(),
-    model_version: z.string().nullable(),
-    source: z.string().nullable(),
-    source_url: z.string().nullable(),
-    metadata: z.record(z.string(), z.unknown()),
-    created_at: z.string(),
-    updated_at: z.string(),
+  benchmark_scores: z.array(BenchmarkScoreSchema.partial().extend({
     benchmarks: z.object({
       name: z.string(),
       slug: z.string(),
       category: z.string(),
       max_score: z.number().nullable(),
-    }).nullable(),
+    }).nullable().optional(),
   })).optional(),
-  model_pricing: z.array(z.object({
-    provider_name: z.string(),
-    input_price_per_million: z.number().nullable(),
-    output_price_per_million: z.number().nullable(),
-    median_output_tokens_per_second: z.number().nullable(),
-    median_time_to_first_token: z.number().nullable(),
-  })).optional(),
-  elo_ratings: z.array(z.object({
-    arena_name: z.string(),
-    elo_score: z.number(),
-    rank: z.number().nullable(),
-    confidence_interval_low: z.number().nullable(),
-    confidence_interval_high: z.number().nullable(),
-    num_battles: z.number().nullable(),
-    snapshot_date: z.string().nullable(),
-  })).optional(),
-  rankings: z.array(z.record(z.string(), z.unknown())).optional(),
+  model_pricing: z.array(ModelPricingSchema.partial()).optional(),
+  elo_ratings: z.array(EloRatingSchema.partial()).optional(),
+  rankings: z.array(RankingSchema.partial()).optional(),
   model_updates: z.array(z.object({
     title: z.string(),
     description: z.string().nullable(),
     update_type: z.string(),
     published_at: z.string(),
-  })).optional(),
+  }).partial()).optional(),
 });
 
 export type ModelWithDetailsType = z.infer<typeof ModelWithDetailsSchema>;
