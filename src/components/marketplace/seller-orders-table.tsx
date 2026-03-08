@@ -57,7 +57,7 @@ export function SellerOrdersTable() {
 
       let enriched = parseQueryResult(orderResponse, SellerOrderRowSchema, "SellerOrder");
       if (enriched.length > 0) {
-        const buyerIds = [...new Set(enriched.map((o) => o.buyer_id).filter(Boolean))];
+        const buyerIds = [...new Set(enriched.map((o) => o.buyer_id).filter((id): id is string => id != null))];
         if (buyerIds.length > 0) {
           const profilesResponse = await supabase
             .from("profiles")

@@ -19,8 +19,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
-import { OrderWithPartiesSchema, type OrderWithParties } from "@/lib/schemas/marketplace";
+import { OrderWithListingSchema, type OrderWithListing } from "@/lib/schemas/marketplace";
 import { formatDate, formatRelativeDate, formatCurrency } from "@/lib/format";
+
+type ProfileInfo = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  username: string | null;
+};
+
+type EnrichedOrder = OrderWithListing & {
+  buyer: ProfileInfo | null;
+  seller: ProfileInfo | null;
+};
 
 type OrderMessage = {
   id: string;
@@ -48,7 +60,7 @@ export default function OrderDetailContent({
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [orderId, setOrderId] = useState<string>("");
-  const [order, setOrder] = useState<OrderWithParties | null>(null);
+  const [order, setOrder] = useState<EnrichedOrder | null>(null);
   const [messages, setMessages] = useState<OrderMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -62,18 +74,32 @@ export default function OrderDetailContent({
   const fetchOrder = useCallback(async () => {
     if (!user || !orderId) return;
 
+    // Query 1: Order with listing (no FK alias joins)
     const response = await supabase
       .from("marketplace_orders")
-      .select(
-        "*, marketplace_listings(title, slug, listing_type), buyer:buyer_id(display_name, avatar_url, username), seller:seller_id(display_name, avatar_url, username)"
-      )
+      .select("*, marketplace_listings(title, slug, listing_type)")
       .eq("id", orderId)
       .single();
 
-    const data = parseQueryResultSingle(response, OrderWithPartiesSchema, "OrderWithParties");
-    if (data && (data.buyer_id === user.id || data.seller_id === user.id)) {
-      setOrder(data);
+    const baseOrder = parseQueryResultSingle(response, OrderWithListingSchema, "OrderDetailBase");
+    if (!baseOrder || (baseOrder.buyer_id !== user.id && baseOrder.seller_id !== user.id)) {
+      setLoading(false);
+      return;
     }
+
+    // Query 2: Fetch buyer and seller profiles
+    const partyIds = [baseOrder.buyer_id, baseOrder.seller_id].filter(Boolean) as string[];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url, username")
+      .in("id", partyIds);
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    setOrder({
+      ...baseOrder,
+      buyer: baseOrder.buyer_id ? profileMap.get(baseOrder.buyer_id) ?? null : null,
+      seller: profileMap.get(baseOrder.seller_id) ?? null,
+    });
     setLoading(false);
   }, [user, orderId]);
 

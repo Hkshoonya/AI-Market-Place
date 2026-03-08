@@ -13,17 +13,17 @@ export const MarketplaceListingSchema = z.object({
   listing_type: z.string(),
   status: z.string(),
   pricing_type: z.string(),
-  price: z.number().nullable(),
+  price: z.coerce.number().nullable(),
   currency: z.string(),
   model_id: z.string().nullable(),
   tags: z.array(z.string()),
   thumbnail_url: z.string().nullable(),
   demo_url: z.string().nullable(),
   documentation_url: z.string().nullable(),
-  view_count: z.number(),
-  inquiry_count: z.number(),
-  avg_rating: z.number().nullable(),
-  review_count: z.number(),
+  view_count: z.coerce.number(),
+  inquiry_count: z.coerce.number(),
+  avg_rating: z.coerce.number().nullable(),
+  review_count: z.coerce.number(),
   is_featured: z.boolean(),
   agent_config: z.record(z.string(), z.unknown()).nullable().optional(),
   mcp_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -40,11 +40,11 @@ export const MarketplaceReviewSchema = z.object({
   id: z.string(),
   listing_id: z.string(),
   reviewer_id: z.string(),
-  rating: z.number(),
+  rating: z.coerce.number(),
   title: z.string().nullable(),
   content: z.string().nullable(),
   is_verified_purchase: z.boolean(),
-  upvotes: z.number(),
+  upvotes: z.coerce.number(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -56,11 +56,11 @@ export type MarketplaceReviewType = z.infer<typeof MarketplaceReviewSchema>;
 export const MarketplaceOrderSchema = z.object({
   id: z.string(),
   listing_id: z.string(),
-  buyer_id: z.string(),
+  buyer_id: z.string().nullable(),
   seller_id: z.string(),
   status: z.string(),
   message: z.string().nullable(),
-  price_at_time: z.number().nullable(),
+  price_at_time: z.coerce.number().nullable(),
   delivery_data: z.record(z.string(), z.unknown()).nullable(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -92,14 +92,14 @@ export const MarketplaceListingWithSellerSchema = MarketplaceListingSchema.exten
     username: z.string().nullable(),
     is_seller: z.boolean(),
     seller_verified: z.boolean(),
-    seller_rating: z.number().nullable(),
-    total_sales: z.number(),
+    seller_rating: z.coerce.number().nullable(),
+    total_sales: z.coerce.number(),
   }).optional(),
   models: z.object({
     name: z.string(),
     slug: z.string(),
     provider: z.string(),
-    quality_score: z.number().nullable(),
+    quality_score: z.coerce.number().nullable(),
   }).nullable().optional(),
 });
 
@@ -178,38 +178,14 @@ export const OrderProfilePickSchema = z.object({
 
 export type OrderProfilePick = z.infer<typeof OrderProfilePickSchema>;
 
-// Order with joins for buyer view (orders-content.tsx)
-export const OrderWithJoinsSchema = MarketplaceOrderSchema.extend({
+// Order with listing join only — no FK alias joins to profiles (orders-content.tsx, order-detail-content.tsx)
+export const OrderWithListingSchema = MarketplaceOrderSchema.extend({
   marketplace_listings: z.object({
     title: z.string().nullable(),
     slug: z.string().nullable(),
     listing_type: z.string().nullable(),
     thumbnail_url: z.string().nullable().optional(),
   }).nullable().optional(),
-  seller: z.object({
-    display_name: z.string().nullable(),
-    avatar_url: z.string().nullable(),
-    username: z.string().nullable(),
-  }).nullable().optional(),
 });
 
-export type OrderWithJoins = z.infer<typeof OrderWithJoinsSchema>;
-
-// Order with buyer/seller parties (order-detail-content.tsx)
-const OrderPartySchema = z.object({
-  display_name: z.string().nullable(),
-  avatar_url: z.string().nullable(),
-  username: z.string().nullable(),
-});
-
-export const OrderWithPartiesSchema = MarketplaceOrderSchema.extend({
-  marketplace_listings: z.object({
-    title: z.string().nullable(),
-    slug: z.string().nullable(),
-    listing_type: z.string().nullable(),
-  }).nullable().optional(),
-  buyer: OrderPartySchema.nullable().optional(),
-  seller: OrderPartySchema.nullable().optional(),
-});
-
-export type OrderWithParties = z.infer<typeof OrderWithPartiesSchema>;
+export type OrderWithListing = z.infer<typeof OrderWithListingSchema>;
