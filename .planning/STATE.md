@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 11-04-PLAN.md Task 1 (checkpoint at Task 2 - DB migration)
-last_updated: "2026-03-08T22:29:32Z"
-last_activity: 2026-03-08 — Completed Plan 11-04 Task 1 (z.coerce.number gap closure)
+stopped_at: Completed 11-05-PLAN.md (orders FK alias fix)
+last_updated: "2026-03-08T22:31:32Z"
+last_activity: 2026-03-08 — Completed Plan 11-05 (orders FK alias join fix + buyer_id nullable)
 progress:
   total_phases: 8
   completed_phases: 3
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 11 of 16 (Zod Runtime Validation)
-Plan: 4 of 5 in current phase (Task 1 done, Task 2 checkpoint:human-action)
+Plan: 5 of 5 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-08 — Completed Plan 11-04 Task 1 (z.coerce.number gap closure)
+Last activity: 2026-03-08 — Completed Plan 11-05 (orders FK alias join fix + buyer_id nullable)
 
-Progress: [██████░░░░] 54%
+Progress: [██████░░░░] 56%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (v1.0) + 5 (v1.1)
+- Total plans completed: 28 (v1.0) + 6 (v1.1)
 - Average duration: ~25 min (v1.0)
 - Total execution time: ~12 hours (v1.0)
 
@@ -47,6 +47,7 @@ Progress: [██████░░░░] 54%
 | 11-zod-runtime-validation | 02 | 15min | 2 | 28 |
 | 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
 | 11-zod-runtime-validation | 04 | 6min | 1 | 7 |
+| 11-zod-runtime-validation | 05 | 9min | 1 | 4 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -78,6 +79,8 @@ v1.1 decisions:
 - [Phase 11-zod]: Inline Zod schemas at query sites for one-off shapes rather than bloating central schema files
 - [Phase 11-zod]: z.coerce.number() globally for all Postgres numeric/bigint columns (PostgREST returns strings)
 - [Phase 11-zod]: is_open_weights z.boolean().nullable() since DB has DEFAULT false but no NOT NULL constraint
+- [Phase 11-zod]: Two-query enrichment in orders client components; API route for buyer role lacks seller profile enrichment
+- [Phase 11-zod]: OrderWithListingSchema replaces both OrderWithJoinsSchema and OrderWithPartiesSchema
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T22:29:32Z
-Stopped at: Completed 11-04-PLAN.md Task 1 (checkpoint at Task 2 - DB migration required)
-Resume file: .planning/phases/11-zod-runtime-validation/11-04-SUMMARY.md
+Last session: 2026-03-08T22:31:32Z
+Stopped at: Completed 11-05-PLAN.md (orders FK alias fix)
+Resume file: .planning/phases/11-zod-runtime-validation/11-05-SUMMARY.md

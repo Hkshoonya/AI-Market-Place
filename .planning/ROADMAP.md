@@ -29,7 +29,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
 - [x] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR (completed 2026-03-05)
-- [ ] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries (UAT gap closure in progress)
+- [x] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries (UAT gap closure in progress) (completed 2026-03-08)
 - [ ] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components
 - [ ] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders
 - [ ] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers
@@ -73,7 +73,7 @@ Plans:
   1. All 56 `as unknown as` casts across 38 files are replaced with Zod `.parse()` or `.safeParse()` calls
   2. A Supabase query returning unexpected shape logs a Zod validation error to Sentry (distinct from application errors) and falls back gracefully
   3. `npx tsc --noEmit` passes clean and all 170+ existing tests still pass
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [x] 11-01-PLAN.md -- parseQueryResult utilities, domain-grouped Zod schemas, unit tests
 - [x] 11-02-PLAN.md -- Migrate server pages, API routes, and lib utilities (~35 casts)
@@ -150,7 +150,7 @@ Plans:
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 11. Zod Runtime Validation | 4/5 | In Progress|  | 2026-03-08 |
+| 11. Zod Runtime Validation | 5/5 | Complete   | 2026-03-08 | 2026-03-08 |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
