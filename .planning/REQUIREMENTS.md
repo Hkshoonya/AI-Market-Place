@@ -24,9 +24,9 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### Runtime Type Safety
 
-- [ ] **TYPE-01**: Zod schemas defined for Supabase query results replacing `as unknown as` casts (56 instances across 38 files)
-- [ ] **TYPE-02**: Shared parseQueryResult utility with graceful fallback for Zod validation at query boundaries
-- [ ] **TYPE-03**: Sentry error classification distinguishes Zod validation errors from application errors
+- [x] **TYPE-01**: Zod schemas defined for Supabase query results replacing `as unknown as` casts (56 instances across 38 files)
+- [x] **TYPE-02**: Shared parseQueryResult utility with graceful fallback for Zod validation at query boundaries
+- [x] **TYPE-03**: Sentry error classification distinguishes Zod validation errors from application errors
 
 ### Component Testing
 
@@ -105,9 +105,9 @@ Deferred to future release. Tracked but not in current roadmap.
 | CICD-02 | Phase 10 | Complete |
 | CICD-03 | Phase 10 | Complete |
 | CICD-04 | Phase 10 | Complete |
-| TYPE-01 | Phase 11 | Pending |
-| TYPE-02 | Phase 11 | Pending |
-| TYPE-03 | Phase 11 | Pending |
+| TYPE-01 | Phase 11 | Complete |
+| TYPE-02 | Phase 11 | Complete |
+| TYPE-03 | Phase 11 | Complete |
 | TEST-01 | Phase 12 | Pending |
 | TEST-02 | Phase 12 | Pending |
 | TEST-03 | Phase 12 | Pending |
