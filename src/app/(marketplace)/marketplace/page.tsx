@@ -3,10 +3,12 @@ import { ArrowRight, Gavel, ShoppingBag, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
-import type { MarketplaceListing } from "@/types/database";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
@@ -19,31 +21,30 @@ export default async function MarketplacePage() {
   const supabase = await createClient();
 
   // Fetch type counts
-  const { data: allListingsRaw } = await supabase
+  const listingTypeResponse = await supabase
     .from("marketplace_listings")
     .select("listing_type")
     .eq("status", "active");
 
-  const allListings = (allListingsRaw ?? []) as unknown as { listing_type: string }[];
+  const ListingTypeSchema = z.object({ listing_type: z.string() });
+  const allListings = parseQueryResult(listingTypeResponse, ListingTypeSchema, "MarketplaceListingType");
 
   const counts: Record<string, number> = {};
-  if (allListings) {
-    for (const l of allListings) {
-      counts[l.listing_type] = (counts[l.listing_type] || 0) + 1;
-    }
+  for (const l of allListings) {
+    counts[l.listing_type] = (counts[l.listing_type] || 0) + 1;
   }
 
   // Fetch featured listings (up to 6)
   // NOTE: is_featured column may not exist yet — order by created_at only
   // When migration adds the column, re-enable: .order("is_featured", { ascending: false })
-  const { data: rawFeaturedData } = await supabase
+  const featuredResponse = await supabase
     .from("marketplace_listings")
     .select("*")
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(6);
 
-  const rawFeatured = (rawFeaturedData || []) as unknown as MarketplaceListing[];
+  const rawFeatured = parseQueryResult(featuredResponse, MarketplaceListingSchema, "MarketplaceFeatured");
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const featured = await enrichListingsWithProfiles(

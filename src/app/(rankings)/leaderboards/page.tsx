@@ -4,6 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { RankedModelSchema, SpeedModelSchema, ValueModelSchema } from "@/lib/schemas/rankings";
+import { ExplorerModelSchema } from "@/lib/schemas/models";
+import type { z } from "zod";
 import { formatTokenPrice, formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
@@ -26,7 +30,7 @@ export default async function LeaderboardsPage() {
   const supabase = await createClient();
 
   // Fetch ranked models with benchmarks, pricing, elo — sorted by overall rank
-  const { data: rankedModelsRaw } = await supabase
+  const rankedModelsResponse = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
     .eq("status", "active")
@@ -34,11 +38,11 @@ export default async function LeaderboardsPage() {
     .order("overall_rank", { ascending: true })
     .limit(20);
 
-  type RankedModel = { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; market_cap_estimate: number | null; popularity_score: number | null; is_open_weights: boolean | null; benchmark_scores: Array<{ score_normalized: number; benchmarks: { slug: string } | null }>; model_pricing: Array<{ input_price_per_million: number | null }> };
-  const rankedModels = rankedModelsRaw as unknown as RankedModel[] | null;
+  type RankedModel = z.infer<typeof RankedModelSchema>;
+  const rankedModels = parseQueryResult(rankedModelsResponse, RankedModelSchema, "RankedModel");
 
   // Fetch ALL ranked models for the explorer (client component)
-  const { data: explorerModelsRaw } = await supabase
+  const explorerModelsResponse = await supabase
     .from("models")
     .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
     .eq("status", "active")
@@ -46,8 +50,7 @@ export default async function LeaderboardsPage() {
     .order("overall_rank", { ascending: true })
     .limit(500);
 
-  type ExplorerModel = { name: string; slug: string; provider: string; category: string; overall_rank: number | null; category_rank: number | null; quality_score: number | null; value_score: number | null; is_open_weights: boolean | null; hf_downloads: number | null; popularity_score: number | null; agent_score: number | null; agent_rank: number | null; popularity_rank: number | null; market_cap_estimate: number | null; capability_score: number | null; capability_rank: number | null; usage_score: number | null; usage_rank: number | null; expert_score: number | null; expert_rank: number | null; balanced_rank: number | null };
-  const explorerModels = ((explorerModelsRaw as unknown as ExplorerModel[] | null) ?? []).map((m) => ({
+  const explorerModels = parseQueryResult(explorerModelsResponse, ExplorerModelSchema, "ExplorerModel").map((m) => ({
     name: m.name,
     slug: m.slug,
     provider: m.provider,
@@ -73,26 +76,24 @@ export default async function LeaderboardsPage() {
   }));
 
   // Fetch speed-ranked models
-  const { data: speedModelsRaw } = await supabase
+  const speedModelsResponse = await supabase
     .from("model_pricing")
     .select("*, models!inner(id, slug, name, provider, category, overall_rank, quality_score, is_open_weights)")
     .not("median_output_tokens_per_second", "is", null)
     .order("median_output_tokens_per_second", { ascending: false })
     .limit(10);
 
-  type SpeedModel = { id: string; median_output_tokens_per_second: number | null; median_time_to_first_token: number | null; input_price_per_million: number | null; provider_name: string | null; models: { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null } };
-  const speedModels = speedModelsRaw as unknown as SpeedModel[] | null;
+  const speedModels = parseQueryResult(speedModelsResponse, SpeedModelSchema, "SpeedModel");
 
   // Fetch value-ranked models
-  const { data: valueModelsRaw } = await supabase
+  const valueModelsResponse = await supabase
     .from("model_pricing")
     .select("*, models!inner(id, slug, name, provider, category, overall_rank, quality_score, is_open_weights)")
     .not("input_price_per_million", "is", null)
     .order("input_price_per_million", { ascending: true })
     .limit(10);
 
-  type ValueModel = { id: string; input_price_per_million: number | null; output_price_per_million?: number | null; provider_name: string | null; models: { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null } };
-  const valueModels = valueModelsRaw as unknown as ValueModel[] | null;
+  const valueModels = parseQueryResult(valueModelsResponse, ValueModelSchema, "ValueModel");
 
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
     const scores = model.benchmark_scores;
@@ -242,7 +243,7 @@ export default async function LeaderboardsPage() {
 
         {/* Overall Tab — Top 20 by Composite Rank */}
         <TabsContent value="overall" className="mt-6">
-          {rankedModels && rankedModels.length > 0 && (
+          {rankedModels.length > 0 && (
             <div className="mb-6">
               <QualityDistribution
                 data={rankedModels.map((m) => ({
@@ -269,7 +270,7 @@ export default async function LeaderboardsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rankedModels?.map((model, index) => {
+                {rankedModels.map((model, index) => {
                   const rank = index + 1;
                   const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
                   const popScore = model.popularity_score ? Number(model.popularity_score) : null;
@@ -384,7 +385,7 @@ export default async function LeaderboardsPage() {
 
         {/* Speed Tab */}
         <TabsContent value="speed" className="mt-6">
-          {speedModels && speedModels.length > 0 && (
+          {speedModels.length > 0 && (
             <div className="mb-6">
               <SpeedCostScatter
                 data={speedModels
@@ -412,7 +413,7 @@ export default async function LeaderboardsPage() {
                 </tr>
               </thead>
               <tbody>
-                {speedModels?.map((pricing, i) => {
+                {speedModels.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string };
                   return (
                     <tr key={pricing.id} className="border-b border-border/30 table-row-hover">
@@ -464,7 +465,7 @@ export default async function LeaderboardsPage() {
                 </tr>
               </thead>
               <tbody>
-                {valueModels?.map((pricing, i) => {
+                {valueModels.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string; quality_score: number | null };
                   return (
                     <tr key={pricing.id} className="border-b border-border/30 table-row-hover">

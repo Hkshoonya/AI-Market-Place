@@ -3,6 +3,9 @@ import { Activity, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
@@ -144,10 +147,15 @@ export default async function ModelsPage({
   const to = from + PAGE_SIZE - 1;
   dbQuery = dbQuery.range(from, to);
 
-  const { data: modelsRaw, count } = await dbQuery;
+  const modelsResponse = await dbQuery;
+  const count = modelsResponse.count;
 
-  type ModelPageRow = import("@/types/database").Model & { model_pricing?: Array<{ input_price_per_million: number | null }> };
-  const models = (modelsRaw as unknown as ModelPageRow[] | null) ?? [];
+  const ModelsPageSchema = ModelBaseSchema.extend({
+    model_pricing: z.array(z.object({
+      input_price_per_million: z.number().nullable(),
+    })).optional(),
+  });
+  const models = parseQueryResult(modelsResponse, ModelsPageSchema, "ModelsPage");
   const totalCount = count ?? 0;
 
   return (

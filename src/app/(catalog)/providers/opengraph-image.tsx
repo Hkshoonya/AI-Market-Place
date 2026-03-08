@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
 
 export const runtime = "edge";
 export const alt = "AI Model Providers";
@@ -9,12 +11,13 @@ export const contentType = "image/png";
 export default async function OGImage() {
   const supabase = await createClient();
 
-  const { data: modelsRaw } = await supabase
+  const modelsResponse = await supabase
     .from("models")
     .select("provider")
     .eq("status", "active");
 
-  const allModels = (modelsRaw ?? []) as unknown as { provider: string }[];
+  const ProviderOnlySchema = z.object({ provider: z.string() });
+  const allModels = parseQueryResult(modelsResponse, ProviderOnlySchema, "ProviderOG");
 
   // Aggregate provider counts
   const providerCounts = new Map<string, number>();

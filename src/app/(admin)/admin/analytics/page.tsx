@@ -14,8 +14,10 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatNumber } from "@/lib/format";
 import { CATEGORIES } from "@/lib/constants/categories";
 
@@ -55,22 +57,23 @@ export default function AdminAnalyticsPage() {
     const fetchAnalytics = async () => {
       const supabase = createClient();
 
+      const ModelCatSchema = z.object({ category: z.string(), provider: z.string(), is_open_weights: z.boolean() });
+      const ModelDlSchema = z.object({ name: z.string(), provider: z.string(), hf_downloads: z.number().nullable() });
+      const ModelRatedSchema = z.object({ name: z.string(), provider: z.string(), quality_score: z.number().nullable() });
+
       const [
-        { data: allModelsRaw },
-        { data: topDownloadedRaw },
-        { data: topRatedRaw },
+        allModelsResponse,
+        topDownloadedResponse,
+        topRatedResponse,
       ] = await Promise.all([
         supabase.from("models").select("category, provider, is_open_weights").eq("status", "active"),
         supabase.from("models").select("name, provider, hf_downloads").eq("status", "active").order("hf_downloads", { ascending: false, nullsFirst: false }).limit(10),
         supabase.from("models").select("name, provider, quality_score").eq("status", "active").not("quality_score", "is", null).order("quality_score", { ascending: false }).limit(10),
       ]);
 
-      type ModelCat = { category: string; provider: string; is_open_weights: boolean };
-      type ModelDl = { name: string; provider: string; hf_downloads: number | null };
-      type ModelRated = { name: string; provider: string; quality_score: number | null };
-      const allModels = (allModelsRaw ?? []) as unknown as ModelCat[];
-      const topDownloaded = (topDownloadedRaw ?? []) as unknown as ModelDl[];
-      const topRated = (topRatedRaw ?? []) as unknown as ModelRated[];
+      const allModels = parseQueryResult(allModelsResponse, ModelCatSchema, "AdminAnalyticsModelCat");
+      const topDownloaded = parseQueryResult(topDownloadedResponse, ModelDlSchema, "AdminAnalyticsModelDl");
+      const topRated = parseQueryResult(topRatedResponse, ModelRatedSchema, "AdminAnalyticsModelRated");
 
       const models = allModels;
 

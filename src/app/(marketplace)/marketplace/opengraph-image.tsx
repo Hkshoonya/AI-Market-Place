@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
 
 export const runtime = "edge";
 export const alt = "AI Marketplace";
@@ -9,13 +11,14 @@ export const contentType = "image/png";
 export default async function OGImage() {
   const supabase = await createClient();
 
-  const { data: listingsRaw, count } = await supabase
+  const ListingTypeSchema = z.object({ listing_type: z.string() });
+  const ogResponse = await supabase
     .from("marketplace_listings")
     .select("listing_type", { count: "exact", head: false })
     .eq("status", "active");
 
-  const allListings = (listingsRaw ?? []) as unknown as { listing_type: string }[];
-  const totalCount = count ?? allListings.length;
+  const allListings = parseQueryResult(ogResponse, ListingTypeSchema, "MarketplaceOGListingType");
+  const totalCount = ogResponse.count ?? allListings.length;
 
   // Aggregate by type
   const typeCounts = new Map<string, number>();

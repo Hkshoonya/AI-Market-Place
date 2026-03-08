@@ -4,7 +4,10 @@ import { ArrowLeft, Calendar, Eye, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResultSingle } from "@/lib/schemas/parse";
+import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { SellerCard } from "@/components/marketplace/seller-card";
 import { ListingReviews } from "@/components/marketplace/listing-reviews";
 import { ContactForm } from "@/components/marketplace/contact-form";
@@ -16,21 +19,24 @@ import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
-import type { MarketplaceListing, Profile } from "@/types/database";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = await createClient();
-  const { data: rawMeta } = await supabase
+  const ListingMetaSchema = z.object({
+    title: z.string(),
+    short_description: z.string().nullable(),
+    listing_type: z.string(),
+  });
+  const metaResponse = await supabase
     .from("marketplace_listings")
     .select("title, short_description, listing_type")
     .eq("slug", slug)
     .single();
 
-  type ListingMeta = Pick<MarketplaceListing, "title" | "short_description" | "listing_type">;
-  const data = rawMeta as unknown as ListingMeta | null;
+  const data = parseQueryResultSingle(metaResponse, ListingMetaSchema, "ListingMeta");
 
   const title = data?.title || "Marketplace Listing";
   const description =
@@ -54,15 +60,14 @@ export default async function ListingDetailPage(props: {
   const { slug } = await props.params;
   const supabase = await createClient();
 
-  const { data: rawData, error } = await supabase
+  const listingResponse = await supabase
     .from("marketplace_listings")
     .select("*")
     .eq("slug", slug)
     .single();
 
-  if (error || !rawData) notFound();
-
-  const rawListing = rawData as unknown as MarketplaceListing;
+  const rawListing = parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "ListingDetail");
+  if (!rawListing) notFound();
 
   // Enrich with seller profile (no FK exists, so fetch separately)
   const listing = await enrichListingWithProfile(
@@ -171,7 +176,7 @@ export default async function ListingDetailPage(props: {
                   pricingType={listing.pricing_type}
                   sellerName={(listing.profiles?.display_name as string | null) ?? undefined}
                 />
-                <ContactForm listing={listing} />
+                <ContactForm listing={listing as import("@/types/database").MarketplaceListing} />
               </div>
             </CardContent>
           </Card>
@@ -244,9 +249,23 @@ export default async function ListingDetailPage(props: {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {listing.profiles && (
-            <SellerCard seller={listing.profiles as unknown as Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "seller_bio" | "seller_website" | "seller_verified" | "seller_rating" | "total_sales" | "created_at">} />
-          )}
+          {listing.profiles && (() => {
+            const SellerProfileSchema = z.object({
+              id: z.string(),
+              display_name: z.string().nullable(),
+              username: z.string().nullable(),
+              avatar_url: z.string().nullable(),
+              seller_bio: z.string().nullable(),
+              seller_website: z.string().nullable(),
+              seller_verified: z.boolean(),
+              seller_rating: z.number().nullable(),
+              total_sales: z.number(),
+              created_at: z.string(),
+            });
+            const parsed = SellerProfileSchema.safeParse(listing.profiles);
+            if (!parsed.success) return null;
+            return <SellerCard seller={parsed.data} />;
+          })()}
         </div>
       </div>
     </div>

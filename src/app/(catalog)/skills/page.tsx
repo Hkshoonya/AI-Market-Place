@@ -13,7 +13,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
@@ -151,7 +153,27 @@ export default async function SkillsPage() {
   const supabase = await createClient();
 
   // Fetch benchmark scores with model + benchmark info
-  const { data: benchmarkDataRaw } = await supabase
+  const BenchmarkScoreEntrySchema = z.object({
+    score: z.number().nullable(),
+    score_normalized: z.number().nullable(),
+    model_id: z.string(),
+    models: z.object({
+      id: z.string(),
+      slug: z.string(),
+      name: z.string(),
+      provider: z.string(),
+      category: z.string(),
+      quality_score: z.number().nullable(),
+      market_cap_estimate: z.number().nullable(),
+      is_open_weights: z.boolean(),
+    }).nullable(),
+    benchmarks: z.object({
+      slug: z.string(),
+      name: z.string(),
+    }).nullable(),
+  });
+
+  const benchmarkDataResponse = await supabase
     .from("benchmark_scores")
     .select(
       "score, score_normalized, model_id, models!inner(id, slug, name, provider, category, quality_score, market_cap_estimate, is_open_weights), benchmarks!inner(slug, name)"
@@ -160,33 +182,42 @@ export default async function SkillsPage() {
     .order("score", { ascending: false })
     .limit(2000);
 
-  type BenchmarkScoreEntry = {
-    score: number | null;
-    score_normalized: number | null;
-    model_id: string;
-    models: { id: string; slug: string; name: string; provider: string; category: string; quality_score: number | null; market_cap_estimate: number | null; is_open_weights: boolean } | null;
-    benchmarks: { slug: string; name: string } | null;
-  };
-  const benchmarkData = (benchmarkDataRaw as unknown as BenchmarkScoreEntry[] | null) ?? [];
+  const benchmarkData = parseQueryResult(benchmarkDataResponse, BenchmarkScoreEntrySchema, "SkillsBenchmarkScore");
 
   // Fetch affiliate deployment platforms
-  const { data: platformsRaw } = await supabase
+  const AffiliatePlatformSchema = z.object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    affiliate_url_template: z.string().nullable(),
+    has_affiliate: z.boolean(),
+    base_url: z.string(),
+  });
+
+  const platformsResponse = await supabase
     .from("deployment_platforms")
     .select("*")
     .eq("has_affiliate", true);
 
-  const affiliatePlatforms = (platformsRaw as unknown as AffiliatePlatform[] | null) ?? [];
+  const affiliatePlatforms = parseQueryResult(platformsResponse, AffiliatePlatformSchema, "AffiliatePlatform");
 
   // Fetch model deployments that link to affiliate platforms
   const affiliatePlatformIds = affiliatePlatforms.map((p) => p.id);
-  let deployments: DeploymentRow[] = [];
+  const DeploymentRowSchema = z.object({
+    model_id: z.string(),
+    deploy_url: z.string().nullable(),
+    platform_id: z.string(),
+    deployment_platforms: AffiliatePlatformSchema.nullable(),
+  });
+
+  let deployments: z.infer<typeof DeploymentRowSchema>[] = [];
   if (affiliatePlatformIds.length > 0) {
-    const { data: deploymentsRaw } = await supabase
+    const deploymentsResponse = await supabase
       .from("model_deployments")
       .select("model_id, deploy_url, platform_id, deployment_platforms(*)")
       .in("platform_id", affiliatePlatformIds);
 
-    deployments = (deploymentsRaw as unknown as DeploymentRow[] | null) ?? [];
+    deployments = parseQueryResult(deploymentsResponse, DeploymentRowSchema, "DeploymentRow");
   }
 
   // Build a map: model_id -> affiliate deploy info

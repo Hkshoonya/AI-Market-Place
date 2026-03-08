@@ -16,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { HomeTopModelSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -50,7 +52,7 @@ export default async function HomePage() {
   const supabase = await createClient();
 
   // Fetch top 10 models by composite overall rank
-  const { data: topModelsRaw } = await supabase
+  const topModelsResponse = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*)")
     .eq("status", "active")
@@ -58,7 +60,7 @@ export default async function HomePage() {
     .order("overall_rank", { ascending: true })
     .limit(10);
 
-  const topModels = topModelsRaw as unknown as Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; market_cap_estimate: number | null; popularity_score: number | null; is_open_weights: boolean | null; rankings: Array<{ balanced_rank: number | null }>; model_pricing: Array<{ input_price_per_million: number | null }> }> | null;
+  const topModels = parseQueryResult(topModelsResponse, HomeTopModelSchema, "HomeTopModel");
 
   // Fetch newest models
   const { data: newModelsRaw } = await supabase
@@ -212,7 +214,7 @@ export default async function HomePage() {
               </tr>
             </thead>
             <tbody>
-              {topModels?.map((model, index) => {
+              {topModels.map((model, index) => {
                 const catConfig = CATEGORIES.find(
                   (c) => c.slug === model.category
                 );

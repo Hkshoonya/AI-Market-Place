@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CATEGORIES, CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { CategoryModelSchema } from "@/lib/schemas/rankings";
+import type { z } from "zod";
 import { formatParams, formatTokenPrice, formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
@@ -47,15 +50,15 @@ export default async function CategoryLeaderboardPage({
   const supabase = await createClient();
 
   // Fetch models in this category with their benchmark scores and pricing
-  const { data: modelsRaw } = await supabase
+  const modelsResponse = await supabase
     .from("models")
     .select("*, benchmark_scores(*, benchmarks(*)), model_pricing(*), rankings(*)")
     .eq("status", "active")
     .eq("category", category as import("@/types/database").ModelCategory)
     .order("quality_score", { ascending: false, nullsFirst: false });
 
-  type CategoryModel = { id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; category_rank: number | null; quality_score: number | null; is_open_weights: boolean | null; parameter_count: number | null; benchmark_scores: Array<{ score_normalized: number | null; benchmarks: { slug: string; name: string } | null }>; model_pricing: Array<{ input_price_per_million: number | null; median_output_tokens_per_second: number | null }> };
-  const models = (modelsRaw as unknown as CategoryModel[] | null) ?? [];
+  type CategoryModel = z.infer<typeof CategoryModelSchema>;
+  const models = parseQueryResult(modelsResponse, CategoryModelSchema, "CategoryModel");
 
   // Collect all benchmarks that appear in this category
   const benchmarkMap = new Map<string, { name: string; slug: string }>();

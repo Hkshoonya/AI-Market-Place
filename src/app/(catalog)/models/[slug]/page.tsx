@@ -23,6 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResultSingle } from "@/lib/schemas/parse";
+import { ModelWithDetailsSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatContextWindow, formatTokenPrice } from "@/lib/format";
 import { ModelActions } from "@/components/models/model-actions";
 import { ShareModel } from "@/components/models/share-model";
@@ -95,7 +97,7 @@ export default async function ModelDetailPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const modelResponse = await supabase
     .from("models")
     .select(
       `
@@ -110,11 +112,11 @@ export default async function ModelDetailPage({
     .eq("slug", slug)
     .single();
 
-  if (error || !data) {
+  const model = parseQueryResultSingle(modelResponse, ModelWithDetailsSchema, "ModelWithDetails");
+
+  if (!model) {
     notFound();
   }
-
-  const model = data as unknown as import("@/types/database").ModelWithDetails;
 
   // Fetch historical snapshots for trends
   const { data: snapshotsRaw } = await supabase
@@ -131,7 +133,7 @@ export default async function ModelDetailPage({
       "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, parameter_count, is_open_weights"
     )
     .eq("status", "active")
-    .eq("category", model.category)
+    .eq("category", model.category as import("@/types/database").ModelCategory)
     .neq("id", model.id)
     .order("quality_score", { ascending: false, nullsFirst: false })
     .limit(5);
@@ -169,11 +171,7 @@ export default async function ModelDetailPage({
   );
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
-  const benchmarkScores = (model.benchmark_scores as unknown as {
-    score: number;
-    score_normalized: number | null;
-    benchmarks: { name: string; slug: string; category: string; max_score: number | null } | null;
-  }[]) ?? [];
+  const benchmarkScores = model.benchmark_scores ?? [];
   const pricingData = (model.model_pricing as {
     provider_name: string;
     input_price_per_million: number | null;

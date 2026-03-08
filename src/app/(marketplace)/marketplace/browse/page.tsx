@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { Pagination } from "@/components/models/pagination";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
-import type { MarketplaceListing } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -84,11 +85,11 @@ export default async function BrowsePage(props: {
   const to = from + ITEMS_PER_PAGE - 1;
   query = query.range(from, to);
 
-  const { data: queryData, count } = await query;
-  const totalCount = count || 0;
+  const browseResponse = await query;
+  const totalCount = browseResponse.count || 0;
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
-  const rawData = (queryData || []) as unknown as MarketplaceListing[];
+  const rawData = parseQueryResult(browseResponse, MarketplaceListingSchema, "MarketplaceBrowse");
   const data = await enrichListingsWithProfiles(supabase, rawData);
 
   const typeConfig = type

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Eye, Globe, Layers, Search, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import type { Metadata } from "next";
@@ -60,12 +62,17 @@ export default async function DiscoverPage(props: {
   if (watchlists.length > 0) {
     const userIds = [...new Set(watchlists.map((w) => w.user_id).filter(Boolean))];
     if (userIds.length > 0) {
-      const { data: profilesRaw } = await supabase
+      const ProfileRowSchema = z.object({
+        id: z.string(),
+        display_name: z.string().nullable(),
+        username: z.string().nullable(),
+        avatar_url: z.string().nullable(),
+      });
+      const profilesResponse = await supabase
         .from("profiles")
         .select("id, display_name, username, avatar_url")
         .in("id", userIds);
-      type ProfileRow = Pick<Profile, "id" | "display_name" | "username" | "avatar_url">;
-      const profiles = (profilesRaw ?? []) as unknown as ProfileRow[];
+      const profiles = parseQueryResult(profilesResponse, ProfileRowSchema, "DiscoverProfile");
       const profileMap = new Map(profiles.map((p) => [p.id, p]));
       watchlists = watchlists.map((w) => ({
         ...w,

@@ -17,9 +17,11 @@ import {
 import { LISTING_TYPES, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResultSingle } from "@/lib/schemas/parse";
+import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { toast } from "sonner";
 import { use } from "react";
-import type { MarketplaceListing } from "@/types/database";
+import type { MarketplaceListingType } from "@/lib/schemas/marketplace";
 
 type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template";
 type PricingType = "one_time" | "monthly_subscription" | "per_token" | "per_request" | "free" | "contact";
@@ -42,7 +44,7 @@ export default function AdminEditListingPage({
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [listing, setListing] = useState<MarketplaceListing | null>(null);
+  const [listing, setListing] = useState<MarketplaceListingType | null>(null);
   const [error, setError] = useState("");
 
   // Form state
@@ -62,31 +64,30 @@ export default function AdminEditListingPage({
   useEffect(() => {
     async function fetchListing() {
       // Fetch listing directly via admin query (bypasses active-only filter)
-      const { data: rawData, error: fetchError } = await supabase
+      const listingResponse = await supabase
         .from("marketplace_listings")
         .select("*")
         .eq("slug", slug)
         .single();
 
-      if (fetchError || !rawData) {
+      const data = parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "AdminEditListing");
+      if (!data) {
         setError("Listing not found");
         setLoading(false);
         return;
       }
-
-      const data = rawData as unknown as MarketplaceListing;
       setListing(data);
       setTitle(data.title);
       setDescription(data.description);
       setShortDescription(data.short_description || "");
       setListingType(data.listing_type as ListingType);
-      setPricingType(data.pricing_type);
+      setPricingType(data.pricing_type as PricingType);
       setPrice(data.price?.toString() || "");
       setTags(data.tags?.join(", ") || "");
       setDemoUrl(data.demo_url || "");
       setDocumentationUrl(data.documentation_url || "");
       setThumbnailUrl(data.thumbnail_url || "");
-      setStatus(data.status);
+      setStatus(data.status as StatusType);
       setIsFeatured(data.is_featured || false);
       setLoading(false);
     }
@@ -470,7 +471,7 @@ export default function AdminEditListingPage({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Purchases</span>
-                  <span className="tabular-nums">{(listing as MarketplaceListing & { purchase_count?: number }).purchase_count || 0}</span>
+                  <span className="tabular-nums">{(listing as MarketplaceListingType & { purchase_count?: number }).purchase_count || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Reviews</span>

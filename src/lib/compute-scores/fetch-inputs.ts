@@ -7,6 +7,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { getStaleSourceCount } from "@/lib/pipeline-health";
 import type { ScoringInputs } from "./types";
 import { createTaggedLogger } from "@/lib/logging";
@@ -34,14 +36,19 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
   }
 
   // 2. Fetch benchmark scores per model (with benchmark slug for weighted avg)
-  const { data: benchmarkAvgs } = await supabase
+  const BenchmarkScoreWithSlugSchema = z.object({
+    model_id: z.string(),
+    score_normalized: z.number().nullable(),
+    benchmarks: z.object({ slug: z.string() }).nullable().optional(),
+  });
+  const benchmarkResponse = await supabase
     .from("benchmark_scores")
     .select("model_id, score_normalized, benchmarks(slug)");
 
-  type BenchmarkScoreWithSlug = { model_id: string; score_normalized: number | null; benchmarks?: { slug: string } | null };
+  const benchmarkAvgs = parseQueryResult(benchmarkResponse, BenchmarkScoreWithSlugSchema, "ScoringBenchmarkAvgs");
   const benchmarkMap = new Map<string, number[]>();
   const benchmarkDetailMap = new Map<string, Array<{ slug: string; score: number }>>();
-  for (const bs of (benchmarkAvgs as unknown as BenchmarkScoreWithSlug[] ?? [])) {
+  for (const bs of benchmarkAvgs) {
     if (bs.score_normalized == null) continue;
     const modelId = bs.model_id;
     const score = Number(bs.score_normalized);

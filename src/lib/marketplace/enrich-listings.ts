@@ -13,6 +13,8 @@
  * This keeps the shape identical to what components expect: `listing.profiles.*`
  */
 
+import { z } from "zod";
+import { parseQueryResult, parseQueryResultSingle } from "@/lib/schemas/parse";
 import type { TypedSupabaseClient } from "@/types/database";
 
 /** Minimal profile fields used by listing cards */
@@ -59,17 +61,17 @@ export async function enrichListingsWithProfiles<
     return listings.map((l) => ({ ...l, profiles: null }));
   }
 
-  const { data: profilesRaw } = await supabase
+  // Use a permissive schema since `fields` is dynamic (card vs full vs admin)
+  const DynamicProfileSchema = z.object({ id: z.string() }).passthrough();
+  const profilesResponse = await supabase
     .from("profiles")
     .select(fields)
     .in("id", sellerIds);
 
-  const profiles = profilesRaw as unknown as Record<string, unknown>[] | null;
+  const profiles = parseQueryResult(profilesResponse, DynamicProfileSchema, "EnrichListingsProfiles");
   const profileMap = new Map<string, Record<string, unknown>>();
-  if (profiles) {
-    for (const p of profiles) {
-      profileMap.set(p.id as string, p);
-    }
+  for (const p of profiles) {
+    profileMap.set(p.id, p);
   }
 
   return listings.map((l) => ({
@@ -92,12 +94,13 @@ export async function enrichListingWithProfile<
     return { ...listing, profiles: null };
   }
 
-  const { data: profileRaw } = await supabase
+  const DynamicProfileSchema = z.object({ id: z.string() }).passthrough();
+  const profileResponse = await supabase
     .from("profiles")
     .select(fields)
     .eq("id", listing.seller_id)
     .single();
 
-  const profile = profileRaw as unknown as Record<string, unknown> | null;
+  const profile = parseQueryResultSingle(profileResponse, DynamicProfileSchema, "EnrichListingProfile");
   return { ...listing, profiles: profile ?? null };
 }

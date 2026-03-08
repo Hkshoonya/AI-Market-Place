@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-08T06:56:16Z"
-last_activity: 2026-03-08 — Completed Plan 11-01 (Zod schema foundation)
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-03-08T07:10:55Z"
+last_activity: 2026-03-08 — Completed Plan 11-03 (Client component & Recharts cast migration)
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 11 of 16 (Zod Runtime Validation)
-Plan: 1 of 3 in current phase (complete)
+Plan: 3 of 3 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-08 — Completed Plan 11-01 (Zod schema foundation)
+Last activity: 2026-03-08 — Completed Plan 11-03 (Client component & Recharts cast migration)
 
-Progress: [████░░░░░░] 33%
+Progress: [██████░░░░] 50%
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [████░░░░░░] 33%
 | 09-observability | 02 | 4min | 2 | 10 |
 | 10-ci-pipeline | 01 | 6min | 1 | 11 |
 | 11-zod-runtime-validation | 01 | 6min | 2 | 9 |
+| 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -69,6 +70,8 @@ v1.1 decisions:
 - [Phase 11-zod]: ExplorerModelSchema as standalone z.object() since category_rank not in base schema
 - [Phase 11-zod]: reportSchemaError kept module-private, not exported from parse.ts
 - [Phase 11-zod]: parseQueryResult pattern wraps Supabase {data,error} + z.array().safeParse() + Sentry reporting
+- [Phase 11-zod]: Client two-query enrichment: validate raw data with base schema, enrich with profiles in JS
+- [Phase 11-zod]: Recharts Payload<number, string> import for tooltip typing; single `as` for Scatter onClick
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T06:56:16Z
-Stopped at: Completed 11-01-PLAN.md
-Resume file: .planning/phases/11-zod-runtime-validation/11-01-SUMMARY.md
+Last session: 2026-03-08T07:10:55Z
+Stopped at: Completed 11-03-PLAN.md
+Resume file: .planning/phases/11-zod-runtime-validation/11-03-SUMMARY.md

@@ -13,6 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getProviderBrand, PROVIDER_BRANDS } from "@/lib/constants/providers";
@@ -104,15 +107,20 @@ export default async function ProviderDetailPage({
   }
 
   // Fetch all models for this provider
-  const { data: modelsRaw } = await supabase
+  const ProviderModelSchema = ModelBaseSchema.extend({
+    model_pricing: z.array(z.object({
+      input_price_per_million: z.number().nullable(),
+    })).optional(),
+  });
+
+  const modelsResponse = await supabase
     .from("models")
     .select("*, model_pricing(*)")
     .eq("status", "active")
     .eq("provider", providerName)
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  type ProviderModelRow = import("@/types/database").Model & { model_pricing?: Array<{ input_price_per_million: number | null }> };
-  const models = (modelsRaw as unknown as ProviderModelRow[] | null) ?? [];
+  const models = parseQueryResult(modelsResponse, ProviderModelSchema, "ProviderModel");
 
   if (models.length === 0) {
     notFound();

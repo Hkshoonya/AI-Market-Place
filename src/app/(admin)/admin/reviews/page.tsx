@@ -12,14 +12,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { MarketplaceReview, Profile, MarketplaceListing } from "@/types/database";
 
-type EnrichedReview = Omit<MarketplaceReview, "profiles"> & {
+type EnrichedReview = Pick<MarketplaceReview, "id" | "rating" | "title" | "content" | "created_at" | "listing_id" | "reviewer_id"> & {
   profiles?: Pick<Profile, "display_name" | "username"> | null;
   marketplace_listings?: Pick<MarketplaceListing, "id" | "title" | "slug"> | null;
 };
@@ -61,19 +63,29 @@ export default function AdminReviewsPage() {
     const from = (page - 1) * PAGE_SIZE;
     query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data: rawData, count } = await query;
-    let enriched: EnrichedReview[] = (rawData ?? []) as EnrichedReview[];
+    const ReviewRowSchema = z.object({
+      id: z.string(),
+      rating: z.number(),
+      title: z.string().nullable(),
+      content: z.string().nullable(),
+      created_at: z.string(),
+      listing_id: z.string(),
+      reviewer_id: z.string(),
+    });
+    const reviewsResponse = await query;
+    const reviewsCount = reviewsResponse.count;
+    let enriched: EnrichedReview[] = parseQueryResult(reviewsResponse, ReviewRowSchema, "AdminReviews");
 
     if (enriched.length > 0) {
       // Enrich with reviewer profiles
       const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
       if (reviewerIds.length > 0) {
-        const { data: profilesRaw } = await supabase
+        const ProfileRowSchema = z.object({ id: z.string(), display_name: z.string().nullable(), username: z.string().nullable() });
+        const profilesResponse = await supabase
           .from("profiles")
           .select("id, display_name, username")
           .in("id", reviewerIds);
-        type ProfileRow = Pick<Profile, "id" | "display_name" | "username">;
-        const profiles = (profilesRaw ?? []) as unknown as ProfileRow[];
+        const profiles = parseQueryResult(profilesResponse, ProfileRowSchema, "AdminReviewProfiles");
         const profileMap = new Map(profiles.map((p) => [p.id, p]));
         enriched = enriched.map((r) => ({
           ...r,
@@ -84,12 +96,12 @@ export default function AdminReviewsPage() {
       // Enrich with listing info
       const listingIds = [...new Set(enriched.map((r) => r.listing_id).filter(Boolean))];
       if (listingIds.length > 0) {
-        const { data: listingsRaw } = await supabase
+        const ListingRowSchema = z.object({ id: z.string(), title: z.string(), slug: z.string() });
+        const listingsResponse = await supabase
           .from("marketplace_listings")
           .select("id, title, slug")
           .in("id", listingIds);
-        type ListingRow = Pick<MarketplaceListing, "id" | "title" | "slug">;
-        const listings = (listingsRaw ?? []) as unknown as ListingRow[];
+        const listings = parseQueryResult(listingsResponse, ListingRowSchema, "AdminReviewListings");
         const listingMap = new Map(listings.map((l) => [l.id, l]));
         enriched = enriched.map((r) => ({
           ...r,
@@ -99,7 +111,7 @@ export default function AdminReviewsPage() {
     }
 
     setReviews(enriched);
-    setTotalCount(count ?? 0);
+    setTotalCount(reviewsCount ?? 0);
     setLoading(false);
   }, [search, ratingFilter, page]);
 
