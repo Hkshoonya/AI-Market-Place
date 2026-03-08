@@ -15,15 +15,16 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import {
+  SellerOrderRowSchema,
+  type SellerOrderRow,
+  OrderProfilePickSchema,
+} from "@/lib/schemas/marketplace";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { MarketplaceOrder, OrderStatus, Profile } from "@/types/database";
-
-type SellerOrderRow = MarketplaceOrder & {
-  marketplace_listings?: { title: string | null; slug: string | null; listing_type: string | null } | null;
-  profiles?: Pick<Profile, "display_name" | "avatar_url"> | null;
-};
+import type { OrderStatus } from "@/types/database";
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "border-amber-500/30 bg-amber-500/10 text-amber-400",
@@ -46,29 +47,28 @@ export function SellerOrdersTable() {
     try {
       const supabase = createClient();
       // Two-query approach: marketplace_orders may not have FK to profiles
-      const { data: rawData, error } = await supabase
+      const orderResponse = await supabase
         .from("marketplace_orders")
         .select("*, marketplace_listings(title, slug, listing_type)")
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (orderResponse.error) throw orderResponse.error;
 
-      let enriched: SellerOrderRow[] = (rawData ?? []) as unknown as SellerOrderRow[];
+      let enriched = parseQueryResult(orderResponse, SellerOrderRowSchema, "SellerOrder");
       if (enriched.length > 0) {
         const buyerIds = [...new Set(enriched.map((o) => o.buyer_id).filter(Boolean))];
         if (buyerIds.length > 0) {
-          const { data: profilesRaw } = await supabase
+          const profilesResponse = await supabase
             .from("profiles")
             .select("id, display_name, avatar_url")
             .in("id", buyerIds);
-          type OrderProfileRow = { id: string; display_name: string | null; avatar_url: string | null };
-          const profiles = (profilesRaw ?? []) as unknown as OrderProfileRow[];
+          const profiles = parseQueryResult(profilesResponse, OrderProfilePickSchema, "OrderProfile");
           const profileMap = new Map(profiles.map((p) => [p.id, p]));
           enriched = enriched.map((o) => ({
             ...o,
             profiles: o.buyer_id ? (profileMap.get(o.buyer_id) ?? null) : null,
-          })) as SellerOrderRow[];
+          }));
         }
       }
 
@@ -188,7 +188,7 @@ export function SellerOrdersTable() {
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={cn("text-[11px]", STATUS_COLORS[order.status])}
+                    className={cn("text-[11px]", STATUS_COLORS[order.status as OrderStatus])}
                   >
                     {order.status}
                   </Badge>

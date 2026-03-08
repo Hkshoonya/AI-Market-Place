@@ -16,14 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { OrderWithJoinsSchema, type OrderWithJoins } from "@/lib/schemas/marketplace";
 import { formatDate, formatCurrency } from "@/lib/format";
-import type { MarketplaceOrder } from "@/types/database";
-
-// Orders from buyer view with joined seller profile and listing
-type OrderWithJoins = MarketplaceOrder & {
-  marketplace_listings?: { title: string | null; slug: string | null; listing_type: string | null; thumbnail_url?: string | null } | null;
-  seller?: { display_name: string | null; avatar_url: string | null; username: string | null } | null;
-};
 
 const supabase = createClient();
 
@@ -58,8 +53,8 @@ export default function OrdersContent() {
       query = query.eq("status", filter as import("@/types/database").OrderStatus);
     }
 
-    const { data } = await query;
-    setOrders((data as unknown as OrderWithJoins[]) ?? []);
+    const response = await query;
+    setOrders(parseQueryResult(response, OrderWithJoinsSchema, "OrderWithJoins"));
     setLoading(false);
   }, [user, filter]);
 

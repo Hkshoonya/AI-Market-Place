@@ -23,10 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { MarketplaceListingSchema, type MarketplaceListingType } from "@/lib/schemas/marketplace";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { MarketplaceListing, ListingStatus } from "@/types/database";
+import type { ListingStatus } from "@/types/database";
 
 const STATUS_COLORS: Record<ListingStatus, string> = {
   active: "border-neon/30 bg-neon/10 text-neon",
@@ -38,9 +40,9 @@ const STATUS_COLORS: Record<ListingStatus, string> = {
 
 export function SellerListingsTable() {
   const { user } = useAuth();
-  const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [listings, setListings] = useState<MarketplaceListingType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<MarketplaceListing | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MarketplaceListingType | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchListings = useCallback(async () => {
@@ -48,14 +50,14 @@ export function SellerListingsTable() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      const response = await supabase
         .from("marketplace_listings")
         .select("*")
         .eq("seller_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setListings((data || []) as unknown as MarketplaceListing[]);
+      if (response.error) throw response.error;
+      setListings(parseQueryResult(response, MarketplaceListingSchema, "MarketplaceListing"));
     } catch {
       console.error("Failed to fetch listings");
     } finally {
@@ -129,7 +131,7 @@ export function SellerListingsTable() {
           </TableHeader>
           <TableBody>
             {listings.map((listing) => {
-              const typeConfig = LISTING_TYPE_MAP[listing.listing_type];
+              const typeConfig = LISTING_TYPE_MAP[listing.listing_type as import("@/types/database").ListingType];
               return (
                 <TableRow key={listing.id} className="border-border/30">
                   <TableCell>
@@ -149,7 +151,7 @@ export function SellerListingsTable() {
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className={cn("text-[11px]", STATUS_COLORS[listing.status])}
+                      className={cn("text-[11px]", STATUS_COLORS[listing.status as ListingStatus])}
                     >
                       {listing.status}
                     </Badge>

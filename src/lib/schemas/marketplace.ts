@@ -141,3 +141,75 @@ export const OrderMessageWithProfileSchema = OrderMessageSchema.extend({
 });
 
 export type OrderMessageWithProfile = z.infer<typeof OrderMessageWithProfileSchema>;
+
+// ── Client Component Query Schemas ────────────────────────────────────
+
+// Seller order row with listing and buyer profile (seller-orders-table.tsx)
+export const SellerOrderRowSchema = MarketplaceOrderSchema.extend({
+  marketplace_listings: z.object({
+    title: z.string().nullable(),
+    slug: z.string().nullable(),
+    listing_type: z.string().nullable(),
+  }).nullable().optional(),
+  profiles: z.object({
+    display_name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+  }).nullable().optional(),
+});
+
+export type SellerOrderRow = z.infer<typeof SellerOrderRowSchema>;
+
+// Profile pick for enrichment queries (id + display fields)
+export const ProfilePickSchema = z.object({
+  id: z.string(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+  username: z.string().nullable(),
+});
+
+export type ProfilePick = z.infer<typeof ProfilePickSchema>;
+
+// Order profile pick (without username)
+export const OrderProfilePickSchema = z.object({
+  id: z.string(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+});
+
+export type OrderProfilePick = z.infer<typeof OrderProfilePickSchema>;
+
+// Order with joins for buyer view (orders-content.tsx)
+export const OrderWithJoinsSchema = MarketplaceOrderSchema.extend({
+  marketplace_listings: z.object({
+    title: z.string().nullable(),
+    slug: z.string().nullable(),
+    listing_type: z.string().nullable(),
+    thumbnail_url: z.string().nullable().optional(),
+  }).nullable().optional(),
+  seller: z.object({
+    display_name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+    username: z.string().nullable(),
+  }).nullable().optional(),
+});
+
+export type OrderWithJoins = z.infer<typeof OrderWithJoinsSchema>;
+
+// Order with buyer/seller parties (order-detail-content.tsx)
+const OrderPartySchema = z.object({
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+  username: z.string().nullable(),
+});
+
+export const OrderWithPartiesSchema = MarketplaceOrderSchema.extend({
+  marketplace_listings: z.object({
+    title: z.string().nullable(),
+    slug: z.string().nullable(),
+    listing_type: z.string().nullable(),
+  }).nullable().optional(),
+  buyer: OrderPartySchema.nullable().optional(),
+  seller: OrderPartySchema.nullable().optional(),
+});
+
+export type OrderWithParties = z.infer<typeof OrderWithPartiesSchema>;

@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { BookmarkWithModelSchema } from "@/lib/schemas/community";
 import { formatRelativeDate } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -57,14 +59,13 @@ export default function ProfileContent() {
     if (user) {
       // Fetch user bookmarks
       const fetchBookmarks = async () => {
-        type BookmarkWithModel = { id: string; model_id: string; models?: { slug?: string; name?: string; provider?: string } | null };
-        const { data: rawData } = await supabase
+        const response = await supabase
           .from("user_bookmarks")
           .select("id, model_id, models(slug, name, provider)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        const data = (rawData ?? []) as unknown as BookmarkWithModel[];
+        const data = parseQueryResult(response, BookmarkWithModelSchema, "BookmarkWithModel");
         if (data) {
           setBookmarks(
             data.map((b) => ({

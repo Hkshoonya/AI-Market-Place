@@ -9,12 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import {
+  MarketplaceReviewSchema,
+  type MarketplaceReviewType,
+  ProfilePickSchema,
+} from "@/lib/schemas/marketplace";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { MarketplaceReview, Profile } from "@/types/database";
 
-type ReviewWithProfile = MarketplaceReview & {
-  profiles?: Pick<Profile, "display_name" | "avatar_url" | "username"> | null;
+type ReviewWithProfile = MarketplaceReviewType & {
+  profiles?: { display_name: string | null; avatar_url: string | null; username: string | null } | null;
 };
 
 interface ListingReviewsProps {
@@ -85,29 +90,29 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
     try {
       const supabase = createClient();
       // Two-query approach: marketplace_reviews has no FK to profiles
-      const { data: rawData, error: fetchError } = await supabase
+      const reviewResponse = await supabase
         .from("marketplace_reviews")
         .select("*")
         .eq("listing_id", listingId)
         .order("created_at", { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (reviewResponse.error) throw reviewResponse.error;
 
-      let enriched: ReviewWithProfile[] = (rawData ?? []) as unknown as ReviewWithProfile[];
+      const validatedReviews = parseQueryResult(reviewResponse, MarketplaceReviewSchema, "MarketplaceReview");
+      let enriched: ReviewWithProfile[] = validatedReviews.map((r) => ({ ...r }));
       if (enriched.length > 0) {
         const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
         if (reviewerIds.length > 0) {
-          const { data: profilesRaw } = await supabase
+          const profilesResponse = await supabase
             .from("profiles")
             .select("id, display_name, avatar_url, username")
             .in("id", reviewerIds);
-          type ReviewProfileRow = { id: string; display_name: string | null; avatar_url: string | null; username: string | null };
-          const profiles = (profilesRaw ?? []) as unknown as ReviewProfileRow[];
+          const profiles = parseQueryResult(profilesResponse, ProfilePickSchema, "ReviewProfile");
           const profileMap = new Map(profiles.map((p) => [p.id, p]));
           enriched = enriched.map((r) => ({
             ...r,
             profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
-          })) as ReviewWithProfile[];
+          }));
         }
       }
 

@@ -97,3 +97,31 @@ export const WatchlistWithItemsSchema = WatchlistSchema.extend({
 });
 
 export type WatchlistWithItems = z.infer<typeof WatchlistWithItemsSchema>;
+
+// ── Client Component Query Schemas ────────────────────────────────────
+
+// Comment with joined profile (comments-section.tsx)
+// Note: replies are computed in JS after a second query, not part of Supabase response
+export const CommentWithProfileSchema = CommentSchema.extend({
+  profiles: z.object({
+    display_name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+    username: z.string().nullable(),
+  }).nullable().optional(),
+});
+
+export type CommentWithProfile = z.infer<typeof CommentWithProfileSchema>;
+
+// Bookmark with joined model (profile-content.tsx)
+export const BookmarkWithModelSchema = BookmarkSchema.pick({
+  id: true,
+  model_id: true,
+}).extend({
+  models: z.object({
+    slug: z.string().optional(),
+    name: z.string().optional(),
+    provider: z.string().optional(),
+  }).nullable().optional(),
+});
+
+export type BookmarkWithModel = z.infer<typeof BookmarkWithModelSchema>;

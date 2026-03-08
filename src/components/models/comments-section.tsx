@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { parseQueryResult } from "@/lib/schemas/parse";
+import { CommentSchema } from "@/lib/schemas/community";
 import { formatRelativeDate } from "@/lib/format";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,7 +47,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
   const fetchComments = async () => {
     // Two-query approach: comments table may not have FK to profiles
-    const { data: rawData } = await supabase
+    const response = await supabase
       .from("comments")
       .select("*")
       .eq("model_id", modelId)
@@ -53,9 +55,10 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       .order("created_at", { ascending: false })
       .limit(visibleCount);
 
-    if (rawData) {
+    const validatedComments = parseQueryResult(response, CommentSchema, "Comment");
+    if (validatedComments.length > 0 || !response.error) {
       // Enrich with profiles
-      let enriched: Comment[] = rawData as unknown as Comment[];
+      let enriched: Comment[] = validatedComments.map((c) => ({ ...c, profiles: null }));
       const userIds = [...new Set(enriched.map((c) => c.user_id).filter(Boolean))];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -77,14 +80,15 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
       // Fetch replies for visible top-level comments
       if (topLevelIds.length > 0) {
-        const { data: replyData } = await supabase
+        const replyResponse = await supabase
           .from("comments")
           .select("*")
           .in("parent_id", topLevelIds)
           .order("created_at", { ascending: true });
 
-        if (replyData) {
-          let replies: Comment[] = replyData as unknown as Comment[];
+        const validatedReplies = parseQueryResult(replyResponse, CommentSchema, "CommentReply");
+        if (validatedReplies.length > 0) {
+          let replies: Comment[] = validatedReplies.map((c) => ({ ...c, profiles: null }));
           const replyUserIds = [...new Set(replies.map((c) => c.user_id).filter(Boolean))];
           if (replyUserIds.length > 0) {
             const { data: replyProfiles } = await supabase
@@ -99,7 +103,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
           }
 
           const replyMap = new Map<string, Comment[]>();
-          for (const r of replies as Comment[]) {
+          for (const r of replies) {
             const existing = replyMap.get(r.parent_id!) ?? [];
             existing.push(r);
             replyMap.set(r.parent_id!, existing);
