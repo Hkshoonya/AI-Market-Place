@@ -187,7 +187,7 @@ export async function PATCH(
 
   let query = supabase
     .from("marketplace_listings")
-    .update(updates as unknown as import("@/types/database").MarketplaceListing)
+    .update(updates as Partial<import("@/types/database").MarketplaceListing> & Record<string, unknown>)
     .eq("slug", slug);
 
   // Non-admin users can only edit their own listings

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +57,12 @@ export async function GET(request: NextRequest) {
     const modelIds = models.map((m) => m.id);
 
     // Get all benchmark scores for these models
-    const { data: scores } = await supabase
+    const ScoreWithBenchmarkSchema = z.object({
+      model_id: z.string(),
+      score_normalized: z.number().nullable(),
+      benchmarks: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
+    });
+    const scoresResponse = await supabase
       .from("benchmark_scores")
       .select("model_id, score_normalized, benchmarks(slug, name)")
       .in("model_id", modelIds);
@@ -67,9 +74,9 @@ export async function GET(request: NextRequest) {
       .order("slug");
 
     // Build the heatmap matrix
-    type ScoreWithBenchmark = { model_id: string; score_normalized: number | null; benchmarks?: { slug: string; name: string } | null };
+    const validatedScores = parseQueryResult(scoresResponse, ScoreWithBenchmarkSchema, "BenchmarkHeatmapScores");
     const scoreMap = new Map<string, Map<string, number>>();
-    for (const s of (scores as unknown as ScoreWithBenchmark[] ?? [])) {
+    for (const s of validatedScores) {
       const benchSlug = s.benchmarks?.slug;
       if (!benchSlug || s.score_normalized == null) continue;
 

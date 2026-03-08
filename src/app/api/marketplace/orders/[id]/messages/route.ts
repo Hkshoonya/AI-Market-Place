@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult, parseQueryResultSingle } from "@/lib/schemas/parse";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -72,14 +73,22 @@ export async function GET(
   }
 
   // Get messages — two-query approach (order_messages may not have FK to profiles)
-  const { data: rawMessages } = await supabase
+  const MsgSchema = z.object({
+    id: z.string(),
+    order_id: z.string(),
+    sender_id: z.string(),
+    content: z.string(),
+    is_read: z.boolean(),
+    created_at: z.string(),
+  });
+  const messagesResponse = await supabase
     .from("order_messages")
     .select("*")
     .eq("order_id", orderId)
     .order("created_at", { ascending: true });
 
   // Enrich with sender profiles
-  let messages: MsgWithProfile[] = (rawMessages ?? []) as unknown as MsgWithProfile[];
+  let messages: MsgWithProfile[] = parseQueryResult(messagesResponse, MsgSchema, "OrderMessages").map(m => ({ ...m, profiles: null }));
   if (messages.length > 0) {
     const senderIds = [
       ...new Set(messages.map((m) => m.sender_id).filter(Boolean)),
@@ -184,7 +193,15 @@ export async function POST(
   }
   const { content } = parsed.data;
 
-  const { data: rawMsgResult, error } = await supabase
+  const InsertMsgSchema = z.object({
+    id: z.string(),
+    order_id: z.string(),
+    sender_id: z.string(),
+    content: z.string(),
+    is_read: z.boolean(),
+    created_at: z.string(),
+  });
+  const insertResponse = await supabase
     .from("order_messages")
     .insert({
       order_id: orderId,
@@ -194,15 +211,15 @@ export async function POST(
     .select("*")
     .single();
 
-  if (error) {
+  if (insertResponse.error) {
     return NextResponse.json(
       { error: "Failed to send message. Please try again later." },
       { status: 500 }
     );
   }
 
-  // Cast insert result to known shape for profile enrichment
-  const rawMsg = rawMsgResult as unknown as MsgWithProfile | null;
+  // Validate insert result for profile enrichment
+  const rawMsg = parseQueryResultSingle(insertResponse, InsertMsgSchema, "OrderMessageInsert");
 
   // Enrich with sender profile
   let data: Record<string, unknown> = (rawMsg ?? {}) as Record<string, unknown>;

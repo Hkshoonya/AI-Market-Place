@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 
@@ -28,18 +30,17 @@ export async function GET(request: NextRequest) {
 
     // Get all model IDs from user's watchlists
     // NOTE: embedded join `watchlists!inner(user_id)` returns a runtime join but
-    // the SDK infers `never` without FK Relationships — cast to the expected shape.
-    const { data: watchlistItems } = await supabase
+    // the SDK infers `never` without FK Relationships — validate with Zod instead.
+    const WatchlistItemSchema = z.object({ model_id: z.string() });
+    const watchlistResponse = await supabase
       .from("watchlist_items")
       .select("model_id, watchlists!inner(user_id)")
-      .eq("watchlists.user_id", user.id) as unknown as {
-        data: Array<{ model_id: string }> | null;
-        error: null;
-      };
+      .eq("watchlists.user_id", user.id);
+    const watchlistItems = parseQueryResult(watchlistResponse, WatchlistItemSchema, "ActivityWatchlistItems");
 
     const modelIds = [
       ...new Set(
-        (watchlistItems ?? []).map((item) => item.model_id)
+        watchlistItems.map((item) => item.model_id)
       ),
     ];
 

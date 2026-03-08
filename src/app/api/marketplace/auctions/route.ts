@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -36,12 +37,6 @@ export const dynamic = "force-dynamic";
 
 type AuctionWithListing = Record<string, unknown>;
 type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled" | "settled";
-
-type AuctionQueryResult = {
-  data: AuctionWithListing[] | null;
-  error: { message: string; details: string; hint: string; code: string } | null;
-  count: number | null;
-};
 
 /**
  * GET /api/marketplace/auctions
@@ -117,13 +112,16 @@ export async function GET(request: NextRequest) {
 
   baseQuery = baseQuery.range((page - 1) * limit, page * limit - 1);
 
-  const { data, error } = (await baseQuery) as unknown as AuctionQueryResult;
+  // Use passthrough schema since auction shape is dynamic with embedded join
+  const AuctionRowSchema = z.object({ id: z.string() }).passthrough();
+  const auctionsResponse = await baseQuery;
 
-  if (error) {
+  if (auctionsResponse.error) {
     // Gracefully handle missing table (migration not yet applied)
+    const err = auctionsResponse.error;
     const msg =
-      (error.message || "") + (error.details || "") + (error.hint || "");
-    const code = error.code || "";
+      (err.message || "") + (err.details || "") + (err.hint || "");
+    const code = err.code || "";
     if (
       msg.includes("does not exist") ||
       msg.includes("Could not find") ||
@@ -141,8 +139,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const data = parseQueryResult(auctionsResponse, AuctionRowSchema, "AuctionsList");
+
   // Enrich auctions: remap listing relation and calculate Dutch prices
-  const enriched = ((data || []) as AuctionWithListing[]).map((auction) => {
+  const enriched = (data as AuctionWithListing[]).map((auction) => {
     const mapped: AuctionWithListing = {
       ...auction,
       // Remap nested relation to match client Auction.listing interface

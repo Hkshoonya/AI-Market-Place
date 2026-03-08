@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { z } from "zod";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 
@@ -58,13 +59,23 @@ export async function GET(
   }
 
   // Two-query approach: marketplace_reviews may not have FK to profiles
-  const { data: rawReviews, error } = await supabase
+  const ReviewSchema = z.object({
+    id: z.string(),
+    listing_id: z.string(),
+    reviewer_id: z.string(),
+    rating: z.number(),
+    title: z.string().nullable(),
+    content: z.string().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+  });
+  const reviewsResponse = await supabase
     .from("marketplace_reviews")
     .select("*")
     .eq("listing_id", listing.id)
     .order("created_at", { ascending: false });
 
-  if (error) {
+  if (reviewsResponse.error) {
     return NextResponse.json(
       { error: "Failed to fetch reviews. Please try again later." },
       { status: 500 }
@@ -72,7 +83,7 @@ export async function GET(
   }
 
   // Enrich with reviewer profiles
-  let data: ReviewWithProfile[] = (rawReviews ?? []) as unknown as ReviewWithProfile[];
+  let data: ReviewWithProfile[] = parseQueryResult(reviewsResponse, ReviewSchema, "ListingReviews").map(r => ({ ...r, profiles: null }));
   if (data.length > 0) {
     const reviewerIds = [...new Set(data.map((r) => r.reviewer_id).filter(Boolean))];
     if (reviewerIds.length > 0) {

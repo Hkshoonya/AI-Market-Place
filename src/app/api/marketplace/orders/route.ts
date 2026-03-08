@@ -3,6 +3,7 @@ import { z } from "zod";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseQueryResult } from "@/lib/schemas/parse";
 import type { TypedSupabaseClient } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
@@ -65,9 +66,14 @@ export async function GET(request: NextRequest) {
 
   query = query.order("created_at", { ascending: false });
 
-  const { data: rawData, error } = await query;
+  const OrderRowSchema = z.object({
+    buyer_id: z.string().nullable(),
+    guest_email: z.string().nullable().optional(),
+    guest_name: z.string().nullable().optional(),
+  }).passthrough();
+  const ordersResponse = await query;
 
-  if (error) {
+  if (ordersResponse.error) {
     return NextResponse.json(
       { error: "Failed to fetch orders. Please try again later." },
       { status: 500 }
@@ -75,8 +81,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Enrich seller orders with buyer profiles (or guest info)
-  type OrderRow = { buyer_id: string | null; guest_email?: string | null; guest_name?: string | null; [key: string]: unknown };
-  let responseData: OrderRow[] = (rawData ?? []) as unknown as OrderRow[];
+  type OrderRow = z.infer<typeof OrderRowSchema> & Record<string, unknown>;
+  let responseData: OrderRow[] = parseQueryResult(ordersResponse, OrderRowSchema, "OrderRows");
   if (role === "seller" && responseData.length > 0) {
     const buyerIds = [...new Set(responseData.map((o) => o.buyer_id).filter(Boolean))] as string[];
     let profileMap = new Map<string, { id: string; display_name: string | null; avatar_url: string | null }>();
@@ -179,7 +185,7 @@ export async function POST(request: NextRequest) {
     seller_id: listing.seller_id,
     message: message || null,
     price_at_time: listing.price,
-    buyer_id: user ? user.id : (null as unknown as string), // null for guest orders
+    buyer_id: (user ? user.id : null) as string | null, // null for guest orders
     ...((!user && guest_email) ? { guest_email, guest_name: guest_name || null } : {}),
   };
 

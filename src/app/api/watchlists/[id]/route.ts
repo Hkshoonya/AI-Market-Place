@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -26,24 +28,33 @@ export async function GET(
 
   // Fetch the watchlist with items and models joined.
   // NOTE: Without FK Relationships in the DB type, the embedded join causes the SDK
-  // to infer `never` for the result. Cast to the expected shape at runtime.
-  type WatchlistWithItems = {
-    id: string; user_id: string; name: string; description: string | null;
-    is_public: boolean; created_at: string; updated_at: string;
-    watchlist_items: Array<{
-      id: string; model_id: string; added_at: string;
-      models: Record<string, unknown> | null;
-    }> | null;
-  };
-  const { data: watchlist, error } = (await supabase
+  // to infer `never` for the result. Validate with Zod schema instead.
+  const WatchlistWithItemsSchema = z.object({
+    id: z.string(),
+    user_id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    is_public: z.boolean(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    watchlist_items: z.array(z.object({
+      id: z.string(),
+      model_id: z.string(),
+      added_at: z.string(),
+      models: z.record(z.string(), z.unknown()).nullable(),
+    })).nullable(),
+  });
+  const watchlistResponse = await supabase
     .from("watchlists")
     .select(
       "*, watchlist_items(id, model_id, added_at, models(id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes, release_date, parameter_count, context_window, is_open_weights))"
     )
     .eq("id", id)
-    .single()) as unknown as { data: WatchlistWithItems | null; error: unknown };
+    .single();
 
-  if (error || !watchlist) {
+  const watchlist = parseQueryResultSingle(watchlistResponse, WatchlistWithItemsSchema, "WatchlistWithItems");
+
+  if (!watchlist) {
     return NextResponse.json(
       { error: "Watchlist not found" },
       { status: 404 }

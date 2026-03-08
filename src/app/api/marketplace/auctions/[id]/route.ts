@@ -3,8 +3,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -38,7 +40,8 @@ export async function GET(
   );
 
   // Fetch auction with listing info
-  // Cast: embedded join "marketplace_listings" has no FK Relationship defined in DB type.
+  // NOTE: embedded join "marketplace_listings" has no FK Relationship in DB type.
+  // Validate with Zod passthrough schema instead of double-casting.
   type AuctionWithListing = Record<string, unknown> & {
     seller_id: string | null;
     auction_type: string | null;
@@ -50,18 +53,31 @@ export async function GET(
     starts_at: string;
     bid_increment_min: number | null;
   };
-  const { data: auction, error: auctionError } = (await supabase
+  const AuctionDetailSchema = z.object({
+    id: z.string(),
+    seller_id: z.string().nullable(),
+    auction_type: z.string().nullable(),
+    status: z.string().nullable(),
+    start_price: z.union([z.number(), z.string()]).nullable(),
+    floor_price: z.union([z.number(), z.string()]).nullable(),
+    price_decrement: z.union([z.number(), z.string()]).nullable(),
+    decrement_interval_seconds: z.number().nullable(),
+    starts_at: z.string(),
+    bid_increment_min: z.number().nullable(),
+  }).passthrough();
+
+  const auctionResponse = await supabase
     .from("auctions")
     .select(
       "*, marketplace_listings(id, title, slug, listing_type, description, short_description, thumbnail_url, demo_url, tags, pricing_type, price)"
     )
     .eq("id", id)
-    .single()) as unknown as { data: AuctionWithListing | null; error: { message: string; code: string } | null };
+    .single();
 
-  if (auctionError || !auction) {
+  if (auctionResponse.error) {
     // Gracefully handle missing table (migration not yet applied)
-    const msg = auctionError?.message || "";
-    const code = auctionError?.code || "";
+    const msg = auctionResponse.error?.message || "";
+    const code = auctionResponse.error?.code || "";
     if (
       msg.includes("does not exist") ||
       msg.includes("Could not find") ||
@@ -75,6 +91,14 @@ export async function GET(
         { status: 404 }
       );
     }
+    return NextResponse.json(
+      { error: "Auction not found" },
+      { status: 404 }
+    );
+  }
+
+  const auction = parseQueryResultSingle(auctionResponse, AuctionDetailSchema, "AuctionDetail") as AuctionWithListing | null;
+  if (!auction) {
     return NextResponse.json(
       { error: "Auction not found" },
       { status: 404 }
