@@ -389,14 +389,12 @@ export default function QualityPriceFrontier() {
                 strokeOpacity={0.4}
                 cursor="pointer"
                 onClick={(_data: unknown, _index: number, event: React.MouseEvent) => {
-                  // Recharts passes the data point in _data
-                  const point = _data as unknown as { payload: QualityPriceDataPoint } | QualityPriceDataPoint;
-                  if (point && typeof point === "object") {
-                    const entry = "payload" in point ? point.payload : point;
-                    if (entry?.slug) {
-                      event?.preventDefault?.();
-                      handleDotClick(entry);
-                    }
+                  // Recharts ScatterPointItem has payload with the original data
+                  const point = _data as { payload?: QualityPriceDataPoint };
+                  const entry = point?.payload;
+                  if (entry?.slug) {
+                    event?.preventDefault?.();
+                    handleDotClick(entry);
                   }
                 }}
               />

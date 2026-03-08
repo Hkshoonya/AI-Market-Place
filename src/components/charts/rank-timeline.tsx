@@ -12,6 +12,7 @@ import {
   Brush,
   Legend,
 } from "recharts";
+import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { ChartCard } from "./chart-card";
 
 const LINE_COLORS = [
@@ -52,7 +53,7 @@ function CustomTooltip({
   metric,
 }: {
   active?: boolean;
-  payload?: Array<{ color: string; name: string; value: number }>;
+  payload?: ReadonlyArray<Payload<number, string>>;
   label?: string;
   metric: "rank" | "score";
 }) {
@@ -92,7 +93,7 @@ function CustomTooltip({
               width: 8,
               height: 8,
               borderRadius: "50%",
-              background: entry.color,
+              background: entry.color ?? "#666",
               display: "inline-block",
               flexShrink: 0,
             }}
@@ -101,7 +102,7 @@ function CustomTooltip({
             {entry.name}
           </span>
           <span style={{ color: "#fff", fontSize: 13, fontWeight: 600, marginLeft: "auto" }}>
-            {metric === "rank" ? `#${entry.value}` : entry.value.toLocaleString()}
+            {metric === "rank" ? `#${entry.value}` : (entry.value ?? 0).toLocaleString()}
           </span>
         </div>
       ))}
@@ -453,7 +454,7 @@ export default function RankTimeline() {
                 content={({ active, payload, label }) => (
                   <CustomTooltip
                     active={active}
-                    payload={payload as unknown as Array<{ color: string; name: string; value: number }>}
+                    payload={payload as ReadonlyArray<Payload<number, string>>}
                     label={label as string}
                     metric={metric}
                   />
