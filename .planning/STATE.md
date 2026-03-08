@@ -3,29 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 11-02-PLAN.md (all Phase 11 plans now complete)
-last_updated: "2026-03-08T07:27:55.231Z"
-last_activity: 2026-03-08 — Completed Plan 11-03 (Client component & Recharts cast migration)
+stopped_at: Completed 11-04-PLAN.md Task 1 (checkpoint at Task 2 - DB migration)
+last_updated: "2026-03-08T22:29:32Z"
+last_activity: 2026-03-08 — Completed Plan 11-04 Task 1 (z.coerce.number gap closure)
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
----
-
----
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 11-02-PLAN.md (retroactive - was executed before 11-03)
-last_updated: "2026-03-08T07:23:00Z"
-last_activity: 2026-03-08 — Completed Plan 11-02 (Server & API route cast migration)
-progress:
-  total_phases: 8
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 7
 ---
 
 # Project State
@@ -40,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 11 of 16 (Zod Runtime Validation)
-Plan: 3 of 3 in current phase (complete)
+Plan: 4 of 5 in current phase (Task 1 done, Task 2 checkpoint:human-action)
 Status: Executing
-Last activity: 2026-03-08 — Completed Plan 11-03 (Client component & Recharts cast migration)
+Last activity: 2026-03-08 — Completed Plan 11-04 Task 1 (z.coerce.number gap closure)
 
-Progress: [██████░░░░] 50%
+Progress: [██████░░░░] 54%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (v1.0) + 4 (v1.1)
+- Total plans completed: 28 (v1.0) + 5 (v1.1)
 - Average duration: ~25 min (v1.0)
 - Total execution time: ~12 hours (v1.0)
 
@@ -61,6 +46,7 @@ Progress: [██████░░░░] 50%
 | 11-zod-runtime-validation | 01 | 6min | 2 | 9 |
 | 11-zod-runtime-validation | 02 | 15min | 2 | 28 |
 | 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
+| 11-zod-runtime-validation | 04 | 6min | 1 | 7 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -90,6 +76,8 @@ v1.1 decisions:
 - [Phase 11-zod]: Recharts Payload<number, string> import for tooltip typing; single `as` for Scatter onClick
 - [Phase 11-zod]: Passthrough schemas for dynamic embedded joins where FK relationships missing from DB types
 - [Phase 11-zod]: Inline Zod schemas at query sites for one-off shapes rather than bloating central schema files
+- [Phase 11-zod]: z.coerce.number() globally for all Postgres numeric/bigint columns (PostgREST returns strings)
+- [Phase 11-zod]: is_open_weights z.boolean().nullable() since DB has DEFAULT false but no NOT NULL constraint
 
 ### Pending Todos
 
@@ -104,6 +92,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T07:23:00Z
-Stopped at: Completed 11-02-PLAN.md (all Phase 11 plans now complete)
-Resume file: .planning/phases/11-zod-runtime-validation/11-02-SUMMARY.md
+Last session: 2026-03-08T22:29:32Z
+Stopped at: Completed 11-04-PLAN.md Task 1 (checkpoint at Task 2 - DB migration required)
+Resume file: .planning/phases/11-zod-runtime-validation/11-04-SUMMARY.md
