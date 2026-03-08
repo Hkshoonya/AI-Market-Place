@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-03-08T07:10:55Z"
-last_activity: 2026-03-08 — Completed Plan 11-03 (Client component & Recharts cast migration)
+stopped_at: Completed 11-02-PLAN.md (retroactive - was executed before 11-03)
+last_updated: "2026-03-08T07:23:00Z"
+last_activity: 2026-03-08 — Completed Plan 11-02 (Server & API route cast migration)
 progress:
   total_phases: 8
   completed_phases: 2
@@ -44,6 +44,7 @@ Progress: [██████░░░░] 50%
 | 09-observability | 02 | 4min | 2 | 10 |
 | 10-ci-pipeline | 01 | 6min | 1 | 11 |
 | 11-zod-runtime-validation | 01 | 6min | 2 | 9 |
+| 11-zod-runtime-validation | 02 | 15min | 2 | 28 |
 | 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
@@ -72,6 +73,8 @@ v1.1 decisions:
 - [Phase 11-zod]: parseQueryResult pattern wraps Supabase {data,error} + z.array().safeParse() + Sentry reporting
 - [Phase 11-zod]: Client two-query enrichment: validate raw data with base schema, enrich with profiles in JS
 - [Phase 11-zod]: Recharts Payload<number, string> import for tooltip typing; single `as` for Scatter onClick
+- [Phase 11-zod]: Passthrough schemas for dynamic embedded joins where FK relationships missing from DB types
+- [Phase 11-zod]: Inline Zod schemas at query sites for one-off shapes rather than bloating central schema files
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T07:10:55Z
-Stopped at: Completed 11-03-PLAN.md
-Resume file: .planning/phases/11-zod-runtime-validation/11-03-SUMMARY.md
+Last session: 2026-03-08T07:23:00Z
+Stopped at: Completed 11-02-PLAN.md (all Phase 11 plans now complete)
+Resume file: .planning/phases/11-zod-runtime-validation/11-02-SUMMARY.md
