@@ -57,9 +57,9 @@ export default function AdminAnalyticsPage() {
     const fetchAnalytics = async () => {
       const supabase = createClient();
 
-      const ModelCatSchema = z.object({ category: z.string(), provider: z.string(), is_open_weights: z.boolean() });
-      const ModelDlSchema = z.object({ name: z.string(), provider: z.string(), hf_downloads: z.number().nullable() });
-      const ModelRatedSchema = z.object({ name: z.string(), provider: z.string(), quality_score: z.number().nullable() });
+      const ModelCatSchema = z.object({ category: z.string(), provider: z.string(), is_open_weights: z.boolean().nullable() });
+      const ModelDlSchema = z.object({ name: z.string(), provider: z.string(), hf_downloads: z.coerce.number().nullable() });
+      const ModelRatedSchema = z.object({ name: z.string(), provider: z.string(), quality_score: z.coerce.number().nullable() });
 
       const [
         allModelsResponse,
@@ -95,7 +95,7 @@ export default function AdminAnalyticsPage() {
         .sort((a, b) => b.count - a.count);
 
       // Open vs closed
-      const open = models.filter((m) => m.is_open_weights).length;
+      const open = models.filter((m) => m.is_open_weights === true).length;
       const closed = models.length - open;
 
       setData({
@@ -116,7 +116,10 @@ export default function AdminAnalyticsPage() {
       setLoading(false);
     };
 
-    fetchAnalytics();
+    fetchAnalytics().catch((err) => {
+      console.error("[admin-analytics] Failed to load analytics:", err);
+      setLoading(false);
+    });
   }, []);
 
   if (loading) {

@@ -110,6 +110,34 @@ describe("ModelBaseSchema", () => {
     const result = ModelBaseSchema.safeParse(withExtra);
     expect(result.success).toBe(true);
   });
+
+  it("coerces string numbers from PostgREST to actual numbers", () => {
+    const withStringNumbers = {
+      ...validModel,
+      parameter_count: "200000000000",
+      context_window: "128000",
+      hf_downloads: "0",
+      hf_likes: "0",
+      overall_rank: "1",
+      quality_score: "92.3",
+      market_cap_estimate: "5200000",
+      popularity_score: "95.5",
+      provider_id: "1",
+    };
+    const result = ModelBaseSchema.safeParse(withStringNumbers);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.parameter_count).toBe(200000000000);
+      expect(result.data.quality_score).toBe(92.3);
+      expect(typeof result.data.hf_downloads).toBe("number");
+    }
+  });
+
+  it("accepts null is_open_weights from DB without NOT NULL constraint", () => {
+    const withNullOpenWeights = { ...validModel, is_open_weights: null };
+    const result = ModelBaseSchema.safeParse(withNullOpenWeights);
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("Query-specific pick schemas", () => {

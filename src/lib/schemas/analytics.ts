@@ -8,7 +8,7 @@ import { z } from "zod";
 export const ModelCatSchema = z.object({
   category: z.string(),
   provider: z.string(),
-  is_open_weights: z.boolean(),
+  is_open_weights: z.boolean().nullable(),
 });
 
 export type ModelCatType = z.infer<typeof ModelCatSchema>;
@@ -17,7 +17,7 @@ export type ModelCatType = z.infer<typeof ModelCatSchema>;
 export const ModelDlSchema = z.object({
   name: z.string(),
   provider: z.string(),
-  hf_downloads: z.number().nullable(),
+  hf_downloads: z.coerce.number().nullable(),
 });
 
 export type ModelDlType = z.infer<typeof ModelDlSchema>;
@@ -26,7 +26,7 @@ export type ModelDlType = z.infer<typeof ModelDlSchema>;
 export const ModelRatedSchema = z.object({
   name: z.string(),
   provider: z.string(),
-  quality_score: z.number().nullable(),
+  quality_score: z.coerce.number().nullable(),
 });
 
 export type ModelRatedType = z.infer<typeof ModelRatedSchema>;
