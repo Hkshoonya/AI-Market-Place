@@ -106,10 +106,10 @@ Plans:
   4. All existing tests plus new component tests still pass after decomposition
 **Plans:** 4/4 plans complete
 Plans:
-- [ ] 13-01-PLAN.md -- Model detail page (878 lines) + settings form (681 lines) decomposition into sub-components
-- [ ] 13-02-PLAN.md -- Compare client (718 lines) decomposition + React.memo on ComparisonRow
-- [ ] 13-03-PLAN.md -- Search dialog, rank timeline, models filter bar decomposition (DECOMP-04 part 1)
-- [ ] 13-04-PLAN.md -- Ranking weight controls, leaderboard explorer decomposition + React.memo on ScoreBar (DECOMP-04 part 2)
+- [x] 13-01-PLAN.md -- Model detail page (878 lines) + settings form (681 lines) decomposition into sub-components
+- [x] 13-02-PLAN.md -- Compare client (718 lines) decomposition + React.memo on ComparisonRow
+- [x] 13-03-PLAN.md -- Search dialog, rank timeline, models filter bar decomposition (DECOMP-04 part 1)
+- [x] 13-04-PLAN.md -- Ranking weight controls, leaderboard explorer decomposition + React.memo on ScoreBar (DECOMP-04 part 2)
 
 ### Phase 14: SWR Data Fetching
 **Goal**: Client components use SWR for data fetching with automatic caching, revalidation, and stale-while-revalidate behavior
@@ -119,7 +119,12 @@ Plans:
   1. All client-side useState+useEffect+fetch patterns are replaced with useSWR hooks
   2. SWR staleTime is configured in tiers (fast-changing data like scores vs slow-changing data like model metadata)
   3. Navigating away from and back to a page shows cached data immediately while revalidating in the background
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 14-01-PLAN.md -- Install SWR, create fetcher/config/test-utils, wire SWRConfig provider, update existing tests
+- [ ] 14-02-PLAN.md -- Convert 12 chart, model detail, and marketplace components (API route fetch pattern)
+- [ ] 14-03-PLAN.md -- Convert 17 auth-gated, mutation-heavy, and admin components (API route fetch pattern)
+- [ ] 14-04-PLAN.md -- Convert 12 Supabase direct query components (inline fetcher pattern)
 
 ### Phase 15: E2E Testing
 **Goal**: Critical user journeys are verified end-to-end with Playwright, and E2E failures block PR merges
@@ -161,7 +166,7 @@ Plans:
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 11. Zod Runtime Validation | v1.1 | 5/5 | Complete | 2026-03-08 |
 | 12. Component Testing Infrastructure | v1.1 | 3/3 | Complete | 2026-03-09 |
-| 13. Component Decomposition + React.memo | 4/4 | Complete    | 2026-03-09 | - |
-| 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
+| 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
+| 14. SWR Data Fetching | v1.1 | 0/4 | Not started | - |
 | 15. E2E Testing | v1.1 | 0/? | Not started | - |
 | 16. Code Simplification | v1.1 | 0/? | Not started | - |
