@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 12-01-PLAN.md (testing infrastructure setup)
-last_updated: "2026-03-09T02:01:14Z"
-last_activity: 2026-03-09 — Completed Plan 12-01 (Vitest dual-environment + Testing Library)
+stopped_at: Completed 12-02-PLAN.md (interactive component tests)
+last_updated: "2026-03-09T02:07:23Z"
+last_activity: 2026-03-09 — Completed Plan 12-02 (SearchDialog, FilterBar, MarketTicker tests)
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 12 of 16 (Component Testing Infrastructure)
-Plan: 1 of 3 in current phase (complete)
+Plan: 2 of 3 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-09 — Completed Plan 12-01 (Vitest dual-environment + Testing Library)
+Last activity: 2026-03-09 — Completed Plan 12-02 (SearchDialog, FilterBar, MarketTicker tests)
 
 Progress: [██████████] 95%
 
@@ -49,6 +49,7 @@ Progress: [██████████] 95%
 | 11-zod-runtime-validation | 04 | 6min | 1 | 7 |
 | 11-zod-runtime-validation | 05 | 9min | 1 | 4 |
 | 12-component-testing-infrastructure | 01 | 5min | 2 | 4 |
+| 12-component-testing-infrastructure | 02 | 4min | 2 | 3 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -84,6 +85,9 @@ v1.1 decisions:
 - [Phase 11-zod]: OrderWithListingSchema replaces both OrderWithJoinsSchema and OrderWithPartiesSchema
 - [Phase 12-testing]: passWithNoTests is a NonProjectOption in Vitest 4 - must be at root test level
 - [Phase 12-testing]: React.createElement in setup mocks to keep .ts extension
+- [Phase 12-testing]: Mock lucide-react icons to simple spans for jsdom test isolation
+- [Phase 12-testing]: Mutable mockSearchParams variable pattern for per-test URL state override
+- [Phase 12-testing]: vi.stubGlobal('fetch') pattern for API-calling component tests
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:01:14.722Z
-Stopped at: Completed 12-01-PLAN.md
-Resume file: .planning/phases/12-component-testing-infrastructure/12-01-SUMMARY.md
+Last session: 2026-03-09T02:07:23Z
+Stopped at: Completed 12-02-PLAN.md
+Resume file: .planning/phases/12-component-testing-infrastructure/12-02-SUMMARY.md
