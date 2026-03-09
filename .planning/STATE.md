@@ -3,29 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 11-05-PLAN.md (orders FK alias fix)
-last_updated: "2026-03-09T01:10:59.803Z"
-last_activity: 2026-03-08 — Completed Plan 11-05 (orders FK alias join fix + buyer_id nullable)
+stopped_at: Completed 12-01-PLAN.md (testing infrastructure setup)
+last_updated: "2026-03-09T02:01:14Z"
+last_activity: 2026-03-09 — Completed Plan 12-01 (Vitest dual-environment + Testing Library)
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
----
-
----
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 11-05-PLAN.md (orders FK alias fix)
-last_updated: "2026-03-08T22:31:32Z"
-last_activity: 2026-03-08 — Completed Plan 11-05 (orders FK alias join fix + buyer_id nullable)
-progress:
-  total_phases: 8
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 9
 ---
 
 # Project State
@@ -35,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 11 - Zod Runtime Validation (in progress)
+**Current focus:** Phase 12 - Component Testing Infrastructure (in progress)
 
 ## Current Position
 
-Phase: 11 of 16 (Zod Runtime Validation)
-Plan: 5 of 5 in current phase (complete)
+Phase: 12 of 16 (Component Testing Infrastructure)
+Plan: 1 of 3 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-08 — Completed Plan 11-05 (orders FK alias join fix + buyer_id nullable)
+Last activity: 2026-03-09 — Completed Plan 12-01 (Vitest dual-environment + Testing Library)
 
-Progress: [██████░░░░] 56%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -63,6 +48,7 @@ Progress: [██████░░░░] 56%
 | 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
 | 11-zod-runtime-validation | 04 | 6min | 1 | 7 |
 | 11-zod-runtime-validation | 05 | 9min | 1 | 4 |
+| 12-component-testing-infrastructure | 01 | 5min | 2 | 4 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -96,6 +82,8 @@ v1.1 decisions:
 - [Phase 11-zod]: is_open_weights z.boolean().nullable() since DB has DEFAULT false but no NOT NULL constraint
 - [Phase 11-zod]: Two-query enrichment in orders client components; API route for buyer role lacks seller profile enrichment
 - [Phase 11-zod]: OrderWithListingSchema replaces both OrderWithJoinsSchema and OrderWithPartiesSchema
+- [Phase 12-testing]: passWithNoTests is a NonProjectOption in Vitest 4 - must be at root test level
+- [Phase 12-testing]: React.createElement in setup mocks to keep .ts extension
 
 ### Pending Todos
 
@@ -103,13 +91,12 @@ None.
 
 ### Blockers/Concerns
 
-- React 19 + @testing-library/react peer dependency may need npm overrides (Phase 12)
 - Supabase auth mocking strategy for Playwright E2E needs phase-specific research (Phase 15)
 - Sentry source map upload needs SENTRY_AUTH_TOKEN in Coolify build args (confirmed in Plan 09-01)
 - NEXT_PUBLIC_POSTHOG_KEY must be set in Coolify build args for PostHog to activate
 
 ## Session Continuity
 
-Last session: 2026-03-08T22:31:32Z
-Stopped at: Completed 11-05-PLAN.md (orders FK alias fix)
-Resume file: .planning/phases/11-zod-runtime-validation/11-05-SUMMARY.md
+Last session: 2026-03-09T02:01:14.722Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: .planning/phases/12-component-testing-infrastructure/12-01-SUMMARY.md

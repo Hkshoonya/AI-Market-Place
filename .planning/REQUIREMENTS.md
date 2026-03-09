@@ -30,8 +30,8 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### Component Testing
 
-- [ ] **TEST-01**: Vitest config extended with jsdom environment for component tests (environmentMatchGlobs preserves node for existing 170 tests)
-- [ ] **TEST-02**: Testing Library + React 19 integration verified (peer dep overrides if needed)
+- [x] **TEST-01**: Vitest config extended with jsdom environment for component tests (environmentMatchGlobs preserves node for existing 170 tests)
+- [x] **TEST-02**: Testing Library + React 19 integration verified (peer dep overrides if needed)
 - [ ] **TEST-03**: Component tests written for 5+ high-value interactive components (search dialog, filter bar, ranking controls, market ticker, comments)
 
 ### Component Decomposition
@@ -108,8 +108,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | TYPE-01 | Phase 11 | Complete |
 | TYPE-02 | Phase 11 | Complete |
 | TYPE-03 | Phase 11 | Complete |
-| TEST-01 | Phase 12 | Pending |
-| TEST-02 | Phase 12 | Pending |
+| TEST-01 | Phase 12 | Complete |
+| TEST-02 | Phase 12 | Complete |
 | TEST-03 | Phase 12 | Pending |
 | DECOMP-01 | Phase 13 | Pending |
 | DECOMP-02 | Phase 13 | Pending |
