@@ -3,6 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
+stopped_at: Completed 14-02-PLAN.md (Public component SWR conversion)
+last_updated: "2026-03-09T05:44:07.932Z"
+last_activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
+progress:
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 20
+  completed_plans: 20
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: Production Readiness
+status: executing
 stopped_at: Completed 14-05-PLAN.md (Supabase-direct query SWR conversion)
 last_updated: "2026-03-09T05:38:36Z"
 last_activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
@@ -62,6 +77,7 @@ Progress: [██████████] 100%
 | 14-swr-data-fetching | 05 | 11min | 2 | 13 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
+| Phase 14-swr-data-fetching P02 | 15min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -127,6 +143,9 @@ v1.1 decisions:
 - [Phase 14-swr]: Admin agents uses 3 parallel useSWR calls for agents/tasks/logs
 - [Phase 14-swr]: Data-sources converted from Supabase-direct to API route for SWR consistency
 - [Phase 14-swr]: Order messages use MEDIUM tier SWR polling replacing manual setInterval
+- [Phase 14-swr]: Dynamic SWR keys from URLSearchParams for filter-driven auto-refetch on chart components
+- [Phase 14-swr]: keepPreviousData: true in search dialog SWR to avoid flash of empty state
+- [Phase 14-swr]: jsonFetcher required in test SWRConfig since tests don't mount full app provider chain
 
 ### Pending Todos
 
@@ -140,6 +159,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T05:39:35Z
-Stopped at: Completed 14-04-PLAN.md (SWR page components conversion)
-Resume file: .planning/phases/14-swr-data-fetching/14-04-SUMMARY.md
+Last session: 2026-03-09T05:44:07.928Z
+Stopped at: Completed 14-02-PLAN.md (Public component SWR conversion)
+Resume file: None

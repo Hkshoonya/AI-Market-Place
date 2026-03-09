@@ -32,7 +32,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries (UAT gap closure in progress) (completed 2026-03-08)
 - [x] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components (completed 2026-03-09)
 - [x] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders (completed 2026-03-09)
-- [ ] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers
+- [x] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers (completed 2026-03-09)
 - [ ] **Phase 15: E2E Testing** - Playwright tests for critical user paths integrated into CI
 - [ ] **Phase 16: Code Simplification** - Final cleanup pass over all milestone changes
 
@@ -119,7 +119,7 @@ Plans:
   1. All client-side useState+useEffect+fetch patterns are replaced with useSWR hooks
   2. SWR staleTime is configured in tiers (fast-changing data like scores vs slow-changing data like model metadata)
   3. Navigating away from and back to a page shows cached data immediately while revalidating in the background
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [ ] 14-01-PLAN.md -- Install SWR, create fetcher/config/test-utils, wire SWRConfig provider, update existing tests
 - [ ] 14-02-PLAN.md -- Convert 12 chart, model detail, and marketplace components (API route fetch pattern)
@@ -168,6 +168,6 @@ Plans:
 | 11. Zod Runtime Validation | v1.1 | 5/5 | Complete | 2026-03-08 |
 | 12. Component Testing Infrastructure | v1.1 | 3/3 | Complete | 2026-03-09 |
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
-| 14. SWR Data Fetching | 4/5 | In Progress|  | - |
+| 14. SWR Data Fetching | 5/5 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | v1.1 | 0/? | Not started | - |
 | 16. Code Simplification | v1.1 | 0/? | Not started | - |
