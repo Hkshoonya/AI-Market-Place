@@ -75,10 +75,11 @@ const mockModels = [
 ];
 
 describe('RankingWeightControls', () => {
-  let onSortedModels: ReturnType<typeof vi.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onSortedModels: any = vi.fn();
 
   beforeEach(() => {
-    onSortedModels = vi.fn();
+    onSortedModels.mockClear();
   });
 
   it('renders "Customize Rankings" toggle button in collapsed state', () => {
