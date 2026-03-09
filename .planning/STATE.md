@@ -3,29 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 12-03-PLAN.md (Phase 12 complete)
-last_updated: "2026-03-09T02:17:20.897Z"
-last_activity: 2026-03-09 — Completed Plan 12-03 (RankingWeightControls, CommentsSection tests)
+stopped_at: Completed 13-02-PLAN.md (Compare page decomposition)
+last_updated: "2026-03-09T04:19:05Z"
+last_activity: 2026-03-09 — Completed Plan 13-02 (Compare page decomposition with React.memo)
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
----
-
----
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 12-03-PLAN.md (RankingWeightControls + CommentsSection tests)
-last_updated: "2026-03-09T02:10:36Z"
-last_activity: 2026-03-09 — Completed Plan 12-03 (RankingWeightControls, CommentsSection tests)
-progress:
-  total_phases: 8
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 13
 ---
 
 # Project State
@@ -35,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 12 - Component Testing Infrastructure (in progress)
+**Current focus:** Phase 13 - Component Decomposition & React.memo (in progress)
 
 ## Current Position
 
-Phase: 12 of 16 (Component Testing Infrastructure) -- COMPLETE
-Plan: 3 of 3 in current phase (complete)
-Status: Phase complete
-Last activity: 2026-03-09 — Completed Plan 12-03 (RankingWeightControls, CommentsSection tests)
+Phase: 13 of 16 (Component Decomposition & React.memo)
+Plan: 2 of 4 in current phase
+Status: Executing
+Last activity: 2026-03-09 — Completed Plan 13-02 (Compare page decomposition with React.memo)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -66,6 +51,7 @@ Progress: [██████████] 100%
 | 12-component-testing-infrastructure | 01 | 5min | 2 | 4 |
 | 12-component-testing-infrastructure | 02 | 4min | 2 | 3 |
 | 12-component-testing-infrastructure | 03 | 8min | 2 | 2 |
+| 13-component-decomposition-react-memo | 02 | 5min | 2 | 8 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -107,6 +93,9 @@ v1.1 decisions:
 - [Phase 12-testing]: vi.hoisted() for mock variables used inside vi.mock factory functions (Vitest 4 hoisting)
 - [Phase 12-testing]: Chainable Supabase mock with .then() for thenable PostgREST query builder pattern
 - [Phase 12-testing]: Mock radix-ui Tooltip as inline elements to avoid portal issues in jsdom
+- [Phase 13-decomp]: compare-helpers.ts for shared types/helpers across page sub-components
+- [Phase 13-decomp]: useMemo + React.memo pairing: stabilize array refs before passing to memo'd components
+- [Phase 13-decomp]: ModelOption interface exported from model-selector.tsx, re-exported from parent
 
 ### Pending Todos
 
@@ -120,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:10:36Z
-Stopped at: Completed 12-03-PLAN.md (Phase 12 complete)
-Resume file: .planning/phases/12-component-testing-infrastructure/12-03-SUMMARY.md
+Last session: 2026-03-09T04:19:05Z
+Stopped at: Completed 13-02-PLAN.md (Compare page decomposition)
+Resume file: .planning/phases/13-component-decomposition-react-memo/13-02-SUMMARY.md

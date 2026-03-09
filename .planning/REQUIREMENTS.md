@@ -37,14 +37,14 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 ### Component Decomposition
 
 - [ ] **DECOMP-01**: Model detail page (878 lines) decomposed into focused sub-components
-- [ ] **DECOMP-02**: Compare client (709 lines) decomposed into focused sub-components
+- [x] **DECOMP-02**: Compare client (709 lines) decomposed into focused sub-components
 - [ ] **DECOMP-03**: Settings form (681 lines) decomposed into focused sub-components
 - [ ] **DECOMP-04**: Top 5 mega-components in src/components/ (517, 500, 485, 470, 448 lines) decomposed below 300 lines each
 
 ### Performance
 
 - [ ] **PERF-01**: SWR replaces useState+useEffect+fetch patterns in client components with appropriate staleTime tiers
-- [ ] **PERF-02**: React.memo applied to expensive pure components identified during decomposition
+- [x] **PERF-02**: React.memo applied to expensive pure components identified during decomposition
 - [x] **PERF-03**: Bundle impact of Sentry + PostHog kept under control via tree-shaking and lazy loading
 
 ### E2E Testing
@@ -112,10 +112,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | TEST-02 | Phase 12 | Complete |
 | TEST-03 | Phase 12 | Complete |
 | DECOMP-01 | Phase 13 | Pending |
-| DECOMP-02 | Phase 13 | Pending |
+| DECOMP-02 | Phase 13 | Complete |
 | DECOMP-03 | Phase 13 | Pending |
 | DECOMP-04 | Phase 13 | Pending |
-| PERF-02 | Phase 13 | Pending |
+| PERF-02 | Phase 13 | Complete |
 | PERF-01 | Phase 14 | Pending |
 | E2E-01 | Phase 15 | Pending |
 | E2E-02 | Phase 15 | Pending |
