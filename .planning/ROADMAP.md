@@ -51,7 +51,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans:** 2/2 plans complete
 Plans:
 - [x] 09-01-PLAN.md -- Sentry error tracking, CSP headers, source map upload, Dockerfile
-- [ ] 09-02-PLAN.md -- PostHog analytics, pageview tracking, user identification, custom events
+- [x] 09-02-PLAN.md -- PostHog analytics, pageview tracking, user identification, custom events
 
 ### Phase 10: CI Pipeline
 **Goal**: No PR can merge without passing lint, typecheck, and all tests
@@ -63,7 +63,7 @@ Plans:
   3. A clean PR shows all green checks and the merge button is enabled
 **Plans:** 1/1 plans complete
 Plans:
-- [ ] 10-01-PLAN.md -- CI workflow (lint, typecheck, test) + branch protection setup
+- [x] 10-01-PLAN.md -- CI workflow (lint, typecheck, test) + branch protection setup
 
 ### Phase 11: Zod Runtime Validation
 **Goal**: Supabase query results are validated at runtime instead of silently cast with `as unknown as`
@@ -78,8 +78,8 @@ Plans:
 - [x] 11-01-PLAN.md -- parseQueryResult utilities, domain-grouped Zod schemas, unit tests
 - [x] 11-02-PLAN.md -- Migrate server pages, API routes, and lib utilities (~35 casts)
 - [x] 11-03-PLAN.md -- Migrate client components (~10 casts) and fix Recharts casts
-- [ ] 11-04-PLAN.md -- [GAP CLOSURE] Fix z.coerce.number() for PostgREST strings, is_open_weights nullable, admin analytics error handling
-- [ ] 11-05-PLAN.md -- [GAP CLOSURE] Fix orders page FK alias joins with two-query enrichment, buyer_id nullable
+- [x] 11-04-PLAN.md -- [GAP CLOSURE] Fix z.coerce.number() for PostgREST strings, is_open_weights nullable, admin analytics error handling
+- [x] 11-05-PLAN.md -- [GAP CLOSURE] Fix orders page FK alias joins with two-query enrichment, buyer_id nullable
 
 ### Phase 12: Component Testing Infrastructure
 **Goal**: High-value interactive components have render and interaction tests proving they work correctly
@@ -150,7 +150,7 @@ Plans:
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 11. Zod Runtime Validation | 5/5 | Complete   | 2026-03-08 | 2026-03-08 |
+| 11. Zod Runtime Validation | v1.1 | 5/5 | Complete | 2026-03-08 |
 | 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |

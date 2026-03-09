@@ -56,7 +56,7 @@ completed: 2026-03-08
 - **Duration:** 6 min
 - **Started:** 2026-03-08T22:22:42Z
 - **Completed:** 2026-03-08T22:29:32Z
-- **Tasks:** 1 of 2 (Task 2 is checkpoint:human-action for DB migration)
+- **Tasks:** 2 of 2 (Task 2 checkpoint:human-action completed by user)
 - **Files modified:** 7
 
 ## Accomplishments
@@ -71,8 +71,9 @@ completed: 2026-03-08
 Each task was committed atomically:
 
 1. **Task 1: Replace z.number() with z.coerce.number() + fix is_open_weights nullable** - `3b2d350` (fix)
+2. **Task 2: Apply production DB migration for leaderboard multi-lens scoring columns** - (human-action, no commit)
 
-**Note:** Task 2 is a checkpoint:human-action requiring user to apply DB migration to production Supabase.
+**Plan metadata:** `d0649f3` (docs: complete plan)
 
 ## Files Created/Modified
 - `src/lib/schemas/models.ts` - z.coerce.number() for all numeric fields, is_open_weights nullable
@@ -98,16 +99,21 @@ None - plan executed exactly as written.
 
 ## User Setup Required
 
-**Task 2 (checkpoint:human-action)** requires manual DB migration:
-1. Open Supabase Dashboard SQL Editor
-2. Run contents of `supabase/migrations/014_multi_lens_scoring.sql`
-3. Trigger compute-scores pipeline to populate new columns
-4. Verify /leaderboards "All" tab shows ranked models
+**Task 2 (checkpoint:human-action) -- COMPLETED by user on 2026-03-08:**
+1. User applied `supabase/migrations/014_multi_lens_scoring.sql` to production Supabase
+2. User ran compute-scores pipeline locally to populate new columns
+3. Leaderboard "All" tab should now show ranked models with multi-lens scores
 
 ## Next Phase Readiness
 - Schema coercion fixes unblock model detail pages, comments, and admin analytics
-- Leaderboard "All" tab requires the DB migration in Task 2
-- Plan 11-05 (if any) can proceed after this
+- Leaderboard "All" tab unblocked after user applied DB migration (Task 2 complete)
+- Plan 11-05 has already been executed after this plan
+
+## Self-Check: PASSED
+- All 7 modified files exist on disk
+- Commit 3b2d350 verified in git log
+- Commit d0649f3 (docs) verified in git log
+- Task 2 confirmed complete by user
 
 ---
 *Phase: 11-zod-runtime-validation*
