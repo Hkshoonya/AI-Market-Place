@@ -3,25 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 14-02-PLAN.md (Public component SWR conversion)
-last_updated: "2026-03-09T05:44:07.932Z"
-last_activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
+stopped_at: Completed 14-06-PLAN.md (Gap closure SWR conversion)
+last_updated: "2026-03-09T06:12:49Z"
+last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
   total_phases: 8
-  completed_phases: 6
-  total_plans: 20
-  completed_plans: 20gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 14-05-PLAN.md (Supabase-direct query SWR conversion)
-last_updated: "2026-03-09T05:38:36Z"
-last_activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
-progress:
-  total_phases: 8
-  completed_phases: 6
-  total_plans: 20
-  completed_plans: 20
+  completed_phases: 7
+  total_plans: 21
+  completed_plans: 21
   percent: 100
 ---
 
@@ -37,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 14 of 16 (SWR Data Fetching)
-Plan: 5 of 5 in current phase (complete)
+Plan: 6 of 6 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
+Last activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (v1.0) + 18 (v1.1)
+- Total plans completed: 28 (v1.0) + 21 (v1.1)
 - Average duration: ~25 min (v1.0)
 - Total execution time: ~12 hours (v1.0)
 
@@ -71,6 +60,7 @@ Progress: [██████████] 100%
 | 14-swr-data-fetching | 03 | 6min | 2 | 6 |
 | 14-swr-data-fetching | 04 | 13min | 2 | 11 |
 | 14-swr-data-fetching | 05 | 11min | 2 | 13 |
+| 14-swr-data-fetching | 06 | 5min | 2 | 4 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -141,6 +131,9 @@ v1.1 decisions:
 - [Phase 14-swr]: Dynamic SWR keys from URLSearchParams for filter-driven auto-refetch on chart components
 - [Phase 14-swr]: keepPreviousData: true in search dialog SWR to avoid flash of empty state
 - [Phase 14-swr]: jsonFetcher required in test SWRConfig since tests don't mount full app provider chain
+- [Phase 14-swr]: listing-reviews uses MEDIUM tier (60s) for moderate change frequency; admin edit/prefs/bookmark use SLOW
+- [Phase 14-swr]: Two-query enrichment (reviews + profiles) inside inline SWR fetcher for gap closure
+- [Phase 14-swr]: model-actions creates supabase client inline in handleBookmark, SWR fetcher as sole reader
 
 ### Pending Todos
 
@@ -154,6 +147,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T05:44:07.928Z
-Stopped at: Completed 14-02-PLAN.md (Public component SWR conversion)
+Last session: 2026-03-09T06:12:49Z
+Stopped at: Completed 14-06-PLAN.md (Gap closure SWR conversion)
 Resume file: None
