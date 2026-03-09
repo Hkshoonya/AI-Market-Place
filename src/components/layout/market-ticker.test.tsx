@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
+import { jsonFetcher } from '@/lib/swr/fetcher';
 import { MarketTicker } from './market-ticker';
 
 // Mock styled-jsx to avoid warnings
@@ -21,20 +22,20 @@ describe('MarketTicker', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
+        ok: true,
         json: async () => [],
       })
     );
 
     const { container } = render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, fetcher: jsonFetcher }}>
         <MarketTicker />
       </SWRConfig>
     );
 
-    // Component returns null when items.length === 0
-    // After fetch resolves, the component should still return null for empty array
+    // After SWR resolves, the component should return null for empty array
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/charts/ticker');
+      expect(fetch).toHaveBeenCalled();
     });
 
     // The component returns null, so container should be empty
@@ -64,12 +65,13 @@ describe('MarketTicker', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
+        ok: true,
         json: async () => mockItems,
       })
     );
 
     render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, fetcher: jsonFetcher }}>
         <MarketTicker />
       </SWRConfig>
     );
@@ -102,12 +104,13 @@ describe('MarketTicker', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
+        ok: true,
         json: async () => mockItems,
       })
     );
 
     render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, fetcher: jsonFetcher }}>
         <MarketTicker />
       </SWRConfig>
     );

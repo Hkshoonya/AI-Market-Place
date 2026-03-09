@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import {
   ScatterChart,
   Scatter,
@@ -151,40 +153,25 @@ function getProviderColor(provider: string): string {
 }
 
 export default function QualityPriceFrontier() {
-  const [data, setData] = useState<QualityPriceDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [logScale, setLogScale] = useState(false);
   const { filters, setFilters } = useChartFilters();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (filters.category) params.set("category", filters.category);
-      if (filters.providers.length > 0) params.set("provider", filters.providers.join(","));
+  // Build dynamic URL for SWR key
+  const params = new URLSearchParams();
+  if (filters.category) params.set("category", filters.category);
+  if (filters.providers.length > 0) params.set("provider", filters.providers.join(","));
+  const queryString = params.toString();
+  const swrKey = `/api/charts/quality-price${queryString ? `?${queryString}` : ""}`;
 
-      const queryString = params.toString();
-      const url = `/api/charts/quality-price${queryString ? `?${queryString}` : ""}`;
-      const res = await fetch(url);
+  const { data: rawData, error, isLoading } = useSWR<QualityPriceDataPoint[] | { data: QualityPriceDataPoint[] }>(
+    swrKey,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch data: ${res.status}`);
-      }
-
-      const json = await res.json();
-      setData(json.data ?? json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load chart data");
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.category, filters.providers]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // API may return { data: [...] } or raw array
+  const data: QualityPriceDataPoint[] = Array.isArray(rawData)
+    ? rawData
+    : (rawData as { data?: QualityPriceDataPoint[] })?.data ?? [];
 
   // Group data by provider for color-coded scatter series
   const groupedByProvider = data.reduce<Record<string, QualityPriceDataPoint[]>>(
@@ -263,7 +250,7 @@ export default function QualityPriceFrontier() {
         </label>
       </div>
 
-      {loading && (
+      {isLoading && (
         <div
           style={{
             display: "flex",
@@ -289,11 +276,11 @@ export default function QualityPriceFrontier() {
             fontSize: "14px",
           }}
         >
-          {error}
+          {error?.message || "Failed to load chart data"}
         </div>
       )}
 
-      {!loading && !error && data.length === 0 && (
+      {!isLoading && !error && data.length === 0 && (
         <div
           style={{
             display: "flex",
@@ -308,7 +295,7 @@ export default function QualityPriceFrontier() {
         </div>
       )}
 
-      {!loading && !error && data.length > 0 && (
+      {!isLoading && !error && data.length > 0 && (
         <ResponsiveContainer width="100%" height={500}>
           <ScatterChart
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}

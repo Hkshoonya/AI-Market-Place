@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Brush, Legend,
@@ -52,27 +54,18 @@ export default function RankTimeline() {
   const [slugs, setSlugs] = useState<string[]>(DEFAULT_SLUGS);
   const [days, setDays] = useState(30);
   const [metric, setMetric] = useState<"rank" | "score">("rank");
-  const [data, setData] = useState<TimelineDataPoint[]>([]);
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
 
-  const fetchData = useCallback(async () => {
-    if (slugs.length === 0) { setData([]); setModels([]); setLoading(false); return; }
-    setLoading(true); setError(null);
-    try {
-      const params = new URLSearchParams({ slugs: slugs.join(","), days: String(days), metric });
-      const res = await fetch(`/api/charts/rank-timeline?${params}`);
-      if (!res.ok) throw new Error(`Failed to fetch (${res.status})`);
-      const json: ApiResponse = await res.json();
-      setData(json.data); setModels(json.models);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
-    } finally { setLoading(false); }
-  }, [slugs, days, metric]);
+  // Build dynamic URL for SWR key -- changes trigger automatic refetch
+  const params = new URLSearchParams({ slugs: slugs.join(","), days: String(days), metric });
+  const swrKey = slugs.length > 0 ? `/api/charts/rank-timeline?${params.toString()}` : null;
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const { data: apiData, error, isLoading } = useSWR<ApiResponse>(swrKey, {
+    ...SWR_TIERS.MEDIUM,
+  });
+
+  const data = apiData?.data ?? [];
+  const models = apiData?.models ?? [];
 
   const addSlug = () => {
     const slug = inputValue.trim().toLowerCase();
@@ -115,13 +108,13 @@ export default function RankTimeline() {
       </div>
 
       <div style={{ width: "100%", height: 400, padding: "0 8px 12px" }}>
-        {loading ? (
+        {isLoading ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
             Loading chart data...
           </div>
         ) : error ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#ef4444", fontSize: 14 }}>
-            {error}
+            {error?.message || "Failed to load data"}
           </div>
         ) : data.length === 0 ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 
 // lightweight-charts types
@@ -51,28 +53,22 @@ export function TradingChart({
   const chartRef = useRef<IChartApi | null>(null);
   const [metric, setMetric] = useState(defaultMetric);
   const [range, setRange] = useState(defaultRange);
-  const [data, setData] = useState<CandleData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [chartMode, setChartMode] = useState<"line" | "candle">("line");
 
-  // Fetch data
-  useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams({ metric, range });
-    if (modelSlug) params.set("model", modelSlug);
+  // Build dynamic URL for SWR key -- changes trigger automatic refetch
+  const params = new URLSearchParams({ metric, range });
+  if (modelSlug) params.set("model", modelSlug);
+  const swrKey = `/api/charts/trading?${params.toString()}`;
 
-    fetch(`/api/charts/trading?${params}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setData(d);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [modelSlug, metric, range]);
+  const { data, error, isLoading } = useSWR<CandleData[]>(swrKey, {
+    ...SWR_TIERS.MEDIUM,
+  });
+
+  const chartData = Array.isArray(data) ? data : [];
 
   // Render chart
   useEffect(() => {
-    if (!chartContainerRef.current || data.length === 0) return;
+    if (!chartContainerRef.current || chartData.length === 0) return;
 
     let cancelled = false;
 
@@ -134,7 +130,7 @@ export function TradingChart({
           wickUpColor: "#00d4aa",
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        candleSeries.setData(data as any);
+        candleSeries.setData(chartData as any);
       } else {
         const lineSeries = chart.addSeries(LineSeries, {
           color: "#00d4aa",
@@ -147,7 +143,7 @@ export function TradingChart({
           priceLineVisible: false,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        lineSeries.setData(data.map((d) => ({ time: d.time, value: d.value })) as any);
+        lineSeries.setData(chartData.map((d) => ({ time: d.time, value: d.value })) as any);
 
         // Add area fill beneath the line
         const areaSeries = chart.addSeries(AreaSeries, {
@@ -157,7 +153,7 @@ export function TradingChart({
           lineWidth: 1,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        areaSeries.setData(data.map((d) => ({ time: d.time, value: d.value })) as any);
+        areaSeries.setData(chartData.map((d) => ({ time: d.time, value: d.value })) as any);
       }
 
       chart.timeScale().fitContent();
@@ -181,7 +177,7 @@ export function TradingChart({
         chartRef.current = null;
       }
     };
-  }, [data, height, chartMode]);
+  }, [chartData, height, chartMode]);
 
   return (
     <div className={cn("rounded-lg border border-border/50 bg-card/30 backdrop-blur-sm", className)}>
@@ -229,12 +225,17 @@ export function TradingChart({
         </div>
       )}
       <div className="relative" style={{ height }}>
-        {loading && (
+        {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="animate-spin h-6 w-6 border-2 border-[#00d4aa] border-t-transparent rounded-full" />
           </div>
         )}
-        {!loading && data.length === 0 && (
+        {!isLoading && error && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-sm text-red-500 p-4">{error?.message || "Failed to load chart data"}</p>
+          </div>
+        )}
+        {!isLoading && !error && chartData.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
             No data available for this range
           </div>

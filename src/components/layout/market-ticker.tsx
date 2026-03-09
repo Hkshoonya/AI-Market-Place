@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 interface TickerItem {
   name: string;
@@ -13,21 +14,15 @@ interface TickerItem {
 }
 
 export function MarketTicker() {
-  const [items, setItems] = useState<TickerItem[]>([]);
+  const { data: items } = useSWR<TickerItem[]>("/api/charts/ticker", {
+    ...SWR_TIERS.FAST,
+  });
 
-  useEffect(() => {
-    fetch("/api/charts/ticker")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) setItems(data);
-      })
-      .catch(() => {});
-  }, []);
-
-  if (items.length === 0) return null;
+  const tickerItems = items ?? [];
+  if (tickerItems.length === 0) return null;
 
   // Duplicate for seamless loop
-  const doubled = [...items, ...items];
+  const doubled = [...tickerItems, ...tickerItems];
 
   return (
     <div className="w-full bg-[#0a0a0a] border-b border-border/30 overflow-hidden h-8 relative z-20">
@@ -42,7 +37,7 @@ export function MarketTicker() {
         onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.animationPlayState = "paused"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.animationPlayState = "running"; }}
         style={{
-          animation: `ticker-scroll ${items.length * 3}s linear infinite`,
+          animation: `ticker-scroll ${tickerItems.length * 3}s linear infinite`,
         }}
       >
         {doubled.map((item, i) => (

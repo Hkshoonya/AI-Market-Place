@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { ChartCard } from "./chart-card";
 
 interface Mover {
@@ -22,17 +24,11 @@ interface TopMoversData {
 }
 
 export default function TopMovers() {
-  const [data, setData] = useState<TopMoversData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, isLoading } = useSWR<TopMoversData>(
+    "/api/charts/top-movers?limit=10",
+    { ...SWR_TIERS.FAST }
+  );
   const [tab, setTab] = useState<"risers" | "fallers">("risers");
-
-  useEffect(() => {
-    fetch("/api/charts/top-movers?limit=10")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const items = tab === "risers" ? data?.risers : data?.fallers;
   const isEmpty = !items || items.length === 0;
@@ -41,8 +37,8 @@ export default function TopMovers() {
     <ChartCard
       title="Top Movers"
       subtitle="Biggest rank changes since last update"
-      loading={loading}
-      empty={!loading && (!data || (data.risers.length === 0 && data.fallers.length === 0))}
+      loading={isLoading}
+      empty={!isLoading && !error && (!data || (data.risers.length === 0 && data.fallers.length === 0))}
       emptyMessage="No rank changes detected yet"
       minHeight={300}
       controls={
@@ -70,7 +66,10 @@ export default function TopMovers() {
         </div>
       }
     >
-      {!isEmpty && (
+      {error && (
+        <p className="text-sm text-red-500 p-4">{error?.message || "Failed to load top movers"}</p>
+      )}
+      {!error && !isEmpty && (
         <div className="space-y-1">
           {items.map((m, i) => (
             <Link
