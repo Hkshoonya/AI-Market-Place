@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   test: {
+    passWithNoTests: true,
     projects: [
       {
         extends: true,
@@ -17,7 +18,6 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['src/**/*.test.ts'],
-          passWithNoTests: true,
           globals: false,
         },
       },
@@ -28,7 +28,6 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['src/**/*.test.tsx'],
           setupFiles: ['./src/test/setup-component.ts'],
-          passWithNoTests: true,
           globals: false,
         },
       },
