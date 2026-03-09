@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 // ---------------------------------------------------------------------------
 // Types (shared across earnings feature)
@@ -110,11 +112,29 @@ export interface UseEarningsDataReturn {
 // ---------------------------------------------------------------------------
 
 export function useEarningsData(userId: string | undefined): UseEarningsDataReturn {
-  const [earnings, setEarnings] = useState<EarningsData | null>(null);
-  const [chains, setChains] = useState<ChainInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: earnings,
+    error: swrError,
+    isLoading: loadingEarnings,
+    mutate: mutateEarnings,
+  } = useSWR<EarningsData>(
+    userId ? "/api/seller/earnings" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
+  const {
+    data: chainsData,
+    isLoading: loadingChains,
+  } = useSWR<{ chains: ChainInfo[] }>(
+    userId ? "/api/seller/withdraw" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const chains = chainsData?.chains ?? [];
+  const loading = loadingEarnings || loadingChains;
+  const error = swrError ? (swrError as Error).message || "Failed to load earnings" : null;
+
+  // Form / UI state
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selectedChain, setSelectedChain] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
@@ -124,44 +144,15 @@ export function useEarningsData(userId: string | undefined): UseEarningsDataRetu
     message: string;
   } | null>(null);
 
-  const fetchEarnings = useCallback(async () => {
-    try {
-      setError(null);
-      const res = await fetch("/api/seller/earnings");
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || "Failed to load earnings");
-      }
-      const data = await res.json();
-      setEarnings(data as EarningsData);
-    } catch (err: unknown) {
-      setError((err as Error).message || "Failed to load earnings");
-    }
-  }, []);
-
-  const fetchChains = useCallback(async () => {
-    try {
-      const res = await fetch("/api/seller/withdraw");
-      if (!res.ok) return;
-      const data = await res.json();
-      const fetchedChains: ChainInfo[] = (data as { chains?: ChainInfo[] }).chains || [];
-      setChains(fetchedChains);
-      const firstConfigured = fetchedChains.find((c) => c.configured);
+  // Set selectedChain from first configured chain when chainsData arrives
+  useEffect(() => {
+    if (chainsData?.chains) {
+      const firstConfigured = chainsData.chains.find((c) => c.configured);
       if (firstConfigured) {
         setSelectedChain(firstConfigured.chain);
       }
-    } catch (err) {
-      console.warn("[use-earnings-data] Failed to fetch chain info:", err);
     }
-  }, []);
-
-  useEffect(() => {
-    if (userId) {
-      Promise.all([fetchEarnings(), fetchChains()]).finally(() =>
-        setLoading(false)
-      );
-    }
-  }, [userId, fetchEarnings, fetchChains]);
+  }, [chainsData]);
 
   const handleWithdraw = async () => {
     setWithdrawStatus(null);
@@ -205,7 +196,7 @@ export function useEarningsData(userId: string | undefined): UseEarningsDataRetu
       });
       setWithdrawAmount("");
       setWalletAddress("");
-      fetchEarnings();
+      mutateEarnings();
     } catch (err: unknown) {
       setWithdrawStatus({
         type: "error",
@@ -216,13 +207,12 @@ export function useEarningsData(userId: string | undefined): UseEarningsDataRetu
     }
   };
 
-  const retryFetch = useCallback(() => {
-    setLoading(true);
-    fetchEarnings().finally(() => setLoading(false));
-  }, [fetchEarnings]);
+  const retryFetch = () => {
+    mutateEarnings();
+  };
 
   return {
-    earnings,
+    earnings: earnings ?? null,
     chains,
     loading,
     error,

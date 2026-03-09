@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 export interface WalletBalance {
   balance: number;
@@ -17,33 +18,14 @@ interface UseWalletBalanceReturn {
 }
 
 export function useWalletBalance({ enabled }: UseWalletBalanceOptions): UseWalletBalanceReturn {
-  const [walletData, setWalletData] = useState<WalletBalance | null>(null);
-  const [loadingWallet, setLoadingWallet] = useState(false);
+  const { data, isLoading, mutate } = useSWR<WalletBalance>(
+    enabled ? "/api/marketplace/wallet" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  const fetchBalance = useCallback(async () => {
-    setLoadingWallet(true);
-    try {
-      const res = await fetch("/api/marketplace/wallet");
-      if (res.ok) {
-        const data = await res.json();
-        setWalletData({
-          balance: data.balance ?? 0,
-          solana_deposit_address: data.solana_deposit_address ?? null,
-          evm_deposit_address: data.evm_deposit_address ?? null,
-        });
-      }
-    } catch {
-      // Silent fail -- wallet may not exist yet
-    } finally {
-      setLoadingWallet(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (enabled) {
-      fetchBalance();
-    }
-  }, [enabled, fetchBalance]);
-
-  return { walletData, loadingWallet, refetch: fetchBalance };
+  return {
+    walletData: data ?? null,
+    loadingWallet: isLoading,
+    refetch: () => { mutate(); },
+  };
 }
