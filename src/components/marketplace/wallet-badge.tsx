@@ -1,41 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
+
+interface WalletResponse {
+  balance: number;
+}
 
 export function WalletBadge() {
   const router = useRouter();
   const { user } = useAuth();
-  const [balance, setBalance] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      setBalance(null);
-      return;
-    }
+  const { data } = useSWR<WalletResponse>(
+    user ? "/api/marketplace/wallet" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-    let cancelled = false;
-
-    async function fetchBalance() {
-      try {
-        const res = await fetch("/api/marketplace/wallet");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) {
-          setBalance(data.balance ?? null);
-        }
-      } catch {
-        // Silent fail
-      }
-    }
-
-    fetchBalance();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  const balance = data?.balance ?? null;
 
   if (balance == null) return null;
 

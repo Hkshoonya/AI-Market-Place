@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Eye, Plus } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,12 +13,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { CreateWatchlistDialog } from "./create-watchlist-dialog";
 
 interface WatchlistSummary {
   id: string;
   name: string;
   watchlist_items: { model_id: string }[];
+}
+
+interface WatchlistsResponse {
+  data: Array<{
+    id: string;
+    name: string;
+    watchlist_items?: { model_id: string }[];
+  }>;
 }
 
 interface AddToWatchlistProps {
@@ -28,10 +38,20 @@ interface AddToWatchlistProps {
 export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
-  const [loading, setLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Only fetch when dialog is open and user is authenticated
+  const { data, isLoading, mutate } = useSWR<WatchlistsResponse>(
+    user && open ? "/api/watchlists" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const watchlists: WatchlistSummary[] = (data?.data ?? []).map((w) => ({
+    id: w.id,
+    name: w.name,
+    watchlist_items: w.watchlist_items ?? [],
+  }));
 
   useEffect(() => {
     if (toast) {
@@ -39,34 +59,6 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
       return () => clearTimeout(t);
     }
   }, [toast]);
-
-  const fetchWatchlists = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/watchlists");
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setWatchlists(
-          (json.data as Array<{ id: string; name: string; watchlist_items?: { model_id: string }[] }>).map((w) => ({
-            id: w.id,
-            name: w.name,
-            watchlist_items: w.watchlist_items ?? [],
-          }))
-        );
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (newOpen) {
-      fetchWatchlists();
-    }
-  };
 
   const isInWatchlist = (wl: WatchlistSummary) =>
     wl.watchlist_items.some((item: { model_id: string; models?: { id: string } }) => {
@@ -91,8 +83,8 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
         });
         setToast(`Added to watchlist`);
       }
-      // Refresh
-      await fetchWatchlists();
+      // Revalidate cached watchlist data
+      mutate();
     } catch {
       // ignore
     } finally {
@@ -104,7 +96,7 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
             <Eye className="h-4 w-4" />
@@ -120,7 +112,7 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
           </DialogHeader>
 
           <div className="space-y-2 pt-2">
-            {loading ? (
+            {isLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -166,7 +158,7 @@ export function AddToWatchlist({ modelId, modelName }: AddToWatchlistProps) {
 
             <div className="border-t border-border/30 pt-3">
               <CreateWatchlistDialog
-                onCreated={() => fetchWatchlists()}
+                onCreated={() => mutate()}
                 trigger={
                   <button className="flex w-full items-center gap-2 rounded-lg px-4 py-2.5 text-left text-sm text-neon transition-colors hover:bg-neon/5">
                     <Plus className="h-4 w-4" />

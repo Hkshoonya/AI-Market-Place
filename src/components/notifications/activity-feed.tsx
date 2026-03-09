@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -9,7 +8,9 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatRelativeDate } from "@/lib/format";
 
 interface ModelUpdate {
@@ -25,6 +26,11 @@ interface ModelUpdate {
     name: string;
     provider: string;
   } | null;
+}
+
+interface ActivityResponse {
+  data: ModelUpdate[];
+  isGlobal: boolean;
 }
 
 interface ActivityFeedProps {
@@ -44,29 +50,15 @@ const UPDATE_TYPE_CONFIG: Record<
 };
 
 export function ActivityFeed({ maxItems = 20, compact = false }: ActivityFeedProps) {
-  const [updates, setUpdates] = useState<ModelUpdate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isGlobal, setIsGlobal] = useState(false);
+  const { data, isLoading } = useSWR<ActivityResponse>(
+    "/api/activity",
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    const fetchActivity = async () => {
-      try {
-        const res = await fetch("/api/activity");
-        const json = await res.json();
-        if (res.ok) {
-          setUpdates((json.data ?? []).slice(0, maxItems));
-          setIsGlobal(json.isGlobal ?? false);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchActivity();
-  }, [maxItems]);
+  const updates = (data?.data ?? []).slice(0, maxItems);
+  const isGlobal = data?.isGlobal ?? false;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-3">
         {Array.from({ length: compact ? 5 : 8 }).map((_, i) => (

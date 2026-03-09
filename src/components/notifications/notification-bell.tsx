@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -13,6 +13,7 @@ import {
   Star,
   Zap,
 } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -20,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatRelativeDate } from "@/lib/format";
 
 interface Notification {
@@ -32,6 +34,11 @@ interface Notification {
   created_at: string;
 }
 
+interface NotificationsResponse {
+  data: Notification[];
+  unreadCount: number;
+}
+
 const TYPE_ICONS: Record<string, typeof Bell> = {
   model_update: Zap,
   watchlist_change: Star,
@@ -42,39 +49,15 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
 
 export function NotificationBell() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    try {
-      const res = await fetch("/api/notifications?limit=15");
-      const json = await res.json();
-      if (res.ok) {
-        setNotifications(json.data ?? []);
-        setUnreadCount(json.unreadCount ?? 0);
-      }
-    } catch {
-      // Fallback: check activity endpoint
-      try {
-        const res = await fetch("/api/activity");
-        const json = await res.json();
-        if (res.ok && json.data?.length > 0 && !json.isGlobal) {
-          setUnreadCount(json.data.length);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [user]);
+  const { data, mutate } = useSWR<NotificationsResponse>(
+    user ? "/api/notifications?limit=15" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchNotifications();
-    // Poll every 60 seconds
-    const interval = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  const notifications = data?.data ?? [];
+  const unreadCount = data?.unreadCount ?? 0;
 
   const markAllRead = async () => {
     try {
@@ -83,10 +66,7 @@ export function NotificationBell() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),
       });
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true }))
-      );
-      setUnreadCount(0);
+      mutate();
     } catch {
       // ignore
     }
