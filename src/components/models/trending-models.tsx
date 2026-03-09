@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import type { LucideIcon } from "lucide-react";
 import { Flame, Rocket, Crown, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -43,38 +45,23 @@ interface TrendingModelsProps {
 
 export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("trending");
-  const [data, setData] = useState<Record<TabKey, TrendingModel[]>>({
-    trending: [],
-    recent: [],
-    popular: [],
-    discussed: [],
-  });
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchTrending = async () => {
-      try {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (category) params.set("category", category);
+  // Build dynamic URL for SWR key
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (category) params.set("category", category);
+  const swrKey = `/api/trending?${params.toString()}`;
 
-        const res = await fetch(`/api/trending?${params}`);
-        const json = await res.json();
-        if (res.ok) {
-          setData({
-            trending: json.trending ?? [],
-            recent: json.recent ?? [],
-            popular: json.popular ?? [],
-            discussed: json.discussed ?? [],
-          });
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTrending();
-  }, [category, limit]);
+  const { data: rawData, isLoading } = useSWR<Record<TabKey, TrendingModel[]>>(
+    swrKey,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const data: Record<TabKey, TrendingModel[]> = {
+    trending: rawData?.trending ?? [],
+    recent: rawData?.recent ?? [],
+    popular: rawData?.popular ?? [],
+    discussed: rawData?.discussed ?? [],
+  };
 
   const models = data[activeTab];
 
@@ -100,7 +87,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
       </div>
 
       {/* Models list */}
-      {loading ? (
+      {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-14 animate-pulse rounded-lg bg-secondary" />

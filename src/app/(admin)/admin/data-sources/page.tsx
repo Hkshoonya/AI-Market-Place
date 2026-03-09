@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import {
   Activity,
   AlertCircle,
@@ -15,11 +16,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
 import { formatRelativeDate } from "@/lib/format";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { toast } from "sonner";
-
-const supabase = createClient();
 
 const TIER_LABELS: Record<number, string> = {
   1: "Model Hubs",
@@ -75,43 +74,31 @@ interface DataSourceRow {
   last_error_message: string | null;
 }
 
+interface DataSourcesResponse {
+  data: DataSourceRow[];
+}
+
 export default function AdminDataSourcesPage() {
-  const [sources, setSources] = useState<DataSourceRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Set<string>>(new Set());
   const [tierFilter, setTierFilter] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchSources = useCallback(async () => {
-    let query = supabase
-      .from("data_sources")
-      .select("*")
-      .order("tier", { ascending: true })
-      .order("priority", { ascending: true });
+  // Build SWR key - tier filter is client-side since API returns all
+  const { data, isLoading: loading, error, mutate } = useSWR<DataSourcesResponse>(
+    "/api/admin/data-sources",
+    { ...SWR_TIERS.SLOW }
+  );
 
-    if (tierFilter) {
-      query = query.eq("tier", tierFilter);
-    }
-
-    const { data, error: fetchErr } = await query;
-    if (fetchErr) {
-      setError(fetchErr.message);
-    } else {
-      setSources((data ?? []) as DataSourceRow[]);
-    }
-    setLoading(false);
-  }, [tierFilter]);
-
-  useEffect(() => {
-    fetchSources();
-  }, [fetchSources]);
+  const allSources = data?.data ?? [];
+  const sources = tierFilter
+    ? allSources.filter((s) => s.tier === tierFilter)
+    : allSources;
 
   // Auto-refresh every 30s when a sync is running
   useEffect(() => {
     if (syncing.size === 0) return;
-    const interval = setInterval(fetchSources, 30000);
+    const interval = setInterval(() => mutate(), 30000);
     return () => clearInterval(interval);
-  }, [syncing.size, fetchSources]);
+  }, [syncing.size, mutate]);
 
   const toggleEnabled = async (id: number, currentlyEnabled: boolean) => {
     try {
@@ -122,12 +109,8 @@ export default function AdminDataSourcesPage() {
       });
 
       if (!res.ok) throw new Error("Request failed");
-      setSources((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, is_enabled: !currentlyEnabled } : s
-        )
-      );
       toast.success(currentlyEnabled ? "Data source disabled" : "Data source enabled");
+      mutate();
     } catch {
       toast.error("Failed to update data source");
     }
@@ -139,7 +122,7 @@ export default function AdminDataSourcesPage() {
       const res = await fetch(`/api/admin/sync/${slug}`, { method: "POST" });
       if (!res.ok) throw new Error("Sync failed");
       toast.success("Sync completed successfully");
-      await fetchSources();
+      mutate();
     } catch {
       toast.error("Sync failed");
     } finally {
@@ -168,7 +151,7 @@ export default function AdminDataSourcesPage() {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-loss/30 bg-loss/5 p-6 text-loss">
         <AlertCircle className="h-5 w-5 shrink-0" />
-        <p className="text-sm">{error}</p>
+        <p className="text-sm">{error.message || "Failed to load data sources"}</p>
       </div>
     );
   }
@@ -184,10 +167,7 @@ export default function AdminDataSourcesPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            setLoading(true);
-            fetchSources();
-          }}
+          onClick={() => mutate()}
           className="gap-2"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -427,7 +407,7 @@ export default function AdminDataSourcesPage() {
                       <td className="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
                         {source.last_sync_records > 0
                           ? source.last_sync_records.toLocaleString()
-                          : "—"}
+                          : "\u2014"}
                       </td>
 
                       {/* Last sync */}
@@ -438,7 +418,7 @@ export default function AdminDataSourcesPage() {
                             {formatRelativeDate(source.last_sync_at)}
                           </span>
                         ) : (
-                          "—"
+                          "\u2014"
                         )}
                       </td>
 

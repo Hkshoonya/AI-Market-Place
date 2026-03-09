@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Copy, Check, Zap, DollarSign, Server, Monitor } from "lucide-react";
 
@@ -71,21 +73,13 @@ function getLocalCommand(platformSlug: string, modelName: string): string | null
 }
 
 export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProps) {
-  const [deployments, setDeployments] = useState<Deployment[]>([]);
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, error, isLoading } = useSWR<{ deployments: Deployment[]; platforms: Platform[] }>(
+    `/api/models/${modelSlug}/deployments`,
+    { ...SWR_TIERS.SLOW }
+  );
+  const deployments = data?.deployments ?? [];
+  const platforms = data?.platforms ?? [];
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/models/${modelSlug}/deployments`)
-      .then((r) => r.json())
-      .then((data) => {
-        setDeployments(data.deployments || []);
-        setPlatforms(data.platforms || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [modelSlug]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -93,7 +87,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
@@ -101,6 +95,10 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <p className="text-sm text-red-500 p-4">{error?.message || "Failed to load deployment options"}</p>;
   }
 
   // Group platforms by type

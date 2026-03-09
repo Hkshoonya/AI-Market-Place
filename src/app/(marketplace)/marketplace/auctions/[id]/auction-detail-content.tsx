@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import {
   ArrowLeft,
   Gavel,
@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import type { Auction } from "@/types/auction";
 import { useAuctionTimer } from "@/hooks/use-auction-timer";
 import { BidHistoryTable } from "@/components/marketplace/bid-history-table";
@@ -58,33 +59,16 @@ export default function AuctionDetailContent({
   auctionId: string;
 }) {
   const { user, loading: authLoading } = useAuth();
-  const [auction, setAuction] = useState<Auction | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const { timeRemaining, dutchPrice } = useAuctionTimer({ auction });
+  const { data: auction, error, isLoading, mutate } = useSWR<Auction>(
+    `/api/marketplace/auctions/${auctionId}`,
+    { ...SWR_TIERS.FAST }
+  );
 
-  // Fetch auction data
-  const fetchAuction = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/marketplace/auctions/${auctionId}`);
-      if (!res.ok) throw new Error("Auction not found");
-      const data = await res.json();
-      setAuction(data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load auction";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [auctionId]);
-
-  useEffect(() => {
-    fetchAuction();
-  }, [fetchAuction]);
+  const { timeRemaining, dutchPrice } = useAuctionTimer({ auction: auction ?? null });
 
   // Loading state
-  if (loading || authLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center gap-3 py-24">
         <Loader2 className="h-8 w-8 animate-spin text-neon" />
@@ -98,7 +82,7 @@ export default function AuctionDetailContent({
     return (
       <div className="flex flex-col items-center gap-3 py-24">
         <AlertCircle className="h-10 w-10 text-red-400" />
-        <p className="text-sm font-medium">{error || "Auction not found"}</p>
+        <p className="text-sm font-medium">{error?.message || "Auction not found"}</p>
         <Button variant="outline" size="sm" asChild>
           <Link href="/marketplace/auctions">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -322,7 +306,7 @@ export default function AuctionDetailContent({
                   <EnglishBidPanel
                     auction={auction}
                     timeRemaining={timeRemaining}
-                    onBidPlaced={fetchAuction}
+                    onBidPlaced={() => mutate()}
                   />
                 )}
 
@@ -331,7 +315,7 @@ export default function AuctionDetailContent({
                     auction={auction}
                     dutchPrice={dutchPrice}
                     timeRemaining={timeRemaining}
-                    onAccepted={fetchAuction}
+                    onAccepted={() => mutate()}
                   />
                 )}
 

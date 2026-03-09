@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import {
   Archive,
   ChevronLeft,
@@ -18,8 +19,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -42,39 +44,34 @@ interface AdminListing {
   profiles: { id: string; display_name: string | null; username: string | null } | null;
 }
 
+interface ListingsResponse {
+  data: AdminListing[];
+  count: number;
+}
+
 const PAGE_SIZE = 20;
 export default function AdminListingsPage() {
-  const [listings, setListings] = useState<AdminListing[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (search) params.set("search", search);
-      params.set("page", String(page));
+  // Build SWR key with page/status/search params
+  const swrKey = (() => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (search) params.set("search", search);
+    params.set("page", String(page));
+    return `/api/admin/listings?${params}`;
+  })();
 
-      const res = await fetch(`/api/admin/listings?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      setListings(json.data ?? []);
-      setTotalCount(json.count ?? 0);
-    } catch {
-      toast.error("Failed to load listings");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, page]);
+  const { data, isLoading: loading, mutate } = useSWR<ListingsResponse>(
+    swrKey,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+  const listings = data?.data ?? [];
+  const totalCount = data?.count ?? 0;
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     try {
@@ -88,7 +85,7 @@ export default function AdminListingsPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success(`Listing ${newStatus === "active" ? "activated" : "paused"}`);
-      fetchListings();
+      mutate();
     } catch {
       toast.error("Failed to update listing status");
     }
@@ -105,7 +102,7 @@ export default function AdminListingsPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success(currentValue ? "Listing unfeatured" : "Listing featured");
-      fetchListings();
+      mutate();
     } catch {
       toast.error("Failed to update featured status");
     }
@@ -125,7 +122,7 @@ export default function AdminListingsPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success("Listing removed");
-      fetchListings();
+      mutate();
     } catch {
       toast.error("Failed to remove listing");
     }
@@ -144,7 +141,7 @@ export default function AdminListingsPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success("Listing restored");
-      fetchListings();
+      mutate();
     } catch {
       toast.error("Failed to restore listing");
     }
@@ -247,7 +244,7 @@ export default function AdminListingsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {l.profiles?.display_name || l.profiles?.username || "—"}
+                        {l.profiles?.display_name || l.profiles?.username || "\u2014"}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge
@@ -274,7 +271,7 @@ export default function AdminListingsPage() {
                             {Number(l.avg_rating).toFixed(1)}
                             <span className="text-xs text-muted-foreground">({l.review_count})</span>
                           </span>
-                        ) : "—"}
+                        ) : "\u2014"}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-muted-foreground tabular-nums">
                         {formatNumber(l.view_count)}

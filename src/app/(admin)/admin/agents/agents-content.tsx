@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import {
   Bot,
   Play,
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 interface Agent {
   id: string;
@@ -48,46 +50,32 @@ interface AgentLog {
   agents?: { name: string };
 }
 
+interface AgentsResponse { agents: Agent[] }
+interface TasksResponse { tasks: AgentTask[] }
+interface LogsResponse { logs: AgentLog[] }
+
 export default function AgentsContent() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [tasks, setTasks] = useState<AgentTask[]>([]);
-  const [logs, setLogs] = useState<AgentLog[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "logs">(
     "overview"
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [triggering, setTriggering] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [agentsRes, tasksRes, logsRes] = await Promise.all([
-        fetch("/api/admin/agents"),
-        fetch("/api/admin/agents/tasks"),
-        fetch("/api/admin/agents/logs"),
-      ]);
+  const { data: agentsData, isLoading, mutate: mutateAgents } = useSWR<AgentsResponse>(
+    "/api/admin/agents",
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: tasksData, mutate: mutateTasks } = useSWR<TasksResponse>(
+    "/api/admin/agents/tasks",
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: logsData } = useSWR<LogsResponse>(
+    "/api/admin/agents/logs",
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-      if (agentsRes.ok) {
-        const data = await agentsRes.json();
-        setAgents(data.agents ?? []);
-      }
-      if (tasksRes.ok) {
-        const data = await tasksRes.json();
-        setTasks(data.tasks ?? []);
-      }
-      if (logsRes.ok) {
-        const data = await logsRes.json();
-        setLogs(data.logs ?? []);
-      }
-    } catch {
-      // ignore fetch errors
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const agents = agentsData?.agents ?? [];
+  const tasks = tasksData?.tasks ?? [];
+  const logs = logsData?.logs ?? [];
 
   const toggleAgent = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "paused" : "active";
@@ -96,7 +84,7 @@ export default function AgentsContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
-    fetchData();
+    mutateAgents();
   };
 
   const triggerAgent = async (id: string) => {
@@ -104,7 +92,10 @@ export default function AgentsContent() {
     try {
       await fetch(`/api/admin/agents/${id}`, { method: "POST" });
       // Refresh after a brief delay
-      setTimeout(fetchData, 2000);
+      setTimeout(() => {
+        mutateAgents();
+        mutateTasks();
+      }, 2000);
     } catch {
       // ignore trigger errors
     } finally {

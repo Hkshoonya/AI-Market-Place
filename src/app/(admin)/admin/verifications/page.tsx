@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import {
   CheckCircle2,
   Clock,
@@ -14,37 +15,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
+import { SWR_TIERS } from "@/lib/swr/config";
 import type { SellerVerificationRequest } from "@/types/database";
 
 interface VerificationRequestWithProfile extends SellerVerificationRequest {
   profiles: { id: string; display_name: string | null; username: string | null; avatar_url: string | null; email: string | null; is_seller: boolean; seller_verified: boolean } | null;
 }
 
+interface VerificationsResponse {
+  data: VerificationRequestWithProfile[];
+}
+
 export default function AdminVerificationsPage() {
-  const [requests, setRequests] = useState<VerificationRequestWithProfile[]>([]);
   const [statusFilter, setStatusFilter] = useState("pending");
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/verifications?status=${statusFilter}`);
-      const json = await res.json();
-      if (res.ok) {
-        setRequests(json.data ?? []);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
+  const { data, isLoading: loading, mutate } = useSWR<VerificationsResponse>(
+    `/api/admin/verifications?status=${statusFilter}`,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+  const requests = data?.data ?? [];
 
   const handleAction = async (requestId: string, action: "approve" | "reject") => {
     setActionLoading(requestId);
@@ -59,7 +51,7 @@ export default function AdminVerificationsPage() {
         }),
       });
       if (res.ok) {
-        fetchRequests();
+        mutate();
       }
     } catch {
       // ignore

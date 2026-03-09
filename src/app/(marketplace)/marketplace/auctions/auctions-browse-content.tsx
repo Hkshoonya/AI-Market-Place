@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import {
   Gavel,
   TrendingDown,
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -261,38 +263,30 @@ function AuctionCard({
 // Main Content
 // ────────────────────────────────────────────────────────────
 
+interface AuctionsResponse {
+  auctions?: Auction[];
+}
+
 export default function AuctionsBrowseContent() {
-  const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<AuctionTypeFilter>("all");
   const [sort, setSort] = useState<SortOption>("ending_soon");
   const [dutchPrices, setDutchPrices] = useState<Record<string, number>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch auctions
-  const fetchAuctions = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (typeFilter !== "all") params.set("type", typeFilter);
-      params.set("sort", sort);
+  // Build SWR key with query params
+  const swrKey = (() => {
+    const params = new URLSearchParams();
+    if (typeFilter !== "all") params.set("type", typeFilter);
+    params.set("sort", sort);
+    return `/api/marketplace/auctions?${params.toString()}`;
+  })();
 
-      const res = await fetch(
-        `/api/marketplace/auctions?${params.toString()}`
-      );
-      if (!res.ok) throw new Error("Failed to fetch auctions");
-      const data = await res.json();
-      setAuctions(data.auctions ?? data ?? []);
-    } catch {
-      setAuctions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [typeFilter, sort]);
+  const { data, isLoading: loading } = useSWR<AuctionsResponse>(
+    swrKey,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    setLoading(true);
-    fetchAuctions();
-  }, [fetchAuctions]);
+  const auctions = data?.auctions ?? (Array.isArray(data) ? data : []);
 
   // Refresh Dutch prices every 10 seconds
   useEffect(() => {

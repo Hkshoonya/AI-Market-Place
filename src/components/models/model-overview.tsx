@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { CheckCircle, XCircle, ThumbsUp, ThumbsDown, Tag } from "lucide-react";
 
@@ -28,20 +29,12 @@ interface ModelOverviewProps {
 }
 
 export function ModelOverview({ modelSlug, className }: ModelOverviewProps) {
-  const [description, setDescription] = useState<ModelDescriptionData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: description, error, isLoading } = useSWR<ModelDescriptionData>(
+    modelSlug ? `/api/models/${modelSlug}/description` : null,
+    { ...SWR_TIERS.SLOW }
+  );
 
-  useEffect(() => {
-    fetch(`/api/models/${modelSlug}/description`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && !data.error) setDescription(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [modelSlug]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={cn("space-y-3", className)}>
         <div className="h-16 rounded-lg bg-card/30 animate-pulse" />
@@ -52,6 +45,8 @@ export function ModelOverview({ modelSlug, className }: ModelOverviewProps) {
       </div>
     );
   }
+
+  if (error) return <p className="text-sm text-red-500 p-4">{error?.message || "Failed to load model overview"}</p>;
 
   if (!description) return null;
 

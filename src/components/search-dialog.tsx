@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Search, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchDialogResults } from "./search-dialog-results";
@@ -10,6 +11,11 @@ import type { SearchResult, MarketplaceResult } from "./search-dialog-results";
 
 const RECENT_SEARCHES_KEY = "aimc_recent_searches";
 const MAX_RECENT = 5;
+
+interface SearchResponse {
+  data?: SearchResult[];
+  marketplace?: MarketplaceResult[];
+}
 
 function getRecentSearches(): string[] {
   if (typeof window === "undefined") return [];
@@ -34,15 +40,36 @@ export function SearchDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [marketplaceResults, setMarketplaceResults] = useState<MarketplaceResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce: update debouncedQuery after 250ms of inactivity
+  useEffect(() => {
+    if (query.length < 2) {
+      setDebouncedQuery("");
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // SWR with debounced query as key -- null key = no fetch
+  const { data: searchData, isLoading: searchLoading } = useSWR<SearchResponse>(
+    debouncedQuery.length >= 2
+      ? `/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=8&marketplace=true`
+      : null,
+    { dedupingInterval: 5000, keepPreviousData: true }
+  );
+
+  const results = searchData?.data ?? [];
+  const marketplaceResults = searchData?.marketplace ?? [];
   const totalItems = results.length + marketplaceResults.length;
+
+  // Show loading when query is typed but debounce hasn't fired yet
+  const loading = searchLoading || (query.length >= 2 && debouncedQuery !== query);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,28 +84,9 @@ export function SearchDialog() {
       setTimeout(() => inputRef.current?.focus(), 50);
       setRecentSearches(getRecentSearches());
     } else {
-      setQuery(""); setResults([]); setMarketplaceResults([]); setActiveIndex(0);
+      setQuery(""); setDebouncedQuery(""); setActiveIndex(0);
     }
   }, [open]);
-
-  const search = useCallback(async (q: string) => {
-    if (q.length < 2) { setResults([]); setMarketplaceResults([]); setLoading(false); return; }
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=8&marketplace=true`);
-      const json = await res.json();
-      setResults(json.data ?? []); setMarketplaceResults(json.marketplace ?? []);
-    } catch { setResults([]); setMarketplaceResults([]); }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.length < 2) { setResults([]); setMarketplaceResults([]); return; }
-    setLoading(true);
-    debounceRef.current = setTimeout(() => search(query), 250);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, search]);
 
   const navigateModel = (slug: string) => {
     if (query.length >= 2) addRecentSearch(query);
