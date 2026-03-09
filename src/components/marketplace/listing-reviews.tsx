@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/schemas/marketplace";
 import { formatRelativeDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 type ReviewWithProfile = MarketplaceReviewType & {
   profiles?: { display_name: string | null; avatar_url: string | null; username: string | null } | null;
@@ -72,8 +74,6 @@ function StarRating({
 
 export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) {
   const { user } = useAuth();
-  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
@@ -82,12 +82,12 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [error, setError] = useState("");
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
 
-  const fetchReviews = useCallback(async () => {
-    setLoading(true);
-    try {
+  // SWR for reviews with inline Supabase two-query enrichment fetcher
+  const { data: reviews, error: fetchError, isLoading: loading, mutate } = useSWR<ReviewWithProfile[]>(
+    `supabase:listing-reviews:${listingId}`,
+    async () => {
       const supabase = createClient();
       // Two-query approach: marketplace_reviews has no FK to profiles
       const reviewResponse = await supabase
@@ -116,18 +116,10 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
         }
       }
 
-      setReviews(enriched);
-    } catch (err) {
-      console.warn("[listing-reviews] Failed to fetch reviews:", err);
-      setFetchError("Failed to load reviews");
-    } finally {
-      setLoading(false);
-    }
-  }, [listingId]);
-
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+      return enriched;
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +153,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
       setNewTitle("");
       setNewContent("");
       setShowForm(false);
-      await fetchReviews();
+      await mutate();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit review");
     } finally {
@@ -173,7 +165,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
     <Card className="border-border/50 bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg">
-          Reviews ({reviews.length})
+          Reviews ({(reviews ?? []).length})
         </CardTitle>
         {user && !showForm && (
           <Button
@@ -253,7 +245,7 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
 
         {/* Reviews List */}
         {fetchError && (
-          <p className="text-sm text-red-500 py-4">{fetchError}</p>
+          <p className="text-sm text-red-500 py-4">{fetchError.message}</p>
         )}
         {loading ? (
           <div className="space-y-4">
@@ -267,13 +259,13 @@ export function ListingReviews({ listingId, listingSlug }: ListingReviewsProps) 
               </div>
             ))}
           </div>
-        ) : reviews.length === 0 ? (
+        ) : (reviews ?? []).length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No reviews yet. Be the first to review this listing!
           </p>
         ) : (
           <div className="space-y-4">
-            {reviews.map((review) => {
+            {(reviews ?? []).map((review) => {
               const displayName = review.profiles?.display_name || "Anonymous";
               const initial = displayName.charAt(0).toUpperCase();
 

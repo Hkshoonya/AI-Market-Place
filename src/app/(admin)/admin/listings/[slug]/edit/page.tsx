@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { ArrowLeft, Loader2, Save, Star, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { toast } from "sonner";
 import { use } from "react";
 import type { MarketplaceListingType } from "@/lib/schemas/marketplace";
@@ -40,11 +42,8 @@ export default function AdminEditListingPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const supabase = createClient();
 
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [listing, setListing] = useState<MarketplaceListingType | null>(null);
   const [error, setError] = useState("");
 
   // Form state
@@ -61,39 +60,39 @@ export default function AdminEditListingPage({
   const [status, setStatus] = useState<StatusType>("active");
   const [isFeatured, setIsFeatured] = useState(false);
 
-  useEffect(() => {
-    async function fetchListing() {
-      // Fetch listing directly via admin query (bypasses active-only filter)
+  // SWR for listing data with inline Supabase fetcher
+  const { data: listing, error: loadError, isLoading: loading } = useSWR<MarketplaceListingType | null>(
+    `supabase:admin-edit-listing:${slug}`,
+    async () => {
+      const supabase = createClient();
       const listingResponse = await supabase
         .from("marketplace_listings")
         .select("*")
         .eq("slug", slug)
         .single();
 
-      const data = parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "AdminEditListing");
-      if (!data) {
-        setError("Listing not found");
-        setLoading(false);
-        return;
-      }
-      setListing(data);
-      setTitle(data.title);
-      setDescription(data.description);
-      setShortDescription(data.short_description || "");
-      setListingType(data.listing_type as ListingType);
-      setPricingType(data.pricing_type as PricingType);
-      setPrice(data.price?.toString() || "");
-      setTags(data.tags?.join(", ") || "");
-      setDemoUrl(data.demo_url || "");
-      setDocumentationUrl(data.documentation_url || "");
-      setThumbnailUrl(data.thumbnail_url || "");
-      setStatus(data.status as StatusType);
-      setIsFeatured(data.is_featured || false);
-      setLoading(false);
-    }
+      return parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "AdminEditListing");
+    },
+    { ...SWR_TIERS.SLOW }
+  );
 
-    fetchListing();
-  }, [slug, supabase]);
+  // Populate form fields when listing data arrives
+  useEffect(() => {
+    if (listing) {
+      setTitle(listing.title);
+      setDescription(listing.description);
+      setShortDescription(listing.short_description || "");
+      setListingType(listing.listing_type as ListingType);
+      setPricingType(listing.pricing_type as PricingType);
+      setPrice(listing.price?.toString() || "");
+      setTags(listing.tags?.join(", ") || "");
+      setDemoUrl(listing.demo_url || "");
+      setDocumentationUrl(listing.documentation_url || "");
+      setThumbnailUrl(listing.thumbnail_url || "");
+      setStatus(listing.status as StatusType);
+      setIsFeatured(listing.is_featured || false);
+    }
+  }, [listing]);
 
   const showPriceInput = pricingType !== "free" && pricingType !== "contact";
 
@@ -164,10 +163,10 @@ export default function AdminEditListingPage({
     );
   }
 
-  if (!listing) {
+  if (loadError || !listing) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Listing not found</p>
+        <p className="text-muted-foreground">{loadError ? "Failed to load listing" : "Listing not found"}</p>
         <Link href="/admin/listings">
           <Button variant="outline" className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -480,7 +479,7 @@ export default function AdminEditListingPage({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Model ID</span>
                   <span className="text-xs font-mono text-muted-foreground truncate max-w-[140px]">
-                    {listing.model_id || "—"}
+                    {listing.model_id || "---"}
                   </span>
                 </div>
                 <div className="flex justify-between">
