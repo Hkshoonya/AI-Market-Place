@@ -10,11 +10,7 @@ progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 20
-  completed_plans: 20
----
-
----
-gsd_state_version: 1.0
+  completed_plans: 20gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
@@ -77,7 +73,6 @@ Progress: [██████████] 100%
 | 14-swr-data-fetching | 05 | 11min | 2 | 13 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
-| Phase 14-swr-data-fetching P02 | 15min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
