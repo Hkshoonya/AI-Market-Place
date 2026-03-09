@@ -91,9 +91,9 @@ Plans:
   3. At least 5 interactive components (search dialog, filter bar, ranking controls, market ticker, comments) have tests covering render and user interaction
 **Plans:** 3/3 plans complete
 Plans:
-- [ ] 12-01-PLAN.md -- Install Testing Library deps, Vitest 4 projects config (unit + component), setup-component.ts with Next.js mocks
-- [ ] 12-02-PLAN.md -- Component tests for SearchDialog, MarketplaceFilterBar, and MarketTicker
-- [ ] 12-03-PLAN.md -- Component tests for RankingWeightControls and CommentsSection
+- [x] 12-01-PLAN.md -- Install Testing Library deps, Vitest 4 projects config (unit + component), setup-component.ts with Next.js mocks
+- [x] 12-02-PLAN.md -- Component tests for SearchDialog, MarketplaceFilterBar, and MarketTicker
+- [x] 12-03-PLAN.md -- Component tests for RankingWeightControls and CommentsSection
 
 ### Phase 13: Component Decomposition + React.memo
 **Goal**: No component file exceeds 300 lines, and expensive pure components avoid unnecessary re-renders
@@ -104,7 +104,12 @@ Plans:
   2. Top 5 mega-components in src/components/ (517, 500, 485, 470, 448 lines) are each under 300 lines
   3. React.memo wraps identified expensive pure components so React DevTools shows skipped re-renders on parent state changes
   4. All existing tests plus new component tests still pass after decomposition
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 13-01-PLAN.md -- Model detail page (878 lines) + settings form (681 lines) decomposition into sub-components
+- [ ] 13-02-PLAN.md -- Compare client (718 lines) decomposition + React.memo on ComparisonRow
+- [ ] 13-03-PLAN.md -- Search dialog, rank timeline, models filter bar decomposition (DECOMP-04 part 1)
+- [ ] 13-04-PLAN.md -- Ranking weight controls, leaderboard explorer decomposition + React.memo on ScoreBar (DECOMP-04 part 2)
 
 ### Phase 14: SWR Data Fetching
 **Goal**: Client components use SWR for data fetching with automatic caching, revalidation, and stale-while-revalidate behavior
@@ -154,9 +159,9 @@ Plans:
 | 8. Regression Testing | v1.0 | 3/3 | Complete | 2026-03-05 |
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 11. Zod Runtime Validation | v1.1 | Complete    | 2026-03-09 | 2026-03-08 |
-| 12. Component Testing Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
-| 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
+| 11. Zod Runtime Validation | v1.1 | 5/5 | Complete | 2026-03-08 |
+| 12. Component Testing Infrastructure | v1.1 | 3/3 | Complete | 2026-03-09 |
+| 13. Component Decomposition + React.memo | v1.1 | 0/4 | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
 | 15. E2E Testing | v1.1 | 0/? | Not started | - |
 | 16. Code Simplification | v1.1 | 0/? | Not started | - |
