@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import userEvent from '@testing-library/user-event';
 import { MarketplaceFilterBar } from './filter-bar';
 
@@ -42,7 +43,7 @@ describe('MarketplaceFilterBar', () => {
   });
 
   it('renders search input, type filter buttons, sort options, and view toggle', () => {
-    render(<MarketplaceFilterBar totalCount={42} />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={42} /></SWRConfig>);
 
     // Search input
     expect(
@@ -74,7 +75,7 @@ describe('MarketplaceFilterBar', () => {
   });
 
   it('clicking a type filter calls router.push with updated type param', async () => {
-    render(<MarketplaceFilterBar totalCount={10} />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={10} /></SWRConfig>);
 
     await user.click(screen.getByText('API'));
 
@@ -89,7 +90,7 @@ describe('MarketplaceFilterBar', () => {
 
   it('reflects initial URL search params in active state', () => {
     mockSearchParams = new URLSearchParams('type=dataset&sort=rating');
-    render(<MarketplaceFilterBar totalCount={5} />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={5} /></SWRConfig>);
 
     // The Dataset badge should have the active style (checked via aria-pressed on sort)
     // Sort "Rating" should be pressed
@@ -100,7 +101,7 @@ describe('MarketplaceFilterBar', () => {
   });
 
   it('shows total count in the component', () => {
-    render(<MarketplaceFilterBar totalCount={123} />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={123} /></SWRConfig>);
     expect(screen.getByText('123')).toBeInTheDocument();
   });
 });

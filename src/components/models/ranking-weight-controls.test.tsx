@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import userEvent from '@testing-library/user-event';
 import RankingWeightControls from './ranking-weight-controls';
 
@@ -84,7 +85,9 @@ describe('RankingWeightControls', () => {
 
   it('renders "Customize Rankings" toggle button in collapsed state', () => {
     render(
-      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      </SWRConfig>
     );
 
     expect(screen.getByText('Customize Rankings')).toBeInTheDocument();
@@ -97,7 +100,9 @@ describe('RankingWeightControls', () => {
     const user = userEvent.setup();
 
     render(
-      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      </SWRConfig>
     );
 
     await user.click(screen.getByText('Customize Rankings'));
@@ -114,7 +119,9 @@ describe('RankingWeightControls', () => {
     const user = userEvent.setup();
 
     render(
-      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      </SWRConfig>
     );
 
     // Expand the controls
@@ -137,7 +144,9 @@ describe('RankingWeightControls', () => {
     const user = userEvent.setup();
 
     render(
-      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+      </SWRConfig>
     );
 
     // Expand the controls

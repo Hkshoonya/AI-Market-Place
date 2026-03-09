@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import { CommentsSection } from './comments-section';
 
 // ---------------------------------------------------------------------------
@@ -143,7 +144,7 @@ describe('CommentsSection', () => {
     });
     setupSupabaseMock(mockComments, mockProfiles);
 
-    render(<CommentsSection modelId="test-model-id" />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CommentsSection modelId="test-model-id" /></SWRConfig>);
 
     // Loading state shown initially
     expect(screen.getByText('Loading comments...')).toBeInTheDocument();
@@ -165,7 +166,7 @@ describe('CommentsSection', () => {
     });
     setupSupabaseMock([], []);
 
-    render(<CommentsSection modelId="test-model-id" />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CommentsSection modelId="test-model-id" /></SWRConfig>);
 
     // The sign-in link should be present
     const signInLink = screen.getByText('Sign in');
@@ -187,7 +188,7 @@ describe('CommentsSection', () => {
     });
     setupSupabaseMock(mockComments, mockProfiles);
 
-    render(<CommentsSection modelId="test-model-id" />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CommentsSection modelId="test-model-id" /></SWRConfig>);
 
     // Comment textarea should be visible for authenticated users
     expect(
@@ -210,7 +211,7 @@ describe('CommentsSection', () => {
     });
     setupSupabaseMock(mockComments, mockProfiles);
 
-    render(<CommentsSection modelId="test-model-id" />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CommentsSection modelId="test-model-id" /></SWRConfig>);
 
     // Wait for comments to load
     await waitFor(() => {
@@ -235,7 +236,7 @@ describe('CommentsSection', () => {
     });
     setupSupabaseMock([], []);
 
-    render(<CommentsSection modelId="test-model-id" />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CommentsSection modelId="test-model-id" /></SWRConfig>);
 
     // Wait for loading to finish and check empty state
     await waitFor(() => {

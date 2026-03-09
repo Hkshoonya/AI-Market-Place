@@ -4,6 +4,8 @@ import posthog from "posthog-js";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
+import { SWRConfig } from "swr";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 
 if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
@@ -47,5 +49,21 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
       </Suspense>
       {children}
     </PostHogProvider>
+  );
+}
+
+export function SWRProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <SWRConfig
+      value={{
+        fetcher: jsonFetcher,
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+        dedupingInterval: 2000,
+        errorRetryCount: 3,
+      }}
+    >
+      {children}
+    </SWRConfig>
   );
 }

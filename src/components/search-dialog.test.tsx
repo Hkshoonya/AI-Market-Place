@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import userEvent from '@testing-library/user-event';
 import { SearchDialog } from './search-dialog';
 
@@ -51,7 +52,7 @@ describe('SearchDialog', () => {
   });
 
   it('renders trigger button with accessible label', () => {
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
     const button = screen.getByRole('button', {
       name: /open search dialog/i,
     });
@@ -59,7 +60,7 @@ describe('SearchDialog', () => {
   });
 
   it('opens dialog on trigger button click and shows search input', async () => {
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
     const trigger = screen.getByRole('button', {
       name: /open search dialog/i,
     });
@@ -94,7 +95,7 @@ describe('SearchDialog', () => {
       })
     );
 
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
 
     // Open dialog
     await user.click(
@@ -147,7 +148,7 @@ describe('SearchDialog', () => {
       })
     );
 
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
     await user.click(
       screen.getByRole('button', { name: /open search dialog/i })
     );
@@ -184,7 +185,7 @@ describe('SearchDialog', () => {
       })
     );
 
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
     await user.click(
       screen.getByRole('button', { name: /open search dialog/i })
     );
@@ -207,7 +208,7 @@ describe('SearchDialog', () => {
       })
     );
 
-    render(<SearchDialog />);
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><SearchDialog /></SWRConfig>);
     await user.click(
       screen.getByRole('button', { name: /open search dialog/i })
     );

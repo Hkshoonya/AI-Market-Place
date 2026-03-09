@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import { MarketTicker } from './market-ticker';
 
 // Mock styled-jsx to avoid warnings
@@ -24,7 +25,11 @@ describe('MarketTicker', () => {
       })
     );
 
-    const { container } = render(<MarketTicker />);
+    const { container } = render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MarketTicker />
+      </SWRConfig>
+    );
 
     // Component returns null when items.length === 0
     // After fetch resolves, the component should still return null for empty array
@@ -63,7 +68,11 @@ describe('MarketTicker', () => {
       })
     );
 
-    render(<MarketTicker />);
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MarketTicker />
+      </SWRConfig>
+    );
 
     // Wait for items to render (items are doubled for seamless loop)
     await waitFor(() => {
@@ -97,7 +106,11 @@ describe('MarketTicker', () => {
       })
     );
 
-    render(<MarketTicker />);
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MarketTicker />
+      </SWRConfig>
+    );
 
     // Wait for links to render
     await waitFor(() => {

@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { LazyAmbientScene } from "@/components/three/lazy-ambient-scene";
-import { PHProvider } from "./providers";
+import { PHProvider, SWRProvider } from "./providers";
 
 import "./globals.css";
 
@@ -84,24 +84,26 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased`}
       >
-        <PHProvider>
-          <AuthProvider>
-            <TooltipProvider>
-              <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-neon focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-background focus:outline-none"
-              >
-                Skip to main content
-              </a>
-              <LazyAmbientScene />
-              <Header />
-              <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
-              <Footer />
-              <ScrollToTop />
-              <PWARegister />
-            </TooltipProvider>
-          </AuthProvider>
-        </PHProvider>
+        <SWRProvider>
+          <PHProvider>
+            <AuthProvider>
+              <TooltipProvider>
+                <a
+                  href="#main-content"
+                  className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-neon focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-background focus:outline-none"
+                >
+                  Skip to main content
+                </a>
+                <LazyAmbientScene />
+                <Header />
+                <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
+                <Footer />
+                <ScrollToTop />
+                <PWARegister />
+              </TooltipProvider>
+            </AuthProvider>
+          </PHProvider>
+        </SWRProvider>
         <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </body>
     </html>
