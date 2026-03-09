@@ -39,7 +39,7 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 - [ ] **DECOMP-01**: Model detail page (878 lines) decomposed into focused sub-components
 - [x] **DECOMP-02**: Compare client (709 lines) decomposed into focused sub-components
 - [ ] **DECOMP-03**: Settings form (681 lines) decomposed into focused sub-components
-- [ ] **DECOMP-04**: Top 5 mega-components in src/components/ (517, 500, 485, 470, 448 lines) decomposed below 300 lines each
+- [x] **DECOMP-04**: Top 5 mega-components in src/components/ (517, 500, 485, 470, 448 lines) decomposed below 300 lines each
 
 ### Performance
 
@@ -114,7 +114,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | DECOMP-01 | Phase 13 | Pending |
 | DECOMP-02 | Phase 13 | Complete |
 | DECOMP-03 | Phase 13 | Pending |
-| DECOMP-04 | Phase 13 | Pending |
+| DECOMP-04 | Phase 13 | Complete |
 | PERF-02 | Phase 13 | Complete |
 | PERF-01 | Phase 14 | Pending |
 | E2E-01 | Phase 15 | Pending |

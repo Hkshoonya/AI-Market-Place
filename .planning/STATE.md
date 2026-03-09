@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 13-02-PLAN.md (Compare page decomposition)
-last_updated: "2026-03-09T04:19:05Z"
-last_activity: 2026-03-09 — Completed Plan 13-02 (Compare page decomposition with React.memo)
+stopped_at: Completed 13-04-PLAN.md (Phase 13 complete)
+last_updated: "2026-03-09T04:24:41Z"
+last_activity: 2026-03-09 — Completed Plan 13-04 (Ranking weight controls + leaderboard decomposition)
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 15
 ---
 
 # Project State
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 13 - Component Decomposition & React.memo (in progress)
+**Current focus:** Phase 13 - Component Decomposition & React.memo -- COMPLETE
 
 ## Current Position
 
-Phase: 13 of 16 (Component Decomposition & React.memo)
-Plan: 2 of 4 in current phase
-Status: Executing
-Last activity: 2026-03-09 — Completed Plan 13-02 (Compare page decomposition with React.memo)
+Phase: 13 of 16 (Component Decomposition & React.memo) -- COMPLETE
+Plan: 4 of 4 in current phase (complete)
+Status: Phase complete
+Last activity: 2026-03-09 — Completed Plan 13-04 (Ranking weight controls + leaderboard decomposition)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (v1.0) + 7 (v1.1)
+- Total plans completed: 28 (v1.0) + 15 (v1.1)
 - Average duration: ~25 min (v1.0)
 - Total execution time: ~12 hours (v1.0)
 
@@ -52,6 +52,7 @@ Progress: [█████████░] 93%
 | 12-component-testing-infrastructure | 02 | 4min | 2 | 3 |
 | 12-component-testing-infrastructure | 03 | 8min | 2 | 2 |
 | 13-component-decomposition-react-memo | 02 | 5min | 2 | 8 |
+| 13-component-decomposition-react-memo | 04 | 7min | 2 | 5 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -96,6 +97,9 @@ v1.1 decisions:
 - [Phase 13-decomp]: compare-helpers.ts for shared types/helpers across page sub-components
 - [Phase 13-decomp]: useMemo + React.memo pairing: stabilize array refs before passing to memo'd components
 - [Phase 13-decomp]: ModelOption interface exported from model-selector.tsx, re-exported from parent
+- [Phase 13-decomp]: Pure functions/types extracted to plain .ts (not .tsx) when no React dependency
+- [Phase 13-decomp]: ScoreBar exported from leaderboard-table.tsx, imported in parent for column definitions
+- [Phase 13-decomp]: Analytics callbacks as props to keep sub-components decoupled from analytics library
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T04:19:05Z
-Stopped at: Completed 13-02-PLAN.md (Compare page decomposition)
-Resume file: .planning/phases/13-component-decomposition-react-memo/13-02-SUMMARY.md
+Last session: 2026-03-09T04:24:41.311Z
+Stopped at: Completed 13-04-PLAN.md (Phase 13 complete)
+Resume file: None
