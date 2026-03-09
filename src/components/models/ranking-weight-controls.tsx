@@ -9,227 +9,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface RankableModel {
-  name: string;
-  slug: string;
-  provider: string;
-  category: string;
-  overall_rank: number | null;
-  category_rank: number | null;
-  quality_score: number | null;
-  value_score: number | null;
-  is_open_weights: boolean;
-  hf_downloads: number | null;
-  popularity_score: number | null;
-  agent_score: number | null;
-  agent_rank: number | null;
-  popularity_rank: number | null;
-  market_cap_estimate: number | null;
-  capability_score: number | null;
-  capability_rank: number | null;
-  usage_score: number | null;
-  usage_rank: number | null;
-  expert_score: number | null;
-  expert_rank: number | null;
-  balanced_rank: number | null;
-}
+import {
+  type RankableModel,
+  type WeightKey,
+  DEFAULT_WEIGHTS,
+  WEIGHT_KEYS,
+  MIN_WEIGHT,
+  MAX_WEIGHT,
+  STEP,
+  computePercentiles,
+  redistributeWeights,
+} from "./ranking-weight-helpers";
 
 interface RankingWeightControlsProps {
   models: RankableModel[];
   onSortedModels: (models: RankableModel[]) => void;
 }
-
-// ---------------------------------------------------------------------------
-// Weight signal definitions
-// ---------------------------------------------------------------------------
-
-type WeightKey = "humaneval" | "market_cap" | "quality" | "popularity" | "agent";
-
-interface WeightSignal {
-  label: string;
-  weight: number;
-  description: string;
-}
-
-const DEFAULT_WEIGHTS: Record<WeightKey, WeightSignal> = {
-  humaneval: {
-    label: "HumanEval Score",
-    weight: 30,
-    description: "Code generation benchmark",
-  },
-  market_cap: {
-    label: "Market Cap",
-    weight: 25,
-    description: "Revenue-based market importance",
-  },
-  quality: {
-    label: "Quality Score",
-    weight: 20,
-    description: "Combined benchmark performance",
-  },
-  popularity: {
-    label: "Popularity",
-    weight: 15,
-    description: "Downloads, likes, and usage",
-  },
-  agent: {
-    label: "Agent Score",
-    weight: 10,
-    description: "Agentic task performance",
-  },
-};
-
-const WEIGHT_KEYS: WeightKey[] = [
-  "humaneval",
-  "market_cap",
-  "quality",
-  "popularity",
-  "agent",
-];
-
-const MIN_WEIGHT = 0;
-const MAX_WEIGHT = 60;
-const STEP = 5;
-
-// ---------------------------------------------------------------------------
-// Helpers: raw-value accessor per signal key
-// ---------------------------------------------------------------------------
-
-function getRawValue(model: RankableModel, key: WeightKey): number | null {
-  switch (key) {
-    case "humaneval":
-      return model.quality_score;
-    case "market_cap":
-      return model.market_cap_estimate;
-    case "quality":
-      return model.quality_score;
-    case "popularity":
-      return model.popularity_score;
-    case "agent":
-      return model.agent_score;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers: percentile ranking
-// ---------------------------------------------------------------------------
-
-/**
- * For a given signal key, compute a mapping from model slug to its percentile
- * rank (0 -- 100) among all models that have a non-null value. Models with
- * null values receive percentile 0 so they rank lowest on that axis.
- */
-function computePercentiles(
-  models: RankableModel[],
-  key: WeightKey,
-): Map<string, number> {
-  const values: { slug: string; value: number }[] = [];
-  for (const m of models) {
-    const v = getRawValue(m, key);
-    if (v != null) {
-      values.push({ slug: m.slug, value: v });
-    }
-  }
-
-  // Sort ascending so lowest value gets rank 0, highest gets 100
-  values.sort((a, b) => a.value - b.value);
-
-  const count = values.length;
-  const result = new Map<string, number>();
-
-  // Assign null-value models a percentile of 0
-  for (const m of models) {
-    result.set(m.slug, 0);
-  }
-
-  if (count > 1) {
-    for (let i = 0; i < count; i++) {
-      const percentile = (i / (count - 1)) * 100;
-      result.set(values[i].slug, percentile);
-    }
-  } else if (count === 1) {
-    // Single non-null model gets 100
-    result.set(values[0].slug, 100);
-  }
-
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers: weight redistribution
-// ---------------------------------------------------------------------------
-
-/**
- * When one weight changes, redistribute the excess / deficit proportionally
- * across the remaining weights so the total stays at 100.
- *
- * - Clamps the changed weight to [MIN_WEIGHT, MAX_WEIGHT].
- * - Remaining weights are scaled proportionally.
- * - If all remaining weights are 0, distributes evenly.
- * - Each remaining weight is also clamped to [MIN_WEIGHT, MAX_WEIGHT].
- * - After clamping, any residual is distributed round-robin.
- */
-function redistributeWeights(
-  current: Record<WeightKey, number>,
-  changedKey: WeightKey,
-  newValue: number,
-): Record<WeightKey, number> {
-  const clamped = Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, newValue));
-  const remaining = 100 - clamped;
-  const otherKeys = WEIGHT_KEYS.filter((k) => k !== changedKey);
-
-  const otherSum = otherKeys.reduce((s, k) => s + current[k], 0);
-
-  const result: Record<WeightKey, number> = { ...current, [changedKey]: clamped };
-
-  if (otherSum === 0) {
-    // Distribute remaining evenly
-    const each = Math.floor(remaining / otherKeys.length);
-    let leftover = remaining - each * otherKeys.length;
-    for (const k of otherKeys) {
-      result[k] = each + (leftover > 0 ? 1 : 0);
-      if (leftover > 0) leftover--;
-    }
-  } else {
-    // Proportional redistribution
-    let distributed = 0;
-    const rawOthers: { key: WeightKey; value: number }[] = otherKeys.map((k) => {
-      const proportional = Math.round((current[k] / otherSum) * remaining);
-      return { key: k, value: Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, proportional)) };
-    });
-
-    // First pass: assign clamped proportional values
-    for (const item of rawOthers) {
-      result[item.key] = item.value;
-      distributed += item.value;
-    }
-
-    // Second pass: fix rounding residual
-    let residual = remaining - distributed;
-    let idx = 0;
-    while (residual !== 0 && idx < otherKeys.length * 10) {
-      const key = otherKeys[idx % otherKeys.length];
-      const dir = residual > 0 ? 1 : -1;
-      const next = result[key] + dir;
-      if (next >= MIN_WEIGHT && next <= MAX_WEIGHT) {
-        result[key] = next;
-        residual -= dir;
-      }
-      idx++;
-    }
-  }
-
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function RankingWeightControls({
   models,
@@ -247,30 +42,22 @@ export default function RankingWeightControls({
   // Memoize percentile maps only when models change
   const percentileMaps = useRef<Map<WeightKey, Map<string, number>>>(new Map());
 
-  const buildPercentileMaps = useCallback(
-    (modelList: RankableModel[]) => {
-      const maps = new Map<WeightKey, Map<string, number>>();
-      for (const key of WEIGHT_KEYS) {
-        maps.set(key, computePercentiles(modelList, key));
-      }
-      return maps;
-    },
-    [],
-  );
+  const buildPercentileMaps = useCallback((modelList: RankableModel[]) => {
+    const maps = new Map<WeightKey, Map<string, number>>();
+    for (const key of WEIGHT_KEYS) {
+      maps.set(key, computePercentiles(modelList, key));
+    }
+    return maps;
+  }, []);
 
-  // Recompute percentile maps when models change
   useEffect(() => {
     percentileMaps.current = buildPercentileMaps(models);
   }, [models, buildPercentileMaps]);
 
-  // Sorting effect: fires when weights or models change
   useEffect(() => {
-    // Skip initial render to avoid double-call
     if (!hasMounted.current) {
       hasMounted.current = true;
-      // Still sort initially so the parent gets the weighted order
     }
-
     const maps = percentileMaps.current;
     if (maps.size === 0) return;
 
@@ -291,16 +78,10 @@ export default function RankingWeightControls({
 
   const isDefault = WEIGHT_KEYS.every((k) => weights[k] === DEFAULT_WEIGHTS[k].weight);
 
-  const handleWeightChange = useCallback(
-    (key: WeightKey, delta: number) => {
-      setWeights((prev) => {
-        const next = redistributeWeights(prev, key, prev[key] + delta);
-        return next;
-      });
-      setMode("custom");
-    },
-    [],
-  );
+  const handleWeightChange = useCallback((key: WeightKey, delta: number) => {
+    setWeights((prev) => redistributeWeights(prev, key, prev[key] + delta));
+    setMode("custom");
+  }, []);
 
   const resetToDefault = useCallback(() => {
     const defaults = Object.fromEntries(
@@ -413,13 +194,11 @@ export default function RankingWeightControls({
   );
 }
 
-// ---------------------------------------------------------------------------
 // WeightRow sub-component
-// ---------------------------------------------------------------------------
 
 interface WeightRowProps {
   weightKey: WeightKey;
-  signal: WeightSignal;
+  signal: { label: string; weight: number; description: string };
   value: number;
   onChange: (key: WeightKey, delta: number) => void;
 }
