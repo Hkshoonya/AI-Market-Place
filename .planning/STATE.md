@@ -3,29 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 13-01-PLAN.md (model detail page + settings form decomposition)
-last_updated: "2026-03-09T04:36:33.969Z"
-last_activity: 2026-03-09 — Completed Plan 13-04 (Ranking weight controls + leaderboard decomposition)
+stopped_at: Completed 14-01-PLAN.md (SWR infrastructure setup)
+last_updated: "2026-03-09T05:22:18Z"
+last_activity: 2026-03-09 — Completed Plan 14-01 (SWR infrastructure setup)
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
----
-
----
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 13-04-PLAN.md (Phase 13 complete)
-last_updated: "2026-03-09T04:24:41Z"
-last_activity: 2026-03-09 — Completed Plan 13-04 (Ranking weight controls + leaderboard decomposition)
-progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 20
+  completed_plans: 16
 ---
 
 # Project State
@@ -35,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 13 - Component Decomposition & React.memo -- COMPLETE
+**Current focus:** Phase 14 - SWR Data Fetching
 
 ## Current Position
 
-Phase: 13 of 16 (Component Decomposition & React.memo) -- COMPLETE
-Plan: 4 of 4 in current phase (complete)
-Status: Phase complete
-Last activity: 2026-03-09 — Completed Plan 13-04 (Ranking weight controls + leaderboard decomposition)
+Phase: 14 of 16 (SWR Data Fetching)
+Plan: 1 of 5 in current phase (complete)
+Status: Executing
+Last activity: 2026-03-09 — Completed Plan 14-01 (SWR infrastructure setup)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -70,6 +55,7 @@ Progress: [██████████] 100%
 | 13-component-decomposition-react-memo | 02 | 5min | 2 | 8 |
 | 13-component-decomposition-react-memo | 03 | 12min | 2 | 8 |
 | 13-component-decomposition-react-memo | 04 | 7min | 2 | 5 |
+| 14-swr-data-fetching | 01 | 5min | 2 | 12 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -122,6 +108,9 @@ v1.1 decisions:
 - [Phase 13-decomp]: import() type references inline for PricingEntry/UpdateEntry/EloRating sub-component props
 - [Phase 13-decomp]: NotifPrefs interface moved into notification-prefs-card (only consumer)
 - [Phase 13-decomp]: Settings cards each create own supabase client for full independence
+- [Phase 14-swr]: SWRProvider outermost in provider chain (no dependency on PostHog or Auth)
+- [Phase 14-swr]: Inline SWRConfig wrapping in tests for explicit cache isolation visibility
+- [Phase 14-swr]: createElement in test-utils.ts to keep .ts extension (no JSX needed)
 
 ### Pending Todos
 
@@ -135,6 +124,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T04:27:32Z
-Stopped at: Completed 13-01-PLAN.md (model detail page + settings form decomposition)
-Resume file: .planning/phases/13-component-decomposition-react-memo/13-01-SUMMARY.md
+Last session: 2026-03-09T05:22:18Z
+Stopped at: Completed 14-01-PLAN.md (SWR infrastructure setup)
+Resume file: .planning/phases/14-swr-data-fetching/14-01-SUMMARY.md

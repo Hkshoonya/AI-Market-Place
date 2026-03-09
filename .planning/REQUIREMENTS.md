@@ -43,7 +43,7 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### Performance
 
-- [ ] **PERF-01**: SWR replaces useState+useEffect+fetch patterns in client components with appropriate staleTime tiers
+- [x] **PERF-01**: SWR replaces useState+useEffect+fetch patterns in client components with appropriate staleTime tiers
 - [x] **PERF-02**: React.memo applied to expensive pure components identified during decomposition
 - [x] **PERF-03**: Bundle impact of Sentry + PostHog kept under control via tree-shaking and lazy loading
 
@@ -116,7 +116,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | DECOMP-03 | Phase 13 | Complete |
 | DECOMP-04 | Phase 13 | Complete |
 | PERF-02 | Phase 13 | Complete |
-| PERF-01 | Phase 14 | Pending |
+| PERF-01 | Phase 14 | Complete |
 | E2E-01 | Phase 15 | Pending |
 | E2E-02 | Phase 15 | Pending |
 | E2E-03 | Phase 15 | Pending |
