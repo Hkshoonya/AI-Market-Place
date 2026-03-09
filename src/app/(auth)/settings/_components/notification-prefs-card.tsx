@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { Bell, Loader2, Mail, Save, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { jsonFetcher } from "@/lib/swr/fetcher";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 interface NotifPrefs {
   email_model_updates: boolean;
@@ -68,27 +71,22 @@ function ToggleSwitch({ checked, label, onChange }: { checked: boolean; label: s
 
 export function NotificationPrefsCard() {
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
-  const [notifLoading, setNotifLoading] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
-  const fetchNotifPrefs = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications/preferences");
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setNotifPrefs((prev) => ({ ...prev, ...json.data }));
-      }
-    } catch {
-      // use defaults
-    } finally {
-      setNotifLoading(false);
-    }
-  }, []);
+  // SWR for fetching notification preferences via API route
+  const { data: savedPrefs, isLoading: notifLoading } = useSWR<{ data: NotifPrefs }>(
+    "/api/notifications/preferences",
+    jsonFetcher,
+    { ...SWR_TIERS.SLOW }
+  );
 
+  // Sync SWR data into local form state
   useEffect(() => {
-    fetchNotifPrefs();
-  }, [fetchNotifPrefs]);
+    if (savedPrefs?.data) {
+      setNotifPrefs((prev) => ({ ...prev, ...savedPrefs.data }));
+    }
+  }, [savedPrefs]);
 
   const toggleNotifPref = (key: keyof NotifPrefs) => {
     setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }));

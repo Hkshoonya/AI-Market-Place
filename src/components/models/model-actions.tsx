@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { BarChart3, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { AddToWatchlist } from "@/components/watchlists/add-to-watchlist";
+import { SWR_TIERS } from "@/lib/swr/config";
 
 interface ModelActionsProps {
   modelSlug: string;
@@ -46,26 +48,32 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
 
-  const supabase = createClient();
+  // SWR for bookmark check with auth-gated null key
+  const { data: dbBookmarked, mutate: mutateBookmark } = useSWR<boolean>(
+    user && modelId ? `supabase:bookmark:${user.id}:${modelId}` : null,
+    async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("user_bookmarks")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("model_id", modelId!)
+        .maybeSingle();
+      return !!data;
+    },
+    { ...SWR_TIERS.SLOW }
+  );
 
+  // Sync bookmark state from SWR data (DB) or localStorage fallback
   useEffect(() => {
     if (user && modelId) {
-      // Check DB bookmark
-      const check = async () => {
-        const { data } = await supabase
-          .from("user_bookmarks")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("model_id", modelId)
-          .maybeSingle();
-        setIsBookmarked(!!data);
-      };
-      check();
+      if (dbBookmarked !== undefined) {
+        setIsBookmarked(dbBookmarked);
+      }
     } else {
-      // Fallback to localStorage
       setIsBookmarked(getLocalBookmarks().includes(modelSlug));
     }
-  }, [modelSlug, modelId, user]);
+  }, [dbBookmarked, user, modelId, modelSlug]);
 
   useEffect(() => {
     if (showToast) {
@@ -76,6 +84,7 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
 
   const handleBookmark = async () => {
     if (user && modelId) {
+      const supabase = createClient();
       // DB bookmark
       if (isBookmarked) {
         await supabase
@@ -83,15 +92,14 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
           .delete()
           .eq("user_id", user.id)
           .eq("model_id", modelId);
-        setIsBookmarked(false);
         setShowToast(`${modelName} removed from bookmarks`);
       } else {
         await supabase
           .from("user_bookmarks")
           .insert({ user_id: user.id, model_id: modelId });
-        setIsBookmarked(true);
         setShowToast(`${modelName} bookmarked`);
       }
+      await mutateBookmark();
     } else {
       // localStorage fallback
       const nowBookmarked = toggleLocalBookmark(modelSlug);
