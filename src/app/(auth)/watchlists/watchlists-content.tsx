@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Eye } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { WatchlistCard } from "@/components/watchlists/watchlist-card";
 import { CreateWatchlistDialog } from "@/components/watchlists/create-watchlist-dialog";
 
@@ -20,12 +22,21 @@ interface WatchlistData {
   }[];
 }
 
+interface WatchlistsResponse {
+  data: WatchlistData[];
+}
+
 export default function WatchlistsContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [watchlists, setWatchlists] = useState<WatchlistData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const { data, isLoading, mutate } = useSWR<WatchlistsResponse>(
+    user ? "/api/watchlists" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const watchlists = data?.data ?? [];
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -33,32 +44,12 @@ export default function WatchlistsContent() {
     }
   }, [user, authLoading, router]);
 
-  const fetchWatchlists = async () => {
-    try {
-      const res = await fetch("/api/watchlists");
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setWatchlists(json.data);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchWatchlists();
-    }
-  }, [user]);
-
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
       const res = await fetch(`/api/watchlists/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setWatchlists((prev) => prev.filter((w) => w.id !== id));
+        mutate();
       }
     } catch {
       // ignore
@@ -88,11 +79,11 @@ export default function WatchlistsContent() {
           <h1 className="text-2xl font-bold">Your Watchlists</h1>
         </div>
         <CreateWatchlistDialog
-          onCreated={() => fetchWatchlists()}
+          onCreated={() => mutate()}
         />
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
             <div
@@ -122,7 +113,7 @@ export default function WatchlistsContent() {
           </p>
           <div className="mt-6">
             <CreateWatchlistDialog
-              onCreated={() => fetchWatchlists()}
+              onCreated={() => mutate()}
             />
           </div>
         </div>

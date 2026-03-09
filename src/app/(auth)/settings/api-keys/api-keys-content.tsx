@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import {
   Key,
   Copy,
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { toast } from "sonner";
 
 interface ApiKeyRecord {
@@ -25,6 +27,10 @@ interface ApiKeyRecord {
   expires_at: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+interface ApiKeysResponse {
+  keys: ApiKeyRecord[];
 }
 
 const AVAILABLE_SCOPES = [
@@ -58,8 +64,6 @@ const AVAILABLE_SCOPES = [
 export default function ApiKeysContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read"]);
@@ -68,27 +72,18 @@ export default function ApiKeysContent() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchKeys = useCallback(async () => {
-    try {
-      const res = await fetch("/api/api-keys");
-      if (res.ok) {
-        const data = await res.json();
-        setKeys(data.keys);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data, isLoading, mutate } = useSWR<ApiKeysResponse>(
+    user ? "/api/api-keys" : null,
+    { ...SWR_TIERS.SLOW }
+  );
+
+  const keys = data?.keys ?? [];
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
-      return;
     }
-    if (user) fetchKeys();
-  }, [user, loading, router, fetchKeys]);
+  }, [user, loading, router]);
 
   const createKey = async () => {
     setError(null);
@@ -103,19 +98,19 @@ export default function ApiKeysContent() {
         }),
       });
 
-      const data = await res.json();
+      const respData = await res.json();
       if (!res.ok) {
-        setError(data.error);
+        setError(respData.error);
         return;
       }
 
-      setCreatedKey(data.plaintext_key);
+      setCreatedKey(respData.plaintext_key);
       setShowCreate(false);
       setNewKeyName("");
       setNewKeyScopes(["read"]);
       setNewKeyExpiry("");
       toast.success("API key created");
-      fetchKeys();
+      mutate();
     } catch {
       setError("Failed to create API key");
       toast.error("Failed to create API key");
@@ -127,7 +122,7 @@ export default function ApiKeysContent() {
       const res = await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       toast.success("API key revoked");
-      fetchKeys();
+      mutate();
     } catch {
       toast.error("Failed to revoke API key");
     }

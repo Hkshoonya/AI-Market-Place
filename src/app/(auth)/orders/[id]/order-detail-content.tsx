@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { createClient } from "@/lib/supabase/client";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { OrderWithListingSchema, type OrderWithListing } from "@/lib/schemas/marketplace";
@@ -42,6 +44,10 @@ type OrderMessage = {
   profiles?: { display_name: string | null; username: string | null } | null;
 };
 
+interface MessagesResponse {
+  data: OrderMessage[];
+}
+
 const supabase = createClient();
 
 const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; label: string }> = {
@@ -61,7 +67,6 @@ export default function OrderDetailContent({
   const { user, loading: authLoading } = useAuth();
   const [orderId, setOrderId] = useState<string>("");
   const [order, setOrder] = useState<EnrichedOrder | null>(null);
-  const [messages, setMessages] = useState<OrderMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -70,6 +75,14 @@ export default function OrderDetailContent({
   useEffect(() => {
     params.then((p) => setOrderId(p.id));
   }, [params]);
+
+  // SWR for message polling (MEDIUM tier = 60s refresh)
+  const { data: messagesData, mutate: mutateMessages } = useSWR<MessagesResponse>(
+    user && orderId ? `/api/marketplace/orders/${orderId}/messages` : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const messages = messagesData?.data ?? [];
 
   const fetchOrder = useCallback(async () => {
     if (!user || !orderId) return;
@@ -103,19 +116,6 @@ export default function OrderDetailContent({
     setLoading(false);
   }, [user, orderId]);
 
-  const fetchMessages = useCallback(async () => {
-    if (!orderId) return;
-    try {
-      const res = await fetch(`/api/marketplace/orders/${orderId}/messages`);
-      const json = await res.json();
-      if (res.ok) {
-        setMessages(json.data ?? []);
-      }
-    } catch {
-      // ignore
-    }
-  }, [orderId]);
-
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login?redirect=/orders");
@@ -125,16 +125,8 @@ export default function OrderDetailContent({
   useEffect(() => {
     if (user && orderId) {
       fetchOrder();
-      fetchMessages();
     }
-  }, [user, orderId, fetchOrder, fetchMessages]);
-
-  // Poll for new messages
-  useEffect(() => {
-    if (!orderId) return;
-    const interval = setInterval(fetchMessages, 15_000);
-    return () => clearInterval(interval);
-  }, [orderId, fetchMessages]);
+  }, [user, orderId, fetchOrder]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -153,9 +145,8 @@ export default function OrderDetailContent({
         body: JSON.stringify({ content: newMessage.trim() }),
       });
       if (res.ok) {
-        const json = await res.json();
-        setMessages((prev) => [...prev, json.data]);
         setNewMessage("");
+        mutateMessages();
       }
     } catch {
       // ignore

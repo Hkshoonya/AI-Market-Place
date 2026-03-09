@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   Ban,
   ChevronLeft,
@@ -11,10 +11,12 @@ import {
   ShoppingBag,
   Users,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
@@ -24,60 +26,67 @@ import type { Profile } from "@/types/database";
 // Admin view extends Profile with optional fields not in base type
 type AdminUserRow = Profile & { email?: string | null; is_banned?: boolean };
 
+interface AdminUsersData {
+  users: AdminUserRow[];
+  totalCount: number;
+}
+
 const PAGE_SIZE = 20;
-const supabase = createClient();
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, is_admin, is_seller, seller_verified, joined_at, total_sales, reputation_score, is_seller, seller_bio, seller_website, seller_rating, bio, created_at, updated_at", { count: "exact" });
+  const { data, isLoading: loading, mutate } = useSWR<AdminUsersData>(
+    `supabase:admin-users:${page}:${roleFilter}:${search}`,
+    async () => {
+      const supabase = createClient();
+      let query = supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, is_admin, is_seller, seller_verified, joined_at, total_sales, reputation_score, is_seller, seller_bio, seller_website, seller_rating, bio, created_at, updated_at", { count: "exact" });
 
-    if (roleFilter === "admin") query = query.eq("is_admin", true);
-    if (roleFilter === "seller") query = query.eq("is_seller", true);
-    if (roleFilter === "banned") query = query.eq("is_banned", true);
-    if (roleFilter === "verified_seller") query = query.eq("seller_verified", true);
+      if (roleFilter === "admin") query = query.eq("is_admin", true);
+      if (roleFilter === "seller") query = query.eq("is_seller", true);
+      if (roleFilter === "banned") query = query.eq("is_banned", true);
+      if (roleFilter === "verified_seller") query = query.eq("seller_verified", true);
 
-    if (search) {
-      const safeSearch = sanitizeFilterValue(search);
-      if (safeSearch) {
-        query = query.or(`display_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,username.ilike.%${safeSearch}%`);
+      if (search) {
+        const safeSearch = sanitizeFilterValue(search);
+        if (safeSearch) {
+          query = query.or(`display_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,username.ilike.%${safeSearch}%`);
+        }
       }
-    }
 
-    query = query.order("joined_at", { ascending: false });
+      query = query.order("joined_at", { ascending: false });
 
-    const from = (page - 1) * PAGE_SIZE;
-    query = query.range(from, from + PAGE_SIZE - 1);
+      const from = (page - 1) * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data, count } = await query;
-    setUsers((data as AdminUserRow[]) ?? []);
-    setTotalCount(count ?? 0);
-    setLoading(false);
-  }, [search, roleFilter, page]);
+      const { data: queryData, count, error } = await query;
+      if (error) throw error;
+      return {
+        users: (queryData as AdminUserRow[]) ?? [],
+        totalCount: count ?? 0,
+      };
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  const users = data?.users ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
   const toggleAdmin = async (id: string, currentValue: boolean) => {
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("profiles")
         .update({ is_admin: !currentValue })
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Admin role removed" : "Admin role granted");
-      fetchUsers();
+      mutate();
     } catch {
       toast.error("Failed to update admin status");
     }
@@ -85,13 +94,14 @@ export default function AdminUsersPage() {
 
   const toggleSellerVerified = async (id: string, currentValue: boolean) => {
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from("profiles")
         .update({ seller_verified: !currentValue })
         .eq("id", id);
       if (error) throw error;
       toast.success(currentValue ? "Seller verification removed" : "Seller verified successfully");
-      fetchUsers();
+      mutate();
     } catch {
       toast.error("Failed to update seller verification");
     }
@@ -110,7 +120,7 @@ export default function AdminUsersPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success(currentValue ? "User unbanned" : "User banned");
-      fetchUsers();
+      mutate();
     } catch {
       toast.error(currentValue ? "Failed to unban user" : "Failed to ban user");
     }

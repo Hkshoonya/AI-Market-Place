@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import {
   Clock,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { SellerStatsCards } from "@/components/marketplace/seller-stats-cards";
 import { SellerListingsTable } from "@/components/marketplace/seller-listings-table";
 import { SellerOrdersTable } from "@/components/marketplace/seller-orders-table";
@@ -36,8 +38,10 @@ interface VerificationStatus {
 
 function VerificationBanner() {
   const { profile } = useAuth();
-  const [verStatus, setVerStatus] = useState<VerificationStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: verStatus, isLoading: verLoading, mutate: mutateVerStatus } = useSWR<VerificationStatus>(
+    "/api/marketplace/seller/verify",
+    { ...SWR_TIERS.SLOW }
+  );
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<SellerVerificationForm>({
@@ -47,19 +51,6 @@ function VerificationBanner() {
     portfolio_url: "",
     reason: "",
   });
-
-  useEffect(() => {
-    fetch("/api/marketplace/seller/verify")
-      .then((r) => r.json())
-      .then((data) => {
-        setVerStatus(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.warn("[seller-dashboard] Failed to fetch verification status:", err);
-        setLoading(false);
-      });
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +63,7 @@ function VerificationBanner() {
       });
       if (res.ok) {
         setShowForm(false);
-        const data = await fetch("/api/marketplace/seller/verify").then((r) => r.json());
-        setVerStatus(data);
+        mutateVerStatus();
       }
     } catch (err) {
       console.warn("[seller-dashboard] Verification submission failed:", err);
@@ -82,7 +72,7 @@ function VerificationBanner() {
     }
   };
 
-  if (loading) return null;
+  if (verLoading) return null;
 
   // Already verified
   if (profile?.seller_verified) {
@@ -303,26 +293,17 @@ interface SellerStats {
 export default function SellerDashboardContent() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [stats, setStats] = useState<SellerStats | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const { data: stats, error: statsError } = useSWR<SellerStats>(
+    user ? "/api/marketplace/seller/stats" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login?redirect=/dashboard/seller");
     }
   }, [user, loading, router]);
-
-  useEffect(() => {
-    if (user) {
-      fetch("/api/marketplace/seller/stats")
-        .then((r) => r.json())
-        .then(setStats)
-        .catch((err) => {
-          console.warn("[seller-dashboard] Failed to fetch stats:", err);
-          setStatsError("Failed to load seller stats");
-        });
-    }
-  }, [user]);
 
   if (loading) {
     return (
@@ -360,7 +341,7 @@ export default function SellerDashboardContent() {
       <VerificationBanner />
 
       {statsError && (
-        <p className="text-sm text-red-500 mb-4">{statsError}</p>
+        <p className="text-sm text-red-500 mb-4">Failed to load seller stats</p>
       )}
       {stats && <SellerStatsCards stats={stats} />}
 

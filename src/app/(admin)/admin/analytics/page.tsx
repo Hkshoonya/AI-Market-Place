@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BarChart3,
   Box,
@@ -15,8 +14,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import { z } from "zod";
+import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatNumber } from "@/lib/format";
 import { CATEGORIES } from "@/lib/constants/categories";
@@ -50,11 +51,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export default function AdminAnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAnalytics = async () => {
+  const { data, isLoading } = useSWR<AnalyticsData>(
+    'supabase:admin-analytics',
+    async () => {
       const supabase = createClient();
 
       const ModelCatSchema = z.object({ category: z.string(), provider: z.string(), is_open_weights: z.boolean().nullable() });
@@ -98,7 +97,7 @@ export default function AdminAnalyticsPage() {
       const open = models.filter((m) => m.is_open_weights === true).length;
       const closed = models.length - open;
 
-      setData({
+      return {
         categoryBreakdown,
         providerBreakdown,
         topDownloaded: topDownloaded.map((m) => ({
@@ -112,17 +111,12 @@ export default function AdminAnalyticsPage() {
           quality_score: Number(m.quality_score) || 0,
         })),
         openVsClosed: { open, closed },
-      });
-      setLoading(false);
-    };
+      };
+    },
+    { ...SWR_TIERS.SLOW }
+  );
 
-    fetchAnalytics().catch((err) => {
-      console.error("[admin-analytics] Failed to load analytics:", err);
-      setLoading(false);
-    });
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="grid gap-6 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -132,6 +126,7 @@ export default function AdminAnalyticsPage() {
     );
   }
 
+  if (!data && !isLoading) return null;
   if (!data) return null;
 
   return (

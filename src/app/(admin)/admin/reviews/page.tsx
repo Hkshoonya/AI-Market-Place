@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,11 +9,13 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
@@ -26,98 +28,103 @@ type EnrichedReview = Pick<MarketplaceReview, "id" | "rating" | "title" | "conte
   marketplace_listings?: Pick<MarketplaceListing, "id" | "title" | "slug"> | null;
 };
 
+interface AdminReviewsData {
+  reviews: EnrichedReview[];
+  totalCount: number;
+}
+
 const PAGE_SIZE = 20;
-const supabase = createClient();
 
 export default function AdminReviewsPage() {
-  const [reviews, setReviews] = useState<EnrichedReview[]>([]);
   const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchReviews = useCallback(async () => {
-    setLoading(true);
-    // Two-query approach: marketplace_reviews may not have FK to profiles or listings
-    let query = supabase
-      .from("marketplace_reviews")
-      .select(
-        "id, rating, title, content, created_at, listing_id, reviewer_id",
-        { count: "exact" }
-      );
+  const { data, isLoading: loading, mutate } = useSWR<AdminReviewsData>(
+    `supabase:admin-reviews:${page}:${ratingFilter}:${search}`,
+    async () => {
+      const supabase = createClient();
+      // Two-query approach: marketplace_reviews may not have FK to profiles or listings
+      let query = supabase
+        .from("marketplace_reviews")
+        .select(
+          "id, rating, title, content, created_at, listing_id, reviewer_id",
+          { count: "exact" }
+        );
 
-    if (ratingFilter !== "all") {
-      query = query.eq("rating", parseInt(ratingFilter));
-    }
-    if (search) {
-      const safeSearch = sanitizeFilterValue(search);
-      if (safeSearch) {
-        query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
+      if (ratingFilter !== "all") {
+        query = query.eq("rating", parseInt(ratingFilter));
       }
-    }
-
-    query = query.order("created_at", { ascending: false });
-
-    const from = (page - 1) * PAGE_SIZE;
-    query = query.range(from, from + PAGE_SIZE - 1);
-
-    const ReviewRowSchema = z.object({
-      id: z.string(),
-      rating: z.number(),
-      title: z.string().nullable(),
-      content: z.string().nullable(),
-      created_at: z.string(),
-      listing_id: z.string(),
-      reviewer_id: z.string(),
-    });
-    const reviewsResponse = await query;
-    const reviewsCount = reviewsResponse.count;
-    let enriched: EnrichedReview[] = parseQueryResult(reviewsResponse, ReviewRowSchema, "AdminReviews");
-
-    if (enriched.length > 0) {
-      // Enrich with reviewer profiles
-      const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
-      if (reviewerIds.length > 0) {
-        const ProfileRowSchema = z.object({ id: z.string(), display_name: z.string().nullable(), username: z.string().nullable() });
-        const profilesResponse = await supabase
-          .from("profiles")
-          .select("id, display_name, username")
-          .in("id", reviewerIds);
-        const profiles = parseQueryResult(profilesResponse, ProfileRowSchema, "AdminReviewProfiles");
-        const profileMap = new Map(profiles.map((p) => [p.id, p]));
-        enriched = enriched.map((r) => ({
-          ...r,
-          profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
-        }));
+      if (search) {
+        const safeSearch = sanitizeFilterValue(search);
+        if (safeSearch) {
+          query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
+        }
       }
 
-      // Enrich with listing info
-      const listingIds = [...new Set(enriched.map((r) => r.listing_id).filter(Boolean))];
-      if (listingIds.length > 0) {
-        const ListingRowSchema = z.object({ id: z.string(), title: z.string(), slug: z.string() });
-        const listingsResponse = await supabase
-          .from("marketplace_listings")
-          .select("id, title, slug")
-          .in("id", listingIds);
-        const listings = parseQueryResult(listingsResponse, ListingRowSchema, "AdminReviewListings");
-        const listingMap = new Map(listings.map((l) => [l.id, l]));
-        enriched = enriched.map((r) => ({
-          ...r,
-          marketplace_listings: r.listing_id ? (listingMap.get(r.listing_id) ?? null) : null,
-        }));
+      query = query.order("created_at", { ascending: false });
+
+      const from = (page - 1) * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
+
+      const ReviewRowSchema = z.object({
+        id: z.string(),
+        rating: z.number(),
+        title: z.string().nullable(),
+        content: z.string().nullable(),
+        created_at: z.string(),
+        listing_id: z.string(),
+        reviewer_id: z.string(),
+      });
+      const reviewsResponse = await query;
+      const reviewsCount = reviewsResponse.count;
+      let enriched: EnrichedReview[] = parseQueryResult(reviewsResponse, ReviewRowSchema, "AdminReviews");
+
+      if (enriched.length > 0) {
+        // Enrich with reviewer profiles
+        const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
+        if (reviewerIds.length > 0) {
+          const ProfileRowSchema = z.object({ id: z.string(), display_name: z.string().nullable(), username: z.string().nullable() });
+          const profilesResponse = await supabase
+            .from("profiles")
+            .select("id, display_name, username")
+            .in("id", reviewerIds);
+          const profiles = parseQueryResult(profilesResponse, ProfileRowSchema, "AdminReviewProfiles");
+          const profileMap = new Map(profiles.map((p) => [p.id, p]));
+          enriched = enriched.map((r) => ({
+            ...r,
+            profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
+          }));
+        }
+
+        // Enrich with listing info
+        const listingIds = [...new Set(enriched.map((r) => r.listing_id).filter(Boolean))];
+        if (listingIds.length > 0) {
+          const ListingRowSchema = z.object({ id: z.string(), title: z.string(), slug: z.string() });
+          const listingsResponse = await supabase
+            .from("marketplace_listings")
+            .select("id, title, slug")
+            .in("id", listingIds);
+          const listings = parseQueryResult(listingsResponse, ListingRowSchema, "AdminReviewListings");
+          const listingMap = new Map(listings.map((l) => [l.id, l]));
+          enriched = enriched.map((r) => ({
+            ...r,
+            marketplace_listings: r.listing_id ? (listingMap.get(r.listing_id) ?? null) : null,
+          }));
+        }
       }
-    }
 
-    setReviews(enriched);
-    setTotalCount(reviewsCount ?? 0);
-    setLoading(false);
-  }, [search, ratingFilter, page]);
+      return {
+        reviews: enriched,
+        totalCount: reviewsCount ?? 0,
+      };
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+  const reviews = data?.reviews ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
   const removeReview = async (id: string) => {
     try {
@@ -132,7 +139,7 @@ export default function AdminReviewsPage() {
       });
       if (!res.ok) throw new Error("Request failed");
       toast.success("Review deleted");
-      fetchReviews();
+      mutate();
     } catch {
       toast.error("Failed to delete review");
     }

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
 import { ArrowLeft, Download, Edit3, Eye, Globe, Lock, Save, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { WatchlistModelTable } from "@/components/watchlists/watchlist-model-table";
 
 interface WatchlistModel {
@@ -41,14 +43,23 @@ interface WatchlistDetail {
   }[];
 }
 
+interface WatchlistDetailResponse {
+  data: WatchlistDetail;
+}
+
 export default function WatchlistDetailContent() {
   const router = useRouter();
   const params = useParams();
   const watchlistId = params.id as string;
   const { user, loading: authLoading } = useAuth();
 
-  const [watchlist, setWatchlist] = useState<WatchlistDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, mutate } = useSWR<WatchlistDetailResponse>(
+    user ? `/api/watchlists/${watchlistId}` : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const watchlist = data?.data ?? null;
+
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -62,29 +73,6 @@ export default function WatchlistDetailContent() {
       return () => clearTimeout(t);
     }
   }, [toast]);
-
-  const fetchWatchlist = async () => {
-    try {
-      const res = await fetch(`/api/watchlists/${watchlistId}`);
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setWatchlist(json.data);
-      } else {
-        // Not found or unauthorized
-        router.push("/watchlists");
-      }
-    } catch {
-      router.push("/watchlists");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!authLoading) {
-      fetchWatchlist();
-    }
-  }, [authLoading, watchlistId]);
 
   const isOwner = user && watchlist && user.id === watchlist.user_id;
 
@@ -101,7 +89,7 @@ export default function WatchlistDetailContent() {
         }),
       });
       if (res.ok) {
-        await fetchWatchlist();
+        mutate();
         setEditing(false);
         setToast("Watchlist updated");
       }
@@ -120,7 +108,7 @@ export default function WatchlistDetailContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_public: !watchlist.is_public }),
       });
-      await fetchWatchlist();
+      mutate();
       setToast(
         watchlist.is_public
           ? "Watchlist is now private"
@@ -139,7 +127,7 @@ export default function WatchlistDetailContent() {
         `/api/watchlists/${watchlistId}/items?model_id=${modelId}`,
         { method: "DELETE" }
       );
-      await fetchWatchlist();
+      mutate();
       setToast("Model removed from watchlist");
     } catch {
       // ignore
@@ -202,7 +190,7 @@ export default function WatchlistDetailContent() {
     setToast("Watchlist exported as CSV");
   };
 
-  if (loading || authLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16">
         <div className="animate-pulse space-y-4">

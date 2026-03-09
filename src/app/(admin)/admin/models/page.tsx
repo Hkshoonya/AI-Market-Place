@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
   Bot,
@@ -12,10 +12,12 @@ import {
   Search,
   X,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatNumber, formatDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
@@ -23,55 +25,62 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Model } from "@/types/database";
 
 const PAGE_SIZE = 20;
-const supabase = createClient();
+
+interface AdminModelsData {
+  models: Model[];
+  totalCount: number;
+}
 
 export default function AdminModelsPage() {
-  const [models, setModels] = useState<Model[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchModels = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("models")
-      .select("id, slug, name, provider, category, status, overall_rank, quality_score, hf_downloads, created_at, is_open_weights", { count: "exact" });
+  const { data, isLoading: loading, mutate } = useSWR<AdminModelsData>(
+    `supabase:admin-models:${page}:${statusFilter}:${search}`,
+    async () => {
+      const supabase = createClient();
+      let query = supabase
+        .from("models")
+        .select("id, slug, name, provider, category, status, overall_rank, quality_score, hf_downloads, created_at, is_open_weights", { count: "exact" });
 
-    if (statusFilter !== "all") {
-      query = query.eq("status", statusFilter as import("@/types/database").ModelStatus);
-    }
-    if (search) {
-      const safeSearch = sanitizeFilterValue(search);
-      if (safeSearch) {
-        query = query.or(`name.ilike.%${safeSearch}%,provider.ilike.%${safeSearch}%`);
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter as import("@/types/database").ModelStatus);
       }
-    }
+      if (search) {
+        const safeSearch = sanitizeFilterValue(search);
+        if (safeSearch) {
+          query = query.or(`name.ilike.%${safeSearch}%,provider.ilike.%${safeSearch}%`);
+        }
+      }
 
-    query = query.order("created_at", { ascending: false });
+      query = query.order("created_at", { ascending: false });
 
-    const from = (page - 1) * PAGE_SIZE;
-    query = query.range(from, from + PAGE_SIZE - 1);
+      const from = (page - 1) * PAGE_SIZE;
+      query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data, count } = await query;
-    setModels((data as Model[]) ?? []);
-    setTotalCount(count ?? 0);
-    setLoading(false);
-  }, [search, statusFilter, page]);
+      const { data: queryData, count, error } = await query;
+      if (error) throw error;
+      return {
+        models: (queryData as Model[]) ?? [],
+        totalCount: count ?? 0,
+      };
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
-  useEffect(() => {
-    fetchModels();
-  }, [fetchModels]);
+  const models = data?.models ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     try {
+      const supabase = createClient();
       const newStatus = (currentStatus === "active" ? "archived" : "active") as import("@/types/database").ModelStatus;
       const { error } = await supabase.from("models").update({ status: newStatus }).eq("id", id);
       if (error) throw error;
       toast.success(`Model ${newStatus === "active" ? "activated" : "deactivated"}`);
-      fetchModels();
+      mutate();
     } catch {
       toast.error("Failed to update model status");
     }

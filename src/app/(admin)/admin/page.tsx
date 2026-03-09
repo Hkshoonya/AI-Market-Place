@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   Activity,
   Box,
   Download,
-  Eye,
   ShoppingBag,
-  Star,
   TrendingUp,
   Users,
 } from "lucide-react";
+import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatNumber } from "@/lib/format";
-import type { Model, Profile } from "@/types/database";
+import type { Model } from "@/types/database";
 
 interface AdminStats {
   totalModels: number;
@@ -30,11 +29,9 @@ interface AdminStats {
 }
 
 export default function AdminOverviewPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
+  const { data: stats, isLoading } = useSWR<AdminStats>(
+    'supabase:admin-overview',
+    async () => {
       const supabase = createClient();
 
       const [
@@ -44,9 +41,9 @@ export default function AdminOverviewPage() {
         { count: totalListings },
         { count: activeListings },
         { count: totalOrders },
-        { data: modelsAgg },
-        { data: recentModels },
-        { data: recentUsers },
+        { data: modelsAgg, error: modelsAggError },
+        { data: recentModels, error: recentModelsError },
+        { data: recentUsers, error: recentUsersError },
       ] = await Promise.all([
         supabase.from("models").select("*", { count: "exact", head: true }),
         supabase.from("models").select("*", { count: "exact", head: true }).eq("status", "active"),
@@ -59,12 +56,16 @@ export default function AdminOverviewPage() {
         supabase.from("profiles").select("display_name, email, joined_at").order("joined_at", { ascending: false }).limit(5),
       ]);
 
+      if (modelsAggError) throw modelsAggError;
+      if (recentModelsError) throw recentModelsError;
+      if (recentUsersError) throw recentUsersError;
+
       const totalDownloads = (modelsAgg ?? []).reduce(
         (sum: number, m: Pick<Model, "hf_downloads">) => sum + (Number(m.hf_downloads) || 0),
         0
       );
 
-      setStats({
+      return {
         totalModels: totalModels ?? 0,
         activeModels: activeModels ?? 0,
         totalUsers: totalUsers ?? 0,
@@ -75,14 +76,12 @@ export default function AdminOverviewPage() {
         totalDownloads,
         recentModels: (recentModels ?? []) as AdminStats["recentModels"],
         recentUsers: (recentUsers ?? []) as AdminStats["recentUsers"],
-      });
-      setLoading(false);
-    };
+      };
+    },
+    { ...SWR_TIERS.SLOW }
+  );
 
-    fetchStats();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -92,6 +91,7 @@ export default function AdminOverviewPage() {
     );
   }
 
+  if (!stats && !isLoading) return null;
   if (!stats) return null;
 
   const statCards = [
