@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 const ITEMS_PER_PAGE = 10;
@@ -66,49 +68,34 @@ interface Transaction {
 export default function WalletContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [wallet, setWallet] = useState<WalletData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<TxTypeFilter>("all");
   const [page, setPage] = useState(1);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState("");
 
-  const fetchWallet = useCallback(
-    async (txFilter?: TxTypeFilter, txPage?: number) => {
-      if (!user) return;
-      setLoading(true);
-      setError("");
+  const { data: wallet, isLoading: loading, error: swrError, mutate } = useSWR<WalletData | null>(
+    user ? `supabase:wallet:${filter}:${page}` : null,
+    async () => {
+      const params = new URLSearchParams();
+      if (filter !== "all") params.set("type", filter);
+      params.set("page", String(page));
+      params.set("limit", String(ITEMS_PER_PAGE));
 
-      try {
-        const params = new URLSearchParams();
-        const activeFilter = txFilter ?? filter;
-        const activePage = txPage ?? page;
-
-        if (activeFilter !== "all") params.set("type", activeFilter);
-        params.set("page", String(activePage));
-        params.set("limit", String(ITEMS_PER_PAGE));
-
-        const res = await fetch(`/api/marketplace/wallet?${params}`);
-        if (!res.ok) {
-          if (res.status === 404) {
-            // No wallet yet, that is fine
-            setWallet(null);
-            setLoading(false);
-            return;
-          }
-          throw new Error("Failed to fetch wallet data");
+      const res = await fetch(`/api/marketplace/wallet?${params}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          // No wallet yet, that is fine
+          return null;
         }
-        const data = await res.json();
-        setWallet(data);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      } finally {
-        setLoading(false);
+        throw new Error("Failed to fetch wallet data");
       }
+      return await res.json();
     },
-    [user, filter, page]
+    { ...SWR_TIERS.MEDIUM }
   );
+
+  const error = generateError || (swrError ? (swrError instanceof Error ? swrError.message : "Something went wrong") : "");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -116,19 +103,15 @@ export default function WalletContent() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user) fetchWallet();
-  }, [user, fetchWallet]);
-
   const handleGenerateAddress = async () => {
     setGenerating(true);
-    setError("");
+    setGenerateError("");
     try {
       const res = await fetch("/api/marketplace/wallet", { method: "POST" });
       if (!res.ok) throw new Error("Failed to generate deposit addresses");
-      await fetchWallet();
+      await mutate();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setGenerateError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setGenerating(false);
     }
@@ -137,12 +120,10 @@ export default function WalletContent() {
   const handleFilterChange = (newFilter: TxTypeFilter) => {
     setFilter(newFilter);
     setPage(1);
-    fetchWallet(newFilter, 1);
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchWallet(filter, newPage);
   };
 
   const copyToClipboard = async (text: string, field: string) => {
@@ -361,7 +342,7 @@ export default function WalletContent() {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => fetchWallet()}
+              onClick={() => mutate()}
               disabled={loading}
               title="Refresh"
             >

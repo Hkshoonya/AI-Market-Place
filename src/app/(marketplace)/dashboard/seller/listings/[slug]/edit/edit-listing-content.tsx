@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
+import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { EditListingForm } from "@/components/marketplace/edit-listing-form";
 
 export default function EditListingContent(props: {
@@ -12,33 +14,28 @@ export default function EditListingContent(props: {
   const { slug } = use(props.params);
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [listing, setListing] = useState<import("@/types/database").MarketplaceListing | null>(null);
-  const [fetchLoading, setFetchLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const { data: listing, isLoading: fetchLoading, error: fetchErrorObj } = useSWR<import("@/types/database").MarketplaceListing | null>(
+    user && slug ? `supabase:listing-edit:${slug}` : null,
+    async () => {
+      const res = await fetch(`/api/marketplace/listings/${slug}`);
+      if (!res.ok) throw new Error("Failed to load listing");
+      const json = await res.json();
+      if (json.data && json.data.seller_id === user!.id) {
+        return json.data as import("@/types/database").MarketplaceListing;
+      }
+      return null;
+    },
+    { ...SWR_TIERS.SLOW }
+  );
+
+  const fetchError = fetchErrorObj ? "Failed to load listing" : null;
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login?redirect=/dashboard/seller");
     }
   }, [user, loading, router]);
-
-  useEffect(() => {
-    if (user && slug) {
-      fetch(`/api/marketplace/listings/${slug}`)
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.data && res.data.seller_id === user.id) {
-            setListing(res.data as import("@/types/database").MarketplaceListing);
-          }
-          setFetchLoading(false);
-        })
-        .catch((err) => {
-          console.warn("[edit-listing] Failed to fetch listing:", err);
-          setFetchError("Failed to load listing");
-          setFetchLoading(false);
-        });
-    }
-  }, [user, slug]);
 
   if (loading || fetchLoading) {
     return (

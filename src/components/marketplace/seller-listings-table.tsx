@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Edit, Eye, MessageSquare, Star, Trash2 } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema, type MarketplaceListingType } from "@/lib/schemas/marketplace";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
@@ -40,34 +42,24 @@ const STATUS_COLORS: Record<ListingStatus, string> = {
 
 export function SellerListingsTable() {
   const { user } = useAuth();
-  const [listings, setListings] = useState<MarketplaceListingType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<MarketplaceListingType | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchListings = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
+  const { data: listings = [], isLoading: loading, mutate } = useSWR<MarketplaceListingType[]>(
+    user ? 'supabase:seller-listings' : null,
+    async () => {
       const supabase = createClient();
       const response = await supabase
         .from("marketplace_listings")
         .select("*")
-        .eq("seller_id", user.id)
+        .eq("seller_id", user!.id)
         .order("created_at", { ascending: false });
 
       if (response.error) throw response.error;
-      setListings(parseQueryResult(response, MarketplaceListingSchema, "MarketplaceListing"));
-    } catch {
-      console.error("Failed to fetch listings");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+      return parseQueryResult(response, MarketplaceListingSchema, "MarketplaceListing");
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -81,7 +73,10 @@ export function SellerListingsTable() {
         throw new Error("Failed to delete listing");
       }
 
-      setListings((prev) => prev.filter((l) => l.id !== deleteTarget.id));
+      mutate(
+        listings.filter((l) => l.id !== deleteTarget.id),
+        false
+      );
       setDeleteTarget(null);
     } catch {
       console.error("Failed to delete listing");

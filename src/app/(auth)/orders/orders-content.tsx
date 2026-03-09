@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,16 +12,16 @@ import {
   ShoppingBag,
   XCircle,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { OrderWithListingSchema, type OrderWithListing } from "@/lib/schemas/marketplace";
 import type { ProfilePick } from "@/lib/schemas/marketplace";
 import { formatDate, formatCurrency } from "@/lib/format";
-
-const supabase = createClient();
 
 type EnrichedOrder = OrderWithListing & {
   seller_profile: ProfilePick | null;
@@ -38,57 +38,49 @@ const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; label: 
 export default function OrdersContent() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [orders, setOrders] = useState<EnrichedOrder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
 
-  const fetchOrders = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  const { data: orders = [], isLoading: loading } = useSWR<EnrichedOrder[]>(
+    user ? `supabase:user-orders:${filter}` : null,
+    async () => {
+      const supabase = createClient();
+      let query = supabase
+        .from("marketplace_orders")
+        .select("*, marketplace_listings(title, slug, listing_type, thumbnail_url)")
+        .eq("buyer_id", user!.id)
+        .order("created_at", { ascending: false });
 
-    let query = supabase
-      .from("marketplace_orders")
-      .select("*, marketplace_listings(title, slug, listing_type, thumbnail_url)")
-      .eq("buyer_id", user.id)
-      .order("created_at", { ascending: false });
+      if (filter !== "all") {
+        query = query.eq("status", filter as import("@/types/database").OrderStatus);
+      }
 
-    if (filter !== "all") {
-      query = query.eq("status", filter as import("@/types/database").OrderStatus);
-    }
+      const response = await query;
+      const baseOrders = parseQueryResult(response, OrderWithListingSchema, "OrderWithListing");
 
-    const response = await query;
-    const baseOrders = parseQueryResult(response, OrderWithListingSchema, "OrderWithListing");
-
-    // Enrich with seller profiles (two-query pattern)
-    if (baseOrders.length > 0) {
-      const sellerIds = [...new Set(baseOrders.map((o) => o.seller_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, username")
-        .in("id", sellerIds);
-      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-      setOrders(
-        baseOrders.map((o) => ({
+      // Enrich with seller profiles (two-query pattern)
+      if (baseOrders.length > 0) {
+        const sellerIds = [...new Set(baseOrders.map((o) => o.seller_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, display_name, avatar_url, username")
+          .in("id", sellerIds);
+        const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+        return baseOrders.map((o) => ({
           ...o,
           seller_profile: profileMap.get(o.seller_id) ?? null,
-        })),
-      );
-    } else {
-      setOrders([]);
-    }
+        }));
+      }
 
-    setLoading(false);
-  }, [user, filter]);
+      return [];
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login?redirect=/orders");
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (user) fetchOrders();
-  }, [user, fetchOrders]);
 
   if (authLoading) {
     return (

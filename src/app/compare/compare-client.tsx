@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronsUpDown, X } from "lucide-react";
+import { useSWRConfig } from "swr";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ShareComparison } from "@/components/compare/share-comparison";
 import { analytics } from "@/lib/posthog";
@@ -19,11 +20,6 @@ import { BenchmarksTable } from "./_components/benchmarks-table";
 import { PricingTable } from "./_components/pricing-table";
 import { VisualComparison } from "./_components/visual-comparison";
 import type { BenchmarkScoreWithBenchmarks } from "./_components/compare-helpers";
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface CompareClientProps {
   allModels: ModelOption[];
@@ -39,6 +35,7 @@ export function CompareClient({
   initialSlugs,
 }: CompareClientProps) {
   const router = useRouter();
+  const { mutate: mutateGlobal } = useSWRConfig();
   const [models, setModels] = useState<ModelWithDetails[]>(initialModels);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>(initialSlugs);
   const [loading, setLoading] = useState(false);
@@ -51,8 +48,11 @@ export function CompareClient({
     analytics.modelCompared(models.map((m) => m.id));
   }, [models]);
 
-  const fetchModel = useCallback(async (slug: string) => {
-    const { data } = await supabase
+  const addModel = async (slug: string) => {
+    if (selectedSlugs.includes(slug) || selectedSlugs.length >= 5) return;
+    setLoading(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
       .from("models")
       .select(
         `
@@ -65,17 +65,16 @@ export function CompareClient({
       )
       .eq("slug", slug)
       .single();
-    return data;
-  }, []);
-
-  const addModel = async (slug: string) => {
-    if (selectedSlugs.includes(slug) || selectedSlugs.length >= 5) return;
-    setLoading(true);
-    const data = await fetchModel(slug);
+    if (error) {
+      setLoading(false);
+      return;
+    }
     if (data) {
+      // Populate SWR cache for this slug
+      mutateGlobal(`supabase:model:${slug}`, data, false);
       const newSlugs = [...selectedSlugs, slug];
       setSelectedSlugs(newSlugs);
-      setModels((prev) => [...prev, data as ModelWithDetails]);
+      setModels((prev) => [...prev, data as unknown as ModelWithDetails]);
       router.replace(`/compare?models=${newSlugs.join(",")}`, {
         scroll: false,
       });

@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Edit3, MessageSquare, Send, ThumbsUp, Trash2, X } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CommentSchema } from "@/lib/schemas/community";
 import { formatRelativeDate } from "@/lib/format";
 import Image from "next/image";
 import Link from "next/link";
-
-const supabase = createClient();
 
 interface Comment {
   id: string;
@@ -35,28 +35,28 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ modelId }: CommentsSectionProps) {
   const { user } = useAuth();
-  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [visibleCount, setVisibleCount] = useState(20);
 
-  const fetchComments = async () => {
-    // Two-query approach: comments table may not have FK to profiles
-    const response = await supabase
-      .from("comments")
-      .select("*")
-      .eq("model_id", modelId)
-      .is("parent_id", null)
-      .order("created_at", { ascending: false })
-      .limit(visibleCount);
+  const { data: comments = [], isLoading: loading, mutate } = useSWR<Comment[]>(
+    `supabase:comments:${modelId}:${visibleCount}`,
+    async () => {
+      const supabase = createClient();
+      // Two-query approach: comments table may not have FK to profiles
+      const response = await supabase
+        .from("comments")
+        .select("*")
+        .eq("model_id", modelId)
+        .is("parent_id", null)
+        .order("created_at", { ascending: false })
+        .limit(visibleCount);
 
-    const validatedComments = parseQueryResult(response, CommentSchema, "Comment");
-    if (validatedComments.length > 0 || !response.error) {
+      const validatedComments = parseQueryResult(response, CommentSchema, "Comment");
       // Enrich with profiles
       let enriched: Comment[] = validatedComments.map((c) => ({ ...c, profiles: null }));
       const userIds = [...new Set(enriched.map((c) => c.user_id).filter(Boolean))];
@@ -114,14 +114,10 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
         }
       }
 
-      setComments(topLevel);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchComments();
-  }, [modelId, visibleCount]);
+      return topLevel;
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   const submitComment = async (parentId: string | null = null) => {
     if (!user) return;
@@ -130,6 +126,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
     setSubmitting(true);
 
+    const supabase = createClient();
     const { error } = await supabase.from("comments").insert({
       model_id: modelId,
       user_id: user.id,
@@ -144,7 +141,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       } else {
         setNewComment("");
       }
-      await fetchComments();
+      await mutate();
     }
 
     setSubmitting(false);
@@ -153,46 +150,35 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const handleUpvote = async (commentId: string) => {
     if (!user) return;
 
-    // Optimistic update
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id === commentId) return { ...c, upvotes: c.upvotes + 1 };
-        if (c.replies) {
-          return {
-            ...c,
-            replies: c.replies.map((r) =>
-              r.id === commentId ? { ...r, upvotes: r.upvotes + 1 } : r
-            ),
-          };
-        }
-        return c;
-      })
-    );
+    // Optimistic update via SWR
+    const optimisticData = comments.map((c) => {
+      if (c.id === commentId) return { ...c, upvotes: c.upvotes + 1 };
+      if (c.replies) {
+        return {
+          ...c,
+          replies: c.replies.map((r) =>
+            r.id === commentId ? { ...r, upvotes: r.upvotes + 1 } : r
+          ),
+        };
+      }
+      return c;
+    });
 
+    const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase.rpc as any)("increment_comment_upvote", { comment_id: commentId });
 
     if (error) {
-      // Revert optimistic update on failure
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id === commentId) return { ...c, upvotes: c.upvotes - 1 };
-          if (c.replies) {
-            return {
-              ...c,
-              replies: c.replies.map((r) =>
-                r.id === commentId ? { ...r, upvotes: r.upvotes - 1 } : r
-              ),
-            };
-          }
-          return c;
-        })
-      );
+      // Revert by revalidating from server
+      mutate();
+    } else {
+      mutate(optimisticData, false);
     }
   };
 
   const handleEdit = async (commentId: string) => {
     if (!user || !editText.trim()) return;
+    const supabase = createClient();
     await supabase
       .from("comments")
       .update({ content: editText.trim() })
@@ -200,18 +186,19 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       .eq("user_id", user.id);
     setEditingId(null);
     setEditText("");
-    await fetchComments();
+    await mutate();
   };
 
   const handleDelete = async (commentId: string) => {
     if (!user) return;
     if (!confirm("Delete this comment?")) return;
+    const supabase = createClient();
     await supabase
       .from("comments")
       .delete()
       .eq("id", commentId)
       .eq("user_id", user.id);
-    await fetchComments();
+    await mutate();
   };
 
   const renderComment = (comment: Comment, isReply = false) => {

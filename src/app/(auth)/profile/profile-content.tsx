@@ -13,20 +13,24 @@ import {
   Settings,
   Shield,
   ShoppingBag,
-  User,
 } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { BookmarkWithModelSchema } from "@/lib/schemas/community";
 import { formatRelativeDate } from "@/lib/format";
 import { toast } from "sonner";
 
-const supabase = createClient();
+interface ProfileData {
+  bookmarks: { id: string; slug: string; name: string; provider: string }[];
+  watchlistCount: number;
+}
 
 export default function ProfileContent() {
   const router = useRouter();
@@ -36,10 +40,43 @@ export default function ProfileContent() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [bookmarks, setBookmarks] = useState<
-    { id: string; slug: string; name: string; provider: string }[]
-  >([]);
-  const [watchlistCount, setWatchlistCount] = useState(0);
+
+  const { data: profileData } = useSWR<ProfileData>(
+    user ? 'supabase:user-profile' : null,
+    async () => {
+      const supabase = createClient();
+
+      // Fetch user bookmarks
+      const response = await supabase
+        .from("user_bookmarks")
+        .select("id, model_id, models(slug, name, provider)")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      const bookmarkData = parseQueryResult(response, BookmarkWithModelSchema, "BookmarkWithModel");
+      const bookmarks = (bookmarkData ?? []).map((b) => ({
+        id: b.id,
+        slug: b.models?.slug ?? "",
+        name: b.models?.name ?? "Unknown",
+        provider: b.models?.provider ?? "",
+      }));
+
+      // Fetch watchlist count
+      const { count } = await supabase
+        .from("watchlists")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user!.id);
+
+      return {
+        bookmarks,
+        watchlistCount: count ?? 0,
+      };
+    },
+    { ...SWR_TIERS.SLOW }
+  );
+
+  const bookmarks = profileData?.bookmarks ?? [];
+  const watchlistCount = profileData?.watchlistCount ?? 0;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -55,49 +92,12 @@ export default function ProfileContent() {
     }
   }, [profile]);
 
-  useEffect(() => {
-    if (user) {
-      // Fetch user bookmarks
-      const fetchBookmarks = async () => {
-        const response = await supabase
-          .from("user_bookmarks")
-          .select("id, model_id, models(slug, name, provider)")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        const data = parseQueryResult(response, BookmarkWithModelSchema, "BookmarkWithModel");
-        if (data) {
-          setBookmarks(
-            data.map((b) => ({
-              id: b.id,
-              slug: b.models?.slug ?? "",
-              name: b.models?.name ?? "Unknown",
-              provider: b.models?.provider ?? "",
-            }))
-          );
-        }
-      };
-
-      // Fetch watchlist count
-      const fetchWatchlistCount = async () => {
-        const { count } = await supabase
-          .from("watchlists")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
-        setWatchlistCount(count ?? 0);
-      };
-
-      fetchBookmarks();
-      fetchWatchlistCount();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
     setMessage(null);
 
+    const supabase = createClient();
     const { error } = await supabase
       .from("profiles")
       .update({

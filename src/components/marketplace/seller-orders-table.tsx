@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Check, X, Loader2 } from "lucide-react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import {
   SellerOrderRowSchema,
@@ -36,21 +38,17 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 export function SellerOrdersTable() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<SellerOrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const fetchOrders = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
+  const { data: orders = [], isLoading: loading, error, mutate } = useSWR<SellerOrderRow[]>(
+    user ? 'supabase:seller-orders' : null,
+    async () => {
       const supabase = createClient();
       // Two-query approach: marketplace_orders may not have FK to profiles
       const orderResponse = await supabase
         .from("marketplace_orders")
         .select("*, marketplace_listings(title, slug, listing_type)")
-        .eq("seller_id", user.id)
+        .eq("seller_id", user!.id)
         .order("created_at", { ascending: false });
 
       if (orderResponse.error) throw orderResponse.error;
@@ -72,18 +70,10 @@ export function SellerOrdersTable() {
         }
       }
 
-      setOrders(enriched);
-    } catch (err) {
-      console.warn("[seller-orders-table] Failed to fetch orders:", err);
-      setError("Failed to load orders");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+      return enriched;
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     setProcessingId(orderId);
@@ -99,8 +89,10 @@ export function SellerOrdersTable() {
         throw new Error(data.error || "Failed to update order status");
       }
 
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      // Optimistically update the local data
+      mutate(
+        orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
+        false
       );
       toast.success(`Order ${status}`);
     } catch (err) {
@@ -123,7 +115,7 @@ export function SellerOrdersTable() {
   if (error) {
     return (
       <div className="py-12 text-center">
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-500">Failed to load orders</p>
       </div>
     );
   }
