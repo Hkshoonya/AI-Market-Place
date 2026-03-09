@@ -1,0 +1,158 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import RankingWeightControls from './ranking-weight-controls';
+
+// Mock lucide-react icons to avoid SVG rendering complexity
+vi.mock('lucide-react', () => ({
+  Settings2: (props: any) => <span data-testid="icon-settings2" {...props} />,
+  RotateCcw: (props: any) => <span data-testid="icon-rotate" {...props} />,
+  Info: (props: any) => <span data-testid="icon-info" {...props} />,
+  ChevronDown: (props: any) => <span data-testid="icon-chevron" {...props} />,
+  Minus: (props: any) => <span data-testid="icon-minus" {...props} />,
+  Plus: (props: any) => <span data-testid="icon-plus" {...props} />,
+}));
+
+// Mock radix tooltip to render inline (avoid portal issues in jsdom)
+vi.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: ({ children }: any) => <div>{children}</div>,
+  Tooltip: ({ children }: any) => <div>{children}</div>,
+  TooltipTrigger: ({ children, asChild, ...props }: any) => (
+    <span {...props}>{children}</span>
+  ),
+  TooltipContent: ({ children }: any) => <span>{children}</span>,
+}));
+
+const mockModels = [
+  {
+    name: 'GPT-4o',
+    slug: 'gpt-4o',
+    provider: 'OpenAI',
+    category: 'flagship',
+    overall_rank: 1,
+    category_rank: 1,
+    quality_score: 90,
+    value_score: 85,
+    is_open_weights: false,
+    hf_downloads: 500000,
+    popularity_score: 95,
+    agent_score: 88,
+    agent_rank: 1,
+    popularity_rank: 1,
+    market_cap_estimate: 5000000,
+    capability_score: 92,
+    capability_rank: 1,
+    usage_score: 91,
+    usage_rank: 1,
+    expert_score: 89,
+    expert_rank: 1,
+    balanced_rank: 1,
+  },
+  {
+    name: 'Claude 3.5 Sonnet',
+    slug: 'claude-35-sonnet',
+    provider: 'Anthropic',
+    category: 'flagship',
+    overall_rank: 2,
+    category_rank: 2,
+    quality_score: 88,
+    value_score: 82,
+    is_open_weights: false,
+    hf_downloads: 300000,
+    popularity_score: 80,
+    agent_score: 85,
+    agent_rank: 2,
+    popularity_rank: 2,
+    market_cap_estimate: 4000000,
+    capability_score: 87,
+    capability_rank: 2,
+    usage_score: 84,
+    usage_rank: 2,
+    expert_score: 86,
+    expert_rank: 2,
+    balanced_rank: 2,
+  },
+];
+
+describe('RankingWeightControls', () => {
+  let onSortedModels: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    onSortedModels = vi.fn();
+  });
+
+  it('renders "Customize Rankings" toggle button in collapsed state', () => {
+    render(
+      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+    );
+
+    expect(screen.getByText('Customize Rankings')).toBeInTheDocument();
+    // Weight labels should NOT be visible when collapsed
+    expect(screen.queryByText('HumanEval Score')).not.toBeInTheDocument();
+    expect(screen.queryByText('Market Cap')).not.toBeInTheDocument();
+  });
+
+  it('expands to show weight labels when toggle is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+    );
+
+    await user.click(screen.getByText('Customize Rankings'));
+
+    // Weight labels should now be visible
+    expect(screen.getByText('HumanEval Score')).toBeInTheDocument();
+    expect(screen.getByText('Market Cap')).toBeInTheDocument();
+    expect(screen.getByText('Quality Score')).toBeInTheDocument();
+    expect(screen.getByText('Popularity')).toBeInTheDocument();
+    expect(screen.getByText('Agent Score')).toBeInTheDocument();
+  });
+
+  it('calls onSortedModels when a weight increase button is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+    );
+
+    // Expand the controls
+    await user.click(screen.getByText('Customize Rankings'));
+
+    // Clear any initial calls from the mount effect
+    onSortedModels.mockClear();
+
+    // Click the increase button for HumanEval Score
+    await user.click(screen.getByLabelText('Increase HumanEval Score weight'));
+
+    // onSortedModels should have been called with an array
+    expect(onSortedModels).toHaveBeenCalled();
+    const sortedResult = onSortedModels.mock.calls[0][0];
+    expect(Array.isArray(sortedResult)).toBe(true);
+    expect(sortedResult).toHaveLength(mockModels.length);
+  });
+
+  it('resets weights and calls onSortedModels when Reset to Default is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
+    );
+
+    // Expand the controls
+    await user.click(screen.getByText('Customize Rankings'));
+
+    // Change a weight first so Reset is enabled
+    await user.click(screen.getByLabelText('Increase HumanEval Score weight'));
+    onSortedModels.mockClear();
+
+    // Click Reset to Default
+    await user.click(screen.getByText('Reset to Default'));
+
+    // onSortedModels should be called again with the reset-sorted models
+    expect(onSortedModels).toHaveBeenCalled();
+    const sortedResult = onSortedModels.mock.calls[0][0];
+    expect(Array.isArray(sortedResult)).toBe(true);
+    expect(sortedResult).toHaveLength(mockModels.length);
+  });
+});
