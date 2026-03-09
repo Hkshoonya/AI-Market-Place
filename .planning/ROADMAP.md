@@ -89,7 +89,11 @@ Plans:
   1. `vitest run` executes both existing node-environment tests (170+) and new jsdom component tests in a single run
   2. Testing Library renders React 19 components without peer dependency errors or warnings
   3. At least 5 interactive components (search dialog, filter bar, ranking controls, market ticker, comments) have tests covering render and user interaction
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 12-01-PLAN.md -- Install Testing Library deps, Vitest 4 projects config (unit + component), setup-component.ts with Next.js mocks
+- [ ] 12-02-PLAN.md -- Component tests for SearchDialog, MarketplaceFilterBar, and MarketTicker
+- [ ] 12-03-PLAN.md -- Component tests for RankingWeightControls and CommentsSection
 
 ### Phase 13: Component Decomposition + React.memo
 **Goal**: No component file exceeds 300 lines, and expensive pure components avoid unnecessary re-renders
@@ -151,7 +155,7 @@ Plans:
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 11. Zod Runtime Validation | v1.1 | Complete    | 2026-03-09 | 2026-03-08 |
-| 12. Component Testing Infrastructure | v1.1 | 0/? | Not started | - |
+| 12. Component Testing Infrastructure | v1.1 | 0/3 | Planning complete | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
 | 15. E2E Testing | v1.1 | 0/? | Not started | - |
