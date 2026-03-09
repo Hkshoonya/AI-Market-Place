@@ -30,7 +30,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 9: Observability** - Sentry error tracking + PostHog analytics with controlled bundle impact (completed 2026-03-05)
 - [x] **Phase 10: CI Pipeline** - GitHub Actions enforcing lint, typecheck, and tests on every PR (completed 2026-03-05)
 - [x] **Phase 11: Zod Runtime Validation** - Replace 56 unsafe type casts with Zod schemas at query boundaries (UAT gap closure in progress) (completed 2026-03-08)
-- [ ] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components
+- [x] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components (completed 2026-03-09)
 - [ ] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders
 - [ ] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers
 - [ ] **Phase 15: E2E Testing** - Playwright tests for critical user paths integrated into CI
@@ -89,7 +89,7 @@ Plans:
   1. `vitest run` executes both existing node-environment tests (170+) and new jsdom component tests in a single run
   2. Testing Library renders React 19 components without peer dependency errors or warnings
   3. At least 5 interactive components (search dialog, filter bar, ranking controls, market ticker, comments) have tests covering render and user interaction
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 12-01-PLAN.md -- Install Testing Library deps, Vitest 4 projects config (unit + component), setup-component.ts with Next.js mocks
 - [ ] 12-02-PLAN.md -- Component tests for SearchDialog, MarketplaceFilterBar, and MarketTicker
@@ -155,7 +155,7 @@ Plans:
 | 9. Observability | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. CI Pipeline | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 11. Zod Runtime Validation | v1.1 | Complete    | 2026-03-09 | 2026-03-08 |
-| 12. Component Testing Infrastructure | 2/3 | In Progress|  | - |
+| 12. Component Testing Infrastructure | 3/3 | Complete   | 2026-03-09 | - |
 | 13. Component Decomposition + React.memo | v1.1 | 0/? | Not started | - |
 | 14. SWR Data Fetching | v1.1 | 0/? | Not started | - |
 | 15. E2E Testing | v1.1 | 0/? | Not started | - |
