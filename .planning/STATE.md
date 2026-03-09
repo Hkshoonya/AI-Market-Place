@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 14-03-PLAN.md (Custom hooks and widget SWR conversion)
-last_updated: "2026-03-09T05:33:00Z"
-last_activity: 2026-03-09 — Completed Plan 14-03 (Custom hooks and widget SWR conversion)
+stopped_at: Completed 14-05-PLAN.md (Supabase-direct query SWR conversion)
+last_updated: "2026-03-09T05:38:36Z"
+last_activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 20
-  completed_plans: 17
-  percent: 94
+  completed_plans: 20
+  percent: 100
 ---
 
 # Project State
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 14 of 16 (SWR Data Fetching)
-Plan: 3 of 5 in current phase (complete)
+Plan: 5 of 5 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-09 — Completed Plan 14-03 (Custom hooks and widget SWR conversion)
+Last activity: 2026-03-09 — Completed Plan 14-05 (Supabase-direct query SWR conversion)
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (v1.0) + 17 (v1.1)
+- Total plans completed: 28 (v1.0) + 18 (v1.1)
 - Average duration: ~25 min (v1.0)
 - Total execution time: ~12 hours (v1.0)
 
@@ -58,6 +58,8 @@ Progress: [█████████░] 94%
 | 13-component-decomposition-react-memo | 04 | 7min | 2 | 5 |
 | 14-swr-data-fetching | 01 | 5min | 2 | 12 |
 | 14-swr-data-fetching | 03 | 6min | 2 | 6 |
+| 14-swr-data-fetching | 04 | 13min | 2 | 11 |
+| 14-swr-data-fetching | 05 | 11min | 2 | 13 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 
@@ -116,6 +118,15 @@ v1.1 decisions:
 - [Phase 14-swr]: WalletBadge uses direct useSWR for cache dedup with useWalletBalance on same endpoint
 - [Phase 14-swr]: AddToWatchlist conditions SWR key on open && user for on-demand dialog fetching
 - [Phase 14-swr]: NotificationBell replaces manual setInterval with SWR MEDIUM refreshInterval
+- [Phase 14-swr]: Inline fetcher functions with createClient() inside for fresh auth context per request
+- [Phase 14-swr]: Parameterized cache keys include page/filter/search for automatic refetch on UI state change
+- [Phase 14-swr]: Compare page uses useSWRConfig().mutate for imperative cache population (not useSWR hook)
+- [Phase 14-swr]: Comments section includes visibleCount in cache key for Load More pagination
+- [Phase 14-swr]: Wallet content wraps API route fetch in SWR preserving existing API layer
+- [Phase 14-swr]: Auction detail uses FAST tier (30s) for time-sensitive bidding data
+- [Phase 14-swr]: Admin agents uses 3 parallel useSWR calls for agents/tasks/logs
+- [Phase 14-swr]: Data-sources converted from Supabase-direct to API route for SWR consistency
+- [Phase 14-swr]: Order messages use MEDIUM tier SWR polling replacing manual setInterval
 
 ### Pending Todos
 
@@ -129,6 +140,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T05:33:00Z
-Stopped at: Completed 14-03-PLAN.md (Custom hooks and widget SWR conversion)
-Resume file: .planning/phases/14-swr-data-fetching/14-03-SUMMARY.md
+Last session: 2026-03-09T05:39:35Z
+Stopped at: Completed 14-04-PLAN.md (SWR page components conversion)
+Resume file: .planning/phases/14-swr-data-fetching/14-04-SUMMARY.md
