@@ -51,7 +51,9 @@ Progress: [██████████] 100%
 | 12-component-testing-infrastructure | 01 | 5min | 2 | 4 |
 | 12-component-testing-infrastructure | 02 | 4min | 2 | 3 |
 | 12-component-testing-infrastructure | 03 | 8min | 2 | 2 |
+| 13-component-decomposition-react-memo | 01 | 13min | 2 | 16 |
 | 13-component-decomposition-react-memo | 02 | 5min | 2 | 8 |
+| 13-component-decomposition-react-memo | 03 | 12min | 2 | 8 |
 | 13-component-decomposition-react-memo | 04 | 7min | 2 | 5 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
@@ -100,6 +102,11 @@ v1.1 decisions:
 - [Phase 13-decomp]: Pure functions/types extracted to plain .ts (not .tsx) when no React dependency
 - [Phase 13-decomp]: ScoreBar exported from leaderboard-table.tsx, imported in parent for column definitions
 - [Phase 13-decomp]: Analytics callbacks as props to keep sub-components decoupled from analytics library
+- [Phase 13-decomp]: LINE_COLORS exported from rank-timeline-tags.tsx, imported by parent for chart rendering
+- [Phase 13-decomp]: PROVIDER_OPTIONS/PARAM_RANGES moved to filter-sheet-content.tsx; SORT_OPTIONS stays in parent
+- [Phase 13-decomp]: import() type references inline for PricingEntry/UpdateEntry/EloRating sub-component props
+- [Phase 13-decomp]: NotifPrefs interface moved into notification-prefs-card (only consumer)
+- [Phase 13-decomp]: Settings cards each create own supabase client for full independence
 
 ### Pending Todos
 
@@ -113,6 +120,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T04:24:41.311Z
-Stopped at: Completed 13-04-PLAN.md (Phase 13 complete)
-Resume file: None
+Last session: 2026-03-09T04:26:22Z
+Stopped at: Completed 13-03-PLAN.md (search-dialog, rank-timeline, models-filter-bar decomposition)
+Resume file: .planning/phases/13-component-decomposition-react-memo/13-03-SUMMARY.md
