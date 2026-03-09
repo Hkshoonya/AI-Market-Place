@@ -9,13 +9,17 @@ import {
   getPaginationRowModel,
   type ColumnDef,
   type SortingState,
-  flexRender,
 } from "@tanstack/react-table";
 import RankingWeightControls from "./ranking-weight-controls";
-import { cn } from "@/lib/utils";
+import LeaderboardControls, { LENS_TABS, type RankingLens } from "./leaderboard-controls";
+import LeaderboardTable, { ScoreBar } from "./leaderboard-table";
 import { analytics } from "@/lib/posthog";
 
-interface LeaderboardModel {
+// ---------------------------------------------------------------------------
+// Types (exported for sub-components)
+// ---------------------------------------------------------------------------
+
+export interface LeaderboardModel {
   name: string;
   slug: string;
   provider: string;
@@ -31,7 +35,6 @@ interface LeaderboardModel {
   agent_rank: number | null;
   popularity_rank: number | null;
   market_cap_estimate: number | null;
-  // Lens fields
   capability_score: number | null;
   capability_rank: number | null;
   usage_score: number | null;
@@ -41,14 +44,13 @@ interface LeaderboardModel {
   balanced_rank: number | null;
 }
 
-type RankingLens = "capability" | "usage" | "expert" | "balanced";
+interface LeaderboardExplorerProps {
+  models: LeaderboardModel[];
+}
 
-const LENS_TABS = [
-  { value: "capability" as const, label: "Capability", description: "Pure benchmark performance" },
-  { value: "usage" as const, label: "Usage", description: "What people actually use" },
-  { value: "expert" as const, label: "Expert", description: "Research consensus" },
-  { value: "balanced" as const, label: "Balanced", description: "Composite of all signals" },
-];
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function getLensRank(model: LeaderboardModel, lens: RankingLens): number | null {
   switch (lens) {
@@ -68,45 +70,9 @@ function getLensScore(model: LeaderboardModel, lens: RankingLens): number | null
   }
 }
 
-interface LeaderboardExplorerProps {
-  models: LeaderboardModel[];
-}
-
-const CATEGORY_TABS = [
-  { value: "", label: "All" },
-  { value: "llm", label: "LLMs" },
-  { value: "multimodal", label: "Multimodal" },
-  { value: "code", label: "Code" },
-  { value: "agentic_browser", label: "Agentic" },
-  { value: "image_generation", label: "Image Gen" },
-  { value: "embedding", label: "Embedding" },
-  { value: "audio", label: "Audio" },
-];
-
-function ScoreBar({ value, max = 100 }: { value: number | null; max?: number }) {
-  if (value == null) return <span className="text-white/20">—</span>;
-  const pct = Math.min((value / max) * 100, 100);
-  const color =
-    pct >= 70
-      ? "#16c784"
-      : pct >= 40
-        ? "#f5a623"
-        : "#ea3943";
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-      </div>
-      <span className="text-xs tabular-nums" style={{ color }}>
-        {value.toFixed(1)}
-      </span>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps) {
   const [activeLens, setActiveLens] = useState<RankingLens>("capability");
@@ -191,7 +157,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         header: "Category",
         cell: ({ getValue }) => (
           <span className="text-xs text-white/40 capitalize">
-            {(getValue() as string)?.replace("_", " ") || "—"}
+            {(getValue() as string)?.replace("_", " ") || "\u2014"}
           </span>
         ),
         size: 100,
@@ -216,7 +182,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         header: "Cat. Rank",
         cell: ({ getValue }) => {
           const rank = getValue() as number | null;
-          if (rank == null) return <span className="text-white/20">—</span>;
+          if (rank == null) return <span className="text-white/20">&mdash;</span>;
           return <span className="text-xs text-white/50 tabular-nums">#{rank}</span>;
         },
         size: 80,
@@ -227,7 +193,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         header: "Market Cap",
         cell: ({ getValue }) => {
           const val = getValue() as number | null;
-          if (val == null) return <span className="text-white/20">—</span>;
+          if (val == null) return <span className="text-white/20">&mdash;</span>;
           const formatted =
             val >= 1_000_000
               ? `$${(val / 1_000_000).toFixed(1)}M`
@@ -251,7 +217,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         header: "Agent",
         cell: ({ getValue }) => {
           const val = getValue() as number | null;
-          if (val == null) return <span className="text-white/20">—</span>;
+          if (val == null) return <span className="text-white/20">&mdash;</span>;
           return <span className="text-xs text-[#6366f1] font-semibold tabular-nums">{val.toFixed(1)}</span>;
         },
         size: 70,
@@ -262,7 +228,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         header: "Downloads",
         cell: ({ getValue }) => {
           const val = getValue() as number | null;
-          if (val == null) return <span className="text-white/20">—</span>;
+          if (val == null) return <span className="text-white/20">&mdash;</span>;
           const formatted =
             val >= 1_000_000
               ? `${(val / 1_000_000).toFixed(1)}M`
@@ -290,168 +256,31 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
     },
   });
 
+  const handleLensSwitched = (from: RankingLens, to: RankingLens) => {
+    analytics.lensSwitched(from, to);
+    setSorting([{ id: "rank", desc: false }]);
+  };
+
   return (
     <div>
-      {/* Lens Toggle */}
-      <div className="flex gap-2 mb-4">
-        {LENS_TABS.map((lens) => (
-          <button
-            key={lens.value}
-            onClick={() => {
-              analytics.lensSwitched(activeLens, lens.value);
-              setActiveLens(lens.value);
-              setSorting([{ id: "rank", desc: false }]);
-            }}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-              activeLens === lens.value
-                ? "bg-white text-black"
-                : "bg-white/10 text-white/60 hover:bg-white/20"
-            )}
-            title={lens.description}
-          >
-            {lens.label}
-          </button>
-        ))}
-      </div>
+      <LeaderboardControls
+        activeLens={activeLens}
+        setActiveLens={setActiveLens}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        modelCount={filteredModels.length}
+        onLensSwitched={handleLensSwitched}
+        onSearchPerformed={(q, count) => analytics.searchPerformed(q, count)}
+      />
 
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        {/* Category tabs */}
-        <div className="flex rounded-lg border border-white/[0.06] overflow-hidden">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setCategoryFilter(tab.value)}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                categoryFilter === tab.value
-                  ? "bg-[#00d4aa]/15 text-[#00d4aa]"
-                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            const q = e.target.value;
-            setSearchQuery(q);
-            if (q.length >= 3) {
-              // Debounce-friendly: only track meaningful queries
-              analytics.searchPerformed(q, filteredModels.length);
-            }
-          }}
-          placeholder="Search models..."
-          className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-sm text-white/80 placeholder:text-white/20 outline-none focus:border-[#00d4aa]/30 w-48"
-        />
-
-        <div className="ml-auto text-xs text-white/30">
-          {filteredModels.length} models
-        </div>
-      </div>
-
-      {/* Ranking Weight Controls */}
       <RankingWeightControls
         models={models}
         onSortedModels={(sorted) => setCustomSortedModels(sorted)}
       />
 
-      {/* Table */}
-      <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr
-                  key={headerGroup.id}
-                  className="border-b border-white/[0.06] bg-white/[0.02]"
-                >
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-4 py-2.5 text-left text-xs font-medium text-white/40 cursor-pointer select-none hover:text-white/60 transition-colors"
-                      style={{ width: header.getSize() }}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center gap-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getIsSorted() === "asc" && (
-                          <span className="text-[#00d4aa]">▲</span>
-                        )}
-                        {header.column.getIsSorted() === "desc" && (
-                          <span className="text-[#00d4aa]">▼</span>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row, visualIndex) => {
-                const pageIndex = table.getState().pagination.pageIndex;
-                const pageSize = table.getState().pagination.pageSize;
-                const displayRank = visualIndex + 1 + pageIndex * pageSize;
-                return (
-                <tr
-                  key={row.id}
-                  className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="px-4 py-2.5"
-                      style={{ width: cell.column.getSize() }}
-                    >
-                      {cell.column.id === "rank" ? (
-                        <span
-                          className={`text-xs font-bold tabular-nums ${
-                            displayRank <= 3 ? "text-[#f5a623]" : displayRank <= 10 ? "text-[#00d4aa]" : "text-white/50"
-                          }`}
-                        >
-                          {displayRank}
-                        </span>
-                      ) : (
-                        flexRender(cell.column.columnDef.cell, cell.getContext())
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              );})}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {table.getPageCount() > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
-            <div className="text-xs text-white/30">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="px-3 py-1 text-xs rounded border border-white/[0.06] text-white/50 hover:text-white/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                ← Prev
-              </button>
-              <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="px-3 py-1 text-xs rounded border border-white/[0.06] text-white/50 hover:text-white/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <LeaderboardTable table={table} />
     </div>
   );
 }
