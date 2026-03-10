@@ -140,13 +140,35 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       setSubmitError("Failed to post comment. Please try again.");
     } else {
       setSubmitError(null);
+      // Build optimistic comment for immediate UI display
+      const optimisticComment: Comment = {
+        id: `temp-${Date.now()}`,
+        content: content.trim(),
+        upvotes: 0,
+        created_at: new Date().toISOString(),
+        parent_id: parentId,
+        user_id: user.id,
+        profiles: { display_name: user.user_metadata?.display_name ?? user.email ?? null, avatar_url: user.user_metadata?.avatar_url ?? null, username: user.user_metadata?.username ?? null },
+        replies: [],
+      };
       if (parentId) {
         setReplyText("");
         setReplyingTo(null);
+        // Optimistic: append reply to parent
+        await mutate(
+          (current) => (current ?? []).map((c) =>
+            c.id === parentId ? { ...c, replies: [...(c.replies ?? []), optimisticComment] } : c
+          ),
+          { revalidate: true }
+        );
       } else {
         setNewComment("");
+        // Optimistic: prepend new top-level comment
+        await mutate(
+          (current) => [optimisticComment, ...(current ?? [])],
+          { revalidate: true }
+        );
       }
-      await mutate();
     }
 
     setSubmitting(false);
