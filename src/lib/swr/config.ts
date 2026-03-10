@@ -6,7 +6,7 @@
  * SLOW  — model metadata, descriptions, deployments (no polling)
  */
 export const SWR_TIERS = {
-  FAST: { refreshInterval: 30_000, dedupingInterval: 10_000 },
-  MEDIUM: { refreshInterval: 60_000, dedupingInterval: 30_000 },
-  SLOW: { refreshInterval: 0, dedupingInterval: 300_000 },
+  FAST: { refreshInterval: 30_000, dedupingInterval: 2_000 },
+  MEDIUM: { refreshInterval: 60_000, dedupingInterval: 5_000 },
+  SLOW: { refreshInterval: 0, dedupingInterval: 10_000 },
 } as const;

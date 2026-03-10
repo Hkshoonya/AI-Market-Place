@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Globe, Lock, Trash2 } from "lucide-react";
+import { ChevronRight, Eye, Globe, Lock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -51,9 +51,12 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
             </p>
           )}
 
-          <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span className={cn("font-medium", itemCount > 0 && "text-foreground")}>
               {itemCount} {itemCount === 1 ? "model" : "models"}
+            </span>
+            <span className="flex items-center gap-0.5 text-neon/70 group-hover:text-neon transition-colors">
+              View <ChevronRight className="h-3 w-3" />
             </span>
           </div>
 
@@ -80,7 +83,7 @@ export function WatchlistCard({ watchlist, onDelete, deleting }: WatchlistCardPr
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-loss opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-8 w-8 text-muted-foreground hover:text-loss opacity-60 hover:opacity-100 transition-opacity"
             onClick={(e) => {
               e.preventDefault();
               onDelete(watchlist.id);

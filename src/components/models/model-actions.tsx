@@ -84,22 +84,31 @@ export function ModelActions({ modelSlug, modelName, modelId }: ModelActionsProp
 
   const handleBookmark = async () => {
     if (user && modelId) {
-      const supabase = createClient();
-      // DB bookmark
-      if (isBookmarked) {
-        await supabase
-          .from("user_bookmarks")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("model_id", modelId);
-        setShowToast(`${modelName} removed from bookmarks`);
-      } else {
-        await supabase
-          .from("user_bookmarks")
-          .insert({ user_id: user.id, model_id: modelId });
-        setShowToast(`${modelName} bookmarked`);
+      const nowBookmarked = !isBookmarked;
+      // Optimistic UI update
+      setIsBookmarked(nowBookmarked);
+      setShowToast(
+        nowBookmarked
+          ? `${modelName} bookmarked`
+          : `${modelName} removed from bookmarks`
+      );
+      try {
+        const res = nowBookmarked
+          ? await fetch("/api/bookmarks", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model_id: modelId }),
+            })
+          : await fetch(`/api/bookmarks?model_id=${modelId}`, {
+              method: "DELETE",
+            });
+        if (!res.ok) throw new Error("Bookmark failed");
+        await mutateBookmark();
+      } catch {
+        // Revert optimistic update on failure
+        setIsBookmarked(!nowBookmarked);
+        setShowToast("Failed to update bookmark");
       }
-      await mutateBookmark();
     } else {
       // localStorage fallback
       const nowBookmarked = toggleLocalBookmark(modelSlug);

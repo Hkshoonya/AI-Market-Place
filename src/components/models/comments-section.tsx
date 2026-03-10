@@ -39,6 +39,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [visibleCount, setVisibleCount] = useState(20);
@@ -134,7 +135,11 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       parent_id: parentId,
     });
 
-    if (!error) {
+    if (error) {
+      console.error("Comment submit failed:", error);
+      setSubmitError("Failed to post comment. Please try again.");
+    } else {
+      setSubmitError(null);
       if (parentId) {
         setReplyText("");
         setReplyingTo(null);
@@ -368,6 +373,9 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
               <Send className="h-4 w-4 mr-1" />
               Post
             </Button>
+          {submitError && (
+            <p className="text-sm text-destructive mt-1">{submitError}</p>
+          )}
           </div>
         ) : (
           <div className="mb-6 rounded-lg border border-border/30 bg-secondary/20 p-4 text-center">
