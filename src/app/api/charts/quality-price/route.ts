@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
 
     // Fetch pricing for these models
     const modelIds = (models ?? []).map((m) => m.id);
+    if (modelIds.length === 0) {
+      return NextResponse.json({ data: [], total: 0 });
+    }
     const { data: pricing } = await supabase
       .from("model_pricing")
       .select("model_id, input_price_per_million, output_price_per_million, provider_name")

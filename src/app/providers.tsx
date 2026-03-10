@@ -61,6 +61,17 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
         revalidateOnReconnect: true,
         dedupingInterval: 2000,
         errorRetryCount: 3,
+        onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
+          // Never retry on 4xx client errors — they won't succeed on retry
+          const status = (error as Error & { status?: number }).status;
+          if (status && status >= 400 && status < 500) return;
+
+          // Stop after 3 retries
+          if (retryCount >= 3) return;
+
+          // Exponential backoff: 2s, 4s, 8s
+          setTimeout(() => revalidate({ retryCount }), 2000 * 2 ** retryCount);
+        },
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { CATEGORIES as CANONICAL_CATEGORIES } from "@/lib/constants/categories";
 
 export interface ChartFilters {
   category: string;
@@ -11,12 +12,7 @@ export interface ChartFilters {
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
-  { value: "llm", label: "LLMs" },
-  { value: "multimodal", label: "Multimodal" },
-  { value: "image_generation", label: "Image Gen" },
-  { value: "code", label: "Code" },
-  { value: "embedding", label: "Embedding" },
-  { value: "audio", label: "Audio" },
+  ...CANONICAL_CATEGORIES.map((c) => ({ value: c.slug, label: c.shortLabel })),
 ];
 
 const DATE_RANGES = [
