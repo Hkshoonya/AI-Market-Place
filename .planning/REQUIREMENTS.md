@@ -17,10 +17,10 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### CI/CD
 
-- [ ] **CICD-01**: GitHub Actions workflow runs lint on every PR
-- [ ] **CICD-02**: GitHub Actions workflow runs `tsc --noEmit` on every PR
-- [ ] **CICD-03**: GitHub Actions workflow runs `vitest run` on every PR
-- [ ] **CICD-04**: PR merges blocked unless all CI checks pass
+- [x] **CICD-01**: GitHub Actions workflow runs lint on every PR
+- [x] **CICD-02**: GitHub Actions workflow runs `tsc --noEmit` on every PR
+- [x] **CICD-03**: GitHub Actions workflow runs `vitest run` on every PR
+- [ ] **CICD-04**: PR merges blocked unless all CI checks pass (acknowledged limitation — GitHub Free + private repo does not support branch protection; CI checks run and show pass/fail on every PR; enforcement relies on developer discipline)
 
 ### Runtime Type Safety
 
@@ -101,10 +101,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | OBS-04 | Phase 9 | Complete |
 | OBS-05 | Phase 9 | Complete |
 | PERF-03 | Phase 9 | Complete |
-| CICD-01 | Phase 17 | Pending |
-| CICD-02 | Phase 17 | Pending |
-| CICD-03 | Phase 17 | Pending |
-| CICD-04 | Phase 17 | Pending |
+| CICD-01 | Phase 17 | Complete |
+| CICD-02 | Phase 17 | Complete |
+| CICD-03 | Phase 17 | Complete |
+| CICD-04 | Phase 17 | Acknowledged Limitation |
 | TYPE-01 | Phase 11 | Complete |
 | TYPE-02 | Phase 11 | Complete |
 | TYPE-03 | Phase 11 | Complete |
@@ -129,10 +129,11 @@ Deferred to future release. Tracked but not in current roadmap.
 **Coverage:**
 - v1.1 requirements: 30 total
 - Mapped to phases: 30 (5 reassigned to gap closure phases 17-18)
-- Satisfied: 25
-- Pending (gap closure): 5 (CICD-01, CICD-02, CICD-03, CICD-04, E2E-03)
+- Satisfied: 28
+- Acknowledged Limitation: 1 (CICD-04)
+- Pending (gap closure): 1 (E2E-03)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after roadmap creation*
+*Last updated: 2026-03-11 — Phase 17 gap closure: CICD-01/02/03 satisfied, CICD-04 acknowledged limitation*
