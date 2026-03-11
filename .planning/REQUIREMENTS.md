@@ -68,33 +68,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | — | Pending |
-| PIPE-02 | — | Pending |
-| PIPE-03 | — | Pending |
-| PIPE-04 | — | Pending |
-| PIPE-05 | — | Pending |
-| PIPE-06 | — | Pending |
-| PIPE-07 | — | Pending |
-| ADMN-01 | — | Pending |
-| ADMN-02 | — | Pending |
-| ADMN-03 | — | Pending |
-| ADMN-04 | — | Pending |
-| ADMN-05 | — | Pending |
-| DEPL-01 | — | Pending |
-| DEPL-02 | — | Pending |
-| DEPL-03 | — | Pending |
-| DEPL-04 | — | Pending |
-| DEPL-05 | — | Pending |
-| INTG-01 | — | Pending |
-| INTG-02 | — | Pending |
-| INTG-03 | — | Pending |
-| INTG-04 | — | Pending |
+| PIPE-01 | Phase 20 | Pending |
+| PIPE-02 | Phase 20 | Pending |
+| PIPE-03 | Phase 20 | Pending |
+| PIPE-04 | Phase 20 | Pending |
+| PIPE-05 | Phase 20 | Pending |
+| PIPE-06 | Phase 20 | Pending |
+| PIPE-07 | Phase 20 | Pending |
+| ADMN-01 | Phase 21 | Pending |
+| ADMN-02 | Phase 21 | Pending |
+| ADMN-03 | Phase 21 | Pending |
+| ADMN-04 | Phase 21 | Pending |
+| ADMN-05 | Phase 21 | Pending |
+| DEPL-01 | Phase 22 | Pending |
+| DEPL-02 | Phase 22 | Pending |
+| DEPL-03 | Phase 22 | Pending |
+| DEPL-04 | Phase 22 | Pending |
+| DEPL-05 | Phase 22 | Pending |
+| INTG-01 | Phase 23 | Pending |
+| INTG-02 | Phase 23 | Pending |
+| INTG-03 | Phase 23 | Pending |
+| INTG-04 | Phase 23 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation — all 18 requirements mapped*
