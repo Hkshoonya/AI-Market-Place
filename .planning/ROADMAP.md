@@ -223,4 +223,4 @@ Plans:
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
 | 17. CI Verification + Branch Protection | 1/1 | Complete    | 2026-03-11 | - |
 | 18. E2E Model Detail CI Fixture | 1/1 | Complete    | 2026-03-11 | - |
-| 19. Tech Debt Hardening | 1/1 | Complete   | 2026-03-11 | - |
+| 19. Tech Debt Hardening | 1/1 | Complete    | 2026-03-11 | - |
