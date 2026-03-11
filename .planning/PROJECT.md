@@ -43,7 +43,17 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 
 ### Active
 
-(None — next milestone requirements defined via `/gsd:new-milestone`)
+## Current Milestone: v1.2 Data Pipeline & Launch
+
+**Goal:** Fix the broken data sync pipeline, make sync failures visible to admins, and deploy the app to Railway + Supabase Cloud for production launch.
+
+**Target features:**
+- Seed and validate data_sources table so adapters actually run
+- Fix silent failure modes across all 27 adapters (fail-fast on missing keys, escalate errors)
+- Admin dashboard shows sync job status, failures, stale sources, and pipeline health
+- Deploy to Railway with all env vars configured, node-cron for scheduling
+- DNS + SSL for aimarketcap.com via Cloudflare
+- End-to-end verification that data flows from adapters → DB → UI
 
 ### Out of Scope
 
@@ -92,4 +102,4 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 | CICD-04 accept-limitation | GitHub Free + private repo returns HTTP 403 on branch protection | ⚠️ Revisit — upgrade to Pro or make public |
 
 ---
-*Last updated: 2026-03-11 after v1.1 Production Readiness milestone shipped*
+*Last updated: 2026-03-11 after v1.2 Data Pipeline & Launch milestone started*
