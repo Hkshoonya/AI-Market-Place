@@ -54,7 +54,7 @@ export default defineConfig({
       // Dummy values so Next.js starts without "SUPABASE_URL is required" errors.
       // All actual Supabase API calls are intercepted at the browser level by
       // page.route() / context.route() — no real network traffic leaves the machine.
-      NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
+      NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
     },
   },

@@ -8,9 +8,9 @@ import type { BrowserContext } from "@playwright/test";
  *   name:  sb-{supabase-project-ref}-auth-token
  *   value: base64-{base64url(JSON.stringify(session))}
  *
- * With NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co:
- *   project ref = "test" (first hostname segment)
- *   cookie name = "sb-test-auth-token"
+ * With NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321:
+ *   project ref = "localhost" (first hostname segment)
+ *   cookie name = "sb-localhost-auth-token"
  *
  * We use context.addInitScript to set document.cookie BEFORE the page scripts
  * run, so the Supabase client sees the session immediately on mount.
@@ -60,8 +60,8 @@ export async function injectMockAuth(context: BrowserContext): Promise<void> {
     "base64-" + Buffer.from(sessionJson, "utf-8").toString("base64url");
 
   // Cookie name: sb-{first-hostname-segment}-auth-token
-  // NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co → sb-test-auth-token
-  const cookieName = "sb-test-auth-token";
+  // NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 → sb-localhost-auth-token
+  const cookieName = "sb-localhost-auth-token";
 
   // Inject the session cookie before page scripts run.
   // addInitScript runs in the browser context before any page script execution.
