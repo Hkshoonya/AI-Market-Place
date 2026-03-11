@@ -167,7 +167,7 @@ Plans:
   2. GitHub branch protection rule is configured so PRs cannot merge without passing CI checks
   3. CICD-01, CICD-02, CICD-03 status upgraded from orphaned to satisfied
   4. CICD-04 status upgraded from unsatisfied to satisfied
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 17-01-PLAN.md -- Create 10-VERIFICATION.md with CI evidence, resolve CICD-04 branch protection via user decision
 
@@ -204,5 +204,5 @@ Plans: 0/0 plans (pending `/gsd:plan-phase 18`)
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
-| 17. CI Verification + Branch Protection | v1.1 | 0/1 | Planned | - |
+| 17. CI Verification + Branch Protection | 1/1 | Complete   | 2026-03-11 | - |
 | 18. E2E Model Detail CI Fixture | v1.1 | 0/0 | Pending | - |

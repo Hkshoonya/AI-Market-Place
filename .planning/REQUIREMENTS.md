@@ -20,7 +20,7 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 - [x] **CICD-01**: GitHub Actions workflow runs lint on every PR
 - [x] **CICD-02**: GitHub Actions workflow runs `tsc --noEmit` on every PR
 - [x] **CICD-03**: GitHub Actions workflow runs `vitest run` on every PR
-- [ ] **CICD-04**: PR merges blocked unless all CI checks pass (acknowledged limitation — GitHub Free + private repo does not support branch protection; CI checks run and show pass/fail on every PR; enforcement relies on developer discipline)
+- [x] **CICD-04**: PR merges blocked unless all CI checks pass (acknowledged limitation — GitHub Free + private repo does not support branch protection; CI checks run and show pass/fail on every PR; enforcement relies on developer discipline)
 
 ### Runtime Type Safety
 
