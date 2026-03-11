@@ -108,6 +108,16 @@ None beyond the strict mode violation documented above.
 - All tests run fully offline (no real Supabase dependency)
 - Ready for Phase 15 Plan 03 (marketplace E2E tests or CI integration)
 
+## Self-Check: PASSED
+
+| Item | Status |
+|------|--------|
+| e2e/model-detail.spec.ts | FOUND |
+| e2e/leaderboard.spec.ts | FOUND |
+| .planning/phases/15-e2e-testing/15-02-SUMMARY.md | FOUND |
+| 543fa5d (Task 1 commit) | FOUND |
+| e61a356 (Task 2 commit) | FOUND |
+
 ---
 *Phase: 15-e2e-testing*
 *Completed: 2026-03-11*
