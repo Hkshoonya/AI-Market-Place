@@ -128,10 +128,10 @@ Deferred to future release. Tracked but not in current roadmap.
 
 **Coverage:**
 - v1.1 requirements: 30 total
-- Mapped to phases: 30 (5 reassigned to gap closure phases 17-18)
-- Satisfied: 28
+- Mapped to phases: 30 (5 reassigned to gap closure phases 17-18, 5 hardened in phase 19)
+- Satisfied: 29
 - Acknowledged Limitation: 1 (CICD-04)
-- Pending (gap closure): 1 (E2E-03)
+- Hardening (phase 19): 5 (E2E-03, E2E-06, CICD-01, SIMP-01, SIMP-02 — already satisfied, being hardened)
 - Unmapped: 0
 
 ---

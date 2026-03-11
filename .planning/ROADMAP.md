@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Codebase Health** -- Phases 1-8 (shipped 2026-03-05)
-- 🚧 **v1.1 Production Readiness** -- Phases 9-18 (in progress, gap closure phases 17-18 added)
+- 🚧 **v1.1 Production Readiness** -- Phases 9-19 (in progress, gap closure phases 17-19 added)
 
 ## Phases
 
@@ -184,6 +184,21 @@ Plans:
 Plans:
 - [ ] 18-01-PLAN.md -- MSW infrastructure + fixture data + instrumentation.ts wiring + test rewrite
 
+### Phase 19: Tech Debt Hardening
+**Goal**: Close integration fragility gaps and clean up residual tech debt from v1.1 audit
+**Depends on**: Phase 18
+**Requirements**: E2E-03, E2E-06, CICD-01, SIMP-01, SIMP-02 (hardening — already satisfied)
+**Gap Closure:** Closes INT-MSW-DEP, INT-LINT-GATE integration gaps and 2 low-priority tech debt items from v1.1 re-audit
+**Success Criteria** (what must be TRUE):
+  1. `msw` appears in package.json devDependencies (not just transitive)
+  2. `npm run lint` exits non-zero when ESLint warnings exist (`--max-warnings 0`)
+  3. `src/lib/schemas/index.ts` barrel file deleted (zero callers confirmed)
+  4. No unused `useEffect` import in `listing-reviews.tsx`
+  5. `npx tsc --noEmit` and `vitest run` both pass clean
+**Plans:** 0/1 plans complete
+Plans:
+- [ ] 19-01-PLAN.md -- MSW devDep, lint --max-warnings 0, delete orphan barrel, remove unused import
+
 ## Progress
 
 **Execution Order:** Phases 9 through 16, sequential. Phases 11 and 12 can run in parallel (both depend only on Phase 10).
@@ -208,3 +223,4 @@ Plans:
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
 | 17. CI Verification + Branch Protection | 1/1 | Complete    | 2026-03-11 | - |
 | 18. E2E Model Detail CI Fixture | 1/1 | Complete    | 2026-03-11 | - |
+| 19. Tech Debt Hardening | 0/1 | Planned    | - | - |
