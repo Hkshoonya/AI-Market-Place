@@ -54,8 +54,10 @@ export default defineConfig({
       // Dummy values so Next.js starts without "SUPABASE_URL is required" errors.
       // All actual Supabase API calls are intercepted at the browser level by
       // page.route() / context.route() — no real network traffic leaves the machine.
+      // MSW intercepts server-side RSC Supabase calls via instrumentation.ts.
       NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
+      NEXT_PUBLIC_E2E_MSW: "true",
     },
   },
 });
