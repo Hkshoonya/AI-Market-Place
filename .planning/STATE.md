@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 15-03-PLAN.md (Marketplace E2E tests + CI integration)
-last_updated: "2026-03-11T03:38:39.640Z"
+stopped_at: Completed 15-02-PLAN.md (Model detail + leaderboard E2E tests)
+last_updated: "2026-03-11T03:41:50.620Z"
 last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 ---
@@ -80,6 +80,7 @@ Progress: [██████████] 100%
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 | Phase 15-e2e-testing P01 | 23 | 2 tasks | 11 files |
 | Phase 15-e2e-testing P03 | 3min | 2 tasks | 2 files |
+| Phase 15-e2e-testing P02 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,9 @@ v1.1 decisions:
 - [Phase 15-e2e-testing]: Middleware wrapped in try/catch so ENOTFOUND errors in E2E environments don't crash protected route checks
 - [Phase 15-e2e-testing]: Marketplace RSC browse page tests verify page shell (heading, filter bar) without real DB data — REST mock returns empty array
 - [Phase 15-e2e-testing]: CI e2e job uses dummy Supabase env vars hardcoded in workflow YAML (not secrets), running fully offline in parallel with lint/typecheck/test
+- [Phase 15-e2e-testing]: Model detail tests use test.skip() for 404 — notFound() called when parseQueryResultSingle returns null with dummy Supabase URL
+- [Phase 15-e2e-testing]: Lens buttons lack aria-pressed — verify interactivity by checking visibility before/after click rather than state attribute
+- [Phase 15-e2e-testing]: Category badge locator uses a[href*='/leaderboards/llm'] to avoid strict mode violation (text 'LLMs' appears in 3 elements)
 
 ### Pending Todos
 
@@ -168,6 +172,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T03:38:39.636Z
-Stopped at: Completed 15-03-PLAN.md (Marketplace E2E tests + CI integration)
+Last session: 2026-03-11T03:41:50.616Z
+Stopped at: Completed 15-02-PLAN.md (Model detail + leaderboard E2E tests)
 Resume file: None

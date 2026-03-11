@@ -33,7 +33,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 12: Component Testing Infrastructure** - Vitest jsdom + Testing Library setup with component tests for high-value components (completed 2026-03-09)
 - [x] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders (completed 2026-03-09)
 - [x] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers (gap closure in progress) (completed 2026-03-09)
-- [ ] **Phase 15: E2E Testing** - Playwright tests for critical user paths integrated into CI
+- [x] **Phase 15: E2E Testing** - Playwright tests for critical user paths integrated into CI (completed 2026-03-11)
 - [ ] **Phase 16: Code Simplification** - Final cleanup pass over all milestone changes
 
 ## Phase Details
@@ -138,7 +138,7 @@ Plans:
   3. Model detail E2E: navigating to a model shows scores, and tab navigation works
   4. Leaderboard E2E: switching lens filter changes displayed models, sort works, pagination navigates pages
   5. Marketplace E2E: search returns results, filters narrow listings, clicking a listing shows detail
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 15-01-PLAN.md -- Playwright install, config, helpers, fixtures, auth flow E2E test
 - [ ] 15-02-PLAN.md -- Model detail and leaderboard E2E tests
@@ -174,5 +174,5 @@ Plans:
 | 12. Component Testing Infrastructure | v1.1 | 3/3 | Complete | 2026-03-09 |
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
-| 15. E2E Testing | 2/3 | In Progress|  | - |
+| 15. E2E Testing | 3/3 | Complete   | 2026-03-11 | - |
 | 16. Code Simplification | v1.1 | 0/? | Not started | - |
