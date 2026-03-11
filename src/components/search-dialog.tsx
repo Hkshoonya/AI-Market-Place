@@ -163,7 +163,7 @@ export function SearchDialog() {
                   onChange={(e) => { setQuery(e.target.value); setActiveIndex(0); }}
                   onKeyDown={handleKeyDown}
                   aria-label="Search AI models and marketplace"
-                  role="combobox" aria-expanded={totalItems > 0} aria-autocomplete="list"
+                  role="combobox" aria-expanded={totalItems > 0} aria-autocomplete="list" aria-controls="search-results-listbox"
                 />
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 <button
@@ -182,11 +182,13 @@ export function SearchDialog() {
                 />
               )}
 
-              <SearchDialogResults
-                results={results} marketplaceResults={marketplaceResults}
-                activeIndex={activeIndex} onNavigateModel={navigateModel}
-                onNavigateMarketplace={navigateMarketplace} onSetActiveIndex={setActiveIndex}
-              />
+              <div id="search-results-listbox" role="listbox" aria-label="Search results">
+                <SearchDialogResults
+                  results={results} marketplaceResults={marketplaceResults}
+                  activeIndex={activeIndex} onNavigateModel={navigateModel}
+                  onNavigateMarketplace={navigateMarketplace} onSetActiveIndex={setActiveIndex}
+                />
+              </div>
 
               {query.length >= 2 && !loading && results.length === 0 && marketplaceResults.length === 0 && (
                 <div className="px-4 py-8 text-center">
