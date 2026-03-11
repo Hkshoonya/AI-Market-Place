@@ -1,0 +1,100 @@
+# Requirements: AI Market Cap
+
+**Defined:** 2026-03-11
+**Core Value:** Most comprehensive, multi-lens ranking of AI models — single source of truth for discovery, comparison, and evaluation.
+
+## v1.2 Requirements
+
+Requirements for Data Pipeline & Launch milestone. Each maps to roadmap phases.
+
+### Data Pipeline
+
+- [ ] **PIPE-01**: System seeds `data_sources` table with all 27 adapters on first deploy
+- [ ] **PIPE-02**: `resolveSecrets()` fails fast with clear error when required API keys are missing
+- [ ] **PIPE-03**: Orchestrator reports per-adapter success/failure status (not silent 200 OK)
+- [ ] **PIPE-04**: All adapter API keys validated on app startup with clear log output
+- [ ] **PIPE-05**: Failed syncs automatically retry with exponential backoff (max 3 retries)
+- [ ] **PIPE-06**: Each adapter exposes a health check (connectivity + auth validation)
+- [ ] **PIPE-07**: `/api/pipeline/health` endpoint returns aggregate pipeline status
+
+### Admin Visibility
+
+- [ ] **ADMN-01**: Admin dashboard shows sync job history (status, errors, timestamps, records processed)
+- [ ] **ADMN-02**: Admin dashboard highlights stale data sources (no successful sync within expected interval)
+- [ ] **ADMN-03**: Admin dashboard shows pipeline health overview (healthy/degraded/down per adapter)
+- [ ] **ADMN-04**: Admin can drill down to per-adapter error details and recent sync logs
+- [ ] **ADMN-05**: Admin can manually trigger a sync for any individual adapter from the dashboard
+
+### Deployment
+
+- [ ] **DEPL-01**: App deploys to Railway via Docker with git-push workflow
+- [ ] **DEPL-02**: All required env vars configured in Railway (Supabase, API keys, CRON_SECRET)
+- [ ] **DEPL-03**: `node-cron` schedules all 8 cron jobs in-process (replaces Vercel cron)
+- [ ] **DEPL-04**: DNS configured for aimarketcap.com via Cloudflare with SSL
+- [ ] **DEPL-05**: `/api/health` endpoint returns app status, DB connectivity, and uptime
+
+### Data Integrity
+
+- [ ] **INTG-01**: End-to-end verification confirms data flows from adapters → DB → UI for all key tables
+- [ ] **INTG-02**: System detects and reports empty tables that should have data
+- [ ] **INTG-03**: Data freshness check flags sources that haven't updated within their expected interval
+- [ ] **INTG-04**: Data quality score per source measuring completeness, freshness, and record count trends
+
+## Future Requirements
+
+### Notifications & Alerting
+
+- **ALRT-01**: External alerting (email/Discord) when sync failures exceed threshold
+- **ALRT-02**: Scheduled pipeline health report sent to admin
+
+### Scaling
+
+- **SCAL-01**: Migration playbook from Railway to Hetzner+Coolify when costs exceed threshold
+- **SCAL-02**: Staging environment on Railway for pre-deploy testing
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Supabase migration | Integration too deep (158 files); $25/mo is justified |
+| Hetzner+Coolify deployment | Deferred to scaling phase; Railway first for simplicity |
+| RSSHub sidecar on Railway | Railway single-service; X/Twitter adapter uses static fallback for now |
+| WebSocket/real-time sync updates | Over-engineering for admin monitoring; polling sufficient |
+| Full adapter rewrite | Adapters work; only fixing error handling and secret validation |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PIPE-01 | — | Pending |
+| PIPE-02 | — | Pending |
+| PIPE-03 | — | Pending |
+| PIPE-04 | — | Pending |
+| PIPE-05 | — | Pending |
+| PIPE-06 | — | Pending |
+| PIPE-07 | — | Pending |
+| ADMN-01 | — | Pending |
+| ADMN-02 | — | Pending |
+| ADMN-03 | — | Pending |
+| ADMN-04 | — | Pending |
+| ADMN-05 | — | Pending |
+| DEPL-01 | — | Pending |
+| DEPL-02 | — | Pending |
+| DEPL-03 | — | Pending |
+| DEPL-04 | — | Pending |
+| DEPL-05 | — | Pending |
+| INTG-01 | — | Pending |
+| INTG-02 | — | Pending |
+| INTG-03 | — | Pending |
+| INTG-04 | — | Pending |
+
+**Coverage:**
+- v1.2 requirements: 18 total
+- Mapped to phases: 0
+- Unmapped: 18 ⚠️
+
+---
+*Requirements defined: 2026-03-11*
+*Last updated: 2026-03-11 after initial definition*
