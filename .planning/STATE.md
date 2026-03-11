@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 18-01-PLAN.md (E2E model detail CI fixture)
-last_updated: "2026-03-11T16:08:13.168Z"
+stopped_at: "Completed 19-01-PLAN.md (tech debt hardening: msw devDep, lint gate, barrel deletion)"
+last_updated: "2026-03-11T17:09:35.132Z"
 last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 28
-  completed_plans: 28
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 29
+  completed_plans: 29
 ---
 
 ---
@@ -85,6 +85,7 @@ Progress: [██████████] 100%
 | Phase 16-code-simplification P01 | 13min | 2 tasks | 26 files |
 | Phase 17-ci-verification-branch-protection P01 | 12min | 3 tasks | 2 files |
 | Phase 18-e2e-model-detail-ci-fixture P01 | 120 | 2 tasks | 7 files |
+| Phase 19-tech-debt-hardening P01 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,9 @@ v1.1 decisions:
 - [Phase 16-01]: Used // REMOVED tag for dead code to preserve git history audit trail; added argsIgnorePattern ^_ to no-unused-vars rule; React compiler warn overrides removed from eslint.config.mjs after all violations fixed
 - [Phase 17-ci-verification-branch-protection]: CICD-04 accept-limitation: GitHub Free + private repo returns HTTP 403 on branch protection API; CI checks still run and show pass/fail on every PR; enforcement relies on developer discipline
 - [Phase 18-e2e-model-detail-ci-fixture]: MSW runs inside Next.js process via instrumentation.ts; DeepSeek-R1 used as fixture model (GPT-4o absent from production DB); CSP extended for localhost:54321 in E2E mode
+- [Phase 19-tech-debt-hardening]: msw pinned as direct devDependency to avoid transitive resolution fragility in E2E CI
+- [Phase 19-tech-debt-hardening]: lint script enforces --max-warnings 0 at script level; no CI YAML change needed
+- [Phase 19-tech-debt-hardening]: schemas barrel deleted without replacement — all callers use sub-path imports; confirmed via grep
 
 ### Pending Todos
 
@@ -182,6 +186,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T16:00:45.197Z
-Stopped at: Completed 18-01-PLAN.md (E2E model detail CI fixture)
+Last session: 2026-03-11T17:09:35.128Z
+Stopped at: Completed 19-01-PLAN.md (tech debt hardening: msw devDep, lint gate, barrel deletion)
 Resume file: None

@@ -195,7 +195,7 @@ Plans:
   3. `src/lib/schemas/index.ts` barrel file deleted (zero callers confirmed)
   4. No unused `useEffect` import in `listing-reviews.tsx`
   5. `npx tsc --noEmit` and `vitest run` both pass clean
-**Plans:** 0/1 plans complete
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 19-01-PLAN.md -- MSW devDep, lint --max-warnings 0, delete orphan barrel, remove unused import
 
@@ -223,4 +223,4 @@ Plans:
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
 | 17. CI Verification + Branch Protection | 1/1 | Complete    | 2026-03-11 | - |
 | 18. E2E Model Detail CI Fixture | 1/1 | Complete    | 2026-03-11 | - |
-| 19. Tech Debt Hardening | 0/1 | Planned    | - | - |
+| 19. Tech Debt Hardening | 1/1 | Complete   | 2026-03-11 | - |
