@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // In E2E test mode, extend connect-src to include localhost:54321 (Supabase mock).
+    // This prevents CSP violations when client-side code tries to fetch from the
+    // local Supabase URL injected via NEXT_PUBLIC_SUPABASE_URL during tests.
+    const isE2E = process.env.NEXT_PUBLIC_E2E_MSW === "true";
+    const connectSrc = isE2E
+      ? "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://us.i.posthog.com;"
+      : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://us.i.posthog.com;";
+
     return [
       {
         // Cache static assets aggressively
@@ -44,7 +52,7 @@ const nextConfig: NextConfig = {
             // CSP: allow self, Supabase, Clearbit logos, Sentry, PostHog, inline styles (needed for Next.js)
             // TODO: remove 'unsafe-eval' when moving to production (needed for dev hot-reload)
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://logo.clearbit.com https://*.supabase.co https://api.dicebear.com; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://us.i.posthog.com; frame-ancestors 'none';",
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://logo.clearbit.com https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
           },
         ],
       },

@@ -4,64 +4,70 @@ import { mockApiRoute } from "./helpers/routes";
 /**
  * Model detail page E2E tests.
  *
- * Architecture note: The model detail page (/models/[slug]) is a Server
- * Component that fetches model data from Supabase server-side via
- * parseQueryResultSingle. With dummy NEXT_PUBLIC_SUPABASE_URL, the Supabase
- * client gets ENOTFOUND errors — parseQueryResultSingle returns null →
- * notFound() is called → Next.js renders the 404 page.
+ * MSW running via instrumentation.ts intercepts server-side Supabase
+ * PostgREST calls and returns fixture data from e2e/fixtures/model-detail.json.
+ * This enables real assertions without test.skip() fallback patterns.
  *
- * Tests therefore:
- * - Set up client-side SWR route intercepts for any SWR calls that fire on
- *   the model page (deploy-tab, model-overview, model-actions/bookmark).
- * - Navigate to /models/gpt-4o.
- * - Detect whether the model page shell rendered (h1 with model name) or
- *   whether a 404/error page appeared.
- * - If the page rendered the 404, skip with an informative message.
- * - If the page rendered with data (e.g., if a future test run connects to a
- *   real DB or a test seed), verify the full interactive flow.
+ * Client-side SWR calls (intercepted via page.route):
+ * - DeployTab:      GET /api/models/{slug}/deployments
+ * - ModelOverview:  GET /api/models/{slug}/description
+ * - ModelActions:   GET /api/models/{slug}/bookmark
  *
- * Client-side SWR calls (these CAN be intercepted via page.route):
- * - DeployTab:    GET /api/models/{slug}/deployments
- * - ModelOverview: GET /api/models/{slug}/description
- * - ModelActions: GET /api/models/{slug}/bookmark
+ * Browser-level Supabase intercepts prevent CSP violations and React hydration
+ * errors when the browser tries to fetch from localhost:54321.
  *
- * These intercepts are registered before navigation so they are active when
- * the client hydrates and SWR fires initial requests.
+ * Note on streaming SSR: Next.js streams the page response progressively.
+ * Tabs content arrives ~2s after domcontentloaded. Element waits use generous
+ * timeouts to accommodate this streaming behavior.
  */
 
-const MODEL_SLUG = "gpt-4o";
+const MODEL_SLUG = "deepseek-r1";
 const MODEL_URL = `/models/${MODEL_SLUG}`;
 
-/** Register all client-side SWR intercepts for the model detail page. */
+/**
+ * Register all client-side intercepts for the model detail page.
+ * Intercepts both Next.js API routes (SWR) and direct Supabase browser calls.
+ */
 async function setupModelInterceptors(page: Parameters<typeof mockApiRoute>[0]) {
+  // SWR API routes
   await mockApiRoute(page, `**/api/models/*/deployments`, {
     deployments: [],
     platforms: [],
   });
   await mockApiRoute(page, `**/api/models/*/description`, {
-    description: "GPT-4o is OpenAI's flagship multimodal model.",
-    generated_at: "2024-01-01T00:00:00Z",
+    summary: "DeepSeek-R1 is a reasoning-focused model trained with reinforcement learning.",
+    pros: [],
+    cons: [],
+    best_for: [],
+    not_ideal_for: [],
+    comparison_notes: null,
+    generated_by: "ai",
+    upvotes: 0,
+    downvotes: 0,
   });
   await mockApiRoute(page, `**/api/models/*/bookmark`, {
     bookmarked: false,
   });
-}
 
-/** Returns true if the model page shell loaded (h1 heading is visible). */
-async function modelPageLoaded(page: Parameters<typeof mockApiRoute>[0]): Promise<boolean> {
-  const heading = page.locator("h1").first();
-  try {
-    await expect(heading).toBeVisible({ timeout: 8_000 });
-    const text = await heading.textContent();
-    // 404 page also has an h1 ("404" or "This page could not be found")
-    // Model pages always have the model name which is never purely numeric.
-    if (!text) return false;
-    // If it looks like a Next.js 404, skip
-    if (/^404$/.test(text.trim()) || /not found/i.test(text)) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  // Intercept ALL browser-level Supabase calls to localhost:54321.
+  // Without these, the browser gets CSP violations from attempting to connect
+  // to localhost:54321, which triggers React error boundaries.
+  await page.route("http://localhost:54321/**", (route) => {
+    const url = route.request().url();
+    if (url.includes("/auth/v1/")) {
+      route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "not_authorized" }),
+      });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "[]",
+      });
+    }
+  });
 }
 
 test.describe("Model detail page", () => {
@@ -70,31 +76,24 @@ test.describe("Model detail page", () => {
   // ---------------------------------------------------------------------------
   test("model detail page renders page shell with tabs", async ({ page }) => {
     await setupModelInterceptors(page);
+    // Use default waitUntil ('load') — this waits for streaming SSR to complete
     await page.goto(MODEL_URL);
 
-    const loaded = await modelPageLoaded(page);
-    if (!loaded) {
-      test.skip(true, "Model page returned 404 with dummy Supabase — server-side query failed");
-      return;
-    }
-
-    // Page heading should contain the model name
+    // MSW ensures the page renders with fixture data — no skip needed.
+    // Wait for the main content area heading.
     const heading = page.locator("h1").first();
+    await expect(heading).toBeVisible({ timeout: 20_000 });
     const headingText = await heading.textContent();
-    expect(headingText).toBeTruthy();
-    expect(headingText!.length).toBeGreaterThan(0);
+    expect(headingText).toContain("DeepSeek-R1");
 
-    // At least one score-like element should be visible: look for "Quality Score"
-    // label in ModelStatsRow, or any numeric score pattern
-    const scoreElements = page.getByText(/quality score/i);
-    const scoreCount = await scoreElements.count();
-    // Verify page shell has stat rows (even if data is blank)
-    expect(scoreCount).toBeGreaterThanOrEqual(1);
+    // Stats row: quality score label
+    await expect(page.getByText(/quality score/i).first()).toBeVisible({ timeout: 10_000 });
 
-    // Benchmarks tab (defaultValue) should be selected
+    // Benchmarks tab (defaultValue="benchmarks") should be selected.
+    // Tabs arrive after streaming SSR completes — wait with generous timeout.
     const benchmarksTab = page.getByRole("tab", { name: "Benchmarks" });
-    await expect(benchmarksTab).toBeVisible();
-    await expect(benchmarksTab).toHaveAttribute("aria-selected", "true");
+    await expect(benchmarksTab).toBeVisible({ timeout: 10_000 });
+    await expect(benchmarksTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
   });
 
   // ---------------------------------------------------------------------------
@@ -104,77 +103,59 @@ test.describe("Model detail page", () => {
     await setupModelInterceptors(page);
     await page.goto(MODEL_URL);
 
-    const loaded = await modelPageLoaded(page);
-    if (!loaded) {
-      test.skip(true, "Model page returned 404 with dummy Supabase — tab navigation test skipped");
-      return;
-    }
-
-    // Default tab: Benchmarks should be active
+    // Wait for the page heading and Benchmarks tab (streaming SSR may delay tabs)
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 20_000 });
     const benchmarksTab = page.getByRole("tab", { name: "Benchmarks" });
-    await expect(benchmarksTab).toHaveAttribute("aria-selected", "true");
+    await expect(benchmarksTab).toBeVisible({ timeout: 10_000 });
+    await expect(benchmarksTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
 
-    // Click Pricing tab and verify it becomes active
+    // Click Pricing tab
     const pricingTab = page.getByRole("tab", { name: "Pricing" });
     await pricingTab.click();
-    await expect(pricingTab).toHaveAttribute("aria-selected", "true");
-    await expect(benchmarksTab).toHaveAttribute("aria-selected", "false");
+    await expect(pricingTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
+    await expect(benchmarksTab).toHaveAttribute("aria-selected", "false", { timeout: 5_000 });
+    // Pricing tab content: fixture has model_pricing; table renders "$/M" column headers
+    await expect(page.getByText(/\$\/M/i).first()).toBeVisible({ timeout: 5_000 });
 
-    // Click Details tab and verify it becomes active
+    // Click Details tab
     const detailsTab = page.getByRole("tab", { name: "Details" });
     await detailsTab.click();
-    await expect(detailsTab).toHaveAttribute("aria-selected", "true");
-    await expect(pricingTab).toHaveAttribute("aria-selected", "false");
+    await expect(detailsTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
+    await expect(pricingTab).toHaveAttribute("aria-selected", "false", { timeout: 5_000 });
+    // Details tab: fixture has architecture "Transformer (MoE)"
+    await expect(page.getByText(/transformer/i).first()).toBeVisible({ timeout: 5_000 });
 
-    // Click Deploy tab — this triggers the SWR call we intercepted above
+    // Click Deploy tab
     const deployTab = page.getByRole("tab", { name: "Deploy" });
     await deployTab.click();
-    await expect(deployTab).toHaveAttribute("aria-selected", "true");
-    await expect(detailsTab).toHaveAttribute("aria-selected", "false");
+    await expect(deployTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
+    await expect(detailsTab).toHaveAttribute("aria-selected", "false", { timeout: 5_000 });
   });
 
   // ---------------------------------------------------------------------------
-  // Test 3: Clicking model link from leaderboard navigates to detail
+  // Test 3: Cross-navigation from model detail back to models list
   //
-  // Navigates to /leaderboards (which renders even with empty data), looks for
-  // any <a href="/models/..."> link, and clicks it to verify navigation flow.
+  // Navigates directly to /models/deepseek-r1 (MSW handles server-side data),
+  // finds the "Back to Models" link, and verifies navigation occurs.
   // ---------------------------------------------------------------------------
-  test("clicking model link from leaderboard navigates to detail", async ({
-    page,
-  }) => {
-    // Set up SWR intercepts for both leaderboard page (chart SWR calls) and
-    // the target model detail page
+  test("leaderboard cross-navigation", async ({ page }) => {
     await setupModelInterceptors(page);
+    await page.goto(MODEL_URL);
 
-    await page.goto("/leaderboards");
+    // Wait for page to render with fixture data
+    const heading = page.locator("h1").first();
+    await expect(heading).toBeVisible({ timeout: 20_000 });
+    await expect(heading).toContainText("DeepSeek-R1");
 
-    // Wait for the page to be interactive
-    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    // Find "Back to Models" link
+    const backLink = page.getByRole("link", { name: /back to models/i });
+    await expect(backLink).toBeVisible({ timeout: 10_000 });
 
-    // Find any model links on the page
-    const modelLinks = page.locator('a[href*="/models/"]');
-    const linkCount = await modelLinks.count();
-
-    if (linkCount === 0) {
-      test.skip(
-        true,
-        "No model links found on leaderboard — empty DB with dummy Supabase credentials"
-      );
-      return;
-    }
-
-    // Click the first model link
-    const firstLink = modelLinks.first();
-    const href = await firstLink.getAttribute("href");
-    await firstLink.click();
-
-    // Verify URL changed to a model page
-    await expect(page).toHaveURL(/\/models\//, { timeout: 10_000 });
-    if (href) {
-      await expect(page).toHaveURL(href);
-    }
-
-    // Verify the page rendered (either model detail or 404, both show h1)
-    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    // Click back link and wait for URL to change to /models
+    await Promise.all([
+      page.waitForURL(/\/models$/, { timeout: 15_000 }),
+      backLink.click(),
+    ]);
+    await expect(page).toHaveURL(/\/models$/);
   });
 });
