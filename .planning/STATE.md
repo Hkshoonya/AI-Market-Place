@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-11T02:28:42.483Z"
+stopped_at: Completed 15-01-PLAN.md (E2E auth flow + Playwright infrastructure)
+last_updated: "2026-03-11T03:31:36.364Z"
 last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 24
+  completed_plans: 22
 ---
 
 ---
@@ -78,6 +78,7 @@ Progress: [██████████] 100%
 | 14-swr-data-fetching | 06 | 5min | 2 | 4 |
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
+| Phase 15-e2e-testing P01 | 23 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,8 @@ v1.1 decisions:
 - [Phase 14-swr]: listing-reviews uses MEDIUM tier (60s) for moderate change frequency; admin edit/prefs/bookmark use SLOW
 - [Phase 14-swr]: Two-query enrichment (reviews + profiles) inside inline SWR fetcher for gap closure
 - [Phase 14-swr]: model-actions creates supabase client inline in handleBookmark, SWR fetcher as sole reader
+- [Phase 15-e2e-testing]: @supabase/ssr createBrowserClient uses document.cookie (not localStorage) — inject sessions via document.cookie with base64- prefix + base64url encoding for E2E auth mocking
+- [Phase 15-e2e-testing]: Middleware wrapped in try/catch so ENOTFOUND errors in E2E environments don't crash protected route checks
 
 ### Pending Todos
 
@@ -162,6 +165,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T02:28:42.479Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-e2e-testing/15-CONTEXT.md
+Last session: 2026-03-11T03:31:36.360Z
+Stopped at: Completed 15-01-PLAN.md (E2E auth flow + Playwright infrastructure)
+Resume file: None

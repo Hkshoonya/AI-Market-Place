@@ -49,8 +49,8 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### E2E Testing
 
-- [ ] **E2E-01**: Playwright installed and configured with Next.js dev server
-- [ ] **E2E-02**: E2E test for auth flow (signup, login, session persistence)
+- [x] **E2E-01**: Playwright installed and configured with Next.js dev server
+- [x] **E2E-02**: E2E test for auth flow (signup, login, session persistence)
 - [ ] **E2E-03**: E2E test for model detail page (view model, check scores, navigate tabs)
 - [ ] **E2E-04**: E2E test for leaderboard (filter by lens, sort, pagination)
 - [ ] **E2E-05**: E2E test for marketplace browse (search, filter, view listing)
@@ -117,8 +117,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | DECOMP-04 | Phase 13 | Complete |
 | PERF-02 | Phase 13 | Complete |
 | PERF-01 | Phase 14 | Complete |
-| E2E-01 | Phase 15 | Pending |
-| E2E-02 | Phase 15 | Pending |
+| E2E-01 | Phase 15 | Complete |
+| E2E-02 | Phase 15 | Complete |
 | E2E-03 | Phase 15 | Pending |
 | E2E-04 | Phase 15 | Pending |
 | E2E-05 | Phase 15 | Pending |
