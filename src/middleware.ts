@@ -54,10 +54,18 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session - important for Server Components
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresh session - important for Server Components.
+  // Wrap in try/catch so network failures (e.g. E2E test environments with a
+  // dummy Supabase URL) don't crash the middleware — treat as unauthenticated.
+  let user = null;
+  try {
+    const {
+      data: { user: resolvedUser },
+    } = await supabase.auth.getUser();
+    user = resolvedUser;
+  } catch {
+    // Network error or unreachable Supabase instance — treat as no session
+  }
 
   const pathname = request.nextUrl.pathname;
 

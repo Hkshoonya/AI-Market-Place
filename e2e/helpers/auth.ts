@@ -3,16 +3,22 @@ import type { BrowserContext } from "@playwright/test";
 /**
  * Injects mock Supabase authentication into a browser context.
  *
- * This intercepts two Supabase endpoints at the network level so that:
- * 1. The Next.js middleware (which calls /auth/v1/user to check auth) sees an
- *    authenticated user and allows access to protected routes.
- * 2. The client-side AuthProvider (which also calls /auth/v1/user on mount)
- *    hydrates with the same mock user, showing the authenticated UI.
+ * The @supabase/ssr createBrowserClient stores sessions in document.cookie
+ * (not localStorage). The cookie format is:
+ *   name:  sb-{supabase-project-ref}-auth-token
+ *   value: base64-{base64url(JSON.stringify(session))}
  *
- * Call this BEFORE navigating to any page — the middleware fires on navigation
- * and needs the intercept to be registered first.
+ * With NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co:
+ *   project ref = "test" (first hostname segment)
+ *   cookie name = "sb-test-auth-token"
  *
- * No real Supabase credentials or network calls are made. Tests run fully offline.
+ * We use context.addInitScript to set document.cookie BEFORE the page scripts
+ * run, so the Supabase client sees the session immediately on mount.
+ *
+ * We also register context.route intercepts for /auth/v1/user in case the
+ * client tries to verify or refresh the mock token via a network call.
+ *
+ * Call this BEFORE page.goto(). Tests run fully offline.
  */
 export async function injectMockAuth(context: BrowserContext): Promise<void> {
   const mockUser = {
@@ -36,17 +42,38 @@ export async function injectMockAuth(context: BrowserContext): Promise<void> {
     updated_at: "2024-01-01T00:00:00Z",
   };
 
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+
   const mockSession = {
     access_token: "mock-access-token-for-e2e-testing",
     token_type: "bearer",
     expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    expires_at: expiresAt,
     refresh_token: "mock-refresh-token-for-e2e-testing",
     user: mockUser,
   };
 
-  // Intercept /auth/v1/user — called by middleware on every request and by
-  // client-side AuthProvider on mount. Returns the authenticated user object.
+  // Encode session as base64url and prefix with "base64-" to match @supabase/ssr
+  // encoding. Node.js Buffer.toString('base64url') uses the same URL-safe alphabet.
+  const sessionJson = JSON.stringify(mockSession);
+  const encoded =
+    "base64-" + Buffer.from(sessionJson, "utf-8").toString("base64url");
+
+  // Cookie name: sb-{first-hostname-segment}-auth-token
+  // NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co → sb-test-auth-token
+  const cookieName = "sb-test-auth-token";
+
+  // Inject the session cookie before page scripts run.
+  // addInitScript runs in the browser context before any page script execution.
+  await context.addInitScript(
+    ({ name, value }) => {
+      document.cookie = `${name}=${value}; path=/; max-age=3600; SameSite=Lax`;
+    },
+    { name: cookieName, value: encoded }
+  );
+
+  // Network intercepts — handle any /auth/v1/user network calls from the
+  // Supabase client (e.g. when it validates or refreshes the injected session)
   await context.route("**/auth/v1/user**", (route) => {
     route.fulfill({
       status: 200,
@@ -55,8 +82,7 @@ export async function injectMockAuth(context: BrowserContext): Promise<void> {
     });
   });
 
-  // Intercept /auth/v1/token — called by supabase.auth.signInWithPassword() in
-  // the login form. Returns a full session including access_token + user.
+  // Handle /auth/v1/token calls (token refresh attempts with the mock refresh token)
   await context.route("**/auth/v1/token**", (route) => {
     route.fulfill({
       status: 200,
