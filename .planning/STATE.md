@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 15-01-PLAN.md (E2E auth flow + Playwright infrastructure)
-last_updated: "2026-03-11T03:31:36.364Z"
+stopped_at: Completed 15-03-PLAN.md (Marketplace E2E tests + CI integration)
+last_updated: "2026-03-11T03:38:39.640Z"
 last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 ---
@@ -79,6 +79,7 @@ Progress: [██████████] 100%
 
 **By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
 | Phase 15-e2e-testing P01 | 23 | 2 tasks | 11 files |
+| Phase 15-e2e-testing P03 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,8 @@ v1.1 decisions:
 - [Phase 14-swr]: model-actions creates supabase client inline in handleBookmark, SWR fetcher as sole reader
 - [Phase 15-e2e-testing]: @supabase/ssr createBrowserClient uses document.cookie (not localStorage) — inject sessions via document.cookie with base64- prefix + base64url encoding for E2E auth mocking
 - [Phase 15-e2e-testing]: Middleware wrapped in try/catch so ENOTFOUND errors in E2E environments don't crash protected route checks
+- [Phase 15-e2e-testing]: Marketplace RSC browse page tests verify page shell (heading, filter bar) without real DB data — REST mock returns empty array
+- [Phase 15-e2e-testing]: CI e2e job uses dummy Supabase env vars hardcoded in workflow YAML (not secrets), running fully offline in parallel with lint/typecheck/test
 
 ### Pending Todos
 
@@ -165,6 +168,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T03:31:36.360Z
-Stopped at: Completed 15-01-PLAN.md (E2E auth flow + Playwright infrastructure)
+Last session: 2026-03-11T03:38:39.636Z
+Stopped at: Completed 15-03-PLAN.md (Marketplace E2E tests + CI integration)
 Resume file: None

@@ -53,8 +53,8 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 - [x] **E2E-02**: E2E test for auth flow (signup, login, session persistence)
 - [ ] **E2E-03**: E2E test for model detail page (view model, check scores, navigate tabs)
 - [ ] **E2E-04**: E2E test for leaderboard (filter by lens, sort, pagination)
-- [ ] **E2E-05**: E2E test for marketplace browse (search, filter, view listing)
-- [ ] **E2E-06**: E2E tests integrated into CI pipeline
+- [x] **E2E-05**: E2E test for marketplace browse (search, filter, view listing)
+- [x] **E2E-06**: E2E tests integrated into CI pipeline
 
 ### Code Simplification
 
@@ -121,8 +121,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | E2E-02 | Phase 15 | Complete |
 | E2E-03 | Phase 15 | Pending |
 | E2E-04 | Phase 15 | Pending |
-| E2E-05 | Phase 15 | Pending |
-| E2E-06 | Phase 15 | Pending |
+| E2E-05 | Phase 15 | Complete |
+| E2E-06 | Phase 15 | Complete |
 | SIMP-01 | Phase 16 | Pending |
 | SIMP-02 | Phase 16 | Pending |
 
