@@ -154,6 +154,9 @@ export default async function HomePage() {
     },
   };
 
+  // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
+  const now = Date.now();
+
   return (
     <div className="relative">
       <script
@@ -416,7 +419,7 @@ export default async function HomePage() {
               : null;
             const daysAgo = releaseDate
               ? Math.floor(
-                  (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
+                  (now - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
                 )
               : null;
             const dateLabel =

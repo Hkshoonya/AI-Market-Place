@@ -5,14 +5,11 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Downgrade React compiler rules to warnings until components are refactored.
-  // These are strict rules from eslint-config-next that flag patterns like
-  // setState in useEffect and impure render calls -- valid but non-blocking.
+  // React compiler rules (set-state-in-effect, purity, immutability) are now at
+  // their default error level — all violations fixed in Phase 16. Any future
+  // regression will block CI immediately.
   {
     rules: {
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/immutability": "warn",
       // Allow underscore-prefixed parameters to signal intentionally unused args
       "@typescript-eslint/no-unused-vars": ["warn", {
         "argsIgnorePattern": "^_",

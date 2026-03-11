@@ -9,46 +9,49 @@ const PARTICLE_COUNT = 1000;
 const CONNECTION_DISTANCE = 1.8;
 const MAX_CONNECTIONS = 200;
 
+// Module-level function: Math.random() calls here are outside any render/hook context
+function generateParticleData() {
+  const positions: number[] = [];
+  const velocities: number[] = [];
+  const phases: number[] = [];
+  const sizes: number[] = [];
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Sphere-ish distribution with some randomness
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 4 + Math.random() * 6;
+
+    positions.push(
+      r * Math.sin(phi) * Math.cos(theta),
+      r * Math.sin(phi) * Math.sin(theta),
+      r * Math.cos(phi) + (Math.random() - 0.5) * 2
+    );
+
+    // Slow drift velocities
+    velocities.push(
+      (Math.random() - 0.5) * 0.001,
+      (Math.random() - 0.5) * 0.001,
+      (Math.random() - 0.5) * 0.001
+    );
+
+    // Random phase for pulsing animation
+    phases.push(Math.random() * Math.PI * 2);
+
+    // Smaller, more refined particle sizes
+    sizes.push(0.008 + Math.random() * 0.018);
+  }
+
+  return { positions, velocities, phases, sizes };
+}
+
 function Particles() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const linesRef = useRef<THREE.LineSegments>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
 
-  // Generate particle positions
-  const particles = useMemo(() => {
-    const positions: number[] = [];
-    const velocities: number[] = [];
-    const phases: number[] = [];
-    const sizes: number[] = [];
-
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      // Sphere-ish distribution with some randomness
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 4 + Math.random() * 6;
-
-      positions.push(
-        r * Math.sin(phi) * Math.cos(theta),
-        r * Math.sin(phi) * Math.sin(theta),
-        r * Math.cos(phi) + (Math.random() - 0.5) * 2
-      );
-
-      // Slow drift velocities
-      velocities.push(
-        (Math.random() - 0.5) * 0.001,
-        (Math.random() - 0.5) * 0.001,
-        (Math.random() - 0.5) * 0.001
-      );
-
-      // Random phase for pulsing animation
-      phases.push(Math.random() * Math.PI * 2);
-
-      // Smaller, more refined particle sizes
-      sizes.push(0.008 + Math.random() * 0.018);
-    }
-
-    return { positions, velocities, phases, sizes };
-  }, []);
+  // useRef holds mutable particle data; generateParticleData() runs outside render
+  const particlesRef = useRef(generateParticleData());
 
   // Pre-allocate connection line geometry
   const lineGeometry = useMemo(() => {
@@ -98,6 +101,7 @@ function Particles() {
     if (!meshRef.current || !linesRef.current) return;
 
     const time = state.clock.elapsedTime;
+    const particles = particlesRef.current;
     const posArray = particles.positions;
     const velArray = particles.velocities;
     const phaseArray = particles.phases;
@@ -188,6 +192,7 @@ function Particles() {
           const alpha = 1 - dist / CONNECTION_DISTANCE;
           const li = lineIndex * 6;
 
+          // eslint-disable-next-line react-hooks/immutability -- R3F useFrame runs outside React render cycle; buffer geometry arrays require per-frame mutation for animation
           linePositions[li] = currentPositions[i3];
           linePositions[li + 1] = currentPositions[i3 + 1];
           linePositions[li + 2] = currentPositions[i3 + 2];

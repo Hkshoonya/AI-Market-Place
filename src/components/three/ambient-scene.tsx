@@ -6,35 +6,39 @@ import * as THREE from "three";
 
 const PARTICLE_COUNT = 150;
 
+// Module-level function: Math.random() calls here are outside any render/hook context
+function generateAmbientParticles() {
+  const positions: number[] = [];
+  const velocities: number[] = [];
+  const phases: number[] = [];
+  const sizes: number[] = [];
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Wide spread, mostly behind content area
+    positions.push(
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 20,
+      -5 - Math.random() * 15
+    );
+
+    velocities.push(
+      (Math.random() - 0.5) * 0.003,
+      (Math.random() - 0.5) * 0.002,
+      (Math.random() - 0.5) * 0.001
+    );
+
+    phases.push(Math.random() * Math.PI * 2);
+    sizes.push(0.01 + Math.random() * 0.025);
+  }
+
+  return { positions, velocities, phases, sizes };
+}
+
 function AmbientParticles() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
-  const particles = useMemo(() => {
-    const positions: number[] = [];
-    const velocities: number[] = [];
-    const phases: number[] = [];
-    const sizes: number[] = [];
-
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      // Wide spread, mostly behind content area
-      positions.push(
-        (Math.random() - 0.5) * 30,
-        (Math.random() - 0.5) * 20,
-        -5 - Math.random() * 15
-      );
-
-      velocities.push(
-        (Math.random() - 0.5) * 0.003,
-        (Math.random() - 0.5) * 0.002,
-        (Math.random() - 0.5) * 0.001
-      );
-
-      phases.push(Math.random() * Math.PI * 2);
-      sizes.push(0.01 + Math.random() * 0.025);
-    }
-
-    return { positions, velocities, phases, sizes };
-  }, []);
+  // useRef holds mutable particle data; generateAmbientParticles() runs outside render
+  const particlesRef = useRef(generateAmbientParticles());
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
@@ -43,6 +47,7 @@ function AmbientParticles() {
     if (!meshRef.current) return;
 
     const time = state.clock.elapsedTime;
+    const particles = particlesRef.current;
     const posArray = particles.positions;
     const velArray = particles.velocities;
 

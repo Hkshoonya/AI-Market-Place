@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 // REMOVED: import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES } from "@/lib/constants/categories";
+// REMOVED: import { CATEGORIES } from "@/lib/constants/categories";
 // REMOVED: import { formatParams, formatNumber } from "@/lib/format";
 import { formatParams } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";

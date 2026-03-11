@@ -129,14 +129,14 @@ interface ModelScoreEntry {
   scoreCount: number;
 }
 
-interface AffiliatePlatform {
-  id: string;
-  slug: string;
-  name: string;
-  affiliate_url_template: string | null;
-  has_affiliate: boolean;
-  base_url: string;
-}
+// REMOVED: interface AffiliatePlatform {
+//   id: string;
+//   slug: string;
+//   name: string;
+//   affiliate_url_template: string | null;
+//   has_affiliate: boolean;
+//   base_url: string;
+// }
 
 // REMOVED: interface DeploymentRow {
 //   model_id: string;

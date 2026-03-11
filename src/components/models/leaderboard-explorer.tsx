@@ -243,6 +243,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
     [activeLens]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table's useReactTable() predates React compiler compatibility; cannot change library internals
   const table = useReactTable({
     data: filteredModels,
     columns,
