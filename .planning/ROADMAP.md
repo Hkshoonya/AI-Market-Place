@@ -172,15 +172,17 @@ Plans:
 - [ ] 17-01-PLAN.md -- Create 10-VERIFICATION.md with CI evidence, resolve CICD-04 branch protection via user decision
 
 ### Phase 18: E2E Model Detail CI Fixture
-**Goal**: Model detail E2E tests execute assertions in CI instead of skipping, using test fixtures or seeded data
+**Goal**: Model detail E2E tests execute assertions in CI instead of skipping, using MSW server-side interception
 **Depends on**: Phase 17
 **Requirements**: E2E-03
 **Gap Closure:** Closes E2E-03 integration gap and Model Detail E2E flow gap from v1.1 audit
 **Success Criteria** (what must be TRUE):
   1. model-detail.spec.ts tests run (not skip) in CI and pass
-  2. RSC data fetch succeeds in CI via seeded DB fixtures or mocked server responses
+  2. RSC data fetch succeeds in CI via MSW intercepting Supabase PostgREST calls in instrumentation.ts
   3. Tab navigation assertions execute and pass in CI
-Plans: 0/0 plans (pending `/gsd:plan-phase 18`)
+**Plans:** 1 plan
+Plans:
+- [ ] 18-01-PLAN.md -- MSW infrastructure + fixture data + instrumentation.ts wiring + test rewrite
 
 ## Progress
 
@@ -205,4 +207,4 @@ Plans: 0/0 plans (pending `/gsd:plan-phase 18`)
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
 | 17. CI Verification + Branch Protection | 1/1 | Complete    | 2026-03-11 | - |
-| 18. E2E Model Detail CI Fixture | v1.1 | 0/0 | Pending | - |
+| 18. E2E Model Detail CI Fixture | v1.1 | 0/1 | Planning Complete | - |
