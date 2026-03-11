@@ -178,4 +178,4 @@ Plans:
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
-| 16. Code Simplification | 2/2 | Complete   | 2026-03-11 | - |
+| 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
