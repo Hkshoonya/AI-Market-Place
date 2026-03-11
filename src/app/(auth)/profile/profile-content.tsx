@@ -35,9 +35,9 @@ interface ProfileData {
 export default function ProfileContent() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
-  const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
-  const [bio, setBio] = useState("");
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
+  const [username, setUsername] = useState(profile?.username ?? "");
+  const [bio, setBio] = useState(profile?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -83,14 +83,6 @@ export default function ProfileContent() {
       router.push("/login?redirect=/profile");
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (profile) {
-      setDisplayName(profile.display_name ?? "");
-      setUsername(profile.username ?? "");
-      setBio(profile.bio ?? "");
-    }
-  }, [profile]);
 
   const handleSave = async () => {
     if (!user) return;

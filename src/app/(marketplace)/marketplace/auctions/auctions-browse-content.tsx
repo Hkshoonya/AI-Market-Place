@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import {
@@ -286,7 +286,7 @@ export default function AuctionsBrowseContent() {
     { ...SWR_TIERS.MEDIUM }
   );
 
-  const auctions = data?.auctions ?? (Array.isArray(data) ? data : []);
+  const auctions = useMemo(() => data?.auctions ?? (Array.isArray(data) ? data : []), [data]);
 
   // Refresh Dutch prices every 10 seconds
   useEffect(() => {

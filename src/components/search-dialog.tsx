@@ -42,17 +42,15 @@ export function SearchDialog() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches());
+  const prevOpenRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Debounce: update debouncedQuery after 250ms of inactivity
+  // Debounce: update debouncedQuery after 250ms of inactivity (or reset with 0ms delay)
   useEffect(() => {
-    if (query.length < 2) {
-      setDebouncedQuery("");
-      return;
-    }
-    const timer = setTimeout(() => setDebouncedQuery(query), 250);
+    const delay = query.length < 2 ? 0 : 250;
+    const timer = setTimeout(() => setDebouncedQuery(query.length < 2 ? "" : query), delay);
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -80,11 +78,22 @@ export function SearchDialog() {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setRecentSearches(getRecentSearches());
-    } else {
-      setQuery(""); setDebouncedQuery(""); setActiveIndex(0);
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+
+    if (open && !wasOpen) {
+      // Dialog just opened: refresh recent searches and focus input
+      setTimeout(() => {
+        setRecentSearches(getRecentSearches());
+        inputRef.current?.focus();
+      }, 0);
+    } else if (!open && wasOpen) {
+      // Dialog just closed: reset state asynchronously
+      setTimeout(() => {
+        setQuery("");
+        setDebouncedQuery("");
+        setActiveIndex(0);
+      }, 0);
     }
   }, [open]);
 

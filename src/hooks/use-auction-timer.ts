@@ -47,22 +47,18 @@ interface UseAuctionTimerResult {
 export function useAuctionTimer({
   auction,
 }: UseAuctionTimerParams): UseAuctionTimerResult {
-  const [timeRemaining, setTimeRemaining] = useState("");
-  const [dutchPrice, setDutchPrice] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(
+    () => (auction ? formatTimeRemaining(auction.ends_at) : "")
+  );
+  const [dutchPrice, setDutchPrice] = useState(() => {
+    if (!auction) return 0;
+    return auction.auction_type === "dutch" && auction.status === "active"
+      ? calculateDutchPrice(auction)
+      : (auction.current_price ?? auction.start_price);
+  });
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dutchRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Initial dutch price computation on auction load
-  useEffect(() => {
-    if (!auction) return;
-
-    if (auction.auction_type === "dutch" && auction.status === "active") {
-      setDutchPrice(calculateDutchPrice(auction));
-    } else {
-      setDutchPrice(auction.current_price ?? auction.start_price);
-    }
-  }, [auction]);
 
   // Countdown timer (every second)
   useEffect(() => {
@@ -73,7 +69,6 @@ export function useAuctionTimer({
         setTimeRemaining(formatTimeRemaining(auction.ends_at));
       }
     }
-    tick();
     timerRef.current = setInterval(tick, 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -82,7 +82,7 @@ export default function OrderDetailContent({
     { ...SWR_TIERS.MEDIUM }
   );
 
-  const messages = messagesData?.data ?? [];
+  const messages = useMemo(() => messagesData?.data ?? [], [messagesData]);
 
   const fetchOrder = useCallback(async () => {
     if (!user || !orderId) return;

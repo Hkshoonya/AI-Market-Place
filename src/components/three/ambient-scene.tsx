@@ -122,11 +122,12 @@ export function AmbientScene() {
     return () => observer.disconnect();
   }, []);
 
-  // Reduce motion preference
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  // Reduce motion preference — initialize from media query directly, listen for changes
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mq.matches);
     const handler = (e: MediaQueryListEvent) =>
       setPrefersReducedMotion(e.matches);
     mq.addEventListener("change", handler);

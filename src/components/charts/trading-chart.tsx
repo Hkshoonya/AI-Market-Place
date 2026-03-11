@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function TradingChart({
     ...SWR_TIERS.MEDIUM,
   });
 
-  const chartData = Array.isArray(data) ? data : [];
+  const chartData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   // Render chart
   useEffect(() => {
