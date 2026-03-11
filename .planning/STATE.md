@@ -2,30 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
-status: executing
-stopped_at: "Completed 19-01-PLAN.md (tech debt hardening: msw devDep, lint gate, barrel deletion)"
-last_updated: "2026-03-11T17:15:02.873Z"
-last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
+status: complete
+last_updated: "2026-03-11T19:30:00Z"
+last_activity: 2026-03-11 — v1.1 Production Readiness milestone shipped
 progress:
   total_phases: 11
   completed_phases: 11
   total_plans: 29
   completed_plans: 29
----
-
----
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Production Readiness
-status: executing
-stopped_at: Completed 14-06-PLAN.md (Gap closure SWR conversion)
-last_updated: "2026-03-09T06:12:49Z"
-last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
-progress:
-  total_phases: 8
-  completed_phases: 7
-  total_plans: 21
-  completed_plans: 21
   percent: 100
 ---
 
@@ -33,146 +17,37 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 14 - SWR Data Fetching
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 14 of 16 (SWR Data Fetching)
-Plan: 6 of 6 in current phase (complete)
-Status: Executing
-Last activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
+Milestone v1.1 Production Readiness — SHIPPED 2026-03-11
 
-Progress: [██████████] 100%
+All 11 phases (29 plans) complete. 30/30 requirements satisfied.
+4 low-priority tech debt items tracked in MILESTONES.md.
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 28 (v1.0) + 21 (v1.1)
-- Average duration: ~25 min (v1.0)
-- Total execution time: ~12 hours (v1.0)
+**v1.1 Velocity:**
+- 11 phases, 29 plans, ~57 tasks
+- 163 commits, 314 files changed
+- Timeline: 7 days (2026-03-05 → 2026-03-11)
 
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 09-observability | 01 | 4min | 2 | 21 |
-| 09-observability | 02 | 4min | 2 | 10 |
-| 10-ci-pipeline | 01 | 6min | 1 | 11 |
-| 11-zod-runtime-validation | 01 | 6min | 2 | 9 |
-| 11-zod-runtime-validation | 02 | 15min | 2 | 28 |
-| 11-zod-runtime-validation | 03 | 11min | 2 | 11 |
-| 11-zod-runtime-validation | 04 | 6min | 1 | 7 |
-| 11-zod-runtime-validation | 05 | 9min | 1 | 4 |
-| 12-component-testing-infrastructure | 01 | 5min | 2 | 4 |
-| 12-component-testing-infrastructure | 02 | 4min | 2 | 3 |
-| 12-component-testing-infrastructure | 03 | 8min | 2 | 2 |
-| 13-component-decomposition-react-memo | 01 | 13min | 2 | 16 |
-| 13-component-decomposition-react-memo | 02 | 5min | 2 | 8 |
-| 13-component-decomposition-react-memo | 03 | 12min | 2 | 8 |
-| 13-component-decomposition-react-memo | 04 | 7min | 2 | 5 |
-| 14-swr-data-fetching | 01 | 5min | 2 | 12 |
-| 14-swr-data-fetching | 03 | 6min | 2 | 6 |
-| 14-swr-data-fetching | 04 | 13min | 2 | 11 |
-| 14-swr-data-fetching | 05 | 11min | 2 | 13 |
-| 14-swr-data-fetching | 06 | 5min | 2 | 4 |
+**v1.0 Velocity:**
+- 8 phases, 28 plans
+- Timeline: 2 days (2026-03-03 → 2026-03-05)
 
-**By Phase:** See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 metrics.
-| Phase 15-e2e-testing P01 | 23 | 2 tasks | 11 files |
-| Phase 15-e2e-testing P03 | 3min | 2 tasks | 2 files |
-| Phase 15-e2e-testing P02 | 15min | 2 tasks | 2 files |
-| Phase 16-code-simplification P02 | 25 | 2 tasks | 13 files |
-| Phase 16-code-simplification P01 | 13min | 2 tasks | 26 files |
-| Phase 17-ci-verification-branch-protection P01 | 12min | 3 tasks | 2 files |
-| Phase 18-e2e-model-detail-ci-fixture P01 | 120 | 2 tasks | 7 files |
-| Phase 19-tech-debt-hardening P01 | 8 | 2 tasks | 3 files |
+See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 
 ## Accumulated Context
 
 ### Decisions
 
 All v1.0 decisions archived in `.planning/milestones/v1.0-ROADMAP.md`.
-Key patterns established:
-- handleApiError + createTaggedLogger for error/logging
-- TypedSupabaseClient for Supabase type safety
-- createAdapterSyncer + buildRecord for adapter code reuse
-- Custom hooks for component state extraction
-
-v1.1 decisions:
-- Sentry errors-only mode (tracesSampleRate=0, no replay) to minimize bundle
-- 4xx ApiErrors excluded from Sentry to reduce noise
-- PostHog CSP pre-configured in Plan 01 to avoid future update
-- Manual pageview capture (capture_pageview: false) for App Router compatibility
-- PHProvider wraps outside AuthProvider so PostHog initializes before auth events
-- Client tracker component pattern for server-rendered pages needing PostHog events
-- [Phase 10-ci-pipeline]: Downgraded React compiler ESLint rules to warnings for CI baseline
-- [Phase 11-zod]: ExplorerModelSchema as standalone z.object() since category_rank not in base schema
-- [Phase 11-zod]: reportSchemaError kept module-private, not exported from parse.ts
-- [Phase 11-zod]: parseQueryResult pattern wraps Supabase {data,error} + z.array().safeParse() + Sentry reporting
-- [Phase 11-zod]: Client two-query enrichment: validate raw data with base schema, enrich with profiles in JS
-- [Phase 11-zod]: Recharts Payload<number, string> import for tooltip typing; single `as` for Scatter onClick
-- [Phase 11-zod]: Passthrough schemas for dynamic embedded joins where FK relationships missing from DB types
-- [Phase 11-zod]: Inline Zod schemas at query sites for one-off shapes rather than bloating central schema files
-- [Phase 11-zod]: z.coerce.number() globally for all Postgres numeric/bigint columns (PostgREST returns strings)
-- [Phase 11-zod]: is_open_weights z.boolean().nullable() since DB has DEFAULT false but no NOT NULL constraint
-- [Phase 11-zod]: Two-query enrichment in orders client components; API route for buyer role lacks seller profile enrichment
-- [Phase 11-zod]: OrderWithListingSchema replaces both OrderWithJoinsSchema and OrderWithPartiesSchema
-- [Phase 12-testing]: passWithNoTests is a NonProjectOption in Vitest 4 - must be at root test level
-- [Phase 12-testing]: React.createElement in setup mocks to keep .ts extension
-- [Phase 12-testing]: Mock lucide-react icons to simple spans for jsdom test isolation
-- [Phase 12-testing]: Mutable mockSearchParams variable pattern for per-test URL state override
-- [Phase 12-testing]: vi.stubGlobal('fetch') pattern for API-calling component tests
-- [Phase 12-testing]: vi.hoisted() for mock variables used inside vi.mock factory functions (Vitest 4 hoisting)
-- [Phase 12-testing]: Chainable Supabase mock with .then() for thenable PostgREST query builder pattern
-- [Phase 12-testing]: Mock radix-ui Tooltip as inline elements to avoid portal issues in jsdom
-- [Phase 13-decomp]: compare-helpers.ts for shared types/helpers across page sub-components
-- [Phase 13-decomp]: useMemo + React.memo pairing: stabilize array refs before passing to memo'd components
-- [Phase 13-decomp]: ModelOption interface exported from model-selector.tsx, re-exported from parent
-- [Phase 13-decomp]: Pure functions/types extracted to plain .ts (not .tsx) when no React dependency
-- [Phase 13-decomp]: ScoreBar exported from leaderboard-table.tsx, imported in parent for column definitions
-- [Phase 13-decomp]: Analytics callbacks as props to keep sub-components decoupled from analytics library
-- [Phase 13-decomp]: LINE_COLORS exported from rank-timeline-tags.tsx, imported by parent for chart rendering
-- [Phase 13-decomp]: PROVIDER_OPTIONS/PARAM_RANGES moved to filter-sheet-content.tsx; SORT_OPTIONS stays in parent
-- [Phase 13-decomp]: import() type references inline for PricingEntry/UpdateEntry/EloRating sub-component props
-- [Phase 13-decomp]: NotifPrefs interface moved into notification-prefs-card (only consumer)
-- [Phase 13-decomp]: Settings cards each create own supabase client for full independence
-- [Phase 14-swr]: SWRProvider outermost in provider chain (no dependency on PostHog or Auth)
-- [Phase 14-swr]: Inline SWRConfig wrapping in tests for explicit cache isolation visibility
-- [Phase 14-swr]: createElement in test-utils.ts to keep .ts extension (no JSX needed)
-- [Phase 14-swr]: WalletBadge uses direct useSWR for cache dedup with useWalletBalance on same endpoint
-- [Phase 14-swr]: AddToWatchlist conditions SWR key on open && user for on-demand dialog fetching
-- [Phase 14-swr]: NotificationBell replaces manual setInterval with SWR MEDIUM refreshInterval
-- [Phase 14-swr]: Inline fetcher functions with createClient() inside for fresh auth context per request
-- [Phase 14-swr]: Parameterized cache keys include page/filter/search for automatic refetch on UI state change
-- [Phase 14-swr]: Compare page uses useSWRConfig().mutate for imperative cache population (not useSWR hook)
-- [Phase 14-swr]: Comments section includes visibleCount in cache key for Load More pagination
-- [Phase 14-swr]: Wallet content wraps API route fetch in SWR preserving existing API layer
-- [Phase 14-swr]: Auction detail uses FAST tier (30s) for time-sensitive bidding data
-- [Phase 14-swr]: Admin agents uses 3 parallel useSWR calls for agents/tasks/logs
-- [Phase 14-swr]: Data-sources converted from Supabase-direct to API route for SWR consistency
-- [Phase 14-swr]: Order messages use MEDIUM tier SWR polling replacing manual setInterval
-- [Phase 14-swr]: Dynamic SWR keys from URLSearchParams for filter-driven auto-refetch on chart components
-- [Phase 14-swr]: keepPreviousData: true in search dialog SWR to avoid flash of empty state
-- [Phase 14-swr]: jsonFetcher required in test SWRConfig since tests don't mount full app provider chain
-- [Phase 14-swr]: listing-reviews uses MEDIUM tier (60s) for moderate change frequency; admin edit/prefs/bookmark use SLOW
-- [Phase 14-swr]: Two-query enrichment (reviews + profiles) inside inline SWR fetcher for gap closure
-- [Phase 14-swr]: model-actions creates supabase client inline in handleBookmark, SWR fetcher as sole reader
-- [Phase 15-e2e-testing]: @supabase/ssr createBrowserClient uses document.cookie (not localStorage) — inject sessions via document.cookie with base64- prefix + base64url encoding for E2E auth mocking
-- [Phase 15-e2e-testing]: Middleware wrapped in try/catch so ENOTFOUND errors in E2E environments don't crash protected route checks
-- [Phase 15-e2e-testing]: Marketplace RSC browse page tests verify page shell (heading, filter bar) without real DB data — REST mock returns empty array
-- [Phase 15-e2e-testing]: CI e2e job uses dummy Supabase env vars hardcoded in workflow YAML (not secrets), running fully offline in parallel with lint/typecheck/test
-- [Phase 15-e2e-testing]: Model detail tests use test.skip() for 404 — notFound() called when parseQueryResultSingle returns null with dummy Supabase URL
-- [Phase 15-e2e-testing]: Lens buttons lack aria-pressed — verify interactivity by checking visibility before/after click rather than state attribute
-- [Phase 15-e2e-testing]: Category badge locator uses a[href*='/leaderboards/llm'] to avoid strict mode violation (text 'LLMs' appears in 3 elements)
-- [Phase 16-code-simplification]: Module-level particle generation + useRef for R3F: Math.random in useMemo is still flagged by purity rule; module-level function + useRef is the correct pattern
-- [Phase 16-code-simplification]: Targeted eslint-disable for R3F buffer mutations in useFrame (immutability rule); structural fix would destroy animation performance
-- [Phase 16-code-simplification]: React compiler warn overrides removed from eslint.config.mjs in Phase 16; violations are now CI-blocking errors
-- [Phase 16-01]: Used // REMOVED tag for dead code to preserve git history audit trail; added argsIgnorePattern ^_ to no-unused-vars rule; React compiler warn overrides removed from eslint.config.mjs after all violations fixed
-- [Phase 17-ci-verification-branch-protection]: CICD-04 accept-limitation: GitHub Free + private repo returns HTTP 403 on branch protection API; CI checks still run and show pass/fail on every PR; enforcement relies on developer discipline
-- [Phase 18-e2e-model-detail-ci-fixture]: MSW runs inside Next.js process via instrumentation.ts; DeepSeek-R1 used as fixture model (GPT-4o absent from production DB); CSP extended for localhost:54321 in E2E mode
-- [Phase 19-tech-debt-hardening]: msw pinned as direct devDependency to avoid transitive resolution fragility in E2E CI
-- [Phase 19-tech-debt-hardening]: lint script enforces --max-warnings 0 at script level; no CI YAML change needed
-- [Phase 19-tech-debt-hardening]: schemas barrel deleted without replacement — all callers use sub-path imports; confirmed via grep
+All v1.1 decisions archived in `.planning/milestones/v1.1-ROADMAP.md`.
 
 ### Pending Todos
 
@@ -180,12 +55,12 @@ None.
 
 ### Blockers/Concerns
 
-- Supabase auth mocking strategy for Playwright E2E needs phase-specific research (Phase 15)
-- Sentry source map upload needs SENTRY_AUTH_TOKEN in Coolify build args (confirmed in Plan 09-01)
+- Sentry source map upload needs SENTRY_AUTH_TOKEN in Coolify build args
 - NEXT_PUBLIC_POSTHOG_KEY must be set in Coolify build args for PostHog to activate
+- CICD-04: Branch protection unavailable on GitHub Free + private repo
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:09:35.128Z
-Stopped at: Completed 19-01-PLAN.md (tech debt hardening: msw devDep, lint gate, barrel deletion)
+Last session: 2026-03-11
+Stopped at: v1.1 milestone shipped
 Resume file: None

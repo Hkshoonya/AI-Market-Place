@@ -1,4 +1,43 @@
 # Milestones
+## v1.1 Production Readiness (Shipped: 2026-03-11)
+
+**Phases completed:** 11 phases, 29 plans, ~57 tasks
+**Timeline:** 7 days (2026-03-05 to 2026-03-11)
+**Requirements:** 30/30 satisfied (1 acknowledged limitation: CICD-04)
+**Tests:** 222 unit/component tests + 18 E2E tests, all passing
+**Codebase:** 71,065 LOC TypeScript
+**Git range:** v1.0..v1.1 (163 commits, 314 files changed, +36,260/-5,743 lines)
+
+**Key accomplishments:**
+1. Sentry error tracking + PostHog analytics — error capture on 65 API routes, 6 custom events, bundle-optimized (<50KB gzipped)
+2. GitHub Actions CI — 4-job pipeline (lint, typecheck, test, E2E) with zero-warning ESLint gate
+3. Zod runtime validation — all 56 unsafe `as unknown as` casts replaced with Zod schemas across 33 production files
+4. Component testing + E2E — 22 component tests (Vitest/Testing Library) + 18 Playwright E2E tests covering 4 critical user journeys
+5. Component decomposition — all mega-components below 300 lines, React.memo on expensive pure components (ComparisonRow, ScoreBar)
+6. SWR data fetching — 44 client components converted with tiered revalidation (FAST/MEDIUM/SLOW)
+
+**Tech debt accepted:**
+- 3 watchlist API routes missing handleApiError (errors bypass Sentry)
+- SWR_TIERS constants used by ~4 of 44 consumers (most set refreshInterval ad-hoc)
+- Auth E2E Test 1 has weakened assertion for error text in offline mode
+- Phase 15 SUMMARY frontmatter missing requirements-completed in 2 plans
+
+| Phase | Name | Plans | Completed |
+|-------|------|-------|-----------|
+| 9 | Observability | 2/2 | 2026-03-05 |
+| 10 | CI Pipeline | 1/1 | 2026-03-05 |
+| 11 | Zod Runtime Validation | 5/5 | 2026-03-08 |
+| 12 | Component Testing Infrastructure | 3/3 | 2026-03-09 |
+| 13 | Component Decomposition + React.memo | 4/4 | 2026-03-09 |
+| 14 | SWR Data Fetching | 6/6 | 2026-03-09 |
+| 15 | E2E Testing | 3/3 | 2026-03-11 |
+| 16 | Code Simplification | 2/2 | 2026-03-11 |
+| 17 | CI Verification + Branch Protection | 1/1 | 2026-03-11 |
+| 18 | E2E Model Detail CI Fixture | 1/1 | 2026-03-11 |
+| 19 | Tech Debt Hardening | 1/1 | 2026-03-11 |
+
+---
+
 
 ## v1.0 Codebase Health (Shipped: 2026-03-05)
 
