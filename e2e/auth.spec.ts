@@ -98,6 +98,13 @@ test.describe("Auth flow", () => {
   // Test 4: Session persists across page reload
   // ---------------------------------------------------------------------------
   test("session persists across page reload", async ({ page, context }) => {
+    // User menu button is hidden on mobile viewports (behind hamburger menu)
+    const viewport = page.viewportSize();
+    test.skip(
+      !!viewport && viewport.width < 768,
+      "User menu button not visible on mobile — desktop-only auth indicator test"
+    );
+
     await injectMockAuth(context);
 
     await page.route("**/rest/v1/**", (route) => {
@@ -127,6 +134,13 @@ test.describe("Auth flow", () => {
     page,
     context,
   }) => {
+    // User menu button is hidden on mobile viewports (behind hamburger menu)
+    const viewport = page.viewportSize();
+    test.skip(
+      !!viewport && viewport.width < 768,
+      "User menu button not visible on mobile — desktop-only auth indicator test"
+    );
+
     await injectMockAuth(context);
 
     await page.route("**/rest/v1/**", (route) => {

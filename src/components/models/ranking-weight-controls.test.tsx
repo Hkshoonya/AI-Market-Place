@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SWRConfig } from 'swr';
@@ -76,7 +77,6 @@ const mockModels = [
 ];
 
 describe('RankingWeightControls', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onSortedModels: any = vi.fn();
 
   beforeEach(() => {

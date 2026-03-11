@@ -96,25 +96,28 @@ test.describe("Leaderboard", () => {
     });
 
     // Click "Top 20" tab (value="overall")
+    // Use { force: true } because on mobile viewports the tab content (table
+    // headers, filter bar) can overlap the tab triggers and intercept pointer
+    // events, causing Playwright's actionability check to fail.
     const top20Tab = page.getByRole("tab", { name: "Top 20" });
-    await top20Tab.click();
+    await top20Tab.click({ force: true });
     await expect(top20Tab).toHaveAttribute("aria-selected", "true");
 
     // Click "Speed" tab
     const speedTab = page.getByRole("tab", { name: "Speed" });
-    await speedTab.click();
+    await speedTab.click({ force: true });
     await expect(speedTab).toHaveAttribute("aria-selected", "true");
     await expect(top20Tab).toHaveAttribute("aria-selected", "false");
 
     // Click "Best Value" tab (value="value")
     const bestValueTab = page.getByRole("tab", { name: "Best Value" });
-    await bestValueTab.click();
+    await bestValueTab.click({ force: true });
     await expect(bestValueTab).toHaveAttribute("aria-selected", "true");
     await expect(speedTab).toHaveAttribute("aria-selected", "false");
 
     // Navigate back to Explorer
     const explorerTab = page.getByRole("tab", { name: "Explorer" });
-    await explorerTab.click();
+    await explorerTab.click({ force: true });
     await expect(explorerTab).toHaveAttribute("aria-selected", "true");
     await expect(bestValueTab).toHaveAttribute("aria-selected", "false");
   });
@@ -162,8 +165,10 @@ test.describe("Leaderboard", () => {
 
     // Look for a "next page" button or page-2 link from the leaderboard table
     // pagination controls. These appear only when there are enough rows (50+).
+    // Exclude the Next.js dev tools button (data-nextjs-dev-tools-button) which
+    // also matches /next/i via its aria-label.
     const nextPageButton = page
-      .getByRole("button", { name: /next/i })
+      .locator('button:not([data-nextjs-dev-tools-button])', { hasText: /next/i })
       .or(page.getByRole("link", { name: "2" }));
 
     const paginationVisible = await nextPageButton.first().isVisible().catch(() => false);
