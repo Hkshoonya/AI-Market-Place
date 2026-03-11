@@ -138,7 +138,11 @@ Plans:
   3. Model detail E2E: navigating to a model shows scores, and tab navigation works
   4. Leaderboard E2E: switching lens filter changes displayed models, sort works, pagination navigates pages
   5. Marketplace E2E: search returns results, filters narrow listings, clicking a listing shows detail
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 15-01-PLAN.md -- Playwright install, config, helpers, fixtures, auth flow E2E test
+- [ ] 15-02-PLAN.md -- Model detail and leaderboard E2E tests
+- [ ] 15-03-PLAN.md -- Marketplace E2E test and CI pipeline integration
 
 ### Phase 16: Code Simplification
 **Goal**: All code touched during this milestone is clean, with no dead code, unused imports, or redundant patterns
@@ -170,5 +174,5 @@ Plans:
 | 12. Component Testing Infrastructure | v1.1 | 3/3 | Complete | 2026-03-09 |
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
-| 15. E2E Testing | v1.1 | 0/? | Not started | - |
+| 15. E2E Testing | v1.1 | 0/3 | Planning complete | - |
 | 16. Code Simplification | v1.1 | 0/? | Not started | - |
