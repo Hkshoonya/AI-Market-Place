@@ -58,8 +58,8 @@ Requirements for production readiness milestone. Each maps to roadmap phases.
 
 ### Code Simplification
 
-- [ ] **SIMP-01**: Simplification pass over changed files from this milestone (reuse, clarity, efficiency)
-- [ ] **SIMP-02**: Unused imports, dead code, and redundant patterns cleaned up across touched files
+- [x] **SIMP-01**: Simplification pass over changed files from this milestone (reuse, clarity, efficiency)
+- [x] **SIMP-02**: Unused imports, dead code, and redundant patterns cleaned up across touched files
 
 ## v1.2 Requirements
 
@@ -123,8 +123,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | E2E-04 | Phase 15 | Complete |
 | E2E-05 | Phase 15 | Complete |
 | E2E-06 | Phase 15 | Complete |
-| SIMP-01 | Phase 16 | Pending |
-| SIMP-02 | Phase 16 | Pending |
+| SIMP-01 | Phase 16 | Complete |
+| SIMP-02 | Phase 16 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 30 total

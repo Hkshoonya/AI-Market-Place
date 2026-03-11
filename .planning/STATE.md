@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Production Readiness
 status: executing
-stopped_at: Completed 15-02-PLAN.md (Model detail + leaderboard E2E tests)
-last_updated: "2026-03-11T03:49:05.689Z"
+stopped_at: Completed 16-01-PLAN.md (Unused imports/dead code/a11y/image cleanup)
+last_updated: "2026-03-11T06:10:33.373Z"
 last_activity: 2026-03-09 — Completed Plan 14-06 (Gap closure SWR conversion)
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 24
-  completed_plans: 24
+  completed_phases: 8
+  total_plans: 26
+  completed_plans: 26
 ---
 
 ---
@@ -81,6 +81,8 @@ Progress: [██████████] 100%
 | Phase 15-e2e-testing P01 | 23 | 2 tasks | 11 files |
 | Phase 15-e2e-testing P03 | 3min | 2 tasks | 2 files |
 | Phase 15-e2e-testing P02 | 15min | 2 tasks | 2 files |
+| Phase 16-code-simplification P02 | 25 | 2 tasks | 13 files |
+| Phase 16-code-simplification P01 | 13min | 2 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -159,6 +161,10 @@ v1.1 decisions:
 - [Phase 15-e2e-testing]: Model detail tests use test.skip() for 404 — notFound() called when parseQueryResultSingle returns null with dummy Supabase URL
 - [Phase 15-e2e-testing]: Lens buttons lack aria-pressed — verify interactivity by checking visibility before/after click rather than state attribute
 - [Phase 15-e2e-testing]: Category badge locator uses a[href*='/leaderboards/llm'] to avoid strict mode violation (text 'LLMs' appears in 3 elements)
+- [Phase 16-code-simplification]: Module-level particle generation + useRef for R3F: Math.random in useMemo is still flagged by purity rule; module-level function + useRef is the correct pattern
+- [Phase 16-code-simplification]: Targeted eslint-disable for R3F buffer mutations in useFrame (immutability rule); structural fix would destroy animation performance
+- [Phase 16-code-simplification]: React compiler warn overrides removed from eslint.config.mjs in Phase 16; violations are now CI-blocking errors
+- [Phase 16-01]: Used // REMOVED tag for dead code to preserve git history audit trail; added argsIgnorePattern ^_ to no-unused-vars rule; React compiler warn overrides removed from eslint.config.mjs after all violations fixed
 
 ### Pending Todos
 
@@ -172,6 +178,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T03:41:50.616Z
-Stopped at: Completed 15-02-PLAN.md (Model detail + leaderboard E2E tests)
-Resume file: None
+Last session: 2026-03-11T06:10:33.369Z
+Stopped at: Completed 16-01-PLAN.md (Unused imports/dead code/a11y/image cleanup)
+R

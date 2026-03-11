@@ -34,7 +34,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 13: Component Decomposition + React.memo** - Break remaining mega-components below 300 lines, memoize expensive renders (completed 2026-03-09)
 - [x] **Phase 14: SWR Data Fetching** - Replace useState+useEffect+fetch with SWR hooks and staleTime tiers (gap closure in progress) (completed 2026-03-09)
 - [x] **Phase 15: E2E Testing** - Playwright tests for critical user paths integrated into CI (completed 2026-03-11)
-- [ ] **Phase 16: Code Simplification** - Final cleanup pass over all milestone changes
+- [x] **Phase 16: Code Simplification** - Final cleanup pass over all milestone changes (completed 2026-03-11)
 
 ## Phase Details
 
@@ -152,7 +152,7 @@ Plans:
   1. No unused imports remain in files modified during v1.1 phases
   2. No dead code or unreachable branches exist in files touched during this milestone
   3. `npx tsc --noEmit` and `vitest run` both pass clean after simplification
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 16-01-PLAN.md -- Mechanical cleanup: unused imports, dead code, aria fix, Next.js image fix (~40 warnings)
 - [ ] 16-02-PLAN.md -- React compiler warning refactors + eslint.config.mjs override removal (~34 warnings)
@@ -178,4 +178,4 @@ Plans:
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
-| 16. Code Simplification | v1.1 | 0/2 | Not started | - |
+| 16. Code Simplification | 2/2 | Complete   | 2026-03-11 | - |
