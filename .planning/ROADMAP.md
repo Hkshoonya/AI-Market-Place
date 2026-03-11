@@ -180,7 +180,7 @@ Plans:
   1. model-detail.spec.ts tests run (not skip) in CI and pass
   2. RSC data fetch succeeds in CI via MSW intercepting Supabase PostgREST calls in instrumentation.ts
   3. Tab navigation assertions execute and pass in CI
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 18-01-PLAN.md -- MSW infrastructure + fixture data + instrumentation.ts wiring + test rewrite
 
@@ -207,4 +207,4 @@ Plans:
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
 | 17. CI Verification + Branch Protection | 1/1 | Complete    | 2026-03-11 | - |
-| 18. E2E Model Detail CI Fixture | v1.1 | 0/1 | Planning Complete | - |
+| 18. E2E Model Detail CI Fixture | 1/1 | Complete   | 2026-03-11 | - |
