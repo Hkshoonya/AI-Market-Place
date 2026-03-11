@@ -16,7 +16,7 @@ Make model-detail.spec.ts E2E tests execute real assertions in CI instead of ski
 ### Server-side mock strategy
 - Use MSW (Mock Service Worker) to intercept server-side Supabase PostgREST HTTP calls at the Node.js level
 - MSW handles server-side RSC data fetching; existing Playwright mockApiRoute continues handling client-side SWR /api/* calls
-- MSW handlers registered globally in Playwright globalSetup so all E2E tests benefit from server-side Supabase mocking
+- MSW started in `src/instrumentation.ts` (Next.js process) via `NEXT_PUBLIC_E2E_MSW` env var — must run in the same Node.js process as Next.js server to intercept RSC fetches (globalSetup runs in separate Playwright process, cannot intercept server-side requests)
 - Broad table-level URL matching (e.g., /rest/v1/models*, /rest/v1/model_snapshots*) — not exact query string matching
 - Add msw as devDependency
 
@@ -39,7 +39,7 @@ Make model-detail.spec.ts E2E tests execute real assertions in CI instead of ski
 ### Claude's Discretion
 - MSW handler organization and file structure within e2e/
 - Exact PostgREST URL patterns to match for each Supabase table query
-- How to start/stop MSW server in Playwright globalSetup/globalTeardown
+- MSW lifecycle management in instrumentation.ts
 - Specific assertion selectors for tab content verification
 - How to extract real production data for fixtures
 
@@ -68,7 +68,7 @@ Make model-detail.spec.ts E2E tests execute real assertions in CI instead of ski
 - Client SWR calls: /api/models/{slug}/deployments, /api/models/{slug}/description, /api/models/{slug}/bookmark
 
 ### Integration Points
-- Playwright config (playwright.config.ts): globalSetup for MSW server start
+- src/instrumentation.ts: Conditional MSW activation via env var
 - CI workflow (.github/workflows/ci.yml): e2e job env vars — MSW needs to intercept calls to localhost:54321
 - package.json: msw devDependency addition
 - e2e/model-detail.spec.ts: Remove test.skip() patterns, add tab content assertions
