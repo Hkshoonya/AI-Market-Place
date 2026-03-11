@@ -152,7 +152,10 @@ Plans:
   1. No unused imports remain in files modified during v1.1 phases
   2. No dead code or unreachable branches exist in files touched during this milestone
   3. `npx tsc --noEmit` and `vitest run` both pass clean after simplification
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 16-01-PLAN.md -- Mechanical cleanup: unused imports, dead code, aria fix, Next.js image fix (~40 warnings)
+- [ ] 16-02-PLAN.md -- React compiler warning refactors + eslint.config.mjs override removal (~34 warnings)
 
 ## Progress
 
@@ -175,4 +178,4 @@ Plans:
 | 13. Component Decomposition + React.memo | v1.1 | 4/4 | Complete | 2026-03-09 |
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
-| 16. Code Simplification | v1.1 | 0/? | Not started | - |
+| 16. Code Simplification | v1.1 | 0/2 | Not started | - |
