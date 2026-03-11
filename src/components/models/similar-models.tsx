@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+// REMOVED: import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { formatParams, formatNumber } from "@/lib/format";
+// REMOVED: import { formatParams, formatNumber } from "@/lib/format";
+import { formatParams } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 
 interface SimilarModel {
@@ -27,7 +28,7 @@ interface SimilarModelsProps {
 export function SimilarModels({ models, currentCategory }: SimilarModelsProps) {
   if (models.length === 0) return null;
 
-  const catConfig = CATEGORIES.find((c) => c.slug === currentCategory);
+  // REMOVED: const catConfig = CATEGORIES.find((c) => c.slug === currentCategory);
 
   return (
     <div>

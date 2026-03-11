@@ -10,7 +10,7 @@ import {
   Loader2,
   User,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+// REMOVED: import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";

@@ -65,8 +65,8 @@ const USDC_CONTRACTS: Record<string, Address> = {
 };
 
 // ERC20 Transfer event signature
-const TRANSFER_EVENT_SIGNATURE =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as Hex;
+// REMOVED: const TRANSFER_EVENT_SIGNATURE =
+//   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as Hex;
 
 // Minimal ERC20 ABI for transfer
 const ERC20_ABI = [

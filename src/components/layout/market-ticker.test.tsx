@@ -7,7 +7,7 @@ import { MarketTicker } from './market-ticker';
 
 // Mock styled-jsx to avoid warnings
 vi.mock('styled-jsx/style', () => ({
-  default: ({ children }: any) => null,
+  default: ({ children: _children }: any) => null,
 }));
 
 describe('MarketTicker', () => {

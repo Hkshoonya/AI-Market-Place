@@ -138,7 +138,7 @@ export function computePopularityScore(
   //   2 signals → 0.70 (max score ~70)
   //   3 signals → 0.85 (max score ~85)
   //   4+ signals → 1.00 (full score)
-  const TOTAL_POSSIBLE_SIGNALS = 6;
+  // REMOVED: const TOTAL_POSSIBLE_SIGNALS = 6;
   const coverageFactor = getCoveragePenalty(POPULARITY_COVERAGE_PENALTY, signals.length);
 
   const adjustedScore = weightedSum * coverageFactor;

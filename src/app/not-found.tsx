@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Home, Search } from "lucide-react";
+// REMOVED: import { ArrowLeft, Home, Search } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {

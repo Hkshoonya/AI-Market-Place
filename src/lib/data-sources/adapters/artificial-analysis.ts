@@ -6,7 +6,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
+// REMOVED: import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 /**
  * Artificial Analysis Adapter — AI Model Benchmarks & Pricing

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useMemo, useCallback } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+// REMOVED: import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 1000;
@@ -12,7 +13,6 @@ function Particles() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const linesRef = useRef<THREE.LineSegments>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
-  const { viewport } = useThree();
 
   // Generate particle positions
   const particles = useMemo(() => {
@@ -94,7 +94,7 @@ function Particles() {
     }
   }, [handlePointerMove]);
 
-  useFrame((state, delta) => {
+  useFrame((state, _delta) => {
     if (!meshRef.current || !linesRef.current) return;
 
     const time = state.clock.elapsedTime;

@@ -2,13 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// REMOVED: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { CATEGORIES, CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CategoryModelSchema } from "@/lib/schemas/rankings";
 import type { z } from "zod";
-import { formatParams, formatTokenPrice, formatNumber } from "@/lib/format";
+// REMOVED: import { formatParams, formatTokenPrice, formatNumber } from "@/lib/format";
+import { formatParams } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 

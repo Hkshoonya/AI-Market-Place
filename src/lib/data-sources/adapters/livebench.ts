@@ -23,7 +23,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
-import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
+// REMOVED: import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -119,7 +119,7 @@ const adapter: DataSourceAdapter = {
     // 1. Fetch raw per-question scores from HF Datasets API
     // ────────────────────────────────────────────────────────────────
     const allRows: HFRowContent[] = [];
-    const offset = 0;
+    // REMOVED: const offset = 0;
     let totalRows = Infinity;
 
     // Use HF token from env for higher rate limits

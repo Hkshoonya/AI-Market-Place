@@ -350,7 +350,7 @@ const adapter: DataSourceAdapter = {
       if (!fullname) continue;
 
       const modelSlug = makeSlug(fullname);
-      const shortName = fullname.split("/").pop() ?? fullname;
+      // REMOVED: const shortName = fullname.split("/").pop() ?? fullname;
 
       // Extract benchmark scores from the row
       const avgScore = (row["Average ⬆️"] as number) ?? null;

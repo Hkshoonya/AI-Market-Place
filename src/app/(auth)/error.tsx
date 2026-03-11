@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
-import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+// REMOVED: import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AuthError({

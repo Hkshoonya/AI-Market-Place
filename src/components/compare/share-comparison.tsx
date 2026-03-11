@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Link2, Share2, Twitter } from "lucide-react";
+// REMOVED: import { Check, Copy, Link2, Share2, Twitter } from "lucide-react";
+import { Check, Copy, Share2, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

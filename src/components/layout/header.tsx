@@ -9,7 +9,7 @@ import {
   Building2,
   Menu,
   Newspaper,
-  Search,
+  // REMOVED: Search,
   ShieldCheck,
   ShoppingBag,
   Sparkles,

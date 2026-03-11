@@ -14,7 +14,7 @@ import {
   type WeightKey,
   DEFAULT_WEIGHTS,
   WEIGHT_KEYS,
-  MIN_WEIGHT,
+  // REMOVED: MIN_WEIGHT,
   MAX_WEIGHT,
   STEP,
   computePercentiles,

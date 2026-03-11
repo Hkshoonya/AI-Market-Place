@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TypedSupabaseClient } from "@/types/database";
-import { creditWallet, type Chain, type Token } from "@/lib/payments/wallet";
+// REMOVED: import { creditWallet, type Chain, type Token } from "@/lib/payments/wallet";
+import { creditWallet, type Chain } from "@/lib/payments/wallet";
 import {
   checkSolanaDeposits,
   isSolanaConfigured,

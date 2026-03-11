@@ -144,12 +144,12 @@ function buildFixtureInputs(): ScoringInputs {
  * The function queries model_pricing for pricing sync.
  */
 function createMockSupabase() {
-  function thenable<T>(value: T) {
-    return {
-      then: <R>(onFulfilled: (v: T) => R) =>
-        Promise.resolve(onFulfilled(value)),
-    };
-  }
+  // REMOVED: function thenable<T>(value: T) {
+  //   return {
+  //     then: <R>(onFulfilled: (v: T) => R) =>
+  //       Promise.resolve(onFulfilled(value)),
+  //   };
+  // }
 
   const makeChain = () => {
     const result = { data: [], error: null };

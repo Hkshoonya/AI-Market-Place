@@ -19,7 +19,7 @@ vi.mock('lucide-react', () => ({
 vi.mock('@/components/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <div>{children}</div>,
   Tooltip: ({ children }: any) => <div>{children}</div>,
-  TooltipTrigger: ({ children, asChild, ...props }: any) => (
+  TooltipTrigger: ({ children, asChild: _asChild, ...props }: any) => (
     <span {...props}>{children}</span>
   ),
   TooltipContent: ({ children }: any) => <span>{children}</span>,

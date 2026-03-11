@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { parseQueryResult } from "@/lib/schemas/parse";
-import { formatNumber } from "@/lib/format";
+// REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 
@@ -138,12 +138,12 @@ interface AffiliatePlatform {
   base_url: string;
 }
 
-interface DeploymentRow {
-  model_id: string;
-  deploy_url: string | null;
-  platform_id: string;
-  deployment_platforms: AffiliatePlatform | null;
-}
+// REMOVED: interface DeploymentRow {
+//   model_id: string;
+//   deploy_url: string | null;
+//   platform_id: string;
+//   deployment_platforms: AffiliatePlatform | null;
+// }
 
 // ---------------------------------------------------------------------------
 // Page component

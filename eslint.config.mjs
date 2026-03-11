@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/immutability": "warn",
+      // Allow underscore-prefixed parameters to signal intentionally unused args
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+      }],
     },
   },
   // Override default ignores of eslint-config-next.
