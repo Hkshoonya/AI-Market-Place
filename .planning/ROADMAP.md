@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Codebase Health** -- Phases 1-8 (shipped 2026-03-05)
-- 🚧 **v1.1 Production Readiness** -- Phases 9-16 (in progress)
+- 🚧 **v1.1 Production Readiness** -- Phases 9-18 (in progress, gap closure phases 17-18 added)
 
 ## Phases
 
@@ -157,6 +157,29 @@ Plans:
 - [ ] 16-01-PLAN.md -- Mechanical cleanup: unused imports, dead code, aria fix, Next.js image fix (~40 warnings)
 - [ ] 16-02-PLAN.md -- React compiler warning refactors + eslint.config.mjs override removal (~34 warnings)
 
+### Phase 17: CI Pipeline Verification + Branch Protection
+**Goal**: Phase 10 CI requirements are formally verified and branch protection blocks PR merges on CI failure
+**Depends on**: Phase 16
+**Requirements**: CICD-01, CICD-02, CICD-03, CICD-04
+**Gap Closure:** Closes orphaned/unsatisfied gaps from v1.1 audit
+**Success Criteria** (what must be TRUE):
+  1. Phase 10 has a VERIFICATION.md confirming CI lint, typecheck, and test jobs run and pass
+  2. GitHub branch protection rule is configured so PRs cannot merge without passing CI checks
+  3. CICD-01, CICD-02, CICD-03 status upgraded from orphaned to satisfied
+  4. CICD-04 status upgraded from unsatisfied to satisfied
+Plans: 0/0 plans (pending `/gsd:plan-phase 17`)
+
+### Phase 18: E2E Model Detail CI Fixture
+**Goal**: Model detail E2E tests execute assertions in CI instead of skipping, using test fixtures or seeded data
+**Depends on**: Phase 17
+**Requirements**: E2E-03
+**Gap Closure:** Closes E2E-03 integration gap and Model Detail E2E flow gap from v1.1 audit
+**Success Criteria** (what must be TRUE):
+  1. model-detail.spec.ts tests run (not skip) in CI and pass
+  2. RSC data fetch succeeds in CI via seeded DB fixtures or mocked server responses
+  3. Tab navigation assertions execute and pass in CI
+Plans: 0/0 plans (pending `/gsd:plan-phase 18`)
+
 ## Progress
 
 **Execution Order:** Phases 9 through 16, sequential. Phases 11 and 12 can run in parallel (both depend only on Phase 10).
@@ -179,3 +202,5 @@ Plans:
 | 14. SWR Data Fetching | 6/6 | Complete   | 2026-03-09 | - |
 | 15. E2E Testing | 3/3 | Complete    | 2026-03-11 | - |
 | 16. Code Simplification | 2/2 | Complete    | 2026-03-11 | - |
+| 17. CI Verification + Branch Protection | v1.1 | 0/0 | Pending | - |
+| 18. E2E Model Detail CI Fixture | v1.1 | 0/0 | Pending | - |
