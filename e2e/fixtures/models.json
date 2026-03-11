@@ -1,0 +1,98 @@
+[
+  {
+    "id": "model-001",
+    "slug": "gpt-4o",
+    "name": "GPT-4o",
+    "provider": "OpenAI",
+    "category": "Multimodal",
+    "overall_rank": 1,
+    "quality_score": 95.2,
+    "market_cap_estimate": 48500000000,
+    "capability_score": 94.8,
+    "usage_score": 96.1,
+    "expert_score": 93.5,
+    "agent_score": 91.2,
+    "model_pricing": [
+      {
+        "input_cost_per_1m": 5.0,
+        "output_cost_per_1m": 15.0,
+        "tier": "standard"
+      }
+    ],
+    "benchmark_scores": [
+      { "benchmark": "MMLU", "score": 88.7, "category": "knowledge" },
+      { "benchmark": "HumanEval", "score": 90.2, "category": "coding" },
+      { "benchmark": "GSM8K", "score": 92.0, "category": "math" }
+    ],
+    "is_open_weights": false,
+    "parameter_count": null,
+    "context_window": 128000,
+    "release_date": "2024-05-13",
+    "architecture": "Transformer",
+    "license_name": "Proprietary"
+  },
+  {
+    "id": "model-002",
+    "slug": "claude-3-5-sonnet",
+    "name": "Claude 3.5 Sonnet",
+    "provider": "Anthropic",
+    "category": "Text Generation",
+    "overall_rank": 2,
+    "quality_score": 93.8,
+    "market_cap_estimate": 32100000000,
+    "capability_score": 93.2,
+    "usage_score": 91.4,
+    "expert_score": 95.1,
+    "agent_score": 90.7,
+    "model_pricing": [
+      {
+        "input_cost_per_1m": 3.0,
+        "output_cost_per_1m": 15.0,
+        "tier": "standard"
+      }
+    ],
+    "benchmark_scores": [
+      { "benchmark": "MMLU", "score": 88.3, "category": "knowledge" },
+      { "benchmark": "HumanEval", "score": 92.0, "category": "coding" },
+      { "benchmark": "GSM8K", "score": 96.4, "category": "math" }
+    ],
+    "is_open_weights": false,
+    "parameter_count": null,
+    "context_window": 200000,
+    "release_date": "2024-06-20",
+    "architecture": "Transformer",
+    "license_name": "Proprietary"
+  },
+  {
+    "id": "model-003",
+    "slug": "llama-3-1-405b",
+    "name": "Llama 3.1 405B",
+    "provider": "Meta",
+    "category": "Text Generation",
+    "overall_rank": 5,
+    "quality_score": 87.4,
+    "market_cap_estimate": 8200000000,
+    "capability_score": 87.1,
+    "usage_score": 82.3,
+    "expert_score": 89.6,
+    "agent_score": 85.0,
+    "model_pricing": [
+      {
+        "input_cost_per_1m": 1.79,
+        "output_cost_per_1m": 1.79,
+        "tier": "standard"
+      }
+    ],
+    "benchmark_scores": [
+      { "benchmark": "MMLU", "score": 88.6, "category": "knowledge" },
+      { "benchmark": "HumanEval", "score": 89.0, "category": "coding" },
+      { "benchmark": "GSM8K", "score": 96.8, "category": "math" }
+    ],
+    "is_open_weights": true,
+    "parameter_count": 405000000000,
+    "context_window": 128000,
+    "release_date": "2024-07-23",
+    "architecture": "Transformer",
+    "license_name": "Meta Llama 3 Community License"
+  }
+]
