@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Completed 20-pipeline-hardening/20-01-PLAN.md
-last_updated: "2026-03-12T02:47:20.347Z"
+stopped_at: Completed 20-pipeline-hardening/20-02-PLAN.md
+last_updated: "2026-03-12T02:59:47.149Z"
 last_activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 94
 ---
 
@@ -73,6 +73,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 20-pipeline-hardening]: seed-config.ts is single source of truth for all 26 adapter configs; ignoreDuplicates preserves admin overrides
 - [Phase 20-pipeline-hardening]: resolveSecrets() returns { secrets, missing } — callers know which env vars are absent, orchestrator logs warning on missing
 - [Phase 20-pipeline-hardening]: Two-tier secret validation: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET are core (process.exit(1)); adapter keys warn-only
+- [Phase 20-pipeline-hardening]: Cron sync endpoint always returns HTTP 200 (cron job itself succeeded); overallStatus field carries partial/success signal
+- [Phase 20-pipeline-hardening]: recordSyncFailure() returns Promise<number> (new count) to avoid extra DB read for Sentry threshold check in orchestrator
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T02:47:20.344Z
-Stopped at: Completed 20-pipeline-hardening/20-01-PLAN.md
+Last session: 2026-03-12T02:59:47.146Z
+Stopped at: Completed 20-pipeline-hardening/20-02-PLAN.md
 Resume file: None

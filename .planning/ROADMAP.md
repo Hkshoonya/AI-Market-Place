@@ -47,7 +47,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 **Milestone Goal:** Fix the broken data sync pipeline, make sync failures visible to admins, and deploy to Railway + Supabase Cloud for production launch.
 
-- [ ] **Phase 20: Pipeline Hardening** - Seed data_sources, add fail-fast secrets, retry logic, and health endpoints
+- [x] **Phase 20: Pipeline Hardening** - Seed data_sources, add fail-fast secrets, retry logic, and health endpoints (completed 2026-03-12)
 - [ ] **Phase 21: Admin Visibility** - Sync job history, stale source alerts, per-adapter health, and manual triggers
 - [ ] **Phase 22: Railway Deployment** - Docker deploy, env vars, node-cron scheduling, DNS + SSL
 - [ ] **Phase 23: Data Integrity Verification** - End-to-end flow verification, empty table detection, freshness checks, quality scoring
@@ -64,7 +64,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   3. A sync run that fails mid-adapter logs the failure with adapter name, error, and timestamp — the cron response body includes per-adapter failure details (adapter name, status, error message) so failures are visible to monitoring
   4. A failing adapter automatically retries up to 3 times with exponential backoff before marking as failed
   5. GET /api/pipeline/health returns a JSON object listing each adapter as healthy, degraded, or down
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 20-01-PLAN.md — Seed config, startup validation, resolveSecrets refactor
 - [ ] 20-02-PLAN.md — Failure reporting, Sentry alerts, verify retry + healthCheck
@@ -128,7 +128,7 @@ Plans:
 | 17. CI Verification + Branch Protection | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 18. E2E Model Detail CI Fixture | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
-| 20. Pipeline Hardening | 2/3 | In Progress|  | - |
+| 20. Pipeline Hardening | 3/3 | Complete   | 2026-03-12 | - |
 | 21. Admin Visibility | v1.2 | 0/TBD | Not started | - |
 | 22. Railway Deployment | v1.2 | 0/TBD | Not started | - |
 | 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
