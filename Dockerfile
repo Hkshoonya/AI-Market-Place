@@ -26,6 +26,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
+# Dummy values for build-time prerendering — pages that import Supabase
+# client crash without these. Real values are injected at runtime.
+ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
+
 RUN npm run build
 
 # ── Stage 3: Production runner ─────────────────────────────
