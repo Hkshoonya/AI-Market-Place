@@ -133,6 +133,6 @@ Plans:
 | 18. E2E Model Detail CI Fixture | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 20. Pipeline Hardening | 3/3 | Complete    | 2026-03-12 | - |
-| 21. Admin Visibility | 3/3 | Complete   | 2026-03-12 | - |
+| 21. Admin Visibility | 3/3 | Complete    | 2026-03-12 | - |
 | 22. Railway Deployment | v1.2 | 0/TBD | Not started | - |
 | 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
