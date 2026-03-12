@@ -135,16 +135,30 @@ export function makeSlug(input: string): string {
 
 // --------------- Env / Secrets ---------------
 
-/** Resolve env var names to their values. Skips missing vars. */
-export function resolveSecrets(envKeys: string[]): Record<string, string> {
+/**
+ * Resolve env var names to their values.
+ *
+ * Returns a structured result so callers can decide how to handle missing
+ * secrets rather than silently running without them.
+ *
+ * @returns `{ secrets }` — map of key → value for present vars
+ *          `{ missing }` — list of keys that were absent or empty
+ */
+export function resolveSecrets(envKeys: string[]): {
+  secrets: Record<string, string>;
+  missing: string[];
+} {
   const secrets: Record<string, string> = {};
+  const missing: string[] = [];
   for (const key of envKeys) {
     const value = process.env[key];
     if (value) {
       secrets[key] = value;
+    } else {
+      missing.push(key);
     }
   }
-  return secrets;
+  return { secrets, missing };
 }
 
 // --------------- Time Helpers ---------------

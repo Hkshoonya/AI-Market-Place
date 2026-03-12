@@ -1358,6 +1358,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      pipeline_health: {
+        Row: {
+          source_slug: string;
+          last_success_at: string | null;
+          consecutive_failures: number;
+          expected_interval_hours: number;
+          updated_at: string;
+        };
+        Insert: {
+          source_slug: string;
+          last_success_at?: string | null;
+          consecutive_failures?: number;
+          expected_interval_hours?: number;
+          updated_at?: string;
+        };
+        Update: {
+          source_slug?: string;
+          last_success_at?: string | null;
+          consecutive_failures?: number;
+          expected_interval_hours?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

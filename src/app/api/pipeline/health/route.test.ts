@@ -9,7 +9,7 @@
  *  - Error handling: DB error returns 500
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Must mock @sentry/nextjs before importing the route (handleApiError imports it)
 vi.mock("@sentry/nextjs", () => ({

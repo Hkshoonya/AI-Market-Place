@@ -68,7 +68,13 @@ async function executeAdapter(
   const startTime = Date.now();
 
   // Resolve secrets from env
-  const secrets = resolveSecrets(source.secret_env_keys);
+  const { secrets, missing } = resolveSecrets(source.secret_env_keys);
+  if (missing.length > 0) {
+    void systemLog.warn("sync-orchestrator", `Adapter ${source.slug} missing secrets — running in degraded mode`, {
+      slug: source.slug,
+      missingSecrets: missing,
+    });
+  }
 
   // Merge default config with DB config
   const config = { ...adapter.defaultConfig, ...source.config };
