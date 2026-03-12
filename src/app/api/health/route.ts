@@ -134,8 +134,14 @@ export async function GET(request: NextRequest) {
 
   // DB ping — returns 503 response if unreachable, or { supabase, latencyMs } on success
   const dbResult = await pingDb(version, timestamp);
+
+  // If DB is unreachable, return 200 with "unhealthy" status so Railway's
+  // healthcheck passes (process is alive). Monitoring checks the body.
   if (dbResult instanceof NextResponse) {
-    return dbResult;
+    return NextResponse.json(
+      { status: "unhealthy", version, timestamp, error: "database unreachable" },
+      { status: 200 }
+    );
   }
   const { supabase, latencyMs: dbLatencyMs } = dbResult;
 
