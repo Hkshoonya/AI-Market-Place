@@ -25,8 +25,8 @@ export async function recordSyncSuccess(sourceSlug: string): Promise<void> {
   }, { onConflict: "source_slug" });
 }
 
-/** Record a failed sync for a source */
-export async function recordSyncFailure(sourceSlug: string): Promise<void> {
+/** Record a failed sync for a source. Returns the new consecutive failure count. */
+export async function recordSyncFailure(sourceSlug: string): Promise<number> {
   const sb = createServiceClient();
   const { data: existing } = await sb
     .from("pipeline_health")
@@ -41,6 +41,8 @@ export async function recordSyncFailure(sourceSlug: string): Promise<void> {
     consecutive_failures: failures,
     updated_at: new Date().toISOString(),
   }, { onConflict: "source_slug" });
+
+  return failures;
 }
 
 /** Get count of stale sources (not synced within 2x expected interval) */

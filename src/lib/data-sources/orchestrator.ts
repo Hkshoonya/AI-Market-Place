@@ -6,6 +6,7 @@
  * records results into sync_jobs table.
  */
 
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import type {
   DataSourceRecord,
@@ -175,12 +176,42 @@ async function executeAdapter(
 
   // Track pipeline health
   if (status === "failed") {
-    await recordSyncFailure(source.slug).catch((err: unknown) => {
+    const failureCount = await recordSyncFailure(source.slug).catch((err: unknown) => {
       void systemLog.warn("sync-orchestrator", "Failed to record sync failure status", {
         slug: source.slug,
         error: err instanceof Error ? err.message : String(err),
       });
+      return 0;
     });
+
+    // Structured failure log — written for every adapter failure
+    void systemLog.error("sync-orchestrator", "Adapter sync failed", {
+      adapter: source.slug,
+      adapter_type: source.adapter_type,
+      tier: source.tier,
+      durationMs,
+      consecutiveFailures: failureCount,
+      error: syncResult.errors[0]?.message ?? "unknown",
+    });
+
+    // Sentry alert on 3+ consecutive failures
+    if (failureCount >= 3) {
+      Sentry.captureMessage(
+        `Pipeline adapter consecutive failures: ${source.slug}`,
+        {
+          level: "warning",
+          tags: {
+            adapter: source.slug,
+            adapter_type: source.adapter_type,
+            tier: String(source.tier),
+          },
+          extra: {
+            consecutiveFailures: failureCount,
+            lastError: syncResult.errors[0]?.message,
+          },
+        }
+      );
+    }
   } else {
     await recordSyncSuccess(source.slug).catch((err: unknown) => {
       void systemLog.warn("sync-orchestrator", "Failed to record sync success status", {
