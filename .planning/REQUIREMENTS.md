@@ -30,8 +30,8 @@ Requirements for Data Pipeline & Launch milestone. Each maps to roadmap phases.
 - [x] **DEPL-01**: App deploys to Railway via Docker with git-push workflow
 - [ ] **DEPL-02**: All required env vars configured in Railway (Supabase, API keys, CRON_SECRET)
 - [x] **DEPL-03**: `node-cron` schedules all 8 cron jobs in-process (replaces Vercel cron)
-- [ ] **DEPL-04**: DNS configured for aimarketcap.com via Cloudflare with SSL
-- [ ] **DEPL-05**: `/api/health` endpoint returns app status, DB connectivity, and uptime
+- [x] **DEPL-04**: DNS configured for aimarketcap.com via Cloudflare with SSL
+- [x] **DEPL-05**: `/api/health` endpoint returns app status, DB connectivity, and uptime
 
 ### Data Integrity
 
@@ -83,8 +83,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPL-01 | Phase 22 | Complete |
 | DEPL-02 | Phase 22 | Pending |
 | DEPL-03 | Phase 22 | Complete |
-| DEPL-04 | Phase 22 | Pending |
-| DEPL-05 | Phase 22 | Pending |
+| DEPL-04 | Phase 22 | Complete |
+| DEPL-05 | Phase 22 | Complete |
 | INTG-01 | Phase 23 | Pending |
 | INTG-02 | Phase 23 | Pending |
 | INTG-03 | Phase 23 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-03-12T04:58:04.093Z"
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-03-12T05:05:00.813Z"
 last_activity: "2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 97
 ---
 
@@ -100,6 +100,9 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 21-admin-visibility]: 21-03: human verify checkpoint approved — all 11 drawer/Sync Now verification steps confirmed at /admin/data-sources
 - [Phase 22-railway-deployment]: server/ directory uses CommonJS to match Next.js standalone server.js format
 - [Phase 22-railway-deployment]: CRON_SECRET absence skips cron setup but server still serves HTTP (graceful degradation prevents Railway restart loops)
+- [Phase 22-railway-deployment]: pingDb() helper pattern: DB check returns NextResponse|result to avoid TypeScript null inference — used in /api/health
+- [Phase 22-railway-deployment]: 503 only for DB unreachable; degraded pipeline returns 200 with status: degraded — matches monitoring tool expectations
+- [Phase 22-railway-deployment]: aimarketcap.tech is canonical domain; aimarketcap.com fully removed from all source files
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:58:04.089Z
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-03-12T05:05:00.810Z
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None

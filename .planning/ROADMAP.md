@@ -96,7 +96,7 @@ Plans:
   3. https://aimarketcap.com loads the app with a valid SSL certificate
   4. GET /api/health returns HTTP 200 with app version, DB connection status, and uptime
   5. All required env vars (Supabase URL/key, API keys, CRON_SECRET, Sentry, PostHog) are set in Railway and the app starts without missing-config errors
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 22-01-PLAN.md -- Health endpoint + domain update (aimarketcap.tech) + www redirect
 - [ ] 22-02-PLAN.md -- Custom server.js + node-cron scheduler + Dockerfile
@@ -142,5 +142,5 @@ Plans:
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 20. Pipeline Hardening | 3/3 | Complete    | 2026-03-12 | - |
 | 21. Admin Visibility | 3/3 | Complete    | 2026-03-12 | - |
-| 22. Railway Deployment | 1/3 | In Progress|  | - |
+| 22. Railway Deployment | 2/3 | In Progress|  | - |
 | 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
