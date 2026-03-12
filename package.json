@@ -28,6 +28,7 @@
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "node-cron": "^4.2.1",
     "octokit": "^5.0.5",
     "posthog-js": "^1.358.1",
     "radix-ui": "^1.4.3",
