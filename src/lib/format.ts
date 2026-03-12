@@ -60,6 +60,23 @@ export function formatRelativeDate(dateStr: string | null | undefined): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
+export function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffSec < 60) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return formatRelativeDate(dateStr);
+}
+
 export function formatContextWindow(tokens: number | null | undefined): string {
   if (tokens == null) return "—";
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(0)}M`;

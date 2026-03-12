@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
+import { computeStatus } from "@/lib/pipeline-health-compute";
 
 export const dynamic = "force-dynamic";
 
@@ -45,26 +46,6 @@ const PipelineHealthSummarySchema = z.object({
 const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   adapters: z.array(AdapterHealthSchema),
 });
-
-// ---------------------------------------------------------------------------
-// Status computation
-// ---------------------------------------------------------------------------
-
-function computeStatus(row: {
-  consecutive_failures: number;
-  last_success_at: string | null;
-  expected_interval_hours: number;
-}): "healthy" | "degraded" | "down" {
-  const failures = row.consecutive_failures;
-  const intervalMs = row.expected_interval_hours * 60 * 60 * 1000;
-  const sinceLastSync = row.last_success_at
-    ? Date.now() - new Date(row.last_success_at).getTime()
-    : Infinity;
-
-  if (failures >= 3 || sinceLastSync > 4 * intervalMs) return "down";
-  if (failures >= 1 || sinceLastSync > 2 * intervalMs) return "degraded";
-  return "healthy";
-}
 
 // ---------------------------------------------------------------------------
 // GET handler
