@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Completed 20-03-PLAN.md (pipeline health endpoint)
-last_updated: "2026-03-12T02:39:01.476Z"
+stopped_at: Completed 20-pipeline-hardening/20-01-PLAN.md
+last_updated: "2026-03-12T02:47:20.347Z"
 last_activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 94
 ---
 
@@ -70,6 +70,9 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - node-cron replaces Vercel cron for in-process scheduling on Railway
 - RSSHub sidecar not viable on Railway single-service; X/Twitter adapter uses static fallback
 - [Phase 20]: pipeline_health table type added to Database typedef to resolve TypeScript never inference on typed Supabase client
+- [Phase 20-pipeline-hardening]: seed-config.ts is single source of truth for all 26 adapter configs; ignoreDuplicates preserves admin overrides
+- [Phase 20-pipeline-hardening]: resolveSecrets() returns { secrets, missing } — callers know which env vars are absent, orchestrator logs warning on missing
+- [Phase 20-pipeline-hardening]: Two-tier secret validation: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET are core (process.exit(1)); adapter keys warn-only
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T02:39:01.473Z
-Stopped at: Completed 20-03-PLAN.md (pipeline health endpoint)
+Last session: 2026-03-12T02:47:20.344Z
+Stopped at: Completed 20-pipeline-hardening/20-01-PLAN.md
 Resume file: None

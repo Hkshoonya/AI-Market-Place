@@ -9,10 +9,10 @@ Requirements for Data Pipeline & Launch milestone. Each maps to roadmap phases.
 
 ### Data Pipeline
 
-- [ ] **PIPE-01**: System seeds `data_sources` table with all 27 adapters on first deploy
-- [ ] **PIPE-02**: `resolveSecrets()` fails fast with clear error when required API keys are missing
+- [x] **PIPE-01**: System seeds `data_sources` table with all 27 adapters on first deploy
+- [x] **PIPE-02**: `resolveSecrets()` fails fast with clear error when required API keys are missing
 - [ ] **PIPE-03**: Orchestrator reports per-adapter success/failure status (not silent 200 OK)
-- [ ] **PIPE-04**: All adapter API keys validated on app startup with clear log output
+- [x] **PIPE-04**: All adapter API keys validated on app startup with clear log output
 - [ ] **PIPE-05**: Failed syncs automatically retry with exponential backoff (max 3 retries)
 - [ ] **PIPE-06**: Each adapter exposes a health check (connectivity + auth validation)
 - [x] **PIPE-07**: `/api/pipeline/health` endpoint returns aggregate pipeline status
@@ -68,10 +68,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | Phase 20 | Pending |
-| PIPE-02 | Phase 20 | Pending |
+| PIPE-01 | Phase 20 | Complete |
+| PIPE-02 | Phase 20 | Complete |
 | PIPE-03 | Phase 20 | Pending |
-| PIPE-04 | Phase 20 | Pending |
+| PIPE-04 | Phase 20 | Complete |
 | PIPE-05 | Phase 20 | Pending |
 | PIPE-06 | Phase 20 | Pending |
 | PIPE-07 | Phase 20 | Complete |
