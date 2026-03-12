@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Phase 22 context gathered
-last_updated: "2026-03-12T04:41:06.137Z"
+stopped_at: Completed 22-02-PLAN.md
+last_updated: "2026-03-12T04:58:04.093Z"
 last_activity: "2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 97
 ---
 
@@ -98,6 +98,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 21-admin-visibility]: 21-02 Task 3 human checkpoint approved — all 13 visual/interactive verification steps confirmed at /admin/data-sources
 - [Phase 21-admin-visibility]: 21-03: adapter name (button) opens drawer; expand chevron opens inline history — two independent drill-down paths
 - [Phase 21-admin-visibility]: 21-03: human verify checkpoint approved — all 11 drawer/Sync Now verification steps confirmed at /admin/data-sources
+- [Phase 22-railway-deployment]: server/ directory uses CommonJS to match Next.js standalone server.js format
+- [Phase 22-railway-deployment]: CRON_SECRET absence skips cron setup but server still serves HTTP (graceful degradation prevents Railway restart loops)
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:41:06.133Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-railway-deployment/22-CONTEXT.md
+Last session: 2026-03-12T04:58:04.089Z
+Stopped at: Completed 22-02-PLAN.md
+Resume file: None
