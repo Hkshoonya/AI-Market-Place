@@ -39,11 +39,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    // Parse query params
+    const source = request.nextUrl.searchParams.get("source");
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    const limit = limitParam
+      ? Math.min(100, Math.max(1, parseInt(limitParam, 10) || 50))
+      : 50;
+
+    // Build query with optional source filter
+    let query = supabase
       .from("sync_jobs")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+      .order("created_at", { ascending: false });
+
+    if (source) {
+      query = query.eq("source", source);
+    }
+
+    const { data, error } = await query.limit(limit);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
