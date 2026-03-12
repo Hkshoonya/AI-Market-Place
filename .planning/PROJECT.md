@@ -74,7 +74,7 @@ Provide the most comprehensive, multi-lens ranking of AI models so users can dis
 - **Type safety:** 9 remaining `any` usages (all justified — library incompatibilities)
 - **Observability:** Sentry error tracking (errors-only, no tracing), PostHog analytics (6 custom events)
 - **CI/CD:** GitHub Actions — lint, typecheck, test, E2E on every PR; `--max-warnings 0`
-- **Domain:** aimarketcap.com
+- **Domain:** aimarketcap.tech
 - **Deployment:** Hetzner CAX21 + Coolify + Supabase Cloud (~$32/mo)
 
 ## Constraints

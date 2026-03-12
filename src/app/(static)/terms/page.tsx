@@ -153,10 +153,10 @@ export default function TermsPage() {
             parties to resolve the matter directly. If direct resolution fails,
             either party may contact our support team at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>{" "}
             for mediation. AI Market Cap may, at its sole discretion, mediate
             disputes or take action including issuing refunds, suspending
@@ -438,10 +438,10 @@ export default function TermsPage() {
             If you have any questions about these Terms of Service, please
             contact us at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>{" "}
             or through our{" "}
             <a href="/contact" className="text-neon underline hover:text-neon/80">

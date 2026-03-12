@@ -213,7 +213,7 @@ export default function ContactContent() {
       <div className="mt-8 text-center text-sm text-muted-foreground">
         <p>
           You can also reach us at{" "}
-          <span className="text-neon font-medium">support@aimarketcap.com</span>
+          <span className="text-neon font-medium">support@aimarketcap.tech</span>
         </p>
       </div>
     </div>

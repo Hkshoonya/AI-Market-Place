@@ -344,7 +344,7 @@ export function ApiDocsContent() {
       {/* Base URL banner */}
       <div className="rounded-lg border border-border/50 bg-card p-4 mb-8 flex flex-col sm:flex-row sm:items-center gap-3">
         <span className="text-sm text-muted-foreground shrink-0">Base URL</span>
-        <code className="font-mono text-sm text-neon">https://aimarketcap.com</code>
+        <code className="font-mono text-sm text-neon">https://aimarketcap.tech</code>
       </div>
 
       {/* Layout: sidebar + content */}
@@ -735,11 +735,11 @@ function AuthSection() {
         <h3 className="text-md font-semibold mb-3">Usage Example</h3>
         <pre className="rounded-lg bg-black/60 border border-border/30 p-4 text-xs font-mono text-foreground/80 overflow-x-auto">
 {`# Public endpoint (no auth needed)
-curl https://aimarketcap.com/api/models?category=llm&limit=5
+curl https://aimarketcap.tech/api/models?category=llm&limit=5
 
 # Authenticated endpoint
 curl -H "Authorization: Bearer aimk_your_key_here" \\
-  https://aimarketcap.com/api/agents/chat \\
+  https://aimarketcap.tech/api/agents/chat \\
   -X POST \\
   -H "Content-Type: application/json" \\
   -d '{"agent_slug": "pipeline-engineer", "message": "Compare top LLMs"}'`}

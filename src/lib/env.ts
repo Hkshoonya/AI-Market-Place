@@ -49,5 +49,5 @@ export const env = {
 
   // ── Site ──────────────────────────────────────────────────────────
   NEXT_PUBLIC_SITE_URL:
-    getEnvVar("NEXT_PUBLIC_SITE_URL", false) || "https://aimarketcap.com",
+    getEnvVar("NEXT_PUBLIC_SITE_URL", false) || "https://aimarketcap.tech",
 } as const;

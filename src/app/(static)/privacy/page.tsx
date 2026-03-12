@@ -264,10 +264,10 @@ export default function PrivacyPage() {
             may request deletion of your account and associated data at any time
             through your account settings or by contacting us at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>
             . We will process deletion requests within 30 days, subject to any
             legal retention requirements.
@@ -360,10 +360,10 @@ export default function PrivacyPage() {
           <p className="mt-2">
             To exercise any of these rights, please contact us at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>
             . We will respond to requests within 30 days. These rights are
             provided in alignment with the General Data Protection Regulation
@@ -397,10 +397,10 @@ export default function PrivacyPage() {
             us with personal information without your consent, please contact us
             at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>{" "}
             so we can take appropriate action.
           </p>
@@ -457,10 +457,10 @@ export default function PrivacyPage() {
             personal data, or wish to exercise any of your data protection
             rights, please contact us at{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>{" "}
             or through our{" "}
             <a href="/contact" className="text-neon underline hover:text-neon/80">
@@ -476,10 +476,10 @@ export default function PrivacyPage() {
             Protection Officer by sending a message with the subject
             &quot;Privacy Inquiry&quot; to{" "}
             <a
-              href="mailto:support@aimarketcap.com"
+              href="mailto:support@aimarketcap.tech"
               className="text-neon underline hover:text-neon/80"
             >
-              support@aimarketcap.com
+              support@aimarketcap.tech
             </a>
             . We aim to respond to all privacy-related requests within 30 days.
           </p>

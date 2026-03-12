@@ -255,7 +255,7 @@ const adapter: DataSourceAdapter = {
 
     const requestHeaders: Record<string, string> = {
       "Accept": "application/json",
-      "HTTP-Referer": "https://aimarketcap.com",
+      "HTTP-Referer": "https://aimarketcap.tech",
       "X-Title": "AI Market Cap",
     };
     if (apiKey) {
@@ -453,7 +453,7 @@ const adapter: DataSourceAdapter = {
 
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "HTTP-Referer": "https://aimarketcap.com",
+      "HTTP-Referer": "https://aimarketcap.tech",
       "X-Title": "AI Market Cap",
     };
     if (apiKey) {
