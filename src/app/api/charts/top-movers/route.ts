@@ -42,23 +42,25 @@ export async function GET(request: NextRequest) {
       .select("model_id, overall_rank, quality_score")
       .eq("snapshot_date", yesterday);
 
-    if (!todaySnaps || todaySnaps.length === 0) {
-      // Try comparing the two most recent dates instead
+    if (
+      !todaySnaps || todaySnaps.length === 0 ||
+      !yesterdaySnaps || yesterdaySnaps.length === 0
+    ) {
+      // Fallback: compare the two most recent snapshot dates
       const { data: recentDates } = await supabase
         .from("model_snapshots")
         .select("snapshot_date")
         .order("snapshot_date", { ascending: false })
-        .limit(2);
+        .limit(100);
 
-      if (!recentDates || recentDates.length < 2) {
+      // Deduplicate dates (query may return duplicates per model)
+      const uniqueDates = [...new Set(recentDates?.map(r => r.snapshot_date))];
+
+      if (uniqueDates.length < 2) {
         return NextResponse.json({ risers: [], fallers: [], asOf: today });
       }
 
-      // Use the two most recent dates
-      const [latestDate, prevDate] = [
-        recentDates[0].snapshot_date,
-        recentDates[1].snapshot_date,
-      ];
+      const [latestDate, prevDate] = [uniqueDates[0], uniqueDates[1]];
 
       const { data: latestSnaps } = await supabase
         .from("model_snapshots")
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
       return computeMovers(supabase, latestSnaps ?? [], prevSnaps ?? [], limit, latestDate);
     }
 
-    return computeMovers(supabase, todaySnaps, yesterdaySnaps ?? [], limit, today);
+    return computeMovers(supabase, todaySnaps, yesterdaySnaps, limit, today);
   } catch (err) {
     return handleApiError(err, "api/charts/top-movers");
   }
