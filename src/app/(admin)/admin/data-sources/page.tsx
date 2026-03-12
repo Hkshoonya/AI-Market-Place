@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import {
   Activity,
   AlertCircle,
@@ -21,6 +21,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -313,6 +319,10 @@ export default function AdminDataSourcesPage() {
   const [tierFilter, setTierFilter] = useState<number | null>(null);
   const [healthFilter, setHealthFilter] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [drawerSlug, setDrawerSlug] = useState<string | null>(null);
+  const [drawerSyncing, setDrawerSyncing] = useState(false);
+  const [drawerHistoryLimit, setDrawerHistoryLimit] = useState(25);
+  const { mutate: globalMutate } = useSWRConfig();
 
   // Data sources fetch
   const { data, isLoading: loading, error, mutate } = useSWR<DataSourcesResponse>(
@@ -325,6 +335,21 @@ export default function AdminDataSourcesPage() {
     "/api/admin/pipeline/health",
     { ...SWR_TIERS.SLOW }
   );
+
+  // Drawer per-adapter sync history (only fetches when a drawer is open)
+  const {
+    data: drawerHistoryData,
+    isLoading: drawerHistoryLoading,
+    mutate: mutateDrawerHistory,
+  } = useSWR<SyncJobsResponse>(
+    drawerSlug ? `/api/admin/sync?source=${drawerSlug}&limit=${drawerHistoryLimit}` : null,
+    { ...SWR_TIERS.SLOW }
+  );
+
+  // Reset history limit when a different drawer opens
+  useEffect(() => {
+    setDrawerHistoryLimit(25);
+  }, [drawerSlug]);
 
   const allSources = data?.data ?? [];
 
@@ -411,6 +436,36 @@ export default function AdminDataSourcesPage() {
       }
       return next;
     });
+  };
+
+  // Derive selected source from slug (avoid stale reference after mutate)
+  const selectedSource = allSources.find((s) => s.slug === drawerSlug) ?? null;
+
+  const triggerSyncFromDrawer = async (slug: string | null) => {
+    if (!slug) return;
+    setDrawerSyncing(true);
+    try {
+      const res = await fetch(`/api/admin/sync/${slug}`, { method: "POST" });
+      if (!res.ok) throw new Error("Sync failed");
+      toast.success("Sync completed");
+      await Promise.all([
+        mutateDrawerHistory(),
+        mutate(),
+        mutateHealth(),
+      ]);
+      // Also invalidate any expanded inline history rows for this slug
+      globalMutate(
+        (key: unknown) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/admin/sync?source=${slug}`),
+        undefined,
+        { revalidate: true }
+      );
+    } catch {
+      toast.error("Sync failed");
+    } finally {
+      setDrawerSyncing(false);
+    }
   };
 
   if (error) {
@@ -691,7 +746,12 @@ export default function AdminDataSourcesPage() {
                         {/* Source name + description */}
                         <td className="px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium">{source.name}</p>
+                            <button
+                              className="text-sm font-medium text-left hover:text-neon transition-colors hover:underline"
+                              onClick={() => setDrawerSlug(source.slug)}
+                            >
+                              {source.name}
+                            </button>
                             <p className="text-[11px] text-muted-foreground line-clamp-1">
                               {source.description}
                             </p>
@@ -869,6 +929,205 @@ export default function AdminDataSourcesPage() {
           )
         )}
       </div>
+
+      {/* Adapter detail drawer */}
+      <Sheet
+        open={!!drawerSlug}
+        onOpenChange={(open) => {
+          if (!open) setDrawerSlug(null);
+        }}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col gap-0 p-0">
+          <SheetHeader className="border-b border-border/50 p-4 pb-3">
+            <SheetTitle className="flex items-center justify-between gap-2 pr-6">
+              <span className="truncate">{selectedSource?.name ?? "Adapter Detail"}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 shrink-0 gap-1.5 text-xs"
+                onClick={() => triggerSyncFromDrawer(drawerSlug)}
+                disabled={drawerSyncing || !selectedSource?.is_enabled}
+              >
+                {drawerSyncing ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3 w-3" />
+                    Sync Now
+                  </>
+                )}
+              </Button>
+            </SheetTitle>
+          </SheetHeader>
+
+          {selectedSource && (
+            <div className="flex flex-col gap-4 p-4">
+              {/* Config summary */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Configuration
+                </p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt className="text-xs text-muted-foreground self-center">Tier</dt>
+                  <dd>
+                    <Badge variant="outline" className="text-[10px] border-border/50">
+                      T{selectedSource.tier} — {TIER_LABELS[selectedSource.tier] ?? "Other"}
+                    </Badge>
+                  </dd>
+
+                  <dt className="text-xs text-muted-foreground self-center">Sync Interval</dt>
+                  <dd className="text-sm">{TIER_SCHEDULES[selectedSource.tier] ?? `Every ${selectedSource.sync_interval_hours}h`}</dd>
+
+                  <dt className="text-xs text-muted-foreground self-start pt-0.5">Output Types</dt>
+                  <dd className="flex flex-wrap gap-1">
+                    {selectedSource.output_types.map((t) => (
+                      <Badge key={t} variant="outline" className="text-[10px] border-border/30">
+                        {t}
+                      </Badge>
+                    ))}
+                  </dd>
+
+                  <dt className="text-xs text-muted-foreground self-center">Health</dt>
+                  <dd>
+                    {(() => {
+                      const health = healthBySlug.get(selectedSource.slug);
+                      const status = health?.status ?? "healthy";
+                      const cfg = HEALTH_CONFIG[status];
+                      return (
+                        <Badge variant="outline" className={`text-[10px] ${cfg.border} ${cfg.color}`}>
+                          <cfg.icon className="mr-1 h-2.5 w-2.5" />
+                          {cfg.label}
+                        </Badge>
+                      );
+                    })()}
+                  </dd>
+
+                  <dt className="text-xs text-muted-foreground self-center">Failures</dt>
+                  <dd>
+                    {(() => {
+                      const failures = healthBySlug.get(selectedSource.slug)?.consecutiveFailures ?? 0;
+                      return (
+                        <span className={cn("text-sm tabular-nums", failures > 0 ? "text-loss font-medium" : "text-muted-foreground")}>
+                          {failures}
+                        </span>
+                      );
+                    })()}
+                  </dd>
+
+                  <dt className="text-xs text-muted-foreground self-center">Last Sync</dt>
+                  <dd className="text-sm text-muted-foreground">
+                    {selectedSource.last_sync_at
+                      ? formatRelativeTime(selectedSource.last_sync_at)
+                      : "\u2014"}
+                  </dd>
+                </dl>
+              </div>
+
+              {/* Full error message */}
+              {selectedSource.last_error_message && selectedSource.last_sync_status === "failed" && (
+                <div className="rounded-lg bg-loss/5 border border-loss/30 p-3">
+                  <p className="text-xs font-medium text-loss mb-1.5">Last Error</p>
+                  <p className="text-xs text-loss/80 whitespace-pre-wrap break-all">
+                    {selectedSource.last_error_message}
+                  </p>
+                </div>
+              )}
+
+              {/* Sync history */}
+              <div>
+                <p className="text-sm font-medium mb-2">Sync History</p>
+                {drawerHistoryLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ) : (
+                  <>
+                    {(() => {
+                      const jobs = drawerHistoryData?.data ?? [];
+                      if (jobs.length === 0) {
+                        return (
+                          <div className="rounded-lg bg-secondary/5 p-3 text-center text-xs text-muted-foreground">
+                            No sync history found
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="divide-y divide-border/30 rounded-lg border border-border/30 overflow-hidden">
+                          {jobs.map((job) => {
+                            const mappedStatus = mapSyncJobStatus(job.status);
+                            const isRunning = mappedStatus === "running";
+                            const statusCfg =
+                              mappedStatus in STATUS_CONFIG
+                                ? STATUS_CONFIG[mappedStatus as keyof typeof STATUS_CONFIG]
+                                : null;
+                            const durationMs = job.metadata?.duration_ms;
+                            return (
+                              <div key={job.id} className="px-3 py-2 space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatRelativeTime(job.created_at)}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                      {job.records_processed !== null
+                                        ? `${job.records_processed.toLocaleString()} records`
+                                        : "\u2014"}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                      {formatDuration(durationMs)}
+                                    </span>
+                                    {isRunning ? (
+                                      <Badge variant="outline" className="text-[10px] border-blue-400/30 text-blue-400">
+                                        <Loader2 className="mr-1 h-2.5 w-2.5 animate-spin" />
+                                        Running
+                                      </Badge>
+                                    ) : statusCfg ? (
+                                      <Badge variant="outline" className={`text-[10px] ${statusCfg.border} ${statusCfg.color}`}>
+                                        <statusCfg.icon className="mr-1 h-2.5 w-2.5" />
+                                        {statusCfg.label}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground">Unknown</span>
+                                    )}
+                                  </div>
+                                </div>
+                                {job.error_message && mappedStatus === "failed" && (
+                                  <p className="text-[11px] text-loss break-all">
+                                    {job.error_message}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Load More */}
+                    {(drawerHistoryData?.data?.length ?? 0) >= drawerHistoryLimit && (
+                      <div className="mt-2 flex justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => setDrawerHistoryLimit((prev) => prev + 25)}
+                        >
+                          Load more
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
