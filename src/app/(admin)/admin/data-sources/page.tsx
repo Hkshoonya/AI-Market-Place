@@ -34,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatRelativeDate, formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime } from "@/lib/format";
 import {
   HEALTH_PRIORITY,
   mapSyncJobStatus,

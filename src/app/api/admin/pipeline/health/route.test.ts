@@ -164,7 +164,7 @@ describe("GET /api/admin/pipeline/health", () => {
   it("returns 401 when not authenticated", async () => {
     const sessionClient = createMockSessionClient({ user: null, isAdmin: false });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const response = await GET(makeRequest());
@@ -177,7 +177,7 @@ describe("GET /api/admin/pipeline/health", () => {
       isAdmin: false,
     });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const adminClient = createMockAdminSupabase({
@@ -198,7 +198,7 @@ describe("GET /api/admin/pipeline/health", () => {
       isAdmin: true,
     });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const adminClient = createMockAdminSupabase({
@@ -224,7 +224,7 @@ describe("GET /api/admin/pipeline/health", () => {
       isAdmin: true,
     });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const adminClient = createMockAdminSupabase({
@@ -269,7 +269,7 @@ describe("GET /api/admin/pipeline/health", () => {
       isAdmin: true,
     });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const adminClient = createMockAdminSupabase({
@@ -315,7 +315,7 @@ describe("GET /api/admin/pipeline/health", () => {
       isAdmin: true,
     });
     mockCreateClient.mockResolvedValue(
-      sessionClient as ReturnType<typeof createClient>
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const adminClient = createMockAdminSupabase({

@@ -138,7 +138,7 @@ describe("GET /api/admin/sync", () => {
   it("returns 401 when not authenticated", async () => {
     const mockClient = createMockSupabaseClient({ user: null, isAdmin: false });
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const response = await GET(makeRequest());
@@ -151,7 +151,7 @@ describe("GET /api/admin/sync", () => {
       isAdmin: false,
     });
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const response = await GET(makeRequest());
@@ -164,7 +164,7 @@ describe("GET /api/admin/sync", () => {
       isAdmin: true,
     });
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const response = await GET(makeRequest());
@@ -177,9 +177,8 @@ describe("GET /api/admin/sync", () => {
   it("returns last 50 jobs by default (no source param)", async () => {
     // Track .limit() calls using a more detailed mock
     let capturedLimit: number | null = null;
-    let capturedEqCalls: Array<[string, string]> = [];
+    const capturedEqCalls: Array<[string, string]> = [];
 
-    const queryChain: Record<string, unknown> = {};
     const makeSpy = (): Record<string, unknown> => {
       const chain: Record<string, unknown> = {};
       chain.select = () => makeSpy();
@@ -208,7 +207,7 @@ describe("GET /api/admin/sync", () => {
     };
 
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     await GET(makeRequest());
@@ -218,7 +217,7 @@ describe("GET /api/admin/sync", () => {
   });
 
   it("adds .eq('source', ...) filter when source param is provided", async () => {
-    let capturedEqCalls: Array<[string, string]> = [];
+    const capturedEqCalls: Array<[string, string]> = [];
 
     const makeSpy = (): Record<string, unknown> => {
       const chain: Record<string, unknown> = {};
@@ -242,7 +241,7 @@ describe("GET /api/admin/sync", () => {
     };
 
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     const response = await GET(makeRequest({ source: "huggingface" }));
@@ -278,7 +277,7 @@ describe("GET /api/admin/sync", () => {
     };
 
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     await GET(makeRequest({ limit: "10" }));
@@ -310,7 +309,7 @@ describe("GET /api/admin/sync", () => {
     };
 
     mockCreateClient.mockResolvedValue(
-      mockClient as ReturnType<typeof createClient>
+      mockClient as unknown as Awaited<ReturnType<typeof createClient>>
     );
 
     await GET(makeRequest({ limit: "200" }));

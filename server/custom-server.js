@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 "use strict";
 /**
  * AI Market Cap — Production Server Entrypoint

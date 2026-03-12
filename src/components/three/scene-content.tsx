@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useCallback } from "react";
-// REMOVED: import { useFrame, useThree } from "@react-three/fiber";
+import { useRef, useMemo, useCallback, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -90,11 +89,9 @@ function Particles() {
   );
 
   // Set up mouse listener
-  useMemo(() => {
-    if (typeof window !== "undefined") {
-      window.addEventListener("mousemove", handlePointerMove);
-      return () => window.removeEventListener("mousemove", handlePointerMove);
-    }
+  useEffect(() => {
+    window.addEventListener("mousemove", handlePointerMove);
+    return () => window.removeEventListener("mousemove", handlePointerMove);
   }, [handlePointerMove]);
 
   useFrame((state, _delta) => {

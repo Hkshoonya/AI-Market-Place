@@ -306,10 +306,10 @@ describe("GET /api/health", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 3. DB failure -> 503
+  // 3. DB failure -> 200 with unhealthy status (Railway healthcheck must pass)
   // -------------------------------------------------------------------------
   describe("database failure handling", () => {
-    it("returns 503 when DB is unreachable (createAdminClient throws)", async () => {
+    it("returns 200 with unhealthy status when DB is unreachable (createAdminClient throws)", async () => {
       mockCreateAdminClient.mockImplementation(() => {
         throw new Error("DB connection refused");
       });
@@ -317,14 +317,14 @@ describe("GET /api/health", () => {
       const response = await GET(makeRequest() as never);
       const body = await response.json();
 
-      expect(response.status).toBe(503);
+      expect(response.status).toBe(200);
       expect(body).toHaveProperty("status", "unhealthy");
       expect(body).toHaveProperty("version");
       expect(body).toHaveProperty("timestamp");
       expect(body).toHaveProperty("error");
     });
 
-    it("returns 503 with status 'unhealthy' when authenticated but DB fails", async () => {
+    it("returns 200 with status 'unhealthy' when authenticated but DB fails", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
 
@@ -335,7 +335,7 @@ describe("GET /api/health", () => {
       const response = await GET(makeRequest("Bearer test-secret") as never);
       const body = await response.json();
 
-      expect(response.status).toBe(503);
+      expect(response.status).toBe(200);
       expect(body.status).toBe("unhealthy");
 
       process.env.CRON_SECRET = originalSecret;

@@ -11,8 +11,8 @@ export function PWARegister() {
     ) {
       navigator.serviceWorker
         .register("/sw.js")
-        .catch(() => {
-          // Service worker registration failed - ignore
+        .catch((err) => {
+          console.warn("[pwa-register] SW registration failed:", err);
         });
     }
   }, []);

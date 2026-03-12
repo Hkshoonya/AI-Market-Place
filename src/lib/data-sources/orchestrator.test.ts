@@ -67,11 +67,11 @@ vi.mock("@/lib/data-sources/registry", () => ({
 
 // ── Mock Supabase ──────────────────────────────────────────────────────────────
 
-const mockUpsertFn = vi.fn().mockResolvedValue({ error: null });
+const _mockUpsertFn = vi.fn().mockResolvedValue({ error: null });
 const mockUpdateFn = vi.fn().mockReturnValue({
   eq: vi.fn().mockResolvedValue({ error: null }),
 });
-const mockSelectFn = vi.fn().mockReturnValue({
+const _mockSelectFn = vi.fn().mockReturnValue({
   single: vi.fn().mockResolvedValue({ data: { id: "job-123" }, error: null }),
 });
 const mockInsertFn = vi.fn().mockReturnValue({
