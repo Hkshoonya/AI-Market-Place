@@ -10,12 +10,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 
-RUN \
-  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
-  else npm install; \
-  fi
+RUN npm install --ignore-scripts --prefer-offline
 
 # ── Stage 2: Build the application ────────────────────────
 FROM node:22-alpine AS builder
