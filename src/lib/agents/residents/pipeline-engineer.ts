@@ -65,7 +65,7 @@ const pipelineEngineer: ResidentAgent = {
         }
 
         try {
-          const secrets = resolveSecrets(source.secret_env_keys);
+          const { secrets } = resolveSecrets(source.secret_env_keys);
           const result = await adapter.healthCheck(secrets);
           healthChecks.push({
             source: source.slug,

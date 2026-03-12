@@ -96,7 +96,6 @@ vi.mock("@/lib/logging", () => ({
 
 describe("seedDataSources", () => {
   const originalExit = process.exit;
-  const originalEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,7 +106,7 @@ describe("seedDataSources", () => {
 
   afterEach(() => {
     process.exit = originalExit;
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("calls upsert with ignoreDuplicates: true and all seed entries", async () => {
@@ -135,7 +134,7 @@ describe("seedDataSources", () => {
   });
 
   it("calls process.exit(1) on table-not-found error in non-test env", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     mockUpsert.mockResolvedValue({
       data: null,
       error: { code: "42P01", message: "relation does not exist" },
@@ -148,7 +147,7 @@ describe("seedDataSources", () => {
   });
 
   it("does NOT call process.exit on table-not-found in test env", async () => {
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
     mockUpsert.mockResolvedValue({
       data: null,
       error: { code: "42P01", message: "relation does not exist" },

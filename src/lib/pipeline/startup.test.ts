@@ -64,23 +64,21 @@ vi.mock("@/lib/logging", () => ({
 
 describe("validatePipelineSecrets", () => {
   const originalExit = process.exit;
-  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    originalEnv = { ...process.env };
     process.exit = vi.fn() as unknown as typeof process.exit;
 
     // Set all required secrets by default
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
-    process.env.CRON_SECRET = "cron-secret";
-    process.env.MY_ADAPTER_KEY = "adapter-key";
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+    vi.stubEnv("CRON_SECRET", "cron-secret");
+    vi.stubEnv("MY_ADAPTER_KEY", "adapter-key");
   });
 
   afterEach(() => {
     process.exit = originalExit;
-    process.env = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("does not call process.exit when all core secrets are present", async () => {
@@ -90,8 +88,8 @@ describe("validatePipelineSecrets", () => {
   });
 
   it("calls process.exit(1) when SUPABASE_SERVICE_ROLE_KEY is missing in production", async () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
@@ -100,8 +98,8 @@ describe("validatePipelineSecrets", () => {
   });
 
   it("calls process.exit(1) when CRON_SECRET is missing in production", async () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.CRON_SECRET;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("CRON_SECRET", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
@@ -110,8 +108,8 @@ describe("validatePipelineSecrets", () => {
   });
 
   it("calls process.exit(1) when NEXT_PUBLIC_SUPABASE_URL is missing in production", async () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
@@ -120,9 +118,9 @@ describe("validatePipelineSecrets", () => {
   });
 
   it("does NOT call process.exit in test env even when core secrets are missing", async () => {
-    process.env.NODE_ENV = "test";
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    delete process.env.CRON_SECRET;
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    vi.stubEnv("CRON_SECRET", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
@@ -131,7 +129,7 @@ describe("validatePipelineSecrets", () => {
   });
 
   it("logs a warning for missing adapter secrets but does not exit", async () => {
-    delete process.env.MY_ADAPTER_KEY;
+    vi.stubEnv("MY_ADAPTER_KEY", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
