@@ -16,10 +16,17 @@ export async function register() {
         "@/lib/data-sources/seeder"
       );
 
-      await validatePipelineSecrets(); // exits on missing core secrets
-      await seedDataSources();         // idempotent INSERT OR IGNORE
+      await validatePipelineSecrets();
+
+      // Timeout guard: don't let a slow DB connection block server startup.
+      await Promise.race([
+        seedDataSources(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("seedDataSources timed out after 15s")), 15_000)
+        ),
+      ]);
     } catch (err) {
-      // process.exit() calls propagate — only unexpected errors land here.
+      // Log but don't crash — server should start even if seeding fails.
       console.error("[instrumentation] Pipeline startup error:", err);
     }
 

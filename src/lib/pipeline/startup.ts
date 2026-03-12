@@ -36,12 +36,12 @@ export async function validatePipelineSecrets(): Promise<void> {
 
   if (missingCore.length > 0) {
     void log.error(
-      `Missing core secrets: ${missingCore.join(", ")} — app cannot start`,
+      `Missing core secrets: ${missingCore.join(", ")} — pipeline features disabled`,
       { missingCore }
     );
-    if (process.env.NODE_ENV !== "test") {
-      process.exit(1);
-    }
+    // Don't process.exit — let the server start so healthchecks pass and
+    // Railway doesn't enter a restart loop. Pipeline features will be degraded.
+    return;
   }
 
   // ── Check adapter secrets ───────────────────────────────────────────────

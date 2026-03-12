@@ -5,16 +5,19 @@
  * Combines Next.js standalone server with node-cron in-process scheduling.
  * Railway runs this as the single process: CMD ["node", "server/custom-server.js"]
  *
+ * Uses the same startServer() approach as the Next.js standalone server.js
+ * to ensure proper standalone mode initialization.
+ *
  * Instrumentation (validatePipelineSecrets + seedDataSources) runs automatically
  * via Next.js instrumentation hook before any requests — no replication needed here.
  */
 
-const { createServer } = require("http");
-const { parse } = require("url");
-const next = require("next");
+const path = require("path");
+const fs = require("fs");
 const cron = require("node-cron");
 const { CRON_JOBS } = require("./cron-schedule.js");
 
+const dir = path.join(__dirname, "..");
 const port = parseInt(process.env.PORT || "3000", 10);
 const hostname = process.env.HOSTNAME || "0.0.0.0";
 
@@ -27,6 +30,18 @@ process.on("unhandledRejection", (reason) => {
 process.on("uncaughtException", (err) => {
   console.error("[server] Uncaught exception:", err);
 });
+
+// ── Load Next.js standalone config ───────────────────────────────────────────
+// The standalone build writes required-server-files.json with the full
+// nextConfig. We must set __NEXT_PRIVATE_STANDALONE_CONFIG before requiring
+// next, exactly like the generated .next/standalone/server.js does.
+
+const requiredServerFilesPath = path.join(dir, ".next", "required-server-files.json");
+const { config: nextConfig } = JSON.parse(fs.readFileSync(requiredServerFilesPath, "utf8"));
+
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);
+process.env.NODE_ENV = "production";
+process.chdir(dir);
 
 // ── Cron scheduler ────────────────────────────────────────────────────────────
 
@@ -75,16 +90,25 @@ function startCronScheduler() {
 }
 
 // ── Next.js server startup ────────────────────────────────────────────────────
+// Use startServer() — the same approach as the Next.js standalone server.js.
+// This handles config loading, instrumentation, and HTTP listener creation.
 
-const app = next({ dev: false, hostname, port });
-const handle = app.getRequestHandler();
+require("next");
+const { startServer } = require("next/dist/server/lib/start-server");
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
-  }).listen(port, hostname, () => {
+startServer({
+  dir,
+  isDev: false,
+  config: nextConfig,
+  hostname,
+  port,
+  allowRetry: false,
+})
+  .then(() => {
     console.log(`[server] Ready on http://${hostname}:${port}`);
     startCronScheduler();
+  })
+  .catch((err) => {
+    console.error("[server] Failed to start:", err);
+    process.exit(1);
   });
-});

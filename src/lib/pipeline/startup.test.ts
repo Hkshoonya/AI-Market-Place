@@ -2,7 +2,7 @@
  * Unit tests for pipeline/startup.ts
  *
  * Covers:
- * 1. validatePipelineSecrets() exits on missing core secrets in non-test env
+ * 1. validatePipelineSecrets() logs error and returns early on missing core secrets
  * 2. validatePipelineSecrets() logs warning for missing adapter secrets
  * 3. validatePipelineSecrets() logs summary: "Pipeline secrets: N/M configured"
  * 4. validatePipelineSecrets() does NOT exit in test env
@@ -87,37 +87,51 @@ describe("validatePipelineSecrets", () => {
     expect(process.exit).not.toHaveBeenCalled();
   });
 
-  it("calls process.exit(1) when SUPABASE_SERVICE_ROLE_KEY is missing in production", async () => {
+  it("logs error and returns early when SUPABASE_SERVICE_ROLE_KEY is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
 
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.stringContaining("SUPABASE_SERVICE_ROLE_KEY"),
+      expect.any(Object)
+    );
+    // Should return early — no summary log when core secrets missing
+    expect(mockLogInfo).not.toHaveBeenCalled();
   });
 
-  it("calls process.exit(1) when CRON_SECRET is missing in production", async () => {
+  it("logs error and returns early when CRON_SECRET is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("CRON_SECRET", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
 
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.stringContaining("CRON_SECRET"),
+      expect.any(Object)
+    );
   });
 
-  it("calls process.exit(1) when NEXT_PUBLIC_SUPABASE_URL is missing in production", async () => {
+  it("logs error and returns early when NEXT_PUBLIC_SUPABASE_URL is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
 
     const { validatePipelineSecrets } = await import("./startup");
     await validatePipelineSecrets();
 
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.stringContaining("NEXT_PUBLIC_SUPABASE_URL"),
+      expect.any(Object)
+    );
   });
 
-  it("does NOT call process.exit in test env even when core secrets are missing", async () => {
+  it("does NOT call process.exit when core secrets are missing in test env", async () => {
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     vi.stubEnv("CRON_SECRET", "");
