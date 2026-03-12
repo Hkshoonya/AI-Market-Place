@@ -2,16 +2,16 @@
 /**
  * AI Market Cap — Production Server Entrypoint
  *
- * Combines Next.js server with node-cron in-process scheduling.
- * Works in both Railpack mode (full project) and Dockerfile standalone mode.
+ * Combines Next.js standalone server with node-cron in-process scheduling.
+ * Uses startServer() — the same approach as .next/standalone/server.js —
+ * to avoid loading webpack (which isn't in the standalone output).
  *
  * Instrumentation (validatePipelineSecrets + seedDataSources) runs automatically
- * via Next.js instrumentation hook during app.prepare() — no replication here.
+ * via Next.js instrumentation hook before any requests.
  */
 
 const path = require("path");
-const { createServer } = require("http");
-const { parse } = require("url");
+const fs = require("fs");
 const cron = require("node-cron");
 const { CRON_JOBS } = require("./cron-schedule.js");
 
@@ -19,6 +19,7 @@ const dir = path.join(__dirname, "..");
 const port = parseInt(process.env.PORT || "3000", 10);
 const hostname = process.env.HOSTNAME || "0.0.0.0";
 
+process.env.NODE_ENV = "production";
 process.chdir(dir);
 
 // ── Global error handlers ────────────────────────────────────────────────────
@@ -31,6 +32,15 @@ process.on("uncaughtException", (err) => {
   console.error("[server] Uncaught exception:", err);
 });
 
+// ── Load standalone config ───────────────────────────────────────────────────
+// Read the config that next build wrote, then set the env var that Next.js
+// standalone mode reads — exactly like .next/standalone/server.js does.
+
+const requiredServerFilesPath = path.join(dir, ".next", "required-server-files.json");
+const { config: nextConfig } = JSON.parse(fs.readFileSync(requiredServerFilesPath, "utf8"));
+
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);
+
 // ── Cron scheduler ───────────────────────────────────────────────────────────
 
 function startCronScheduler() {
@@ -38,7 +48,7 @@ function startCronScheduler() {
 
   if (!cronSecret) {
     console.warn(
-      "[cron] CRON_SECRET not set — skipping cron scheduler. Set CRON_SECRET to enable scheduled jobs."
+      "[cron] CRON_SECRET not set — skipping cron scheduler."
     );
     return;
   }
@@ -71,21 +81,25 @@ function startCronScheduler() {
 }
 
 // ── Next.js server startup ───────────────────────────────────────────────────
+// Use startServer() — the same internal API that the standalone server.js and
+// `next start` both use. This avoids loading webpack/config-utils.
 
-const next = require("next");
-const app = next({ dev: false, hostname, port, dir });
-const handle = app.getRequestHandler();
+require("next");
+const { startServer } = require("next/dist/server/lib/start-server");
 
-app
-  .prepare()
+console.log(`[server] Starting on http://${hostname}:${port}`);
+
+startServer({
+  dir,
+  isDev: false,
+  config: nextConfig,
+  hostname,
+  port,
+  allowRetry: false,
+})
   .then(() => {
-    createServer((req, res) => {
-      const parsedUrl = parse(req.url, true);
-      handle(req, res, parsedUrl);
-    }).listen(port, hostname, () => {
-      console.log(`[server] Ready on http://${hostname}:${port}`);
-      startCronScheduler();
-    });
+    console.log(`[server] Ready on http://${hostname}:${port}`);
+    startCronScheduler();
   })
   .catch((err) => {
     console.error("[server] Failed to start:", err);
