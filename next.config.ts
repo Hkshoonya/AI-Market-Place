@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "logo.clearbit.com" },
       { protocol: "https", hostname: "*.supabase.co" },
       { protocol: "https", hostname: "api.dicebear.com" },
     ],
@@ -49,10 +48,10 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
           {
-            // CSP: allow self, Supabase, Clearbit logos, Sentry, PostHog, inline styles (needed for Next.js)
+            // CSP: allow self, Supabase, Sentry, PostHog, inline styles (needed for Next.js)
             // TODO: remove 'unsafe-eval' when moving to production (needed for dev hot-reload)
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://logo.clearbit.com https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
           },
         ],
       },
