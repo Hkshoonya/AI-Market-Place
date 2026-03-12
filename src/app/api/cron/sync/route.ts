@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
   try {
     const result = await runTierSync(tier);
 
+    const hasFailed = result.sourcesFailed > 0;
+
     const summary = {
       tier: result.tier,
       sourcesRun: result.sourcesRun,
@@ -47,8 +49,9 @@ export async function GET(request: NextRequest) {
         status: d.status,
         records: d.recordsProcessed,
         durationMs: d.durationMs,
-        errors: d.errors.length,
+        errors: d.errors.map((e) => e.message),
       })),
+      overallStatus: hasFailed ? "partial" : "success",
     };
 
     return tracker.complete(summary);
