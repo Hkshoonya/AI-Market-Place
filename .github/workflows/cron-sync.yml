@@ -1,23 +1,26 @@
 name: Data Sync Crons
 
+# Backup layer — staggered from node-cron primary to fill gaps.
+# Together they double the effective sync frequency.
+
 on:
   schedule:
-    # Tier 1: Every 6 hours (core model data)
-    - cron: '0 */6 * * *'
-    # Tier 2: Every 12 hours (benchmarks, leaderboards)
-    - cron: '0 */12 * * *'
-    # Tier 3: Daily at 8 AM UTC (news, papers, social)
-    - cron: '0 8 * * *'
-    # Tier 4: Weekly Monday midnight (stars, pricing)
-    - cron: '0 0 * * 1'
-    # Compute scores: Every 6 hours at :45
-    - cron: '45 */6 * * *'
-    # Agent pipeline: Every 6 hours at :30
-    - cron: '30 */6 * * *'
-    # Code quality: Daily 9 AM UTC
-    - cron: '0 9 * * *'
-    # UX monitor: Weekly Monday 10 AM UTC
-    - cron: '0 10 * * 1'
+    # Tier 1: Every 2h at odd hours (node-cron covers even hours)
+    - cron: '0 1-23/2 * * *'
+    # Tier 2: Every 4h offset by 2 (node-cron 0,4,8,12,16,20 — GH 2,6,10,14,18,22)
+    - cron: '0 2-22/4 * * *'
+    # Tier 3: Every 6h offset by 3 (node-cron 0,6,12,18 — GH 3,9,15,21)
+    - cron: '0 3-21/6 * * *'
+    # Tier 4: Daily at noon (node-cron at midnight)
+    - cron: '0 12 * * *'
+    # Compute scores: Every 2h at odd hours :45 (node-cron even :45)
+    - cron: '45 1-23/2 * * *'
+    # Agent pipeline: Every 4h offset by 2 at :30
+    - cron: '30 2-22/4 * * *'
+    # Code quality: Daily 21:00 (node-cron 09:00)
+    - cron: '0 21 * * *'
+    # UX monitor: Thursday 22:00 (node-cron Mon 10:00)
+    - cron: '0 22 * * 4'
   workflow_dispatch:
     inputs:
       job:
@@ -41,7 +44,7 @@ env:
 
 jobs:
   sync-tier-1:
-    if: github.event.schedule == '0 */6 * * *' || github.event.inputs.job == 'sync-tier-1' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 1-23/2 * * *' || github.event.inputs.job == 'sync-tier-1' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +58,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   sync-tier-2:
-    if: github.event.schedule == '0 */12 * * *' || github.event.inputs.job == 'sync-tier-2' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 2-22/4 * * *' || github.event.inputs.job == 'sync-tier-2' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -69,7 +72,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   sync-tier-3:
-    if: github.event.schedule == '0 8 * * *' || github.event.inputs.job == 'sync-tier-3' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 3-21/6 * * *' || github.event.inputs.job == 'sync-tier-3' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -83,7 +86,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   sync-tier-4:
-    if: github.event.schedule == '0 0 * * 1' || github.event.inputs.job == 'sync-tier-4' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 12 * * *' || github.event.inputs.job == 'sync-tier-4' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -97,7 +100,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   compute-scores:
-    if: github.event.schedule == '45 */6 * * *' || github.event.inputs.job == 'compute-scores' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '45 1-23/2 * * *' || github.event.inputs.job == 'compute-scores' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -111,7 +114,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   agents-pipeline:
-    if: github.event.schedule == '30 */6 * * *' || github.event.inputs.job == 'agents-pipeline' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '30 2-22/4 * * *' || github.event.inputs.job == 'agents-pipeline' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -125,7 +128,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   agents-code-quality:
-    if: github.event.schedule == '0 9 * * *' || github.event.inputs.job == 'agents-code-quality' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 21 * * *' || github.event.inputs.job == 'agents-code-quality' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -139,7 +142,7 @@ jobs:
           if [ "$response" -ge 400 ]; then exit 1; fi
 
   agents-ux-monitor:
-    if: github.event.schedule == '0 10 * * 1' || github.event.inputs.job == 'agents-ux-monitor' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 22 * * 4' || github.event.inputs.job == 'agents-ux-monitor' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
