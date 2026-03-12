@@ -22,8 +22,8 @@ Requirements for Data Pipeline & Launch milestone. Each maps to roadmap phases.
 - [x] **ADMN-01**: Admin dashboard shows sync job history (status, errors, timestamps, records processed)
 - [x] **ADMN-02**: Admin dashboard highlights stale data sources (no successful sync within expected interval)
 - [x] **ADMN-03**: Admin dashboard shows pipeline health overview (healthy/degraded/down per adapter)
-- [ ] **ADMN-04**: Admin can drill down to per-adapter error details and recent sync logs
-- [ ] **ADMN-05**: Admin can manually trigger a sync for any individual adapter from the dashboard
+- [x] **ADMN-04**: Admin can drill down to per-adapter error details and recent sync logs
+- [x] **ADMN-05**: Admin can manually trigger a sync for any individual adapter from the dashboard
 
 ### Deployment
 
@@ -78,8 +78,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMN-01 | Phase 21 | Complete |
 | ADMN-02 | Phase 21 | Complete |
 | ADMN-03 | Phase 21 | Complete |
-| ADMN-04 | Phase 21 | Pending |
-| ADMN-05 | Phase 21 | Pending |
+| ADMN-04 | Phase 21 | Complete |
+| ADMN-05 | Phase 21 | Complete |
 | DEPL-01 | Phase 22 | Pending |
 | DEPL-02 | Phase 22 | Pending |
 | DEPL-03 | Phase 22 | Pending |
