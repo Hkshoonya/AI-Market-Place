@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: "Checkpoint 21-02 Task 3: awaiting human verify at /admin/data-sources"
-last_updated: "2026-03-12T04:08:22.567Z"
+stopped_at: Completed 21-admin-visibility plan 02 (21-02-PLAN.md)
+last_updated: "2026-03-12T04:11:37.585Z"
 last_activity: "2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering"
 progress:
   total_phases: 4
@@ -94,6 +94,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 21-admin-visibility]: /api/admin/pipeline/health uses session+is_admin auth (not CRON_SECRET) for browser-safe admin data access
 - [Phase 21-admin-visibility]: computeStatus extracted to shared pipeline-health-compute.ts lib to eliminate duplication between public and admin health routes
 - [Phase 21-admin-visibility]: Tasks 1 and 2 in page.tsx committed atomically; array return in sortedSources.map() used for conditional expansion rows
+- [Phase 21-admin-visibility]: Tasks 1 and 2 committed atomically in 05c1dd0 — both touch only page.tsx, splitting would leave file in intermediate state
+- [Phase 21-admin-visibility]: 21-02 Task 3 human checkpoint approved — all 13 visual/interactive verification steps confirmed at /admin/data-sources
 
 ### Pending Todos
 
@@ -109,6 +111,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:08:22.563Z
-Stopped at: Checkpoint 21-02 Task 3: awaiting human verify at /admin/data-sources
+Last session: 2026-03-12T04:11:37.582Z
+Stopped at: Completed 21-admin-visibility plan 02 (21-02-PLAN.md)
 Resume file: None
