@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
 stopped_at: Completed 20-pipeline-hardening/20-02-PLAN.md
-last_updated: "2026-03-12T02:59:47.149Z"
+last_updated: "2026-03-12T03:08:44.503Z"
 last_activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
 progress:
   total_phases: 4
