@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
 import type { Database } from "@/types/database";
 import {
   ArrowLeft,

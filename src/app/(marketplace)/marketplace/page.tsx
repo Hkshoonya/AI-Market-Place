@@ -10,6 +10,8 @@ import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "AI Marketplace",
   description: "Buy and sell AI models, APIs, datasets, and fine-tuned models.",

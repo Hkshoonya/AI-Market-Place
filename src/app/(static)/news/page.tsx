@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 import { formatRelativeDate } from "@/lib/format";
 import { NewsCard, UpdateCard, EmptyState } from "@/components/news/news-card";
 import Link from "next/link";

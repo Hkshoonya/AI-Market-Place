@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CATEGORIES, CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CategoryModelSchema } from "@/lib/schemas/rankings";
 import type { z } from "zod";

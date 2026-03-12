@@ -3,6 +3,8 @@ import { ArrowRight, Building2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getProviderBrand } from "@/lib/constants/providers";

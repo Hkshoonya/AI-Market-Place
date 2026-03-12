@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { RankedModelSchema, SpeedModelSchema, ValueModelSchema } from "@/lib/schemas/rankings";
 import { ExplorerModelSchema } from "@/lib/schemas/models";

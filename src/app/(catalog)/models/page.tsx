@@ -3,6 +3,8 @@ import { Activity, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";

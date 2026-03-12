@@ -11,6 +11,8 @@ import {
   Trophy,
   Zap,
 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { CATEGORIES } from "@/lib/constants/categories";

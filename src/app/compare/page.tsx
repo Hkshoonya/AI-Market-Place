@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CompareClient } from "./compare-client";
+
+export const dynamic = "force-dynamic";
 import type { ModelWithDetails } from "@/types/database";
 import type { Metadata } from "next";
 
