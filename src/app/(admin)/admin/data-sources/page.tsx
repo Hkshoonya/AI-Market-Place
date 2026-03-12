@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   ShieldX,
   XCircle,
+  BarChart2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,50 @@ interface SyncJobsResponse {
   data: SyncJob[];
 }
 
+interface SourceQualityScore {
+  slug: string;
+  name: string;
+  qualityScore: number;
+  completeness: number;
+  freshness: number;
+  trend: number;
+  recordCount: number;
+  lastSyncAt: string | null;
+  syncIntervalHours: number;
+  staleSince: string | null;
+  isStale: boolean;
+}
+
+interface TableCoverage {
+  table: string;
+  rowCount: number;
+  isEmpty: boolean;
+  responsibleAdapters: string[];
+}
+
+interface DataIntegrityReport {
+  checkedAt: string;
+  summary: {
+    totalSources: number;
+    healthySources: number;
+    staleSources: number;
+    emptyTables: number;
+    averageQualityScore: number;
+  };
+  qualityScores: SourceQualityScore[];
+  tableCoverage: TableCoverage[];
+  freshness: {
+    staleSourceCount: number;
+    staleSources: Array<{
+      slug: string;
+      name: string;
+      lastSyncAt: string | null;
+      expectedIntervalHours: number;
+      overdueBy: string;
+    }>;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // SyncHistoryInline component
 // ---------------------------------------------------------------------------
@@ -188,6 +233,12 @@ function formatDuration(durationMs: unknown): string {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   return `${minutes}m ${seconds}s`;
+}
+
+function qualityColor(score: number): { text: string; bg: string } {
+  if (score >= 70) return { text: "text-gain", bg: "bg-gain/10" };
+  if (score >= 40) return { text: "text-amber-400", bg: "bg-amber-400/10" };
+  return { text: "text-loss", bg: "bg-loss/10" };
 }
 
 function SyncHistoryInline({ slug }: { slug: string }) {
@@ -336,6 +387,15 @@ export default function AdminDataSourcesPage() {
     { ...SWR_TIERS.SLOW }
   );
 
+  // Data integrity fetch
+  const {
+    data: integrityData,
+    isLoading: integrityLoading,
+    mutate: mutateIntegrity,
+  } = useSWR<DataIntegrityReport>("/api/admin/data-integrity", {
+    ...SWR_TIERS.SLOW,
+  });
+
   // Drawer per-adapter sync history (only fetches when a drawer is open)
   const {
     data: drawerHistoryData,
@@ -436,6 +496,11 @@ export default function AdminDataSourcesPage() {
       }
       return next;
     });
+  };
+
+  const runVerification = async () => {
+    await mutateIntegrity();
+    toast.success("Verification complete");
   };
 
   // Derive selected source from slug (avoid stale reference after mutate)
@@ -623,6 +688,247 @@ export default function AdminDataSourcesPage() {
         </Card>
       </div>
 
+      {/* ------------------------------------------------------------------ */}
+      {/* Data Integrity Panel                                              */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="space-y-4">
+        {/* Section header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+            <BarChart2 className="h-4 w-4 text-neon" />
+            Data Integrity
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runVerification}
+            disabled={integrityLoading}
+            className="gap-2 text-xs"
+          >
+            {integrityLoading ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3 w-3" />
+                Run Verification
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Quality summary cards */}
+        {integrityLoading && !integrityData ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Card key={i} className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="h-10 animate-pulse rounded bg-secondary" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : integrityData ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {/* Average Quality card */}
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        qualityColor(integrityData.summary.averageQualityScore).bg
+                      )}
+                    >
+                      <BarChart2
+                        className={cn(
+                          "h-4 w-4",
+                          qualityColor(integrityData.summary.averageQualityScore).text
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          qualityColor(integrityData.summary.averageQualityScore).text
+                        )}
+                      >
+                        {Math.round(integrityData.summary.averageQualityScore)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Avg Quality · {integrityData.summary.totalSources} sources
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Stale Sources card */}
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        integrityData.summary.staleSources > 0
+                          ? "bg-loss/15"
+                          : "bg-gain/15"
+                      )}
+                    >
+                      <Clock
+                        className={cn(
+                          "h-4 w-4",
+                          integrityData.summary.staleSources > 0
+                            ? "text-loss"
+                            : "text-gain"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          integrityData.summary.staleSources > 0
+                            ? "text-loss"
+                            : "text-gain"
+                        )}
+                      >
+                        {integrityData.summary.staleSources}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Stale Sources · overdue for sync
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Empty Tables card */}
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        integrityData.summary.emptyTables > 0
+                          ? "bg-loss/15"
+                          : "bg-gain/15"
+                      )}
+                    >
+                      <Database
+                        className={cn(
+                          "h-4 w-4",
+                          integrityData.summary.emptyTables > 0
+                            ? "text-loss"
+                            : "text-gain"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          integrityData.summary.emptyTables > 0
+                            ? "text-loss"
+                            : "text-gain"
+                        )}
+                      >
+                        {integrityData.summary.emptyTables}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Empty Tables · missing data
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Table Coverage pills */}
+            {integrityData.tableCoverage.length > 0 && (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Table Coverage
+                </p>
+                <TooltipProvider>
+                  <div className="flex flex-wrap gap-2">
+                    {integrityData.tableCoverage.map((tc) => (
+                      <Tooltip key={tc.table}>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[11px] cursor-default",
+                              tc.isEmpty
+                                ? "border-loss/30 text-loss bg-loss/5"
+                                : "border-gain/30 text-gain bg-gain/5"
+                            )}
+                          >
+                            {tc.table}
+                            <span className="ml-1 opacity-70">
+                              {tc.isEmpty
+                                ? "0 rows"
+                                : tc.rowCount.toLocaleString()}
+                            </span>
+                          </Badge>
+                        </TooltipTrigger>
+                        {tc.isEmpty && tc.responsibleAdapters.length > 0 && (
+                          <TooltipContent>
+                            <p className="text-xs">
+                              Responsible: {tc.responsibleAdapters.join(", ")}
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
+              </div>
+            )}
+
+            {/* Stale Sources alert panel */}
+            {integrityData.freshness.staleSources.length > 0 && (
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/5 p-4">
+                <p className="text-xs font-semibold text-amber-400 mb-3 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Stale Sources ({integrityData.freshness.staleSourceCount})
+                </p>
+                <div className="space-y-2">
+                  {integrityData.freshness.staleSources.map((ss) => (
+                    <div
+                      key={ss.slug}
+                      className="flex items-start justify-between gap-4 text-xs"
+                    >
+                      <span className="font-medium text-foreground">
+                        {ss.name}
+                      </span>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <span className="text-muted-foreground">
+                          Last sync:{" "}
+                          {ss.lastSyncAt
+                            ? formatRelativeTime(ss.lastSyncAt)
+                            : "never"}
+                        </span>
+                        <span className="text-amber-400 font-medium">
+                          Overdue by {ss.overdueBy}
+                        </span>
+                        <span className="text-muted-foreground/70">
+                          Expected every {ss.expectedIntervalHours}h
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
+
       {/* Tier filter */}
       <div className="flex gap-1">
         <Button
@@ -735,6 +1041,10 @@ export default function AdminDataSourcesPage() {
                     // Last sync with expected interval
                     const intervalLabel = TIER_INTERVAL_LABEL[source.tier] ?? `every ${source.sync_interval_hours}h`;
 
+                    const qualityScore = integrityData?.qualityScores.find(
+                      (q) => q.slug === source.slug
+                    );
+
                     return [
                       <tr
                         key={source.id}
@@ -746,12 +1056,25 @@ export default function AdminDataSourcesPage() {
                         {/* Source name + description */}
                         <td className="px-4 py-3">
                           <div>
-                            <button
-                              className="text-sm font-medium text-left hover:text-neon transition-colors hover:underline"
-                              onClick={() => setDrawerSlug(source.slug)}
-                            >
-                              {source.name}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="text-sm font-medium text-left hover:text-neon transition-colors hover:underline"
+                                onClick={() => setDrawerSlug(source.slug)}
+                              >
+                                {source.name}
+                              </button>
+                              {qualityScore != null && (
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                                    qualityColor(qualityScore.qualityScore).bg,
+                                    qualityColor(qualityScore.qualityScore).text
+                                  )}
+                                >
+                                  {Math.round(qualityScore.qualityScore)}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-muted-foreground line-clamp-1">
                               {source.description}
                             </p>
