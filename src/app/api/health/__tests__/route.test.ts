@@ -40,27 +40,6 @@ interface TableMock {
   error: { message: string } | null;
 }
 
-// Creates a mock Supabase client that supports chained calls and resolves to the given table data
-function createMockSupabase(tables: Record<string, TableMock>) {
-  return {
-    from: (table: string) => {
-      const result = tables[table] ?? { data: [], error: null };
-      const chain = new Proxy(
-        {},
-        {
-          get(_target, prop) {
-            if (prop === "then") {
-              return (resolve: (v: unknown) => void) => resolve(result);
-            }
-            return (..._args: unknown[]) => chain;
-          },
-        }
-      );
-      return chain;
-    },
-  };
-}
-
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));

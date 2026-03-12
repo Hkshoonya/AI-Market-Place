@@ -85,6 +85,41 @@ const HealthUnhealthySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// DB ping helper — returns 503 response on failure, null on success
+// ---------------------------------------------------------------------------
+
+async function pingDb(
+  version: string,
+  timestamp: string
+): Promise<{ supabase: ReturnType<typeof createAdminClient>; latencyMs: number } | NextResponse> {
+  const dbStart = performance.now();
+  try {
+    const supabase = createAdminClient();
+    const { error: pingError } = await supabase
+      .from("data_sources")
+      .select("slug")
+      .limit(1);
+
+    const latencyMs = Math.round(performance.now() - dbStart);
+
+    if (pingError) {
+      throw new Error(`DB ping failed: ${pingError.message}`);
+    }
+
+    return { supabase, latencyMs };
+  } catch (dbErr) {
+    const errorMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    const body = HealthUnhealthySchema.parse({
+      status: "unhealthy",
+      version,
+      timestamp,
+      error: errorMsg,
+    });
+    return NextResponse.json(body, { status: 503 });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // GET handler
 // ---------------------------------------------------------------------------
 
@@ -97,41 +132,15 @@ export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const isAuthenticated = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
 
-  // DB ping — always first; if unreachable, return 503 immediately (outside main try/catch)
-  const dbStart = performance.now();
-  // eslint-disable-next-line prefer-const
-  let supabase!: ReturnType<typeof createAdminClient>;
-  let dbConnected = false;
-  let dbLatencyMs = 0;
-
-  try {
-    supabase = createAdminClient();
-
-    const { error: pingError } = await supabase
-      .from("data_sources")
-      .select("slug")
-      .limit(1);
-
-    dbLatencyMs = Math.round(performance.now() - dbStart);
-    dbConnected = !pingError;
-
-    if (pingError) {
-      throw new Error(`DB ping failed: ${pingError.message}`);
-    }
-  } catch (dbErr) {
-    const errorMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-    const body = HealthUnhealthySchema.parse({
-      status: "unhealthy",
-      version,
-      timestamp,
-      error: errorMsg,
-    });
-    return NextResponse.json(body, { status: 503 });
+  // DB ping — returns 503 response if unreachable, or { supabase, latencyMs } on success
+  const dbResult = await pingDb(version, timestamp);
+  if (dbResult instanceof NextResponse) {
+    return dbResult;
   }
+  const { supabase, latencyMs: dbLatencyMs } = dbResult;
 
   try {
-
-    // Pipeline summary — fetch data_sources and pipeline_health
+    // Pipeline summary — fetch data_sources and pipeline_health in parallel
     const [dataSourcesResult, pipelineHealthResult] = await Promise.all([
       supabase
         .from("data_sources")
@@ -177,7 +186,7 @@ export async function GET(request: NextRequest) {
         timestamp,
         uptime: process.uptime(),
         database: {
-          connected: dbConnected,
+          connected: true,
           latencyMs: dbLatencyMs,
         },
         cron: {
