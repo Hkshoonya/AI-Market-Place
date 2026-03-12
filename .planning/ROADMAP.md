@@ -111,11 +111,10 @@ Plans:
   2. Any table that should have data but is empty is flagged with the table name and the adapter responsible for populating it
   3. Sources that have not updated within their declared sync interval are listed with their last-successful-sync timestamp and how long ago that was
   4. Each data source has a quality score (0-100) combining completeness, freshness, and record count trend — viewable in the admin dashboard
-**Plans:** 3 plans
+**Plans:** 2 plans
 Plans:
-- [ ] 22-01-PLAN.md -- Health endpoint + domain update (aimarketcap.tech) + www redirect
-- [ ] 22-02-PLAN.md -- Custom server.js + node-cron scheduler + Dockerfile
-- [ ] 22-03-PLAN.md -- Railway config, env vars, DNS + SSL (checkpoints)
+- [ ] 23-01-PLAN.md -- Backend: data integrity verification engine + quality score computation + admin API endpoint
+- [ ] 23-02-PLAN.md -- Frontend: data integrity panel in admin dashboard + quality scores + human verification
 
 ## Progress
 
@@ -140,7 +139,7 @@ Plans:
 | 17. CI Verification + Branch Protection | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 18. E2E Model Detail CI Fixture | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
-| 20. Pipeline Hardening | 3/3 | Complete    | 2026-03-12 | - |
-| 21. Admin Visibility | 3/3 | Complete    | 2026-03-12 | - |
-| 22. Railway Deployment | 2/3 | In Progress|  | - |
-| 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
+| 20. Pipeline Hardening | v1.2 | 3/3 | Complete | 2026-03-12 |
+| 21. Admin Visibility | v1.2 | 3/3 | Complete | 2026-03-12 |
+| 22. Railway Deployment | v1.2 | 2/3 | In Progress | - |
+| 23. Data Integrity Verification | v1.2 | 0/2 | Not started | - |
