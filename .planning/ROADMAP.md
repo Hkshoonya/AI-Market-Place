@@ -61,7 +61,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 **Success Criteria** (what must be TRUE):
   1. On first deploy, all 27 adapters appear in the data_sources table without manual SQL
   2. Starting the app with a missing required API key prints a clear error and does not silently continue
-  3. A sync run that fails mid-adapter logs the failure with adapter name, error, and timestamp — the cron job does not return HTTP 200 for a run where adapters failed
+  3. A sync run that fails mid-adapter logs the failure with adapter name, error, and timestamp — the cron response body includes per-adapter failure details (adapter name, status, error message) so failures are visible to monitoring
   4. A failing adapter automatically retries up to 3 times with exponential backoff before marking as failed
   5. GET /api/pipeline/health returns a JSON object listing each adapter as healthy, degraded, or down
 **Plans:** 3 plans
