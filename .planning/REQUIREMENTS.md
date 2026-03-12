@@ -35,10 +35,10 @@ Requirements for Data Pipeline & Launch milestone. Each maps to roadmap phases.
 
 ### Data Integrity
 
-- [ ] **INTG-01**: End-to-end verification confirms data flows from adapters → DB → UI for all key tables
-- [ ] **INTG-02**: System detects and reports empty tables that should have data
-- [ ] **INTG-03**: Data freshness check flags sources that haven't updated within their expected interval
-- [ ] **INTG-04**: Data quality score per source measuring completeness, freshness, and record count trends
+- [x] **INTG-01**: End-to-end verification confirms data flows from adapters → DB → UI for all key tables
+- [x] **INTG-02**: System detects and reports empty tables that should have data
+- [x] **INTG-03**: Data freshness check flags sources that haven't updated within their expected interval
+- [x] **INTG-04**: Data quality score per source measuring completeness, freshness, and record count trends
 
 ## Future Requirements
 
@@ -85,10 +85,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPL-03 | Phase 22 | Complete |
 | DEPL-04 | Phase 22 | Complete |
 | DEPL-05 | Phase 22 | Complete |
-| INTG-01 | Phase 23 | Pending |
-| INTG-02 | Phase 23 | Pending |
-| INTG-03 | Phase 23 | Pending |
-| INTG-04 | Phase 23 | Pending |
+| INTG-01 | Phase 23 | Complete |
+| INTG-02 | Phase 23 | Complete |
+| INTG-03 | Phase 23 | Complete |
+| INTG-04 | Phase 23 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 18 total

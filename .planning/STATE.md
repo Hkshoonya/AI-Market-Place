@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Completed 22-01-PLAN.md
-last_updated: "2026-03-12T05:05:00.813Z"
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-12T16:18:40.088Z"
 last_activity: "2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 9
   percent: 97
 ---
 
@@ -103,6 +103,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 22-railway-deployment]: pingDb() helper pattern: DB check returns NextResponse|result to avoid TypeScript null inference — used in /api/health
 - [Phase 22-railway-deployment]: 503 only for DB unreachable; degraded pipeline returns 200 with status: degraded — matches monitoring tool expectations
 - [Phase 22-railway-deployment]: aimarketcap.tech is canonical domain; aimarketcap.com fully removed from all source files
+- [Phase 23-data-integrity-verification]: TABLE_MAP uses benchmark_scores and elo_ratings -- verified by grepping actual adapter .from() calls
+- [Phase 23-data-integrity-verification]: Quality score weights: completeness 40%, freshness 40%, trend 20% with linear decay 1.0->0 over 4x interval
 
 ### Pending Todos
 
@@ -118,6 +120,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:05:00.810Z
-Stopped at: Completed 22-01-PLAN.md
+Last session: 2026-03-12T16:18:40.084Z
+Stopped at: Completed 23-01-PLAN.md
 Resume file: None
