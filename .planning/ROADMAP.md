@@ -64,7 +64,11 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   3. A sync run that fails mid-adapter logs the failure with adapter name, error, and timestamp — the cron job does not return HTTP 200 for a run where adapters failed
   4. A failing adapter automatically retries up to 3 times with exponential backoff before marking as failed
   5. GET /api/pipeline/health returns a JSON object listing each adapter as healthy, degraded, or down
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 20-01-PLAN.md — Seed config, startup validation, resolveSecrets refactor
+- [ ] 20-02-PLAN.md — Failure reporting, Sentry alerts, verify retry + healthCheck
+- [ ] 20-03-PLAN.md — Pipeline health endpoint (/api/pipeline/health)
 
 ### Phase 21: Admin Visibility
 **Goal**: Admins can see exactly what the pipeline is doing — which syncs ran, which failed, which sources are stale, and they can trigger a resync for any adapter without touching the database or code.
@@ -124,7 +128,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 17. CI Verification + Branch Protection | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 18. E2E Model Detail CI Fixture | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
-| 20. Pipeline Hardening | v1.2 | 0/TBD | Not started | - |
+| 20. Pipeline Hardening | v1.2 | 0/3 | In progress | - |
 | 21. Admin Visibility | v1.2 | 0/TBD | Not started | - |
 | 22. Railway Deployment | v1.2 | 0/TBD | Not started | - |
 | 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
