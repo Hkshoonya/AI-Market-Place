@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
             // CSP: allow self, Supabase, Sentry, PostHog, inline styles (needed for Next.js)
             // TODO: remove 'unsafe-eval' when moving to production (needed for dev hot-reload)
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
           },
         ],
       },
