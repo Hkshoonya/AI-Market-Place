@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
+stopped_at: "Checkpoint 21-02 Task 3: awaiting human verify at /admin/data-sources"
+last_updated: "2026-03-12T04:08:22.567Z"
+last_activity: "2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering"
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 5
+  percent: 97
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.2
+milestone_name: Data Pipeline & Launch
+status: ready-to-plan
 stopped_at: Completed 21-admin-visibility plan 01 (21-01-PLAN.md)
 last_updated: "2026-03-12T04:00:31.257Z"
 last_activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
 progress:
-  total_phases: 4
+  [██████████] 97%
   completed_phases: 1
   total_plans: 6
   completed_plans: 4
@@ -77,6 +93,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 20-pipeline-hardening]: recordSyncFailure() returns Promise<number> (new count) to avoid extra DB read for Sentry threshold check in orchestrator
 - [Phase 21-admin-visibility]: /api/admin/pipeline/health uses session+is_admin auth (not CRON_SECRET) for browser-safe admin data access
 - [Phase 21-admin-visibility]: computeStatus extracted to shared pipeline-health-compute.ts lib to eliminate duplication between public and admin health routes
+- [Phase 21-admin-visibility]: Tasks 1 and 2 in page.tsx committed atomically; array return in sortedSources.map() used for conditional expansion rows
 
 ### Pending Todos
 
@@ -92,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:00:31.253Z
-Stopped at: Completed 21-admin-visibility plan 01 (21-01-PLAN.md)
+Last session: 2026-03-12T04:08:22.563Z
+Stopped at: Checkpoint 21-02 Task 3: awaiting human verify at /admin/data-sources
 Resume file: None
