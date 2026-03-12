@@ -26,10 +26,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
-# Dummy values for build-time prerendering — pages that import Supabase
-# client crash without these. Real values are injected at runtime.
-ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
+# NEXT_PUBLIC_* vars are inlined at build time by Next.js — they MUST have
+# real values here, not placeholders. Railway auto-passes env vars as build
+# args when ARG directives are present.
+ARG NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 RUN npm run build
 
@@ -58,7 +61,6 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server/custom-server.js"]
