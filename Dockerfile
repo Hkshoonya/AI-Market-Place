@@ -27,7 +27,7 @@ COPY . .
 # Next.js collects telemetry — disable it during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Sentry source map upload during build (token provided via Coolify build args)
+# Sentry source map upload during build (token provided via Railway build args)
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 
@@ -49,6 +49,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy custom server and cron scheduler
+COPY --from=builder --chown=nextjs:nodejs /app/server ./server
+# Copy node-cron from node_modules (needed at runtime)
+COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron
+
 USER nextjs
 
 EXPOSE 3000
@@ -56,4 +61,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "server/custom-server.js"]
