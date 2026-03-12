@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Data Pipeline & Launch
 status: ready-to-plan
-stopped_at: Phase 21 context gathered
-last_updated: "2026-03-12T03:18:19.287Z"
+stopped_at: Completed 21-admin-visibility plan 01 (21-01-PLAN.md)
+last_updated: "2026-03-12T04:00:31.257Z"
 last_activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 94
 ---
 
@@ -36,16 +36,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Most comprehensive, multi-lens ranking of AI models
-**Current focus:** Phase 20 — Pipeline Hardening
+**Current focus:** Phase 21 — Admin Visibility
 
 ## Current Position
 
-Phase: 20 of 23 (Pipeline Hardening)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-11 — Roadmap created; 4 phases defined, 18/18 requirements mapped
+Phase: 21 of 24 (Admin Visibility)
+Plan: 01 complete (1/3)
+Status: In Progress
+Last activity: 2026-03-12 — Completed 21-01: shared pipeline health lib, formatRelativeTime, admin health endpoint, sync API filtering
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -75,6 +75,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for detailed per-plan metrics.
 - [Phase 20-pipeline-hardening]: Two-tier secret validation: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET are core (process.exit(1)); adapter keys warn-only
 - [Phase 20-pipeline-hardening]: Cron sync endpoint always returns HTTP 200 (cron job itself succeeded); overallStatus field carries partial/success signal
 - [Phase 20-pipeline-hardening]: recordSyncFailure() returns Promise<number> (new count) to avoid extra DB read for Sentry threshold check in orchestrator
+- [Phase 21-admin-visibility]: /api/admin/pipeline/health uses session+is_admin auth (not CRON_SECRET) for browser-safe admin data access
+- [Phase 21-admin-visibility]: computeStatus extracted to shared pipeline-health-compute.ts lib to eliminate duplication between public and admin health routes
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T03:18:19.284Z
-Stopped at: Phase 21 context gathered
-Resume file: .planning/phases/21-admin-visibility/21-CONTEXT.md
+Last session: 2026-03-12T04:00:31.253Z
+Stopped at: Completed 21-admin-visibility plan 01 (21-01-PLAN.md)
+Resume file: None

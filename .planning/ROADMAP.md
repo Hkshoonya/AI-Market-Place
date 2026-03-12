@@ -80,7 +80,7 @@ Plans:
   3. The dashboard shows a pipeline health summary (count of healthy / degraded / down adapters) at a glance
   4. Clicking an adapter opens a detail view with its last N sync logs and the specific error from the most recent failure
   5. A "Sync Now" button on any adapter triggers an immediate sync and reflects the result without a page reload
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
 - [ ] 21-01-PLAN.md -- Backend APIs: shared health lib, formatRelativeTime, sync filter, admin health endpoint
 - [ ] 21-02-PLAN.md -- Frontend: health summary cards, staleness visualization, expandable rows
@@ -133,6 +133,6 @@ Plans:
 | 18. E2E Model Detail CI Fixture | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 19. Tech Debt Hardening | v1.1 | 1/1 | Complete | 2026-03-11 |
 | 20. Pipeline Hardening | 3/3 | Complete    | 2026-03-12 | - |
-| 21. Admin Visibility | v1.2 | 0/3 | Planned | - |
+| 21. Admin Visibility | 1/3 | In Progress|  | - |
 | 22. Railway Deployment | v1.2 | 0/TBD | Not started | - |
 | 23. Data Integrity Verification | v1.2 | 0/TBD | Not started | - |
