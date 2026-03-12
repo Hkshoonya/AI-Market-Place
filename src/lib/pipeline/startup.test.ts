@@ -32,7 +32,7 @@ vi.mock("@/lib/data-sources/seed-config", () => ({
       name: "Free Adapter",
       adapter_type: "free-adapter",
       description: "Test",
-      tier: 0,
+      tier: 1,
       sync_interval_hours: 2,
       priority: 5,
       secret_env_keys: [],

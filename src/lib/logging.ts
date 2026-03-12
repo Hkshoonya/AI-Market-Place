@@ -42,7 +42,7 @@ async function writeLog(entry: LogEntry): Promise<string | null> {
       .from("system_logs")
       .insert({
         level,
-        source,
+        service: source,
         message,
         metadata: metadata ?? {},
       })
