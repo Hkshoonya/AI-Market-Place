@@ -13,7 +13,13 @@ export type AgentStatus = "active" | "paused" | "disabled" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 export type LogLevel = "debug" | "info" | "warn" | "error";
 export type MessageType = "text" | "tool_call" | "tool_result" | "system";
-export type ApiKeyScope = "read" | "write" | "agent" | "mcp" | "marketplace";
+export type ApiKeyScope =
+  | "read"
+  | "write"
+  | "agent"
+  | "mcp"
+  | "marketplace"
+  | "withdraw";
 
 /** Record from the agents table */
 export interface AgentRecord {

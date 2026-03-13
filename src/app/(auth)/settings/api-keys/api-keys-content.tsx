@@ -57,7 +57,12 @@ const AVAILABLE_SCOPES = [
   {
     value: "marketplace",
     label: "Marketplace",
-    description: "Full marketplace access",
+    description: "Manage listings and marketplace automation",
+  },
+  {
+    value: "withdraw",
+    label: "Withdraw",
+    description: "Transfer seller funds to a wallet address",
   },
 ];
 

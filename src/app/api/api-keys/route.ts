@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // GET: List user's API keys
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
+  const rl = await rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 // POST: Create new API key
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
+  const rl = await rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     const apiKeySchema = z.object({
       name: z.string().min(2, "Name must be at least 2 characters").max(100),
-      scopes: z.array(z.enum(["read", "write", "agent", "mcp", "marketplace"])).optional(),
+      scopes: z.array(z.enum(["read", "write", "agent", "mcp", "marketplace", "withdraw"])).optional(),
       rate_limit: z.number().int().min(1).max(1000).optional(),
       expires_in_days: z.number().int().min(1).max(365).optional(),
     });
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     const { plaintext, hash, prefix } = generateApiKey();
 
-    const validScopes = ["read", "write", "agent", "mcp", "marketplace"];
+    const validScopes = ["read", "write", "agent", "mcp", "marketplace", "withdraw"];
     const scopes = (body.scopes ?? ["read"]).filter((s) =>
       validScopes.includes(s)
     );
