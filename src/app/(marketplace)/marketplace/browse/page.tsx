@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
@@ -57,7 +57,7 @@ export default async function BrowsePage(props: {
   const page = parseInt(searchParams.page || "1");
   const search = searchParams.q || "";
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   let query = supabase
     .from("marketplace_listings")

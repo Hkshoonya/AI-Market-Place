@@ -2,9 +2,7 @@ import { Newspaper, Building2, Cpu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { formatRelativeDate } from "@/lib/format";
 import { NewsCard, UpdateCard, EmptyState } from "@/components/news/news-card";
 import Link from "next/link";
@@ -19,7 +17,7 @@ export const metadata: Metadata = {
 export const revalidate = 1800;
 
 export default async function NewsPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const NEWS_FIELDS =
     "id, title, summary, url, source, category, related_provider, related_model_ids, tags, metadata, published_at";

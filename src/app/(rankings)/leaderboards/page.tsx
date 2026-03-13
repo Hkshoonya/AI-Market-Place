@@ -3,9 +3,7 @@ import { Crown, Trophy, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { RankedModelSchema, SpeedModelSchema, ValueModelSchema } from "@/lib/schemas/rankings";
 import { ExplorerModelSchema } from "@/lib/schemas/models";
@@ -30,7 +28,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function LeaderboardsPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch ranked models with benchmarks, pricing, elo — sorted by overall rank
   const rankedModelsResponse = await supabase

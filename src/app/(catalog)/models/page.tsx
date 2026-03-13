@@ -2,13 +2,15 @@ import Link from "next/link";
 import { Activity, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import {
+  compareModelsByLowestPrice,
+  getLowestInputPrice,
+} from "@/lib/models/pricing";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
@@ -21,6 +23,7 @@ export const metadata: Metadata = {
   description:
     "Browse, search, and compare AI models from around the world.",
 };
+export const revalidate = 60;
 
 const PAGE_SIZE = 20;
 
@@ -52,7 +55,7 @@ export default async function ModelsPage({
   const apiFilter = p.api === "true";
   const licenseFilter = p.license ?? "";
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Build Supabase query
   let dbQuery = supabase
@@ -109,45 +112,42 @@ export default async function ModelsPage({
     }
   }
 
-  // Sort
-  switch (sort) {
-    case "downloads":
-      dbQuery = dbQuery.order("hf_downloads", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "newest":
-      dbQuery = dbQuery.order("release_date", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "price":
-      dbQuery = dbQuery.order("quality_score", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "quality":
-      dbQuery = dbQuery.order("quality_score", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "rank":
-    default:
-      dbQuery = dbQuery.order("overall_rank", {
-        ascending: true,
-        nullsFirst: false,
-      });
-      break;
-  }
-
   // Pagination
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  dbQuery = dbQuery.range(from, to);
+  const useInMemoryPriceSort = sort === "price";
+
+  if (!useInMemoryPriceSort) {
+    switch (sort) {
+      case "downloads":
+        dbQuery = dbQuery.order("hf_downloads", {
+          ascending: false,
+          nullsFirst: false,
+        });
+        break;
+      case "newest":
+        dbQuery = dbQuery.order("release_date", {
+          ascending: false,
+          nullsFirst: false,
+        });
+        break;
+      case "quality":
+        dbQuery = dbQuery.order("quality_score", {
+          ascending: false,
+          nullsFirst: false,
+        });
+        break;
+      case "rank":
+      default:
+        dbQuery = dbQuery.order("overall_rank", {
+          ascending: true,
+          nullsFirst: false,
+        });
+        break;
+    }
+
+    dbQuery = dbQuery.range(from, to);
+  }
 
   const modelsResponse = await dbQuery;
   const count = modelsResponse.count;
@@ -157,8 +157,17 @@ export default async function ModelsPage({
       input_price_per_million: z.number().nullable(),
     })).optional(),
   });
-  const models = parseQueryResult(modelsResponse, ModelsPageSchema, "ModelsPage");
-  const totalCount = count ?? 0;
+  const parsedModels = parseQueryResult(
+    modelsResponse,
+    ModelsPageSchema,
+    "ModelsPage"
+  );
+  const totalCount = count ?? parsedModels.length;
+  const models = useInMemoryPriceSort
+    ? [...parsedModels]
+        .sort(compareModelsByLowestPrice)
+        .slice(from, to + 1)
+    : parsedModels;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -229,17 +238,7 @@ export default async function ModelsPage({
                   (c) => c.slug === model.category
                 );
                 const rank = model.overall_rank ?? 0;
-                const cheapestPricing = (
-                  model.model_pricing as {
-                    input_price_per_million: number | null;
-                  }[]
-                )
-                  ?.filter((p) => p.input_price_per_million != null)
-                  .sort(
-                    (a, b) =>
-                      (a.input_price_per_million ?? 0) -
-                      (b.input_price_per_million ?? 0)
-                  )[0];
+                const cheapestInputPrice = getLowestInputPrice(model);
 
                 return (
                   <tr
@@ -313,11 +312,9 @@ export default async function ModelsPage({
                       {formatNumber(model.hf_likes)}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                      {cheapestPricing ? (
+                      {cheapestInputPrice != null ? (
                         <span className="text-muted-foreground">
-                          {formatTokenPrice(
-                            cheapestPricing.input_price_per_million
-                          )}
+                          {formatTokenPrice(cheapestInputPrice)}
                           /M
                         </span>
                       ) : model.is_open_weights ? (

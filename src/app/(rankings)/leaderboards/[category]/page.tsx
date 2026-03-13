@@ -5,9 +5,7 @@ import { Badge } from "@/components/ui/badge";
 // REMOVED: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Card, CardContent } from "@/components/ui/card";
 import { CATEGORIES, CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CategoryModelSchema } from "@/lib/schemas/rankings";
 import type { z } from "zod";
@@ -51,7 +49,7 @@ export default async function CategoryLeaderboardPage({
     notFound();
   }
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch models in this category with their benchmark scores and pricing
   const modelsResponse = await supabase

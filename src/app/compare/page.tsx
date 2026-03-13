@@ -1,7 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { CompareClient } from "./compare-client";
 
-export const dynamic = "force-dynamic";
 import type { ModelWithDetails } from "@/types/database";
 import type { Metadata } from "next";
 
@@ -21,7 +20,7 @@ export async function generateMetadata(props: {
   }
 
   const slugs = modelsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 5);
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data } = await supabase
     .from("models")
@@ -50,7 +49,7 @@ export default async function ComparePage({
   searchParams: Promise<{ models?: string }>;
 }) {
   const { models: modelsParam } = await searchParams;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch all models for the selector
   const { data: allModels } = await supabase

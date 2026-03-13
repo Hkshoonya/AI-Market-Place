@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
 import {
   BookOpen,
   Bot,
@@ -17,7 +15,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -56,6 +54,7 @@ const SKILLS: SkillDef[] = [
       "humaneval",
       "swe_bench",
       "swe-bench",
+      "livecodebench",
       "livebench-coding",
       "livebench_coding",
     ],
@@ -153,7 +152,7 @@ interface ModelScoreEntry {
 // ---------------------------------------------------------------------------
 
 export default async function SkillsPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch benchmark scores with model + benchmark info
   const BenchmarkScoreEntrySchema = z.object({

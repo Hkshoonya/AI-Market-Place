@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
@@ -20,7 +18,7 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function MarketplacePage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Fetch type counts
   const listingTypeResponse = await supabase

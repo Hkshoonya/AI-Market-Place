@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { Eye, Globe, Layers, Search, Users } from "lucide-react";
 
-export const dynamic = "force-dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatRelativeDate } from "@/lib/format";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
@@ -34,7 +33,7 @@ export default async function DiscoverPage(props: {
   const page = Math.max(1, parseInt(pageParam || "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Build query with pagination and optional search
   // Two-query approach: watchlists may not have FK to profiles

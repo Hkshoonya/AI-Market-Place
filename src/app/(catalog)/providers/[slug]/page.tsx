@@ -12,9 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
@@ -48,7 +46,7 @@ export async function generateMetadata({
 
   if (!providerName) {
     // Fall back to DB lookup
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data } = await supabase
       .from("models")
       .select("provider")
@@ -87,7 +85,7 @@ export default async function ProviderDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Resolve provider name from slug
   let providerName = slugToProvider(slug);

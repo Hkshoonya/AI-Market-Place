@@ -12,11 +12,10 @@ import {
   Zap,
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { ModelWithDetailsSchema } from "@/lib/schemas/models";
 import { formatNumber, formatParams, formatContextWindow } from "@/lib/format";
@@ -41,7 +40,7 @@ export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase.from("models").select("name, provider, short_description, category").eq("slug", slug).single();
   const model = data as { name: string; provider: string; short_description: string | null; category: string } | null;
   if (!model) return { title: "Model Not Found" };
@@ -62,7 +61,7 @@ export default async function ModelDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const modelResponse = await supabase
     .from("models")
