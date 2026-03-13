@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { buildContentSecurityPolicy } from "./src/lib/csp";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -15,9 +16,10 @@ const nextConfig: NextConfig = {
     // This prevents CSP violations when client-side code tries to fetch from the
     // local Supabase URL injected via NEXT_PUBLIC_SUPABASE_URL during tests.
     const isE2E = process.env.NEXT_PUBLIC_E2E_MSW === "true";
-    const connectSrc = isE2E
-      ? "connect-src 'self' http://localhost:54321 ws://localhost:54321 https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://us.i.posthog.com;"
-      : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://us.i.posthog.com;";
+    const contentSecurityPolicy = buildContentSecurityPolicy({
+      isDevelopment: process.env.NODE_ENV !== "production",
+      isE2E,
+    });
 
     return [
       {
@@ -48,10 +50,8 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
           {
-            // CSP: allow self, Supabase, Sentry, PostHog, inline styles (needed for Next.js)
-            // TODO: remove 'unsafe-eval' when moving to production (needed for dev hot-reload)
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.posthog.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://api.dicebear.com; font-src 'self'; ${connectSrc} frame-ancestors 'none';`,
+            value: contentSecurityPolicy,
           },
         ],
       },

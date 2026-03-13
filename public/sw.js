@@ -1,6 +1,6 @@
 // AI Market Cap - Service Worker
-const CACHE_NAME = "aimc-v1";
-const STATIC_ASSETS = ["/", "/models", "/leaderboards", "/marketplace"];
+const CACHE_NAME = "aimc-v3";
+const STATIC_ASSETS = ["/offline"];
 
 // Install: cache static assets
 self.addEventListener("install", (event) => {
@@ -51,9 +51,9 @@ self.addEventListener("fetch", (event) => {
         // Fallback to cache
         return caches.match(request).then((cached) => {
           if (cached) return cached;
-          // For navigation requests, return cached homepage
+          // For navigation requests, return a dedicated offline page
           if (request.mode === "navigate") {
-            return caches.match("/");
+            return caches.match("/offline");
           }
           return new Response("Offline", { status: 503 });
         });
