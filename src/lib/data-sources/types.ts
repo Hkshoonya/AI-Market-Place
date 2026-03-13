@@ -32,10 +32,14 @@ export interface DataSourceRecord {
   config: Record<string, unknown>;
   secret_env_keys: string[];
   output_types: SyncOutputType[];
+  last_attempt_at: string | null;
+  last_success_at: string | null;
   last_sync_at: string | null;
   last_sync_status: SyncStatus | null;
   last_sync_records: number;
   last_error_message: string | null;
+  quarantined_at: string | null;
+  quarantine_reason: string | null;
   created_at: string;
   updated_at: string;
 }

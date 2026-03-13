@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
 import { getAdapter, loadAllAdapters } from "./registry";
-import { resolveSecrets, needsSync } from "./utils";
+import { hasPermanentSyncError, resolveSecrets, needsSync } from "./utils";
 import { recordSyncSuccess, recordSyncFailure } from "@/lib/pipeline-health";
 import { systemLog } from "@/lib/logging";
 
@@ -132,6 +132,9 @@ async function executeAdapter(
     : syncResult.errors.length > 0 && syncResult.recordsProcessed > 0
       ? "partial"
       : "failed";
+  const permanentFailure = status === "failed" && hasPermanentSyncError(syncResult.errors);
+  const shouldQuarantine = permanentFailure && config.autoQuarantineOnPermanentFailure !== false;
+  const nowIso = new Date().toISOString();
 
   // Update sync_jobs record
   if (syncJob?.id) {
@@ -139,7 +142,7 @@ async function executeAdapter(
       .from("sync_jobs")
       .update({
         status: status === "success" ? "completed" : "failed",
-        completed_at: new Date().toISOString(),
+        completed_at: nowIso,
         records_processed: syncResult.recordsProcessed,
         records_created: syncResult.recordsCreated,
         records_updated: syncResult.recordsUpdated,
@@ -152,6 +155,8 @@ async function executeAdapter(
           adapter_type: source.adapter_type,
           trigger,
           duration_ms: durationMs,
+          permanent_failure: permanentFailure,
+          source_quarantined: shouldQuarantine,
           cursor: syncResult.cursor,
           ...syncResult.metadata,
         },
@@ -160,18 +165,36 @@ async function executeAdapter(
   }
 
   // Update data_sources record
-  await sb
-    .from("data_sources")
-    .update({
-      last_sync_at: new Date().toISOString(),
-      last_sync_status: status,
-      last_sync_records: syncResult.recordsProcessed,
-      last_error_message:
-        syncResult.errors.length > 0
+  const dataSourceUpdate: Record<string, unknown> = {
+    last_attempt_at: nowIso,
+    last_sync_status: status,
+    last_error_message:
+      status === "success"
+        ? null
+        : syncResult.errors.length > 0
           ? syncResult.errors[0].message
           : null,
-      updated_at: new Date().toISOString(),
-    })
+    updated_at: nowIso,
+  };
+
+  if (status !== "failed") {
+    dataSourceUpdate.last_sync_at = nowIso;
+    dataSourceUpdate.last_success_at = nowIso;
+    dataSourceUpdate.last_sync_records = syncResult.recordsProcessed;
+    dataSourceUpdate.quarantined_at = null;
+    dataSourceUpdate.quarantine_reason = null;
+  }
+
+  if (shouldQuarantine) {
+    dataSourceUpdate.quarantined_at = nowIso;
+    dataSourceUpdate.quarantine_reason = syncResult.errors[0]?.message ?? "unknown error";
+    dataSourceUpdate.last_error_message =
+      `Quarantined after permanent upstream failure: ${syncResult.errors[0]?.message ?? "unknown error"}`;
+  }
+
+  await sb
+    .from("data_sources")
+    .update(dataSourceUpdate)
     .eq("id", source.id);
 
   // Track pipeline health
@@ -212,6 +235,15 @@ async function executeAdapter(
         }
       );
     }
+
+    if (shouldQuarantine) {
+      void systemLog.warn("sync-orchestrator", "Adapter quarantined after permanent upstream failure", {
+        adapter: source.slug,
+        adapter_type: source.adapter_type,
+        tier: source.tier,
+        error: syncResult.errors[0]?.message ?? "unknown",
+      });
+    }
   } else {
     await recordSyncSuccess(source.slug).catch((err: unknown) => {
       void systemLog.warn("sync-orchestrator", "Failed to record sync success status", {
@@ -244,6 +276,7 @@ export async function runTierSync(
     .from("data_sources")
     .select("*")
     .eq("is_enabled", true)
+    .is("quarantined_at", null)
     .eq("tier", tier)
     .order("priority", { ascending: true });
 

@@ -106,6 +106,13 @@ interface ParsedArticle {
   date: string | null;
 }
 
+interface ProviderHealthResult {
+  name: string;
+  ok: boolean;
+  status: number | null;
+  latencyMs: number;
+}
+
 /**
  * Extract article candidates from raw HTML using generic regex patterns.
  *
@@ -167,6 +174,32 @@ function parseArticles(html: string, baseUrl: string): ParsedArticle[] {
   }
 
   return articles;
+}
+
+function summarizeHealthChecks(results: ProviderHealthResult[]): HealthCheckResult {
+  const reachable = results.filter((result) => result.ok);
+  const latencyMs =
+    results.length > 0
+      ? Math.round(results.reduce((sum, result) => sum + result.latencyMs, 0) / results.length)
+      : 0;
+
+  if (reachable.length > 0) {
+    return {
+      healthy: true,
+      latencyMs,
+      message: `${reachable.length}/${results.length} provider blogs reachable`,
+    };
+  }
+
+  const firstFailure = results[0];
+  return {
+    healthy: false,
+    latencyMs,
+    message:
+      firstFailure?.status != null
+        ? `${firstFailure.name} returned HTTP ${firstFailure.status}`
+        : "All provider blogs unreachable",
+  };
 }
 
 const adapter: DataSourceAdapter = {
@@ -277,24 +310,36 @@ const adapter: DataSourceAdapter = {
   },
 
   async healthCheck(): Promise<HealthCheckResult> {
-    const start = Date.now();
-    try {
-      const res = await fetch(PROVIDER_BLOGS[0].url, {
-        headers: { "User-Agent": "AI-Market-Cap-Bot/1.0" },
-      });
-      return {
-        healthy: res.ok,
-        latencyMs: Date.now() - start,
-        message: res.ok ? undefined : `HTTP ${res.status}`,
-      };
-    } catch (err) {
-      return {
-        healthy: false,
-        latencyMs: Date.now() - start,
-        message: err instanceof Error ? err.message : "Failed",
-      };
-    }
+    const checks = await Promise.all(
+      PROVIDER_BLOGS.slice(0, 3).map(async (blog) => {
+        const start = Date.now();
+        try {
+          const res = await fetch(blog.url, {
+            headers: { "User-Agent": "AI-Market-Cap-Bot/1.0" },
+          });
+          return {
+            name: blog.name,
+            ok: res.ok,
+            status: res.status,
+            latencyMs: Date.now() - start,
+          };
+        } catch {
+          return {
+            name: blog.name,
+            ok: false,
+            status: null,
+            latencyMs: Date.now() - start,
+          };
+        }
+      })
+    );
+
+    return summarizeHealthChecks(checks);
   },
+};
+
+export const __testables = {
+  summarizeHealthChecks,
 };
 
 registerAdapter(adapter);

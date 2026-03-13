@@ -83,10 +83,12 @@ const mockInsertFn = vi.fn().mockReturnValue({
 const mockDataSourcesFrom = {
   select: vi.fn().mockReturnValue({
     eq: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        order: vi.fn().mockResolvedValue({
-          data: [],
-          error: null,
+      is: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [],
+            error: null,
+          }),
         }),
       }),
     }),
@@ -117,10 +119,12 @@ vi.mock("@supabase/supabase-js", () => ({
 
 const mockResolveSecrets = vi.fn().mockReturnValue({ secrets: {}, missing: [] });
 const mockNeedsSync = vi.fn().mockReturnValue(true);
+const mockHasPermanentSyncError = vi.fn().mockReturnValue(false);
 
 vi.mock("@/lib/data-sources/utils", () => ({
   resolveSecrets: (...args: unknown[]) => mockResolveSecrets(...args),
   needsSync: (...args: unknown[]) => mockNeedsSync(...args),
+  hasPermanentSyncError: (...args: unknown[]) => mockHasPermanentSyncError(...args),
 }));
 
 // ── Test helpers ───────────────────────────────────────────────────────────────
@@ -132,6 +136,7 @@ function makeSource(overrides: Partial<{
   secret_env_keys: string[];
   last_sync_at: string | null;
   sync_interval_hours: number;
+  config: Record<string, unknown>;
 }> = {}) {
   return {
     id: "src-1",
@@ -143,7 +148,7 @@ function makeSource(overrides: Partial<{
     last_sync_at: overrides.last_sync_at ?? null,
     sync_interval_hours: overrides.sync_interval_hours ?? 24,
     secret_env_keys: overrides.secret_env_keys ?? [],
-    config: {},
+    config: overrides.config ?? {},
     name: "Test",
     description: "Test adapter",
     output_types: ["models"],
@@ -156,6 +161,7 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
   beforeEach(() => {
     vi.clearAllMocks();
     mockRecordSyncFailureResult = 1;
+    mockHasPermanentSyncError.mockReturnValue(false);
     mockAdapter.sync.mockResolvedValue({
       success: false,
       recordsProcessed: 0,
@@ -167,10 +173,12 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
     // Reset data_sources mock to return one source
     mockDataSourcesFrom.select.mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [makeSource()],
-            error: null,
+        is: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [makeSource()],
+              error: null,
+            }),
           }),
         }),
       }),
@@ -295,5 +303,69 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
     );
     expect(adapterErrorCalls).toHaveLength(0);
     expect(mockSentryCaptureMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not update last_sync_at on a failed sync attempt", async () => {
+    const { runTierSync } = await import("./orchestrator");
+    await runTierSync(1);
+
+    expect(mockDataSourcesFrom.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        last_sync_at: expect.any(String),
+      })
+    );
+  });
+
+  it("clears last_error_message when a sync succeeds with non-fatal warnings", async () => {
+    mockAdapter.sync.mockResolvedValueOnce({
+      success: true,
+      recordsProcessed: 12,
+      recordsCreated: 0,
+      recordsUpdated: 8,
+      errors: [{ message: "Repo not found: example/missing", context: "warning" }],
+      metadata: {
+        warningCount: 1,
+      },
+    });
+
+    const { runTierSync } = await import("./orchestrator");
+    await runTierSync(1);
+
+    expect(mockDataSourcesFrom.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        last_sync_status: "success",
+        last_error_message: null,
+        last_sync_records: 12,
+      })
+    );
+  });
+
+  it("quarantines sources after permanent upstream failures", async () => {
+    mockAdapter.sync.mockResolvedValueOnce({
+      success: false,
+      recordsProcessed: 0,
+      recordsCreated: 0,
+      recordsUpdated: 0,
+      errors: [{ message: "dataset is private or gated", context: "permanent_upstream_failure" }],
+    });
+    mockHasPermanentSyncError.mockReturnValueOnce(true);
+
+    const { runTierSync } = await import("./orchestrator");
+    await runTierSync(1);
+
+    expect(mockDataSourcesFrom.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quarantined_at: expect.any(String),
+        quarantine_reason: "dataset is private or gated",
+        last_error_message: expect.stringContaining("Quarantined after permanent upstream failure"),
+      })
+    );
+    expect(mockSystemLogWarn).toHaveBeenCalledWith(
+      "sync-orchestrator",
+      "Adapter quarantined after permanent upstream failure",
+      expect.objectContaining({
+        adapter: "test-adapter",
+      })
+    );
   });
 });

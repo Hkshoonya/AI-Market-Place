@@ -216,7 +216,8 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     release_date: unixToDateString(model.created),
     is_api_available: true,
     is_open_weights: isOpen,
-    license: isOpen ? "open" : "commercial",
+    license: isOpen ? "open_source" : "commercial",
+    license_name: isOpen ? "Open weights" : null,
     modalities: mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),
@@ -496,4 +497,8 @@ const adapter: DataSourceAdapter = {
 };
 
 registerAdapter(adapter);
+export const __testables = {
+  buildModelRecord,
+  inferOpenWeights,
+};
 export default adapter;
