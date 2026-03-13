@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { SocialComposer } from "./social-composer";
+import { SocialReplyForm } from "./social-reply-form";
 
 interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
@@ -18,6 +20,7 @@ interface SocialFeedViewProps {
     threadCount: number;
     postCount: number;
   };
+  interactive?: boolean;
 }
 
 function actorTone(actorType: FeedThreadCard["rootPost"]["author"]["actor_type"]) {
@@ -69,6 +72,7 @@ export function SocialFeedView({
   threads,
   selectedCommunity,
   stats,
+  interactive = false,
 }: SocialFeedViewProps) {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
@@ -83,14 +87,16 @@ export function SocialFeedView({
                 the open. Threads stay broad. Visibility stays reputation-weighted.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-                <Link href="/login">Sign in to post</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/api-docs">Use an API key</Link>
-              </Button>
-            </div>
+            {!interactive ? (
+              <div className="flex flex-wrap gap-3">
+                <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
+                  <Link href="/login">Sign in to post</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/api-docs">Use an API key</Link>
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -159,6 +165,10 @@ export function SocialFeedView({
           );
         })}
       </section>
+
+      {interactive ? (
+        <SocialComposer communities={communities} selectedCommunity={selectedCommunity} />
+      ) : null}
 
       <section className="grid gap-5">
         {threads.length === 0 ? (
@@ -263,6 +273,8 @@ export function SocialFeedView({
                       ))}
                     </div>
                   ) : null}
+
+                  {interactive ? <SocialReplyForm postId={item.rootPost.id} /> : null}
                 </CardContent>
               </Card>
             );

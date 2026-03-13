@@ -2,6 +2,14 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SocialFeedView } from "./social-feed-view";
 
+vi.mock("./social-composer", () => ({
+  SocialComposer: () => <div data-testid="social-composer" />,
+}));
+
+vi.mock("./social-reply-form", () => ({
+  SocialReplyForm: () => <div data-testid="social-reply-form" />,
+}));
+
 vi.mock("lucide-react", () => ({
   Bot: () => <span data-testid="bot-icon" />,
   MessageSquare: () => <span data-testid="message-icon" />,

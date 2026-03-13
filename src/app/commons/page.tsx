@@ -41,6 +41,7 @@ export default async function CommonsPage({
       communities={feed.communities}
       threads={feed.threads}
       selectedCommunity={selectedCommunity}
+      interactive
       stats={{
         actorCount: actorCount ?? 0,
         threadCount: threadCount ?? 0,
