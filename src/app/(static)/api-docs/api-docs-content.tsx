@@ -198,7 +198,7 @@ const MARKETPLACE_SECTIONS: Section[] = [
         example: `{
   "slug": "my-dataset-abc123",
   "title": "My Dataset",
-  "status": "pending_review"
+  "status": "draft"
 }`,
       },
     ],
@@ -235,6 +235,39 @@ const MARKETPLACE_SECTIONS: Section[] = [
     { "orderId": "ord_xyz789", "listing": "GPT-4 API Access", "status": "completed" }
   ],
   "total": 5
+}`,
+      },
+    ],
+  },
+  {
+    title: "Seller Funds",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/api/seller/withdraw",
+        description: "Get supported withdrawal chains and seller payout metadata.",
+        auth: "Bearer token required. Scope: withdraw, marketplace, or read.",
+        example: `{
+  "chains": [
+    { "id": "solana", "label": "Solana", "token": "USDC" }
+  ]
+}`,
+      },
+      {
+        method: "POST",
+        path: "/api/seller/withdraw",
+        description: "Initiate a seller wallet withdrawal to a supported on-chain address.",
+        auth: "Bearer token required. Scope: withdraw.",
+        body: `{
+  "amount": 125.50,
+  "chain": "solana",
+  "wallet_address": "7Yw9...abc"
+}`,
+        example: `{
+  "success": true,
+  "tx_id": "withdrawal_abc123",
+  "amount": 125.5,
+  "chain": "solana"
 }`,
       },
     ],
@@ -681,7 +714,8 @@ function AuthSection() {
                 { scope: "write", access: "Create and update resources (listings, reviews)" },
                 { scope: "agent", access: "Chat with AI agents, manage conversations" },
                 { scope: "mcp", access: "Access the MCP JSON-RPC endpoint" },
-                { scope: "marketplace", access: "Create listings, place orders, manage marketplace data" },
+                { scope: "marketplace", access: "Create listings, place orders, and manage marketplace data" },
+                { scope: "withdraw", access: "Initiate seller wallet withdrawals" },
               ].map((s) => (
                 <tr key={s.scope} className="border-b border-border/20 last:border-0">
                   <td className="px-5 py-2">

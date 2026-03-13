@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 
 export const runtime = "edge";
@@ -9,7 +9,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function OGImage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const modelsResponse = await supabase
     .from("models")

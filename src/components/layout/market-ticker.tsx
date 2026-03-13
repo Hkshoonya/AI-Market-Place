@@ -26,7 +26,7 @@ export function MarketTicker() {
 
   return (
     <div className="w-full bg-[#0a0a0a] border-b border-border/30 overflow-hidden h-8 relative z-20">
-      <style jsx>{`
+      <style>{`
         @keyframes ticker-scroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }

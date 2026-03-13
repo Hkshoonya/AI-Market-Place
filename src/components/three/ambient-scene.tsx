@@ -138,7 +138,17 @@ export function AmbientScene() {
     () => false
   );
 
-  if (prefersReducedMotion) return null;
+  const isLargeViewport = useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia("(min-width: 1024px)");
+      mq.addEventListener("change", callback);
+      return () => mq.removeEventListener("change", callback);
+    },
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => true
+  );
+
+  if (prefersReducedMotion || !isLargeViewport) return null;
 
   return (
     <div

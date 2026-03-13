@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuctionDetailContent from "./auction-detail-content";
+import { SITE_URL } from "@/lib/constants/site";
 
 interface AuctionDetailPageProps {
   params: Promise<{ id: string }>;
@@ -11,8 +12,7 @@ export async function generateMetadata({
   const { id } = await params;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/marketplace/auctions/${id}`, {
+    const res = await fetch(`${SITE_URL}/api/marketplace/auctions/${id}`, {
       next: { revalidate: 30 },
     });
 

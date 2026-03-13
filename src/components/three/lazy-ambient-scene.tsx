@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 
 const AmbientScene = dynamic(
   () =>
@@ -9,5 +10,11 @@ const AmbientScene = dynamic(
 );
 
 export function LazyAmbientScene() {
+  const pathname = usePathname();
+
+  if (pathname !== "/") {
+    return null;
+  }
+
   return <AmbientScene />;
 }
