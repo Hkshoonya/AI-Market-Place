@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runTierSync } from "@/lib/data-sources/orchestrator";
+import { runSingleSync, runTierSync } from "@/lib/data-sources/orchestrator";
 import { trackCronRun } from "@/lib/cron-tracker";
-import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max (Vercel Pro)
 
 /**
- * Vercel Cron endpoint for data source sync.
+ * Cron endpoint for data source sync.
  * Protected by CRON_SECRET header.
  *
  * Usage: GET /api/cron/sync?tier=1
- * Called by Vercel Cron (configured in vercel.json)
+ * Called by the configured scheduler (VPS cron, internal cron, or manual recovery).
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret (Vercel sends authorization header)
+  // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -23,19 +22,23 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+  const source = searchParams.get("source");
   const tier = parseInt(searchParams.get("tier") || "0");
 
-  if (tier < 1 || tier > 4) {
+  if (!source && (tier < 1 || tier > 4)) {
     return NextResponse.json(
-      { error: "Invalid tier. Must be 1-4." },
+      { error: "Invalid request. Provide source or tier=1-4." },
       { status: 400 }
     );
   }
 
-  const tracker = await trackCronRun(`sync-tier-${tier}`);
+  const tracker = await trackCronRun(source ? `sync-source-${source}` : `sync-tier-${tier}`);
+  if (tracker.shouldSkip) {
+    return tracker.skip();
+  }
 
   try {
-    const result = await runTierSync(tier);
+    const result = source ? await runSingleSync(source) : await runTierSync(tier);
 
     const hasFailed = result.sourcesFailed > 0;
 
@@ -56,6 +59,6 @@ export async function GET(request: NextRequest) {
 
     return tracker.complete(summary);
   } catch (err) {
-    return handleApiError(err, "cron/sync");
+    return tracker.fail(err);
   }
 }
