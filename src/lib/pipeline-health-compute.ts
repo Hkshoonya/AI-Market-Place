@@ -19,6 +19,12 @@ export interface HealthRow {
   expected_interval_hours: number;
 }
 
+export interface HealthSourceSnapshot {
+  sync_interval_hours?: number | null;
+  last_success_at?: string | null;
+  last_sync_at?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // computeStatus
 // ---------------------------------------------------------------------------
@@ -43,6 +49,29 @@ export function computeStatus(row: HealthRow): HealthStatus {
   if (failures >= 3 || sinceLastSync > 4 * intervalMs) return "down";
   if (failures >= 1 || sinceLastSync > 2 * intervalMs) return "degraded";
   return "healthy";
+}
+
+/**
+ * Build the effective health row used by public/admin health endpoints.
+ *
+ * Prefer pipeline_health.last_success_at when present. If the secondary
+ * pipeline_health row is missing or has no success timestamp yet, fall back to
+ * data_sources.last_success_at and then to legacy data_sources.last_sync_at.
+ */
+export function resolveEffectiveHealthRow(
+  source: HealthSourceSnapshot,
+  row?: Partial<HealthRow> | null
+): HealthRow {
+  return {
+    consecutive_failures: row?.consecutive_failures ?? 0,
+    last_success_at:
+      row?.last_success_at ??
+      source.last_success_at ??
+      source.last_sync_at ??
+      null,
+    expected_interval_hours:
+      row?.expected_interval_hours ?? source.sync_interval_hours ?? 6,
+  };
 }
 
 // ---------------------------------------------------------------------------

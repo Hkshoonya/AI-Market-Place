@@ -15,7 +15,10 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError } from "@/lib/api-error";
-import { computeStatus } from "@/lib/pipeline-health-compute";
+import {
+  computeStatus,
+  resolveEffectiveHealthRow,
+} from "@/lib/pipeline-health-compute";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isCronSchedulerConfigured,
@@ -127,7 +130,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from("data_sources")
         .select(
-          "slug, is_enabled, last_sync_at, last_sync_records, last_error_message, sync_interval_hours"
+          "slug, is_enabled, last_success_at, last_sync_at, last_sync_records, last_error_message, sync_interval_hours"
         )
         .eq("is_enabled", true)
         .is("quarantined_at", null),
@@ -147,12 +150,10 @@ export async function GET(request: NextRequest) {
     let pipelineDown = 0;
 
     for (const source of dataSources) {
-      const healthRow = healthBySlug.get(source.slug);
-      const effectiveRow = healthRow ?? {
-        consecutive_failures: 0,
-        last_success_at: null as string | null,
-        expected_interval_hours: source.sync_interval_hours ?? 6,
-      };
+      const effectiveRow = resolveEffectiveHealthRow(
+        source,
+        healthBySlug.get(source.slug)
+      );
       const status = computeStatus(effectiveRow);
       if (status === "healthy") pipelineHealthy++;
       else if (status === "degraded") pipelineDegraded++;

@@ -20,7 +20,10 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
-import { computeStatus } from "@/lib/pipeline-health-compute";
+import {
+  computeStatus,
+  resolveEffectiveHealthRow,
+} from "@/lib/pipeline-health-compute";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -61,7 +64,7 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-pipeline-health:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`admin-pipeline-health:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -96,7 +99,9 @@ export async function GET(request: NextRequest) {
     const [dataSourcesResult, pipelineHealthResult] = await Promise.all([
       adminSupabase
         .from("data_sources")
-        .select("slug, last_sync_at, last_sync_records, last_error_message, sync_interval_hours"),
+        .select("slug, is_enabled, last_success_at, last_sync_at, last_sync_records, last_error_message, sync_interval_hours")
+        .eq("is_enabled", true)
+        .is("quarantined_at", null),
       adminSupabase
         .from("pipeline_health")
         .select("source_slug, consecutive_failures, last_success_at, expected_interval_hours"),
@@ -119,22 +124,16 @@ export async function GET(request: NextRequest) {
 
     // Compute per-adapter status using shared computeStatus
     const adapterStatuses = dataSources.map((source) => {
-      const healthRow = healthBySlug.get(source.slug);
-
-      // If no pipeline_health row exists, treat as never synced:
-      // last_success_at = null => staleness = Infinity => "down"
-      const effectiveRow = healthRow ?? {
-        consecutive_failures: 0,
-        last_success_at: null as string | null,
-        expected_interval_hours: source.sync_interval_hours ?? 6,
-      };
-
+      const effectiveRow = resolveEffectiveHealthRow(
+        source,
+        healthBySlug.get(source.slug)
+      );
       const status = computeStatus(effectiveRow);
 
       return {
         slug: source.slug,
         status,
-        lastSync: source.last_sync_at ?? null,
+        lastSync: source.last_success_at ?? source.last_sync_at ?? null,
         consecutiveFailures: effectiveRow.consecutive_failures,
         recordCount: source.last_sync_records ?? 0,
         error: source.last_error_message ?? null,

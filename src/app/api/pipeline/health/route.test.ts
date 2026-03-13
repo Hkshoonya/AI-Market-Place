@@ -45,18 +45,25 @@ function createMockSupabase(tables: Record<string, TableMock>) {
   return {
     from: (table: string) => {
       const result = tables[table] ?? { data: [], error: null };
-      // Return a chainable proxy that resolves to `result` when awaited
-      const chain = new Proxy(
-        {},
-        {
-          get(_target, prop) {
-            if (prop === "then") {
-              return (resolve: (v: unknown) => void) => resolve(result);
-            }
-            return (..._args: unknown[]) => chain;
-          },
-        }
-      );
+      let currentData = Array.isArray(result.data) ? [...result.data] : result.data;
+
+      const chain = {
+        select: () => chain,
+        eq: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        is: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        then: (resolve: (v: unknown) => void) => resolve({ data: currentData, error: result.error }),
+      };
+
       return chain;
     },
   };
@@ -95,6 +102,9 @@ function syncedAgo(multiplier: number, intervalHours: number): string {
 
 function makeDataSources(sources: Array<{
   slug: string;
+  is_enabled?: boolean;
+  quarantined_at?: string | null;
+  last_success_at?: string | null;
   last_sync_at?: string | null;
   last_sync_records?: number;
   last_error_message?: string | null;
@@ -102,6 +112,9 @@ function makeDataSources(sources: Array<{
 }>) {
   return sources.map((s) => ({
     slug: s.slug,
+    is_enabled: s.is_enabled ?? true,
+    quarantined_at: s.quarantined_at ?? null,
+    last_success_at: s.last_success_at ?? null,
     last_sync_at: s.last_sync_at ?? null,
     last_sync_records: s.last_sync_records ?? 0,
     last_error_message: s.last_error_message ?? null,
@@ -188,6 +201,33 @@ describe("GET /api/pipeline/health", () => {
       const body = await response.json();
 
       expect(body).not.toHaveProperty("adapters");
+    });
+
+    it("ignores disabled data sources in health counts", async () => {
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            { slug: "enabled-adapter", sync_interval_hours: 6 },
+            { slug: "disabled-adapter", is_enabled: false, sync_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "enabled-adapter", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+            { source_slug: "disabled-adapter", consecutive_failures: 3, last_success_at: syncedAgo(5, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(body.status).toBe("healthy");
+      expect(body.healthy).toBe(1);
+      expect(body.down).toBe(0);
     });
   });
 
@@ -360,6 +400,34 @@ describe("GET /api/pipeline/health", () => {
       // Never synced means staleness is Infinity -> down
       expect(body.status).toBe("down");
       expect(body.down).toBe(1);
+    });
+
+    it("falls back to data_sources last_success_at when pipeline_health row is missing", async () => {
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            {
+              slug: "recent-adapter",
+              last_success_at: syncedAgo(0.5, 6),
+              last_sync_at: syncedAgo(0.5, 6),
+              sync_interval_hours: 6,
+            },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: [],
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(body.status).toBe("healthy");
+      expect(body.healthy).toBe(1);
+      expect(body.down).toBe(0);
     });
   });
 

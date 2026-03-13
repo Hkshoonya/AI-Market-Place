@@ -71,17 +71,23 @@ function createMockAdminSupabase(tables: Record<string, TableMock>) {
   return {
     from: (table: string) => {
       const result = tables[table] ?? { data: [], error: null };
-      const chain = new Proxy(
-        {},
-        {
-          get(_target, prop) {
-            if (prop === "then") {
-              return (resolve: (v: unknown) => void) => resolve(result);
-            }
-            return (..._args: unknown[]) => chain;
-          },
-        }
-      );
+      let currentData = Array.isArray(result.data) ? [...result.data] : result.data;
+      const chain = {
+        select: () => chain,
+        eq: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        is: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        then: (resolve: (v: unknown) => void) => resolve({ data: currentData, error: result.error }),
+      };
       return chain;
     },
   };
@@ -119,6 +125,9 @@ function createMockSessionClient(options: {
 const DEFAULT_DATA_SOURCES = [
   {
     slug: "adapter-a",
+    is_enabled: true,
+    quarantined_at: null,
+    last_success_at: syncedAgo(0.5),
     last_sync_at: syncedAgo(0.5),
     last_sync_records: 100,
     last_error_message: null,
@@ -126,6 +135,9 @@ const DEFAULT_DATA_SOURCES = [
   },
   {
     slug: "adapter-b",
+    is_enabled: true,
+    quarantined_at: null,
+    last_success_at: syncedAgo(1),
     last_sync_at: syncedAgo(1),
     last_sync_records: 50,
     last_error_message: null,
@@ -277,6 +289,9 @@ describe("GET /api/admin/pipeline/health", () => {
         data: [
           {
             slug: "failing-adapter",
+            is_enabled: true,
+            quarantined_at: null,
+            last_success_at: syncedAgo(1),
             last_sync_at: syncedAgo(1),
             last_sync_records: 0,
             last_error_message: "API error",
@@ -323,6 +338,9 @@ describe("GET /api/admin/pipeline/health", () => {
         data: [
           {
             slug: "new-adapter",
+            is_enabled: true,
+            quarantined_at: null,
+            last_success_at: null,
             last_sync_at: null,
             last_sync_records: 0,
             last_error_message: null,
@@ -343,5 +361,110 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.status).toBe("down");
     expect(body.down).toBe(1);
     expect(body.adapters[0].status).toBe("down");
+  });
+
+  it("uses data_sources fallback timestamps when pipeline_health row is missing", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    const adminClient = createMockAdminSupabase({
+      data_sources: {
+        data: [
+          {
+            slug: "recent-adapter",
+            is_enabled: true,
+            quarantined_at: null,
+            last_success_at: syncedAgo(0.5),
+            last_sync_at: syncedAgo(0.5),
+            last_sync_records: 25,
+            last_error_message: null,
+            sync_interval_hours: 6,
+          },
+        ],
+        error: null,
+      },
+      pipeline_health: { data: [], error: null },
+    });
+    mockCreateAdminClient.mockReturnValue(
+      adminClient as ReturnType<typeof createAdminClient>
+    );
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(body.status).toBe("healthy");
+    expect(body.healthy).toBe(1);
+    expect(body.down).toBe(0);
+    expect(body.adapters[0].status).toBe("healthy");
+  });
+
+  it("ignores disabled data sources in admin health detail", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    const adminClient = createMockAdminSupabase({
+      data_sources: {
+        data: [
+          {
+            slug: "enabled-adapter",
+            is_enabled: true,
+            quarantined_at: null,
+            last_success_at: syncedAgo(0.5),
+            last_sync_at: syncedAgo(0.5),
+            last_sync_records: 42,
+            last_error_message: null,
+            sync_interval_hours: 6,
+          },
+          {
+            slug: "disabled-adapter",
+            is_enabled: false,
+            quarantined_at: null,
+            last_success_at: syncedAgo(5),
+            last_sync_at: syncedAgo(5),
+            last_sync_records: 0,
+            last_error_message: "upstream gone",
+            sync_interval_hours: 6,
+          },
+        ],
+        error: null,
+      },
+      pipeline_health: {
+        data: [
+          {
+            source_slug: "enabled-adapter",
+            consecutive_failures: 0,
+            last_success_at: syncedAgo(0.5),
+            expected_interval_hours: 6,
+          },
+          {
+            source_slug: "disabled-adapter",
+            consecutive_failures: 4,
+            last_success_at: syncedAgo(5),
+            expected_interval_hours: 6,
+          },
+        ],
+        error: null,
+      },
+    });
+    mockCreateAdminClient.mockReturnValue(
+      adminClient as ReturnType<typeof createAdminClient>
+    );
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(body.status).toBe("healthy");
+    expect(body.adapters).toHaveLength(1);
+    expect(body.adapters[0].slug).toBe("enabled-adapter");
   });
 });

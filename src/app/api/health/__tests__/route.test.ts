@@ -67,6 +67,9 @@ function syncedAgo(multiplier: number, intervalHours: number): string {
 
 function makeDataSources(sources: Array<{
   slug: string;
+  is_enabled?: boolean;
+  quarantined_at?: string | null;
+  last_success_at?: string | null;
   last_sync_at?: string | null;
   last_sync_records?: number;
   last_error_message?: string | null;
@@ -74,6 +77,9 @@ function makeDataSources(sources: Array<{
 }>) {
   return sources.map((s) => ({
     slug: s.slug,
+    is_enabled: s.is_enabled ?? true,
+    quarantined_at: s.quarantined_at ?? null,
+    last_success_at: s.last_success_at ?? null,
     last_sync_at: s.last_sync_at ?? null,
     last_sync_records: s.last_sync_records ?? 0,
     last_error_message: s.last_error_message ?? null,
@@ -104,17 +110,36 @@ function createFullMockSupabase(
   return {
     from: (table: string) => {
       const result = tables[table] ?? { data: [], error: null };
-      const chain = new Proxy(
-        {},
-        {
-          get(_target, prop) {
-            if (prop === "then") {
-              return (resolve: (v: unknown) => void) => resolve(result);
-            }
-            return (..._args: unknown[]) => chain;
-          },
-        }
-      );
+      let currentData = Array.isArray(result.data) ? [...result.data] : result.data;
+      const chain = {
+        select: () => chain,
+        limit: (_value?: number) => chain,
+        order: (_column?: string, _options?: unknown) => chain,
+        gte: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => {
+              const current = row[column];
+              return typeof current === "string" && typeof value === "string"
+                ? current >= value
+                : true;
+            });
+          }
+          return chain;
+        },
+        eq: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        is: (column: string, value: unknown) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => row[column] === value);
+          }
+          return chain;
+        },
+        then: (resolve: (v: unknown) => void) => resolve({ data: currentData, error: result.error }),
+      };
       return chain;
     },
     rpc: (_fn: string) => {
@@ -215,6 +240,61 @@ describe("GET /api/health", () => {
       expect(response.status).toBe(200);
       expect(body.status).toBe("degraded");
     });
+
+    it("ignores disabled data sources in health aggregation", async () => {
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: {
+            data: makeDataSources([
+              {
+                slug: "healthy-source",
+                is_enabled: true,
+                last_success_at: syncedAgo(0.5, 6),
+                last_sync_at: syncedAgo(0.5, 6),
+              },
+            ]),
+            error: null,
+          },
+          pipeline_health: {
+            data: makePipelineHealth([
+              { source_slug: "healthy-source", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+              { source_slug: "disabled-source", consecutive_failures: 5, last_success_at: null, expected_interval_hours: 6 },
+            ]),
+            error: null,
+          },
+        }) as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe("healthy");
+    });
+
+    it("uses data_sources fallback timestamps when pipeline_health row is missing", async () => {
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: {
+            data: makeDataSources([
+              {
+                slug: "recent-source",
+                last_success_at: syncedAgo(0.5, 6),
+                last_sync_at: syncedAgo(0.5, 6),
+              },
+            ]),
+            error: null,
+          },
+          pipeline_health: { data: [], error: null },
+        }) as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe("healthy");
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -224,11 +304,23 @@ describe("GET /api/health", () => {
     it("returns 200 with full detail including database, uptime, cron, pipeline", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
+      delete process.env.CRON_RUNNER_MODE;
 
       mockCreateAdminClient.mockReturnValue(
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1", last_sync_at: syncedAgo(0.5, 6), last_sync_records: 100 }]), error: null },
           pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 }]), error: null },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "completed",
+                started_at: "2026-03-11T23:45:00.000Z",
+                created_at: "2026-03-11T23:45:00.000Z",
+              },
+            ],
+            error: null,
+          },
         }) as ReturnType<typeof createAdminClient>
       );
 
@@ -247,8 +339,11 @@ describe("GET /api/health", () => {
       expect(typeof body.uptime).toBe("number");
       expect(body.database).toHaveProperty("connected");
       expect(body.database).toHaveProperty("latencyMs");
-      expect(body.cron).toHaveProperty("active");
-      expect(body.cron).toHaveProperty("jobCount");
+      expect(body.cron).toHaveProperty("mode", "external");
+      expect(body.cron).toHaveProperty("schedulerConfigured", true);
+      expect(body.cron).toHaveProperty("runningJobs", 0);
+      expect(body.cron).toHaveProperty("recentFailures24h", 0);
+      expect(body.cron).toHaveProperty("lastRunAt", "2026-03-11T23:45:00.000Z");
       expect(body.pipeline).toHaveProperty("healthy");
       expect(body.pipeline).toHaveProperty("degraded");
       expect(body.pipeline).toHaveProperty("down");
@@ -306,10 +401,10 @@ describe("GET /api/health", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 3. DB failure -> 200 with unhealthy status (Railway healthcheck must pass)
+  // 3. DB failure -> 503 with unhealthy status
   // -------------------------------------------------------------------------
   describe("database failure handling", () => {
-    it("returns 200 with unhealthy status when DB is unreachable (createAdminClient throws)", async () => {
+    it("returns 503 with unhealthy status when DB is unreachable (createAdminClient throws)", async () => {
       mockCreateAdminClient.mockImplementation(() => {
         throw new Error("DB connection refused");
       });
@@ -317,14 +412,57 @@ describe("GET /api/health", () => {
       const response = await GET(makeRequest() as never);
       const body = await response.json();
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       expect(body).toHaveProperty("status", "unhealthy");
       expect(body).toHaveProperty("version");
       expect(body).toHaveProperty("timestamp");
       expect(body).toHaveProperty("error");
     });
 
-    it("returns 200 with status 'unhealthy' when authenticated but DB fails", async () => {
+    it("reports internal cron mode and recent failures from cron_runs", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      const originalMode = process.env.CRON_RUNNER_MODE;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.CRON_RUNNER_MODE = "internal";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
+          pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) }]), error: null },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "running",
+                started_at: "2026-03-12T00:30:00.000Z",
+                created_at: "2026-03-12T00:30:00.000Z",
+              },
+              {
+                job_name: "compute-scores",
+                status: "failed",
+                started_at: "2026-03-11T10:00:00.000Z",
+                created_at: "2026-03-11T10:00:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        }) as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(body.cron.mode).toBe("internal");
+      expect(body.cron.schedulerConfigured).toBe(true);
+      expect(body.cron.runningJobs).toBe(1);
+      expect(body.cron.recentFailures24h).toBe(1);
+      expect(body.cron.lastRunAt).toBe("2026-03-12T00:30:00.000Z");
+
+      process.env.CRON_SECRET = originalSecret;
+      process.env.CRON_RUNNER_MODE = originalMode;
+    });
+
+    it("returns 503 with status 'unhealthy' when authenticated but DB fails", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
 
@@ -335,7 +473,7 @@ describe("GET /api/health", () => {
       const response = await GET(makeRequest("Bearer test-secret") as never);
       const body = await response.json();
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       expect(body.status).toBe("unhealthy");
 
       process.env.CRON_SECRET = originalSecret;
