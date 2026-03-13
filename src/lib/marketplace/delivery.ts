@@ -62,11 +62,43 @@ export async function deliverDigitalGood(
   }
 }
 
+async function ensureAccountBoundBuyer(
+  buyerId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createAdminClient();
+  const sb = supabase;
+
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("id")
+    .eq("id", buyerId)
+    .single();
+
+  if (!profile) {
+    return {
+      ok: false,
+      error:
+        "Account required: sign in to receive this product automatically.",
+    };
+  }
+
+  return { ok: true };
+}
+
 async function deliverApiAccess(
   orderId: string,
   listing: MarketplaceListing,
   buyerId: string
 ): Promise<DeliveryResult> {
+  const accountCheck = await ensureAccountBoundBuyer(buyerId);
+  if (!accountCheck.ok) {
+    return {
+      success: false,
+      deliveryType: "api_access",
+      error: accountCheck.error,
+    };
+  }
+
   // Generate a scoped API key for the buyer
   const supabase = createAdminClient();
   const sb = supabase;
@@ -174,6 +206,15 @@ async function deliverAgent(
   listing: MarketplaceListing,
   buyerId: string
 ): Promise<DeliveryResult> {
+  const accountCheck = await ensureAccountBoundBuyer(buyerId);
+  if (!accountCheck.ok) {
+    return {
+      success: false,
+      deliveryType: "agent",
+      error: accountCheck.error,
+    };
+  }
+
   // Deploy agent config and return agent_id + slug
   const agentConfig = listing.agent_config || {};
 
