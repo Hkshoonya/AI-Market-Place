@@ -43,6 +43,15 @@ ENFORCE_SELLER_VERIFICATION=false
 BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY=false
 ```
 
+Optional agent-provider routing variables:
+
+```env
+OPENROUTER_API_KEY=<recommended-default-provider>
+DEEPSEEK_API_KEY=<optional-direct-fallback>
+MINIMAX_API_KEY=<optional-direct-fallback>
+ANTHROPIC_API_KEY=<optional-direct-fallback>
+```
+
 After the compatibility window:
 
 ```env
@@ -71,6 +80,11 @@ Build-time environment requirements:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - optional: `SENTRY_AUTH_TOKEN`
+
+Runtime recommendation for autonomous maintenance:
+- Set at least one LLM provider key for the resident-agent router.
+- Recommended order: `OPENROUTER_API_KEY` first, then optional direct `DEEPSEEK_API_KEY`, `MINIMAX_API_KEY`, and `ANTHROPIC_API_KEY`.
+- Without any of these keys, resident agents still run, but LLM-backed analysis paths degrade to non-LLM behavior.
 
 Set the application domain to:
 

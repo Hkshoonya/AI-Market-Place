@@ -50,14 +50,44 @@ interface AgentLog {
   agents?: { name: string };
 }
 
-interface AgentsResponse { agents: Agent[] }
+interface AgentIssue {
+  id: string;
+  slug: string;
+  title: string;
+  issue_type: string;
+  source: string | null;
+  severity: "critical" | "high" | "medium" | "low";
+  status: string;
+  playbook: string | null;
+  updated_at: string;
+}
+
+interface AgentDeferredItem {
+  id: string;
+  slug: string;
+  title: string;
+  area: string;
+  reason: string;
+  risk_level: "high" | "medium" | "low";
+  required_before: string | null;
+  owner_hint: string | null;
+  status: string;
+  updated_at: string;
+}
+
+interface AgentsResponse {
+  agents: Agent[];
+  configuredProviders: string[];
+  issues: AgentIssue[];
+  deferredItems: AgentDeferredItem[];
+}
 interface TasksResponse { tasks: AgentTask[] }
 interface LogsResponse { logs: AgentLog[] }
 
 export default function AgentsContent() {
-  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "logs">(
-    "overview"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "issues" | "deferred" | "tasks" | "logs"
+  >("overview");
   const [triggering, setTriggering] = useState<string | null>(null);
 
   const { data: agentsData, isLoading, mutate: mutateAgents } = useSWR<AgentsResponse>(
@@ -74,6 +104,9 @@ export default function AgentsContent() {
   );
 
   const agents = agentsData?.agents ?? [];
+  const configuredProviders = agentsData?.configuredProviders ?? [];
+  const issues = agentsData?.issues ?? [];
+  const deferredItems = agentsData?.deferredItems ?? [];
   const tasks = tasksData?.tasks ?? [];
   const logs = logsData?.logs ?? [];
 
@@ -109,6 +142,10 @@ export default function AgentsContent() {
   );
   const totalErrors = agents.reduce((sum, a) => sum + a.error_count, 0);
   const activeCount = agents.filter((a) => a.status === "active").length;
+  const openIssues = issues.filter((issue) => issue.status !== "resolved").length;
+  const pendingDeferred = deferredItems.filter(
+    (item) => item.status !== "done" && item.status !== "dropped"
+  ).length;
 
   const statusColor: Record<string, string> = {
     active: "text-emerald-400 bg-emerald-400/10",
@@ -124,11 +161,24 @@ export default function AgentsContent() {
     pending: <Clock className="h-3.5 w-3.5 text-yellow-400" />,
   };
 
+  const severityColor: Record<string, string> = {
+    critical: "text-red-300 bg-red-500/15",
+    high: "text-red-400 bg-red-400/10",
+    medium: "text-yellow-300 bg-yellow-500/10",
+    low: "text-blue-300 bg-blue-500/10",
+  };
+
+  const riskColor: Record<string, string> = {
+    high: "text-red-400 bg-red-400/10",
+    medium: "text-yellow-300 bg-yellow-500/10",
+    low: "text-emerald-300 bg-emerald-500/10",
+  };
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="h-24 rounded-xl bg-secondary" />
           ))}
         </div>
@@ -140,7 +190,7 @@ export default function AgentsContent() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
             <Bot className="h-3.5 w-3.5" />
@@ -169,11 +219,25 @@ export default function AgentsContent() {
           </div>
           <p className="text-2xl font-bold text-red-400">{totalErrors}</p>
         </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Open Issues
+          </div>
+          <p className="text-2xl font-bold text-yellow-300">{openIssues}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <Clock className="h-3.5 w-3.5" />
+            Deferred Items
+          </div>
+          <p className="text-2xl font-bold">{pendingDeferred}</p>
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-secondary/30 p-1">
-        {(["overview", "tasks", "logs"] as const).map((tab) => (
+        {(["overview", "issues", "deferred", "tasks", "logs"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -191,6 +255,29 @@ export default function AgentsContent() {
       {/* Overview Tab */}
       {activeTab === "overview" && (
         <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <Activity className="h-3.5 w-3.5" />
+              Configured LLM Providers
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {configuredProviders.length > 0 ? (
+                configuredProviders.map((provider) => (
+                  <span
+                    key={provider}
+                    className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-foreground"
+                  >
+                    {provider}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  No provider configured for agent model routing.
+                </span>
+              )}
+            </div>
+          </div>
+
           {agents.length === 0 && (
             <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
               No agents registered yet
@@ -263,6 +350,137 @@ export default function AgentsContent() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === "issues" && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Issue
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Severity
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Playbook
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Source
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Updated
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {issues.map((issue) => (
+                <tr key={issue.id} className="hover:bg-secondary/30">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{issue.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {issue.issue_type} · {issue.status}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs ${severityColor[issue.severity] ?? ""}`}
+                    >
+                      {issue.severity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {issue.playbook ?? "manual"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {issue.source ?? "platform"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-muted-foreground text-xs">
+                    {new Date(issue.updated_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              {issues.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    No ledger issues recorded
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === "deferred" && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Item
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Risk
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Required Before
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Owner
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Updated
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {deferredItems.map((item) => (
+                <tr key={item.id} className="hover:bg-secondary/30">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{item.title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.area} · {item.status}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {item.reason}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs ${riskColor[item.risk_level] ?? ""}`}
+                    >
+                      {item.risk_level}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {item.required_before ?? "later"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {item.owner_hint ?? "unassigned"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-muted-foreground text-xs">
+                    {new Date(item.updated_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              {deferredItems.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    No deferred items recorded
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 

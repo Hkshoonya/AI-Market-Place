@@ -1,13 +1,27 @@
 /**
- * Agent Chat — Conversation Manager
+ * Agent Chat - Conversation Manager
  *
  * Manages bot-to-bot and user-to-bot conversations.
- * Resident agents can auto-respond using Anthropic API.
+ * Resident agents can auto-respond using the shared provider router.
  */
 
 import type { AgentConversation, AgentMessage } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
 import { assertUuid } from "@/lib/utils/sanitize";
+import { callAgentModel } from "./provider-router";
+
+interface AgentReplyAgent {
+  id: string;
+  name: string;
+  description: string | null;
+  capabilities: string[];
+}
+
+interface AgentReplyHistoryItem {
+  sender_id: string;
+  sender_type: "agent" | "user";
+  content: string;
+}
 
 /** Find or create a conversation between two participants */
 export async function findOrCreateConversation(
@@ -20,11 +34,9 @@ export async function findOrCreateConversation(
 ): Promise<{ conversation: AgentConversation; created: boolean }> {
   const sb = supabase;
 
-  // Validate UUIDs before interpolating into .or() filter
   const pA = assertUuid(participantA, "participantA");
   const pB = assertUuid(participantB, "participantB");
 
-  // Check for existing active conversation between these participants
   const { data: existing } = await sb
     .from("agent_conversations")
     .select("*")
@@ -37,7 +49,6 @@ export async function findOrCreateConversation(
 
   if (existing) return { conversation: existing as AgentConversation, created: false };
 
-  // Create new conversation (handle race condition with retry on conflict)
   const { data, error } = await sb
     .from("agent_conversations")
     .insert({
@@ -53,8 +64,6 @@ export async function findOrCreateConversation(
     .single();
 
   if (error) {
-    // Race condition: another request may have created the conversation first
-    // Retry the lookup before throwing
     const { data: retryExisting } = await sb
       .from("agent_conversations")
       .select("*")
@@ -99,9 +108,6 @@ export async function sendMessage(
 
   if (error) throw new Error(`Failed to send message: ${error.message}`);
 
-  // Update conversation activity timestamp
-  // message_count is not atomically incremented here to avoid read-then-write races;
-  // derive accurate counts from agent_messages table when needed
   sb.from("agent_conversations")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversationId)
@@ -134,6 +140,41 @@ export async function getMessages(
   return (data ?? []) as AgentMessage[];
 }
 
+export async function generateAgentReply(
+  agent: AgentReplyAgent,
+  history: AgentReplyHistoryItem[],
+  incomingMessage: string
+): Promise<{ content: string; metadata: Record<string, unknown> }> {
+  const messages = history.map((msg) => ({
+    role:
+      msg.sender_type === "agent" && msg.sender_id === agent.id
+        ? ("assistant" as const)
+        : ("user" as const),
+    content: msg.content,
+  }));
+
+  messages.push({ role: "user" as const, content: incomingMessage });
+
+  const response = await callAgentModel({
+    system: `You are ${agent.name}, a resident AI agent on the AI Market Cap platform. ${agent.description ?? ""}
+
+Your capabilities: ${agent.capabilities.join(", ")}
+
+You help users and other bots with questions about AI models, the marketplace, data pipelines, and the platform. Be concise, helpful, and professional. If asked about something outside your capabilities, say so.`,
+    messages,
+    maxTokens: 1024,
+  });
+
+  return {
+    content: response.content,
+    metadata: {
+      provider: response.provider,
+      model: response.model,
+      usage: response.usage,
+    },
+  };
+}
+
 /** Generate an auto-response from a resident agent */
 export async function generateAgentResponse(
   supabase: TypedSupabaseClient,
@@ -143,7 +184,6 @@ export async function generateAgentResponse(
 ): Promise<AgentMessage | null> {
   const sb = supabase;
 
-  // Fetch agent record
   const { data: agent } = await sb
     .from("agents")
     .select("*")
@@ -153,72 +193,42 @@ export async function generateAgentResponse(
 
   if (!agent) return null;
 
-  // Get recent conversation history for context
   const history = await getMessages(sb, conversationId, 20);
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) {
-    // Without Anthropic API, return a simple acknowledgment
-    return sendMessage(
-      sb,
-      conversationId,
-      agent.id,
-      "agent",
-      `I'm ${agent.name}. I received your message but AI-powered responses require the Anthropic API key to be configured. My capabilities include: ${(agent.capabilities as string[]).join(", ")}.`,
-      "text"
-    );
-  }
-
   try {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic({ apiKey: anthropicKey });
+    const reply = await generateAgentReply(
+      {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        capabilities: (agent.capabilities as string[]) ?? [],
+      },
+      history,
+      incomingMessage
+    );
 
-    // Build conversation context
-    const messages = history.map((msg) => ({
-      role:
-        msg.sender_type === "agent" && msg.sender_id === agent.id
-          ? ("assistant" as const)
-          : ("user" as const),
-      content: msg.content,
-    }));
-
-    // Add the new incoming message
-    messages.push({ role: "user" as const, content: incomingMessage });
-
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: `You are ${agent.name}, a resident AI agent on the AI Market Cap platform. ${agent.description ?? ""}
-
-Your capabilities: ${(agent.capabilities as string[]).join(", ")}
-
-You help users and other bots with questions about AI models, the marketplace, data pipelines, and the platform. Be concise, helpful, and professional. If asked about something outside your capabilities, say so.`,
-      messages,
-    });
-
-    const responseText =
-      response.content[0].type === "text"
-        ? response.content[0].text
-        : "I processed your request but couldn't generate a text response.";
-
-    // Send the response as the agent
     return sendMessage(
       sb,
       conversationId,
       agent.id,
       "agent",
-      responseText,
+      reply.content,
       "text",
-      { model: "claude-sonnet-4-20250514", usage: response.usage }
+      reply.metadata
     );
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
+    const fallback =
+      errMsg.includes("No agent model providers are configured")
+        ? `I'm ${agent.name}. I received your message but no LLM provider is configured for autonomous responses. My capabilities include: ${(agent.capabilities as string[]).join(", ")}.`
+        : `I encountered an error processing your message: ${errMsg}`;
+
     return sendMessage(
       sb,
       conversationId,
       agent.id,
       "agent",
-      `I encountered an error processing your message: ${errMsg}`,
+      fallback,
       "system"
     );
   }

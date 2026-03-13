@@ -12,8 +12,9 @@ import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { loadAllAdapters, getAdapter, listAdapters } from "../../data-sources/registry";
 import { runSingleSync } from "../../data-sources/orchestrator";
-import { resolveSecrets } from "../../data-sources/utils";
+import { makeSlug, resolveSecrets } from "../../data-sources/utils";
 import type { DataSourceRecord } from "../../data-sources/types";
+import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
@@ -104,6 +105,37 @@ const pipelineEngineer: ResidentAgent = {
       }
       output.failedSources = Array.from(failedSources);
 
+      for (const healthCheck of healthChecks) {
+        const sourceSlug = String(healthCheck.source ?? "");
+        const issueSlug = makeSlug(`pipeline-source-${sourceSlug}`);
+        const failedRecently = failedSources.has(sourceSlug);
+        const unhealthy = healthCheck.healthy === false;
+
+        if (unhealthy || failedRecently) {
+          await recordAgentIssue(sb, {
+            slug: issueSlug,
+            title: `Pipeline issue for ${sourceSlug}`,
+            issueType: "source_health",
+            source: sourceSlug,
+            severity: failedRecently ? "high" : "medium",
+            confidence: failedRecently ? 0.95 : 0.8,
+            detectedBy: "pipeline-engineer",
+            playbook: "resync_source",
+            evidence: {
+              failedRecently,
+              unhealthy,
+              healthMessage: healthCheck.message ?? null,
+              latencyMs: healthCheck.latencyMs ?? null,
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, issueSlug, {
+            verifier: "pipeline-engineer",
+            reason: "source healthy and no recent failed sync jobs",
+          }).catch(() => {});
+        }
+      }
+
       if (failedSources.size > 0) {
         await log.warn(
           `Found ${failedSources.size} failed sources in last 24h: ${Array.from(failedSources).join(", ")}`
@@ -114,6 +146,8 @@ const pipelineEngineer: ResidentAgent = {
 
       // Step 5: Attempt repair of failed sources
       const maxRepairs = (ctx.agent.config.max_repair_attempts as number) ?? 3;
+      const maxVerificationRetries =
+        (ctx.agent.config.max_verification_retries as number) ?? 3;
       const repairAttempts: Record<string, unknown>[] = [];
       let repaired = 0;
 
@@ -132,13 +166,38 @@ const pipelineEngineer: ResidentAgent = {
           if (success) {
             repaired++;
             await log.info(`Successfully repaired: ${slug}`);
+            await resolveAgentIssue(sb, makeSlug(`pipeline-source-${slug}`), {
+              verifier: "pipeline-engineer",
+              reason: "repair sync succeeded",
+              recordsProcessed: result.details[0]?.recordsProcessed ?? 0,
+            }).catch(() => {});
           } else {
             await log.warn(`Repair failed for: ${slug}`);
+            await recordAgentIssueFailure(
+              sb,
+              makeSlug(`pipeline-source-${slug}`),
+              {
+                verifier: "pipeline-engineer",
+                reason: "repair sync completed without clearing the failure",
+                errors: result.details[0]?.errors?.map((error) => error.message) ?? [],
+              },
+              maxVerificationRetries
+            ).catch(() => {});
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           repairAttempts.push({ source: slug, success: false, error: msg });
           await log.error(`Repair error for ${slug}: ${msg}`);
+          await recordAgentIssueFailure(
+            sb,
+            makeSlug(`pipeline-source-${slug}`),
+            {
+              verifier: "pipeline-engineer",
+              reason: "repair sync threw an error",
+              error: msg,
+            },
+            maxVerificationRetries
+          ).catch(() => {});
           errors.push(`Repair failed for ${slug}: ${msg}`);
         }
       }

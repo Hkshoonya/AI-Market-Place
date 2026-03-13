@@ -10,6 +10,7 @@
 
 import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
+import { recordAgentIssue, resolveAgentIssue } from "../ledger";
 
 export interface ActiveModelSummary {
   id: string;
@@ -348,6 +349,73 @@ const uxMonitor: ResidentAgent = {
       output.recommendations = recommendations;
 
       // ── 5. Summary ────────────────────────────────────────────
+      const uxIssues = [
+        {
+          active: (missingDescCount ?? 0) > 5,
+          slug: "ux-missing-model-descriptions",
+          title: "Model description coverage is degraded",
+          severity: "medium" as const,
+          evidence: {
+            missingDescription: missingDescCount ?? 0,
+            totalModels: modelIds.length,
+          },
+        },
+        {
+          active: contentQuality.missingBenchmarks > modelIds.length * 0.5,
+          slug: "ux-missing-benchmark-coverage",
+          title: "Benchmark coverage is degraded",
+          severity: "high" as const,
+          evidence: {
+            missingBenchmarks: contentQuality.missingBenchmarks,
+            totalModels: modelIds.length,
+          },
+        },
+        {
+          active: contentQuality.missingPricing > modelIds.length * 0.3,
+          slug: "ux-missing-pricing-coverage",
+          title: "Pricing coverage is degraded",
+          severity: "medium" as const,
+          evidence: {
+            missingPricing: contentQuality.missingPricing,
+            totalModels: modelIds.length,
+          },
+        },
+        {
+          active: (staleListings ?? 0) > 0,
+          slug: "ux-stale-marketplace-listings",
+          title: "Marketplace listings are stale",
+          severity: "medium" as const,
+          evidence: {
+            staleListings: staleListings ?? 0,
+            totalListings: totalListings ?? 0,
+          },
+        },
+      ];
+
+      for (const issue of uxIssues) {
+        if (issue.active) {
+          await recordAgentIssue(sb, {
+            slug: issue.slug,
+            title: issue.title,
+            issueType: "ux_health",
+            source: null,
+            severity: issue.severity,
+            confidence: 0.85,
+            detectedBy: "ux-monitor",
+            playbook: null,
+            evidence: issue.evidence,
+          }).catch(async (err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            await log.warn(`Failed to record UX issue: ${msg}`);
+          });
+        } else {
+          await resolveAgentIssue(sb, issue.slug, {
+            verifier: "ux-monitor",
+            reason: "threshold no longer breached",
+          }).catch(() => {});
+        }
+      }
+
       output.summary = {
         totalModels: modelIds.length,
         contentCompleteness: output.contentQuality,

@@ -35,6 +35,8 @@ export const env = {
 
   // ── OpenRouter (optional — free model discovery) ────────────────
   OPENROUTER_API_KEY: getEnvVar("OPENROUTER_API_KEY", false),
+  DEEPSEEK_API_KEY: getEnvVar("DEEPSEEK_API_KEY", false),
+  MINIMAX_API_KEY: getEnvVar("MINIMAX_API_KEY", false),
 
   // ── X/Twitter Social Feed (optional) ─────────────────────────────
   RSSHUB_BASE_URL: getEnvVar("RSSHUB_BASE_URL", false),

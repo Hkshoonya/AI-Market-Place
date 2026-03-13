@@ -472,6 +472,15 @@ export interface NotificationPreferences {
 export type AgentType = "resident" | "marketplace" | "visitor";
 export type AgentStatus = "active" | "paused" | "disabled" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type AgentIssueSeverity = "critical" | "high" | "medium" | "low";
+export type AgentIssueStatus =
+  | "open"
+  | "investigating"
+  | "resolved"
+  | "escalated"
+  | "ignored";
+export type AgentDeferredStatus = "open" | "planned" | "done" | "dropped";
+export type AgentDeferredRiskLevel = "high" | "medium" | "low";
 
 export interface Agent {
   id: string;
@@ -515,6 +524,41 @@ export interface AgentLog {
   message: string;
   metadata: Record<string, unknown> | null;
   created_at: string;
+}
+
+export interface AgentIssue {
+  id: string;
+  slug: string;
+  title: string;
+  issue_type: string;
+  source: string | null;
+  severity: AgentIssueSeverity;
+  status: AgentIssueStatus;
+  confidence: number;
+  detected_by: string;
+  playbook: string | null;
+  evidence: Record<string, unknown>;
+  verification: Record<string, unknown> | null;
+  retry_count: number;
+  escalated_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentDeferredItem {
+  id: string;
+  slug: string;
+  title: string;
+  area: string;
+  reason: string;
+  risk_level: AgentDeferredRiskLevel;
+  required_before: string | null;
+  owner_hint: string | null;
+  notes: Record<string, unknown> | null;
+  status: AgentDeferredStatus;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ApiKeyRecord {
@@ -1032,6 +1076,18 @@ export interface Database {
         Row: AsRow<AgentLog>;
         Insert: Partial<AgentLog> & Pick<AgentLog, "agent_id" | "level" | "message">;
         Update: Partial<AgentLog>;
+        Relationships: [];
+      };
+      agent_issues: {
+        Row: AsRow<AgentIssue>;
+        Insert: Partial<AgentIssue> & Pick<AgentIssue, "slug" | "title" | "issue_type" | "severity" | "detected_by" | "evidence">;
+        Update: Partial<AgentIssue>;
+        Relationships: [];
+      };
+      agent_deferred_items: {
+        Row: AsRow<AgentDeferredItem>;
+        Insert: Partial<AgentDeferredItem> & Pick<AgentDeferredItem, "slug" | "title" | "area" | "reason" | "risk_level">;
+        Update: Partial<AgentDeferredItem>;
         Relationships: [];
       };
       api_keys: {
