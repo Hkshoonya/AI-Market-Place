@@ -23,6 +23,24 @@ interface VisionArenaRow {
   };
 }
 
+interface VisionArenaCellNode {
+  textContent: string | null;
+  querySelector(selector: string): VisionArenaLinkNode | null;
+}
+
+interface VisionArenaLinkNode {
+  textContent: string | null;
+  getAttribute(name: string): string | null;
+}
+
+interface VisionArenaRowNode {
+  querySelectorAll(selector: string): ArrayLike<VisionArenaCellNode>;
+}
+
+interface VisionArenaDocumentLike {
+  querySelectorAll(selector: string): ArrayLike<VisionArenaRowNode>;
+}
+
 const SOURCE_URL = "https://arena.ai/leaderboard/vision/overall";
 const ARENA_NAME = "vision-arena";
 
@@ -50,12 +68,14 @@ function parseInteger(text: string): number | null {
 
 export function extractVisionArenaRows(html: string): VisionArenaRow[] {
   const dom = new JSDOM(html);
-  const document = dom.window.document;
-  const rows = Array.from(document.querySelectorAll("table tbody tr"));
+  const document = dom.window.document as VisionArenaDocumentLike;
+  const rows = Array.from<VisionArenaRowNode>(
+    document.querySelectorAll("table tbody tr")
+  );
 
   return rows
     .map((row) => {
-      const cells = Array.from(row.querySelectorAll("td"));
+      const cells = Array.from<VisionArenaCellNode>(row.querySelectorAll("td"));
       if (cells.length < 5) return null;
 
       const rank = parseInteger(cells[0]?.textContent ?? "");
