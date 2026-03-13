@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // GET /api/admin/agents — list all agents
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-agents:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`admin-agents:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

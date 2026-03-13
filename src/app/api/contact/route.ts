@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`contact:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`contact:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

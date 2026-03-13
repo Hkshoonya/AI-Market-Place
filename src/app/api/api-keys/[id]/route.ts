@@ -22,7 +22,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rl = rateLimit(`api-keys-delete:${user.id}`, RATE_LIMITS.api);
+    const rl = await rateLimit(`api-keys-delete:${user.id}`, RATE_LIMITS.api);
     if (!rl.success) {
       return NextResponse.json(
         { error: "Too many requests." },

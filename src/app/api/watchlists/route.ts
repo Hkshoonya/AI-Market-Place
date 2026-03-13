@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 // GET /api/watchlists — list all watchlists for the authenticated user
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`watchlists:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`watchlists:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 // POST /api/watchlists — create a new watchlist
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`watchlists-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`watchlists-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

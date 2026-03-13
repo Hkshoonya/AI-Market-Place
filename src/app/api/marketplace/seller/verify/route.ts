@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`seller-verify:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`seller-verify:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`seller-verify-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`seller-verify-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // GET /api/notifications — list notifications for authenticated user
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`notifications:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`notifications:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 // PATCH /api/notifications — mark notifications as read
 export async function PATCH(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`notifications-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`notifications-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

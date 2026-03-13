@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     }
 
     const keyId = auth.keyRecord.id as string;
-    const rl = rateLimit(`conversations:${keyId}`, RATE_LIMITS.api);
+    const rl = await rateLimit(`conversations:${keyId}`, RATE_LIMITS.api);
     if (!rl.success) {
       return NextResponse.json(
         { error: "Too many requests." },

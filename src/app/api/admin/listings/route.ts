@@ -11,7 +11,7 @@ const PAGE_SIZE = 20;
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-listings:${ip}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`admin-listings:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

@@ -20,7 +20,7 @@ function createServiceClient() {
 export async function POST(request: NextRequest) {
   // Rate limit MCP requests
   const ip = getClientIp(request);
-  const rl = rateLimit(`mcp:${ip}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`mcp:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       {

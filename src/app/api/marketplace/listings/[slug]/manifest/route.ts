@@ -30,7 +30,7 @@ export async function GET(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`manifest:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`manifest:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

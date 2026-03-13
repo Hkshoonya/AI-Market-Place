@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // GET /api/notifications/preferences
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`notif-prefs:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`notif-prefs:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 // PUT /api/notifications/preferences
 export async function PUT(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`notif-prefs-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`notif-prefs-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

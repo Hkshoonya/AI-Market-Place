@@ -14,7 +14,7 @@ export async function PATCH(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`order-update:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`order-update:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

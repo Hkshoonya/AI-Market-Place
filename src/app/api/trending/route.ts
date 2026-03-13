@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // GET /api/trending — get trending models based on recent activity
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`trending:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`trending:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

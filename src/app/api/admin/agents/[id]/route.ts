@@ -20,7 +20,7 @@ export async function PATCH(
   const { id } = await params;
 
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-agents-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`admin-agents-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -81,7 +81,7 @@ export async function POST(
   const { id } = await params;
 
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-agents-trigger:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`admin-agents-trigger:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

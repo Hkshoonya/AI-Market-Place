@@ -45,7 +45,7 @@ type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled" | "settled";
 export async function GET(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`auctions:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`auctions:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rl = rateLimit(`auction-create:${user.id}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`auction-create:${user.id}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

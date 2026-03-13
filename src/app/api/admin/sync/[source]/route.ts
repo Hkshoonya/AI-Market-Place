@@ -20,7 +20,7 @@ export async function POST(
   const { source } = await params;
 
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-sync-trigger:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`admin-sync-trigger:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

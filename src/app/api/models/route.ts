@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   // Rate limit: public endpoints
   const ip = getClientIp(request);
-  const rl = rateLimit(`models:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`models:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

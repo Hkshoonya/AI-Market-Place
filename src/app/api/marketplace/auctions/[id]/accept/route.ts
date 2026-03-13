@@ -24,7 +24,7 @@ export async function POST(
 ) {
   try {
     const ip = getClientIp(request);
-    const rl = rateLimit(`auction-accept:${ip}`, RATE_LIMITS.write);
+    const rl = await rateLimit(`auction-accept:${ip}`, RATE_LIMITS.write);
     if (!rl.success) {
       return NextResponse.json(
         { error: "Too many requests." },

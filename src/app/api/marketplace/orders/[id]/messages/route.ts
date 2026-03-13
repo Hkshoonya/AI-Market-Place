@@ -32,7 +32,7 @@ export async function GET(
   try {
   const { id: orderId } = await params;
   const ip = getClientIp(request);
-  const rl = rateLimit(`order-messages:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`order-messages:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -128,7 +128,7 @@ export async function POST(
   try {
   const { id: orderId } = await params;
   const ip = getClientIp(request);
-  const rl = rateLimit(`order-messages-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`order-messages-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`report:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`report:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

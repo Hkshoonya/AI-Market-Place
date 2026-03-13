@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // POST /api/auth/delete-account — fully delete user account (anonymize profile + remove auth identity)
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`delete-account:${ip}`, RATE_LIMITS.auth);
+  const rl = await rateLimit(`delete-account:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

@@ -33,7 +33,7 @@ export async function GET(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`reviews:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`reviews:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -126,7 +126,7 @@ export async function POST(
     );
   }
 
-  const rl = rateLimit(`review-create:${user.id}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`review-create:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

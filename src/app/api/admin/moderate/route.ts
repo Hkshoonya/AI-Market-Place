@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // PATCH /api/admin/moderate — admin moderation actions
 export async function PATCH(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-moderate:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`admin-moderate:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`watchlist-items:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`watchlist-items:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

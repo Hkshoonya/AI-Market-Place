@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`wallet-read:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`wallet-read:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`wallet-create:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`wallet-create:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

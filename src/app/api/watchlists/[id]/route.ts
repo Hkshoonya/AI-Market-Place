@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`watchlist-detail:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`watchlist-detail:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -87,7 +87,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rl = rateLimit(`watchlist-edit:${user.id}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`watchlist-edit:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -153,7 +153,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rl2 = rateLimit(`watchlist-delete:${user.id}`, RATE_LIMITS.api);
+  const rl2 = await rateLimit(`watchlist-delete:${user.id}`, RATE_LIMITS.api);
   if (!rl2.success) {
     return NextResponse.json(
       { error: "Too many requests." },

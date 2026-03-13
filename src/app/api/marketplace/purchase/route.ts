@@ -55,7 +55,7 @@ function toResponse(result: PurchaseResult): NextResponse {
 export async function POST(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`purchase:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`purchase:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

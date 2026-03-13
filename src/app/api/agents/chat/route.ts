@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     // Rate limit per API key
     const keyId = auth.keyRecord.id as string;
-    const rl = rateLimit(`agent-chat:${keyId}`, RATE_LIMITS.api);
+    const rl = await rateLimit(`agent-chat:${keyId}`, RATE_LIMITS.api);
     if (!rl.success) {
       return NextResponse.json(
         { error: "Rate limit exceeded" },

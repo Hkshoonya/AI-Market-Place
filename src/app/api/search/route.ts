@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   // Rate limit: search endpoints
   const ip = getClientIp(request);
-  const rl = rateLimit(`search:${ip}`, RATE_LIMITS.search);
+  const rl = await rateLimit(`search:${ip}`, RATE_LIMITS.search);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

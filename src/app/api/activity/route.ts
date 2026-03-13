@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // GET /api/activity — get recent model updates for models in user's watchlists
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`activity:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`activity:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

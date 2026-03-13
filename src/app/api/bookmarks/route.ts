@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // GET /api/bookmarks — list all bookmarks for the authenticated user
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bookmarks:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`bookmarks:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 // POST /api/bookmarks — add a bookmark
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bookmarks-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`bookmarks-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/bookmarks — remove a bookmark
 export async function DELETE(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bookmarks-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`bookmarks-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

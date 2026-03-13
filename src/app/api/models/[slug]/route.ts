@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`model-detail:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`model-detail:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

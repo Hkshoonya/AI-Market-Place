@@ -16,7 +16,7 @@ const LENS_SORT_MAP: Record<string, { scoreCol: string; rankCol: string }> = {
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`rankings:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`rankings:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

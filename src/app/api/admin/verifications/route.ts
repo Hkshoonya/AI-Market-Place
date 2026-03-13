@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // GET /api/admin/verifications — list verification requests
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-verifications:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`admin-verifications:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 // PATCH /api/admin/verifications — approve or reject a request
 export async function PATCH(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-verifications-write:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`admin-verifications-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
