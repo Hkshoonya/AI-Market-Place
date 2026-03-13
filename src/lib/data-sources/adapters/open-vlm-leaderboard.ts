@@ -1,77 +1,162 @@
 /**
- * Open VLM Leaderboard Adapter — Vision/Multimodal Benchmarks
+ * Open VLM Leaderboard Adapter - Vision/Multimodal Benchmarks
  *
- * Fetches model benchmark scores from the Open VLM Leaderboard
- * (opencompass/open_vlm_leaderboard) on HuggingFace.
+ * Fetches model benchmark scores from the Open VLM leaderboard's published
+ * JSON snapshot on OpenXLab. The older Hugging Face dataset endpoint used by
+ * this adapter is no longer reliable for production syncs.
  *
- * Provides vision and multimodal benchmarks (MMMU, MathVista, OCRBench)
- * that fill a critical gap — multimodal/image categories currently have
- * ZERO benchmark data in our system.
- *
- * Uses batch-loaded in-memory matching with 4 strategies.
- *
- * Tier: 4 (weekly sync)
+ * Provides multimodal benchmarks (MMMU, MathVista, OCRBench, MME, AI2D,
+ * MMStar, HallusionBench, MMBench) that fill a critical gap for image/VLM
+ * models in the site.
  */
 
 import type {
   DataSourceAdapter,
+  HealthCheckResult,
   SyncContext,
   SyncResult,
-  HealthCheckResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { fetchWithRetry, makeSlug } from "../utils";
+import { fetchWithRetry, isPermanentHttpFailure, makeSlug } from "../utils";
 
-// --------------- HuggingFace Datasets API Types ---------------
-
-interface HFRowContent {
-  [key: string]: unknown;
+interface OpenVlmLeaderboardResponse {
+  time?: string;
+  results?: Record<string, OpenVlmEntry>;
 }
 
-interface HFRow {
-  row_idx: number;
-  row: HFRowContent;
+interface OpenVlmEntry {
+  META?: {
+    Method?: unknown;
+    Time?: string;
+    Org?: string;
+    key?: number;
+    dir_name?: string;
+  };
+  [benchmark: string]: unknown;
 }
 
-interface HFRowsResponse {
-  features: { feature_idx: number; name: string; type: unknown }[];
-  rows: HFRow[];
-  num_rows_total: number;
-  num_rows_per_page: number;
-  partial: boolean;
+interface ExtractedBenchmarkScore {
+  benchmarkSlug: string;
+  sourceKey: string;
+  score: number;
+  normalizedScore: number;
 }
 
-// --------------- Constants ---------------
+interface BenchmarkExtractor {
+  sourceKeys: readonly string[];
+  benchmarkSlug: string;
+  preferredFields?: readonly string[];
+}
 
-const HF_DATASET = "opencompass/open_vlm_leaderboard";
-const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
-const PAGE_LENGTH = 100;
+const OPENVLM_JSON_URL = "https://opencompass.openxlab.space/assets/OpenVLM.json";
+const OPENVLM_PAGE_URL = "https://huggingface.co/spaces/opencompass/open_vlm_leaderboard";
 
-/**
- * Map Open VLM Leaderboard column names to our benchmark slugs.
- */
-const BENCHMARK_FIELD_MAP: Record<string, string> = {
-  MMMU: "mmmu",
-  "MMMU_VAL": "mmmu",
-  MathVista: "mathvista",
-  "MathVista_MINI": "mathvista",
-  OCRBench: "ocrbench",
-  MMBench: "mmbench",
-  "MMBench_V11": "mmbench",
-  "MMBench_DEV_EN": "mmbench",
-  MME: "mme",
-  AI2D: "ai2d",
-  MMStar: "mmstar",
-  HallusionBench: "hallusionbench",
-};
-
-// Known provider prefixes for slug matching
 const PROVIDER_PREFIXES = [
   "anthropic-", "openai-", "google-", "meta-", "meta-llama-",
   "deepseek-", "deepseek-ai-", "mistralai-", "cohere-",
   "xai-", "amazon-", "microsoft-", "nvidia-", "alibaba-",
   "qwen-", "01-ai-", "tiiuae-", "bigcode-", "stabilityai-",
 ];
+
+const BENCHMARK_EXTRACTORS: readonly BenchmarkExtractor[] = [
+  { sourceKeys: ["MMMU_VAL", "MMMU"], benchmarkSlug: "mmmu" },
+  { sourceKeys: ["MathVista", "MathVista_MINI"], benchmarkSlug: "mathvista" },
+  { sourceKeys: ["OCRBench"], benchmarkSlug: "ocrbench", preferredFields: ["Final Score Norm", "Final Score", "Overall"] },
+  { sourceKeys: ["MMBench_TEST_EN_V11", "MMBench_TEST_EN", "MMBench_TEST_CN_V11", "MMBench_TEST_CN", "MMBench_V11", "MMBench"], benchmarkSlug: "mmbench" },
+  { sourceKeys: ["MME"], benchmarkSlug: "mme" },
+  { sourceKeys: ["AI2D"], benchmarkSlug: "ai2d" },
+  { sourceKeys: ["MMStar"], benchmarkSlug: "mmstar" },
+  { sourceKeys: ["HallusionBench"], benchmarkSlug: "hallusionbench" },
+];
+
+function readNumericValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getSectionScore(
+  section: unknown,
+  preferredFields: readonly string[] = ["Overall", "Final Score Norm", "Final Score"]
+): number | null {
+  if (!section || typeof section !== "object") return null;
+
+  const record = section as Record<string, unknown>;
+  for (const field of preferredFields) {
+    const value = readNumericValue(record[field]);
+    if (value != null) return value;
+  }
+
+  return null;
+}
+
+function normalizeScore(benchmarkSlug: string, rawScore: number): number {
+  if (benchmarkSlug === "ocrbench" && rawScore > 100) {
+    return Math.min(100, rawScore / 10);
+  }
+
+  if (benchmarkSlug === "mme" && rawScore > 100) {
+    return Math.min(100, rawScore / 28);
+  }
+
+  if (rawScore <= 1) {
+    return rawScore * 100;
+  }
+
+  return rawScore;
+}
+
+function extractBenchmarkScores(entry: OpenVlmEntry): ExtractedBenchmarkScore[] {
+  const scores: ExtractedBenchmarkScore[] = [];
+
+  for (const extractor of BENCHMARK_EXTRACTORS) {
+    for (const sourceKey of extractor.sourceKeys) {
+      const rawScore = getSectionScore(entry[sourceKey], extractor.preferredFields);
+      if (rawScore == null) continue;
+
+      scores.push({
+        benchmarkSlug: extractor.benchmarkSlug,
+        sourceKey,
+        score: rawScore,
+        normalizedScore: normalizeScore(extractor.benchmarkSlug, rawScore),
+      });
+      break;
+    }
+  }
+
+  return scores;
+}
+
+function getMethodName(entryKey: string, entry: OpenVlmEntry): string {
+  const method = entry.META?.Method;
+  if (Array.isArray(method) && typeof method[0] === "string" && method[0].trim()) {
+    return method[0];
+  }
+  return entryKey;
+}
+
+function getMethodUrl(entry: OpenVlmEntry): string | null {
+  const method = entry.META?.Method;
+  if (Array.isArray(method) && typeof method[1] === "string" && method[1].trim()) {
+    return method[1];
+  }
+  return null;
+}
+
+function parsePublishedAt(rawTime: string | undefined): string {
+  if (rawTime && /^\d{4}\/\d{2}\/\d{2}$/.test(rawTime)) {
+    return new Date(`${rawTime.replace(/\//g, "-")}T00:00:00.000Z`).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+export const __testables = {
+  extractBenchmarkScores,
+  normalizeScore,
+};
 
 const adapter: DataSourceAdapter = {
   id: "open-vlm-leaderboard",
@@ -88,53 +173,37 @@ const adapter: DataSourceAdapter = {
     const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
-    const allRows: HFRowContent[] = [];
-    let offset = 0;
-    let totalRows = Infinity;
-
-    const hfToken = process.env.HUGGINGFACE_API_TOKEN || ctx.secrets?.HUGGINGFACE_API_TOKEN || "";
-    const fetchHeaders: Record<string, string> = {
-      Accept: "application/json",
-      "User-Agent": "AI-Market-Cap-Bot",
-    };
-    if (hfToken) fetchHeaders["Authorization"] = `Bearer ${hfToken}`;
+    let payload: OpenVlmLeaderboardResponse;
 
     try {
-      while (offset < totalRows && allRows.length < maxEntries) {
-        const url = new URL(HF_ROWS_API);
-        url.searchParams.set("dataset", HF_DATASET);
-        url.searchParams.set("config", "default");
-        url.searchParams.set("split", "train");
-        url.searchParams.set("offset", String(offset));
-        url.searchParams.set("length", String(PAGE_LENGTH));
+      const res = await fetchWithRetry(
+        OPENVLM_JSON_URL,
+        {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "AI-Market-Cap-Bot",
+          },
+          signal: ctx.signal,
+        },
+        { signal: ctx.signal }
+      );
 
-        const res = await fetchWithRetry(
-          url.toString(),
-          { headers: fetchHeaders, signal: ctx.signal },
-          { signal: ctx.signal }
-        );
-
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          return {
-            success: false,
-            recordsProcessed: 0,
-            recordsCreated: 0,
-            recordsUpdated: 0,
-            errors: [{
-              message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-              context: "api_error",
-            }],
-            metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
-          };
-        }
-
-        const json: HFRowsResponse = await res.json();
-        totalRows = json.num_rows_total;
-        for (const row of json.rows) allRows.push(row.row);
-        offset += PAGE_LENGTH;
-        if (json.rows.length === 0) break;
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [{
+            message: `Open VLM JSON feed returned ${res.status}: ${body.slice(0, 200)}`,
+            context: isPermanentHttpFailure(res.status, body) ? "permanent_upstream_failure" : "api_error",
+          }],
+          metadata: { source: "openxlab_json", url: OPENVLM_JSON_URL },
+        };
       }
+
+      payload = await res.json() as OpenVlmLeaderboardResponse;
     } catch (err) {
       return {
         success: false,
@@ -145,66 +214,73 @@ const adapter: DataSourceAdapter = {
           message: `Failed to fetch Open VLM Leaderboard: ${err instanceof Error ? err.message : String(err)}`,
           context: "network_error",
         }],
-        metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
+        metadata: { source: "openxlab_json", url: OPENVLM_JSON_URL },
       };
     }
 
-    if (allRows.length === 0) {
+    const rawEntries = Object.entries(payload.results ?? {}).map(([entryKey, entry]) => {
+      const extractedScores = extractBenchmarkScores(entry);
+      const averageNormalizedScore =
+        extractedScores.reduce((sum, item) => sum + item.normalizedScore, 0) /
+        Math.max(extractedScores.length, 1);
+
+      return {
+        entryKey,
+        entry,
+        modelName: getMethodName(entryKey, entry),
+        sourceUrl: getMethodUrl(entry),
+        publishedAt: parsePublishedAt(entry.META?.Time),
+        extractedScores,
+        averageNormalizedScore,
+      };
+    }).filter((item) => item.extractedScores.length > 0);
+
+    if (rawEntries.length === 0) {
       return {
         success: false,
         recordsProcessed: 0,
         recordsCreated: 0,
         recordsUpdated: 0,
-        errors: [{ message: "Open VLM Leaderboard returned empty data", context: "empty_response" }],
-        metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
+        errors: [{
+          message: "Open VLM Leaderboard returned no usable benchmark rows",
+          context: "empty_response",
+        }],
+        metadata: { source: "openxlab_json", url: OPENVLM_JSON_URL },
       };
     }
 
-    const firstRow = allRows[0];
-    const columns = Object.keys(firstRow);
+    rawEntries.sort((a, b) => b.averageNormalizedScore - a.averageNormalizedScore);
+    const entries = rawEntries.slice(0, maxEntries);
 
-    const modelColumn = columns.find(c =>
-      /^(method|model|Model|name|fullname)/i.test(c)
-    ) ?? "Method";
-
-    const knownBenchmarkColumns = columns.filter(c => BENCHMARK_FIELD_MAP[c] != null);
-
-    allRows.sort((a, b) => {
-      const avgA = knownBenchmarkColumns.reduce((sum, c) => sum + (Number(a[c]) || 0), 0) / Math.max(knownBenchmarkColumns.length, 1);
-      const avgB = knownBenchmarkColumns.reduce((sum, c) => sum + (Number(b[c]) || 0), 0) / Math.max(knownBenchmarkColumns.length, 1);
-      return avgB - avgA;
-    });
-
-    const entries = allRows.slice(0, maxEntries);
-    let recordsProcessed = 0;
-    let recordsCreated = 0;
-
-    // ── Batch model lookup ──
     const { data: allModelsRaw } = await sb
       .from("models")
       .select("id, slug, name, provider")
       .eq("status", "active");
     const allModels = (allModelsRaw ?? []) as {
-      id: string; slug: string; name: string; provider: string;
+      id: string;
+      slug: string;
+      name: string;
+      provider: string;
     }[];
 
     const slugToId = new Map<string, string>();
     const nameLowerToId = new Map<string, string>();
 
-    for (const m of allModels) {
-      slugToId.set(m.slug, m.id);
-      nameLowerToId.set(m.name.toLowerCase(), m.id);
-      const providerSlug = makeSlug(m.provider);
-      if (m.slug.startsWith(providerSlug + "-")) {
-        const withoutPrefix = m.slug.slice(providerSlug.length + 1);
-        if (!slugToId.has(withoutPrefix)) slugToId.set(withoutPrefix, m.id);
+    for (const model of allModels) {
+      slugToId.set(model.slug, model.id);
+      nameLowerToId.set(model.name.toLowerCase(), model.id);
+      const providerSlug = makeSlug(model.provider);
+      if (model.slug.startsWith(providerSlug + "-")) {
+        const withoutPrefix = model.slug.slice(providerSlug.length + 1);
+        if (!slugToId.has(withoutPrefix)) slugToId.set(withoutPrefix, model.id);
       }
     }
 
-    // Pre-load benchmark IDs
     const benchmarkIdCache = new Map<string, number | null>();
     const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
-    for (const b of allBenchmarks ?? []) benchmarkIdCache.set(b.slug, b.id);
+    for (const benchmark of allBenchmarks ?? []) {
+      benchmarkIdCache.set(benchmark.slug, benchmark.id);
+    }
 
     function findModelId(rawName: string): string | null {
       const slug = makeSlug(rawName);
@@ -237,44 +313,39 @@ const adapter: DataSourceAdapter = {
       return null;
     }
 
+    let recordsProcessed = 0;
+    let recordsCreated = 0;
     let matchedCount = 0;
 
-    for (let i = 0; i < entries.length; i++) {
-      const row = entries[i];
-      const rank = i + 1;
-
-      const modelName = (row[modelColumn] as string) ?? "";
-      if (!modelName) continue;
-
-      recordsProcessed++;
-
+    for (let index = 0; index < entries.length; index++) {
+      const item = entries[index];
+      const rank = index + 1;
+      const modelName = item.modelName;
       const modelSlug = makeSlug(modelName);
       const modelId = findModelId(modelName);
 
+      recordsProcessed++;
       if (modelId) matchedCount++;
 
-      // Build summary
-      const summaryParts: string[] = [];
-      for (const col of knownBenchmarkColumns) {
-        const val = row[col] as number | null;
-        if (val != null && typeof val === "number" && isFinite(val)) {
-          summaryParts.push(`${col}: ${val.toFixed(1)}`);
-        }
-      }
-
-      // News entry
       const newsRecord = {
         source: "open-vlm-leaderboard",
         source_id: `vlm-${modelSlug}-${today}`,
-        title: `${modelName} — Open VLM Leaderboard #${rank}`,
+        title: `${modelName} - Open VLM Leaderboard #${rank}`,
         related_model_ids: modelId ? [modelId] : [],
-        summary: summaryParts.join(" | "),
-        url: "https://huggingface.co/spaces/opencompass/open_vlm_leaderboard",
-        published_at: new Date().toISOString(),
+        summary: item.extractedScores
+          .map((score) => `${score.sourceKey}: ${score.normalizedScore.toFixed(1)}`)
+          .join(" | "),
+        url: item.sourceUrl ?? OPENVLM_PAGE_URL,
+        published_at: item.publishedAt,
         category: "benchmark",
         related_provider: null,
         tags: ["benchmark", "vlm", "vision", "multimodal"],
-        metadata: { rank, model_id: modelId ?? null },
+        metadata: {
+          rank,
+          model_id: modelId ?? null,
+          source_time: payload.time ?? null,
+          benchmark_count: item.extractedScores.length,
+        },
       };
 
       const { error: newsError } = await sb
@@ -285,26 +356,11 @@ const adapter: DataSourceAdapter = {
         errors.push({ message: `News upsert for ${modelName}: ${newsError.message}` });
       }
 
-      // Write benchmark_scores
       if (!modelId) continue;
 
-      for (const col of knownBenchmarkColumns) {
-        const value = row[col] as number | null;
-        if (value == null || typeof value !== "number" || !isFinite(value)) continue;
-
-        const benchmarkSlug = BENCHMARK_FIELD_MAP[col];
-        if (!benchmarkSlug) continue;
-
-        const benchmarkId = benchmarkIdCache.get(benchmarkSlug);
+      for (const extractedScore of item.extractedScores) {
+        const benchmarkId = benchmarkIdCache.get(extractedScore.benchmarkSlug);
         if (!benchmarkId) continue;
-
-        // OCRBench is 0-1000 scale, normalize to 0-100
-        let normalizedScore = value;
-        if (benchmarkSlug === "ocrbench" && value > 100) {
-          normalizedScore = (value / 1000) * 100;
-        } else if (value <= 1) {
-          normalizedScore = value * 100;
-        }
 
         const { error: scoreError } = await sb
           .from("benchmark_scores")
@@ -312,8 +368,8 @@ const adapter: DataSourceAdapter = {
             {
               model_id: modelId,
               benchmark_id: benchmarkId,
-              score: value,
-              score_normalized: normalizedScore,
+              score: extractedScore.score,
+              score_normalized: extractedScore.normalizedScore,
               model_version: "",
               source: "open-vlm-leaderboard",
               evaluation_date: today,
@@ -323,7 +379,7 @@ const adapter: DataSourceAdapter = {
 
         if (scoreError) {
           errors.push({
-            message: `benchmark_scores upsert for ${modelName}/${benchmarkSlug}: ${scoreError.message}`,
+            message: `benchmark_scores upsert for ${modelName}/${extractedScore.benchmarkSlug}: ${scoreError.message}`,
           });
         } else {
           recordsCreated++;
@@ -338,13 +394,12 @@ const adapter: DataSourceAdapter = {
       recordsUpdated: 0,
       errors,
       metadata: {
-        source: "hf_datasets_api",
-        dataset: HF_DATASET,
-        totalRowsFetched: allRows.length,
-        detectedColumns: columns,
-        benchmarkColumns: knownBenchmarkColumns,
+        source: "openxlab_json",
+        url: OPENVLM_JSON_URL,
+        totalRowsFetched: rawEntries.length,
         matchedModels: matchedCount,
         matchRate: `${((matchedCount / Math.max(recordsProcessed, 1)) * 100).toFixed(1)}%`,
+        sourceTime: payload.time ?? null,
       },
     };
   },
@@ -352,20 +407,31 @@ const adapter: DataSourceAdapter = {
   async healthCheck(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      const url = new URL(HF_ROWS_API);
-      url.searchParams.set("dataset", HF_DATASET);
-      url.searchParams.set("config", "default");
-      url.searchParams.set("split", "train");
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("length", "1");
-
-      const res = await fetchWithRetry(url.toString(), {}, { maxRetries: 1 });
+      const res = await fetchWithRetry(
+        OPENVLM_JSON_URL,
+        {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "AI-Market-Cap-Bot",
+          },
+        },
+        { maxRetries: 1 }
+      );
       const latencyMs = Date.now() - start;
 
       if (res.ok) {
-        return { healthy: true, latencyMs, message: "HF Datasets API reachable for Open VLM Leaderboard" };
+        return {
+          healthy: true,
+          latencyMs,
+          message: "Open VLM JSON feed reachable",
+        };
       }
-      return { healthy: false, latencyMs, message: `HF Datasets API returned HTTP ${res.status}` };
+
+      return {
+        healthy: false,
+        latencyMs,
+        message: `Open VLM JSON feed returned HTTP ${res.status}`,
+      };
     } catch (err) {
       return {
         healthy: false,

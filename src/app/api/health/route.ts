@@ -3,56 +3,40 @@
  *
  * GET /api/health
  *
- * Public (no auth):  returns { status: "healthy"|"degraded", version, timestamp }
- * Authed (Bearer CRON_SECRET): returns full detail including database, uptime, cron, pipeline summary
+ * Public (no auth): returns { status: "healthy"|"degraded", version, timestamp }
+ * Authed (Bearer CRON_SECRET): returns full detail including database, cron, uptime, pipeline summary
  *
  * Returns 503 ONLY when the database is unreachable.
  * Degraded pipeline or cron returns 200 with status: "degraded".
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
 import { computeStatus } from "@/lib/pipeline-health-compute";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isCronSchedulerConfigured,
+  resolveCronRunnerMode,
+} from "@/lib/cron-runtime";
 
 export const dynamic = "force-dynamic";
 
-// ---------------------------------------------------------------------------
-// Version — read once at module scope, not per-request
-// ---------------------------------------------------------------------------
+const CRON_HEALTH_LOOKBACK_HOURS = 24;
 
 const pkgPath = join(process.cwd(), "package.json");
 const APP_VERSION: string = (() => {
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as { version?: string };
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+      version?: string;
+    };
     return pkg.version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
 })();
-
-// ---------------------------------------------------------------------------
-// Cron status — populated by Plan 02's custom-server.js wiring
-// ---------------------------------------------------------------------------
-
-let _cronActive = false;
-let _cronJobCount = 0;
-
-export function setCronStatus(active: boolean, count: number): void {
-  _cronActive = active;
-  _cronJobCount = count;
-}
-
-export function getCronStatus(): { active: boolean; jobCount: number } {
-  return { active: _cronActive, jobCount: _cronJobCount };
-}
-
-// ---------------------------------------------------------------------------
-// Zod schemas
-// ---------------------------------------------------------------------------
 
 const HealthPublicSchema = z.object({
   status: z.enum(["healthy", "degraded"]),
@@ -67,8 +51,11 @@ const HealthDetailSchema = HealthPublicSchema.extend({
     latencyMs: z.number(),
   }),
   cron: z.object({
-    active: z.boolean(),
-    jobCount: z.number(),
+    mode: z.enum(["disabled", "internal", "external"]),
+    schedulerConfigured: z.boolean(),
+    runningJobs: z.number(),
+    recentFailures24h: z.number(),
+    lastRunAt: z.string().nullable(),
   }),
   pipeline: z.object({
     healthy: z.number(),
@@ -84,15 +71,14 @@ const HealthUnhealthySchema = z.object({
   error: z.string(),
 });
 
-// ---------------------------------------------------------------------------
-// DB ping helper — returns 503 response on failure, null on success
-// ---------------------------------------------------------------------------
-
 async function pingDb(
   version: string,
   timestamp: string
-): Promise<{ supabase: ReturnType<typeof createAdminClient>; latencyMs: number } | NextResponse> {
+): Promise<
+  { supabase: ReturnType<typeof createAdminClient>; latencyMs: number } | NextResponse
+> {
   const dbStart = performance.now();
+
   try {
     const supabase = createAdminClient();
     const { error: pingError } = await supabase
@@ -119,49 +105,42 @@ async function pingDb(
   }
 }
 
-// ---------------------------------------------------------------------------
-// GET handler
-// ---------------------------------------------------------------------------
-
 export async function GET(request: NextRequest) {
   const timestamp = new Date().toISOString();
   const version = APP_VERSION;
 
-  // Auth check
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  const isAuthenticated = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+  const isAuthenticated = Boolean(
+    cronSecret && authHeader === `Bearer ${cronSecret}`
+  );
 
-  // DB ping — returns 503 response if unreachable, or { supabase, latencyMs } on success
   const dbResult = await pingDb(version, timestamp);
-
-  // If DB is unreachable, return 200 with "unhealthy" status so Railway's
-  // healthcheck passes (process is alive). Monitoring checks the body.
   if (dbResult instanceof NextResponse) {
-    return NextResponse.json(
-      { status: "unhealthy", version, timestamp, error: "database unreachable" },
-      { status: 200 }
-    );
+    return dbResult;
   }
+
   const { supabase, latencyMs: dbLatencyMs } = dbResult;
 
   try {
-    // Pipeline summary — fetch data_sources and pipeline_health in parallel
     const [dataSourcesResult, pipelineHealthResult] = await Promise.all([
       supabase
         .from("data_sources")
-        .select("slug, last_sync_at, last_sync_records, last_error_message, sync_interval_hours"),
+        .select(
+          "slug, is_enabled, last_sync_at, last_sync_records, last_error_message, sync_interval_hours"
+        )
+        .eq("is_enabled", true)
+        .is("quarantined_at", null),
       supabase
         .from("pipeline_health")
-        .select("source_slug, consecutive_failures, last_success_at, expected_interval_hours"),
+        .select(
+          "source_slug, consecutive_failures, last_success_at, expected_interval_hours"
+        ),
     ]);
 
     const dataSources = dataSourcesResult.data ?? [];
     const healthRows = pipelineHealthResult.data ?? [];
-
-    const healthBySlug = new Map(
-      healthRows.map((row) => [row.source_slug, row])
-    );
+    const healthBySlug = new Map(healthRows.map((row) => [row.source_slug, row]));
 
     let pipelineHealthy = 0;
     let pipelineDegraded = 0;
@@ -180,12 +159,22 @@ export async function GET(request: NextRequest) {
       else pipelineDown++;
     }
 
-    // Top-level status: "degraded" if any pipeline issue; db is up so no "unhealthy"
     const overallStatus: "healthy" | "degraded" =
       pipelineDown > 0 || pipelineDegraded > 0 ? "degraded" : "healthy";
 
     if (isAuthenticated) {
-      const cronStatus = getCronStatus();
+      const cronCutoff = new Date(
+        Date.now() - CRON_HEALTH_LOOKBACK_HOURS * 60 * 60 * 1000
+      ).toISOString();
+      const { data: cronRuns = [] } = await supabase
+        .from("cron_runs")
+        .select("status, started_at, created_at")
+        .gte("created_at", cronCutoff)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      const recentCronRuns = cronRuns ?? [];
+
+      const cronMode = resolveCronRunnerMode();
       const body = HealthDetailSchema.parse({
         status: overallStatus,
         version,
@@ -196,8 +185,12 @@ export async function GET(request: NextRequest) {
           latencyMs: dbLatencyMs,
         },
         cron: {
-          active: cronStatus.active,
-          jobCount: cronStatus.jobCount,
+          mode: cronMode,
+          schedulerConfigured: isCronSchedulerConfigured(cronMode),
+          runningJobs: recentCronRuns.filter((run) => run.status === "running").length,
+          recentFailures24h: recentCronRuns.filter((run) => run.status === "failed")
+            .length,
+          lastRunAt: recentCronRuns[0]?.started_at ?? recentCronRuns[0]?.created_at ?? null,
         },
         pipeline: {
           healthy: pipelineHealthy,
@@ -205,6 +198,7 @@ export async function GET(request: NextRequest) {
           down: pipelineDown,
         },
       });
+
       return NextResponse.json(body);
     }
 

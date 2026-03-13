@@ -14,13 +14,14 @@ export function ViewTracker({ listingId, listingName }: { listingId: string; lis
     analytics.listingViewed(listingId, listingName ?? "");
 
     const supabase = createClient();
-    // increment_view_count is a database RPC not registered in the TypedSupabaseClient Functions type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase.rpc as any)("increment_view_count", { listing_id: listingId })
-      .then(() => {})
-      .catch(() => {
-        console.warn("[view-tracker] Failed to record view");
+    void (async () => {
+      const { error } = await supabase.rpc("increment_view_count", {
+        listing_id: listingId,
       });
+      if (error) {
+        console.warn("[view-tracker] Failed to record view");
+      }
+    })();
   }, [listingId, listingName]);
 
   return null;

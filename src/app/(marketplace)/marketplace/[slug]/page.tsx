@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
 import { ArrowLeft, Calendar, Eye, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { SellerCard } from "@/components/marketplace/seller-card";
@@ -21,12 +20,13 @@ import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
+import type { MarketplacePricingType } from "@/types/database";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const ListingMetaSchema = z.object({
     title: z.string(),
     short_description: z.string().nullable(),
@@ -60,7 +60,7 @@ export default async function ListingDetailPage(props: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await props.params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const listingResponse = await supabase
     .from("marketplace_listings")
@@ -178,7 +178,15 @@ export default async function ListingDetailPage(props: {
                   pricingType={listing.pricing_type}
                   sellerName={(listing.profiles?.display_name as string | null) ?? undefined}
                 />
-                <ContactForm listing={listing as import("@/types/database").MarketplaceListing} />
+                <ContactForm
+                  listing={{
+                    id: listing.id,
+                    title: listing.title,
+                    seller_id: listing.seller_id,
+                    pricing_type: listing.pricing_type as MarketplacePricingType,
+                    price: listing.price,
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
