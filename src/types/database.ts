@@ -337,6 +337,91 @@ export interface WatchlistItem {
   added_at: string;
 }
 
+export type NetworkActorType = "human" | "agent" | "organization_agent" | "hybrid";
+export type NetworkActorTrustTier = "basic" | "trusted" | "verified";
+export type SocialVisibility = "public" | "community";
+export type SocialPostStatus = "published" | "hidden" | "removed";
+export type SocialThreadBlockReason = "thread_owner_block" | "spam" | "abuse";
+
+export interface NetworkActor {
+  id: string;
+  actor_type: NetworkActorType;
+  owner_user_id: string;
+  profile_id: string | null;
+  agent_id: string | null;
+  display_name: string;
+  handle: string;
+  avatar_url: string | null;
+  bio: string | null;
+  is_public: boolean;
+  trust_tier: NetworkActorTrustTier;
+  reputation_score: number;
+  autonomy_enabled: boolean;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialCommunity {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  created_by_actor_id: string | null;
+  is_global: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialThread {
+  id: string;
+  created_by_actor_id: string;
+  community_id: string | null;
+  root_post_id: string | null;
+  title: string | null;
+  visibility: SocialVisibility;
+  language_code: string | null;
+  reply_count: number;
+  last_posted_at: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialPost {
+  id: string;
+  thread_id: string;
+  parent_post_id: string | null;
+  author_actor_id: string;
+  community_id: string | null;
+  content: string;
+  language_code: string | null;
+  status: SocialPostStatus;
+  reply_count: number;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialPostMedia {
+  id: string;
+  post_id: string;
+  media_type: "image" | "link_preview";
+  url: string;
+  alt_text: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface SocialThreadBlock {
+  id: string;
+  thread_id: string;
+  blocked_actor_id: string;
+  blocked_by_actor_id: string;
+  reason: SocialThreadBlockReason;
+  created_at: string;
+}
+
 // Marketplace types
 export type ListingType = "api_access" | "model_weights" | "fine_tuned_model" | "dataset" | "prompt_template" | "agent" | "mcp_server";
 export type ListingStatus = "draft" | "active" | "paused" | "sold_out" | "archived";
@@ -965,6 +1050,42 @@ export interface Database {
           model_id?: string;
           added_at?: string;
         };
+        Relationships: [];
+      };
+      network_actors: {
+        Row: AsRow<NetworkActor>;
+        Insert: Partial<NetworkActor> & Pick<NetworkActor, "actor_type" | "owner_user_id" | "display_name" | "handle">;
+        Update: Partial<NetworkActor>;
+        Relationships: [];
+      };
+      social_communities: {
+        Row: AsRow<SocialCommunity>;
+        Insert: Partial<SocialCommunity> & Pick<SocialCommunity, "slug" | "name">;
+        Update: Partial<SocialCommunity>;
+        Relationships: [];
+      };
+      social_threads: {
+        Row: AsRow<SocialThread>;
+        Insert: Partial<SocialThread> & Pick<SocialThread, "created_by_actor_id">;
+        Update: Partial<SocialThread>;
+        Relationships: [];
+      };
+      social_posts: {
+        Row: AsRow<SocialPost>;
+        Insert: Partial<SocialPost> & Pick<SocialPost, "thread_id" | "author_actor_id" | "content">;
+        Update: Partial<SocialPost>;
+        Relationships: [];
+      };
+      social_post_media: {
+        Row: AsRow<SocialPostMedia>;
+        Insert: Partial<SocialPostMedia> & Pick<SocialPostMedia, "post_id" | "media_type" | "url">;
+        Update: Partial<SocialPostMedia>;
+        Relationships: [];
+      };
+      social_thread_blocks: {
+        Row: AsRow<SocialThreadBlock>;
+        Insert: Partial<SocialThreadBlock> & Pick<SocialThreadBlock, "thread_id" | "blocked_actor_id" | "blocked_by_actor_id">;
+        Update: Partial<SocialThreadBlock>;
         Relationships: [];
       };
       marketplace_listings: {

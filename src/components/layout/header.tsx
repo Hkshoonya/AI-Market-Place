@@ -8,6 +8,7 @@ import {
   BarChart3,
   Building2,
   Menu,
+  MessageSquare,
   Newspaper,
   // REMOVED: Search,
   ShieldCheck,
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/providers", label: "Providers", icon: Building2 },
   { href: "/news", label: "News", icon: Newspaper },
+  { href: "/commons", label: "Commons", icon: MessageSquare },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
 ];
 
