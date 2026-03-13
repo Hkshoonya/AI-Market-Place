@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public-server";
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-error";
 
@@ -6,7 +6,7 @@ export const revalidate = 300; // 5 min cache
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
 
     // Get top 15 models by popularity
     const { data: models } = await supabase
