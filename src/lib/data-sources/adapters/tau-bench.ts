@@ -8,6 +8,10 @@
 import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
 import { registerAdapter } from "../registry";
 import { fuzzyMatchModel } from "../model-matcher";
+import {
+  STATIC_BENCHMARK_ON_CONFLICT,
+  buildStaticBenchmarkScoreRecord,
+} from "./static-benchmark";
 
 const TAU_BENCH_MODELS: Array<{ name: string; score: number }> = [
   { name: "o3", score: 82.5 },
@@ -71,15 +75,13 @@ const adapter: DataSourceAdapter = {
         const { error } = await supabase
           .from("benchmark_scores")
           .upsert(
-            {
-              model_id: match.id,
-              benchmark_id: benchmark.id,
+            buildStaticBenchmarkScoreRecord({
+              modelId: match.id,
+              benchmarkId: benchmark.id,
               score: entry.score,
-              score_normalized: entry.score,
               source: "tau-bench",
-              evaluation_date: new Date().toISOString().split("T")[0],
-            },
-            { onConflict: "model_id,benchmark_id" }
+            }),
+            { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
           );
 
         if (error) {

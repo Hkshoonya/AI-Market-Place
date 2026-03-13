@@ -21,7 +21,7 @@ import type {
   HealthCheckResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { fetchWithRetry, makeSlug } from "../utils";
+import { fetchWithRetry, isPermanentHttpFailure, makeSlug } from "../utils";
 
 // --------------- HuggingFace Datasets API Types ---------------
 
@@ -115,7 +115,9 @@ const adapter: DataSourceAdapter = {
             errors: [
               {
                 message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-                context: "api_error",
+                context: isPermanentHttpFailure(res.status, body)
+                  ? "permanent_upstream_failure"
+                  : "api_error",
               },
             ],
             metadata: { source: "hf_datasets_api", dataset: HF_DATASET },

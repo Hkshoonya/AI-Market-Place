@@ -8,6 +8,10 @@
 import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
 import { registerAdapter } from "../registry";
 import { fuzzyMatchModel } from "../model-matcher";
+import {
+  STATIC_BENCHMARK_ON_CONFLICT,
+  buildStaticBenchmarkScoreRecord,
+} from "./static-benchmark";
 
 const WEBARENA_MODELS: Array<{ name: string; score: number }> = [
   { name: "Claude 4 Opus", score: 45.2 },
@@ -69,15 +73,13 @@ const adapter: DataSourceAdapter = {
         const { error } = await supabase
           .from("benchmark_scores")
           .upsert(
-            {
-              model_id: match.id,
-              benchmark_id: benchmark.id,
+            buildStaticBenchmarkScoreRecord({
+              modelId: match.id,
+              benchmarkId: benchmark.id,
               score: entry.score,
-              score_normalized: entry.score,
               source: "webarena",
-              evaluation_date: new Date().toISOString().split("T")[0],
-            },
-            { onConflict: "model_id,benchmark_id" }
+            }),
+            { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
           );
 
         if (error) {
