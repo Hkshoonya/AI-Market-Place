@@ -7,7 +7,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 
 interface LiveCodeBenchPerformance {
   model?: unknown;
@@ -219,55 +222,59 @@ const adapter: DataSourceAdapter = {
       .select("id, name, slug, provider")
       .eq("status", "active");
     const activeModels = models ?? [];
+    const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     let recordsCreated = 0;
     let recordsProcessed = 0;
 
     for (const score of scores) {
       recordsProcessed++;
-      const match =
+      const relatedIds = resolveMatchedAliasFamilyModelIds(
+        modelAliasIndex,
+        activeModels,
         score.aliases
-          .map((alias) => fuzzyMatchModel(alias, activeModels))
-          .find(Boolean) ?? null;
-
-      if (!match) continue;
-
-      const { error } = await ctx.supabase.from("benchmark_scores").upsert(
-        {
-          model_id: match.id,
-          benchmark_id: benchmark.id,
-          score: score.score,
-          score_normalized: score.normalizedScore,
-          model_version: "",
-          source: "livecodebench",
-          source_url: score.metadata.sourceUrl ?? SOURCE_SITE,
-          evaluation_date: new Date().toISOString().split("T")[0],
-          metadata: {
-            sample_count: score.sampleCount,
-            difficulty_breakdown: score.metadata.difficultyBreakdown,
-            release_date: score.metadata.releaseDate,
-            aliases: score.aliases,
-          },
-        },
-        { onConflict: "model_id,benchmark_id,model_version" }
       );
 
-      if (error) {
-        errors.push({
-          message: `benchmark_scores upsert for ${score.modelName}: ${error.message}`,
-        });
-        continue;
-      }
+      if (relatedIds.length === 0) continue;
 
-      recordsCreated++;
+      for (const relatedId of relatedIds) {
+        const { error } = await ctx.supabase.from("benchmark_scores").upsert(
+          {
+            model_id: relatedId,
+            benchmark_id: benchmark.id,
+            score: score.score,
+            score_normalized: score.normalizedScore,
+            model_version: "",
+            source: "livecodebench",
+            source_url: score.metadata.sourceUrl ?? SOURCE_SITE,
+            evaluation_date: new Date().toISOString().split("T")[0],
+            metadata: {
+              sample_count: score.sampleCount,
+              difficulty_breakdown: score.metadata.difficultyBreakdown,
+              release_date: score.metadata.releaseDate,
+              aliases: score.aliases,
+            },
+          },
+          { onConflict: "model_id,benchmark_id,model_version" }
+        );
+
+        if (error) {
+          errors.push({
+            message: `benchmark_scores upsert for ${score.modelName}/${relatedId}: ${error.message}`,
+          });
+          continue;
+        }
+
+        recordsCreated++;
+      }
 
       try {
         await ctx.supabase.from("model_news").upsert(
           {
             source: "livecodebench",
-            source_id: `livecodebench-${match.id}`,
+            source_id: `livecodebench-${relatedIds[0]}`,
             title: `${score.modelName} - LiveCodeBench`,
-            related_model_ids: [match.id],
+            related_model_ids: relatedIds,
             summary: `LiveCodeBench pass@1 ${score.normalizedScore.toFixed(1)} across ${score.sampleCount} tasks`,
             url: score.metadata.sourceUrl ?? SOURCE_SITE,
             published_at: new Date().toISOString(),

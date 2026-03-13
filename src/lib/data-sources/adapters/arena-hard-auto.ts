@@ -7,7 +7,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 
 interface ExtractedArenaHardScore {
   modelName: string;
@@ -188,55 +191,59 @@ const adapter: DataSourceAdapter = {
       .select("id, name, slug, provider")
       .eq("status", "active");
     const activeModels = models ?? [];
+    const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     let recordsCreated = 0;
     let recordsProcessed = 0;
 
     for (const score of scores) {
       recordsProcessed++;
-      const match =
+      const relatedIds = resolveMatchedAliasFamilyModelIds(
+        modelAliasIndex,
+        activeModels,
         score.aliases
-          .map((alias) => fuzzyMatchModel(alias, activeModels))
-          .find(Boolean) ?? null;
-
-      if (!match) continue;
-
-      const { error } = await ctx.supabase.from("benchmark_scores").upsert(
-        {
-          model_id: match.id,
-          benchmark_id: benchmark.id,
-          score: score.score,
-          score_normalized: score.normalizedScore,
-          model_version: "",
-          source: "arena-hard-auto",
-          source_url: score.metadata.sourceUrl,
-          evaluation_date: new Date().toISOString().split("T")[0],
-          metadata: {
-            judge: score.metadata.judge,
-            leaderboard: score.metadata.leaderboard,
-            aliases: score.aliases,
-            confidence_interval: score.metadata.confidenceInterval,
-          },
-        },
-        { onConflict: "model_id,benchmark_id,model_version" }
       );
 
-      if (error) {
-        errors.push({
-          message: `benchmark_scores upsert for ${score.modelName}: ${error.message}`,
-        });
-        continue;
-      }
+      if (relatedIds.length === 0) continue;
 
-      recordsCreated++;
+      for (const relatedId of relatedIds) {
+        const { error } = await ctx.supabase.from("benchmark_scores").upsert(
+          {
+            model_id: relatedId,
+            benchmark_id: benchmark.id,
+            score: score.score,
+            score_normalized: score.normalizedScore,
+            model_version: "",
+            source: "arena-hard-auto",
+            source_url: score.metadata.sourceUrl,
+            evaluation_date: new Date().toISOString().split("T")[0],
+            metadata: {
+              judge: score.metadata.judge,
+              leaderboard: score.metadata.leaderboard,
+              aliases: score.aliases,
+              confidence_interval: score.metadata.confidenceInterval,
+            },
+          },
+          { onConflict: "model_id,benchmark_id,model_version" }
+        );
+
+        if (error) {
+          errors.push({
+            message: `benchmark_scores upsert for ${score.modelName}/${relatedId}: ${error.message}`,
+          });
+          continue;
+        }
+
+        recordsCreated++;
+      }
 
       try {
         await ctx.supabase.from("model_news").upsert(
           {
             source: "arena-hard-auto",
-            source_id: `arena-hard-auto-${match.id}`,
+            source_id: `arena-hard-auto-${relatedIds[0]}`,
             title: `${score.modelName} - Arena-Hard-Auto`,
-            related_model_ids: [match.id],
+            related_model_ids: relatedIds,
             summary: `Arena-Hard-Auto official Gemini-2.5 judged score ${score.normalizedScore.toFixed(1)} with CI ${score.metadata.confidenceInterval.lower}/${score.metadata.confidenceInterval.upper}`,
             url: score.metadata.sourceUrl,
             published_at: new Date().toISOString(),

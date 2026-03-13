@@ -7,7 +7,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 
 interface SweBenchEntry {
   name?: unknown;
@@ -185,54 +188,58 @@ const adapter: DataSourceAdapter = {
       .select("id, name, slug, provider")
       .eq("status", "active");
     const activeModels = models ?? [];
+    const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     let recordsCreated = 0;
     let recordsProcessed = 0;
 
     for (const score of scores) {
       recordsProcessed++;
-      const match =
+      const relatedIds = resolveMatchedAliasFamilyModelIds(
+        modelAliasIndex,
+        activeModels,
         score.aliases
-          .map((alias) => fuzzyMatchModel(alias, activeModels))
-          .find(Boolean) ?? null;
-
-      if (!match) continue;
-
-      const { error } = await ctx.supabase.from("benchmark_scores").upsert(
-        {
-          model_id: match.id,
-          benchmark_id: benchmark.id,
-          score: score.score,
-          score_normalized: score.normalizedScore,
-          model_version: "",
-          source: "swe-bench",
-          source_url: score.metadata.site ?? SOURCE_SITE,
-          evaluation_date: score.metadata.date ?? new Date().toISOString().split("T")[0],
-          metadata: {
-            leaderboard: score.metadata.leaderboard,
-            submission_name: score.metadata.submissionName,
-            aliases: score.aliases,
-          },
-        },
-        { onConflict: "model_id,benchmark_id,model_version" }
       );
 
-      if (error) {
-        errors.push({
-          message: `benchmark_scores upsert for ${score.modelName}: ${error.message}`,
-        });
-        continue;
-      }
+      if (relatedIds.length === 0) continue;
 
-      recordsCreated++;
+      for (const relatedId of relatedIds) {
+        const { error } = await ctx.supabase.from("benchmark_scores").upsert(
+          {
+            model_id: relatedId,
+            benchmark_id: benchmark.id,
+            score: score.score,
+            score_normalized: score.normalizedScore,
+            model_version: "",
+            source: "swe-bench",
+            source_url: score.metadata.site ?? SOURCE_SITE,
+            evaluation_date: score.metadata.date ?? new Date().toISOString().split("T")[0],
+            metadata: {
+              leaderboard: score.metadata.leaderboard,
+              submission_name: score.metadata.submissionName,
+              aliases: score.aliases,
+            },
+          },
+          { onConflict: "model_id,benchmark_id,model_version" }
+        );
+
+        if (error) {
+          errors.push({
+            message: `benchmark_scores upsert for ${score.modelName}/${relatedId}: ${error.message}`,
+          });
+          continue;
+        }
+
+        recordsCreated++;
+      }
 
       try {
         await ctx.supabase.from("model_news").upsert(
           {
             source: "swe-bench",
-            source_id: `swe-bench-${match.id}`,
+            source_id: `swe-bench-${relatedIds[0]}`,
             title: `${score.modelName} - SWE-Bench ${score.metadata.leaderboard}`,
-            related_model_ids: [match.id],
+            related_model_ids: relatedIds,
             summary: `SWE-Bench ${score.metadata.leaderboard} resolved rate ${score.normalizedScore.toFixed(1)}`,
             url: score.metadata.site ?? SOURCE_SITE,
             published_at: new Date().toISOString(),

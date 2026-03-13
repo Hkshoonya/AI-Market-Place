@@ -21,6 +21,12 @@ interface ModelAliasIndex {
 }
 
 const DATE_SUFFIX_RE = /^(.+)-\d{4}-\d{2}-\d{2}$/;
+const SAFE_FAMILY_QUALIFIER_TOKENS = [
+  "extended",
+  "preview",
+  "exacto",
+  "image preview",
+];
 
 function pushUnique(map: Map<string, string[]>, key: string, value: string) {
   if (!key) return;
@@ -37,6 +43,44 @@ function uniqueNormalized(values: Array<string | null | undefined>, normalizer: 
 
 function stripDateSuffix(slug: string): string {
   return slug.replace(DATE_SUFFIX_RE, "$1");
+}
+
+function stripSafeFamilyQualifiers(value: string) {
+  return value.replace(/\(([^)]*)\)/g, (match, qualifier: string) => {
+    const lowerQualifier = qualifier.trim().toLowerCase();
+    return SAFE_FAMILY_QUALIFIER_TOKENS.some((token) => lowerQualifier.includes(token))
+      ? " "
+      : match;
+  });
+}
+
+function normalizeNameKey(value: string) {
+  return stripSafeFamilyQualifiers(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[-_.:/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function expandAliasCandidates(aliases: Array<string | null | undefined>) {
+  const expanded = new Set<string>();
+
+  for (const alias of aliases) {
+    const trimmed = typeof alias === "string" ? alias.trim() : "";
+    if (!trimmed) continue;
+
+    expanded.add(trimmed);
+
+    for (const segment of trimmed.split(/[\\/|:]/)) {
+      const normalizedSegment = segment.trim();
+      if (normalizedSegment) {
+        expanded.add(normalizedSegment);
+      }
+    }
+  }
+
+  return [...expanded];
 }
 
 function getProviderlessSlug(model: AliasModelRecord): string | null {
@@ -60,6 +104,7 @@ function modelPriority(
   if (providerlessSlug && slugCandidates.has(providerlessSlug)) score += 90;
 
   if (nameCandidates.has(model.name.toLowerCase())) score += 60;
+  if (nameCandidates.has(normalizeNameKey(model.name))) score += 55;
   if (!DATE_SUFFIX_RE.test(model.slug)) score += 10;
 
   return score;
@@ -75,6 +120,7 @@ export function buildModelAliasIndex(models: AliasModelRecord[]): ModelAliasInde
     idToModel.set(model.id, model);
     pushUnique(slugToIds, model.slug, model.id);
     pushUnique(nameToIds, model.name.toLowerCase(), model.id);
+    pushUnique(nameToIds, normalizeNameKey(model.name), model.id);
 
     const providerlessSlug = getProviderlessSlug(model);
     if (providerlessSlug) {
@@ -109,7 +155,7 @@ export function resolveAliasFamilyModelIds(
 ) {
   const slugCandidates = uniqueNormalized(options.slugCandidates ?? [], (value) => makeSlug(value));
   const nameCandidates = uniqueNormalized(options.nameCandidates ?? [], (value) =>
-    value.trim().toLowerCase()
+    normalizeNameKey(value)
   );
   const matched = new Set<string>();
 
@@ -204,4 +250,23 @@ export function resolveAliasFamilyModelIds(
 
     return leftModel.slug.localeCompare(rightModel.slug);
   });
+}
+
+export function resolveMatchedAliasFamilyModelIds(
+  index: ModelAliasIndex,
+  _models: AliasModelRecord[],
+  aliases: Array<string | null | undefined>
+) {
+  const candidates = expandAliasCandidates(aliases);
+  if (candidates.length === 0) return [];
+
+  const exactFamilyIds = resolveAliasFamilyModelIds(index, {
+    slugCandidates: candidates,
+    nameCandidates: candidates,
+  });
+
+  if (exactFamilyIds.length > 0) {
+    return exactFamilyIds;
+  }
+  return [];
 }

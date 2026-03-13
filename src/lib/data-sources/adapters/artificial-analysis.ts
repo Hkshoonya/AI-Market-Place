@@ -6,6 +6,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 // REMOVED: import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
 
 /**
@@ -268,8 +272,9 @@ const adapter: DataSourceAdapter = {
     // ── Pre-load all models + benchmark IDs for efficient matching ──
     const { data: allModels } = await sb
       .from("models")
-      .select("id, slug, name");
-    const modelList: { id: string; slug: string; name: string }[] = allModels ?? [];
+      .select("id, slug, name, provider");
+    const modelList: { id: string; slug: string; name: string; provider: string }[] = allModels ?? [];
+    const modelAliasIndex = buildModelAliasIndex(modelList);
 
     // Build base-slug → dated-variant-IDs map
     const baseToDatedIds = new Map<string, string[]>();
@@ -299,7 +304,7 @@ const adapter: DataSourceAdapter = {
       const overrideSlug = SLUG_OVERRIDES[m.model_name];
 
       // Primary match: use override slug → exact match
-      let primaryModel: { id: string; slug: string; name: string } | undefined;
+      let primaryModel: { id: string; slug: string; name: string; provider: string } | undefined;
       if (overrideSlug) {
         primaryModel = modelList.find((db) => db.slug === overrideSlug);
       }
@@ -321,9 +326,17 @@ const adapter: DataSourceAdapter = {
       }
 
       if (!primaryModel) return ids;
-      ids.push(primaryModel.id);
+      const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, modelList, [
+        m.model_name,
+        primaryModel.name,
+        overrideSlug ?? null,
+      ]);
 
-      // Also collect all dated variants (e.g. openai-o3-2025-04-16)
+      if (relatedIds.length > 0) {
+        return relatedIds;
+      }
+
+      ids.push(primaryModel.id);
       const datedIds = baseToDatedIds.get(primaryModel.slug) ?? [];
       for (const did of datedIds) {
         if (!ids.includes(did)) ids.push(did);

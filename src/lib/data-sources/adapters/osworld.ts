@@ -2,12 +2,15 @@
  * OSWorld Adapter — Static Agent Benchmark Data
  *
  * Curated OS-level agent benchmark scores.
- * Uses fuzzyMatchModel to map model names to DB models.
+ * Uses alias-family resolution to map model names to DB models.
  */
 
 import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
 import { registerAdapter } from "../registry";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import {
   STATIC_BENCHMARK_ON_CONFLICT,
   buildStaticBenchmarkScoreRecord,
@@ -57,6 +60,7 @@ const adapter: DataSourceAdapter = {
         .from("models")
         .select("id, name, slug, provider")
         .eq("status", "active");
+      const modelAliasIndex = buildModelAliasIndex(models ?? []);
 
       if (!models) {
         return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "No models found" }] };
@@ -64,28 +68,30 @@ const adapter: DataSourceAdapter = {
 
       for (const entry of OSWORLD_MODELS) {
         recordsProcessed++;
-        const match = fuzzyMatchModel(entry.name, models);
-        if (!match) {
+        const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, models, [entry.name]);
+        if (relatedIds.length === 0) {
           errors.push({ message: `No match for: ${entry.name}` });
           continue;
         }
 
-        const { error } = await supabase
-          .from("benchmark_scores")
-          .upsert(
-            buildStaticBenchmarkScoreRecord({
-              modelId: match.id,
-              benchmarkId: benchmark.id,
-              score: entry.score,
-              source: "osworld",
-            }),
-            { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
-          );
+        for (const relatedId of relatedIds) {
+          const { error } = await supabase
+            .from("benchmark_scores")
+            .upsert(
+              buildStaticBenchmarkScoreRecord({
+                modelId: relatedId,
+                benchmarkId: benchmark.id,
+                score: entry.score,
+                source: "osworld",
+              }),
+              { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
+            );
 
-        if (error) {
-          errors.push({ message: `Error upserting ${entry.name}: ${error.message}` });
-        } else {
-          recordsCreated++;
+          if (error) {
+            errors.push({ message: `Error upserting ${entry.name}/${relatedId}: ${error.message}` });
+          } else {
+            recordsCreated++;
+          }
         }
       }
 

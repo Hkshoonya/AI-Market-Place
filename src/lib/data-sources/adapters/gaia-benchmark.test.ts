@@ -45,4 +45,11 @@ describe("gaia-benchmark helpers", () => {
       }),
     ]);
   });
+
+  it("rejects generic provider-family labels that are too broad to map safely", () => {
+    expect(__testables.looksLikeTrackableFamily("Gemini")).toBe(false);
+    expect(__testables.looksLikeTrackableFamily("Claude")).toBe(false);
+    expect(__testables.looksLikeTrackableFamily("GPT-4o")).toBe(true);
+    expect(__testables.looksLikeTrackableFamily("Gemini 2.5 Pro")).toBe(true);
+  });
 });

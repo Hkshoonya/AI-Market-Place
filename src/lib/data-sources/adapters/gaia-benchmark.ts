@@ -4,7 +4,7 @@
  * GAIA publishes public results on Hugging Face under
  * `gaia-benchmark/results_public`. The rows are agent-system submissions, so
  * this adapter only maps rows whose `model_family` cleanly identifies a single
- * underlying model family. Composite multi-model systems are skipped.
+ * underlying model family. Composite and generic provider-family labels are skipped.
  */
 
 import type {
@@ -16,7 +16,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import {
   STATIC_BENCHMARK_ON_CONFLICT,
   buildStaticBenchmarkScoreRecord,
@@ -60,6 +63,20 @@ const DATASET_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const GAIA_DATASET_URL = "https://huggingface.co/datasets/gaia-benchmark/results_public";
 const GAIA_SPLITS = ["validation", "test"] as const;
 const PAGE_LENGTH = 100;
+const GENERIC_FAMILY_LABELS = new Set([
+  "gpt",
+  "claude",
+  "gemini",
+  "llama",
+  "qwen",
+  "deepseek",
+  "grok",
+  "kimi",
+  "mistral",
+  "glm",
+  "doubao",
+  "qwq",
+]);
 
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -95,6 +112,12 @@ function isCompositeFamily(family: string): boolean {
 
 function looksLikeTrackableFamily(family: string): boolean {
   const lower = family.toLowerCase();
+  const normalized = lower.replace(/[^a-z0-9]+/g, " ").trim();
+
+  if (GENERIC_FAMILY_LABELS.has(normalized)) {
+    return false;
+  }
+
   return [
     "gpt",
     "claude",
@@ -300,6 +323,7 @@ const adapter: DataSourceAdapter = {
         errors: [{ message: "No models found" }],
       };
     }
+    const modelAliasIndex = buildModelAliasIndex(models);
 
     let recordsProcessed = 0;
     let recordsCreated = 0;
@@ -314,39 +338,44 @@ const adapter: DataSourceAdapter = {
         continue;
       }
 
-      const match = fuzzyMatchModel(candidate.family, models);
-      if (!match) {
+      const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, models, [
+        candidate.family,
+        candidate.submissionName,
+      ]);
+      if (relatedIds.length === 0) {
         skippedUnmatched++;
         unmatchedFamilies.push(candidate.family);
         continue;
       }
 
-      const { error } = await supabase
-        .from("benchmark_scores")
-        .upsert(
-          buildStaticBenchmarkScoreRecord({
-            modelId: match.id,
-            benchmarkId: benchmark.id,
-            score: candidate.normalizedScore,
-            source: "gaia-benchmark",
-          }),
-          { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
-        );
+      for (const relatedId of relatedIds) {
+        const { error } = await supabase
+          .from("benchmark_scores")
+          .upsert(
+            buildStaticBenchmarkScoreRecord({
+              modelId: relatedId,
+              benchmarkId: benchmark.id,
+              score: candidate.normalizedScore,
+              source: "gaia-benchmark",
+            }),
+            { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
+          );
 
-      if (error) {
-        errors.push({ message: `Error upserting ${candidate.family}: ${error.message}` });
-        continue;
+        if (error) {
+          errors.push({ message: `Error upserting ${candidate.family}/${relatedId}: ${error.message}` });
+          continue;
+        }
+
+        recordsCreated++;
       }
-
-      recordsCreated++;
 
       try {
         await supabase.from("model_news").upsert(
           {
             source: "gaia-benchmark",
-            source_id: `gaia-${match.id}`,
+            source_id: `gaia-${relatedIds[0]}`,
             title: `${candidate.family} - GAIA`,
-            related_model_ids: [match.id],
+            related_model_ids: relatedIds,
             summary: `GAIA score ${candidate.normalizedScore.toFixed(1)} from ${candidate.submissionName}`,
             url: candidate.url ?? GAIA_DATASET_URL,
             published_at: candidate.date

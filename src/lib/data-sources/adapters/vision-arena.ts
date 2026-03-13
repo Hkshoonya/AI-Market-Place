@@ -8,7 +8,10 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
-import { fuzzyMatchModel } from "../model-matcher";
+import {
+  buildModelAliasIndex,
+  resolveMatchedAliasFamilyModelIds,
+} from "../model-alias-resolver";
 
 interface VisionArenaRow {
   modelName: string;
@@ -170,6 +173,7 @@ const adapter: DataSourceAdapter = {
       .select("id, name, slug, provider")
       .eq("status", "active");
     const activeModels = models ?? [];
+    const modelAliasIndex = buildModelAliasIndex(activeModels);
     const today = new Date().toISOString().split("T")[0];
 
     let recordsProcessed = 0;
@@ -177,35 +181,38 @@ const adapter: DataSourceAdapter = {
 
     for (const score of scores) {
       recordsProcessed++;
-      const match =
+      const relatedIds = resolveMatchedAliasFamilyModelIds(
+        modelAliasIndex,
+        activeModels,
         score.aliases
-          .map((alias) => fuzzyMatchModel(alias, activeModels))
-          .find(Boolean) ?? null;
-
-      if (!match) continue;
-
-      const { error } = await ctx.supabase.from("elo_ratings").upsert(
-        {
-          model_id: match.id,
-          arena_name: ARENA_NAME,
-          elo_score: score.eloScore,
-          confidence_interval_low: score.confidenceIntervalLow,
-          confidence_interval_high: score.confidenceIntervalHigh,
-          num_battles: score.votes,
-          rank: score.rank,
-          snapshot_date: today,
-        },
-        { onConflict: "model_id,arena_name,snapshot_date" }
       );
 
-      if (error) {
-        errors.push({
-          message: `elo_ratings upsert for ${score.modelName}: ${error.message}`,
-        });
-        continue;
-      }
+      if (relatedIds.length === 0) continue;
 
-      recordsCreated++;
+      for (const relatedId of relatedIds) {
+        const { error } = await ctx.supabase.from("elo_ratings").upsert(
+          {
+            model_id: relatedId,
+            arena_name: ARENA_NAME,
+            elo_score: score.eloScore,
+            confidence_interval_low: score.confidenceIntervalLow,
+            confidence_interval_high: score.confidenceIntervalHigh,
+            num_battles: score.votes,
+            rank: score.rank,
+            snapshot_date: today,
+          },
+          { onConflict: "model_id,arena_name,snapshot_date" }
+        );
+
+        if (error) {
+          errors.push({
+            message: `elo_ratings upsert for ${score.modelName}/${relatedId}: ${error.message}`,
+          });
+          continue;
+        }
+
+        recordsCreated++;
+      }
     }
 
     return {
