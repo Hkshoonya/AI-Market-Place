@@ -199,6 +199,7 @@ export interface ModelSnapshot {
   usage_score: number | null;
   expert_score: number | null;
   signal_coverage: Record<string, boolean> | null;
+  source_coverage: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -225,10 +226,14 @@ export interface DataSource {
   config: Record<string, unknown>;
   secret_env_keys: string[];
   output_types: string[];
+  last_attempt_at: string | null;
+  last_success_at: string | null;
   last_sync_at: string | null;
   last_sync_status: DataSourceSyncStatus | null;
   last_sync_records: number;
   last_error_message: string | null;
+  quarantined_at: string | null;
+  quarantine_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -357,6 +362,7 @@ export interface MarketplaceListing {
   documentation_url: string | null;
   view_count: number;
   inquiry_count: number;
+  purchase_count: number;
   avg_rating: number | null;
   review_count: number;
   is_featured: boolean;
@@ -1333,6 +1339,33 @@ export interface Database {
         };
         Relationships: [];
       };
+      cron_job_locks: {
+        Row: {
+          job_name: string;
+          lock_token: string;
+          locked_at: string;
+          expires_at: string;
+          owner: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          job_name: string;
+          lock_token: string;
+          locked_at?: string;
+          expires_at: string;
+          owner?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          job_name?: string;
+          lock_token?: string;
+          locked_at?: string;
+          expires_at?: string;
+          owner?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       system_logs: {
         Row: {
           id: string;
@@ -1446,6 +1479,40 @@ export interface Database {
           p_listing_id: string;
         };
         Returns: void;
+      };
+      increment_view_count: {
+        Args: {
+          listing_id: string;
+        };
+        Returns: void;
+      };
+      acquire_cron_lock: {
+        Args: {
+          p_job_name: string;
+          p_lock_token: string;
+          p_ttl_seconds?: number;
+        };
+        Returns: boolean;
+      };
+      release_cron_lock: {
+        Args: {
+          p_job_name: string;
+          p_lock_token: string;
+        };
+        Returns: boolean;
+      };
+      check_rate_limit: {
+        Args: {
+          p_bucket_key: string;
+          p_max_requests: number;
+          p_window_seconds: number;
+        };
+        Returns: {
+          allowed: boolean;
+          limit_count: number;
+          remaining: number;
+          reset: number;
+        }[];
       };
     };
     Enums: {
