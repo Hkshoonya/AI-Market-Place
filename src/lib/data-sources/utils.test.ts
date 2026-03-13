@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { resolveSecrets, fetchWithRetry } from "./utils";
+import {
+  resolveSecrets,
+  fetchWithRetry,
+  hasPermanentSyncError,
+  isPermanentHttpFailure,
+} from "./utils";
 
 // ────────────────────────────────────────────────────────────────
 // resolveSecrets tests
@@ -135,5 +140,33 @@ describe("fetchWithRetry", () => {
     });
     expect(res.status).toBe(500);
     expect(mockFetch).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
+  });
+});
+
+describe("isPermanentHttpFailure", () => {
+  it("treats 404 as permanent", () => {
+    expect(isPermanentHttpFailure(404, "not found")).toBe(true);
+  });
+
+  it("treats gated 403 responses as permanent", () => {
+    expect(isPermanentHttpFailure(403, "The dataset does not exist, or is not accessible without authentication (private or gated).")).toBe(true);
+  });
+
+  it("does not treat transient 503 as permanent", () => {
+    expect(isPermanentHttpFailure(503, "service unavailable")).toBe(false);
+  });
+});
+
+describe("hasPermanentSyncError", () => {
+  it("returns true when a sync error marks a permanent upstream failure", () => {
+    expect(hasPermanentSyncError([
+      { message: "upstream gone", context: "permanent_upstream_failure" },
+    ])).toBe(true);
+  });
+
+  it("returns false for ordinary adapter failures", () => {
+    expect(hasPermanentSyncError([
+      { message: "timeout", context: "network_error" },
+    ])).toBe(false);
   });
 });

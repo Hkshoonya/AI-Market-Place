@@ -161,6 +161,30 @@ export function resolveSecrets(envKeys: string[]): {
   return { secrets, missing };
 }
 
+// --------------- Failure Classification ---------------
+
+const PERMANENT_FAILURE_PATTERNS = [
+  /private or gated/i,
+  /does not exist/i,
+  /\bnot found\b/i,
+  /dataset .* private/i,
+  /repository .* private/i,
+];
+
+/** Classify upstream failures that are unlikely to self-heal without source changes. */
+export function isPermanentHttpFailure(status: number, body = ""): boolean {
+  if (status === 404 || status === 410 || status === 451) return true;
+  if ((status === 401 || status === 403) && PERMANENT_FAILURE_PATTERNS.some((pattern) => pattern.test(body))) {
+    return true;
+  }
+  return PERMANENT_FAILURE_PATTERNS.some((pattern) => pattern.test(body));
+}
+
+/** True when any adapter error explicitly marks the upstream failure as permanent. */
+export function hasPermanentSyncError(errors: SyncError[]): boolean {
+  return errors.some((error) => error.context === "permanent_upstream_failure");
+}
+
 // --------------- Time Helpers ---------------
 
 export function sleep(ms: number): Promise<void> {
