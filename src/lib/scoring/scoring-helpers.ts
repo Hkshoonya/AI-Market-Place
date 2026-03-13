@@ -57,6 +57,8 @@ export const BENCHMARK_IMPORTANCE: Record<string, number> = {
   "ocrbench": 0.9,
   // BigCodeBench
   "bigcodebench": 1.2,
+  "livecodebench": 1.2,
+  "arena-hard-auto": 1.1,
 };
 
 // --------------- Signal Helpers ---------------

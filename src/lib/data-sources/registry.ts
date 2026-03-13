@@ -45,6 +45,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/artificial-analysis"),
     import("./adapters/open-llm-leaderboard"),
     import("./adapters/chatbot-arena"),
+    import("./adapters/vision-arena"),
     import("./adapters/arxiv"),
     import("./adapters/hf-papers"),
     import("./adapters/github-trending"),
@@ -53,6 +54,9 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/x-announcements"),
     // New benchmark adapters (Phase 2)
     import("./adapters/livebench"),
+    import("./adapters/livecodebench"),
+    import("./adapters/swe-bench"),
+    import("./adapters/arena-hard-auto"),
     import("./adapters/seal-leaderboard"),
     import("./adapters/bigcode-leaderboard"),
     import("./adapters/open-vlm-leaderboard"),

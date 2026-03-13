@@ -26,10 +26,10 @@ export interface CapabilityInputs {
 const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string[] }> = {
   llm: {
     primary: ["mmlu", "mmlu-pro", "gpqa", "math", "math-benchmark", "bbh"],
-    secondary: ["ifeval", "hellaswag", "truthfulqa"],
+    secondary: ["ifeval", "hellaswag", "truthfulqa", "arena-hard-auto"],
   },
   code: {
-    primary: ["humaneval", "swe-bench", "swe_bench", "bigcodebench"],
+    primary: ["humaneval", "swe-bench", "swe_bench", "bigcodebench", "livecodebench"],
     secondary: ["livebench-coding"],
   },
   multimodal: {
