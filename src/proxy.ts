@@ -1,5 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  buildCanonicalUrl,
+  getCanonicalWwwHost,
+} from "@/lib/constants/site";
 
 // Routes that require authentication
 const PROTECTED_ROUTES = [
@@ -26,14 +30,14 @@ function isAdminRoute(pathname: string): boolean {
   return pathname.startsWith("/admin/") || pathname === "/admin";
 }
 
-export async function middleware(request: NextRequest) {
-  // www -> apex redirect (must be first — before session handling)
-  const host = request.headers.get("host") ?? "";
-  if (host.startsWith("www.")) {
-    const url = request.nextUrl.clone();
-    url.host = host.replace(/^www\./, "");
-    url.protocol = "https";
-    return NextResponse.redirect(url, 301);
+export async function proxy(request: NextRequest) {
+  // www -> apex redirect (must be first, before session handling)
+  const host = request.headers.get("host") ?? request.nextUrl.host;
+  if (host === getCanonicalWwwHost()) {
+    return NextResponse.redirect(
+      buildCanonicalUrl(`${request.nextUrl.pathname}${request.nextUrl.search}`),
+      301
+    );
   }
 
   let supabaseResponse = NextResponse.next({
@@ -65,7 +69,7 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session - important for Server Components.
   // Wrap in try/catch so network failures (e.g. E2E test environments with a
-  // dummy Supabase URL) don't crash the middleware — treat as unauthenticated.
+  // dummy Supabase URL) don't crash the proxy and are treated as unauthenticated.
   let user = null;
   try {
     const {
@@ -73,21 +77,18 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser();
     user = resolvedUser;
   } catch {
-    // Network error or unreachable Supabase instance — treat as no session
+    // Network error or unreachable Supabase instance - treat as no session
   }
 
   const pathname = request.nextUrl.pathname;
 
-  // Auth protection for protected routes
   if (isProtectedRoute(pathname)) {
     if (!user) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(
+        buildCanonicalUrl(`/login?redirect=${encodeURIComponent(pathname)}`)
+      );
     }
 
-    // Admin routes require is_admin on the profile
     if (isAdminRoute(pathname)) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -96,10 +97,7 @@ export async function middleware(request: NextRequest) {
         .single();
 
       if (!profile?.is_admin) {
-        const homeUrl = request.nextUrl.clone();
-        homeUrl.pathname = "/";
-        homeUrl.searchParams.delete("returnTo");
-        return NextResponse.redirect(homeUrl);
+        return NextResponse.redirect(buildCanonicalUrl("/"));
       }
     }
   }
