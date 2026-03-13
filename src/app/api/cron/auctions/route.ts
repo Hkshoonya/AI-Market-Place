@@ -1,7 +1,7 @@
 /**
  * GET /api/cron/auctions
  *
- * Auction settlement cron job. Runs every 5 minutes via Vercel cron.
+ * Auction settlement cron job. Runs every 5 minutes via the configured cron scheduler.
  *
  * 1. Activates upcoming auctions whose starts_at <= now
  * 2. Settles English auctions where ends_at < now AND status = 'active'
@@ -13,7 +13,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { settleEnglishAuction } from "@/lib/marketplace/auctions/english";
 import { refundEscrow } from "@/lib/payments/wallet";
 import { trackCronRun } from "@/lib/cron-tracker";
-import { handleApiError } from "@/lib/api-error";
 import { createTaggedLogger } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +31,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const tracker = await trackCronRun("auctions");
+  if (tracker.shouldSkip) {
+    return tracker.skip();
+  }
 
   const results = {
     activated: 0,
@@ -58,8 +60,7 @@ export async function GET(request: NextRequest) {
         code === "PGRST205" ||
         code === "PGRST204"
       ) {
-        return NextResponse.json({
-          ok: true,
+        return tracker.complete({
           message: "Auctions table not yet created. Skipping.",
           activated: 0,
           settled: 0,
@@ -171,7 +172,7 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch (err) {
-    return handleApiError(err, "cron/auctions");
+    return tracker.fail(err);
   }
 
   return tracker.complete({

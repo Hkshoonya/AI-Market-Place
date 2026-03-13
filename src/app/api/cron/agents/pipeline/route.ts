@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeAgent } from "@/lib/agents/runtime";
 import { trackCronRun } from "@/lib/cron-tracker";
-import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes
@@ -16,6 +15,9 @@ export async function GET(request: Request) {
   }
 
   const tracker = await trackCronRun("agent-pipeline-engineer");
+  if (tracker.shouldSkip) {
+    return tracker.skip();
+  }
 
   try {
     const result = await executeAgent("pipeline-engineer", "scheduled_run");
@@ -29,6 +31,6 @@ export async function GET(request: Request) {
       errors: result.errors,
     });
   } catch (err) {
-    return handleApiError(err, "cron/agent-pipeline-engineer");
+    return tracker.fail(err);
   }
 }

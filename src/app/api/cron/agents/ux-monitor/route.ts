@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { executeAgent } from "@/lib/agents/runtime";
 import { trackCronRun } from "@/lib/cron-tracker";
-import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,6 +14,9 @@ export async function GET(request: Request) {
   }
 
   const tracker = await trackCronRun("agent-ux-monitor");
+  if (tracker.shouldSkip) {
+    return tracker.skip();
+  }
 
   try {
     const result = await executeAgent("ux-monitor", "scheduled_run");
@@ -28,6 +30,6 @@ export async function GET(request: Request) {
       errors: result.errors,
     });
   } catch (err) {
-    return handleApiError(err, "cron/agent-ux-monitor");
+    return tracker.fail(err);
   }
 }

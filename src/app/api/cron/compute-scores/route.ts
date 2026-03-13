@@ -4,7 +4,6 @@ import { trackCronRun } from "@/lib/cron-tracker";
 import { fetchInputs } from "@/lib/compute-scores/fetch-inputs";
 import { computeAllLenses } from "@/lib/compute-scores/compute-all-lenses";
 import { persistResults } from "@/lib/compute-scores/persist-results";
-import { handleApiError } from "@/lib/api-error";
 import { createTaggedLogger } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +38,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const tracker = await trackCronRun("compute-scores");
+  if (tracker.shouldSkip) {
+    return tracker.skip();
+  }
 
   try {
     const inputs = await fetchInputs(supabase);
@@ -68,6 +70,6 @@ export async function GET(request: NextRequest) {
     void log.error("Score computation failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return handleApiError(err, "cron/compute-scores");
+    return tracker.fail(err);
   }
 }
