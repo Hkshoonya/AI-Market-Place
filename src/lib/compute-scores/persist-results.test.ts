@@ -8,6 +8,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { persistResults } from "./persist-results";
 import type { ScoringInputs, ScoringResults, PersistStats } from "./types";
+import type { SourceCoverage } from "@/lib/source-coverage";
 
 // Mock logging
 vi.mock("@/lib/logging", () => ({
@@ -24,6 +25,26 @@ vi.mock("@/lib/pipeline-health", () => ({
   getStaleSourceCount: vi.fn().mockResolvedValue(0),
   buildSignalCoverage: vi.fn().mockReturnValue({}),
 }));
+
+const SOURCE_COVERAGE_FIXTURE: SourceCoverage = {
+  totalDistinctSources: 4,
+  independentQualitySourceCount: 2,
+  sourceFamilyCount: 4,
+  benchmarkSourceCount: 1,
+  benchmarkCategoryCount: 1,
+  eloSourceCount: 1,
+  newsSourceCount: 1,
+  pricingSourceCount: 1,
+  corroborationLevel: "multi_source",
+  biasRisk: "medium",
+  sourceFamilies: ["benchmarks", "elo", "news", "pricing"],
+  benchmarkSources: ["livebench"],
+  benchmarkCategories: ["general"],
+  eloSources: ["chatbot_arena"],
+  newsSources: ["provider-news"],
+  pricingSources: ["openrouter"],
+  hasCommunitySignals: true,
+};
 
 /** Build a fixture ScoringInputs with N models */
 function buildFixtureInputs(modelIds: string[]): ScoringInputs {
@@ -52,6 +73,7 @@ function buildFixtureInputs(modelIds: string[]): ScoringInputs {
     newsMentionMap: new Map(modelIds.map((id) => [id, 5])),
     providerBenchmarkAvg: new Map([["test-provider", 82]]),
     staleCount: 0,
+    sourceCoverageMap: new Map(modelIds.map((id) => [id, SOURCE_COVERAGE_FIXTURE])),
   };
 }
 
@@ -86,6 +108,7 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
     normalizedValueMap: new Map(modelIds.map((id) => [id, 65])),
     valueRankMap: new Map(modelIds.map((id, i) => [id, i + 1])),
     pricingSynced: 0,
+    pricingSourceMap: new Map(modelIds.map((id) => [id, new Set(["openrouter"])])),
     stats: {
       maxDownloads: 500000,
       maxLikes: 5000,
@@ -101,6 +124,7 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
 function createPersistMockSupabase(options?: {
   failUpdateForId?: string;
   failSnapshot?: boolean;
+  snapshotCollector?: Array<Record<string, unknown>>;
 }) {
   /** Wrap a value as a thenable (PromiseLike) so .then() chains work with await/Promise.all */
   function thenable<T>(value: T) {
@@ -127,7 +151,10 @@ function createPersistMockSupabase(options?: {
       }
       if (table === "model_snapshots") {
         return {
-          upsert: (_data: unknown, _opts?: unknown) => {
+          upsert: (data: unknown, _opts?: unknown) => {
+            if (options?.snapshotCollector && data && typeof data === "object") {
+              options.snapshotCollector.push(data as Record<string, unknown>);
+            }
             const error = options?.failSnapshot
               ? { message: "Snapshot failed" }
               : null;
@@ -188,5 +215,19 @@ describe("persistResults", () => {
     expect(typeof stats.updated).toBe("number");
     expect(typeof stats.errors).toBe("number");
     expect(typeof stats.snapshotsCreated).toBe("number");
+  });
+
+  it("persists source_coverage into model snapshots", async () => {
+    const modelIds = ["m1"];
+    const inputs = buildFixtureInputs(modelIds);
+    const results = buildFixtureResults(modelIds);
+    const snapshots: Array<Record<string, unknown>> = [];
+    const supabase = createPersistMockSupabase({ snapshotCollector: snapshots });
+
+    await persistResults(supabase, inputs, results);
+
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]).toHaveProperty("source_coverage");
+    expect(snapshots[0].source_coverage).toEqual(SOURCE_COVERAGE_FIXTURE);
   });
 });

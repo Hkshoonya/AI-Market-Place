@@ -29,6 +29,7 @@ import {
   computePopularityStats,
   computeMarketCap,
 } from "@/lib/scoring/market-cap-calculator";
+import { buildSourceCoverage } from "@/lib/source-coverage";
 import type { ScoringInputs, ScoringResults } from "./types";
 
 /**
@@ -42,7 +43,15 @@ export async function computeAllLenses(
   inputs: ScoringInputs,
   supabase: SupabaseClient
 ): Promise<ScoringResults> {
-  const { models, benchmarkMap, benchmarkDetailMap, eloMap, newsMentionMap, providerBenchmarkAvg } = inputs;
+  const {
+    models,
+    benchmarkMap,
+    benchmarkDetailMap,
+    eloMap,
+    newsMentionMap,
+    providerBenchmarkAvg,
+  } = inputs;
+  const sourceCoverageMap = inputs.sourceCoverageMap ?? new Map();
 
   // 4. Compute normalization stats
   const statsInput = models.map((m) => ({
@@ -88,6 +97,7 @@ export async function computeAllLenses(
       category: (m.category as string) ?? "other",
       providerAvgBenchmark: providerBenchmarkAvg.get(provider) ?? null,
       parameterCount: paramBillions,
+      sourceCoverage: sourceCoverageMap.get(m.id) ?? null,
     };
 
     const score = calculateQualityScore(qualityInputs, stats);
@@ -102,11 +112,11 @@ export async function computeAllLenses(
   let pricingSynced = 0;
   const { data: allPricing } = await supabase
     .from("model_pricing")
-    .select("model_id, input_price_per_million, provider_name")
+    .select("model_id, input_price_per_million, provider_name, source")
     .not("input_price_per_million", "is", null);
 
   const cheapestPriceMap = new Map<string, number>();
-  const modelsWithOfficialPricing = new Set<string>();
+  const pricingSourceMap = new Map<string, Set<string>>();
   for (const p of allPricing ?? []) {
     const price = Number(p.input_price_per_million);
     if (price > 0) {
@@ -115,7 +125,9 @@ export async function computeAllLenses(
         cheapestPriceMap.set(p.model_id, price);
       }
     }
-    modelsWithOfficialPricing.add(p.model_id);
+    const pricingSources = pricingSourceMap.get(p.model_id) ?? new Set<string>();
+    pricingSources.add(p.provider_name ?? "pricing");
+    pricingSourceMap.set(p.model_id, pricingSources);
   }
 
   for (const m of models) {
@@ -147,6 +159,24 @@ export async function computeAllLenses(
         if (!existing || price < existing) {
           cheapestPriceMap.set(m.id, price);
         }
+      }
+      const pricingSources = pricingSourceMap.get(m.id) ?? new Set<string>();
+      pricingSources.add(curatedPrice.source ?? curatedPrice.provider);
+      pricingSourceMap.set(m.id, pricingSources);
+
+      const existingCoverage = sourceCoverageMap.get(m.id);
+      if (existingCoverage) {
+        sourceCoverageMap.set(
+          m.id,
+          buildSourceCoverage({
+            benchmarkSources: existingCoverage.benchmarkSources,
+            benchmarkCategories: existingCoverage.benchmarkCategories,
+            eloSources: existingCoverage.eloSources,
+            newsSources: existingCoverage.newsSources,
+            pricingSources,
+            hasCommunitySignals: existingCoverage.hasCommunitySignals,
+          })
+        );
       }
       pricingSynced++;
     }
@@ -379,6 +409,7 @@ export async function computeAllLenses(
     normalizedValueMap,
     valueRankMap,
     pricingSynced,
+    pricingSourceMap,
     stats,
   };
 }

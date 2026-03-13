@@ -283,6 +283,25 @@ describe("verifyDataIntegrity", () => {
       },
     ];
 
+    const modelSnapshots = [
+      {
+        source_coverage: {
+          biasRisk: "low",
+          corroborationLevel: "strong",
+          independentQualitySourceCount: 2,
+          totalDistinctSources: 5,
+        },
+      },
+      {
+        source_coverage: {
+          biasRisk: "high",
+          corroborationLevel: "single_source",
+          independentQualitySourceCount: 1,
+          totalDistinctSources: 2,
+        },
+      },
+    ];
+
     return {
       from: (table: string) => {
         if (table === "data_sources") {
@@ -301,6 +320,13 @@ describe("verifyDataIntegrity", () => {
               order: () => ({
                 limit: () => Promise.resolve({ data: syncJobs, error: null }),
               }),
+            }),
+          };
+        }
+        if (table === "model_snapshots") {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({ data: modelSnapshots, error: null }),
             }),
           };
         }
@@ -327,6 +353,7 @@ describe("verifyDataIntegrity", () => {
     expect(report).toHaveProperty("qualityScores");
     expect(report).toHaveProperty("tableCoverage");
     expect(report).toHaveProperty("freshness");
+    expect(report).toHaveProperty("modelEvidence");
   });
 
   it("summary.totalSources matches data sources count", async () => {
@@ -334,6 +361,16 @@ describe("verifyDataIntegrity", () => {
     const report = await verifyDataIntegrity(supabase as never);
 
     expect(report.summary.totalSources).toBe(1);
+  });
+
+  it("includes model evidence diversity summary", async () => {
+    const supabase = makeMockSupabase({});
+    const report = await verifyDataIntegrity(supabase as never);
+
+    expect(report.modelEvidence.totalModels).toBe(2);
+    expect(report.modelEvidence.highBiasRiskModels).toBe(1);
+    expect(report.modelEvidence.lowBiasRiskModels).toBe(1);
+    expect(report.modelEvidence.averageIndependentQualitySources).toBeCloseTo(1.5);
   });
 
   it("qualityScores has one entry per source", async () => {
@@ -471,5 +508,51 @@ describe("verifyDataIntegrity", () => {
 
     expect(report.summary.averageQualityScore).toBeGreaterThanOrEqual(0);
     expect(report.summary.averageQualityScore).toBeLessThanOrEqual(100);
+  });
+
+  it("excludes disabled sources from integrity summaries", async () => {
+    const supabase = makeMockSupabase({
+      dataSources: [
+        {
+          slug: "enabled-adapter",
+          name: "Enabled Adapter",
+          output_types: ["models"],
+          sync_interval_hours: 6,
+          last_sync_at: syncedAgo(3),
+          last_sync_records: 100,
+          is_enabled: true,
+        },
+        {
+          slug: "disabled-adapter",
+          name: "Disabled Adapter",
+          output_types: ["news"],
+          sync_interval_hours: 24,
+          last_sync_at: syncedAgo(100),
+          last_sync_records: 0,
+          is_enabled: false,
+        },
+      ],
+      pipelineHealth: [
+        {
+          source_slug: "enabled-adapter",
+          last_success_at: syncedAgo(3),
+          expected_interval_hours: 6,
+          consecutive_failures: 0,
+        },
+        {
+          source_slug: "disabled-adapter",
+          last_success_at: syncedAgo(100),
+          expected_interval_hours: 24,
+          consecutive_failures: 5,
+        },
+      ],
+    });
+
+    const report = await verifyDataIntegrity(supabase as never);
+
+    expect(report.summary.totalSources).toBe(1);
+    expect(report.qualityScores).toHaveLength(1);
+    expect(report.qualityScores[0].slug).toBe("enabled-adapter");
+    expect(report.freshness.staleSources.find((source) => source.slug === "disabled-adapter")).toBeUndefined();
   });
 });

@@ -40,6 +40,7 @@ function makeInputs(overrides: Partial<QualityInputs> = {}): QualityInputs {
     category: "llm",
     providerAvgBenchmark: null,
     parameterCount: null,
+    sourceCoverage: null,
     ...overrides,
   };
 }
@@ -164,5 +165,60 @@ describe("calculateQualityScore", () => {
     // Blended: 0.6 * 80 + 0.4 * computed = somewhere near 70-90
     expect(score).toBeGreaterThan(40);
     expect(score).toBeLessThanOrEqual(100);
+  });
+
+  it("slightly penalizes models with single-source quality evidence", () => {
+    const corroborated = makeInputs({
+      benchmarkScores: [{ slug: "mmlu", score: 88 }],
+      eloScore: 1240,
+      isOpenWeights: true,
+      hfDownloads: 50_000,
+      hfLikes: 500,
+      newsMentions: 4,
+      releaseDate: new Date().toISOString(),
+      sourceCoverage: {
+        totalDistinctSources: 5,
+        independentQualitySourceCount: 2,
+        sourceFamilyCount: 4,
+        benchmarkSourceCount: 1,
+        benchmarkCategoryCount: 1,
+        eloSourceCount: 1,
+        newsSourceCount: 1,
+        pricingSourceCount: 1,
+        corroborationLevel: "multi_source",
+        biasRisk: "medium",
+        sourceFamilies: ["benchmarks", "elo", "news", "pricing"],
+        benchmarkSources: ["open-llm-leaderboard"],
+        benchmarkCategories: ["general"],
+        eloSources: ["chatbot_arena"],
+        newsSources: ["provider-news"],
+        pricingSources: ["openrouter"],
+        hasCommunitySignals: true,
+      },
+    });
+    const singleSource = makeInputs({
+      ...corroborated,
+      sourceCoverage: {
+        ...corroborated.sourceCoverage!,
+        totalDistinctSources: 2,
+        independentQualitySourceCount: 1,
+        sourceFamilyCount: 2,
+        eloSourceCount: 0,
+        newsSourceCount: 0,
+        pricingSourceCount: 0,
+        corroborationLevel: "single_source",
+        biasRisk: "high",
+        sourceFamilies: ["benchmarks"],
+        eloSources: [],
+        newsSources: [],
+        pricingSources: [],
+      },
+      eloScore: null,
+    });
+
+    const corroboratedScore = calculateQualityScore(corroborated, stats);
+    const singleSourceScore = calculateQualityScore(singleSource, stats);
+
+    expect(singleSourceScore).toBeLessThan(corroboratedScore);
   });
 });

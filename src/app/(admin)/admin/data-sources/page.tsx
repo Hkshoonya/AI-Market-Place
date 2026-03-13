@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
 import {
-  HEALTH_PRIORITY,
   mapSyncJobStatus,
 } from "@/lib/pipeline-health-compute";
 import { SWR_TIERS } from "@/lib/swr/config";
@@ -93,30 +92,6 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-const HEALTH_CONFIG = {
-  healthy: {
-    icon: Shield,
-    color: "text-gain",
-    bg: "bg-gain/10",
-    border: "border-gain/30",
-    label: "Healthy",
-  },
-  degraded: {
-    icon: ShieldAlert,
-    color: "text-amber-400",
-    bg: "bg-amber-400/10",
-    border: "border-amber-400/30",
-    label: "Degraded",
-  },
-  down: {
-    icon: ShieldX,
-    color: "text-loss",
-    bg: "bg-loss/10",
-    border: "border-loss/30",
-    label: "Down",
-  },
-} as const;
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -131,10 +106,67 @@ interface DataSourceRow {
   tier: number;
   sync_interval_hours: number;
   output_types: string[];
+  last_attempt_at: string | null;
+  last_success_at: string | null;
   last_sync_at: string | null;
   last_sync_status: "success" | "partial" | "failed" | null;
   last_sync_records: number;
   last_error_message: string | null;
+  quarantined_at: string | null;
+  quarantine_reason: string | null;
+}
+
+type SourceLifecycleState = "active" | "degraded" | "quarantined" | "disabled";
+
+const SOURCE_STATE_CONFIG: Record<
+  SourceLifecycleState,
+  {
+    icon: typeof Shield | typeof ShieldAlert | typeof ShieldX | typeof XCircle;
+    color: string;
+    bg: string;
+    border: string;
+    label: string;
+  }
+> = {
+  active: {
+    icon: Shield,
+    color: "text-gain",
+    bg: "bg-gain/10",
+    border: "border-gain/30",
+    label: "Active",
+  },
+  degraded: {
+    icon: ShieldAlert,
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
+    border: "border-amber-400/30",
+    label: "Degraded",
+  },
+  quarantined: {
+    icon: ShieldX,
+    color: "text-loss",
+    bg: "bg-loss/10",
+    border: "border-loss/30",
+    label: "Quarantined",
+  },
+  disabled: {
+    icon: XCircle,
+    color: "text-muted-foreground",
+    bg: "bg-secondary/20",
+    border: "border-border/40",
+    label: "Disabled",
+  },
+};
+
+function getSourceLifecycleState(
+  source: DataSourceRow,
+  health?: AdapterHealth
+): SourceLifecycleState {
+  if (!source.is_enabled) return "disabled";
+  if (source.quarantined_at) return "quarantined";
+  if (health && health.status !== "healthy") return "degraded";
+  if (source.last_sync_status === "failed") return "degraded";
+  return "active";
 }
 
 interface DataSourcesResponse {
@@ -217,6 +249,15 @@ interface DataIntegrityReport {
       expectedIntervalHours: number;
       overdueBy: string;
     }>;
+  };
+  modelEvidence: {
+    totalModels: number;
+    lowBiasRiskModels: number;
+    mediumBiasRiskModels: number;
+    highBiasRiskModels: number;
+    corroboratedModels: number;
+    averageIndependentQualitySources: number;
+    averageDistinctSources: number;
   };
 }
 
@@ -418,21 +459,33 @@ export default function AdminDataSourcesPage() {
     (healthData?.adapters ?? []).map((a) => [a.slug, a])
   );
 
+  const stateBySlug = new Map(
+    allSources.map((source) => [
+      source.slug,
+      getSourceLifecycleState(source, healthBySlug.get(source.slug)),
+    ])
+  );
+
   // Apply tier filter then health filter
   const filteredSources = allSources
     .filter((s) => (tierFilter ? s.tier === tierFilter : true))
     .filter((s) => {
       if (!healthFilter) return true;
-      const adapterHealth = healthBySlug.get(s.slug);
-      return (adapterHealth?.status ?? "healthy") === healthFilter;
+      return stateBySlug.get(s.slug) === healthFilter;
     });
 
-  // Sort stale-first: down > degraded > healthy, then by tier
+  const statePriority: Record<SourceLifecycleState, number> = {
+    quarantined: 0,
+    degraded: 1,
+    active: 2,
+    disabled: 3,
+  };
+
   const sortedSources = [...filteredSources].sort((a, b) => {
-    const ha = healthBySlug.get(a.slug)?.status ?? "healthy";
-    const hb = healthBySlug.get(b.slug)?.status ?? "healthy";
-    const hDiff = HEALTH_PRIORITY[ha] - HEALTH_PRIORITY[hb];
-    if (hDiff !== 0) return hDiff;
+    const stateA = stateBySlug.get(a.slug) ?? "active";
+    const stateB = stateBySlug.get(b.slug) ?? "active";
+    const stateDiff = statePriority[stateA] - statePriority[stateB];
+    if (stateDiff !== 0) return stateDiff;
     return a.tier - b.tier;
   });
 
@@ -450,6 +503,10 @@ export default function AdminDataSourcesPage() {
     (sum, s) => sum + (s.last_sync_records || 0),
     0
   );
+  const activeCount = allSources.filter((s) => stateBySlug.get(s.slug) === "active").length;
+  const degradedCount = allSources.filter((s) => stateBySlug.get(s.slug) === "degraded").length;
+  const quarantinedCount = allSources.filter((s) => stateBySlug.get(s.slug) === "quarantined").length;
+  const disabledCount = allSources.filter((s) => stateBySlug.get(s.slug) === "disabled").length;
 
   const toggleEnabled = async (id: number, currentlyEnabled: boolean) => {
     try {
@@ -596,10 +653,10 @@ export default function AdminDataSourcesPage() {
         <Card
           className={cn(
             "border-border/50 bg-card cursor-pointer transition-all",
-            healthFilter === "healthy" ? "ring-2 ring-neon" : ""
+            healthFilter === "active" ? "ring-2 ring-neon" : ""
           )}
           onClick={() =>
-            setHealthFilter((prev) => (prev === "healthy" ? null : "healthy"))
+            setHealthFilter((prev) => (prev === "active" ? null : "active"))
           }
         >
           <CardContent className="p-4">
@@ -609,9 +666,9 @@ export default function AdminDataSourcesPage() {
               </div>
               <div>
                 <p className="text-xl font-bold tabular-nums">
-                  {healthData?.healthy ?? 0}
+                  {activeCount}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Healthy</p>
+                <p className="text-[11px] text-muted-foreground">Active</p>
               </div>
             </div>
           </CardContent>
@@ -634,7 +691,7 @@ export default function AdminDataSourcesPage() {
               </div>
               <div>
                 <p className="text-xl font-bold tabular-nums">
-                  {healthData?.degraded ?? 0}
+                  {degradedCount}
                 </p>
                 <p className="text-[11px] text-muted-foreground">Degraded</p>
               </div>
@@ -642,14 +699,14 @@ export default function AdminDataSourcesPage() {
           </CardContent>
         </Card>
 
-        {/* Down card */}
+        {/* Quarantined card */}
         <Card
           className={cn(
             "border-border/50 bg-card cursor-pointer transition-all",
-            healthFilter === "down" ? "ring-2 ring-neon" : ""
+            healthFilter === "quarantined" ? "ring-2 ring-neon" : ""
           )}
           onClick={() =>
-            setHealthFilter((prev) => (prev === "down" ? null : "down"))
+            setHealthFilter((prev) => (prev === "quarantined" ? null : "quarantined"))
           }
         >
           <CardContent className="p-4">
@@ -659,9 +716,9 @@ export default function AdminDataSourcesPage() {
               </div>
               <div>
                 <p className="text-xl font-bold tabular-nums">
-                  {healthData?.down ?? 0}
+                  {quarantinedCount}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Down</p>
+                <p className="text-[11px] text-muted-foreground">Quarantined</p>
               </div>
             </div>
           </CardContent>
@@ -686,6 +743,15 @@ export default function AdminDataSourcesPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+        <Badge variant="outline" className="border-border/40 text-[10px]">
+          Disabled by operator: {disabledCount}
+        </Badge>
+        <Badge variant="outline" className="border-border/40 text-[10px]">
+          Pipeline health: {healthData?.status ?? "healthy"}
+        </Badge>
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -841,6 +907,62 @@ export default function AdminDataSourcesPage() {
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         Empty Tables · missing data
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neon/10">
+                      <Shield className="h-4 w-4 text-neon" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold tabular-nums text-foreground">
+                        {integrityData.modelEvidence.averageIndependentQualitySources.toFixed(1)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Avg Independent Quality Sources
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gain/15">
+                      <CheckCircle2 className="h-4 w-4 text-gain" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold tabular-nums text-gain">
+                        {integrityData.modelEvidence.corroboratedModels}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Corroborated Models Â· multi-source evidence
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-loss/15">
+                      <ShieldAlert className="h-4 w-4 text-loss" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold tabular-nums text-loss">
+                        {integrityData.modelEvidence.highBiasRiskModels}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        High Bias Risk Models Â· single-sided evidence
                       </p>
                     </div>
                   </div>
@@ -1025,17 +1147,18 @@ export default function AdminDataSourcesPage() {
                       ? STATUS_CONFIG[source.last_sync_status]
                       : null;
                     const isSyncing = syncing.has(source.slug);
-                    const adapterHealth = healthBySlug.get(source.slug);
-                    const healthStatus = adapterHealth?.status ?? "healthy";
-                    const healthCfg = HEALTH_CONFIG[healthStatus];
+                    const lifecycleState = stateBySlug.get(source.slug) ?? "active";
+                    const lifecycleCfg = SOURCE_STATE_CONFIG[lifecycleState];
                     const isExpanded = expandedRows.has(source.slug);
 
                     // Row tint based on health status
                     const rowBg =
-                      healthStatus === "down"
+                      lifecycleState === "quarantined"
                         ? "bg-red-500/5 hover:bg-red-500/10"
-                        : healthStatus === "degraded"
+                        : lifecycleState === "degraded"
                         ? "bg-amber-400/5 hover:bg-amber-400/10"
+                        : lifecycleState === "disabled"
+                        ? "bg-secondary/5 hover:bg-secondary/10"
                         : "hover:bg-secondary/20";
 
                     // Last sync with expected interval
@@ -1078,8 +1201,14 @@ export default function AdminDataSourcesPage() {
                             <p className="text-[11px] text-muted-foreground line-clamp-1">
                               {source.description}
                             </p>
+                            {source.quarantined_at && (
+                              <p className="mt-1 text-[11px] text-loss line-clamp-1">
+                                Quarantined: {source.quarantine_reason ?? "permanent upstream failure"}
+                              </p>
+                            )}
                             {source.last_error_message &&
-                              source.last_sync_status === "failed" && (
+                              source.last_sync_status === "failed" &&
+                              !source.quarantined_at && (
                                 <p className="mt-1 text-[11px] text-loss line-clamp-1">
                                   {source.last_error_message}
                                 </p>
@@ -1122,10 +1251,10 @@ export default function AdminDataSourcesPage() {
                         <td className="px-4 py-3 text-center">
                           <Badge
                             variant="outline"
-                            className={`text-[11px] ${healthCfg.border} ${healthCfg.color}`}
+                            className={`text-[11px] ${lifecycleCfg.border} ${lifecycleCfg.color}`}
                           >
-                            <healthCfg.icon className="mr-1 h-3 w-3" />
-                            {healthCfg.label}
+                            <lifecycleCfg.icon className="mr-1 h-3 w-3" />
+                            {lifecycleCfg.label}
                           </Badge>
                         </td>
 
@@ -1163,11 +1292,11 @@ export default function AdminDataSourcesPage() {
 
                         {/* Last sync with expected interval */}
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {source.last_sync_at ? (
+                          {source.last_success_at ? (
                             <span className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3 shrink-0" />
                               <span>
-                                {formatRelativeTime(source.last_sync_at)}{" "}
+                                {formatRelativeTime(source.last_success_at)}{" "}
                                 <span className="text-[10px] text-muted-foreground/60">
                                   ({intervalLabel})
                                 </span>
@@ -1223,7 +1352,21 @@ export default function AdminDataSourcesPage() {
                           key={`${source.id}-history`}
                           className="border-b border-border/30 bg-secondary/10"
                         >
-                          <td colSpan={9} className="px-4 py-3">
+                          <td colSpan={9} className="px-4 py-3 space-y-3">
+                            {(source.quarantined_at || !source.is_enabled) && (
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                {source.quarantined_at && (
+                                  <Badge variant="outline" className="border-loss/30 text-loss">
+                                    Quarantined {formatRelativeTime(source.quarantined_at)}
+                                  </Badge>
+                                )}
+                                {!source.is_enabled && (
+                                  <Badge variant="outline" className="border-border/40 text-muted-foreground">
+                                    Disabled by operator
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                             <SyncHistoryInline slug={source.slug} />
                           </td>
                         </tr>
@@ -1316,9 +1459,10 @@ export default function AdminDataSourcesPage() {
                   <dt className="text-xs text-muted-foreground self-center">Health</dt>
                   <dd>
                     {(() => {
-                      const health = healthBySlug.get(selectedSource.slug);
-                      const status = health?.status ?? "healthy";
-                      const cfg = HEALTH_CONFIG[status];
+                      const cfg =
+                        SOURCE_STATE_CONFIG[
+                          stateBySlug.get(selectedSource.slug) ?? "active"
+                        ];
                       return (
                         <Badge variant="outline" className={`text-[10px] ${cfg.border} ${cfg.color}`}>
                           <cfg.icon className="mr-1 h-2.5 w-2.5" />
@@ -1340,14 +1484,33 @@ export default function AdminDataSourcesPage() {
                     })()}
                   </dd>
 
-                  <dt className="text-xs text-muted-foreground self-center">Last Sync</dt>
+                  <dt className="text-xs text-muted-foreground self-center">Last Success</dt>
                   <dd className="text-sm text-muted-foreground">
-                    {selectedSource.last_sync_at
-                      ? formatRelativeTime(selectedSource.last_sync_at)
+                    {selectedSource.last_success_at
+                      ? formatRelativeTime(selectedSource.last_success_at)
+                      : "\u2014"}
+                  </dd>
+
+                  <dt className="text-xs text-muted-foreground self-center">Last Attempt</dt>
+                  <dd className="text-sm text-muted-foreground">
+                    {selectedSource.last_attempt_at
+                      ? formatRelativeTime(selectedSource.last_attempt_at)
                       : "\u2014"}
                   </dd>
                 </dl>
               </div>
+
+              {selectedSource.quarantined_at && (
+                <div className="rounded-lg bg-loss/5 border border-loss/30 p-3">
+                  <p className="text-xs font-medium text-loss mb-1.5">Quarantined Source</p>
+                  <p className="text-xs text-loss/80 whitespace-pre-wrap break-all">
+                    {selectedSource.quarantine_reason ?? "Permanent upstream failure detected."}
+                  </p>
+                  <p className="mt-2 text-[11px] text-loss/70">
+                    Quarantined {formatRelativeTime(selectedSource.quarantined_at)}. Manual sync will retry and clear quarantine automatically on success.
+                  </p>
+                </div>
+              )}
 
               {/* Full error message */}
               {selectedSource.last_error_message && selectedSource.last_sync_status === "failed" && (

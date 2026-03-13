@@ -28,6 +28,7 @@ export async function persistResults(
     benchmarkMap,
     eloMap,
     newsMentionMap,
+    sourceCoverageMap,
   } = inputs;
 
   const {
@@ -138,6 +139,7 @@ export async function persistResults(
         hasNews: (newsMentionMap.get(sm.id) ?? 0) > 0,
         hasPricing: cheapestPriceMap.has(sm.id),
       });
+      const sourceCoverage = sourceCoverageMap.get(sm.id) ?? null;
 
       return supabase.from("model_snapshots").upsert(
         {
@@ -154,6 +156,7 @@ export async function persistResults(
           usage_score: usageScoreMap.get(sm.id) ?? null,
           expert_score: expertScoreMap.get(sm.id) ?? null,
           signal_coverage: signalCoverage,
+          source_coverage: sourceCoverage,
         },
         { onConflict: "model_id,snapshot_date" }
       ).then(({ error }) => ({ error, skipped: false }));

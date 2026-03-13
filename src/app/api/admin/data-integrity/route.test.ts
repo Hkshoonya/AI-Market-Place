@@ -122,6 +122,15 @@ const SAMPLE_REPORT = {
       },
     ],
   },
+  modelEvidence: {
+    totalModels: 20,
+    lowBiasRiskModels: 8,
+    mediumBiasRiskModels: 7,
+    highBiasRiskModels: 5,
+    corroboratedModels: 12,
+    averageIndependentQualitySources: 2.1,
+    averageDistinctSources: 4.6,
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ import {
   computeRecencyScore,
 } from "@/lib/scoring/scoring-helpers";
 import { computeCommunitySignal } from "@/lib/scoring/community-signal";
+import { getCorroborationMultiplier, type SourceCoverage } from "@/lib/source-coverage";
 export { computeCommunitySignal } from "@/lib/scoring/community-signal";
 
 export interface QualityInputs {
@@ -56,6 +57,8 @@ export interface QualityInputs {
   providerAvgBenchmark: number | null;
   /** Model parameter count in billions (proxy signal) */
   parameterCount: number | null;
+  /** Diversity/corroboration information for this model's evidence graph */
+  sourceCoverage: SourceCoverage | null;
 }
 
 export interface NormalizationStats {
@@ -287,13 +290,16 @@ export function calculateQualityScore(
   }
 
   const computedScore = Math.round(Math.min(penalizedScore, 100) * 10) / 10;
+  const corroborationAdjusted = Math.round(
+    Math.min(computedScore * getCorroborationMultiplier(inputs.sourceCoverage), 100) * 10
+  ) / 10;
 
   // Blend with existing AA score if available
   if (inputs.existingScore != null && inputs.existingScore > 0) {
-    return Math.round((0.6 * inputs.existingScore + 0.4 * computedScore) * 10) / 10;
+    return Math.round((0.6 * inputs.existingScore + 0.4 * corroborationAdjusted) * 10) / 10;
   }
 
-  return computedScore;
+  return corroborationAdjusted;
 }
 
 /**

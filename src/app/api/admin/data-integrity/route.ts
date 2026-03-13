@@ -75,6 +75,15 @@ const DataIntegrityReportSchema = z.object({
       })
     ),
   }),
+  modelEvidence: z.object({
+    totalModels: z.number(),
+    lowBiasRiskModels: z.number(),
+    mediumBiasRiskModels: z.number(),
+    highBiasRiskModels: z.number(),
+    corroboratedModels: z.number(),
+    averageIndependentQualitySources: z.number(),
+    averageDistinctSources: z.number(),
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -83,7 +92,7 @@ const DataIntegrityReportSchema = z.object({
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = rateLimit(`admin-data-integrity:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`admin-data-integrity:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

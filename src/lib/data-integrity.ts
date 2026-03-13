@@ -92,6 +92,15 @@ export interface DataIntegrityReport {
       overdueBy: string;
     }>;
   };
+  modelEvidence: {
+    totalModels: number;
+    lowBiasRiskModels: number;
+    mediumBiasRiskModels: number;
+    highBiasRiskModels: number;
+    corroboratedModels: number;
+    averageIndependentQualitySources: number;
+    averageDistinctSources: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +227,7 @@ interface DataSourceRow {
   last_sync_at: string | null;
   last_sync_records: number | null;
   is_enabled: boolean;
+  quarantined_at?: string | null;
 }
 
 interface PipelineHealthRow {
@@ -231,6 +241,15 @@ interface SyncJobRow {
   source_slug: string;
   records_processed: number | null;
   created_at: string;
+}
+
+interface ModelSnapshotCoverageRow {
+  source_coverage: {
+    biasRisk?: "low" | "medium" | "high";
+    corroborationLevel?: string;
+    independentQualitySourceCount?: number;
+    totalDistinctSources?: number;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,7 +276,7 @@ export async function verifyDataIntegrity(
   const { data: rawDataSources, error: dsError } = await supabase
     .from("data_sources")
     .select(
-      "slug, name, output_types, sync_interval_hours, last_sync_at, last_sync_records, is_enabled"
+      "slug, name, output_types, sync_interval_hours, last_sync_at, last_sync_records, is_enabled, quarantined_at"
     );
 
   if (dsError) {
@@ -265,6 +284,9 @@ export async function verifyDataIntegrity(
   }
 
   const dataSources: DataSourceRow[] = rawDataSources ?? [];
+  const enabledDataSources = dataSources.filter(
+    (source) => source.is_enabled && !source.quarantined_at
+  );
 
   // ── Fetch pipeline_health rows ────────────────────────────────────────────
   const { data: rawPipelineHealth, error: phError } = await supabase
@@ -304,8 +326,7 @@ export async function verifyDataIntegrity(
   // ── Determine which tables to check ──────────────────────────────────────
   // Collect unique DB table names from all enabled adapters' output_types
   const tableToAdapters = new Map<string, string[]>();
-  for (const source of dataSources) {
-    if (!source.is_enabled) continue;
+  for (const source of enabledDataSources) {
     const outputTypes = (source.output_types ?? []) as SyncOutputType[];
     for (const ot of outputTypes) {
       const tableName = TABLE_MAP[ot];
@@ -336,7 +357,7 @@ export async function verifyDataIntegrity(
   // ── Compute quality scores per source ────────────────────────────────────
   const qualityScores: SourceQualityScore[] = [];
 
-  for (const source of dataSources) {
+  for (const source of enabledDataSources) {
     const healthRow = healthBySlug.get(source.slug);
     const lastSyncAt = healthRow?.last_success_at ?? source.last_sync_at;
     const intervalHours = source.sync_interval_hours ?? 6;
@@ -409,7 +430,7 @@ export async function verifyDataIntegrity(
   // ── Build freshness report ────────────────────────────────────────────────
   const staleSources: DataIntegrityReport["freshness"]["staleSources"] = [];
 
-  for (const source of dataSources) {
+  for (const source of enabledDataSources) {
     const healthRow = healthBySlug.get(source.slug);
     const lastSyncAt = healthRow?.last_success_at ?? source.last_sync_at;
     const intervalHours = source.sync_interval_hours ?? 6;
@@ -439,7 +460,7 @@ export async function verifyDataIntegrity(
   }
 
   // ── Assemble summary ──────────────────────────────────────────────────────
-  const totalSources = dataSources.length;
+  const totalSources = enabledDataSources.length;
   const staleCount = qualityScores.filter((s) => s.isStale).length;
   const healthySources = totalSources - staleCount;
   const emptyTables = tableCoverage.filter((t) => t.isEmpty).length;
@@ -449,6 +470,46 @@ export async function verifyDataIntegrity(
           qualityScores.reduce((sum, s) => sum + s.qualityScore, 0) /
             totalSources
         )
+      : 0;
+
+  const { data: latestSnapshotRows, error: snapshotError } = await supabase
+    .from("model_snapshots")
+    .select("source_coverage")
+    .eq("snapshot_date", checkedAt.split("T")[0]);
+
+  if (snapshotError) {
+    throw new Error(`Failed to fetch model_snapshots: ${snapshotError.message}`);
+  }
+
+  const snapshotCoverages = (latestSnapshotRows ?? []) as ModelSnapshotCoverageRow[];
+  const totalModels = snapshotCoverages.length;
+  const lowBiasRiskModels = snapshotCoverages.filter(
+    (row) => row.source_coverage?.biasRisk === "low"
+  ).length;
+  const mediumBiasRiskModels = snapshotCoverages.filter(
+    (row) => row.source_coverage?.biasRisk === "medium"
+  ).length;
+  const highBiasRiskModels = snapshotCoverages.filter(
+    (row) => row.source_coverage?.biasRisk === "high"
+  ).length;
+  const corroboratedModels = snapshotCoverages.filter((row) => {
+    const level = row.source_coverage?.corroborationLevel;
+    return level === "multi_source" || level === "strong";
+  }).length;
+  const averageIndependentQualitySources =
+    totalModels > 0
+      ? snapshotCoverages.reduce(
+          (sum, row) =>
+            sum + (row.source_coverage?.independentQualitySourceCount ?? 0),
+          0
+        ) / totalModels
+      : 0;
+  const averageDistinctSources =
+    totalModels > 0
+      ? snapshotCoverages.reduce(
+          (sum, row) => sum + (row.source_coverage?.totalDistinctSources ?? 0),
+          0
+        ) / totalModels
       : 0;
 
   return {
@@ -465,6 +526,16 @@ export async function verifyDataIntegrity(
     freshness: {
       staleSourceCount: staleSources.length,
       staleSources,
+    },
+    modelEvidence: {
+      totalModels,
+      lowBiasRiskModels,
+      mediumBiasRiskModels,
+      highBiasRiskModels,
+      corroboratedModels,
+      averageIndependentQualitySources:
+        Math.round(averageIndependentQualitySources * 10) / 10,
+      averageDistinctSources: Math.round(averageDistinctSources * 10) / 10,
     },
   };
 }

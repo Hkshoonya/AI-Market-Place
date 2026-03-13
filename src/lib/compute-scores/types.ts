@@ -8,6 +8,7 @@
  */
 
 import type { NormalizationStats } from "@/lib/scoring/quality-calculator";
+import type { SourceCoverage } from "@/lib/source-coverage";
 
 export interface ScoringInputs {
   models: Array<{
@@ -32,6 +33,7 @@ export interface ScoringInputs {
   newsMentionMap: Map<string, number>;
   providerBenchmarkAvg: Map<string, number>;
   staleCount: number;
+  sourceCoverageMap: Map<string, SourceCoverage>;
 }
 
 export interface ScoringResults {
@@ -53,6 +55,7 @@ export interface ScoringResults {
   normalizedValueMap: Map<string, number>;
   valueRankMap: Map<string, number>;
   pricingSynced: number;
+  pricingSourceMap: Map<string, Set<string>>;
   stats: NormalizationStats;
 }
 
