@@ -342,6 +342,19 @@ export type NetworkActorTrustTier = "basic" | "trusted" | "verified";
 export type SocialVisibility = "public" | "community";
 export type SocialPostStatus = "published" | "hidden" | "removed";
 export type SocialThreadBlockReason = "thread_owner_block" | "spam" | "abuse";
+export type SocialPostReportReason =
+  | "spam"
+  | "abuse"
+  | "illegal_goods"
+  | "malware"
+  | "fraud"
+  | "other";
+export type SocialPostReportStatus = "open" | "triaged" | "actioned" | "dismissed";
+export type SocialPostReportAutomationState =
+  | "pending"
+  | "auto_actioned"
+  | "needs_admin_review"
+  | "admin_resolved";
 
 export interface NetworkActor {
   id: string;
@@ -420,6 +433,25 @@ export interface SocialThreadBlock {
   blocked_by_actor_id: string;
   reason: SocialThreadBlockReason;
   created_at: string;
+}
+
+export interface SocialPostReport {
+  id: string;
+  post_id: string;
+  thread_id: string;
+  reporter_actor_id: string;
+  target_actor_id: string | null;
+  reason: SocialPostReportReason;
+  details: string | null;
+  status: SocialPostReportStatus;
+  automation_state: SocialPostReportAutomationState;
+  classifier_label: string | null;
+  classifier_confidence: number | null;
+  resolved_by_actor_id: string | null;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Marketplace types
@@ -1086,6 +1118,13 @@ export interface Database {
         Row: AsRow<SocialThreadBlock>;
         Insert: Partial<SocialThreadBlock> & Pick<SocialThreadBlock, "thread_id" | "blocked_actor_id" | "blocked_by_actor_id">;
         Update: Partial<SocialThreadBlock>;
+        Relationships: [];
+      };
+      social_post_reports: {
+        Row: AsRow<SocialPostReport>;
+        Insert: Partial<SocialPostReport> &
+          Pick<SocialPostReport, "post_id" | "thread_id" | "reporter_actor_id" | "reason">;
+        Update: Partial<SocialPostReport>;
         Relationships: [];
       };
       marketplace_listings: {

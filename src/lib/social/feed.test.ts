@@ -157,4 +157,180 @@ describe("social feed mapping", () => {
 
     expect(result.map((item) => item.thread.id)).toEqual(["thread-new", "thread-old"]);
   });
+
+  it("keeps a thread visible when the root post is removed and maps it as a moderation tombstone", async () => {
+    const { mapFeedRows } = await import("./feed");
+
+    const result = mapFeedRows({
+      communities: [{ id: "community-1", slug: "global", name: "Global" }],
+      threads: [
+        {
+          id: "thread-1",
+          community_id: "community-1",
+          title: "A disputed thread",
+          reply_count: 2,
+          created_by_actor_id: "actor-1",
+          created_at: "2026-03-13T00:00:00.000Z",
+          updated_at: "2026-03-13T00:03:00.000Z",
+          last_posted_at: "2026-03-13T00:03:00.000Z",
+          visibility: "public",
+          root_post_id: "post-root",
+        },
+      ],
+      rootPosts: [
+        {
+          id: "post-root",
+          thread_id: "thread-1",
+          parent_post_id: null,
+          author_actor_id: "actor-1",
+          community_id: "community-1",
+          content: "Original content should not render",
+          language_code: "en",
+          status: "removed",
+          reply_count: 2,
+          metadata: { moderation_reason: "spam" },
+          created_at: "2026-03-13T00:00:00.000Z",
+          updated_at: "2026-03-13T00:02:00.000Z",
+        },
+      ],
+      replies: [
+        {
+          id: "post-2",
+          thread_id: "thread-1",
+          parent_post_id: "post-root",
+          author_actor_id: "actor-2",
+          community_id: "community-1",
+          content: "Reply survives",
+          language_code: "en",
+          status: "published",
+          reply_count: 0,
+          metadata: {},
+          created_at: "2026-03-13T00:03:00.000Z",
+          updated_at: "2026-03-13T00:03:00.000Z",
+        },
+      ],
+      actors: [
+        {
+          id: "actor-1",
+          actor_type: "human",
+          display_name: "Reporter bait",
+          handle: "reporter-bait",
+          avatar_url: null,
+          trust_tier: "basic",
+        },
+        {
+          id: "actor-2",
+          actor_type: "human",
+          display_name: "Responder",
+          handle: "responder",
+          avatar_url: null,
+          trust_tier: "trusted",
+        },
+      ],
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.rootPost.status).toBe("removed");
+    expect(result[0]?.rootPost.content).toBe("Removed by moderation");
+    expect(result[0]?.rootPost.moderation_reason).toBe("spam");
+    expect(result[0]?.replies).toHaveLength(1);
+  });
+
+  it("omits removed replies from reply previews", async () => {
+    const { mapFeedRows } = await import("./feed");
+
+    const result = mapFeedRows({
+      communities: [{ id: "community-1", slug: "global", name: "Global" }],
+      threads: [
+        {
+          id: "thread-1",
+          community_id: "community-1",
+          title: "Preview hygiene",
+          reply_count: 2,
+          created_by_actor_id: "actor-1",
+          created_at: "2026-03-13T00:00:00.000Z",
+          updated_at: "2026-03-13T00:02:00.000Z",
+          last_posted_at: "2026-03-13T00:02:00.000Z",
+          visibility: "public",
+          root_post_id: "post-root",
+        },
+      ],
+      rootPosts: [
+        {
+          id: "post-root",
+          thread_id: "thread-1",
+          parent_post_id: null,
+          author_actor_id: "actor-1",
+          community_id: "community-1",
+          content: "Root content",
+          language_code: "en",
+          status: "published",
+          reply_count: 2,
+          metadata: {},
+          created_at: "2026-03-13T00:00:00.000Z",
+          updated_at: "2026-03-13T00:00:00.000Z",
+        },
+      ],
+      replies: [
+        {
+          id: "post-2",
+          thread_id: "thread-1",
+          parent_post_id: "post-root",
+          author_actor_id: "actor-2",
+          community_id: "community-1",
+          content: "Visible reply",
+          language_code: "en",
+          status: "published",
+          reply_count: 0,
+          metadata: {},
+          created_at: "2026-03-13T00:01:00.000Z",
+          updated_at: "2026-03-13T00:01:00.000Z",
+        },
+        {
+          id: "post-3",
+          thread_id: "thread-1",
+          parent_post_id: "post-root",
+          author_actor_id: "actor-3",
+          community_id: "community-1",
+          content: "Should not show",
+          language_code: "en",
+          status: "removed",
+          reply_count: 0,
+          metadata: { moderation_reason: "abuse" },
+          created_at: "2026-03-13T00:02:00.000Z",
+          updated_at: "2026-03-13T00:02:00.000Z",
+        },
+      ],
+      actors: [
+        {
+          id: "actor-1",
+          actor_type: "human",
+          display_name: "Starter",
+          handle: "starter",
+          avatar_url: null,
+          trust_tier: "trusted",
+        },
+        {
+          id: "actor-2",
+          actor_type: "human",
+          display_name: "Visible",
+          handle: "visible",
+          avatar_url: null,
+          trust_tier: "basic",
+        },
+        {
+          id: "actor-3",
+          actor_type: "agent",
+          display_name: "Removed",
+          handle: "removed",
+          avatar_url: null,
+          trust_tier: "basic",
+        },
+      ],
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.replies).toHaveLength(1);
+    expect(result[0]?.replies[0]?.id).toBe("post-2");
+  });
 });

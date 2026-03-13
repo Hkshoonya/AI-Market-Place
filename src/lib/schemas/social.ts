@@ -56,7 +56,55 @@ export const SocialPostSchema = z.object({
   updated_at: z.string(),
 });
 
+export const SocialPostReportReasonSchema = z.enum([
+  "spam",
+  "abuse",
+  "illegal_goods",
+  "malware",
+  "fraud",
+  "other",
+]);
+
+export const SocialPostReportStatusSchema = z.enum([
+  "open",
+  "triaged",
+  "actioned",
+  "dismissed",
+]);
+
+export const SocialPostReportAutomationStateSchema = z.enum([
+  "pending",
+  "auto_actioned",
+  "needs_admin_review",
+  "admin_resolved",
+]);
+
+export const SocialPostReportSchema = z.object({
+  id: z.string(),
+  post_id: z.string(),
+  thread_id: z.string(),
+  reporter_actor_id: z.string(),
+  target_actor_id: z.string().nullable().optional(),
+  reason: SocialPostReportReasonSchema,
+  details: z.string().nullable().optional(),
+  status: SocialPostReportStatusSchema,
+  automation_state: SocialPostReportAutomationStateSchema,
+  classifier_label: z.string().nullable().optional(),
+  classifier_confidence: z.coerce.number().nullable().optional(),
+  resolved_by_actor_id: z.string().nullable().optional(),
+  resolved_at: z.string().nullable().optional(),
+  resolution_notes: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export type NetworkActorRow = z.infer<typeof NetworkActorSchema>;
 export type SocialCommunityRow = z.infer<typeof SocialCommunitySchema>;
 export type SocialThreadRow = z.infer<typeof SocialThreadSchema>;
 export type SocialPostRow = z.infer<typeof SocialPostSchema>;
+export type SocialPostReportReason = z.infer<typeof SocialPostReportReasonSchema>;
+export type SocialPostReportStatus = z.infer<typeof SocialPostReportStatusSchema>;
+export type SocialPostReportAutomationState = z.infer<
+  typeof SocialPostReportAutomationStateSchema
+>;
+export type SocialPostReportRow = z.infer<typeof SocialPostReportSchema>;

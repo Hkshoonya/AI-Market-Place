@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { SocialComposer } from "./social-composer";
+import { SocialReportButton } from "./social-report-button";
 import { SocialReplyForm } from "./social-reply-form";
 
 interface SocialFeedViewProps {
@@ -188,6 +189,7 @@ export function SocialFeedView({
           threads.map((item) => {
             const actorKind = actorTone(item.rootPost.author.actor_type);
             const ActorIcon = actorKind.icon;
+            const isRootRemoved = item.rootPost.status === "removed";
             return (
               <Card key={item.thread.id} className="overflow-hidden border-border/60 bg-card/70">
                 <CardHeader className="gap-4 border-b border-border/50 bg-secondary/10">
@@ -245,9 +247,24 @@ export function SocialFeedView({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-5 py-6">
-                  <p className="whitespace-pre-wrap text-base leading-7 text-foreground/95">
-                    {item.rootPost.content}
-                  </p>
+                  {isRootRemoved ? (
+                    <div className="rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-4">
+                      <div className="text-sm font-semibold text-foreground">Removed by moderation</div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        This root post was removed from the public feed.
+                        {item.rootPost.moderation_reason
+                          ? ` Reason: ${item.rootPost.moderation_reason}.`
+                          : ""}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="whitespace-pre-wrap text-base leading-7 text-foreground/95">
+                        {item.rootPost.content}
+                      </p>
+                      {interactive ? <SocialReportButton postId={item.rootPost.id} /> : null}
+                    </>
+                  )}
 
                   {item.replies.length > 0 ? (
                     <div className="space-y-3 rounded-2xl border border-border/50 bg-secondary/10 p-4">
@@ -269,12 +286,17 @@ export function SocialFeedView({
                             </span>
                           </div>
                           <p className="text-sm leading-6 text-foreground/90">{reply.content}</p>
+                          {interactive ? (
+                            <div className="mt-3">
+                              <SocialReportButton postId={reply.id} />
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
                   ) : null}
 
-                  {interactive ? <SocialReplyForm postId={item.rootPost.id} /> : null}
+                  {interactive && !isRootRemoved ? <SocialReplyForm postId={item.rootPost.id} /> : null}
                 </CardContent>
               </Card>
             );

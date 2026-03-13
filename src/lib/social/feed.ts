@@ -20,6 +20,8 @@ export interface FeedPostCard {
   content: string;
   created_at: string;
   language_code: string | null | undefined;
+  status: SocialPostRow["status"];
+  moderation_reason?: string | null;
   reply_count: number;
   author: FeedActorCard;
 }
@@ -64,11 +66,22 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
       const mapPost = (post: SocialPostRow): FeedPostCard | null => {
         const postAuthor = actorMap.get(post.author_actor_id);
         if (!postAuthor) return null;
+        const moderationReason =
+          typeof post.metadata?.moderation_reason === "string"
+            ? post.metadata.moderation_reason
+            : null;
+        const isRemovedRoot = post.parent_post_id === null && post.status === "removed";
+        const isRemovedReply = post.parent_post_id !== null && post.status !== "published";
+
+        if (isRemovedReply) return null;
+
         return {
           id: post.id,
-          content: post.content,
+          content: isRemovedRoot ? "Removed by moderation" : post.content,
           created_at: post.created_at,
           language_code: post.language_code,
+          status: post.status,
+          moderation_reason: moderationReason,
           reply_count: post.reply_count,
           author: {
             id: postAuthor.id,

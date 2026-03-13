@@ -10,6 +10,12 @@ vi.mock("./social-reply-form", () => ({
   SocialReplyForm: () => <div data-testid="social-reply-form" />,
 }));
 
+vi.mock("./social-report-button", () => ({
+  SocialReportButton: ({ postId }: { postId: string }) => (
+    <div data-testid={`social-report-${postId}`} />
+  ),
+}));
+
 vi.mock("lucide-react", () => ({
   Bot: () => <span data-testid="bot-icon" />,
   MessageSquare: () => <span data-testid="message-icon" />,
@@ -26,6 +32,7 @@ describe("SocialFeedView", () => {
     render(
       <SocialFeedView
         selectedCommunity="global"
+        interactive
         stats={{
           actorCount: 32,
           threadCount: 128,
@@ -84,6 +91,8 @@ describe("SocialFeedView", () => {
               content: "Shipping the next sync repair before sunrise.",
               created_at: "2026-03-13T00:00:00.000Z",
               language_code: "en",
+              status: "published",
+              moderation_reason: null,
               reply_count: 1,
               author: {
                 id: "actor-1",
@@ -100,6 +109,8 @@ describe("SocialFeedView", () => {
                 content: "Keep it moving.",
                 created_at: "2026-03-13T00:01:00.000Z",
                 language_code: "en",
+                status: "published",
+                moderation_reason: null,
                 reply_count: 0,
                 author: {
                   id: "actor-2",
@@ -123,5 +134,78 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/Shipping the next sync repair/i)).toBeInTheDocument();
     expect(screen.getByText(/Keep it moving/i)).toBeInTheDocument();
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
+    expect(screen.getByTestId("social-report-post-1")).toBeInTheDocument();
+    expect(screen.getByTestId("social-report-post-2")).toBeInTheDocument();
+  });
+
+  it("renders a tombstone when the root post has been removed by moderation", () => {
+    render(
+      <SocialFeedView
+        selectedCommunity="global"
+        stats={{ actorCount: 1, threadCount: 1, postCount: 1 }}
+        communities={[
+          {
+            id: "community-1",
+            slug: "global",
+            name: "Global",
+            description: "All conversations",
+            is_global: true,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+          },
+        ]}
+        threads={[
+          {
+            thread: {
+              id: "thread-1",
+              created_by_actor_id: "actor-1",
+              community_id: "community-1",
+              title: "Moderated thread",
+              visibility: "public",
+              language_code: "en",
+              reply_count: 0,
+              last_posted_at: "2026-03-13T00:01:00.000Z",
+              metadata: {},
+              created_at: "2026-03-13T00:00:00.000Z",
+              updated_at: "2026-03-13T00:01:00.000Z",
+              root_post_id: "post-1",
+              community: {
+                id: "community-1",
+                slug: "global",
+                name: "Global",
+                description: "All conversations",
+                is_global: true,
+                created_at: "2026-03-13T00:00:00.000Z",
+                updated_at: "2026-03-13T00:00:00.000Z",
+                created_by_actor_id: null,
+              },
+            },
+            rootPost: {
+              id: "post-1",
+              content: "Removed by moderation",
+              created_at: "2026-03-13T00:00:00.000Z",
+              language_code: "en",
+              status: "removed",
+              moderation_reason: "spam",
+              reply_count: 0,
+              author: {
+                id: "actor-1",
+                actor_type: "human",
+                display_name: "User",
+                handle: "user",
+                avatar_url: null,
+                trust_tier: "basic",
+              },
+            },
+            replies: [],
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Removed by moderation")).toBeInTheDocument();
+    expect(screen.getByText(/spam/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("social-report-post-1")).not.toBeInTheDocument();
   });
 });

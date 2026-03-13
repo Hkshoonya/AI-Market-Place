@@ -12,6 +12,7 @@ import {
   MessageSquare,
   ShieldCheck,
   ShoppingBag,
+  Flag,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -23,6 +24,7 @@ const ADMIN_NAV = [
   { href: "/admin/listings", label: "Listings", icon: ShoppingBag },
   { href: "/admin/verifications", label: "Verify", icon: ShieldCheck },
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
+  { href: "/admin/social", label: "Social", icon: Flag },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/data-sources", label: "Sources", icon: Database },
   { href: "/admin/agents", label: "Agents", icon: Bot },
