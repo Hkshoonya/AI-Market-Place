@@ -11,6 +11,95 @@
 import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 
+export interface ActiveModelSummary {
+  id: string;
+  category: string | null;
+}
+
+interface ModelCoverageRow {
+  model_id: string | null;
+}
+
+interface ContentQualityMetrics {
+  totalActiveModels: number;
+  missingDescription: number;
+  missingBenchmarks: number;
+  missingPricing: number;
+  completenessScore: number;
+}
+
+export async function collectPaginatedRows<T>(
+  fetchPage: (from: number, to: number) => Promise<T[]>,
+  pageSize = 1000
+): Promise<T[]> {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const page = await fetchPage(from, from + pageSize - 1);
+    rows.push(...page);
+
+    if (page.length < pageSize) {
+      return rows;
+    }
+  }
+}
+
+export function filterCoveredActiveModelIds(
+  rows: ModelCoverageRow[],
+  activeModelIds: Set<string>
+): Set<string> {
+  const coveredModelIds = new Set<string>();
+
+  for (const row of rows) {
+    if (row.model_id && activeModelIds.has(row.model_id)) {
+      coveredModelIds.add(row.model_id);
+    }
+  }
+
+  return coveredModelIds;
+}
+
+export function buildContentQualityMetrics({
+  activeModels,
+  missingDescriptionCount,
+  benchmarkedModelIds,
+  pricedModelIds,
+}: {
+  activeModels: ActiveModelSummary[];
+  missingDescriptionCount: number;
+  benchmarkedModelIds: Set<string>;
+  pricedModelIds: Set<string>;
+}): ContentQualityMetrics {
+  const totalActiveModels = activeModels.length;
+  const missingBenchmarks = activeModels.filter(
+    (model) => !benchmarkedModelIds.has(model.id)
+  ).length;
+  const missingPricing = activeModels.filter(
+    (model) => !pricedModelIds.has(model.id)
+  ).length;
+
+  const describedModels = totalActiveModels - missingDescriptionCount;
+  const benchmarkedModels = totalActiveModels - missingBenchmarks;
+  const pricedModels = totalActiveModels - missingPricing;
+
+  const completenessScore =
+    totalActiveModels > 0
+      ? Math.round(
+          ((describedModels + benchmarkedModels + pricedModels) /
+            (totalActiveModels * 3)) *
+            100
+        )
+      : 0;
+
+  return {
+    totalActiveModels,
+    missingDescription: missingDescriptionCount,
+    missingBenchmarks,
+    missingPricing,
+    completenessScore,
+  };
+}
+
 const uxMonitor: ResidentAgent = {
   slug: "ux-monitor",
   name: "UX Optimization Monitor",
@@ -39,57 +128,73 @@ const uxMonitor: ResidentAgent = {
         .is("description", null);
 
       // Models missing benchmark scores
-      const { data: allModels } = await sb
-        .from("models")
-        .select("id, slug, name")
-        .eq("status", "active");
+      const activeModels = await collectPaginatedRows<ActiveModelSummary>(
+        async (from, to) => {
+          const { data, error } = await sb
+            .from("models")
+            .select("id, category")
+            .eq("status", "active")
+            .order("id", { ascending: true })
+            .range(from, to);
 
-      const modelIds = (allModels ?? []).map((m: { id: string }) => m.id);
+          if (error) {
+            throw new Error(`Failed to fetch active models: ${error.message}`);
+          }
 
-      const { data: modelsWithBenchmarks } = await sb
-        .from("benchmark_scores")
-        .select("model_id")
-        .in("model_id", modelIds.length > 0 ? modelIds : ["__none__"]);
-
-      const benchmarkedSet = new Set(
-        (modelsWithBenchmarks ?? []).map(
-          (b: { model_id: string }) => b.model_id
-        )
+          return (data ?? []) as ActiveModelSummary[];
+        }
       );
-      const missingBenchmarks = modelIds.filter(
-        (id: string) => !benchmarkedSet.has(id)
+
+      const modelIds = activeModels.map((model) => model.id);
+      const activeModelIdSet = new Set(modelIds);
+
+      const benchmarkRows = await collectPaginatedRows<ModelCoverageRow>(
+        async (from, to) => {
+          const { data, error } = await sb
+            .from("benchmark_scores")
+            .select("model_id")
+            .order("model_id", { ascending: true })
+            .range(from, to);
+
+          if (error) {
+            throw new Error(`Failed to fetch benchmark coverage: ${error.message}`);
+          }
+
+          return (data ?? []) as ModelCoverageRow[];
+        }
+      );
+
+      const benchmarkedSet = filterCoveredActiveModelIds(
+        benchmarkRows,
+        activeModelIdSet
       );
 
       // Models missing pricing
-      const { data: modelsWithPricing } = await sb
-        .from("model_pricing")
-        .select("model_id")
-        .in("model_id", modelIds.length > 0 ? modelIds : ["__none__"]);
+      const pricingRows = await collectPaginatedRows<ModelCoverageRow>(
+        async (from, to) => {
+          const { data, error } = await sb
+            .from("model_pricing")
+            .select("model_id")
+            .order("model_id", { ascending: true })
+            .range(from, to);
 
-      const pricedSet = new Set(
-        (modelsWithPricing ?? []).map((p: { model_id: string }) => p.model_id)
-      );
-      const missingPricing = modelIds.filter(
-        (id: string) => !pricedSet.has(id)
+          if (error) {
+            throw new Error(`Failed to fetch pricing coverage: ${error.message}`);
+          }
+
+          return (data ?? []) as ModelCoverageRow[];
+        }
       );
 
-      output.contentQuality = {
-        totalActiveModels: modelIds.length,
-        missingDescription: missingDescCount ?? 0,
-        missingBenchmarks: missingBenchmarks.length,
-        missingPricing: missingPricing.length,
-        completenessScore:
-          modelIds.length > 0
-            ? Math.round(
-                ((modelIds.length -
-                  (missingDescCount ?? 0) -
-                  missingBenchmarks.length -
-                  missingPricing.length) /
-                  (modelIds.length * 3)) *
-                  100
-              )
-            : 0,
-      };
+      const pricedSet = filterCoveredActiveModelIds(pricingRows, activeModelIdSet);
+
+      const contentQuality = buildContentQualityMetrics({
+        activeModels,
+        missingDescriptionCount: missingDescCount ?? 0,
+        benchmarkedModelIds: benchmarkedSet,
+        pricedModelIds: pricedSet,
+      });
+      output.contentQuality = contentQuality;
 
       await log.info(
         "Content quality audit complete",
@@ -115,14 +220,10 @@ const uxMonitor: ResidentAgent = {
         .eq("hf_downloads", 0);
 
       // Category distribution
-      const { data: categoryData } = await sb
-        .from("models")
-        .select("category")
-        .eq("status", "active");
-
       const categoryCounts: Record<string, number> = {};
-      for (const m of (categoryData ?? []) as { category: string }[]) {
-        categoryCounts[m.category] = (categoryCounts[m.category] ?? 0) + 1;
+      for (const model of activeModels) {
+        const category = model.category ?? "unknown";
+        categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
       }
 
       output.engagementMetrics = {
@@ -202,14 +303,18 @@ const uxMonitor: ResidentAgent = {
           `${missingDescCount} models are missing descriptions. Consider enriching via adapter pipelines.`
         );
       }
-      if (missingBenchmarks.length > modelIds.length * 0.5) {
+      if (
+        contentQuality.missingBenchmarks > modelIds.length * 0.5
+      ) {
         recommendations.push(
-          `${missingBenchmarks.length} models lack benchmark scores. Expand benchmark adapter coverage.`
+          `${contentQuality.missingBenchmarks} models lack benchmark scores. Expand benchmark adapter coverage.`
         );
       }
-      if (missingPricing.length > modelIds.length * 0.3) {
+      if (
+        contentQuality.missingPricing > modelIds.length * 0.3
+      ) {
         recommendations.push(
-          `${missingPricing.length} models lack pricing data. Check pricing adapters.`
+          `${contentQuality.missingPricing} models lack pricing data. Check pricing adapters.`
         );
       }
       if ((staleListings ?? 0) > 0) {
@@ -252,8 +357,8 @@ const uxMonitor: ResidentAgent = {
           0,
           100 -
             ((missingDescCount ?? 0) > 10 ? 15 : 0) -
-            (missingBenchmarks.length > 20 ? 15 : 0) -
-            (missingPricing.length > 20 ? 10 : 0) -
+            (contentQuality.missingBenchmarks > 20 ? 15 : 0) -
+            (contentQuality.missingPricing > 20 ? 10 : 0) -
             ((staleListings ?? 0) > 5 ? 10 : 0) -
             recommendations.length * 5
         ),
