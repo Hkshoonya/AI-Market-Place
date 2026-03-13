@@ -13,13 +13,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import crypto from "crypto";
 import {
   rateLimit,
   RATE_LIMITS,
   getClientIp,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { authenticateApiKey } from "@/lib/agents/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
 
@@ -53,7 +53,7 @@ export async function PATCH(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bot-pricing:${ip}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`bot-pricing:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -63,60 +63,12 @@ export async function PATCH(
 
   const { slug } = await params;
 
-  // --- Bot auth via aimk_ bearer token ---
-  const authHeader = request.headers.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer aimk_")) {
-    return NextResponse.json(
-      {
-        error:
-          "Bot authentication required. Provide a valid aimk_ API key in the Authorization header.",
-      },
-      { status: 401 }
-    );
-  }
-
-  const keyRaw = authHeader.slice(7); // Remove "Bearer "
-  const keyHash = crypto
-    .createHash("sha256")
-    .update(keyRaw)
-    .digest("hex");
-
   const sb = createAdminClient();
-
-  const { data: apiKey, error: keyError } = await sb
-    .from("api_keys")
-    .select("id, owner_id, scopes, is_active")
-    .eq("key_hash", keyHash)
-    .eq("is_active", true)
-    .single();
-
-  if (keyError || !apiKey) {
-    return NextResponse.json(
-      { error: "Invalid or inactive API key." },
-      { status: 401 }
-    );
+  const auth = await authenticateApiKey(sb, request, "marketplace");
+  if (!auth.authenticated) {
+    return auth.response;
   }
-
-  // Verify the key has the "marketplace" scope
-  const rawScopes: unknown = apiKey.scopes;
-  const scopes: string[] = Array.isArray(rawScopes)
-    ? rawScopes as string[]
-    : typeof rawScopes === "string"
-      ? (rawScopes as string).split(",").map((s: string) => s.trim())
-      : [];
-
-  if (!scopes.includes("marketplace")) {
-    return NextResponse.json(
-      {
-        error:
-          'This API key does not have the "marketplace" scope. Update the key scopes and try again.',
-      },
-      { status: 403 }
-    );
-  }
-
-  const ownerId: string = apiKey.owner_id;
+  const ownerId = auth.keyRecord.owner_id as string;
 
   // --- Parse body ---
   let body: unknown;

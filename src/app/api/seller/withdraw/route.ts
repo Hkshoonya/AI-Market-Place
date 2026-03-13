@@ -24,6 +24,8 @@ import {
   getSupportedChains,
 } from "@/lib/payments/withdraw";
 import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 const withdrawSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
@@ -41,7 +43,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`seller-withdraw:${ip}`, RATE_LIMITS.write);
+  const rl = await rateLimit(`seller-withdraw:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -49,8 +51,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const enforceWithdrawScope = isRuntimeFlagEnabled("ENFORCE_WITHDRAW_SCOPE");
+  const requiredScopes = enforceWithdrawScope
+    ? ["withdraw"]
+    : ["withdraw", "marketplace", "write"];
+
   // Auth (session or API key)
-  const auth = await resolveAuthUser(request, ["marketplace", "write"]);
+  const auth = await resolveAuthUser(request, requiredScopes);
   if (!auth) {
     return NextResponse.json(
       {
@@ -58,6 +65,22 @@ export async function POST(request: NextRequest) {
           "Authentication required. Please sign in to withdraw funds.",
       },
       { status: 401 }
+    );
+  }
+
+  if (
+    !enforceWithdrawScope &&
+    auth.authMethod === "api_key" &&
+    !(auth.apiKeyScopes ?? []).includes("withdraw")
+  ) {
+    await systemLog.warn(
+      "api/seller/withdraw",
+      "Deprecated legacy withdraw scope used",
+      {
+        userId: auth.userId,
+        apiKeyId: auth.apiKeyId ?? null,
+        scopes: auth.apiKeyScopes ?? [],
+      }
     );
   }
 
@@ -148,7 +171,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`seller-withdraw-info:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`seller-withdraw-info:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -157,7 +180,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Authenticate (session or API key)
-  const authResult = await resolveAuthUser(request, ["marketplace", "read"]);
+  const authResult = await resolveAuthUser(request, [
+    "withdraw",
+    "marketplace",
+    "read",
+  ]);
   if (!authResult) {
     return NextResponse.json(
       { error: "Authentication required." },

@@ -4,6 +4,9 @@ import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 import { handleApiError } from "@/lib/api-error";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import { systemLog } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +16,7 @@ export async function GET(
 ) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`listing-detail:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`listing-detail:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -105,7 +108,7 @@ export async function PATCH(
     );
   }
 
-  const rl = rateLimit(`listing-edit:${user.id}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`listing-edit:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -153,7 +156,7 @@ export async function PATCH(
 
   const allowedFields = isAdmin
     ? [...SELLER_FIELDS, ...ADMIN_ONLY_FIELDS]
-    : [...SELLER_FIELDS];
+    : [...SELLER_FIELDS, "status"];
 
   const updates: Record<string, unknown> = {};
   for (const field of allowedFields) {
@@ -182,10 +185,39 @@ export async function PATCH(
     }
   }
 
+  const adminSupabase = createAdminClient();
+  if (!isAdmin) {
+    const { data: sellerProfile } = await adminSupabase
+      .from("profiles")
+      .select("seller_verified")
+      .eq("id", user.id)
+      .single();
+
+    const sellerVerified = Boolean(sellerProfile?.seller_verified);
+    const enforceSellerVerification = isRuntimeFlagEnabled(
+      "ENFORCE_SELLER_VERIFICATION"
+    );
+
+    if (updates.status === "active" && !sellerVerified) {
+      if (enforceSellerVerification) {
+        updates.status = "draft";
+      } else {
+        await systemLog.warn(
+          "api/marketplace/listings/[slug]",
+          "Deprecated unverified seller publish path used",
+          {
+            userId: user.id,
+            slug,
+          }
+        );
+      }
+    }
+  }
+
   // Always set updated_at
   updates.updated_at = new Date().toISOString();
 
-  let query = supabase
+  let query = adminSupabase
     .from("marketplace_listings")
     .update(updates as Partial<import("@/types/database").MarketplaceListing> & Record<string, unknown>)
     .eq("slug", slug);
@@ -238,7 +270,7 @@ export async function DELETE(
     );
   }
 
-  const rl = rateLimit(`listing-delete:${user.id}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`listing-delete:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },

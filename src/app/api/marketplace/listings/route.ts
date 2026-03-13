@@ -11,6 +11,7 @@ import {
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 const createListingSchema = z.object({
   title: z
@@ -92,7 +93,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`listings:${ip}`, RATE_LIMITS.public);
+  const rl = await rateLimit(`listings:${ip}`, RATE_LIMITS.public);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rl = rateLimit(`listing-create:${user.id}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`listing-create:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -247,6 +248,31 @@ export async function POST(request: NextRequest) {
     .replace(/^-|-$/g, "");
   const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_seller, seller_verified")
+    .eq("id", user.id)
+    .single();
+
+  const sellerVerified = Boolean(profile?.seller_verified);
+  const enforceSellerVerification = isRuntimeFlagEnabled(
+    "ENFORCE_SELLER_VERIFICATION"
+  );
+
+  if (!sellerVerified && !enforceSellerVerification) {
+    await systemLog.warn(
+      "api/marketplace/listings",
+      "Deprecated unverified seller publish path used",
+      {
+        userId: user.id,
+        listingType: listing_type,
+      }
+    );
+  }
+
+  const initialStatus =
+    sellerVerified || !enforceSellerVerification ? "active" : "draft";
+
   // Mark user as seller if not already
   await supabase
     .from("profiles")
@@ -262,7 +288,7 @@ export async function POST(request: NextRequest) {
       description,
       short_description: short_description || null,
       listing_type,
-      status: "active",
+      status: initialStatus,
       pricing_type: pricing_type || "one_time",
       price: price ?? null,
       currency: currency || "USD",

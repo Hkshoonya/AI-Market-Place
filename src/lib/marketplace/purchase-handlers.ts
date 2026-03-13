@@ -11,6 +11,7 @@ import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import type { TypedSupabaseClient } from "@/types/database";
 import { createTaggedLogger } from "@/lib/logging";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 const log = createTaggedLogger("marketplace/purchase");
 
@@ -181,6 +182,8 @@ export async function handleGuestCheckout(
 ): Promise<PurchaseResult> {
   const price = Number(listing.price) || 0;
   const isFree = listing.pricing_type === "free" || price === 0;
+  const isAccountBoundProduct =
+    listing.listing_type === "api_access" || listing.listing_type === "agent";
 
   // Guests can only get free items
   if (!isFree) {
@@ -194,6 +197,27 @@ export async function handleGuestCheckout(
       httpStatus: 401,
       error: "Authentication required for paid purchases. Please sign in or create a free account.",
     };
+  }
+
+  if (isAccountBoundProduct) {
+    if (isRuntimeFlagEnabled("BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY")) {
+      return {
+        success: false,
+        orderId: "",
+        status: "cancelled",
+        escrowId: null,
+        delivery: null,
+        payment: null,
+        httpStatus: 401,
+        error: "Authentication required for this product type. Please sign in to continue.",
+      };
+    }
+
+    await log.warn("Guest checkout used legacy account-bound delivery path", {
+      listingId: listing.id,
+      listingType: listing.listing_type,
+      guestEmail: guestEmail ?? null,
+    });
   }
 
   // Guest must provide email

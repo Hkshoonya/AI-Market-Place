@@ -9,16 +9,18 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import crypto from "crypto";
 import {
   rateLimit,
   RATE_LIMITS,
   getClientIp,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { authenticateApiKey } from "@/lib/agents/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateWallet } from "@/lib/payments/wallet";
 import { handleApiError } from "@/lib/api-error";
+import { systemLog } from "@/lib/logging";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -175,63 +177,18 @@ interface BotAuth {
  */
 async function authenticateBot(
   request: NextRequest
-): Promise<BotAuth | NextResponse> {
-  const authHeader = request.headers.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer aimk_")) {
-    return NextResponse.json(
-      {
-        error:
-          "Bot authentication required. Provide a valid aimk_ API key in the Authorization header.",
-      },
-      { status: 401 }
-    );
-  }
-
-  const keyRaw = authHeader.slice(7); // Remove "Bearer "
-  const keyHash = crypto
-    .createHash("sha256")
-    .update(keyRaw)
-    .digest("hex");
-
+): Promise<BotAuth | Response> {
   const sb = createAdminClient();
+  const auth = await authenticateApiKey(sb, request, "marketplace");
 
-  const { data: apiKey, error } = await sb
-    .from("api_keys")
-    .select("id, owner_id, agent_id, scopes, is_active")
-    .eq("key_hash", keyHash)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !apiKey) {
-    return NextResponse.json(
-      { error: "Invalid or inactive API key." },
-      { status: 401 }
-    );
-  }
-
-  // Verify the key has the "marketplace" scope
-  const rawScopes: unknown = apiKey.scopes;
-  const scopes: string[] = Array.isArray(rawScopes)
-    ? rawScopes as string[]
-    : typeof rawScopes === "string"
-      ? (rawScopes as string).split(",").map((s: string) => s.trim())
-      : [];
-
-  if (!scopes.includes("marketplace")) {
-    return NextResponse.json(
-      {
-        error:
-          'This API key does not have the "marketplace" scope. Update the key scopes and try again.',
-      },
-      { status: 403 }
-    );
+  if (!auth.authenticated) {
+    return auth.response;
   }
 
   return {
-    ownerId: apiKey.owner_id,
-    apiKeyId: apiKey.id,
-    agentId: apiKey.agent_id ?? null,
+    ownerId: auth.keyRecord.owner_id as string,
+    apiKeyId: auth.keyRecord.id as string,
+    agentId: (auth.keyRecord.agent_id as string | null | undefined) ?? null,
   };
 }
 
@@ -242,7 +199,7 @@ async function authenticateBot(
 export async function POST(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bot-listing-create:${ip}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`bot-listing-create:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -252,7 +209,7 @@ export async function POST(request: NextRequest) {
 
   // Authenticate bot
   const auth = await authenticateBot(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof Response) return auth;
 
   const { ownerId } = auth;
 
@@ -276,11 +233,14 @@ export async function POST(request: NextRequest) {
   }
 
   const sb = createAdminClient();
+  const enforceSellerVerification = isRuntimeFlagEnabled(
+    "ENFORCE_SELLER_VERIFICATION"
+  );
 
   // Ensure the bot's owner has is_seller: true
   const { data: profile } = await sb
     .from("profiles")
-    .select("id, is_seller")
+    .select("id, is_seller, seller_verified")
     .eq("id", ownerId)
     .single();
 
@@ -297,6 +257,21 @@ export async function POST(request: NextRequest) {
       .update({ is_seller: true })
       .eq("id", ownerId);
   }
+
+  if (!profile.seller_verified && !enforceSellerVerification) {
+    await systemLog.warn(
+      "api/marketplace/listings/bot",
+      "Deprecated unverified seller publish path used by bot",
+      {
+        ownerId,
+        apiKeyId: auth.apiKeyId,
+        listingType: parsed.data.listing_type,
+      }
+    );
+  }
+
+  const initialStatus =
+    profile.seller_verified || !enforceSellerVerification ? "active" : "draft";
 
   // Auto-create wallet for the bot's owner if not exists
   try {
@@ -350,7 +325,7 @@ export async function POST(request: NextRequest) {
       description,
       short_description: short_description || null,
       listing_type,
-      status: "active",
+      status: initialStatus,
       pricing_type: pricing_type || "one_time",
       price: price ?? null,
       currency: currency || "USD",
@@ -389,7 +364,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
   const ip = getClientIp(request);
-  const rl = rateLimit(`bot-listing-update:${ip}`, RATE_LIMITS.api);
+  const rl = await rateLimit(`bot-listing-update:${ip}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests." },
@@ -399,7 +374,7 @@ export async function PATCH(request: NextRequest) {
 
   // Authenticate bot
   const auth = await authenticateBot(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof Response) return auth;
 
   const { ownerId } = auth;
 
@@ -467,6 +442,35 @@ export async function PATCH(request: NextRequest) {
       { error: "No valid fields to update." },
       { status: 400 }
     );
+  }
+
+  if (updates.status === "active") {
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("seller_verified")
+      .eq("id", ownerId)
+      .single();
+
+    const sellerVerified = Boolean(profile?.seller_verified);
+    const enforceSellerVerification = isRuntimeFlagEnabled(
+      "ENFORCE_SELLER_VERIFICATION"
+    );
+
+    if (!sellerVerified) {
+      if (enforceSellerVerification) {
+        updates.status = "draft";
+      } else {
+        await systemLog.warn(
+          "api/marketplace/listings/bot",
+          "Deprecated unverified seller publish path used by bot",
+          {
+            ownerId,
+            apiKeyId: auth.apiKeyId,
+            slug,
+          }
+        );
+      }
+    }
   }
 
   // Always set updated_at

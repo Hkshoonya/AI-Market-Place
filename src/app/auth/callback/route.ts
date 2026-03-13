@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { buildCanonicalUrl } from "@/lib/constants/site";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
 
@@ -16,10 +17,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${sanitizedNext}`);
+      return NextResponse.redirect(buildCanonicalUrl(sanitizedNext));
     }
   }
 
   // Auth code error — redirect to login with error
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
+  return NextResponse.redirect(
+    buildCanonicalUrl("/login?error=auth_callback_failed")
+  );
 }

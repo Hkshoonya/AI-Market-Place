@@ -11,9 +11,11 @@
  * called inside individual API route handlers.
  */
 
+import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { debitWallet, getWalletByOwner } from "@/lib/payments/wallet";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import type { Database } from "@/types/database";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
@@ -136,12 +138,10 @@ export async function checkPaywall(
     return handleBotRequest(request, apiKey, rule);
   }
 
-  // Check for Supabase session cookie (human)
-  const hasSbCookie = request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith("sb-"));
-  if (hasSbCookie) {
-    return handleHumanRequest(request, rule);
+  // Check for a valid Supabase session (human)
+  const resolvedUser = await resolvePaywallUser(request);
+  if (resolvedUser) {
+    return handleHumanRequest(request, rule, resolvedUser.id);
   }
 
   // Public / unauthenticated
@@ -194,7 +194,7 @@ async function handleBotRequest(
   const rateLimitValue =
     rule?.rate_limit_paid || keyRecord.rate_limit_per_minute || 300;
 
-  const rl = rateLimit(`bot:${keyRecord.id}:${ip}`, {
+  const rl = await rateLimit(`bot:${keyRecord.id}:${ip}`, {
     limit: rateLimitValue,
     windowMs: 60_000,
   });
@@ -287,13 +287,14 @@ async function handleBotRequest(
 
 async function handleHumanRequest(
   request: NextRequest,
-  rule: PricingRule | null
+  rule: PricingRule | null,
+  userId?: string
 ): Promise<PaywallResult> {
   // Humans always get free access, just rate-limited
   const ip = getClientIp(request);
   const limit = rule?.rate_limit_free || 60;
 
-  const rl = rateLimit(`human:${ip}`, { limit, windowMs: 60_000 });
+  const rl = await rateLimit(`human:${ip}`, { limit, windowMs: 60_000 });
 
   if (!rl.success) {
     return {
@@ -304,7 +305,7 @@ async function handleHumanRequest(
     };
   }
 
-  return { allowed: true, callerType: "human" };
+  return { allowed: true, callerType: "human", userId };
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +319,7 @@ async function handlePublicRequest(
   const ip = getClientIp(request);
   const limit = rule?.rate_limit_free || 10;
 
-  const rl = rateLimit(`public:${ip}`, { limit, windowMs: 60_000 });
+  const rl = await rateLimit(`public:${ip}`, { limit, windowMs: 60_000 });
 
   if (!rl.success) {
     return {
@@ -353,4 +354,44 @@ export function paywallErrorResponse(result: PaywallResult): NextResponse {
   }
 
   return NextResponse.json(body, { status: result.statusCode || 403 });
+}
+
+async function resolvePaywallUser(
+  request: NextRequest
+): Promise<{ id: string } | null> {
+  const hasSbCookie = request.cookies
+    .getAll()
+    .some((cookie) => cookie.name.startsWith("sb-"));
+
+  if (!hasSbCookie) {
+    return null;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll() {
+        // Paywall checks are read-only; session refresh writes are unnecessary here.
+      },
+    },
+  });
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    return user ? { id: user.id } : null;
+  } catch {
+    return null;
+  }
 }

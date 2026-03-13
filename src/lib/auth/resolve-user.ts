@@ -16,6 +16,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export interface ResolvedUser {
   userId: string;
   authMethod: "session" | "api_key";
+  apiKeyId?: string;
+  apiKeyScopes?: string[];
 }
 
 /**
@@ -65,5 +67,9 @@ export async function resolveAuthUser(
   return {
     userId: auth.keyRecord.owner_id as string,
     authMethod: "api_key",
+    apiKeyId: auth.keyRecord.id as string | undefined,
+    apiKeyScopes: Array.isArray(auth.keyRecord.scopes)
+      ? (auth.keyRecord.scopes as string[])
+      : [],
   };
 }
