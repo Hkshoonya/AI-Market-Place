@@ -52,6 +52,35 @@ function createMockSupabase(
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 }
 
+function createPagedMockSupabase(
+  overrides: Record<string, Array<{ data: unknown; error: unknown }>>
+) {
+  const pageIndexByTable = new Map<string, number>();
+  return {
+    from: (table: string) => {
+      const resolvePage = () => {
+        const pageIndex = pageIndexByTable.get(table) ?? 0;
+        const result = overrides[table]?.[pageIndex] ?? {
+          data: [],
+          error: null,
+        };
+        pageIndexByTable.set(table, pageIndex + 1);
+        return Promise.resolve(result);
+      };
+
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        gte: () => chain,
+        not: () => chain,
+        range: () => resolvePage(),
+      };
+
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+}
+
 describe("fetchInputs", () => {
   it("returns ScoringInputs with populated models, benchmark, elo, and news maps", async () => {
     const mockModels = [
@@ -191,5 +220,64 @@ describe("fetchInputs", () => {
     expect(result.eloMap.size).toBe(0);
     expect(result.newsMentionMap.size).toBe(0);
     expect(typeof result.staleCount).toBe("number");
+  });
+
+  it("paginates model input queries beyond the 1000-row default", async () => {
+    const pageOne = Array.from({ length: 1000 }, (_, i) => ({
+      id: `m${i + 1}`,
+      name: `Model ${i + 1}`,
+      slug: `model-${i + 1}`,
+      provider: "test",
+      category: "llm",
+      quality_score: null,
+      value_score: null,
+      hf_downloads: null,
+      hf_likes: null,
+      release_date: null,
+      is_open_weights: false,
+      hf_trending_score: null,
+      parameter_count: null,
+      github_stars: null,
+    }));
+    const pageTwo = [
+      {
+        id: "m1001",
+        name: "Model 1001",
+        slug: "model-1001",
+        provider: "test",
+        category: "llm",
+        quality_score: null,
+        value_score: null,
+        hf_downloads: null,
+        hf_likes: null,
+        release_date: null,
+        is_open_weights: false,
+        hf_trending_score: null,
+        parameter_count: null,
+        github_stars: null,
+      },
+    ];
+
+    const supabase = createPagedMockSupabase({
+      models: [
+        { data: pageOne, error: null },
+        { data: pageTwo, error: null },
+        { data: [], error: null },
+      ],
+      benchmark_scores: [
+        { data: [], error: null },
+      ],
+      elo_ratings: [
+        { data: [], error: null },
+      ],
+      model_news: [
+        { data: [], error: null },
+      ],
+    });
+
+    const result = await fetchInputs(supabase);
+
+    expect(result.models).toHaveLength(1001);
+    expect(result.models.at(-1)?.id).toBe("m1001");
   });
 });

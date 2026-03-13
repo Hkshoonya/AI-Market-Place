@@ -109,4 +109,32 @@ describe("computeCapabilityScore", () => {
     };
     expect(computeCapabilityScore(withNull)).toBe(computeCapabilityScore(withEmpty));
   });
+
+  it("treats livecodebench as a primary coding benchmark", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+
+    const strongPrimary: CapabilityInputs = {
+      benchmarkScores: [
+        { slug: "livecodebench", score: 90 },
+        { slug: "livebench-coding", score: 30 },
+      ],
+      eloScore: null,
+      releaseDate: "2025-12-01",
+      category: "code",
+    };
+
+    const secondaryOnly: CapabilityInputs = {
+      benchmarkScores: [
+        { slug: "livebench-coding", score: 30 },
+      ],
+      eloScore: null,
+      releaseDate: "2025-12-01",
+      category: "code",
+    };
+
+    expect(computeCapabilityScore(strongPrimary)!).toBeGreaterThan(
+      computeCapabilityScore(secondaryOnly)!
+    );
+  });
 });
