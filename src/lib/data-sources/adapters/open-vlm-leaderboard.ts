@@ -16,6 +16,10 @@ import type {
   SyncContext,
   SyncResult,
 } from "../types";
+import {
+  buildModelAliasIndex,
+  resolveAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, isPermanentHttpFailure, makeSlug } from "../utils";
 
@@ -262,6 +266,7 @@ const adapter: DataSourceAdapter = {
       name: string;
       provider: string;
     }[];
+    const modelAliasIndex = buildModelAliasIndex(allModels);
 
     const slugToId = new Map<string, string>();
     const nameLowerToId = new Map<string, string>();
@@ -313,6 +318,31 @@ const adapter: DataSourceAdapter = {
       return null;
     }
 
+    function findAllModelIds(rawName: string): string[] {
+      const primaryId = findModelId(rawName);
+      if (!primaryId) return [];
+
+      const slug = makeSlug(rawName);
+      const shortName = rawName.split("/").pop() ?? rawName;
+      const shortSlug = makeSlug(shortName);
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
+        slugCandidates: [
+          slug,
+          shortSlug,
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${slug}`),
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${shortSlug}`),
+        ],
+        nameCandidates: [rawName, shortName, nameWithSpaces, nameWithDots],
+      });
+
+      return relatedIds.length > 0 ? relatedIds : [primaryId];
+    }
+
     let recordsProcessed = 0;
     let recordsCreated = 0;
     let matchedCount = 0;
@@ -322,10 +352,11 @@ const adapter: DataSourceAdapter = {
       const rank = index + 1;
       const modelName = item.modelName;
       const modelSlug = makeSlug(modelName);
-      const modelId = findModelId(modelName);
+      const allModelIds = findAllModelIds(modelName);
+      const modelId = allModelIds[0] ?? null;
 
       recordsProcessed++;
-      if (modelId) matchedCount++;
+      if (allModelIds.length > 0) matchedCount++;
 
       const newsRecord = {
         source: "open-vlm-leaderboard",
@@ -356,33 +387,35 @@ const adapter: DataSourceAdapter = {
         errors.push({ message: `News upsert for ${modelName}: ${newsError.message}` });
       }
 
-      if (!modelId) continue;
+      if (allModelIds.length === 0) continue;
 
       for (const extractedScore of item.extractedScores) {
         const benchmarkId = benchmarkIdCache.get(extractedScore.benchmarkSlug);
         if (!benchmarkId) continue;
 
-        const { error: scoreError } = await sb
-          .from("benchmark_scores")
-          .upsert(
-            {
-              model_id: modelId,
-              benchmark_id: benchmarkId,
-              score: extractedScore.score,
-              score_normalized: extractedScore.normalizedScore,
-              model_version: "",
-              source: "open-vlm-leaderboard",
-              evaluation_date: today,
-            },
-            { onConflict: "model_id,benchmark_id,model_version" }
-          );
+        for (const targetModelId of allModelIds) {
+          const { error: scoreError } = await sb
+            .from("benchmark_scores")
+            .upsert(
+              {
+                model_id: targetModelId,
+                benchmark_id: benchmarkId,
+                score: extractedScore.score,
+                score_normalized: extractedScore.normalizedScore,
+                model_version: "",
+                source: "open-vlm-leaderboard",
+                evaluation_date: today,
+              },
+              { onConflict: "model_id,benchmark_id,model_version" }
+            );
 
-        if (scoreError) {
-          errors.push({
-            message: `benchmark_scores upsert for ${modelName}/${extractedScore.benchmarkSlug}: ${scoreError.message}`,
-          });
-        } else {
-          recordsCreated++;
+          if (scoreError) {
+            errors.push({
+              message: `benchmark_scores upsert for ${modelName}/${extractedScore.benchmarkSlug}: ${scoreError.message}`,
+            });
+          } else {
+            recordsCreated++;
+          }
         }
       }
     }

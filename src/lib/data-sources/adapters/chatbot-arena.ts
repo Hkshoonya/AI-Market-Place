@@ -13,6 +13,10 @@ import type {
   SyncResult,
   HealthCheckResult,
 } from "../types";
+import {
+  buildModelAliasIndex,
+  resolveAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
 
@@ -137,6 +141,7 @@ const adapter: DataSourceAdapter = {
     const allModels = (allModelsRaw ?? []) as {
       id: string; slug: string; name: string; provider: string;
     }[];
+    const modelAliasIndex = buildModelAliasIndex(allModels);
 
     const slugToId = new Map<string, string>();
     const nameLowerToId = new Map<string, string>();
@@ -161,6 +166,19 @@ const adapter: DataSourceAdapter = {
         if (dbSlug.endsWith("-" + slug) || slug.endsWith("-" + dbSlug)) return id;
       }
       return null;
+    }
+
+    function findAllModelIds(rawName: string): string[] {
+      const primaryId = findModelId(rawName);
+      if (!primaryId) return [];
+
+      const normalizedName = rawName.toLowerCase();
+      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
+        slugCandidates: [makeSlug(rawName)],
+        nameCandidates: [rawName, normalizedName],
+      });
+
+      return relatedIds.length > 0 ? relatedIds : [primaryId];
     }
 
     for (const row of allRows) {
@@ -221,29 +239,31 @@ const adapter: DataSourceAdapter = {
 
       recordsProcessed++;
 
-      const modelId = findModelId(modelName);
-      if (!modelId) continue;
+      const modelIds = findAllModelIds(modelName);
+      if (modelIds.length === 0) continue;
 
-      const { error } = await sb.from("elo_ratings").upsert(
-        {
-          model_id: modelId,
-          arena_name: "chatbot-arena",
-          elo_score: eloScore,
-          confidence_interval_low: ciLow,
-          confidence_interval_high: ciHigh,
-          num_battles: votes,
-          rank,
-          snapshot_date: today,
-        },
-        { onConflict: "model_id,arena_name,snapshot_date" }
-      );
+      for (const modelId of modelIds) {
+        const { error } = await sb.from("elo_ratings").upsert(
+          {
+            model_id: modelId,
+            arena_name: "chatbot-arena",
+            elo_score: eloScore,
+            confidence_interval_low: ciLow,
+            confidence_interval_high: ciHigh,
+            num_battles: votes,
+            rank,
+            snapshot_date: today,
+          },
+          { onConflict: "model_id,arena_name,snapshot_date" }
+        );
 
-      if (error) {
-        errors.push({
-          message: `Elo upsert for ${modelName}: ${error.message}`,
-        });
-      } else {
-        recordsCreated++;
+        if (error) {
+          errors.push({
+            message: `Elo upsert for ${modelName}: ${error.message}`,
+          });
+        } else {
+          recordsCreated++;
+        }
       }
     }
 

@@ -20,6 +20,10 @@ import type {
   SyncResult,
   HealthCheckResult,
 } from "../types";
+import {
+  buildModelAliasIndex,
+  resolveAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, isPermanentHttpFailure, makeSlug } from "../utils";
 
@@ -204,6 +208,7 @@ const adapter: DataSourceAdapter = {
       name: string;
       provider: string;
     }[];
+    const modelAliasIndex = buildModelAliasIndex(allModels);
 
     // Build multiple lookup indexes
     const slugToId = new Map<string, string>();
@@ -257,6 +262,31 @@ const adapter: DataSourceAdapter = {
       return null;
     }
 
+    function findAllModelIds(rawName: string): string[] {
+      const primaryId = findModelId(rawName);
+      if (!primaryId) return [];
+
+      const slug = makeSlug(rawName);
+      const shortName = rawName.split("/").pop() ?? rawName;
+      const shortSlug = makeSlug(shortName);
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
+        slugCandidates: [
+          slug,
+          shortSlug,
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${slug}`),
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${shortSlug}`),
+        ],
+        nameCandidates: [rawName, shortName, nameWithSpaces, nameWithDots],
+      });
+
+      return relatedIds.length > 0 ? relatedIds : [primaryId];
+    }
+
     let matchedCount = 0;
 
     for (let i = 0; i < entries.length; i++) {
@@ -272,9 +302,10 @@ const adapter: DataSourceAdapter = {
       recordsProcessed++;
 
       const modelSlug = makeSlug(modelName);
-      const modelId = findModelId(modelName);
+      const allModelIds = findAllModelIds(modelName);
+      const modelId = allModelIds[0] ?? null;
 
-      if (modelId) matchedCount++;
+      if (allModelIds.length > 0) matchedCount++;
 
       // Store as news entry for traceability
       const newsRecord = {
@@ -306,31 +337,33 @@ const adapter: DataSourceAdapter = {
       }
 
       // Write structured benchmark_score
-      if (!modelId || !sealBenchmarkId) continue;
+      if (allModelIds.length === 0 || !sealBenchmarkId) continue;
 
       const normalizedScore = score > 1 ? score : score * 100;
 
-      const { error: scoreError } = await sb
-        .from("benchmark_scores")
-        .upsert(
-          {
-            model_id: modelId,
-            benchmark_id: sealBenchmarkId,
-            score,
-            score_normalized: normalizedScore,
-            model_version: "",
-            source: "seal-leaderboard",
-            evaluation_date: today,
-          },
-          { onConflict: "model_id,benchmark_id,model_version" }
-        );
+      for (const targetModelId of allModelIds) {
+        const { error: scoreError } = await sb
+          .from("benchmark_scores")
+          .upsert(
+            {
+              model_id: targetModelId,
+              benchmark_id: sealBenchmarkId,
+              score,
+              score_normalized: normalizedScore,
+              model_version: "",
+              source: "seal-leaderboard",
+              evaluation_date: today,
+            },
+            { onConflict: "model_id,benchmark_id,model_version" }
+          );
 
-      if (scoreError) {
-        errors.push({
-          message: `benchmark_scores upsert for ${modelName}/seal: ${scoreError.message}`,
-        });
-      } else {
-        recordsCreated++;
+        if (scoreError) {
+          errors.push({
+            message: `benchmark_scores upsert for ${modelName}/seal: ${scoreError.message}`,
+          });
+        } else {
+          recordsCreated++;
+        }
       }
     }
 

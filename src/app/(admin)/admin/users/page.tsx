@@ -15,10 +15,9 @@ import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatDate } from "@/lib/format";
-import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Profile } from "@/types/database";
@@ -38,39 +37,17 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const query = new URLSearchParams({
+    page: String(page),
+    role: roleFilter,
+  });
+  if (search) {
+    query.set("search", search);
+  }
 
   const { data, isLoading: loading, mutate } = useSWR<AdminUsersData>(
-    `supabase:admin-users:${page}:${roleFilter}:${search}`,
-    async () => {
-      const supabase = createClient();
-      let query = supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, is_admin, is_seller, seller_verified, joined_at, total_sales, reputation_score, is_seller, seller_bio, seller_website, seller_rating, bio, created_at, updated_at", { count: "exact" });
-
-      if (roleFilter === "admin") query = query.eq("is_admin", true);
-      if (roleFilter === "seller") query = query.eq("is_seller", true);
-      if (roleFilter === "banned") query = query.eq("is_banned", true);
-      if (roleFilter === "verified_seller") query = query.eq("seller_verified", true);
-
-      if (search) {
-        const safeSearch = sanitizeFilterValue(search);
-        if (safeSearch) {
-          query = query.or(`display_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,username.ilike.%${safeSearch}%`);
-        }
-      }
-
-      query = query.order("joined_at", { ascending: false });
-
-      const from = (page - 1) * PAGE_SIZE;
-      query = query.range(from, from + PAGE_SIZE - 1);
-
-      const { data: queryData, count, error } = await query;
-      if (error) throw error;
-      return {
-        users: (queryData as AdminUserRow[]) ?? [],
-        totalCount: count ?? 0,
-      };
-    },
+    `/api/admin/users?${query.toString()}`,
+    (url) => jsonFetcher<AdminUsersData>(url),
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -79,31 +56,41 @@ export default function AdminUsersPage() {
 
   const toggleAdmin = async (id: string, currentValue: boolean) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_admin: !currentValue })
-        .eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: id,
+          isAdmin: !currentValue,
+        }),
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Request failed");
       toast.success(currentValue ? "Admin role removed" : "Admin role granted");
-      mutate();
-    } catch {
-      toast.error("Failed to update admin status");
+      await mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update admin status");
     }
   };
 
   const toggleSellerVerified = async (id: string, currentValue: boolean) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ seller_verified: !currentValue })
-        .eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: id,
+          sellerVerified: !currentValue,
+        }),
+      });
+
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Request failed");
       toast.success(currentValue ? "Seller verification removed" : "Seller verified successfully");
-      mutate();
-    } catch {
-      toast.error("Failed to update seller verification");
+      await mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update seller verification");
     }
   };
 

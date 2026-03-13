@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import type { VerificationStatus, SellerVerificationRequest } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
       : "pending";
 
     // Two-query approach: seller_verification_requests may not have FK to profiles
-    const { data: rawData, error } = await supabase
+    const { data: rawData, error } = await adminSupabase
       .from("seller_verification_requests")
       .select("*")
       .eq("status", status)
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest) {
     if (data.length > 0) {
       const userIds = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await adminSupabase
           .from("profiles")
           .select("id, display_name, username, avatar_url, email, is_seller, seller_verified")
           .in("id", userIds);
@@ -95,6 +97,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -122,7 +125,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get the request
-    const { data: verReq } = await supabase
+    const { data: verReq } = await adminSupabase
       .from("seller_verification_requests")
       .select("user_id, status")
       .eq("id", request_id)
@@ -135,7 +138,7 @@ export async function PATCH(request: NextRequest) {
     const newStatus = action === "approve" ? "approved" : "rejected";
 
     // Update the request
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from("seller_verification_requests")
       .update({
         status: newStatus,
@@ -152,16 +155,19 @@ export async function PATCH(request: NextRequest) {
 
     // If approved, update the user's profile
     if (action === "approve") {
-      await supabase
+      const { error: profileError } = await adminSupabase
         .from("profiles")
         .update({
           seller_verified: true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", verReq.user_id);
+      if (profileError) {
+        return NextResponse.json({ error: profileError.message }, { status: 500 });
+      }
 
       // Create notification for the user (non-critical, log errors only)
-      const { error: notifError } = await supabase.from("notifications").insert({
+      const { error: notifError } = await adminSupabase.from("notifications").insert({
         user_id: verReq.user_id,
         type: "system",
         title: "Seller verification approved!",
@@ -173,7 +179,7 @@ export async function PATCH(request: NextRequest) {
       }
     } else {
       // Rejected notification (non-critical, log errors only)
-      const { error: notifError } = await supabase.from("notifications").insert({
+      const { error: notifError } = await adminSupabase.from("notifications").insert({
         user_id: verReq.user_id,
         type: "system",
         title: "Seller verification update",

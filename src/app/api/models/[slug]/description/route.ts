@@ -31,11 +31,7 @@ export async function GET(
       .eq("model_id", modelRaw.id)
       .single();
 
-    if (!description) {
-      return NextResponse.json({ error: "No description available" }, { status: 404 });
-    }
-
-    return NextResponse.json(description);
+    return NextResponse.json(description ?? null);
   } catch (err) {
     return handleApiError(err, "api/models/description");
   }

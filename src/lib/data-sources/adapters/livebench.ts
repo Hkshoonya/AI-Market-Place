@@ -21,6 +21,10 @@ import type {
   SyncResult,
   HealthCheckResult,
 } from "../types";
+import {
+  buildModelAliasIndex,
+  resolveAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
 // REMOVED: import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
@@ -314,6 +318,7 @@ const adapter: DataSourceAdapter = {
       name: string;
       provider: string;
     }[];
+    const modelAliasIndex = buildModelAliasIndex(allModels);
 
     // Build multiple lookup indexes for flexible matching
     const slugToId = new Map<string, string>();
@@ -381,47 +386,26 @@ const adapter: DataSourceAdapter = {
 
     // Build a map of base slug → all dated variant IDs
     // e.g., "openai-o3" → ["id-of-openai-o3-2025-04-16", ...]
-    const baseToDatedIds = new Map<string, string[]>();
-    for (const m of allModels) {
-      // Check if this model has a date suffix (YYYY-MM-DD)
-      const dateMatch = m.slug.match(/^(.+)-\d{4}-\d{2}-\d{2}$/);
-      if (dateMatch) {
-        const baseSlug = dateMatch[1];
-        const existing = baseToDatedIds.get(baseSlug) ?? [];
-        existing.push(m.id);
-        baseToDatedIds.set(baseSlug, existing);
-      }
-    }
-
     // Find all model IDs that should receive scores for a given match
     // Returns the primary match + any dated variants
     function findAllModelIds(rawName: string): string[] {
       const primaryId = findModelId(rawName);
       if (!primaryId) return [];
+      const { slug, shortName } = normalizeModelName(rawName);
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
+        slugCandidates: [
+          slug,
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${slug}`),
+        ],
+        nameCandidates: [rawName, shortName, nameWithSpaces, nameWithDots],
+      });
 
-      const ids = [primaryId];
-
-      // Find the slug of the matched model
-      const matchedModel = allModels.find((m) => m.id === primaryId);
-      if (matchedModel) {
-        // Check if there are dated variants of this model
-        const datedIds = baseToDatedIds.get(matchedModel.slug) ?? [];
-        for (const datedId of datedIds) {
-          if (!ids.includes(datedId)) ids.push(datedId);
-        }
-
-        // Also check if WE are the base of a dated variant via provider-prefixed slug
-        const providerSlug = makeSlug(matchedModel.provider);
-        if (matchedModel.slug.startsWith(providerSlug + "-")) {
-          const fullSlug = matchedModel.slug;
-          const datedIdsForFull = baseToDatedIds.get(fullSlug) ?? [];
-          for (const datedId of datedIdsForFull) {
-            if (!ids.includes(datedId)) ids.push(datedId);
-          }
-        }
-      }
-
-      return ids;
+      return relatedIds.length > 0 ? relatedIds : [primaryId];
     }
 
     for (const [modelName, categoryScores] of modelCategoryAvgs) {

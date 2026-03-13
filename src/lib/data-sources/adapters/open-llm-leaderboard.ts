@@ -4,6 +4,10 @@ import type {
   SyncResult,
   HealthCheckResult,
 } from "../types";
+import {
+  buildModelAliasIndex,
+  resolveAliasFamilyModelIds,
+} from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
 
@@ -223,6 +227,7 @@ const adapter: DataSourceAdapter = {
       name: string;
       provider: string;
     }[];
+    const modelAliasIndex = buildModelAliasIndex(allModels);
 
     // Build multiple lookup indexes for flexible matching
     const slugToId = new Map<string, string>();
@@ -243,17 +248,6 @@ const adapter: DataSourceAdapter = {
     }
 
     // Build base-slug → dated-variant-IDs map
-    const baseToDatedIds = new Map<string, string[]>();
-    for (const m of allModels) {
-      const dateMatch = m.slug.match(/^(.+)-\d{4}-\d{2}-\d{2}$/);
-      if (dateMatch) {
-        const baseSlug = dateMatch[1];
-        const existing = baseToDatedIds.get(baseSlug) ?? [];
-        existing.push(m.id);
-        baseToDatedIds.set(baseSlug, existing);
-      }
-    }
-
     // Pre-load benchmark ID lookup
     const { data: allBenchmarks } = await sb.from("benchmarks").select("id, slug");
     const benchmarkIdMap = new Map<string, number>();
@@ -326,17 +320,26 @@ const adapter: DataSourceAdapter = {
     function findAllModelIds(fullname: string): string[] {
       const primaryId = findModelId(fullname);
       if (!primaryId) return [];
+      const { slug, shortName, orgSlug } = normalizeHFName(fullname);
+      const instructSlug = `${slug}-instruct`;
+      const nameWithSpaces = shortName.replace(/-/g, " ").toLowerCase();
+      const nameWithDots = shortName
+        .replace(/(\d)-(\d)/g, "$1.$2")
+        .replace(/-/g, " ")
+        .toLowerCase();
+      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
+        slugCandidates: [
+          makeSlug(fullname),
+          slug,
+          orgSlug ? `${orgSlug}-${slug}` : null,
+          instructSlug,
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${slug}`),
+          ...PROVIDER_PREFIXES.map((prefix) => `${prefix}${instructSlug}`),
+        ],
+        nameCandidates: [fullname, shortName, nameWithSpaces, nameWithDots],
+      });
 
-      const ids = [primaryId];
-      const matchedModel = allModels.find((m) => m.id === primaryId);
-      if (matchedModel) {
-        const datedIds = baseToDatedIds.get(matchedModel.slug) ?? [];
-        for (const datedId of datedIds) {
-          if (!ids.includes(datedId)) ids.push(datedId);
-        }
-      }
-
-      return ids;
+      return relatedIds.length > 0 ? relatedIds : [primaryId];
     }
 
     let matchedCount = 0;

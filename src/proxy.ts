@@ -81,8 +81,9 @@ export async function proxy(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
+  const requiresAuth = isProtectedRoute(pathname) || isAdminRoute(pathname);
 
-  if (isProtectedRoute(pathname)) {
+  if (requiresAuth) {
     if (!user) {
       return NextResponse.redirect(
         buildCanonicalUrl(`/login?redirect=${encodeURIComponent(pathname)}`)

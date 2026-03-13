@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { assertUuid } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
@@ -20,6 +21,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -60,8 +62,15 @@ export async function PATCH(request: NextRequest) {
     switch (`${target_type}:${action}`) {
       // User actions
       case "user:ban": {
-        await supabase.from("profiles").update({ is_banned: true }).eq("id", target_id);
-        const { error: banNotifError } = await supabase.from("notifications").insert({
+        const { error: banError } = await adminSupabase
+          .from("profiles")
+          .update({ is_banned: true, updated_at: new Date().toISOString() })
+          .eq("id", target_id);
+        if (banError) {
+          return NextResponse.json({ error: banError.message }, { status: 500 });
+        }
+
+        const { error: banNotifError } = await adminSupabase.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account suspended",
@@ -74,8 +83,15 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "user:unban": {
-        await supabase.from("profiles").update({ is_banned: false }).eq("id", target_id);
-        const { error: unbanNotifError } = await supabase.from("notifications").insert({
+        const { error: unbanError } = await adminSupabase
+          .from("profiles")
+          .update({ is_banned: false, updated_at: new Date().toISOString() })
+          .eq("id", target_id);
+        if (unbanError) {
+          return NextResponse.json({ error: unbanError.message }, { status: 500 });
+        }
+
+        const { error: unbanNotifError } = await adminSupabase.from("notifications").insert({
           user_id: target_id,
           type: "system",
           title: "Account reinstated",
@@ -89,19 +105,25 @@ export async function PATCH(request: NextRequest) {
 
       // Listing actions
       case "listing:remove": {
-        const { data: listing } = await supabase
+        const { data: listing, error: listingError } = await adminSupabase
           .from("marketplace_listings")
           .select("seller_id, title")
           .eq("id", target_id)
           .single();
+        if (listingError) {
+          return NextResponse.json({ error: listingError.message }, { status: 500 });
+        }
 
-        await supabase
+        const { error: archiveError } = await adminSupabase
           .from("marketplace_listings")
-          .update({ status: "archived" })
+          .update({ status: "archived", updated_at: new Date().toISOString() })
           .eq("id", target_id);
+        if (archiveError) {
+          return NextResponse.json({ error: archiveError.message }, { status: 500 });
+        }
 
         if (listing) {
-          const { error: listingNotifError } = await supabase.from("notifications").insert({
+          const { error: listingNotifError } = await adminSupabase.from("notifications").insert({
             user_id: listing.seller_id,
             type: "marketplace",
             title: "Listing removed",
@@ -116,22 +138,34 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "listing:restore": {
-        await supabase
+        const { error } = await adminSupabase
           .from("marketplace_listings")
-          .update({ status: "active" })
+          .update({ status: "active", updated_at: new Date().toISOString() })
           .eq("id", target_id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
         return NextResponse.json({ success: true, message: "Listing restored" });
       }
 
       // Review actions
       case "review:remove": {
-        await supabase.from("marketplace_reviews").delete().eq("id", target_id);
+        const { error } = await adminSupabase
+          .from("marketplace_reviews")
+          .delete()
+          .eq("id", target_id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
         return NextResponse.json({ success: true, message: "Review deleted" });
       }
 
       // Comment actions
       case "comment:remove": {
-        await supabase.from("comments").delete().eq("id", target_id);
+        const { error } = await adminSupabase.from("comments").delete().eq("id", target_id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
         return NextResponse.json({ success: true, message: "Comment deleted" });
       }
 
