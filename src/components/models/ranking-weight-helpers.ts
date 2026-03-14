@@ -14,9 +14,13 @@ export interface RankableModel {
   is_open_weights: boolean;
   hf_downloads: number | null;
   popularity_score: number | null;
+  adoption_rank: number | null;
+  adoption_score: number | null;
   agent_score: number | null;
   agent_rank: number | null;
   popularity_rank: number | null;
+  economic_footprint_rank: number | null;
+  economic_footprint_score: number | null;
   market_cap_estimate: number | null;
   capability_score: number | null;
   capability_rank: number | null;
@@ -27,7 +31,7 @@ export interface RankableModel {
   balanced_rank: number | null;
 }
 
-export type WeightKey = "humaneval" | "market_cap" | "quality" | "popularity" | "agent";
+export type WeightKey = "capability" | "economic_footprint" | "popularity" | "adoption" | "agent";
 
 export interface WeightSignal {
   label: string;
@@ -40,25 +44,25 @@ export interface WeightSignal {
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_WEIGHTS: Record<WeightKey, WeightSignal> = {
-  humaneval: {
-    label: "HumanEval Score",
+  capability: {
+    label: "Capability",
     weight: 30,
-    description: "Code generation benchmark",
+    description: "Technical benchmark and arena performance",
   },
-  market_cap: {
-    label: "Market Cap",
+  economic_footprint: {
+    label: "Economic Footprint",
     weight: 25,
-    description: "Revenue-based market importance",
-  },
-  quality: {
-    label: "Quality Score",
-    weight: 20,
-    description: "Combined benchmark performance",
+    description: "Adoption, monetization, distribution, and confidence",
   },
   popularity: {
     label: "Popularity",
+    weight: 20,
+    description: "Community attention, market traction, and durability",
+  },
+  adoption: {
+    label: "Adoption",
     weight: 15,
-    description: "Downloads, likes, and usage",
+    description: "Observed real-world usage and distribution reach",
   },
   agent: {
     label: "Agent Score",
@@ -68,10 +72,10 @@ export const DEFAULT_WEIGHTS: Record<WeightKey, WeightSignal> = {
 };
 
 export const WEIGHT_KEYS: WeightKey[] = [
-  "humaneval",
-  "market_cap",
-  "quality",
+  "capability",
+  "economic_footprint",
   "popularity",
+  "adoption",
   "agent",
 ];
 
@@ -85,14 +89,14 @@ export const STEP = 5;
 
 export function getRawValue(model: RankableModel, key: WeightKey): number | null {
   switch (key) {
-    case "humaneval":
-      return model.quality_score;
-    case "market_cap":
-      return model.market_cap_estimate;
-    case "quality":
-      return model.quality_score;
+    case "capability":
+      return model.capability_score;
+    case "economic_footprint":
+      return model.economic_footprint_score;
     case "popularity":
       return model.popularity_score;
+    case "adoption":
+      return model.adoption_score;
     case "agent":
       return model.agent_score;
   }

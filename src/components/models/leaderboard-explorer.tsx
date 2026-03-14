@@ -31,9 +31,13 @@ export interface LeaderboardModel {
   is_open_weights: boolean;
   hf_downloads: number | null;
   popularity_score: number | null;
+  adoption_score: number | null;
+  adoption_rank: number | null;
   agent_score: number | null;
   agent_rank: number | null;
   popularity_rank: number | null;
+  economic_footprint_score: number | null;
+  economic_footprint_rank: number | null;
   market_cap_estimate: number | null;
   capability_score: number | null;
   capability_rank: number | null;
@@ -52,9 +56,32 @@ interface LeaderboardExplorerProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getLensRank(model: LeaderboardModel, lens: RankingLens): number | null {
+function buildRankMap(
+  models: LeaderboardModel[],
+  scoreAccessor: (model: LeaderboardModel) => number | null
+): Map<string, number> {
+  const ranked = models
+    .map((model) => ({ slug: model.slug, score: scoreAccessor(model), overallRank: model.overall_rank ?? Number.MAX_SAFE_INTEGER }))
+    .filter((entry): entry is { slug: string; score: number; overallRank: number } => entry.score != null)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.overallRank - b.overallRank;
+    });
+
+  return new Map(ranked.map((entry, index) => [entry.slug, index + 1]));
+}
+
+function getLensRank(
+  model: LeaderboardModel,
+  lens: RankingLens,
+  derivedRankMaps: Record<"popularity" | "adoption" | "economic" | "value", Map<string, number>>
+): number | null {
   switch (lens) {
     case "capability": return model.capability_rank;
+    case "popularity": return model.popularity_rank ?? derivedRankMaps.popularity.get(model.slug) ?? null;
+    case "adoption": return model.adoption_rank ?? derivedRankMaps.adoption.get(model.slug) ?? null;
+    case "economic": return model.economic_footprint_rank ?? derivedRankMaps.economic.get(model.slug) ?? null;
+    case "value": return derivedRankMaps.value.get(model.slug) ?? null;
     case "usage": return model.usage_rank;
     case "expert": return model.expert_rank;
     case "balanced": return model.balanced_rank;
@@ -64,6 +91,10 @@ function getLensRank(model: LeaderboardModel, lens: RankingLens): number | null 
 function getLensScore(model: LeaderboardModel, lens: RankingLens): number | null {
   switch (lens) {
     case "capability": return model.capability_score;
+    case "popularity": return model.popularity_score;
+    case "adoption": return model.adoption_score;
+    case "economic": return model.economic_footprint_score;
+    case "value": return model.value_score;
     case "usage": return model.usage_score;
     case "expert": return model.expert_score;
     case "balanced": return model.quality_score;
@@ -100,11 +131,21 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
     return result;
   }, [models, customSortedModels, categoryFilter, searchQuery]);
 
+  const derivedRankMaps = useMemo(
+    () => ({
+      popularity: buildRankMap(models, (model) => model.popularity_score),
+      adoption: buildRankMap(models, (model) => model.adoption_score),
+      economic: buildRankMap(models, (model) => model.economic_footprint_score),
+      value: buildRankMap(models, (model) => model.value_score),
+    }),
+    [models]
+  );
+
   const columns = useMemo<ColumnDef<LeaderboardModel>[]>(
     () => [
       {
         id: "rank",
-        accessorFn: (row) => getLensRank(row, activeLens),
+        accessorFn: (row) => getLensRank(row, activeLens, derivedRankMaps),
         header: "#",
         cell: ({ row, table: tbl }) => {
           const pageIndex = tbl.getState().pagination.pageIndex;
@@ -169,13 +210,42 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
         size: 140,
       },
-      {
-        id: "value_score",
-        accessorKey: "value_score",
-        header: "Value",
-        cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
-        size: 140,
-      },
+      ...(activeLens !== "popularity"
+        ? [{
+            id: "popularity_score",
+            accessorKey: "popularity_score",
+            header: "Popularity",
+            cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
+            size: 140,
+          } satisfies ColumnDef<LeaderboardModel>]
+        : []),
+      ...(activeLens !== "adoption"
+        ? [{
+            id: "adoption_score",
+            accessorKey: "adoption_score",
+            header: "Adoption",
+            cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
+            size: 140,
+          } satisfies ColumnDef<LeaderboardModel>]
+        : []),
+      ...(activeLens !== "economic"
+        ? [{
+            id: "economic_footprint_score",
+            accessorKey: "economic_footprint_score",
+            header: "Economic",
+            cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
+            size: 140,
+          } satisfies ColumnDef<LeaderboardModel>]
+        : []),
+      ...(activeLens !== "value"
+        ? [{
+            id: "value_score",
+            accessorKey: "value_score",
+            header: "Value",
+            cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
+            size: 140,
+          } satisfies ColumnDef<LeaderboardModel>]
+        : []),
       {
         id: "category_rank",
         accessorKey: "category_rank",
@@ -186,30 +256,6 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
           return <span className="text-xs text-white/50 tabular-nums">#{rank}</span>;
         },
         size: 80,
-      },
-      {
-        id: "market_cap_estimate",
-        accessorKey: "market_cap_estimate",
-        header: "Market Cap",
-        cell: ({ getValue }) => {
-          const val = getValue() as number | null;
-          if (val == null) return <span className="text-white/20">&mdash;</span>;
-          const formatted =
-            val >= 1_000_000
-              ? `$${(val / 1_000_000).toFixed(1)}M`
-              : val >= 1_000
-                ? `$${(val / 1_000).toFixed(0)}K`
-                : `$${val}`;
-          return <span className="text-xs text-[#00d4aa] font-semibold tabular-nums">{formatted}</span>;
-        },
-        size: 100,
-      },
-      {
-        id: "popularity_score",
-        accessorKey: "popularity_score",
-        header: "Popularity",
-        cell: ({ getValue }) => <ScoreBar value={getValue() as number | null} />,
-        size: 140,
       },
       {
         id: "agent_score",
@@ -240,7 +286,7 @@ export default function LeaderboardExplorer({ models }: LeaderboardExplorerProps
         size: 90,
       },
     ],
-    [activeLens]
+    [activeLens, derivedRankMaps]
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table's useReactTable() predates React compiler compatibility; cannot change library internals

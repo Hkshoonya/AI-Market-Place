@@ -15,6 +15,7 @@ import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { QualityDistribution } from "@/components/charts/quality-distribution";
 import { getProviderBrand } from "@/lib/constants/providers";
 import LeaderboardExplorer from "@/components/models/leaderboard-explorer";
+import { LeaderboardLensNav } from "@/components/models/leaderboard-lens-nav";
 import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import BenchmarkHeatmap from "@/components/charts/benchmark-heatmap";
 import RankTimeline from "@/components/charts/rank-timeline";
@@ -45,7 +46,7 @@ export default async function LeaderboardsPage() {
   // Fetch ALL ranked models for the explorer (client component)
   const explorerModelsResponse = await supabase
     .from("models")
-    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, agent_score, agent_rank, popularity_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
+    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, agent_score, agent_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
     .eq("status", "active")
     .not("overall_rank", "is", null)
     .order("overall_rank", { ascending: true })
@@ -58,20 +59,24 @@ export default async function LeaderboardsPage() {
     category: m.category,
     overall_rank: m.overall_rank,
     category_rank: m.category_rank,
-    quality_score: m.quality_score ? Number(m.quality_score) : null,
-    value_score: m.value_score ? Number(m.value_score) : null,
+    quality_score: m.quality_score != null ? Number(m.quality_score) : null,
+    value_score: m.value_score != null ? Number(m.value_score) : null,
     is_open_weights: !!(m.is_open_weights),
-    hf_downloads: m.hf_downloads ? Number(m.hf_downloads) : null,
-    popularity_score: m.popularity_score ? Number(m.popularity_score) : null,
-    agent_score: m.agent_score ? Number(m.agent_score) : null,
+    hf_downloads: m.hf_downloads != null ? Number(m.hf_downloads) : null,
+    popularity_score: m.popularity_score != null ? Number(m.popularity_score) : null,
+    adoption_score: m.adoption_score != null ? Number(m.adoption_score) : null,
+    adoption_rank: m.adoption_rank,
+    agent_score: m.agent_score != null ? Number(m.agent_score) : null,
     agent_rank: m.agent_rank,
     popularity_rank: m.popularity_rank,
-    market_cap_estimate: m.market_cap_estimate ? Number(m.market_cap_estimate) : null,
-    capability_score: m.capability_score ? Number(m.capability_score) : null,
+    economic_footprint_score: m.economic_footprint_score != null ? Number(m.economic_footprint_score) : null,
+    economic_footprint_rank: m.economic_footprint_rank,
+    market_cap_estimate: m.market_cap_estimate != null ? Number(m.market_cap_estimate) : null,
+    capability_score: m.capability_score != null ? Number(m.capability_score) : null,
     capability_rank: m.capability_rank,
-    usage_score: m.usage_score ? Number(m.usage_score) : null,
+    usage_score: m.usage_score != null ? Number(m.usage_score) : null,
     usage_rank: m.usage_rank,
-    expert_score: m.expert_score ? Number(m.expert_score) : null,
+    expert_score: m.expert_score != null ? Number(m.expert_score) : null,
     expert_rank: m.expert_rank,
     balanced_rank: m.balanced_rank,
   }));
@@ -111,8 +116,11 @@ export default async function LeaderboardsPage() {
           <h1 className="text-2xl font-bold">AI Model Leaderboards</h1>
         </div>
         <p className="mt-2 text-muted-foreground">
-          Rankings across benchmarks, categories, speed, and value. Updated every 6 hours.
+          Rankings across capability, popularity, adoption, economic footprint, speed, and value. Updated every 6 hours.
         </p>
+        <div className="mt-6">
+          <LeaderboardLensNav />
+        </div>
       </div>
 
       {/* Category Quick Links */}
@@ -186,7 +194,7 @@ export default async function LeaderboardsPage() {
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Agent Score</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Quality</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">Popularity</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Market Cap</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Economic</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,8 +232,8 @@ export default async function LeaderboardsPage() {
                       {model.popularity_rank ? `#${model.popularity_rank}` : "---"}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
-                      {model.market_cap_estimate
-                        ? `$${(model.market_cap_estimate / 1_000_000).toFixed(1)}M`
+                      {model.economic_footprint_score != null
+                        ? model.economic_footprint_score.toFixed(1)
                         : "---"}
                     </td>
                   </tr>
@@ -261,20 +269,22 @@ export default async function LeaderboardsPage() {
                 <tr className="border-b border-border/50 bg-secondary/30">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">#</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Market Cap</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Economic Footprint</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Quality</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">$/M tokens</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Popularity</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Adoption</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground 2xl:table-cell">Popularity</th>
                 </tr>
               </thead>
               <tbody>
                 {rankedModels.map((model, index) => {
                   const rank = index + 1;
-                  const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
-                  const popScore = model.popularity_score ? Number(model.popularity_score) : null;
+                  const economicFootprint = model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
+                  const adoptionScore = model.adoption_score != null ? Number(model.adoption_score) : null;
+                  const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
                   const mmlu = getBenchmarkScore(model, "mmlu") ?? getBenchmarkScore(model, "mmlu-pro");
                   const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
                   const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
@@ -312,10 +322,8 @@ export default async function LeaderboardsPage() {
                       <td className="px-4 py-3.5 text-right">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-bold tabular-nums text-neon">
-                            {marketCap
-                              ? marketCap >= 1_000_000
-                                ? `$${(marketCap / 1_000_000).toFixed(1)}M`
-                                : `$${(marketCap / 1_000).toFixed(0)}K`
+                            {economicFootprint
+                              ? economicFootprint.toFixed(1)
                               : "—"}
                           </span>
                         </Link>
@@ -362,6 +370,13 @@ export default async function LeaderboardsPage() {
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right xl:table-cell">
+                        <Link href={`/models/${model.slug}`} className="block">
+                          <span className="text-sm tabular-nums text-muted-foreground">
+                            {adoptionScore?.toFixed(1) ?? "—"}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right 2xl:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <div className="flex items-center justify-end gap-1.5">
                             <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">

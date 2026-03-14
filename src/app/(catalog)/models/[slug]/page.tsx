@@ -35,6 +35,7 @@ import { DetailsTab } from "./_components/details-tab";
 import { ChangelogTab } from "./_components/changelog-tab";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
+import { collapseArenaRatings } from "@/lib/models/arena-family";
 
 export const revalidate = 60;
 
@@ -127,8 +128,9 @@ export default async function ModelDetailPage({
   const updates = (model.model_updates ?? []) as UpdateEntry[];
   type EloEntry = import("./_components/benchmarks-tab").EloRating;
   const eloRatings = (model.elo_ratings ?? []) as EloEntry[];
-  const bestElo = eloRatings.length > 0
-    ? eloRatings.reduce((best, curr) => (curr.elo_score > best.elo_score ? curr : best), eloRatings[0])
+  const currentArenaRatings = collapseArenaRatings(eloRatings);
+  const bestElo = currentArenaRatings.length > 0
+    ? currentArenaRatings.reduce((best, curr) => (curr.elo_score > best.elo_score ? curr : best), currentArenaRatings[0])
     : null;
   const rawMod: unknown = model.modalities;
   const modalities: string[] = Array.isArray(rawMod)
@@ -242,6 +244,8 @@ export default async function ModelDetailPage({
           <TradingTab
             modelSlug={model.slug}
             popularity_rank={model.popularity_rank}
+            adoption_score={model.adoption_score}
+            economic_footprint_score={model.economic_footprint_score}
             market_cap_estimate={model.market_cap_estimate}
             agent_score={model.agent_score}
             github_stars={model.github_stars}

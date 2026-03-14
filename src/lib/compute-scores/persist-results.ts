@@ -44,6 +44,10 @@ export async function persistResults(
     agentRankMap,
     popularityMap,
     popRankMap,
+    adoptionScoreMap,
+    adoptionRankMap,
+    economicFootprintMap,
+    economicFootprintRankMap,
     marketCapMap,
     cheapestPriceMap,
     normalizedValueMap,
@@ -96,6 +100,16 @@ export async function persistResults(
       const popRank = popRankMap.get(sm.id);
       if (popRank !== undefined) {
         updateData.popularity_rank = popRank;
+      }
+      const adoptionScore = adoptionScoreMap.get(sm.id);
+      if (adoptionScore !== undefined) {
+        updateData.adoption_score = adoptionScore;
+        updateData.adoption_rank = adoptionRankMap.get(sm.id) ?? null;
+      }
+      const economicFootprintScore = economicFootprintMap.get(sm.id);
+      if (economicFootprintScore !== undefined) {
+        updateData.economic_footprint_score = economicFootprintScore;
+        updateData.economic_footprint_rank = economicFootprintRankMap.get(sm.id) ?? null;
       }
       const mktCap = marketCapMap.get(sm.id);
       if (mktCap !== undefined) {
@@ -150,6 +164,8 @@ export async function persistResults(
           hf_likes: m.hf_likes,
           overall_rank: balRank?.overall ?? null,
           popularity_score: popularityMap.get(sm.id) ?? null,
+          adoption_score: adoptionScoreMap.get(sm.id) ?? null,
+          economic_footprint_score: economicFootprintMap.get(sm.id) ?? null,
           market_cap_estimate: marketCapMap.get(sm.id) ?? null,
           agent_score: agentScoreMap.get(sm.id) ?? null,
           capability_score: capabilityScoreMap.get(sm.id) ?? null,

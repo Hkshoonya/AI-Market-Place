@@ -61,6 +61,7 @@ function buildFixtureInputs(modelIds: string[]): ScoringInputs {
       hf_likes: 100,
       release_date: "2024-01-01",
       is_open_weights: false,
+      is_api_available: true,
       hf_trending_score: null,
       parameter_count: null,
       github_stars: 500,
@@ -103,6 +104,10 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
     agentRankMap: new Map(),
     popularityMap: new Map(modelIds.map((id) => [id, 55])),
     popRankMap: new Map(modelIds.map((id, i) => [id, i + 1])),
+    adoptionScoreMap: new Map(modelIds.map((id) => [id, 62])),
+    adoptionRankMap: new Map(modelIds.map((id, i) => [id, i + 1])),
+    economicFootprintMap: new Map(modelIds.map((id) => [id, 71])),
+    economicFootprintRankMap: new Map(modelIds.map((id, i) => [id, i + 1])),
     marketCapMap: new Map(modelIds.map((id) => [id, 1000000])),
     cheapestPriceMap: new Map(modelIds.map((id) => [id, 5.0])),
     normalizedValueMap: new Map(modelIds.map((id) => [id, 65])),
@@ -125,6 +130,7 @@ function createPersistMockSupabase(options?: {
   failUpdateForId?: string;
   failSnapshot?: boolean;
   snapshotCollector?: Array<Record<string, unknown>>;
+  modelUpdateCollector?: Array<Record<string, unknown>>;
 }) {
   /** Wrap a value as a thenable (PromiseLike) so .then() chains work with await/Promise.all */
   function thenable<T>(value: T) {
@@ -138,8 +144,11 @@ function createPersistMockSupabase(options?: {
     from: (table: string) => {
       if (table === "models") {
         return {
-          update: (_data: unknown) => ({
+          update: (data: unknown) => ({
             eq: (_col: string, id: string) => {
+              if (options?.modelUpdateCollector && data && typeof data === "object") {
+                options.modelUpdateCollector.push({ id, ...(data as Record<string, unknown>) });
+              }
               const error =
                 options?.failUpdateForId === id
                   ? { message: "Update failed" }
@@ -229,5 +238,32 @@ describe("persistResults", () => {
     expect(snapshots).toHaveLength(1);
     expect(snapshots[0]).toHaveProperty("source_coverage");
     expect(snapshots[0].source_coverage).toEqual(SOURCE_COVERAGE_FIXTURE);
+  });
+
+  it("persists adoption and economic-footprint fields to models and snapshots", async () => {
+    const modelIds = ["m1"];
+    const inputs = buildFixtureInputs(modelIds);
+    const results = buildFixtureResults(modelIds);
+    const snapshots: Array<Record<string, unknown>> = [];
+    const modelUpdates: Array<Record<string, unknown>> = [];
+    const supabase = createPersistMockSupabase({
+      snapshotCollector: snapshots,
+      modelUpdateCollector: modelUpdates,
+    });
+
+    await persistResults(supabase, inputs, results);
+
+    expect(modelUpdates[0]).toMatchObject({
+      id: "m1",
+      adoption_score: 62,
+      adoption_rank: 1,
+      economic_footprint_score: 71,
+      economic_footprint_rank: 1,
+    });
+
+    expect(snapshots[0]).toMatchObject({
+      adoption_score: 62,
+      economic_footprint_score: 71,
+    });
   });
 });

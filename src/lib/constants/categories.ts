@@ -100,8 +100,8 @@ export const CATEGORIES: CategoryConfig[] = [
   },
   {
     slug: "agentic_browser",
-    label: "Agentic Browsers",
-    shortLabel: "Agentic",
+    label: "Browser Agents",
+    shortLabel: "Browser Agents",
     icon: Globe,
     description: "AI-powered browser automation and web agents",
     color: "#6366f1",

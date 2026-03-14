@@ -13,6 +13,8 @@ export const RankedModelSchema = z.object({
   category: z.string(),
   overall_rank: z.coerce.number().nullable(),
   quality_score: z.coerce.number().nullable(),
+  adoption_score: z.coerce.number().nullable(),
+  economic_footprint_score: z.coerce.number().nullable(),
   market_cap_estimate: z.coerce.number().nullable(),
   popularity_score: z.coerce.number().nullable(),
   is_open_weights: z.boolean().nullable(),

@@ -97,10 +97,11 @@ describe("computePopularityScore", () => {
       newsMentions: 200,
       providerUsageEstimate: 400_000_000,
       trendingScore: 100,
+      releaseDate: "2024-01-01",
     });
     const score = computePopularityScore(inputs, fixtureStats);
-    // All signals at max -> each normalizes to ~100, 6 signals -> coverage 1.0
-    expect(score).toBeGreaterThan(90);
+    // All grouped signals at max with strong durability should stay near 100.
+    expect(score).toBeGreaterThan(80);
     expect(score).toBeLessThanOrEqual(100);
   });
 

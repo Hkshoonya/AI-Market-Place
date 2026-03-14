@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
 import { formatNumber } from "@/lib/format";
+import { collapseArenaRatings } from "@/lib/models/arena-family";
 
 export interface BenchmarkScore {
   score?: number | null;
@@ -32,6 +33,8 @@ export interface BenchmarksTabProps {
 }
 
 export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProps) {
+  const currentArenaRatings = collapseArenaRatings(eloRatings);
+
   return (
     <>
       <Card className="border-border/50">
@@ -83,7 +86,7 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
       </Card>
 
       {/* Arena ELO Section */}
-      {eloRatings.length > 0 && (
+      {currentArenaRatings.length > 0 && (
         <Card className="border-border/50 mt-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -93,7 +96,7 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {eloRatings.map((elo, i) => {
+              {currentArenaRatings.map((elo, i) => {
                 const ciLow = elo.confidence_interval_low;
                 const ciHigh = elo.confidence_interval_high;
                 const ciWidth = ciLow && ciHigh ? ciHigh - ciLow : null;
@@ -102,15 +105,22 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-[#f5a623]" />
-                        <span className="text-sm font-medium capitalize">
-                          {elo.arena_name.replace(/-/g, " ")}
+                        <span className="text-sm font-medium">
+                          {elo.displayName}
                         </span>
                       </div>
-                      {elo.rank && (
-                        <Badge className="bg-neon/10 text-neon text-xs">
-                          Arena Rank #{elo.rank}
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {elo.variantCount > 1 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {elo.variantCount} snapshots
+                          </Badge>
+                        )}
+                        {elo.rank && (
+                          <Badge className="bg-neon/10 text-neon text-xs">
+                            Arena Rank #{elo.rank}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>

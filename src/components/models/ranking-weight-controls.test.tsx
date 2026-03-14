@@ -38,9 +38,13 @@ const mockModels = [
     is_open_weights: false,
     hf_downloads: 500000,
     popularity_score: 95,
+    adoption_rank: 1,
+    adoption_score: 90,
     agent_score: 88,
     agent_rank: 1,
     popularity_rank: 1,
+    economic_footprint_rank: 1,
+    economic_footprint_score: 87,
     market_cap_estimate: 5000000,
     capability_score: 92,
     capability_rank: 1,
@@ -62,9 +66,13 @@ const mockModels = [
     is_open_weights: false,
     hf_downloads: 300000,
     popularity_score: 80,
+    adoption_rank: 2,
+    adoption_score: 76,
     agent_score: 85,
     agent_rank: 2,
     popularity_rank: 2,
+    economic_footprint_rank: 2,
+    economic_footprint_score: 74,
     market_cap_estimate: 4000000,
     capability_score: 87,
     capability_rank: 2,
@@ -92,8 +100,8 @@ describe('RankingWeightControls', () => {
 
     expect(screen.getByText('Customize Rankings')).toBeInTheDocument();
     // Weight labels should NOT be visible when collapsed
-    expect(screen.queryByText('HumanEval Score')).not.toBeInTheDocument();
-    expect(screen.queryByText('Market Cap')).not.toBeInTheDocument();
+    expect(screen.queryByText('Capability')).not.toBeInTheDocument();
+    expect(screen.queryByText('Economic Footprint')).not.toBeInTheDocument();
   });
 
   it('expands to show weight labels when toggle is clicked', async () => {
@@ -108,10 +116,10 @@ describe('RankingWeightControls', () => {
     await user.click(screen.getByText('Customize Rankings'));
 
     // Weight labels should now be visible
-    expect(screen.getByText('HumanEval Score')).toBeInTheDocument();
-    expect(screen.getByText('Market Cap')).toBeInTheDocument();
-    expect(screen.getByText('Quality Score')).toBeInTheDocument();
+    expect(screen.getByText('Capability')).toBeInTheDocument();
+    expect(screen.getByText('Economic Footprint')).toBeInTheDocument();
     expect(screen.getByText('Popularity')).toBeInTheDocument();
+    expect(screen.getByText('Adoption')).toBeInTheDocument();
     expect(screen.getByText('Agent Score')).toBeInTheDocument();
   });
 
@@ -130,8 +138,8 @@ describe('RankingWeightControls', () => {
     // Clear any initial calls from the mount effect
     onSortedModels.mockClear();
 
-    // Click the increase button for HumanEval Score
-    await user.click(screen.getByLabelText('Increase HumanEval Score weight'));
+    // Click the increase button for Capability
+    await user.click(screen.getByLabelText('Increase Capability weight'));
 
     // onSortedModels should have been called with an array
     expect(onSortedModels).toHaveBeenCalled();
@@ -153,7 +161,7 @@ describe('RankingWeightControls', () => {
     await user.click(screen.getByText('Customize Rankings'));
 
     // Change a weight first so Reset is enabled
-    await user.click(screen.getByLabelText('Increase HumanEval Score weight'));
+    await user.click(screen.getByLabelText('Increase Capability weight'));
     onSortedModels.mockClear();
 
     // Click Reset to Default

@@ -204,7 +204,7 @@ export default async function HomePage() {
                   Category
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Market Cap
+                  Economic Footprint
                 </th>
                 <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Popularity
@@ -223,8 +223,8 @@ export default async function HomePage() {
                   (c) => c.slug === model.category
                 );
                 const rank = index + 1;
-                const marketCap = model.market_cap_estimate ? Number(model.market_cap_estimate) : null;
-                const popScore = model.popularity_score ? Number(model.popularity_score) : null;
+                const economicFootprint = model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
+                const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
                 const cheapestPricing = (
                   model.model_pricing as {
                     input_price_per_million: number | null;
@@ -288,10 +288,8 @@ export default async function HomePage() {
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Link href={`/models/${model.slug}`} className="block">
                         <span className="text-sm font-bold tabular-nums text-neon">
-                          {marketCap
-                            ? marketCap >= 1_000_000
-                              ? `$${(marketCap / 1_000_000).toFixed(1)}M`
-                              : `$${(marketCap / 1_000).toFixed(0)}K`
+                          {economicFootprint
+                            ? economicFootprint.toFixed(1)
                             : "—"}
                         </span>
                       </Link>

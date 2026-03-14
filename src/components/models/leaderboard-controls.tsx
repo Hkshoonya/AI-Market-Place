@@ -1,18 +1,28 @@
 "use client";
 
+import { CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type RankingLens = "capability" | "usage" | "expert" | "balanced";
+export type RankingLens =
+  | "capability"
+  | "popularity"
+  | "adoption"
+  | "economic"
+  | "value"
+  | "usage"
+  | "expert"
+  | "balanced";
 
 export const LENS_TABS = [
-  { value: "capability" as const, label: "Capability", description: "Pure benchmark performance" },
-  { value: "usage" as const, label: "Usage", description: "What people actually use" },
-  { value: "expert" as const, label: "Expert", description: "Research consensus" },
-  { value: "balanced" as const, label: "Balanced", description: "Composite of all signals" },
+  { value: "capability" as const, label: "Capability", description: "Pure benchmark and arena performance." },
+  { value: "popularity" as const, label: "Popularity", description: "Community attention, market traction, adoption, and durability." },
+  { value: "adoption" as const, label: "Adoption", description: "Observed practical usage and distribution footprint." },
+  { value: "economic" as const, label: "Economic Footprint", description: "Adoption, monetization, distribution, and confidence combined." },
+  { value: "value" as const, label: "Value", description: "Capability relative to cost for real buyers." },
 ];
 
 export const CATEGORY_TABS = [
@@ -20,11 +30,11 @@ export const CATEGORY_TABS = [
   { value: "llm", label: "LLMs" },
   { value: "multimodal", label: "Multimodal" },
   { value: "code", label: "Code" },
-  { value: "agentic_browser", label: "Agentic" },
+  { value: "agentic_browser", label: "Browser Agents" },
   { value: "image_generation", label: "Image Gen" },
-  { value: "embedding", label: "Embedding" },
-  { value: "audio", label: "Audio" },
-];
+  { value: "embeddings", label: CATEGORY_MAP.embeddings.shortLabel },
+  { value: "speech_audio", label: CATEGORY_MAP.speech_audio.label },
+] as const satisfies ReadonlyArray<{ value: "" | ModelCategory; label: string }>;
 
 // ---------------------------------------------------------------------------
 // Props

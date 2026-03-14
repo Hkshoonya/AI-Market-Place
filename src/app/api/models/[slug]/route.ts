@@ -4,6 +4,7 @@ import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
+import { collapseArenaRatings } from "@/lib/models/arena-family";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,12 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    const eloRatings = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
+
+    return NextResponse.json({
+      ...data,
+      elo_ratings: collapseArenaRatings(eloRatings),
+    });
   } catch (err) {
     return handleApiError(err, "api/models");
   }

@@ -24,11 +24,15 @@ import {
   type AgentBenchmarkScore,
 } from "@/lib/scoring/agent-score-calculator";
 import { getProviderUsageEstimate } from "@/lib/constants/scoring";
+import { computeMarketCap } from "@/lib/scoring/market-cap-calculator";
 import {
   computePopularityScore,
   computePopularityStats,
-  computeMarketCap,
-} from "@/lib/scoring/market-cap-calculator";
+} from "@/lib/scoring/popularity-score";
+import {
+  computeAdoptionScore,
+  computeEconomicFootprintScore,
+} from "@/lib/scoring/economic-footprint";
 import { buildSourceCoverage } from "@/lib/source-coverage";
 import type { ScoringInputs, ScoringResults } from "./types";
 
@@ -339,24 +343,46 @@ export async function computeAllLenses(
     newsMentions: newsMentionMap.get(m.id) ?? 0,
     providerUsageEstimate: getProviderUsageEstimate((m.provider as string) ?? ""),
     trendingScore: m.hf_trending_score ? Number(m.hf_trending_score) : 0,
+    releaseDate: m.release_date as string | null,
   }));
 
   const popStats = computePopularityStats(popularityInputs);
   const popularityMap = new Map<string, number>();
+  const adoptionScoreMap = new Map<string, number>();
+  const economicFootprintMap = new Map<string, number>();
   const marketCapMap = new Map<string, number>();
 
   for (const input of popularityInputs) {
     const popScore = computePopularityScore(input, popStats);
     popularityMap.set(input.id, popScore);
 
-    // Market cap now uses usage lens score (not raw popularity)
     const m = models.find((x) => x.id === input.id);
+    const pricingSourceCount = pricingSourceMap.get(input.id)?.size ?? 0;
+    const adoptionScore = computeAdoptionScore({
+      downloads: input.downloads,
+      providerUsageEstimate: input.providerUsageEstimate,
+      pricingSourceCount,
+      isApiAvailable: m?.is_api_available ?? false,
+      releaseDate: input.releaseDate,
+    });
+    adoptionScoreMap.set(input.id, adoptionScore);
+
     const curatedPrice = m ? lookupProviderPrice(m.slug as string) : null;
     const dbPrice = cheapestPriceMap.get(input.id);
     const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? 0;
     const blendedPrice = inputPrice;
-    const uScore = usageScoreMap.get(input.id) ?? 0;
-    const mktCap = computeMarketCap(uScore, blendedPrice);
+
+    const economicFootprintScore = computeEconomicFootprintScore({
+      adoptionScore,
+      blendedPricePerMillion: blendedPrice,
+      pricingSourceCount,
+      isApiAvailable: m?.is_api_available ?? false,
+      releaseDate: input.releaseDate,
+      corroborationLevel: sourceCoverageMap.get(input.id)?.corroborationLevel ?? "none",
+    });
+    economicFootprintMap.set(input.id, economicFootprintScore);
+
+    const mktCap = computeMarketCap(adoptionScore, blendedPrice);
     if (mktCap > 0) {
       marketCapMap.set(input.id, mktCap);
     }
@@ -368,6 +394,20 @@ export async function computeAllLenses(
     .sort((a, b) => b[1] - a[1])
     .map(([id], i) => ({ id, rank: i + 1 }));
   const popRankMap = new Map(popRankedModels.map((r) => [r.id, r.rank]));
+
+  const adoptionRankedModels = Array.from(adoptionScoreMap.entries())
+    .filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id], i) => ({ id, rank: i + 1 }));
+  const adoptionRankMap = new Map(adoptionRankedModels.map((r) => [r.id, r.rank]));
+
+  const economicFootprintRankedModels = Array.from(economicFootprintMap.entries())
+    .filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id], i) => ({ id, rank: i + 1 }));
+  const economicFootprintRankMap = new Map(
+    economicFootprintRankedModels.map((r) => [r.id, r.rank])
+  );
 
   // --- LENS 4: Balanced composite rankings ---
   // Pre-compute value ranks (sorted descending by value score)
@@ -404,6 +444,10 @@ export async function computeAllLenses(
     agentRankMap,
     popularityMap,
     popRankMap,
+    adoptionScoreMap,
+    adoptionRankMap,
+    economicFootprintMap,
+    economicFootprintRankMap,
     marketCapMap,
     cheapestPriceMap,
     normalizedValueMap,

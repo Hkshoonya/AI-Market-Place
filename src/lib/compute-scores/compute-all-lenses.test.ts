@@ -47,6 +47,7 @@ function buildFixtureInputs(): ScoringInputs {
       hf_likes: null,
       release_date: "2024-05-13",
       is_open_weights: false,
+      is_api_available: true,
       hf_trending_score: null,
       parameter_count: null,
       github_stars: null,
@@ -63,6 +64,7 @@ function buildFixtureInputs(): ScoringInputs {
       hf_likes: 2000,
       release_date: "2024-04-18",
       is_open_weights: true,
+      is_api_available: true,
       hf_trending_score: null,
       parameter_count: null,
       github_stars: 5000,
@@ -79,6 +81,7 @@ function buildFixtureInputs(): ScoringInputs {
       hf_likes: 5000,
       release_date: "2024-01-01",
       is_open_weights: true,
+      is_api_available: false,
       hf_trending_score: null,
       parameter_count: null,
       github_stars: null,
@@ -290,5 +293,19 @@ describe("computeAllLenses", () => {
       ([, s]) => s > 0
     );
     expect(result.expertRankMap.size).toBe(nonZeroExpert.length);
+  });
+
+  it("computes adoption and economic-footprint maps for all active models", async () => {
+    const inputs = buildFixtureInputs();
+    const supabase = createMockSupabase();
+
+    const result = await computeAllLenses(inputs, supabase);
+
+    expect(result.adoptionScoreMap.size).toBe(3);
+    expect(result.economicFootprintMap.size).toBe(3);
+    expect(result.adoptionRankMap.size).toBe(3);
+    expect(result.economicFootprintRankMap.size).toBe(3);
+    expect(result.adoptionScoreMap.get("gpt-4o")).toBeGreaterThan(0);
+    expect(result.economicFootprintMap.get("gpt-4o")).toBeGreaterThan(0);
   });
 });

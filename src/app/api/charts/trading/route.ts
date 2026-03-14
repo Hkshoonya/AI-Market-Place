@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from("model_snapshots")
-      .select("model_id, snapshot_date, quality_score, popularity_score, market_cap_estimate, hf_downloads, overall_rank, agent_score")
+      .select("model_id, snapshot_date, quality_score, popularity_score, economic_footprint_score, market_cap_estimate, hf_downloads, overall_rank, agent_score")
       .gte("snapshot_date", since)
       .order("snapshot_date", { ascending: true });
 

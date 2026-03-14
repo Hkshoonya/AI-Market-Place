@@ -23,6 +23,7 @@ export interface ScoringInputs {
     hf_likes: number | null;
     release_date: string | null;
     is_open_weights: boolean;
+    is_api_available: boolean;
     hf_trending_score: number | null;
     parameter_count: number | null;
     github_stars: number | null;
@@ -50,6 +51,10 @@ export interface ScoringResults {
   agentRankMap: Map<string, number>;
   popularityMap: Map<string, number>;
   popRankMap: Map<string, number>;
+  adoptionScoreMap: Map<string, number>;
+  adoptionRankMap: Map<string, number>;
+  economicFootprintMap: Map<string, number>;
+  economicFootprintRankMap: Map<string, number>;
   marketCapMap: Map<string, number>;
   cheapestPriceMap: Map<string, number>;
   normalizedValueMap: Map<string, number>;

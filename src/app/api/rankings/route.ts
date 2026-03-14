@@ -4,14 +4,20 @@ import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
+import { collapseArenaRatings } from "@/lib/models/arena-family";
 
 export const dynamic = "force-dynamic";
 
-const LENS_SORT_MAP: Record<string, { scoreCol: string; rankCol: string }> = {
-  capability: { scoreCol: "capability_score", rankCol: "capability_rank" },
-  usage:      { scoreCol: "usage_score",      rankCol: "usage_rank" },
-  expert:     { scoreCol: "expert_score",     rankCol: "expert_rank" },
-  balanced:   { scoreCol: "quality_score",    rankCol: "balanced_rank" },
+const LENS_SORT_MAP: Record<string, { sortCol: string; ascending: boolean }> = {
+  capability:         { sortCol: "capability_rank",           ascending: true },
+  popularity:         { sortCol: "popularity_rank",           ascending: true },
+  adoption:           { sortCol: "adoption_rank",             ascending: true },
+  economic:           { sortCol: "economic_footprint_rank",   ascending: true },
+  economic_footprint: { sortCol: "economic_footprint_rank",   ascending: true },
+  value:              { sortCol: "value_score",               ascending: false },
+  usage:              { sortCol: "usage_rank",                ascending: true },
+  expert:             { sortCol: "expert_rank",               ascending: true },
+  balanced:           { sortCol: "balanced_rank",             ascending: true },
 };
 
 export async function GET(request: NextRequest) {
@@ -50,6 +56,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id, slug, name, provider, category, parameter_count, is_open_weights,
         hf_downloads, quality_score, capability_score, capability_rank,
+        adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank,
         usage_score, usage_rank, expert_score, expert_rank, balanced_rank,
         popularity_score, popularity_rank, market_cap_estimate, agent_score, agent_rank,
         value_score,
@@ -58,8 +65,8 @@ export async function GET(request: NextRequest) {
         elo_ratings(elo_score, arena_name)
       `)
       .eq("status", "active")
-      .not(lensConfig.rankCol, "is", null)
-      .order(lensConfig.rankCol, { ascending: true })
+      .not(lensConfig.sortCol, "is", null)
+      .order(lensConfig.sortCol, { ascending: lensConfig.ascending })
       .limit(limit);
 
     if (category) {
@@ -72,7 +79,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data, lens });
+    return NextResponse.json({
+      data: (data ?? []).map((model) => ({
+        ...model,
+        elo_ratings: collapseArenaRatings(Array.isArray(model.elo_ratings) ? model.elo_ratings : []),
+      })),
+      lens,
+    });
   } catch (err) {
     return handleApiError(err, "api/rankings");
   }
