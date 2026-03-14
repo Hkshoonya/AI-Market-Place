@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
     let enrichedData = rawData ?? [];
     if (enrichedData.length > 0) {
       const sellerIds = [...new Set(enrichedData.map((l) => l.seller_id).filter(Boolean))];
+      const listingIds = enrichedData.map((listing) => listing.id);
       if (sellerIds.length > 0) {
         const { data: profiles } = await admin
           .from("profiles")
@@ -80,6 +81,38 @@ export async function GET(request: NextRequest) {
           profiles: l.seller_id ? profileMap.get(l.seller_id) ?? null : null,
         }));
       }
+
+      const { data: policyReviews } = await admin
+        .from("listing_policy_reviews")
+        .select("listing_id, decision, classifier_label, review_status, created_at")
+        .in("listing_id", listingIds)
+        .order("created_at", { ascending: false });
+
+      const reviewMap = new Map<
+        string,
+        {
+          decision: string;
+          label: string;
+          review_status: string;
+          created_at: string;
+        }
+      >();
+
+      for (const review of policyReviews ?? []) {
+        if (!reviewMap.has(review.listing_id)) {
+          reviewMap.set(review.listing_id, {
+            decision: review.decision,
+            label: review.classifier_label,
+            review_status: review.review_status,
+            created_at: review.created_at,
+          });
+        }
+      }
+
+      enrichedData = enrichedData.map((listing) => ({
+        ...listing,
+        policy_review: reviewMap.get(listing.id) ?? null,
+      }));
     }
 
     return NextResponse.json({ data: enrichedData, count: count ?? 0 });

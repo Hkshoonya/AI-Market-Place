@@ -21,6 +21,7 @@ import { getOrCreateWallet } from "@/lib/payments/wallet";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 
 export const dynamic = "force-dynamic";
 
@@ -315,6 +316,17 @@ export async function POST(request: NextRequest) {
             : {}),
         }
       : null;
+  const policyEvaluation = evaluateListingPolicy({
+    title,
+    description,
+    shortDescription: short_description ?? null,
+    listingType: listing_type,
+    tags,
+    agentConfig: mergedAgentConfig,
+    mcpManifest: mcp_manifest ?? null,
+  });
+  const publishStatus =
+    policyEvaluation.decision === "allow" ? initialStatus : "draft";
 
   const { data, error } = await sb
     .from("marketplace_listings")
@@ -325,7 +337,7 @@ export async function POST(request: NextRequest) {
       description,
       short_description: short_description || null,
       listing_type,
-      status: initialStatus,
+      status: publishStatus,
       pricing_type: pricing_type || "one_time",
       price: price ?? null,
       currency: currency || "USD",
@@ -351,7 +363,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data }, { status: 201 });
+  await syncListingPolicyReview(sb, {
+    listingId: data.id,
+    sellerId: ownerId,
+    sourceAction: "create",
+    evaluation: policyEvaluation,
+    excerpt: `${title}\n${description}`.slice(0, 280),
+  });
+
+  return NextResponse.json(
+    {
+      data,
+      policy:
+        policyEvaluation.decision === "allow"
+          ? null
+          : {
+              decision: policyEvaluation.decision,
+              label: policyEvaluation.label,
+              confidence: policyEvaluation.confidence,
+            },
+    },
+    { status: 201 }
+  );
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings/bot");
   }
@@ -400,6 +433,22 @@ export async function PATCH(request: NextRequest) {
   const { slug, skill_manifest, agent_config, ...fields } = parsed.data;
 
   const sb = createAdminClient();
+  const { data: currentListing, error: currentListingError } = await sb
+    .from("marketplace_listings")
+    .select("*")
+    .eq("slug", slug)
+    .eq("seller_id", ownerId)
+    .single();
+
+  if (currentListingError || !currentListing) {
+    return NextResponse.json(
+      {
+        error:
+          "Listing not found, or it does not belong to this API key's owner.",
+      },
+      { status: 404 }
+    );
+  }
 
   // If skill_manifest is being updated, we need to merge it into agent_config
   const updates: Record<string, unknown> = {};
@@ -414,14 +463,6 @@ export async function PATCH(request: NextRequest) {
   // Handle agent_config and skill_manifest updates
   if (skill_manifest !== undefined) {
     // skill_manifest is merged into agent_config
-    // Fetch current agent_config to merge
-    const { data: currentListing } = await sb
-      .from("marketplace_listings")
-      .select("agent_config")
-      .eq("slug", slug)
-      .eq("seller_id", ownerId)
-      .single();
-
     const existingConfig =
       currentListing?.agent_config &&
       typeof currentListing.agent_config === "object"
@@ -472,6 +513,49 @@ export async function PATCH(request: NextRequest) {
       }
     }
   }
+
+  const mergedListing = {
+    title:
+      typeof updates.title === "string" ? updates.title : currentListing.title,
+    description:
+      typeof updates.description === "string"
+        ? updates.description
+        : currentListing.description,
+    shortDescription:
+      typeof updates.short_description === "string" || updates.short_description === null
+        ? (updates.short_description as string | null)
+        : currentListing.short_description,
+    listingType:
+      typeof updates.listing_type === "string"
+        ? updates.listing_type
+        : currentListing.listing_type,
+    tags: Array.isArray(updates.tags)
+      ? (updates.tags as string[])
+      : currentListing.tags,
+    agentConfig:
+      "agent_config" in updates
+        ? ((updates.agent_config as Record<string, unknown> | null | undefined) ?? null)
+        : (currentListing.agent_config ?? null),
+    mcpManifest:
+      "mcp_manifest" in updates
+        ? ((updates.mcp_manifest as Record<string, unknown> | null | undefined) ?? null)
+        : (currentListing.mcp_manifest ?? null),
+  };
+
+  const policyEvaluation = evaluateListingPolicy(mergedListing);
+  if (policyEvaluation.decision !== "allow") {
+    const wantsActive = updates.status === "active";
+    const wasActive = currentListing.status === "active";
+    updates.status = wantsActive || wasActive ? "paused" : "draft";
+  }
+
+  await syncListingPolicyReview(sb, {
+    listingId: currentListing.id,
+    sellerId: ownerId,
+    sourceAction: "update",
+    evaluation: policyEvaluation,
+    excerpt: `${mergedListing.title}\n${mergedListing.description}`.slice(0, 280),
+  });
 
   // Always set updated_at
   updates.updated_at = new Date().toISOString();

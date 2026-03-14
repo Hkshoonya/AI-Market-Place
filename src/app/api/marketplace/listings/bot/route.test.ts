@@ -4,9 +4,16 @@ import { NextRequest } from "next/server";
 const mockAuthenticateApiKey = vi.fn();
 const mockCreateAdminClient = vi.fn();
 const mockWarn = vi.fn();
+const mockEvaluateListingPolicy = vi.fn();
+const mockSyncListingPolicyReview = vi.fn();
 
 vi.mock("@/lib/agents/auth", () => ({
   authenticateApiKey: (...args: unknown[]) => mockAuthenticateApiKey(...args),
+}));
+
+vi.mock("@/lib/marketplace/policy", () => ({
+  evaluateListingPolicy: (...args: unknown[]) => mockEvaluateListingPolicy(...args),
+  syncListingPolicyReview: (...args: unknown[]) => mockSyncListingPolicyReview(...args),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -105,6 +112,36 @@ function createBenignAdminClient(
 
       if (table === "marketplace_listings") {
         return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: {
+                      id: "listing-1",
+                      slug: "test-bot-listing",
+                      seller_id: "owner-1",
+                      title: "Bot Listing",
+                      description: "Bot-created listing",
+                      short_description: null,
+                      listing_type: "agent",
+                      status: "active",
+                      pricing_type: "one_time",
+                      price: 9,
+                      currency: "USD",
+                      tags: [],
+                      thumbnail_url: null,
+                      demo_url: null,
+                      documentation_url: null,
+                      model_id: null,
+                      agent_config: null,
+                      mcp_manifest: null,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          }),
           insert: (payload: Record<string, unknown>) => {
             options.insertedPayloads?.push(payload);
             return {
@@ -163,6 +200,13 @@ describe("/api/marketplace/listings/bot", () => {
     vi.clearAllMocks();
     mockCreateAdminClient.mockReturnValue(createBenignAdminClient());
     delete process.env.ENFORCE_SELLER_VERIFICATION;
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "allow",
+      label: "allow",
+      confidence: 0.1,
+      reasons: [],
+      matchedSignals: [],
+    });
     mockAuthenticateApiKey.mockResolvedValue({
       authenticated: false,
       response: Response.json({ error: "API key expired" }, { status: 401 }),
@@ -373,5 +417,50 @@ describe("/api/marketplace/listings/bot", () => {
     const body = await response.json();
     expect(body.data.status).toBe("active");
     expect(mockWarn).toHaveBeenCalled();
+  });
+
+  it("forces flagged bot listings to draft and records a review", async () => {
+    const insertedPayloads: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(
+      createBenignAdminClient({
+        sellerVerified: true,
+        insertedPayloads,
+      })
+    );
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "review",
+      label: "suspicious_capability",
+      confidence: 0.72,
+      reasons: ["Matched suspicious exploit language"],
+      matchedSignals: [{ field: "description", pattern: "credential bypass", value: "credential bypass" }],
+    });
+    mockAuthenticateApiKey.mockResolvedValue({
+      authenticated: true,
+      keyRecord: {
+        id: "key-1",
+        owner_id: "owner-1",
+        agent_id: null,
+        scopes: ["marketplace"],
+      },
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/bot", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer aimk_valid",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Bot Listing",
+          description: "Credential bypass automation",
+          listing_type: "agent",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(insertedPayloads[0]?.status).toBe("draft");
+    expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
 });

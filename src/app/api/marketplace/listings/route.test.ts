@@ -3,9 +3,16 @@ import { NextRequest } from "next/server";
 
 const mockCreateClient = vi.fn();
 const mockWarn = vi.fn();
+const mockEvaluateListingPolicy = vi.fn();
+const mockSyncListingPolicyReview = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
+}));
+
+vi.mock("@/lib/marketplace/policy", () => ({
+  evaluateListingPolicy: (...args: unknown[]) => mockEvaluateListingPolicy(...args),
+  syncListingPolicyReview: (...args: unknown[]) => mockSyncListingPolicyReview(...args),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -106,6 +113,13 @@ describe("POST /api/marketplace/listings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.ENFORCE_SELLER_VERIFICATION;
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "allow",
+      label: "allow",
+      confidence: 0.1,
+      reasons: [],
+      matchedSignals: [],
+    });
   });
 
   afterEach(() => {
@@ -137,5 +151,23 @@ describe("POST /api/marketplace/listings", () => {
     expect(response.status).toBe(201);
     expect(insertedPayloads[0]?.status).toBe("active");
     expect(mockWarn).toHaveBeenCalled();
+  });
+
+  it("forces flagged listings to draft and records a policy review", async () => {
+    const insertedPayloads: Record<string, unknown>[] = [];
+    mockCreateClient.mockResolvedValue(createMockSupabase(insertedPayloads));
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "block",
+      label: "illegal_goods",
+      confidence: 0.98,
+      reasons: ["Matched illegal goods pattern"],
+      matchedSignals: [{ field: "title", pattern: "stolen credentials", value: "stolen credentials" }],
+    });
+
+    const response = await POST(makeRequest());
+
+    expect(response.status).toBe(201);
+    expect(insertedPayloads[0]?.status).toBe("draft");
+    expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
 });

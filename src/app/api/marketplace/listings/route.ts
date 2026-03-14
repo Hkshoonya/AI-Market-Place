@@ -9,6 +9,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
+import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
@@ -258,6 +259,15 @@ export async function POST(request: NextRequest) {
   const enforceSellerVerification = isRuntimeFlagEnabled(
     "ENFORCE_SELLER_VERIFICATION"
   );
+  const policyEvaluation = evaluateListingPolicy({
+    title,
+    description,
+    shortDescription: short_description ?? null,
+    listingType: listing_type,
+    tags,
+    agentConfig: agent_config ?? null,
+    mcpManifest: mcp_manifest ?? null,
+  });
 
   if (!sellerVerified && !enforceSellerVerification) {
     await systemLog.warn(
@@ -272,6 +282,8 @@ export async function POST(request: NextRequest) {
 
   const initialStatus =
     sellerVerified || !enforceSellerVerification ? "active" : "draft";
+  const publishStatus =
+    policyEvaluation.decision === "allow" ? initialStatus : "draft";
 
   // Mark user as seller if not already
   await supabase
@@ -288,7 +300,7 @@ export async function POST(request: NextRequest) {
       description,
       short_description: short_description || null,
       listing_type,
-      status: initialStatus,
+      status: publishStatus,
       pricing_type: pricing_type || "one_time",
       price: price ?? null,
       currency: currency || "USD",
@@ -315,7 +327,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data }, { status: 201 });
+  await syncListingPolicyReview(supabase, {
+    listingId: data.id,
+    sellerId: user.id,
+    sourceAction: "create",
+    evaluation: policyEvaluation,
+    excerpt: `${title}\n${description}`.slice(0, 280),
+  });
+
+  return NextResponse.json(
+    {
+      data,
+      policy:
+        policyEvaluation.decision === "allow"
+          ? null
+          : {
+              decision: policyEvaluation.decision,
+              label: policyEvaluation.label,
+              confidence: policyEvaluation.confidence,
+            },
+    },
+    { status: 201 }
+  );
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings");
   }

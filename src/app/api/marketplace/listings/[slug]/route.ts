@@ -7,6 +7,7 @@ import { handleApiError } from "@/lib/api-error";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { systemLog } from "@/lib/logging";
+import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,25 @@ export async function PATCH(
   }
 
   const adminSupabase = createAdminClient();
+  let currentListingQuery = adminSupabase
+    .from("marketplace_listings")
+    .select("*")
+    .eq("slug", slug);
+
+  if (!isAdmin) {
+    currentListingQuery = currentListingQuery.eq("seller_id", user.id);
+  }
+
+  const { data: currentListing, error: currentListingError } =
+    await currentListingQuery.single();
+
+  if (currentListingError || !currentListing) {
+    return NextResponse.json(
+      { error: "Listing not found, or you do not have permission to edit it." },
+      { status: 404 }
+    );
+  }
+
   if (!isAdmin) {
     const { data: sellerProfile } = await adminSupabase
       .from("profiles")
@@ -212,6 +232,49 @@ export async function PATCH(
         );
       }
     }
+
+    const mergedListing = {
+      title:
+        typeof updates.title === "string" ? updates.title : currentListing.title,
+      description:
+        typeof updates.description === "string"
+          ? updates.description
+          : currentListing.description,
+      shortDescription:
+        typeof updates.short_description === "string" || updates.short_description === null
+          ? (updates.short_description as string | null)
+          : currentListing.short_description,
+      listingType:
+        typeof updates.listing_type === "string"
+          ? updates.listing_type
+          : currentListing.listing_type,
+      tags: Array.isArray(updates.tags)
+        ? (updates.tags as string[])
+        : currentListing.tags,
+      agentConfig:
+        "agent_config" in updates
+          ? ((updates.agent_config as Record<string, unknown> | null | undefined) ?? null)
+          : (currentListing.agent_config ?? null),
+      mcpManifest:
+        "mcp_manifest" in updates
+          ? ((updates.mcp_manifest as Record<string, unknown> | null | undefined) ?? null)
+          : (currentListing.mcp_manifest ?? null),
+    };
+
+    const policyEvaluation = evaluateListingPolicy(mergedListing);
+    if (policyEvaluation.decision !== "allow") {
+      const wantsActive = updates.status === "active";
+      const wasActive = currentListing.status === "active";
+      updates.status = wantsActive || wasActive ? "paused" : "draft";
+    }
+
+    await syncListingPolicyReview(adminSupabase, {
+      listingId: currentListing.id,
+      sellerId: user.id,
+      sourceAction: "update",
+      evaluation: policyEvaluation,
+      excerpt: `${mergedListing.title}\n${mergedListing.description}`.slice(0, 280),
+    });
   }
 
   // Always set updated_at

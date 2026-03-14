@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 const mockCreateServerClient = vi.fn();
 const mockCreateAdminClient = vi.fn();
 const mockWarn = vi.fn();
+const mockEvaluateListingPolicy = vi.fn();
+const mockSyncListingPolicyReview = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: (...args: unknown[]) => mockCreateServerClient(...args),
@@ -11,6 +13,11 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: (...args: unknown[]) => mockCreateAdminClient(...args),
+}));
+
+vi.mock("@/lib/marketplace/policy", () => ({
+  evaluateListingPolicy: (...args: unknown[]) => mockEvaluateListingPolicy(...args),
+  syncListingPolicyReview: (...args: unknown[]) => mockSyncListingPolicyReview(...args),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -116,6 +123,37 @@ function createAdminSupabase(updatePayloads: Record<string, unknown>[]) {
 
       if (table === "marketplace_listings") {
         return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: {
+                      id: "listing-1",
+                      slug: "test-listing",
+                      seller_id: "seller-1",
+                      title: "Original Listing",
+                      description: "Original description",
+                      short_description: null,
+                      listing_type: "agent",
+                      status: "active",
+                      pricing_type: "one_time",
+                      price: 5,
+                      currency: "USD",
+                      tags: [],
+                      documentation_url: null,
+                      demo_url: null,
+                      source_url: null,
+                      agent_config: null,
+                      mcp_manifest: null,
+                      model_id: null,
+                      thumbnail_url: null,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          }),
           update: (payload: Record<string, unknown>) => {
             updatePayloads.push(payload);
             return {
@@ -145,6 +183,13 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
     vi.clearAllMocks();
     mockCreateServerClient.mockResolvedValue(createServerSupabase());
     delete process.env.ENFORCE_SELLER_VERIFICATION;
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "allow",
+      label: "allow",
+      confidence: 0.1,
+      reasons: [],
+      matchedSignals: [],
+    });
   });
 
   afterEach(() => {
@@ -180,5 +225,32 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
     expect(response.status).toBe(200);
     expect(updatePayloads[0]?.status).toBe("active");
     expect(mockWarn).toHaveBeenCalled();
+  });
+
+  it("pauses active listings when the updated content triggers marketplace review", async () => {
+    const updatePayloads: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(createAdminSupabase(updatePayloads));
+    mockEvaluateListingPolicy.mockReturnValue({
+      decision: "review",
+      label: "suspicious_capability",
+      confidence: 0.75,
+      reasons: ["Matched suspicious exploit language"],
+      matchedSignals: [{ field: "description", pattern: "credential bypass", value: "credential bypass" }],
+    });
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/test-listing", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ description: "credential bypass workflow", status: "active" }),
+      }),
+      {
+        params: Promise.resolve({ slug: "test-listing" }),
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(updatePayloads[0]?.status).toBe("paused");
+    expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
 });

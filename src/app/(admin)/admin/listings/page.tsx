@@ -42,6 +42,12 @@ interface AdminListing {
   created_at: string;
   seller_id: string;
   profiles: { id: string; display_name: string | null; username: string | null } | null;
+  policy_review?: {
+    decision: string;
+    label: string;
+    review_status: string;
+    created_at: string;
+  } | null;
 }
 
 interface ListingsResponse {
@@ -241,6 +247,18 @@ export default function AdminListingsPage() {
                           {l.is_featured && (
                             <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
                           )}
+                          {l.policy_review ? (
+                            <Badge
+                              variant="outline"
+                              className={
+                                l.policy_review.decision === "block"
+                                  ? "border-loss/30 text-loss"
+                                  : "border-amber-500/30 text-amber-500"
+                              }
+                            >
+                              {l.policy_review.decision === "block" ? "Blocked" : "Review"}
+                            </Badge>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">

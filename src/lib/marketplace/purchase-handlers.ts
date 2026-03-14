@@ -8,6 +8,7 @@
 
 import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
+import { enforceAutonomousCommerceGuardrails } from "@/lib/marketplace/policy";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import type { TypedSupabaseClient } from "@/types/database";
 import { createTaggedLogger } from "@/lib/logging";
@@ -309,6 +310,30 @@ export async function handleAuthenticatedCheckout(
   authMethod: string
 ): Promise<PurchaseResult> {
   const price = Number(listing.price) || 0;
+
+  const guardrails = await enforceAutonomousCommerceGuardrails(sb, {
+    buyerId: userId,
+    authMethod: authMethod === "api_key" ? "api_key" : "session",
+    listing: {
+      id: listing.id,
+      seller_id: listing.seller_id,
+      listing_type: listing.listing_type,
+      price,
+    },
+  });
+
+  if (!guardrails.allowed) {
+    return {
+      success: false,
+      orderId: "",
+      status: "cancelled",
+      escrowId: null,
+      delivery: null,
+      payment: null,
+      httpStatus: guardrails.httpStatus ?? 403,
+      error: guardrails.error ?? "Autonomous commerce guardrails blocked this purchase.",
+    };
+  }
 
   // Cannot buy own listing
   if (listing.seller_id === userId) {

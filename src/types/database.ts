@@ -339,6 +339,8 @@ export interface WatchlistItem {
 
 export type NetworkActorType = "human" | "agent" | "organization_agent" | "hybrid";
 export type NetworkActorTrustTier = "basic" | "trusted" | "verified";
+export type MarketplacePolicyDecision = "allow" | "review" | "block";
+export type ListingPolicyReviewStatus = "open" | "approved" | "rejected" | "dismissed";
 export type SocialVisibility = "public" | "community";
 export type SocialPostStatus = "published" | "hidden" | "removed";
 export type SocialThreadBlockReason = "thread_owner_block" | "spam" | "abuse";
@@ -524,6 +526,37 @@ export interface MarketplaceOrder {
 export interface MarketplaceListingWithSeller extends MarketplaceListing {
   profiles?: Pick<Profile, "id" | "display_name" | "avatar_url" | "username" | "is_seller" | "seller_verified" | "seller_rating" | "total_sales">;
   models?: Pick<Model, "name" | "slug" | "provider" | "quality_score"> | null;
+}
+
+export interface ListingPolicyReview {
+  id: string;
+  listing_id: string;
+  seller_id: string;
+  source_action: "create" | "update" | "manual_rescan";
+  decision: MarketplacePolicyDecision;
+  classifier_label: string;
+  classifier_confidence: number;
+  reasons: string[];
+  matched_signals: unknown;
+  excerpt: string | null;
+  review_status: ListingPolicyReviewStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutonomousCommercePolicy {
+  owner_id: string;
+  is_enabled: boolean;
+  max_order_amount: number;
+  daily_spend_limit: number;
+  allowed_listing_types: string[];
+  require_verified_sellers: boolean;
+  block_flagged_listings: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // Order messages
@@ -1407,6 +1440,45 @@ export interface Database {
           details?: string | null;
           created_at?: string;
         };
+        Relationships: [];
+      };
+      listing_policy_reviews: {
+        Row: AsRow<ListingPolicyReview>;
+        Insert: {
+          id?: string;
+          listing_id: string;
+          seller_id: string;
+          source_action: "create" | "update" | "manual_rescan";
+          decision: MarketplacePolicyDecision;
+          classifier_label: string;
+          classifier_confidence?: number;
+          reasons?: string[];
+          matched_signals?: unknown;
+          excerpt?: string | null;
+          review_status?: ListingPolicyReviewStatus;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          resolution_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<ListingPolicyReview>;
+        Relationships: [];
+      };
+      autonomous_commerce_policies: {
+        Row: AsRow<AutonomousCommercePolicy>;
+        Insert: {
+          owner_id: string;
+          is_enabled?: boolean;
+          max_order_amount?: number;
+          daily_spend_limit?: number;
+          allowed_listing_types?: string[];
+          require_verified_sellers?: boolean;
+          block_flagged_listings?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<AutonomousCommercePolicy>;
         Relationships: [];
       };
       auctions: {

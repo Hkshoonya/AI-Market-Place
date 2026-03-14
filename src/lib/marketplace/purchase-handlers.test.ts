@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockWarn = vi.fn();
 const mockDeliverDigitalGood = vi.fn();
+const mockGetOrCreateWallet = vi.fn();
+const mockGetWalletBalance = vi.fn();
+const mockCreatePurchaseEscrow = vi.fn();
+const mockEnforceAutonomousCommerceGuardrails = vi.fn();
 
 vi.mock("@/lib/logging", () => ({
   createTaggedLogger: () => ({
@@ -16,16 +20,21 @@ vi.mock("@/lib/marketplace/delivery", () => ({
 }));
 
 vi.mock("@/lib/marketplace/escrow", () => ({
-  createPurchaseEscrow: vi.fn(),
+  createPurchaseEscrow: (...args: unknown[]) => mockCreatePurchaseEscrow(...args),
   completePurchaseEscrow: vi.fn(),
 }));
 
 vi.mock("@/lib/payments/wallet", () => ({
-  getOrCreateWallet: vi.fn(),
-  getWalletBalance: vi.fn(),
+  getOrCreateWallet: (...args: unknown[]) => mockGetOrCreateWallet(...args),
+  getWalletBalance: (...args: unknown[]) => mockGetWalletBalance(...args),
 }));
 
-import { handleGuestCheckout } from "./purchase-handlers";
+vi.mock("@/lib/marketplace/policy", () => ({
+  enforceAutonomousCommerceGuardrails: (...args: unknown[]) =>
+    mockEnforceAutonomousCommerceGuardrails(...args),
+}));
+
+import { handleAuthenticatedCheckout, handleGuestCheckout } from "./purchase-handlers";
 
 const ORIGINAL_BLOCK_GUEST_DELIVERY =
   process.env.BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY;
@@ -75,6 +84,12 @@ describe("handleGuestCheckout", () => {
       deliveryType: "api_access",
       data: { api_key: "aimk_generated" },
     });
+    mockEnforceAutonomousCommerceGuardrails.mockResolvedValue({
+      allowed: true,
+    });
+    mockGetOrCreateWallet.mockResolvedValue({ id: "wallet-1" });
+    mockGetWalletBalance.mockResolvedValue({ available: 500, held: 0 });
+    mockCreatePurchaseEscrow.mockResolvedValue({ escrowId: "escrow-1", walletId: "wallet-1" });
   });
 
   afterEach(() => {
@@ -126,5 +141,32 @@ describe("handleGuestCheckout", () => {
     expect(result.success).toBe(true);
     expect(result.status).toBe("completed");
     expect(mockWarn).toHaveBeenCalled();
+  });
+
+  it("rejects API-key purchases when autonomous guardrails block the order", async () => {
+    mockEnforceAutonomousCommerceGuardrails.mockResolvedValue({
+      allowed: false,
+      httpStatus: 403,
+      code: "max_order_amount_exceeded",
+      error: "Autonomous purchase cap exceeded.",
+    });
+
+    const result = await handleAuthenticatedCheckout(
+      createMockSupabase() as never,
+      {
+        id: "listing-1",
+        seller_id: "seller-2",
+        price: 250,
+        pricing_type: "one_time",
+        listing_type: "agent",
+        slug: "agent-listing",
+      },
+      "buyer-1",
+      "api_key"
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.httpStatus).toBe(403);
+    expect(result.error).toMatch(/cap/i);
   });
 });
