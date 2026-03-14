@@ -11,12 +11,15 @@ export const RankedModelSchema = z.object({
   name: z.string(),
   provider: z.string(),
   category: z.string(),
+  status: z.string(),
   overall_rank: z.coerce.number().nullable(),
   quality_score: z.coerce.number().nullable(),
+  capability_score: z.coerce.number().nullable().optional(),
   adoption_score: z.coerce.number().nullable(),
   economic_footprint_score: z.coerce.number().nullable(),
   market_cap_estimate: z.coerce.number().nullable(),
   popularity_score: z.coerce.number().nullable(),
+  value_score: z.coerce.number().nullable().optional(),
   is_open_weights: z.boolean().nullable(),
   benchmark_scores: z.array(z.object({
     score_normalized: z.coerce.number(),
@@ -25,7 +28,10 @@ export const RankedModelSchema = z.object({
     }).nullable(),
   })),
   model_pricing: z.array(z.object({
+    provider_name: z.string().nullable().optional(),
     input_price_per_million: z.coerce.number().nullable(),
+    output_price_per_million: z.coerce.number().nullable().optional(),
+    source: z.string().nullable().optional(),
   })),
 });
 
@@ -85,10 +91,15 @@ export const CategoryModelSchema = z.object({
   name: z.string(),
   provider: z.string(),
   category: z.string(),
+  status: z.string(),
   overall_rank: z.coerce.number().nullable(),
   category_rank: z.coerce.number().nullable(),
   quality_score: z.coerce.number().nullable(),
   capability_score: z.coerce.number().nullable().optional(),
+  popularity_score: z.coerce.number().nullable().optional(),
+  adoption_score: z.coerce.number().nullable().optional(),
+  economic_footprint_score: z.coerce.number().nullable().optional(),
+  value_score: z.coerce.number().nullable().optional(),
   agent_score: z.coerce.number().nullable().optional(),
   is_open_weights: z.boolean().nullable(),
   parameter_count: z.coerce.number().nullable(),
@@ -100,7 +111,10 @@ export const CategoryModelSchema = z.object({
     }).nullable(),
   })),
   model_pricing: z.array(z.object({
+    provider_name: z.string().nullable().optional(),
     input_price_per_million: z.coerce.number().nullable(),
+    output_price_per_million: z.coerce.number().nullable().optional(),
+    source: z.string().nullable().optional(),
     median_output_tokens_per_second: z.coerce.number().nullable(),
   })),
 });

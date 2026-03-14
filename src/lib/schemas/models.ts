@@ -171,6 +171,7 @@ export const ExplorerModelSchema = z.object({
   slug: z.string(),
   provider: z.string(),
   category: z.string(),
+  status: z.string(),
   overall_rank: z.coerce.number().nullable(),
   category_rank: z.coerce.number().nullable(),
   quality_score: z.coerce.number().nullable(),

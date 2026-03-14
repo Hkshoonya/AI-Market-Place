@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lens = searchParams.get("lens") || "capability";
     const category = searchParams.get("category");
+    const lifecycleFilter = parseLifecycleFilter(searchParams.get("lifecycle"));
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
 
     const lensConfig = LENS_SORT_MAP[lens];
@@ -64,10 +66,14 @@ export async function GET(request: NextRequest) {
         model_pricing(input_price_per_million, output_price_per_million, provider_name, median_output_tokens_per_second),
         elo_ratings(elo_score, arena_name)
       `)
-      .eq("status", "active")
       .not(lensConfig.sortCol, "is", null)
       .order(lensConfig.sortCol, { ascending: lensConfig.ascending })
       .limit(limit);
+
+    query =
+      lifecycleFilter === "all"
+        ? query.in("status", getLifecycleStatuses("all"))
+        : query.eq("status", "active");
 
     if (category) {
       query = query.eq("category", category as import("@/types/database").ModelCategory);
@@ -85,6 +91,7 @@ export async function GET(request: NextRequest) {
         elo_ratings: collapseArenaRatings(Array.isArray(model.elo_ratings) ? model.elo_ratings : []),
       })),
       lens,
+      lifecycle: lifecycleFilter,
     });
   } catch (err) {
     return handleApiError(err, "api/rankings");

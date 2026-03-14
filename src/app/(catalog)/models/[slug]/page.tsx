@@ -14,6 +14,7 @@ import {
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
@@ -37,6 +38,8 @@ import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
 import { getModelDisplayDescription, getParameterDisplay } from "@/lib/models/presentation";
+import { getLifecycleBadge } from "@/lib/models/lifecycle";
+import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
 
 export const revalidate = 60;
 
@@ -123,6 +126,7 @@ export default async function ModelDetailPage({
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
   const displayDescription = getModelDisplayDescription(model);
+  const lifecycleBadge = getLifecycleBadge(model.status);
   const parameterDisplay = getParameterDisplay(model);
   const benchmarkScores = model.benchmark_scores ?? [];
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
@@ -153,9 +157,15 @@ export default async function ModelDetailPage({
     { label: "Released", value: model.release_date ? new Date(model.release_date).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "---", icon: Calendar },
   ];
 
-  const lowestPrice = pricingData.length > 0
-    ? [...pricingData].sort((a, b) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0]
-    : null;
+  const lowestPrice = getCheapestVerifiedPricing({
+    id: model.id,
+    slug: model.slug,
+    name: model.name,
+    provider: model.provider,
+    overall_rank: model.overall_rank,
+    is_open_weights: model.is_open_weights,
+    model_pricing: pricingData,
+  });
   const jsonLd = {
     "@context": "https://schema.org", "@type": "SoftwareApplication",
     name: model.name, description: displayDescription.text ?? undefined,
@@ -202,6 +212,17 @@ export default async function ModelDetailPage({
         id={model.id}
         catConfig={catConfig}
       />
+
+      {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
+        <Card className="mt-4 border-border/50 bg-card/60">
+          <CardContent className="flex flex-wrap items-center gap-3 p-4">
+            <Badge variant="outline">{lifecycleBadge.label}</Badge>
+            <p className="text-sm text-muted-foreground">
+              This model is still tracked for research and discovery, but it is excluded from default public rankings until it returns to active status.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Stats Row */}
       <ModelStatsRow stats={stats} />
@@ -274,6 +295,7 @@ export default async function ModelDetailPage({
             parameter_label={parameterDisplay.label}
             context_window={model.context_window}
             release_date={model.release_date}
+            status={model.status}
             license_name={model.license_name}
             license={model.license}
             is_open_weights={model.is_open_weights}

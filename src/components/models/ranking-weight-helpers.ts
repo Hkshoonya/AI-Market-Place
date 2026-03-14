@@ -7,6 +7,7 @@ export interface RankableModel {
   slug: string;
   provider: string;
   category: string;
+  status: string;
   overall_rank: number | null;
   category_rank: number | null;
   quality_score: number | null;

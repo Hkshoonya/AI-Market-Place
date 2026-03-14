@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -23,12 +24,15 @@ import {
   getLeaderboardLensScore,
   sortModelsForLens,
 } from "@/lib/models/leaderboard";
+import { getLifecycleBadge, type LifecycleFilter } from "@/lib/models/lifecycle";
+import { type PublicRankingLens } from "@/lib/models/public-lenses";
 
 export interface LeaderboardModel {
   name: string;
   slug: string;
   provider: string;
   category: string;
+  status: string;
   overall_rank: number | null;
   category_rank: number | null;
   quality_score: number | null;
@@ -55,6 +59,8 @@ export interface LeaderboardModel {
 
 interface LeaderboardExplorerProps {
   models: LeaderboardModel[];
+  initialLens: PublicRankingLens;
+  initialLifecycleFilter: LifecycleFilter;
 }
 
 function formatCategoryLabel(category: string): string {
@@ -66,14 +72,40 @@ function formatCategoryLabel(category: string): string {
 
 export default function LeaderboardExplorer({
   models,
+  initialLens,
+  initialLifecycleFilter,
 }: LeaderboardExplorerProps) {
-  const [activeLens, setActiveLens] = useState<RankingLens>("capability");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [activeLens, setActiveLens] = useState<RankingLens>(initialLens);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "rank", desc: false },
   ]);
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>(initialLifecycleFilter);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [customSortedModels, setCustomSortedModels] = useState<LeaderboardModel[] | null>(null);
+
+  useEffect(() => {
+    setActiveLens(initialLens);
+  }, [initialLens]);
+
+  useEffect(() => {
+    setLifecycleFilter(initialLifecycleFilter);
+  }, [initialLifecycleFilter]);
+
+  function syncRankingUrl(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const filteredModels = useMemo(() => {
     let result = customSortedModels ?? models;
@@ -144,6 +176,11 @@ export default function LeaderboardExplorer({
                   {model.is_open_weights && (
                     <span className="rounded bg-[#00d4aa]/10 px-1 py-0 text-[10px] text-[#00d4aa]">
                       Open
+                    </span>
+                  )}
+                  {!getLifecycleBadge(model.status)?.rankedByDefault && (
+                    <span className="rounded bg-[#f59e0b]/10 px-1 py-0 text-[10px] text-[#f59e0b]">
+                      {getLifecycleBadge(model.status)?.label}
                     </span>
                   )}
                 </div>
@@ -298,7 +335,15 @@ export default function LeaderboardExplorer({
     <div>
       <LeaderboardControls
         activeLens={activeLens}
-        setActiveLens={setActiveLens}
+        setActiveLens={(lens) => {
+          setActiveLens(lens);
+          syncRankingUrl({ lens });
+        }}
+        lifecycleFilter={lifecycleFilter}
+        setLifecycleFilter={(filter) => {
+          setLifecycleFilter(filter);
+          syncRankingUrl({ lifecycle: filter === "active" ? null : filter });
+        }}
         categoryFilter={categoryFilter}
         setCategoryFilter={setCategoryFilter}
         searchQuery={searchQuery}

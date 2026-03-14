@@ -39,6 +39,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentParams = searchParams.get("params") ?? "";
   const currentHasApi = searchParams.get("api") === "true";
   const currentLicense = searchParams.get("license") ?? "";
+  const currentLifecycle = searchParams.get("lifecycle") === "all" ? "all" : "active";
 
   const activeFilterCount = [
     currentOpenOnly, currentProvider, currentParams, currentHasApi, currentLicense,
@@ -184,10 +185,43 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
           {isPending ? (
             <span className="animate-pulse">Loading...</span>
           ) : (
-            <>Showing <span className="font-medium text-foreground">{totalCount}</span> models</>
+            <>
+              Showing <span className="font-medium text-foreground">{totalCount}</span>{" "}
+              {currentLifecycle === "all" ? "tracked models" : "active models"}
+            </>
           )}
         </p>
         <div className="flex items-center gap-2 text-sm text-muted-foreground" role="group" aria-label="Sort options">
+          <Badge
+            variant="outline"
+            className={cn(
+              "cursor-pointer text-xs transition-colors",
+              currentLifecycle === "active"
+                ? "border-neon/30 text-neon"
+                : "border-border/50 hover:border-neon/30 hover:text-foreground"
+            )}
+            onClick={() => updateParams({ lifecycle: null })}
+            role="button"
+            aria-pressed={currentLifecycle === "active"}
+            aria-label="Show active models only"
+          >
+            Active Only
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              "cursor-pointer text-xs transition-colors",
+              currentLifecycle === "all"
+                ? "border-neon/30 text-neon"
+                : "border-border/50 hover:border-neon/30 hover:text-foreground"
+            )}
+            onClick={() => updateParams({ lifecycle: "all" })}
+            role="button"
+            aria-pressed={currentLifecycle === "all"}
+            aria-label="Include non-active models"
+          >
+            Include Non-Active
+          </Badge>
           Sort by:
           {SORT_OPTIONS.map((opt) => (
             <Badge

@@ -9,6 +9,7 @@ export interface DetailsTabProps {
   parameter_label: string;
   context_window: number | null;
   release_date: string | null;
+  status: string;
   license_name: string | null;
   license: string | null;
   is_open_weights: boolean | null;
@@ -22,6 +23,7 @@ export function DetailsTab({
   parameter_label,
   context_window,
   release_date,
+  status,
   license_name,
   license,
   is_open_weights,
@@ -56,6 +58,7 @@ export function DetailsTab({
                   })
                 : "---",
             },
+            { label: "Lifecycle", value: status.replace(/_/g, " ") },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between py-1">
               <span className="text-sm text-muted-foreground">{item.label}</span>

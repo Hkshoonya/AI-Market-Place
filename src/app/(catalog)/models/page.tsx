@@ -12,6 +12,7 @@ import {
   getLowestInputPrice,
 } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
@@ -42,6 +43,7 @@ export default async function ModelsPage({
     params?: string;
     api?: string;
     license?: string;
+    lifecycle?: string;
   }>;
 }) {
   const p = await searchParams;
@@ -55,6 +57,7 @@ export default async function ModelsPage({
   const paramsFilter = p.params ?? "";
   const apiFilter = p.api === "true";
   const licenseFilter = p.license ?? "";
+  const lifecycleFilter = parseLifecycleFilter(p.lifecycle);
 
   const supabase = createPublicClient();
 
@@ -62,7 +65,12 @@ export default async function ModelsPage({
   let dbQuery = supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*)", { count: "exact" })
-    .eq("status", "active");
+    ;
+
+  dbQuery =
+    lifecycleFilter === "all"
+      ? dbQuery.in("status", getLifecycleStatuses("all"))
+      : dbQuery.eq("status", "active");
 
   // Category filter
   if (category) {
@@ -155,7 +163,9 @@ export default async function ModelsPage({
 
   const ModelsPageSchema = ModelBaseSchema.extend({
     model_pricing: z.array(z.object({
+      provider_name: z.string().nullable().optional(),
       input_price_per_million: z.number().nullable(),
+      source: z.string().nullable().optional(),
     })).optional(),
   });
   const parsedModels = parseQueryResultPartial(
@@ -181,6 +191,11 @@ export default async function ModelsPage({
         <p className="mt-2 text-muted-foreground">
           Browse, search, and compare AI models from providers worldwide.
         </p>
+        {lifecycleFilter === "active" && (
+          <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
+            Default view ranks active models only. Preview, beta, deprecated, and archived models stay tracked and can be included with one click.
+          </div>
+        )}
       </div>
 
       {/* Client-side Filter Bar */}
@@ -271,6 +286,11 @@ export default async function ModelsPage({
                             <span className="ml-2 text-xs text-muted-foreground">
                               {model.provider}
                             </span>
+                            {getLifecycleBadge(model.status) && !getLifecycleBadge(model.status)?.rankedByDefault && (
+                              <Badge variant="outline" className="ml-2 text-[10px]">
+                                {getLifecycleBadge(model.status)?.label}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </Link>

@@ -15,6 +15,9 @@ import { getParameterDisplay } from "@/lib/models/presentation";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 import type { z } from "zod";
+import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
+import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
+import { getLowestInputPrice } from "@/lib/models/pricing";
 
 export const revalidate = 3600;
 
@@ -39,10 +42,13 @@ export async function generateMetadata({
 
 export default async function CategoryLeaderboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ category: string }>;
+  searchParams: Promise<{ lens?: string; lifecycle?: string }>;
 }) {
   const { category } = await params;
+  const query = await searchParams;
   const categoryConfig = CATEGORY_MAP[category as ModelCategory];
 
   if (!categoryConfig) {
@@ -50,13 +56,25 @@ export default async function CategoryLeaderboardPage({
   }
 
   const supabase = createPublicClient();
+  const activeLens = parsePublicRankingLens(query.lens);
+  const lifecycleFilter = parseLifecycleFilter(query.lifecycle);
+  const lifecycleStatuses = getLifecycleStatuses(lifecycleFilter);
 
-  const modelsResponse = await supabase
+  let modelsQuery = supabase
     .from("models")
     .select("*, benchmark_scores(*, benchmarks(*)), model_pricing(*), rankings(*)")
-    .eq("status", "active")
     .eq("category", category as import("@/types/database").ModelCategory)
-    .order("capability_score", { ascending: false, nullsFirst: false });
+    .order(activeLens === "value" ? "value_score" : `${activeLens === "economic" ? "economic_footprint" : activeLens}_score`, {
+      ascending: activeLens === "value" ? false : false,
+      nullsFirst: false,
+    });
+
+  modelsQuery =
+    lifecycleFilter === "all"
+      ? modelsQuery.in("status", lifecycleStatuses)
+      : modelsQuery.eq("status", "active");
+
+  const modelsResponse = await modelsQuery;
 
   type CategoryModel = z.infer<typeof CategoryModelSchema>;
   const models = parseQueryResult(
@@ -66,19 +84,15 @@ export default async function CategoryLeaderboardPage({
   );
 
   const isBrowserCategory = category === "agentic_browser";
-  const primaryMetricLabel = isBrowserCategory ? "Browser Score" : "Capability";
+  const primaryMetricLabel = isBrowserCategory && activeLens === "capability"
+    ? "Browser Score"
+    : getPublicLensLabel(activeLens);
 
   const sortedModels = [...models].sort((left, right) => {
     const leftPrimary =
-      (isBrowserCategory ? left.agent_score : null) ??
-      left.capability_score ??
-      left.quality_score ??
-      Number.NEGATIVE_INFINITY;
+      getPrimaryMetric(left, activeLens, isBrowserCategory) ?? left.quality_score ?? Number.NEGATIVE_INFINITY;
     const rightPrimary =
-      (isBrowserCategory ? right.agent_score : null) ??
-      right.capability_score ??
-      right.quality_score ??
-      Number.NEGATIVE_INFINITY;
+      getPrimaryMetric(right, activeLens, isBrowserCategory) ?? right.quality_score ?? Number.NEGATIVE_INFINITY;
 
     if (rightPrimary !== leftPrimary) return rightPrimary - leftPrimary;
 
@@ -118,20 +132,36 @@ export default async function CategoryLeaderboardPage({
     return match ? Number(match.score_normalized) : null;
   }
 
-  function getCheapestInput(model: CategoryModel): number | null {
-    const pricing = model.model_pricing ?? [];
-    const prices = pricing
-      .map((entry) => Number(entry.input_price_per_million))
-      .filter((price) => !Number.isNaN(price) && price > 0);
-    return prices.length > 0 ? Math.min(...prices) : null;
-  }
-
   function getBestSpeed(model: CategoryModel): number | null {
     const pricing = model.model_pricing ?? [];
     const speeds = pricing
       .map((entry) => Number(entry.median_output_tokens_per_second))
       .filter((speed) => !Number.isNaN(speed) && speed > 0);
     return speeds.length > 0 ? Math.max(...speeds) : null;
+  }
+
+  function getPrimaryMetric(
+    model: CategoryModel,
+    lens: PublicRankingLens,
+    browserCategory: boolean
+  ): number | null {
+    switch (lens) {
+      case "capability":
+        return browserCategory
+          ? (model.agent_score != null ? Number(model.agent_score) : null)
+          : (model.capability_score != null ? Number(model.capability_score) : null);
+      case "popularity":
+        return model.popularity_score != null ? Number(model.popularity_score) : null;
+      case "adoption":
+        return model.adoption_score != null ? Number(model.adoption_score) : null;
+      case "value":
+        return model.value_score != null ? Number(model.value_score) : null;
+      case "economic":
+      default:
+        return model.economic_footprint_score != null
+          ? Number(model.economic_footprint_score)
+          : null;
+    }
   }
 
   return (
@@ -158,6 +188,50 @@ export default async function CategoryLeaderboardPage({
           <h1 className="text-3xl font-bold">{categoryConfig.label} Leaderboard</h1>
           <p className="text-muted-foreground">{categoryConfig.description}</p>
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(["capability", "popularity", "adoption", "economic", "value"] as const).map((lens) => (
+          <Link
+            key={lens}
+            href={`/leaderboards/${category}?lens=${lens}${lifecycleFilter === "all" ? "&lifecycle=all" : ""}`}
+          >
+            <Badge
+              variant="outline"
+              className={
+                activeLens === lens
+                  ? "cursor-pointer border-neon/30 bg-neon/10 text-neon"
+                  : "cursor-pointer border-border/50 text-muted-foreground"
+              }
+            >
+              {getPublicLensLabel(lens)}
+            </Badge>
+          </Link>
+        ))}
+        <Link href={`/leaderboards/${category}?lens=${activeLens}`}>
+          <Badge
+            variant="outline"
+            className={
+              lifecycleFilter === "active"
+                ? "cursor-pointer border-neon/30 bg-neon/10 text-neon"
+                : "cursor-pointer border-border/50 text-muted-foreground"
+            }
+          >
+            Active Only
+          </Badge>
+        </Link>
+        <Link href={`/leaderboards/${category}?lens=${activeLens}&lifecycle=all`}>
+          <Badge
+            variant="outline"
+            className={
+              lifecycleFilter === "all"
+                ? "cursor-pointer border-neon/30 bg-neon/10 text-neon"
+                : "cursor-pointer border-border/50 text-muted-foreground"
+            }
+          >
+            Include Non-Active
+          </Badge>
+        </Link>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -193,7 +267,7 @@ export default async function CategoryLeaderboardPage({
 
       <div className="mt-8 flex flex-wrap gap-2">
         {CATEGORIES.map((categoryTab) => (
-          <Link key={categoryTab.slug} href={`/leaderboards/${categoryTab.slug}`}>
+          <Link key={categoryTab.slug} href={`/leaderboards/${categoryTab.slug}?lens=${activeLens}${lifecycleFilter === "all" ? "&lifecycle=all" : ""}`}>
             <Badge
               variant="outline"
               className={`gap-1.5 px-3 py-1.5 text-xs transition-colors ${
@@ -260,13 +334,19 @@ export default async function CategoryLeaderboardPage({
                 </thead>
                 <tbody>
                   {sortedModels.map((model, index) => {
-                    const price = getCheapestInput(model);
+                    const price = getLowestInputPrice({
+                      id: model.id,
+                      slug: model.slug,
+                      name: model.name,
+                      provider: model.provider,
+                      overall_rank: model.overall_rank,
+                      is_open_weights: model.is_open_weights,
+                      model_pricing: model.model_pricing,
+                    });
                     const speed = getBestSpeed(model);
                     const parameterDisplay = getParameterDisplay(model);
-                    const primaryMetric =
-                      (isBrowserCategory ? model.agent_score : null) ??
-                      model.capability_score ??
-                      model.quality_score;
+                    const primaryMetric = getPrimaryMetric(model, activeLens, isBrowserCategory) ?? model.quality_score;
+                    const lifecycleBadge = getLifecycleBadge(model.status);
 
                     return (
                       <tr
@@ -305,6 +385,11 @@ export default async function CategoryLeaderboardPage({
                                 <p className="text-xs text-muted-foreground">
                                   {model.provider}
                                 </p>
+                                {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
+                                  <Badge variant="outline" className="mt-1 text-[10px]">
+                                    {lifecycleBadge.label}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </Link>
@@ -338,8 +423,10 @@ export default async function CategoryLeaderboardPage({
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
                           {price !== null ? (
                             <span>${price.toFixed(2)}</span>
-                          ) : (
+                          ) : model.is_open_weights ? (
                             <span className="text-gain">Free</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">

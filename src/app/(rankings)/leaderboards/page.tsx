@@ -20,6 +20,16 @@ import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import BenchmarkHeatmap from "@/components/charts/benchmark-heatmap";
 import RankTimeline from "@/components/charts/rank-timeline";
 import type { Metadata } from "next";
+import { Badge as UiBadge } from "@/components/ui/badge";
+import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
+import {
+  getPublicLensLabel,
+  getPublicLensSort,
+  parsePublicRankingLens,
+  type PublicRankingLens,
+} from "@/lib/models/public-lenses";
+import { getLowestInputPrice } from "@/lib/models/pricing";
+import { z as zod } from "zod";
 
 export const metadata: Metadata = {
   title: "AI Model Leaderboards",
@@ -28,35 +38,70 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function LeaderboardsPage() {
-  const supabase = createPublicClient();
+const TrackedModelSchema = zod.object({
+  slug: zod.string(),
+  name: zod.string(),
+  provider: zod.string(),
+  category: zod.string(),
+  status: zod.string(),
+  popularity_rank: zod.coerce.number().nullable(),
+  popularity_score: zod.coerce.number().nullable(),
+});
 
-  // Fetch ranked models with benchmarks, pricing, elo — sorted by overall rank
-  const rankedModelsResponse = await supabase
+export default async function LeaderboardsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    lens?: string;
+    lifecycle?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const supabase = createPublicClient();
+  const activeLens = parsePublicRankingLens(params.lens);
+  const lifecycleFilter = parseLifecycleFilter(params.lifecycle);
+  const lifecycleStatuses = getLifecycleStatuses(lifecycleFilter);
+  const lensSort = getPublicLensSort(activeLens);
+  const activeLensLabel = getPublicLensLabel(activeLens);
+
+  // Fetch ranked models with benchmarks, pricing, elo — sorted by selected lens
+  let rankedModelsQuery = supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
-    .eq("status", "active")
-    .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .not(lensSort.sortCol, "is", null)
+    .order(lensSort.sortCol, { ascending: lensSort.ascending, nullsFirst: false })
     .limit(20);
+
+  rankedModelsQuery =
+    lifecycleFilter === "all"
+      ? rankedModelsQuery.in("status", lifecycleStatuses)
+      : rankedModelsQuery.eq("status", "active");
+
+  const rankedModelsResponse = await rankedModelsQuery;
 
   type RankedModel = z.infer<typeof RankedModelSchema>;
   const rankedModels = parseQueryResult(rankedModelsResponse, RankedModelSchema, "RankedModel");
 
   // Fetch ALL ranked models for the explorer (client component)
-  const explorerModelsResponse = await supabase
+  let explorerModelsQuery = supabase
     .from("models")
-    .select("name, slug, provider, category, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, agent_score, agent_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
-    .eq("status", "active")
-    .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .select("name, slug, provider, category, status, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, agent_score, agent_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
+    .order(lensSort.sortCol, { ascending: lensSort.ascending, nullsFirst: false })
     .limit(500);
+
+  explorerModelsQuery =
+    lifecycleFilter === "all"
+      ? explorerModelsQuery.in("status", lifecycleStatuses)
+      : explorerModelsQuery.eq("status", "active");
+
+  const explorerModelsResponse = await explorerModelsQuery;
 
   const explorerModels = parseQueryResult(explorerModelsResponse, ExplorerModelSchema, "ExplorerModel").map((m) => ({
     name: m.name,
     slug: m.slug,
     provider: m.provider,
     category: m.category,
+    status: m.status,
     overall_rank: m.overall_rank,
     category_rank: m.category_rank,
     quality_score: m.quality_score != null ? Number(m.quality_score) : null,
@@ -80,6 +125,21 @@ export default async function LeaderboardsPage() {
     expert_rank: m.expert_rank,
     balanced_rank: m.balanced_rank,
   }));
+
+  const trackedModelsResponse =
+    lifecycleFilter === "active"
+      ? await supabase
+          .from("models")
+          .select("slug, name, provider, category, status, popularity_rank, popularity_score")
+          .in("status", getLifecycleStatuses("all").filter((status) => status !== "active"))
+          .order("popularity_rank", { ascending: true, nullsFirst: false })
+          .limit(8)
+      : { data: [], error: null };
+
+  const trackedModels =
+    lifecycleFilter === "active"
+      ? parseQueryResult(trackedModelsResponse, TrackedModelSchema, "TrackedModel")
+      : [];
 
   // Fetch speed-ranked models
   const speedModelsResponse = await supabase
@@ -107,6 +167,31 @@ export default async function LeaderboardsPage() {
     return found ? Number(found.score_normalized) : null;
   }
 
+  function getLensScore(model: RankedModel, lens: PublicRankingLens): number | null {
+    switch (lens) {
+      case "capability":
+        return model.capability_score != null ? Number(model.capability_score) : null;
+      case "popularity":
+        return model.popularity_score != null ? Number(model.popularity_score) : null;
+      case "adoption":
+        return model.adoption_score != null ? Number(model.adoption_score) : null;
+      case "value":
+        return model.value_score != null ? Number(model.value_score) : null;
+      case "economic":
+      default:
+        return model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
+    }
+  }
+
+  function buildLeaderboardHref(lens: PublicRankingLens): string {
+    const search = new URLSearchParams();
+    search.set("lens", lens);
+    if (lifecycleFilter === "all") {
+      search.set("lifecycle", "all");
+    }
+    return `/leaderboards?${search.toString()}`;
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       {/* Header */}
@@ -118,18 +203,53 @@ export default async function LeaderboardsPage() {
         <p className="mt-2 text-muted-foreground">
           Rankings across capability, popularity, adoption, economic footprint, speed, and value. Updated every 6 hours.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href={`/leaderboards?lens=${activeLens}`} scroll={false}>
+            <UiBadge
+              variant="outline"
+              className={
+                lifecycleFilter === "active"
+                  ? "cursor-pointer border-neon/30 bg-neon/10 text-neon"
+                  : "cursor-pointer border-border/50 text-muted-foreground"
+              }
+            >
+              Active Only
+            </UiBadge>
+          </Link>
+          <Link href={`/leaderboards?lens=${activeLens}&lifecycle=all`} scroll={false}>
+            <UiBadge
+              variant="outline"
+              className={
+                lifecycleFilter === "all"
+                  ? "cursor-pointer border-neon/30 bg-neon/10 text-neon"
+                  : "cursor-pointer border-border/50 text-muted-foreground"
+              }
+            >
+              Include Non-Active
+            </UiBadge>
+          </Link>
+        </div>
         <div className="mt-6">
-          <LeaderboardLensNav />
+          <LeaderboardLensNav
+            activeLens={activeLens}
+            lifecycle={lifecycleFilter}
+            buildHref={buildLeaderboardHref}
+          />
         </div>
       </div>
 
       {/* Category Quick Links */}
       <div className="mb-8 flex flex-wrap gap-2">
-        <Badge variant="outline" className="cursor-pointer border-neon/30 bg-neon/10 text-xs text-neon">
-          All Models
-        </Badge>
+        <Link href={buildLeaderboardHref(activeLens)}>
+          <Badge variant="outline" className="cursor-pointer border-neon/30 bg-neon/10 text-xs text-neon">
+            All Models
+          </Badge>
+        </Link>
         {CATEGORIES.map((cat) => (
-          <Link key={cat.slug} href={`/leaderboards/${cat.slug}`}>
+          <Link
+            key={cat.slug}
+            href={`/leaderboards/${cat.slug}?lens=${activeLens}${lifecycleFilter === "all" ? "&lifecycle=all" : ""}`}
+          >
             <Badge
               variant="outline"
               className="cursor-pointer gap-1 border-border/50 text-xs text-muted-foreground hover:border-neon/30 hover:text-foreground"
@@ -140,6 +260,65 @@ export default async function LeaderboardsPage() {
           </Link>
         ))}
       </div>
+
+      {trackedModels.length > 0 && (
+        <div className="mb-8 rounded-2xl border border-border/50 bg-card/50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Tracked Non-Active Models</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Preview, beta, deprecated, and archived models stay visible here without affecting default public ranks.
+              </p>
+            </div>
+            <Link href={`/leaderboards?lens=${activeLens}&lifecycle=all`} className="text-xs text-neon hover:underline">
+              Include Them
+            </Link>
+          </div>
+          <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/50 bg-secondary/20">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Popularity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trackedModels.map((model) => {
+                  const badge = getLifecycleBadge(model.status);
+                  return (
+                    <tr key={model.slug} className="border-b border-border/30">
+                      <td className="px-4 py-3">
+                        <Link href={`/models/${model.slug}`} className="flex items-center gap-2 hover:text-neon">
+                          <ProviderLogo provider={model.provider} size="sm" />
+                          <div>
+                            <div className="text-sm font-medium">{model.name}</div>
+                            <div className="text-xs text-muted-foreground">{model.provider}</div>
+                          </div>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">
+                        {badge && (
+                          <UiBadge variant="outline" className="text-[11px]">
+                            {badge.label}
+                          </UiBadge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                        {model.popularity_rank != null
+                          ? `#${model.popularity_rank}`
+                          : model.popularity_score != null
+                            ? Number(model.popularity_score).toFixed(1)
+                            : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Main Leaderboard Tabs */}
       <Tabs defaultValue="explorer">
@@ -156,7 +335,11 @@ export default async function LeaderboardsPage() {
 
         {/* Explorer Tab — Bloomberg-style data grid */}
         <TabsContent value="explorer" className="mt-6">
-          <LeaderboardExplorer models={explorerModels} />
+          <LeaderboardExplorer
+            models={explorerModels}
+            initialLens={activeLens}
+            initialLifecycleFilter={lifecycleFilter}
+          />
         </TabsContent>
 
         {/* Benchmarks Tab — Heatmap */}
@@ -257,11 +440,11 @@ export default async function LeaderboardsPage() {
               <QualityDistribution
                 data={rankedModels.map((m) => ({
                   name: m.name,
-                  quality: Number(m.economic_footprint_score) || 0,
+                  quality: getLensScore(m, activeLens) ?? 0,
                   provider: m.provider as string,
                 }))}
-                title="Economic Footprint Distribution"
-                metricLabel="Economic Footprint"
+                title={`${activeLensLabel} Distribution`}
+                metricLabel={activeLensLabel}
               />
             </div>
           )}
@@ -271,7 +454,7 @@ export default async function LeaderboardsPage() {
                 <tr className="border-b border-border/50 bg-secondary/30">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">#</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Model</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Economic Footprint</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{activeLensLabel}</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground sm:table-cell">Quality</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
@@ -284,17 +467,22 @@ export default async function LeaderboardsPage() {
               <tbody>
                 {rankedModels.map((model, index) => {
                   const rank = index + 1;
-                  const economicFootprint = model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
                   const adoptionScore = model.adoption_score != null ? Number(model.adoption_score) : null;
                   const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
+                  const lensScore = getLensScore(model, activeLens);
                   const mmlu = getBenchmarkScore(model, "mmlu") ?? getBenchmarkScore(model, "mmlu-pro");
                   const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
                   const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
-                  const cheapestPricing = (model.model_pricing as { input_price_per_million: number | null }[])
-                    ?.filter((p) => p.input_price_per_million != null)
-                    .sort((a, b) =>
-                      (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0)
-                    )[0];
+                  const lifecycleBadge = getLifecycleBadge(model.status);
+                  const cheapestPricing = getLowestInputPrice({
+                    id: model.id,
+                    name: model.name,
+                    slug: model.slug,
+                    provider: model.provider,
+                    overall_rank: model.overall_rank,
+                    is_open_weights: model.is_open_weights,
+                    model_pricing: model.model_pricing,
+                  });
 
                   return (
                     <tr key={model.id} className="border-b border-border/30 table-row-hover cursor-pointer">
@@ -317,6 +505,11 @@ export default async function LeaderboardsPage() {
                             <div>
                               <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
                               <span className="ml-2 text-xs text-muted-foreground">{model.provider}</span>
+                              {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
+                                <UiBadge variant="outline" className="ml-2 text-[10px]">
+                                  {lifecycleBadge.label}
+                                </UiBadge>
+                              )}
                             </div>
                           </div>
                         </Link>
@@ -324,9 +517,7 @@ export default async function LeaderboardsPage() {
                       <td className="px-4 py-3.5 text-right">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-bold tabular-nums text-neon">
-                            {economicFootprint
-                              ? economicFootprint.toFixed(1)
-                              : "—"}
+                            {lensScore != null ? lensScore.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
@@ -360,9 +551,9 @@ export default async function LeaderboardsPage() {
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
-                          {cheapestPricing ? (
+                          {cheapestPricing != null ? (
                             <span className="text-muted-foreground">
-                              {formatTokenPrice(cheapestPricing.input_price_per_million)}
+                              {formatTokenPrice(cheapestPricing)}
                             </span>
                           ) : model.is_open_weights ? (
                             <span className="text-gain font-medium">Free</span>

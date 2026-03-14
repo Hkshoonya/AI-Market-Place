@@ -1,6 +1,10 @@
 "use client";
 
 import { CATEGORY_MAP, type ModelCategory } from "@/lib/constants/categories";
+import {
+  PUBLIC_LENS_CONFIG,
+  type PublicRankingLens,
+} from "@/lib/models/public-lenses";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -8,22 +12,12 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 export type RankingLens =
-  | "capability"
-  | "popularity"
-  | "adoption"
-  | "economic"
-  | "value"
+  | PublicRankingLens
   | "usage"
   | "expert"
   | "balanced";
 
-export const LENS_TABS = [
-  { value: "capability" as const, label: "Capability", description: "Pure benchmark and arena performance." },
-  { value: "popularity" as const, label: "Popularity", description: "Community attention, market traction, adoption, and durability." },
-  { value: "adoption" as const, label: "Adoption", description: "Observed practical usage and distribution footprint." },
-  { value: "economic" as const, label: "Economic Footprint", description: "Adoption, monetization, distribution, and confidence combined." },
-  { value: "value" as const, label: "Value", description: "Capability relative to cost for real buyers." },
-];
+export const LENS_TABS = PUBLIC_LENS_CONFIG;
 
 export const CATEGORY_TABS = [
   { value: "", label: "All" },
@@ -43,6 +37,8 @@ export const CATEGORY_TABS = [
 interface LeaderboardControlsProps {
   activeLens: RankingLens;
   setActiveLens: (lens: RankingLens) => void;
+  lifecycleFilter: "active" | "all";
+  setLifecycleFilter: (filter: "active" | "all") => void;
   categoryFilter: string;
   setCategoryFilter: (cat: string) => void;
   searchQuery: string;
@@ -59,6 +55,8 @@ interface LeaderboardControlsProps {
 export default function LeaderboardControls({
   activeLens,
   setActiveLens,
+  lifecycleFilter,
+  setLifecycleFilter,
   categoryFilter,
   setCategoryFilter,
   searchQuery,
@@ -93,6 +91,29 @@ export default function LeaderboardControls({
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex rounded-lg border border-white/[0.06] overflow-hidden">
+          <button
+            onClick={() => setLifecycleFilter("active")}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              lifecycleFilter === "active"
+                ? "bg-[#00d4aa]/15 text-[#00d4aa]"
+                : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+            }`}
+          >
+            Active Only
+          </button>
+          <button
+            onClick={() => setLifecycleFilter("all")}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              lifecycleFilter === "all"
+                ? "bg-[#00d4aa]/15 text-[#00d4aa]"
+                : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+            }`}
+          >
+            Include Non-Active
+          </button>
+        </div>
+
         {/* Category tabs */}
         <div className="flex rounded-lg border border-white/[0.06] overflow-hidden">
           {CATEGORY_TABS.map((tab) => (

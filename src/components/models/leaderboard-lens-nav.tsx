@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   BarChart3,
   Briefcase,
@@ -5,9 +6,11 @@ import {
   Scale,
   TrendingUp,
 } from "lucide-react";
+import { type PublicRankingLens } from "@/lib/models/public-lenses";
 
 const LENSES = [
   {
+    value: "capability" as const,
     title: "Capability",
     description: "Pure technical ability across benchmarks, arenas, and agent tasks.",
     icon: BarChart3,
@@ -15,6 +18,7 @@ const LENSES = [
     bg: "bg-[#00d4aa]/10",
   },
   {
+    value: "popularity" as const,
     title: "Popularity",
     description: "Blended public attention plus real-world traction and trend persistence.",
     icon: TrendingUp,
@@ -22,6 +26,7 @@ const LENSES = [
     bg: "bg-[#f59e0b]/10",
   },
   {
+    value: "adoption" as const,
     title: "Adoption",
     description: "Observed practical footprint across providers, routing, and sustained usage proxies.",
     icon: Briefcase,
@@ -29,6 +34,7 @@ const LENSES = [
     bg: "bg-[#6366f1]/10",
   },
   {
+    value: "economic" as const,
     title: "Economic Footprint",
     description: "Evidence-weighted economic presence combining adoption, monetization, and distribution.",
     icon: DollarSign,
@@ -36,6 +42,7 @@ const LENSES = [
     bg: "bg-[#22c55e]/10",
   },
   {
+    value: "value" as const,
     title: "Value",
     description: "Capability relative to cost for practical buyers comparing utility per dollar.",
     icon: Scale,
@@ -44,16 +51,36 @@ const LENSES = [
   },
 ];
 
-export function LeaderboardLensNav() {
+interface LeaderboardLensNavProps {
+  activeLens: PublicRankingLens;
+  lifecycle: "active" | "all";
+  buildHref: (lens: PublicRankingLens) => string;
+}
+
+export function LeaderboardLensNav({
+  activeLens,
+  lifecycle,
+  buildHref,
+}: LeaderboardLensNavProps) {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       {LENSES.map((lens) => {
         const Icon = lens.icon;
+        const isActive = activeLens === lens.value;
+        const href = buildHref(lens.value);
 
         return (
-          <div
+          <Link
             key={lens.title}
-            className="rounded-2xl border border-border/50 bg-card/60 p-4"
+            href={href}
+            data-active={isActive ? "true" : "false"}
+            data-lifecycle={lifecycle}
+            aria-current={isActive ? "page" : undefined}
+            className={`rounded-2xl border p-4 transition-colors hover:border-neon/30 hover:bg-card ${
+              isActive
+                ? "border-neon/40 bg-neon/5"
+                : "border-border/50 bg-card/60"
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${lens.bg}`}>
@@ -66,7 +93,7 @@ export function LeaderboardLensNav() {
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
               {lens.description}
             </p>
-          </div>
+          </Link>
         );
       })}
     </div>

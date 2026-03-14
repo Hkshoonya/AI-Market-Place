@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { formatTokenPrice } from "@/lib/format";
+import { getCheapestVerifiedPricing, getOfficialPricing, isOfficialPricingProvider } from "@/lib/models/pricing";
 
 export interface PricingEntry {
   provider_name: string;
@@ -9,6 +10,9 @@ export interface PricingEntry {
   output_price_per_million: number | null;
   median_output_tokens_per_second: number | null;
   median_time_to_first_token: number | null;
+  source?: string | null;
+  pricing_model?: string | null;
+  currency?: string | null;
 }
 
 export interface PricingTabProps {
@@ -17,7 +21,7 @@ export interface PricingTabProps {
 }
 
 function isDirectProvider(modelProvider: string, providerName: string): boolean {
-  return providerName.toLowerCase().includes(modelProvider.toLowerCase());
+  return isOfficialPricingProvider(modelProvider, providerName);
 }
 
 function getNumericPrice(value: number | null): number {
@@ -34,14 +38,23 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
     return getNumericPrice(left.input_price_per_million) - getNumericPrice(right.input_price_per_million);
   });
 
-  const cheapestProviderName =
-    pricingData
-      .filter((entry) => entry.input_price_per_million != null)
-      .sort(
-        (left, right) =>
-          getNumericPrice(left.input_price_per_million) -
-          getNumericPrice(right.input_price_per_million)
-      )[0]?.provider_name ?? null;
+  const cheapestPricing = getCheapestVerifiedPricing({
+    id: "model-pricing",
+    name: "pricing",
+    slug: "pricing",
+    provider: modelProvider,
+    overall_rank: null,
+    model_pricing: pricingData,
+  });
+  const officialPricing = getOfficialPricing({
+    id: "model-pricing",
+    name: "pricing",
+    slug: "pricing",
+    provider: modelProvider,
+    overall_rank: null,
+    model_pricing: pricingData,
+  });
+  const cheapestProviderName = cheapestPricing?.provider_name ?? null;
 
   return (
     <Card className="border-border/50">
@@ -62,6 +75,31 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
         )}
         {sortedPricing.length > 0 ? (
           <>
+            <div className="mb-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Verified</div>
+                <div className="mt-2 text-sm font-semibold">
+                  {cheapestPricing
+                    ? `${cheapestPricing.provider_name} · ${formatTokenPrice(cheapestPricing.input_price_per_million)} /M`
+                    : "Not available yet"}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Official First-Party</div>
+                <div className="mt-2 text-sm font-semibold">
+                  {officialPricing
+                    ? `${officialPricing.provider_name} · ${formatTokenPrice(officialPricing.input_price_per_million)} /M`
+                    : "No direct first-party price tracked"}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Verified Routes</div>
+                <div className="mt-2 text-sm font-semibold">{sortedPricing.length}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Cheapest price is shown in tables; this view separates direct and routed access.
+                </div>
+              </div>
+            </div>
             <p className="mb-4 text-xs text-muted-foreground">
               Direct first-party access is shown first. Brokers and routers are kept visible separately so
               the cheapest path does not get confused with the official one.
@@ -111,6 +149,11 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                             <Badge className="ml-2 bg-gain/10 text-[10px] text-gain">
                               Lowest input
                             </Badge>
+                          )}
+                          {pricing.source && (
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              Source: {pricing.source}
+                            </div>
                           )}
                         </td>
                         <td className="hidden px-4 py-3 sm:table-cell">

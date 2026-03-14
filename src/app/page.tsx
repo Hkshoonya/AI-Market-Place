@@ -31,6 +31,7 @@ import { getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { getLowestInputPrice } from "@/lib/models/pricing";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
@@ -226,17 +227,15 @@ export default async function HomePage() {
                 const rank = index + 1;
                 const economicFootprint = model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
                 const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
-                const cheapestPricing = (
-                  model.model_pricing as {
-                    input_price_per_million: number | null;
-                  }[]
-                )
-                  ?.filter((p) => p.input_price_per_million != null)
-                  .sort(
-                    (a, b) =>
-                      (a.input_price_per_million ?? 0) -
-                      (b.input_price_per_million ?? 0)
-                  )[0];
+                const cheapestPricing = getLowestInputPrice({
+                  id: model.id,
+                  slug: model.slug,
+                  name: model.name,
+                  provider: model.provider,
+                  overall_rank: model.overall_rank,
+                  is_open_weights: model.is_open_weights,
+                  model_pricing: model.model_pricing,
+                });
 
                 return (
                   <tr
@@ -321,11 +320,9 @@ export default async function HomePage() {
                     </td>
                     <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap xl:table-cell">
                       <Link href={`/models/${model.slug}`} className="block">
-                        {cheapestPricing ? (
+                        {cheapestPricing != null ? (
                           <span className="text-muted-foreground">
-                            {formatTokenPrice(
-                              cheapestPricing.input_price_per_million
-                            )}
+                            {formatTokenPrice(cheapestPricing)}
                             /M
                           </span>
                         ) : model.is_open_weights ? (

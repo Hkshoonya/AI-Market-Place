@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { getLifecycleBadge } from "@/lib/models/lifecycle";
+import { getLowestInputPrice } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 
@@ -14,6 +16,7 @@ interface ModelsGridProps {
     name: string;
     provider: string;
     category: string;
+    status: string;
     overall_rank: number | null;
     quality_score: number | null;
     is_open_weights: boolean | null;
@@ -21,7 +24,7 @@ interface ModelsGridProps {
     short_description?: string | null;
     description?: string | null;
     hf_downloads?: number | null;
-    model_pricing?: Array<{ input_price_per_million: number | null }>;
+    model_pricing?: Array<{ provider_name?: string | null; input_price_per_million: number | null; source?: string | null }>;
   }>;
 }
 
@@ -32,15 +35,8 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const catConfig = CATEGORIES.find((c) => c.slug === model.category);
         const rank = model.overall_rank ?? 0;
         const parameterDisplay = getParameterDisplay(model);
-        const cheapestPricing = (
-          model.model_pricing as { input_price_per_million: number | null }[]
-        )
-          ?.filter((p) => p.input_price_per_million != null)
-          .sort(
-            (a, b) =>
-              (a.input_price_per_million ?? 0) -
-              (b.input_price_per_million ?? 0)
-          )[0];
+        const cheapestPricing = getLowestInputPrice(model);
+        const lifecycleBadge = getLifecycleBadge(model.status);
 
         return (
           <Link key={model.id} href={`/models/${model.slug}`}>
@@ -75,6 +71,11 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <ProviderLogo provider={model.provider} size="sm" />
                   <p className="text-xs text-muted-foreground">{model.provider}</p>
+                  {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {lifecycleBadge.label}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-3">
@@ -97,8 +98,8 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium tabular-nums text-muted-foreground">
-                      {cheapestPricing
-                        ? `${formatTokenPrice(cheapestPricing.input_price_per_million)}/M`
+                      {cheapestPricing != null
+                        ? `${formatTokenPrice(cheapestPricing)}/M`
                         : model.is_open_weights
                           ? "Free"
                           : "â€”"}
