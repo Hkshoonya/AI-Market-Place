@@ -148,6 +148,12 @@ describe("ModelBaseSchema", () => {
     const result = ModelBaseSchema.safeParse(withNullOpenWeights);
     expect(result.success).toBe(true);
   });
+
+  it("accepts null license for partially populated provider-hosted models", () => {
+    const withNullLicense = { ...validModel, license: null };
+    const result = ModelBaseSchema.safeParse(withNullLicense);
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("Query-specific pick schemas", () => {

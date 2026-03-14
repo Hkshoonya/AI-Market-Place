@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
-import { parseQueryResult } from "@/lib/schemas/parse";
+import { parseQueryResultPartial } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import {
@@ -158,7 +158,7 @@ export default async function ModelsPage({
       input_price_per_million: z.number().nullable(),
     })).optional(),
   });
-  const parsedModels = parseQueryResult(
+  const parsedModels = parseQueryResultPartial(
     modelsResponse,
     ModelsPageSchema,
     "ModelsPage"

@@ -7,7 +7,11 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 import * as Sentry from "@sentry/nextjs";
-import { parseQueryResult, parseQueryResultSingle } from "./parse";
+import {
+  parseQueryResult,
+  parseQueryResultPartial,
+  parseQueryResultSingle,
+} from "./parse";
 
 const TestSchema = z.object({
   id: z.string(),
@@ -132,6 +136,42 @@ describe("parseQueryResult", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
     expect(result[0].name).toBe("Model A");
+  });
+});
+
+describe("parseQueryResultPartial", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps valid rows when some rows fail schema validation", () => {
+    const response = {
+      data: [
+        { id: "1", name: "Model A" },
+        { id: 2, name: "Broken Model" },
+        { id: "3", name: "Model C" },
+      ],
+      error: null,
+    };
+
+    const result = parseQueryResultPartial(response, TestSchema, "PartialSchema");
+
+    expect(result).toEqual([
+      { id: "1", name: "Model A" },
+      { id: "3", name: "Model C" },
+    ]);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns empty array when the response data is not an array", () => {
+    const response = {
+      data: { id: "1", name: "Not a list" },
+      error: null,
+    };
+
+    const result = parseQueryResultPartial(response, TestSchema, "PartialSchema");
+
+    expect(result).toEqual([]);
   });
 });
 

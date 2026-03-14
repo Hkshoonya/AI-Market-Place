@@ -27,7 +27,7 @@ export const ModelBaseSchema = z.object({
   arxiv_paper_id: z.string().nullable(),
   website_url: z.string().nullable(),
   github_url: z.string().nullable(),
-  license: z.string(),
+  license: z.string().nullable(),
   license_name: z.string().nullable(),
   is_open_weights: z.boolean().nullable(),
   is_api_available: z.boolean(),

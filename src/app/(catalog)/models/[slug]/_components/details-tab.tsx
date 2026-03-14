@@ -10,7 +10,7 @@ export interface DetailsTabProps {
   context_window: number | null;
   release_date: string | null;
   license_name: string | null;
-  license: string;
+  license: string | null;
   is_open_weights: boolean | null;
   is_api_available: boolean;
   modalities: string[];

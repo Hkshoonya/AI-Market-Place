@@ -40,6 +40,66 @@ export function parseQueryResult<T>(
 }
 
 /**
+ * Validate a Supabase list query result row-by-row.
+ * Returns all valid rows even if some rows fail schema validation.
+ * Reports any dropped rows to Sentry with schema_validation classification.
+ *
+ * Use this for high-volume directory/explorer pages where a single malformed row
+ * should not blank the entire result set.
+ */
+export function parseQueryResultPartial<T>(
+  response: SupabaseResponse,
+  schema: z.ZodType<T>,
+  schemaName: string,
+): T[] {
+  if (response.error || !response.data) {
+    return [];
+  }
+
+  if (!Array.isArray(response.data)) {
+    reportSchemaIssues(schemaName, [
+      {
+        code: "invalid_type",
+        path: [],
+        message: "Expected array response",
+      },
+    ]);
+    return [];
+  }
+
+  const validRows: T[] = [];
+  const issues: Array<{ code: string; path: Array<string | number>; message: string }> = [];
+
+  response.data.forEach((row, index) => {
+    const result = schema.safeParse(row);
+    if (result.success) {
+      validRows.push(result.data);
+      return;
+    }
+
+    issues.push(
+      ...result.error.issues.map((issue) => ({
+        code: issue.code,
+        path: [
+          index,
+          ...issue.path.filter(
+            (segment): segment is string | number =>
+              typeof segment === "string" || typeof segment === "number"
+          ),
+        ],
+        message: issue.message,
+      }))
+    );
+  });
+
+  if (issues.length > 0) {
+    reportSchemaIssues(schemaName, issues);
+  }
+
+  return validRows;
+}
+
+/**
  * Validate a Supabase single-row query result (.single() / .maybeSingle()).
  * Returns validated data on success, null on failure.
  * Reports validation errors to Sentry with schema_validation classification.
@@ -76,6 +136,23 @@ export function parseQueryResultSingle<T>(
  * IMPORTANT: Does NOT include raw data -- privacy risk (user info, emails, financial data).
  */
 function reportSchemaError(schemaName: string, error: z.ZodError): void {
+  reportSchemaIssues(
+    schemaName,
+    error.issues.map((issue) => ({
+      code: issue.code,
+      path: issue.path.filter(
+        (segment): segment is string | number =>
+          typeof segment === "string" || typeof segment === "number"
+      ),
+      message: issue.message,
+    }))
+  );
+}
+
+function reportSchemaIssues(
+  schemaName: string,
+  issues: Array<{ code: string; path: Array<string | number>; message: string }>
+): void {
   try {
     Sentry.captureException(
       new Error(`Schema validation failed: ${schemaName}`),
@@ -84,17 +161,13 @@ function reportSchemaError(schemaName: string, error: z.ZodError): void {
         fingerprint: ["schema-validation", schemaName],
         extra: {
           schemaName,
-          issueCount: error.issues.length,
-          issues: error.issues.map((issue) => ({
-            code: issue.code,
-            path: issue.path,
-            message: issue.message,
-          })),
+          issueCount: issues.length,
+          issues,
         },
       },
     );
   } catch {
     // Sentry not available (e.g., client-side without client config)
-    console.error(`[schema-validation] ${schemaName}:`, error.issues);
+    console.error(`[schema-validation] ${schemaName}:`, issues);
   }
 }
