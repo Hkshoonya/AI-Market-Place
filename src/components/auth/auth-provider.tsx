@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import posthog from "posthog-js";
 import type { User } from "@supabase/supabase-js";
 
+const AUTH_INIT_TIMEOUT_MS = 4000;
+
 interface Profile {
   id: string;
   username: string | null;
@@ -64,23 +66,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!isActive) return;
+      console.warn("Auth initialization timed out");
+      setLoading(false);
+    }, AUTH_INIT_TIMEOUT_MS);
+
     // Get initial session
     const getUser = async () => {
       try {
         const {
           data: { user: currentUser },
         } = await supabase.auth.getUser();
+        if (!isActive) return;
         setUser(currentUser);
 
         if (currentUser) {
           const profileData = await fetchProfile(currentUser.id);
+          if (!isActive) return;
           setProfile(profileData);
           posthog.identify(currentUser.id, { email: currentUser.email });
         }
       } catch (err) {
         console.warn("Auth initialization failed:", err);
       } finally {
-        setLoading(false);
+        window.clearTimeout(timeoutId);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
@@ -90,11 +104,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      window.clearTimeout(timeoutId);
+      if (!isActive) return;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
         const profileData = await fetchProfile(currentUser.id);
+        if (!isActive) return;
         setProfile(profileData);
         posthog.identify(currentUser.id, { email: currentUser.email });
       } else {
@@ -106,6 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);

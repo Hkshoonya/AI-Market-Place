@@ -56,6 +56,7 @@ describe("SocialComposer", () => {
 
     expect(screen.getByText(/sign in to start a thread/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute("href", "/signup");
   });
 
   it("submits a thread through the social posts API for authenticated users", async () => {

@@ -58,6 +58,9 @@ export function SocialComposer({
             <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
               <Link href="/login">Sign in</Link>
             </Button>
+            <Button asChild variant="secondary">
+              <Link href="/signup">Sign up</Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/api-docs">Use an API key</Link>
             </Button>
