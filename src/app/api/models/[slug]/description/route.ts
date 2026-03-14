@@ -25,6 +25,8 @@ export async function GET(
       return NextResponse.json({ error: "Model not found" }, { status: 404 });
     }
 
+    const fallbackOverview = buildFallbackOverview(modelRaw);
+
     // Get description
     const { data: description } = await supabase
       .from("model_descriptions")
@@ -32,7 +34,20 @@ export async function GET(
       .eq("model_id", modelRaw.id)
       .single();
 
-    return NextResponse.json(description ?? buildFallbackOverview(modelRaw));
+    if (!description) {
+      return NextResponse.json(fallbackOverview);
+    }
+
+    return NextResponse.json({
+      ...fallbackOverview,
+      ...description,
+      highlights: fallbackOverview.highlights,
+      evidence_badges: [
+        "Generated Overview",
+        "Catalog Metadata",
+      ],
+      methodology: fallbackOverview.methodology,
+    });
   } catch (err) {
     return handleApiError(err, "api/models/description");
   }

@@ -38,10 +38,22 @@ export interface ParameterDisplay {
 
 export interface FallbackOverview {
   summary: string | null;
+  highlights: Array<{
+    label: string;
+    value: string;
+    tone: "verified" | "estimated" | "generated" | "coverage";
+  }>;
   pros: Array<{ title: string; description: string; source: string }>;
   cons: Array<{ title: string; description: string; source: string }>;
   best_for: string[];
   not_ideal_for: string[];
+  evidence_badges: string[];
+  methodology: {
+    hiddenByDefault: boolean;
+    summary: string;
+    sourceLabels: string[];
+    confidenceLabel: string;
+  };
   comparison_notes: string | null;
   generated_by: string;
   upvotes: number;
@@ -197,6 +209,41 @@ export function getParameterDisplay(model: PresentableModel): ParameterDisplay {
 export function buildFallbackOverview(model: PresentableModel): FallbackOverview {
   const description = getModelDisplayDescription(model);
   const useCases = inferUseCases(model);
+  const parameterDisplay = getParameterDisplay(model);
+
+  const highlights: FallbackOverview["highlights"] = [
+    {
+      label: "Model Type",
+      value: model.category ? model.category.replace(/_/g, " ") : "AI model",
+      tone: "generated",
+    },
+    {
+      label: "Parameter Footprint",
+      value: parameterDisplay.label,
+      tone:
+        parameterDisplay.source === "catalog"
+          ? "verified"
+          : parameterDisplay.source === "inferred"
+            ? "estimated"
+            : "coverage",
+    },
+  ];
+
+  if (model.context_window && model.context_window > 0) {
+    highlights.push({
+      label: "Context Window",
+      value: `${model.context_window.toLocaleString()} tokens`,
+      tone: "verified",
+    });
+  }
+
+  if (useCases[0]) {
+    highlights.push({
+      label: "Best Fit",
+      value: useCases[0],
+      tone: "generated",
+    });
+  }
 
   const pros = useCases.slice(0, 2).map((item) => ({
     title: item[0]?.toUpperCase() + item.slice(1),
@@ -215,10 +262,25 @@ export function buildFallbackOverview(model: PresentableModel): FallbackOverview
 
   return {
     summary: description.text,
+    highlights,
     pros,
     cons,
     best_for: useCases.slice(0, 4),
     not_ideal_for: model.is_open_weights ? [] : ["fully offline self-hosting"],
+    evidence_badges: [
+      "Generated Overview",
+      description.source === "official_catalog" ? "Official Catalog" : "Catalog Metadata",
+    ],
+    methodology: {
+      hiddenByDefault: true,
+      summary:
+        "This explanation is generated from provider metadata, synced model fields, and known catalog references. It is meant to help users understand the model quickly without treating generated language as primary-source documentation.",
+      sourceLabels: Array.from(new Set([description.source, "synthetic"])),
+      confidenceLabel:
+        description.source === "official_catalog" || description.source === "catalog"
+          ? "Source-grounded"
+          : "Generated fallback",
+    },
     comparison_notes:
       "This overview is generated from catalog metadata, official model descriptors, and synced platform signals.",
     generated_by: "catalog_fallback",

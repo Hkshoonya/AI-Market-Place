@@ -59,6 +59,36 @@ describe("SocialComposer", () => {
     expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute("href", "/signup");
   });
 
+  it("keeps the guest entry actions visible while auth state is still loading", () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      profile: null,
+      loading: true,
+    });
+
+    render(
+      <SocialComposer
+        selectedCommunity="global"
+        communities={[
+          {
+            id: "community-1",
+            slug: "global",
+            name: "Global",
+            description: "All conversations",
+            is_global: true,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: /use an api key/i })).toHaveAttribute("href", "/api-docs");
+    expect(screen.getByText(/checking your session/i)).toBeInTheDocument();
+  });
+
   it("submits a thread through the social posts API for authenticated users", async () => {
     const user = userEvent.setup();
     mockUseAuth.mockReturnValue({

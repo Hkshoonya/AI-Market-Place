@@ -241,7 +241,7 @@ export default async function ModelsPage({
                   Likes
                 </th>
                 <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
-                  Price
+                  Cheapest Verified
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground w-16">
                   Open

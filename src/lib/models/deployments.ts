@@ -24,6 +24,7 @@ export interface DeploymentCatalogItem {
   platform: DeploymentPlatform;
   deployment?: ModelDeployment;
   reason: string;
+  confidence: "direct" | "pricing_inferred" | "provider_family" | "open_weight_runtime";
 }
 
 export interface DeploymentCatalogResult {
@@ -72,11 +73,12 @@ function pushRelatedPlatform(
   list: DeploymentCatalogItem[],
   seenIds: Set<string>,
   platform: DeploymentPlatform | undefined,
-  reason: string
+  reason: string,
+  confidence: DeploymentCatalogItem["confidence"]
 ) {
   if (!platform || seenIds.has(platform.id)) return;
   seenIds.add(platform.id);
-  list.push({ platform, reason });
+  list.push({ platform, reason, confidence });
 }
 
 export function buildDeploymentCatalog(input: {
@@ -94,6 +96,7 @@ export function buildDeploymentCatalog(input: {
       platform: deployment.deployment_platforms,
       deployment,
       reason: "Model-specific deployment or pricing has been confirmed for this platform.",
+      confidence: "direct" as const,
     };
   });
 
@@ -105,7 +108,8 @@ export function buildDeploymentCatalog(input: {
       relatedPlatforms,
       seenPlatformIds,
       pricingSlug ? platformBySlug.get(pricingSlug) : undefined,
-      `Pricing was observed through ${providerName}, but a dedicated deployment manifest is not stored yet.`
+      `Pricing was observed through ${providerName}, but a dedicated deployment manifest is not stored yet.`,
+      "pricing_inferred"
     );
   }
 
@@ -115,7 +119,8 @@ export function buildDeploymentCatalog(input: {
       relatedPlatforms,
       seenPlatformIds,
       platformBySlug.get(slug),
-      `Related first-party access path for ${input.model.provider}; confirm the exact model tier inside the platform.`
+      `Related first-party access path for ${input.model.provider}; confirm the exact model tier inside the platform.`,
+      "provider_family"
     );
   }
 
@@ -125,7 +130,8 @@ export function buildDeploymentCatalog(input: {
         relatedPlatforms,
         seenPlatformIds,
         platformBySlug.get(slug),
-        "Compatible self-hosting or local runtime for open-weight models; deployment specifics depend on the artifact format you choose."
+        "Compatible self-hosting or local runtime for open-weight models; deployment specifics depend on the artifact format you choose.",
+        "open_weight_runtime"
       );
     }
   }

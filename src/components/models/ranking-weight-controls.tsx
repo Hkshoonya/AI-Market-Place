@@ -164,6 +164,16 @@ export default function RankingWeightControls({
                 ahead of short-term hype. Use a custom mix when you want to stress a
                 different thesis.
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {WEIGHT_KEYS.map((key) => (
+                  <span
+                    key={key}
+                    className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/60"
+                  >
+                    {DEFAULT_WEIGHTS[key].label}: {DEFAULT_WEIGHTS[key].weight}%
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-3">

@@ -31,7 +31,7 @@ describe("GET /api/models/[slug]/description", () => {
     vi.clearAllMocks();
   });
 
-  it("returns a catalog fallback overview when the model exists but has no saved description", async () => {
+  it("returns a richer fallback overview when the model exists but has no saved description", async () => {
     const fromMock = vi.fn((table: string) => {
       if (table === "models") {
         return {
@@ -74,6 +74,20 @@ describe("GET /api/models/[slug]/description", () => {
       expect.objectContaining({
         generated_by: "catalog_fallback",
         summary: expect.stringMatching(/reasoning model/i),
+        highlights: expect.arrayContaining([
+          expect.objectContaining({
+            label: expect.any(String),
+            value: expect.any(String),
+          }),
+        ]),
+        evidence_badges: expect.arrayContaining([
+          "Generated Overview",
+          expect.any(String),
+        ]),
+        methodology: expect.objectContaining({
+          hiddenByDefault: true,
+          sourceLabels: expect.arrayContaining(["official_catalog", "synthetic"]),
+        }),
       })
     );
   });

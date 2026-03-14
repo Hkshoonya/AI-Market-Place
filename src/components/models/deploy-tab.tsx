@@ -20,6 +20,7 @@ interface Platform {
 interface Deployment {
   platform: Platform;
   reason: string;
+  confidence: "direct" | "pricing_inferred" | "provider_family" | "open_weight_runtime";
   deployment?: {
     id: string;
     deploy_url: string | null;
@@ -64,6 +65,13 @@ const TYPE_LABELS: Record<string, string> = {
   subscription: "Subscriptions",
   "self-hosted": "Self-Host GPU",
   local: "Local/Edge",
+};
+
+const CONFIDENCE_LABELS: Record<Deployment["confidence"], string> = {
+  direct: "Verified",
+  pricing_inferred: "Pricing Observed",
+  provider_family: "Related Access",
+  open_weight_runtime: "Runtime Compatible",
 };
 
 // Ollama/llama.cpp commands for open-weight models
@@ -145,6 +153,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                               BEST VALUE
                             </span>
                           )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                            {CONFIDENCE_LABELS[d.confidence]}
+                          </span>
                           {platform.affiliate_url && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
                               Partner
@@ -214,11 +225,16 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm text-white">{platform.name}</span>
-                    {platform.has_affiliate && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
-                        Partner
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                        {CONFIDENCE_LABELS[item.confidence]}
                       </span>
-                    )}
+                      {platform.has_affiliate && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
+                          Partner
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {item.deployment?.price_per_unit && (
                     <p className="text-xs text-muted-foreground mb-2 font-mono">

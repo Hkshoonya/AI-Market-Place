@@ -157,10 +157,17 @@ export const HomeTopModelSchema = ModelBaseSchema.pick({
   market_cap_estimate: true,
   popularity_score: true,
   adoption_score: true,
+  agent_score: true,
   is_open_weights: true,
 }).extend({
   rankings: z.array(RankingSchema.partial()).optional(),
   model_pricing: z.array(ModelPricingSchema.partial()).optional(),
+  benchmark_scores: z.array(BenchmarkScoreSchema.partial().extend({
+    benchmarks: z.object({
+      slug: z.string().nullable().optional(),
+    }).nullable().optional(),
+  })).optional(),
+  elo_ratings: z.array(EloRatingSchema.partial()).optional(),
 });
 
 export type HomeTopModel = z.infer<typeof HomeTopModelSchema>;

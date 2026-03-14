@@ -13,10 +13,22 @@ interface ProConItem {
 
 interface ModelDescriptionData {
   summary: string | null;
+  highlights?: Array<{
+    label: string;
+    value: string;
+    tone: "verified" | "estimated" | "generated" | "coverage";
+  }>;
   pros: ProConItem[];
   cons: ProConItem[];
   best_for: string[];
   not_ideal_for: string[];
+  evidence_badges?: string[];
+  methodology?: {
+    hiddenByDefault: boolean;
+    summary: string;
+    sourceLabels: string[];
+    confidenceLabel: string;
+  };
   comparison_notes: string | null;
   generated_by: string;
   upvotes: number;
@@ -57,6 +69,22 @@ export function ModelOverview({ modelSlug, className }: ModelOverviewProps) {
         <p className="text-sm text-muted-foreground leading-relaxed">
           {description.summary}
         </p>
+      )}
+
+      {description.highlights && description.highlights.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {description.highlights.map((highlight, index) => (
+            <div
+              key={`${highlight.label}-${index}`}
+              className="rounded-lg border border-border/50 bg-card/20 p-3"
+            >
+              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                {highlight.label}
+              </p>
+              <p className="mt-2 text-sm font-medium text-white">{highlight.value}</p>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Pros & Cons */}
@@ -128,6 +156,37 @@ export function ModelOverview({ modelSlug, className }: ModelOverviewProps) {
         </div>
         <span className="capitalize">Source: {description.generated_by}</span>
       </div>
+
+      {description.evidence_badges && description.evidence_badges.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {description.evidence_badges.map((badge) => (
+            <span
+              key={badge}
+              className="inline-flex rounded-full border border-border/50 bg-card/20 px-2.5 py-1 text-[11px] text-muted-foreground"
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {description.methodology ? (
+        <details className="rounded-xl border border-border/50 bg-card/20 p-4">
+          <summary className="cursor-pointer text-sm font-medium text-foreground">
+            Methodology / Sources
+          </summary>
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <p>{description.methodology.summary}</p>
+            <p>
+              Confidence:{" "}
+              <span className="font-medium text-foreground">
+                {description.methodology.confidenceLabel}
+              </span>
+            </p>
+            <p>Evidence classes: {description.methodology.sourceLabels.join(", ")}</p>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

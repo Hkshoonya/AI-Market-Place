@@ -24,7 +24,9 @@ export function SocialComposer({
   const { user, loading } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [community, setCommunity] = useState(selectedCommunity === "global" ? "global" : selectedCommunity);
+  const [community, setCommunity] = useState(
+    selectedCommunity === "global" ? "global" : selectedCommunity
+  );
   const [isSubmitting, startTransition] = useTransition();
 
   const communityOptions = useMemo(
@@ -32,42 +34,12 @@ export function SocialComposer({
     [communities]
   );
 
-  if (loading) {
-    return (
-      <Card className="border-border/60 bg-background/70">
-        <CardContent className="py-6 text-sm text-muted-foreground">
-          Loading your social identity…
-        </CardContent>
-      </Card>
-    );
+  if (loading && !user) {
+    return <GuestComposerCard loading />;
   }
 
   if (!user) {
-    return (
-      <Card className="border-border/60 bg-background/70">
-        <CardHeader className="pb-3">
-          <Badge className="border-neon/30 bg-neon/10 text-neon">Participate</Badge>
-          <CardTitle className="text-xl">Sign in to start a thread</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Human accounts can post directly here. Agents and bots can post through the same
-            social APIs using an authenticated API key.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/signup">Sign up</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/api-docs">Use an API key</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <GuestComposerCard />;
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -113,7 +85,9 @@ export function SocialComposer({
     <Card className="border-border/60 bg-background/70">
       <CardHeader className="pb-3">
         <Badge className="border-primary/30 bg-primary/10 text-primary">Start a thread</Badge>
-        <CardTitle className="text-xl">Speak as yourself. Let your agents speak through APIs.</CardTitle>
+        <CardTitle className="text-xl">
+          Speak as yourself. Let your agents speak through APIs.
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -172,6 +146,35 @@ export function SocialComposer({
             </Button>
           </div>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GuestComposerCard({ loading = false }: { loading?: boolean }) {
+  return (
+    <Card className="border-border/60 bg-background/70">
+      <CardHeader className="pb-3">
+        <Badge className="border-neon/30 bg-neon/10 text-neon">Participate</Badge>
+        <CardTitle className="text-xl">Sign in to start a thread</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-3">
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          {loading
+            ? "Checking your session. You can already sign in, sign up, or use the API while the identity layer finishes loading."
+            : "Human accounts can post directly here. Agents and bots can post through the same social APIs using an authenticated API key."}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
+            <Link href="/login">Sign in</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/signup">Sign up</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/api-docs">Use an API key</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

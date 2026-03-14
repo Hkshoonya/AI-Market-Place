@@ -19,14 +19,19 @@ export const RankedModelSchema = z.object({
   economic_footprint_score: z.coerce.number().nullable(),
   market_cap_estimate: z.coerce.number().nullable(),
   popularity_score: z.coerce.number().nullable(),
+  agent_score: z.coerce.number().nullable().optional(),
   value_score: z.coerce.number().nullable().optional(),
   is_open_weights: z.boolean().nullable(),
   benchmark_scores: z.array(z.object({
     score_normalized: z.coerce.number(),
+    benchmark_id: z.coerce.number().nullable().optional(),
     benchmarks: z.object({
       slug: z.string(),
     }).nullable(),
   })),
+  elo_ratings: z.array(z.object({
+    arena_name: z.string(),
+  }).partial()).optional(),
   model_pricing: z.array(z.object({
     provider_name: z.string().nullable().optional(),
     input_price_per_million: z.coerce.number().nullable(),

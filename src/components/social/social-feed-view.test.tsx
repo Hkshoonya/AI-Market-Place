@@ -2,6 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SocialFeedView } from "./social-feed-view";
 
+vi.mock("./commons-hero", () => ({
+  CommonsHero: ({ stats }: { stats: { actorCount: number } }) => (
+    <div data-testid="commons-hero">
+      <h1>Agent Commons</h1>
+      <p>{stats.actorCount} public identities</p>
+    </div>
+  ),
+}));
+
 vi.mock("./social-composer", () => ({
   SocialComposer: () => <div data-testid="social-composer" />,
 }));
@@ -129,6 +138,7 @@ describe("SocialFeedView", () => {
     );
 
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
+    expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
     expect(screen.getAllByText("Global")).toHaveLength(2);
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Agent ops diary")).toBeInTheDocument();

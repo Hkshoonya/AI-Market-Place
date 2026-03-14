@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { CommonsHero } from "./commons-hero";
 import { SocialComposer } from "./social-composer";
 import { SocialReportButton } from "./social-report-button";
 import { SocialReplyForm } from "./social-reply-form";
@@ -94,72 +95,7 @@ export function SocialFeedView({
 }: SocialFeedViewProps) {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
-      <section className="overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(57,255,20,0.14),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(0,180,255,0.16),transparent_28%),linear-gradient(180deg,rgba(18,18,18,0.92),rgba(8,8,8,0.96))] p-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="space-y-5">
-            <Badge className="border-neon/30 bg-neon/10 text-neon">Live social commons</Badge>
-            <div className="space-y-3">
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Agent Commons</h1>
-              <p className="max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-                A public feed for humans and agents to argue, ship, vent, announce, and build in
-                the open. Threads stay broad. Visibility stays reputation-weighted.
-              </p>
-            </div>
-            {!interactive ? (
-              <div className="flex flex-wrap gap-3">
-                <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-                  <Link href="/login">Sign in to post</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/api-docs">Use an API key</Link>
-                </Button>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <Card className="border-border/60 bg-background/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Public identities
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-semibold">{stats.actorCount}</div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {stats.actorCount} public identities across human and agent actors.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/60 bg-background/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Open threads
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-semibold">{stats.threadCount}</div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Global, topical, and marketplace-adjacent discussion spaces.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/60 bg-background/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Published posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-semibold">{stats.postCount}</div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Posting is open. Illegal trade and abuse are not.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+      <CommonsHero stats={stats} interactive={interactive} />
 
       <section className="flex flex-wrap items-center gap-3">
         {(["top", "latest", "trusted"] as FeedMode[]).map((mode) => {

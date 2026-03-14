@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Crown, Trophy, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,12 +16,14 @@ import { QualityDistribution } from "@/components/charts/quality-distribution";
 import { getProviderBrand } from "@/lib/constants/providers";
 import LeaderboardExplorer from "@/components/models/leaderboard-explorer";
 import { LeaderboardLensNav } from "@/components/models/leaderboard-lens-nav";
+import { MarketValueBadge } from "@/components/models/market-value-badge";
 import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import BenchmarkHeatmap from "@/components/charts/benchmark-heatmap";
 import RankTimeline from "@/components/charts/rank-timeline";
 import type { Metadata } from "next";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
+import { countMarketValueEvidence } from "@/lib/models/market-value";
 import {
   getPublicLensLabel,
   getPublicLensSort,
@@ -64,7 +66,7 @@ export default async function LeaderboardsPage({
   const lensSort = getPublicLensSort(activeLens);
   const activeLensLabel = getPublicLensLabel(activeLens);
 
-  // Fetch ranked models with benchmarks, pricing, elo — sorted by selected lens
+  // Fetch ranked models with benchmarks, pricing, elo â€” sorted by selected lens
   let rankedModelsQuery = supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
@@ -274,7 +276,8 @@ export default async function LeaderboardsPage({
               Include Them
             </Link>
           </div>
-          <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
+          <details className="mt-4 overflow-hidden rounded-xl border border-border/50 bg-card/30">
+            <summary className="cursor-pointer px-4 py-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Show tracked non-active models</summary>
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/50 bg-secondary/20">
@@ -309,14 +312,14 @@ export default async function LeaderboardsPage({
                           ? `#${model.popularity_rank}`
                           : model.popularity_score != null
                             ? Number(model.popularity_score).toFixed(1)
-                            : "—"}
+                            : "â€”"}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
+          </details>
         </div>
       )}
 
@@ -333,7 +336,7 @@ export default async function LeaderboardsPage({
           <TabsTrigger value="value">Best Value</TabsTrigger>
         </TabsList>
 
-        {/* Explorer Tab — Bloomberg-style data grid */}
+        {/* Explorer Tab â€” Bloomberg-style data grid */}
         <TabsContent value="explorer" className="mt-6">
           <LeaderboardExplorer
             models={explorerModels}
@@ -342,17 +345,17 @@ export default async function LeaderboardsPage({
           />
         </TabsContent>
 
-        {/* Benchmarks Tab — Heatmap */}
+        {/* Benchmarks Tab â€” Heatmap */}
         <TabsContent value="benchmarks" className="mt-6">
           <BenchmarkHeatmap />
         </TabsContent>
 
-        {/* Frontier Tab — Quality vs Price scatter */}
+        {/* Frontier Tab â€” Quality vs Price scatter */}
         <TabsContent value="frontier" className="mt-6">
           <QualityPriceFrontier />
         </TabsContent>
 
-        {/* Timeline Tab — Rank movement */}
+        {/* Timeline Tab â€” Rank movement */}
         <TabsContent value="timeline" className="mt-6">
           <RankTimeline />
         </TabsContent>
@@ -433,7 +436,7 @@ export default async function LeaderboardsPage({
           </div>
         </TabsContent>
 
-        {/* Overall Tab — Top 20 by Composite Rank */}
+        {/* Overall Tab â€” Top 20 by Composite Rank */}
         <TabsContent value="overall" className="mt-6">
           {rankedModels.length > 0 && (
             <div className="mb-6">
@@ -459,8 +462,8 @@ export default async function LeaderboardsPage({
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">$/M tokens</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Adoption</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Cheapest Verified</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Est. Value</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground 2xl:table-cell">Popularity</th>
                 </tr>
               </thead>
@@ -482,6 +485,11 @@ export default async function LeaderboardsPage({
                     overall_rank: model.overall_rank,
                     is_open_weights: model.is_open_weights,
                     model_pricing: model.model_pricing,
+                  });
+                  const evidence = countMarketValueEvidence({
+                    benchmarkScores: model.benchmark_scores,
+                    eloRatings: model.elo_ratings,
+                    pricingEntries: model.model_pricing,
                   });
 
                   return (
@@ -517,35 +525,35 @@ export default async function LeaderboardsPage({
                       <td className="px-4 py-3.5 text-right">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-bold tabular-nums text-neon">
-                            {lensScore != null ? lensScore.toFixed(1) : "—"}
+                            {lensScore != null ? lensScore.toFixed(1) : "â€”"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right sm:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-semibold tabular-nums">
-                            {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
+                            {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={mmlu ? "text-foreground" : "text-muted-foreground"}>
-                            {mmlu ? mmlu.toFixed(1) : "—"}
+                            {mmlu ? mmlu.toFixed(1) : "â€”"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={humanEval ? "text-foreground" : "text-muted-foreground"}>
-                            {humanEval ? humanEval.toFixed(1) : "—"}
+                            {humanEval ? humanEval.toFixed(1) : "â€”"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={math ? "text-foreground" : "text-muted-foreground"}>
-                            {math ? math.toFixed(1) : "—"}
+                            {math ? math.toFixed(1) : "â€”"}
                           </span>
                         </Link>
                       </td>
@@ -558,16 +566,26 @@ export default async function LeaderboardsPage({
                           ) : model.is_open_weights ? (
                             <span className="text-gain font-medium">Free</span>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-muted-foreground">â€”</span>
                           )}
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right xl:table-cell">
-                        <Link href={`/models/${model.slug}`} className="block">
-                          <span className="text-sm tabular-nums text-muted-foreground">
-                            {adoptionScore?.toFixed(1) ?? "—"}
-                          </span>
-                        </Link>
+                        <div className="flex justify-end">
+                          <MarketValueBadge
+                            className="min-w-32"
+                            supportingText={`Adoption ${adoptionScore?.toFixed(1) ?? "---"}`}
+                            marketCapEstimate={model.market_cap_estimate}
+                            popularityScore={model.popularity_score}
+                            adoptionScore={adoptionScore}
+                            economicFootprintScore={model.economic_footprint_score}
+                            capabilityScore={model.capability_score ?? model.quality_score}
+                            agentScore={model.agent_score ?? null}
+                            benchmarkCount={evidence.benchmarkCount}
+                            arenaFamilyCount={evidence.arenaFamilyCount}
+                            pricingSourceCount={evidence.pricingSourceCount}
+                          />
+                        </div>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right 2xl:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
@@ -579,7 +597,7 @@ export default async function LeaderboardsPage({
                               />
                             </div>
                             <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
-                              {popScore?.toFixed(0) ?? "—"}
+                              {popScore?.toFixed(0) ?? "â€”"}
                             </span>
                           </div>
                         </Link>
@@ -644,12 +662,12 @@ export default async function LeaderboardsPage({
                         </span>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">
-                        {pricing.median_time_to_first_token ? `${Number(pricing.median_time_to_first_token).toFixed(2)}s` : "—"}
+                        {pricing.median_time_to_first_token ? `${Number(pricing.median_time_to_first_token).toFixed(2)}s` : "â€”"}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
                         {pricing.input_price_per_million
                           ? formatTokenPrice(pricing.input_price_per_million)
-                          : "—"}
+                          : "â€”"}
                       </td>
                     </tr>
                   );
@@ -698,7 +716,7 @@ export default async function LeaderboardsPage({
                         {formatTokenPrice(pricing.output_price_per_million)}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
-                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
+                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
                       </td>
                     </tr>
                   );

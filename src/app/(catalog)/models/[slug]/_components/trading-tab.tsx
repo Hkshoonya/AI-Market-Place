@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TradingChart } from "@/components/charts/trading-chart";
 import {
-  buildMarketValueThesis,
+  buildMarketValueExplanation,
   formatMarketValue,
   renderStars,
 } from "@/lib/models/market-value";
@@ -35,7 +35,8 @@ export function TradingTab({
   arena_family_count,
   pricing_source_count,
 }: TradingTabProps) {
-  const thesis = buildMarketValueThesis({
+  const explanation = buildMarketValueExplanation({
+    marketCapEstimate: market_cap_estimate,
     popularityScore: popularity_score,
     adoptionScore: adoption_score,
     economicFootprintScore: economic_footprint_score,
@@ -77,7 +78,7 @@ export function TradingTab({
           </div>
           <div className="text-center">
             <p className="text-lg font-bold tabular-nums">
-              {formatMarketValue(market_cap_estimate)}
+              {explanation.formattedValue}
             </p>
             <p className="text-[11px] text-muted-foreground">Est. Market Value</p>
           </div>
@@ -93,9 +94,25 @@ export function TradingTab({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neon/80">
             Market Value Thesis
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">{thesis.summary}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-border/50 bg-card/30 px-3 py-1 text-xs text-muted-foreground">
+              Confidence: <span className="font-medium text-foreground">{explanation.confidenceLabel}</span>
+            </span>
+            <span className="rounded-full border border-border/50 bg-card/30 px-3 py-1 text-xs text-[#f5a623]">
+              {renderStars(explanation.confidenceStars)}
+            </span>
+            {explanation.factorLabels.map((factor) => (
+              <span
+                key={factor}
+                className="rounded-full border border-border/50 bg-card/30 px-3 py-1 text-xs text-muted-foreground"
+              >
+                {factor}
+              </span>
+            ))}
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">{explanation.summary}</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {thesis.pillars.map((pillar) => (
+            {explanation.pillars.map((pillar) => (
               <div
                 key={pillar.label}
                 className="rounded-lg border border-border/40 bg-secondary/20 p-3"
@@ -112,6 +129,14 @@ export function TradingTab({
               </div>
             ))}
           </div>
+          <details className="mt-4 rounded-lg border border-border/40 bg-background/30 p-3">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Methodology / Sources
+            </summary>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              {explanation.methodologyPreview}
+            </p>
+          </details>
         </div>
 
         <div className="mt-3 text-center text-[11px] text-muted-foreground">

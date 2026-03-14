@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 import Link from "next/link";
 import {
@@ -26,25 +26,27 @@ import { ProviderMarketShare } from "@/components/charts/provider-market-share";
 import { CategoryDistribution } from "@/components/charts/category-distribution";
 import TopMovers from "@/components/charts/top-movers";
 import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
+import { MarketValueBadge } from "@/components/models/market-value-badge";
 import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
+import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { getLowestInputPrice } from "@/lib/models/pricing";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+  title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
   description: SITE_DESCRIPTION,
   openGraph: {
-    title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+    title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
     description: SITE_DESCRIPTION,
     type: "website",
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
+    title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
     description: SITE_DESCRIPTION,
   },
 };
@@ -57,7 +59,7 @@ export default async function HomePage() {
   // Fetch top 10 models by current market-value footing instead of stale legacy overall rank
   const topModelsResponse = await supabase
     .from("models")
-    .select("*, rankings(*), model_pricing(*)")
+    .select("*, rankings(*), model_pricing(*), benchmark_scores(benchmark_id, benchmarks(slug)), elo_ratings(arena_name)")
     .eq("status", "active")
     .not("economic_footprint_rank", "is", null)
     .order("economic_footprint_rank", { ascending: true })
@@ -166,7 +168,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      {/* 3D Hero Section — Client Component Island */}
+      {/* 3D Hero Section â€” Client Component Island */}
       <HeroSection
         stats={{
           modelCount: modelCount ?? 0,
@@ -206,7 +208,7 @@ export default async function HomePage() {
                   Category
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Economic Footprint
+                  Est. Market Value
                 </th>
                 <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Popularity
@@ -215,7 +217,7 @@ export default async function HomePage() {
                   Quality
                 </th>
                 <th className="hidden xl:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Price
+                  Cheapest Verified
                 </th>
               </tr>
             </thead>
@@ -225,7 +227,10 @@ export default async function HomePage() {
                   (c) => c.slug === model.category
                 );
                 const rank = index + 1;
-                const economicFootprint = model.economic_footprint_score != null ? Number(model.economic_footprint_score) : null;
+                const economicFootprint =
+                  model.economic_footprint_score != null
+                    ? Number(model.economic_footprint_score)
+                    : null;
                 const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
                 const cheapestPricing = getLowestInputPrice({
                   id: model.id,
@@ -235,6 +240,11 @@ export default async function HomePage() {
                   overall_rank: model.overall_rank,
                   is_open_weights: model.is_open_weights,
                   model_pricing: model.model_pricing,
+                });
+                const evidence = countMarketValueEvidence({
+                  benchmarkScores: model.benchmark_scores,
+                  eloRatings: model.elo_ratings,
+                  pricingEntries: model.model_pricing,
                 });
 
                 return (
@@ -286,13 +296,21 @@ export default async function HomePage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <Link href={`/models/${model.slug}`} className="block">
-                        <span className="text-sm font-bold tabular-nums text-neon">
-                          {economicFootprint
-                            ? economicFootprint.toFixed(1)
-                            : "—"}
-                        </span>
-                      </Link>
+                      <div className="flex justify-end">
+                        <MarketValueBadge
+                          className="min-w-32"
+                          supportingText={`Footprint ${economicFootprint != null ? economicFootprint.toFixed(1) : "---"}`}
+                          marketCapEstimate={model.market_cap_estimate}
+                          popularityScore={model.popularity_score}
+                          adoptionScore={model.adoption_score}
+                          economicFootprintScore={model.economic_footprint_score}
+                          capabilityScore={model.quality_score}
+                          agentScore={model.agent_score}
+                          benchmarkCount={evidence.benchmarkCount}
+                          arenaFamilyCount={evidence.arenaFamilyCount}
+                          pricingSourceCount={evidence.pricingSourceCount}
+                        />
+                      </div>
                     </td>
                     <td className="hidden px-4 py-3 text-right whitespace-nowrap md:table-cell">
                       <Link href={`/models/${model.slug}`} className="block">
@@ -304,7 +322,7 @@ export default async function HomePage() {
                             />
                           </div>
                           <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
-                            {popScore?.toFixed(0) ?? "—"}
+                            {popScore?.toFixed(0) ?? "â€”"}
                           </span>
                         </div>
                       </Link>
@@ -314,7 +332,7 @@ export default async function HomePage() {
                         <span className="text-sm font-semibold tabular-nums">
                           {model.quality_score
                             ? Number(model.quality_score).toFixed(1)
-                            : "—"}
+                            : "â€”"}
                         </span>
                       </Link>
                     </td>
@@ -328,7 +346,7 @@ export default async function HomePage() {
                         ) : model.is_open_weights ? (
                           <span className="text-gain font-medium">Free</span>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">â€”</span>
                         )}
                       </Link>
                     </td>
@@ -487,7 +505,7 @@ export default async function HomePage() {
       {/* Dashboard Row: Top Movers + Trending */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Top Movers — biggest rank changes */}
+          {/* Top Movers â€” biggest rank changes */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <Shuffle className="h-5 w-5 text-neon" />
@@ -513,7 +531,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Quality vs Price Frontier — Interactive Scatter */}
+      {/* Quality vs Price Frontier â€” Interactive Scatter */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">

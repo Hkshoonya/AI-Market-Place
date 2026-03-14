@@ -79,12 +79,14 @@ describe("buildDeploymentCatalog", () => {
 
     expect(result.directDeployments).toHaveLength(1);
     expect(result.directDeployments[0]?.platform.slug).toBe("openai-api");
+    expect(result.directDeployments[0]?.confidence).toBe("direct");
 
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).toEqual(
       expect.arrayContaining(["openrouter", "chatgpt-plus"])
     );
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("anthropic-api");
     expect(result.relatedPlatforms[0]?.reason.length).toBeGreaterThan(0);
+    expect(result.relatedPlatforms[0]?.confidence).toMatch(/pricing_inferred|provider_family/);
   });
 
   it("adds self-hosting options for open-weight models even without direct deployments", () => {
@@ -136,5 +138,6 @@ describe("buildDeploymentCatalog", () => {
       expect.arrayContaining(["ollama", "llamacpp"])
     );
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("chatgpt-plus");
+    expect(result.relatedPlatforms.every((item) => item.confidence === "open_weight_runtime")).toBe(true);
   });
 });
