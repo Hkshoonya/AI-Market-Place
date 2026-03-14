@@ -46,6 +46,14 @@ export function getFeeTierInfo(feeRate: number): {
   nextTier: string | null;
   progressPercent: number;
 } {
+  if (feeRate <= 0) {
+    return {
+      name: "No fee",
+      color: "text-neon",
+      nextTier: null,
+      progressPercent: 100,
+    };
+  }
   if (feeRate <= 0.02) {
     return {
       name: "Diamond",

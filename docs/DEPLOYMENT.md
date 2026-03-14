@@ -32,6 +32,7 @@ NEXT_PUBLIC_SITE_URL=https://aimarketcap.tech
 CRON_RUNNER_MODE=external
 CRON_SINGLE_RUN_LOCK=true
 RATE_LIMIT_BACKEND=database
+ENABLE_MARKETPLACE_FEES=false
 ```
 
 Recommended compatibility and enforcement flags during rollout:
@@ -64,6 +65,7 @@ Important:
 - Do not set `ENABLE_IN_PROCESS_CRON=true` on the live Railway deployment once `CRON_RUNNER_MODE=external` is in place.
 - If a legacy deployment still relies on in-process cron, remove that dependency before turning on external cron as the only scheduler.
 - Keep `RATE_LIMIT_BACKEND=database` in production so rate limits are shared across instances and cold starts.
+- Keep `ENABLE_MARKETPLACE_FEES=false` until you intentionally want marketplace escrow releases to deduct platform fees again.
 
 ## Railway deployment
 

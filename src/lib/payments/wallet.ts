@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import type {
   Wallet,
   WalletTransaction,
@@ -278,6 +279,10 @@ export async function refundEscrow(escrowId: string): Promise<void> {
 // Platform fees
 // ---------------------------------------------------------------------------
 
+export function isMarketplaceFeesEnabled() {
+  return isRuntimeFlagEnabled("ENABLE_MARKETPLACE_FEES", false);
+}
+
 /**
  * Calculate the platform fee for a given wallet and transaction amount based
  * on the wallet's lifetime earnings and the `platform_fee_tiers` table.
@@ -291,6 +296,14 @@ export async function calculatePlatformFee(
   walletId: string,
   amount: number
 ): Promise<{ feeRate: number; feeAmount: number; netAmount: number }> {
+  if (!isMarketplaceFeesEnabled()) {
+    return {
+      feeRate: 0,
+      feeAmount: 0,
+      netAmount: amount,
+    };
+  }
+
   const sb = adminClient();
 
   // Get the wallet's lifetime earnings
