@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
+import { buildTopMoversPayload, type ModelSummaryRow, type SnapshotRow } from "./logic";
 
 export const dynamic = "force-dynamic";
+const SNAPSHOT_PAGE_SIZE = 1000;
 
 /**
  * GET /api/charts/top-movers
@@ -30,138 +32,83 @@ export async function GET(request: NextRequest) {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0];
+    const payload = await buildTopMoversPayload(
+      {
+        fetchSnapshotsForDate: (snapshotDate) =>
+          fetchSnapshotsForDate(supabase, snapshotDate),
+        fetchLatestSnapshotDate: (beforeDate) =>
+          fetchLatestSnapshotDate(supabase, beforeDate),
+        fetchModels: (modelIds) => fetchModels(supabase, modelIds),
+      },
+      { today, yesterday, limit }
+    );
 
-    // Get today's and yesterday's snapshots
-    const { data: todaySnaps } = await supabase
-      .from("model_snapshots")
-      .select("model_id, overall_rank, quality_score")
-      .eq("snapshot_date", today);
-
-    const { data: yesterdaySnaps } = await supabase
-      .from("model_snapshots")
-      .select("model_id, overall_rank, quality_score")
-      .eq("snapshot_date", yesterday);
-
-    if (
-      !todaySnaps || todaySnaps.length === 0 ||
-      !yesterdaySnaps || yesterdaySnaps.length === 0
-    ) {
-      // Fallback: compare the two most recent snapshot dates
-      const { data: recentDates } = await supabase
-        .from("model_snapshots")
-        .select("snapshot_date")
-        .order("snapshot_date", { ascending: false })
-        .limit(100);
-
-      // Deduplicate dates (query may return duplicates per model)
-      const uniqueDates = [...new Set(recentDates?.map(r => r.snapshot_date))];
-
-      if (uniqueDates.length < 2) {
-        return NextResponse.json({ risers: [], fallers: [], asOf: today });
-      }
-
-      const [latestDate, prevDate] = [uniqueDates[0], uniqueDates[1]];
-
-      const { data: latestSnaps } = await supabase
-        .from("model_snapshots")
-        .select("model_id, overall_rank, quality_score")
-        .eq("snapshot_date", latestDate);
-
-      const { data: prevSnaps } = await supabase
-        .from("model_snapshots")
-        .select("model_id, overall_rank, quality_score")
-        .eq("snapshot_date", prevDate);
-
-      return computeMovers(supabase, latestSnaps ?? [], prevSnaps ?? [], limit, latestDate);
-    }
-
-    return computeMovers(supabase, todaySnaps, yesterdaySnaps, limit, today);
+    return NextResponse.json(payload, {
+      headers: {
+        "Cache-Control": "s-maxage=300, stale-while-revalidate=600",
+      },
+    });
   } catch (err) {
     return handleApiError(err, "api/charts/top-movers");
   }
 }
 
-async function computeMovers(
+async function fetchSnapshotsForDate(
   supabase: ReturnType<typeof createClient<Database>>,
-  currentSnaps: Array<{ model_id: string; overall_rank: number | null; quality_score: number | null }>,
-  previousSnaps: Array<{ model_id: string; overall_rank: number | null; quality_score: number | null }>,
-  limit: number,
-  asOf: string
-) {
-  const prevMap = new Map(
-    previousSnaps.map((s) => [s.model_id, s])
-  );
+  snapshotDate: string
+): Promise<SnapshotRow[]> {
+  const rows: SnapshotRow[] = [];
+  let from = 0;
 
-  const deltas: Array<{
-    modelId: string;
-    rankChange: number;
-    scoreChange: number;
-    currentRank: number;
-    currentScore: number;
-  }> = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from("model_snapshots")
+      .select("model_id, overall_rank, quality_score")
+      .eq("snapshot_date", snapshotDate)
+      .range(from, from + SNAPSHOT_PAGE_SIZE - 1);
 
-  for (const snap of currentSnaps) {
-    if (snap.overall_rank == null) continue;
-    const prev = prevMap.get(snap.model_id);
-    if (!prev || prev.overall_rank == null) continue;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
 
-    const rankChange = prev.overall_rank - snap.overall_rank; // positive = moved up
-    const scoreChange = (snap.quality_score ?? 0) - (prev.quality_score ?? 0);
-
-    deltas.push({
-      modelId: snap.model_id,
-      rankChange,
-      scoreChange,
-      currentRank: snap.overall_rank,
-      currentScore: snap.quality_score ?? 0,
-    });
+    rows.push(...data);
+    if (data.length < SNAPSHOT_PAGE_SIZE) break;
+    from += SNAPSHOT_PAGE_SIZE;
   }
 
-  // Get top risers and fallers
-  const risers = deltas
-    .filter((d) => d.rankChange > 0)
-    .sort((a, b) => b.rankChange - a.rankChange)
-    .slice(0, limit);
+  return rows;
+}
 
-  const fallers = deltas
-    .filter((d) => d.rankChange < 0)
-    .sort((a, b) => a.rankChange - b.rankChange)
-    .slice(0, limit);
+async function fetchLatestSnapshotDate(
+  supabase: ReturnType<typeof createClient<Database>>,
+  beforeDate?: string
+): Promise<string | null> {
+  let query = supabase
+    .from("model_snapshots")
+    .select("snapshot_date")
+    .order("snapshot_date", { ascending: false })
+    .limit(1);
 
-  // Fetch model details
-  const allModelIds = [...risers, ...fallers].map((d) => d.modelId);
-  const { data: models } = await supabase
+  if (beforeDate) {
+    query = query.lt("snapshot_date", beforeDate);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return data?.[0]?.snapshot_date ?? null;
+}
+
+async function fetchModels(
+  supabase: ReturnType<typeof createClient<Database>>,
+  modelIds: string[]
+): Promise<ModelSummaryRow[]> {
+  if (modelIds.length === 0) return [];
+
+  const { data, error } = await supabase
     .from("models")
     .select("id, name, slug, provider, category")
-    .in("id", allModelIds);
+    .in("id", modelIds);
 
-  const modelMap = new Map((models ?? []).map((m) => [m.id, m]));
-
-  const formatMovers = (items: typeof risers) =>
-    items.map((d) => {
-      const m = modelMap.get(d.modelId);
-      return {
-        name: m?.name ?? "Unknown",
-        slug: m?.slug ?? "",
-        provider: m?.provider ?? "",
-        category: m?.category ?? "",
-        rankChange: d.rankChange,
-        scoreChange: Math.round(d.scoreChange * 10) / 10,
-        currentRank: d.currentRank,
-        currentScore: d.currentScore,
-      };
-    });
-
-  return NextResponse.json(
-    {
-      risers: formatMovers(risers),
-      fallers: formatMovers(fallers),
-      asOf,
-    },
-    {
-      headers: {
-        "Cache-Control": "s-maxage=300, stale-while-revalidate=600",
-      },
-    }
-  );
+  if (error) throw error;
+  return data ?? [];
 }

@@ -29,7 +29,7 @@ interface AdminStats {
 }
 
 export default function AdminOverviewPage() {
-  const { data: stats, isLoading } = useSWR<AdminStats>(
+  const { data: stats, isLoading, error, mutate } = useSWR<AdminStats>(
     'supabase:admin-overview',
     async () => {
       const supabase = createClient();
@@ -91,8 +91,42 @@ export default function AdminOverviewPage() {
     );
   }
 
-  if (!stats && !isLoading) return null;
-  if (!stats) return null;
+  if (error) {
+    return (
+      <Card className="border-loss/30 bg-loss/5">
+        <CardHeader>
+          <CardTitle className="text-loss">Unable to load admin overview</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Unknown error"}
+          </p>
+          <button
+            type="button"
+            onClick={() => void mutate()}
+            className="inline-flex rounded-lg bg-neon px-3 py-2 text-sm font-medium text-background transition-colors hover:bg-neon/90"
+          >
+            Retry
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <Card className="border-border/50 bg-card">
+        <CardHeader>
+          <CardTitle>No admin data available yet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            The overview will populate after the first successful admin data fetch.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const statCards = [
     { label: "Total Models", value: stats.totalModels, sub: `${stats.activeModels} active`, icon: Box, color: "#00d4aa" },

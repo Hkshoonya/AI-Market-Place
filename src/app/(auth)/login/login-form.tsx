@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Activity, Github, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,18 +10,34 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
-function LoginFormInner() {
+export interface LoginFormProps {
+  initialRedirect?: string;
+  hasAuthError?: boolean;
+}
+
+function sanitizeRedirect(rawRedirect?: string) {
+  if (
+    rawRedirect &&
+    rawRedirect.startsWith("/") &&
+    !rawRedirect.startsWith("//") &&
+    !rawRedirect.includes(":")
+  ) {
+    return rawRedirect;
+  }
+
+  return "/";
+}
+
+export default function LoginForm({
+  initialRedirect,
+  hasAuthError = false,
+}: LoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const rawRedirect = searchParams.get("redirect") ?? "/";
-  // Sanitize redirect: must be a relative path, no protocol or double-slash
-  const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") && !rawRedirect.includes(":")
-    ? rawRedirect
-    : "/";
+  const redirectTo = sanitizeRedirect(initialRedirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    searchParams.get("error") ? "Authentication failed. Please try again." : null
+    hasAuthError ? "Authentication failed. Please try again." : null
   );
   const [loading, setLoading] = useState(false);
 
@@ -157,17 +173,5 @@ function LoginFormInner() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function LoginForm() {
-  return (
-    <Suspense fallback={
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-neon border-t-transparent" />
-      </div>
-    }>
-      <LoginFormInner />
-    </Suspense>
   );
 }
