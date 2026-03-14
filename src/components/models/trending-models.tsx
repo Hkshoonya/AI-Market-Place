@@ -7,7 +7,8 @@ import { SWR_TIERS } from "@/lib/swr/config";
 import type { LucideIcon } from "lucide-react";
 import { Flame, Rocket, Crown, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatNumber, formatParams } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
+import { getParameterDisplay } from "@/lib/models/presentation";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,9 @@ interface TrendingModel {
   category: string;
   overall_rank: number | null;
   quality_score: number | null;
+  popularity_score?: number | null;
+  adoption_score?: number | null;
+  economic_footprint_score?: number | null;
   hf_downloads: number;
   hf_likes?: number;
   hf_trending_score?: number | null;
@@ -46,7 +50,6 @@ interface TrendingModelsProps {
 export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("trending");
 
-  // Build dynamic URL for SWR key
   const params = new URLSearchParams({ limit: String(limit) });
   if (category) params.set("category", category);
   const swrKey = `/api/trending?${params.toString()}`;
@@ -67,8 +70,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
 
   return (
     <div>
-      {/* Tab buttons */}
-      <div className="flex items-center gap-1 mb-4 overflow-x-auto">
+      <div className="mb-4 flex items-center gap-1 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -86,7 +88,6 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
         ))}
       </div>
 
-      {/* Models list */}
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -101,19 +102,40 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
         <div className="space-y-1">
           {models.map((model, idx) => {
             const cat = CATEGORY_MAP[model.category as keyof typeof CATEGORY_MAP];
+            const parameterDisplay = getParameterDisplay(model);
+            const rightLabel =
+              activeTab === "discussed"
+                ? model.mention_count
+                  ? `${model.mention_count} mention${model.mention_count !== 1 ? "s" : ""}`
+                  : "0 mentions"
+                : activeTab === "popular"
+                  ? model.popularity_score != null
+                    ? `Pop ${Number(model.popularity_score).toFixed(0)}`
+                    : formatNumber(model.hf_downloads)
+                  : activeTab === "recent"
+                    ? model.release_date
+                      ? new Date(model.release_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "Recent"
+                    : model.economic_footprint_score != null
+                      ? `Eco ${Number(model.economic_footprint_score).toFixed(0)}`
+                      : formatNumber(model.hf_downloads);
+
             return (
               <Link
                 key={model.id}
                 href={`/models/${model.slug}`}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-secondary/30 group"
+                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-secondary/30"
               >
                 <span className="w-6 text-center text-xs font-bold text-muted-foreground tabular-nums">
                   {idx + 1}
                 </span>
                 <ProviderLogo provider={model.provider} size="sm" />
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate group-hover:text-neon transition-colors">
+                    <span className="truncate text-sm font-medium group-hover:text-neon transition-colors">
                       {model.name}
                     </span>
                     {model.is_open_weights && (
@@ -122,16 +144,14 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{model.provider}</span>
-                    {model.parameter_count && (
-                      <span>· {formatParams(model.parameter_count)}</span>
-                    )}
+                    <span>· {parameterDisplay.label}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex shrink-0 items-center gap-3">
                   {cat && (
                     <Badge
                       variant="outline"
-                      className="hidden sm:flex gap-1 border-transparent text-[10px]"
+                      className="hidden gap-1 border-transparent text-[10px] sm:flex"
                       style={{
                         backgroundColor: `${cat.color}15`,
                         color: cat.color,
@@ -145,15 +165,14 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                       {Number(model.quality_score).toFixed(1)}
                     </span>
                   )}
-                  {activeTab === "discussed" && model.mention_count ? (
-                    <span className="text-xs text-neon tabular-nums font-medium">
-                      {model.mention_count} mention{model.mention_count !== 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {formatNumber(model.hf_downloads)}
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      "text-xs tabular-nums",
+                      activeTab === "discussed" ? "font-medium text-neon" : "text-muted-foreground"
+                    )}
+                  >
+                    {rightLabel}
+                  </span>
                 </div>
               </Link>
             );

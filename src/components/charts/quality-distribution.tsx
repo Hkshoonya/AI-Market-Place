@@ -8,6 +8,8 @@ import { BarChart3 } from "lucide-react";
 
 interface QualityDistributionProps {
   data: { name: string; quality: number; provider: string }[];
+  title?: string;
+  metricLabel?: string;
 }
 
 const COLORS = [
@@ -17,7 +19,15 @@ const COLORS = [
   "#666", "#666", "#666", "#666", "#666", "#666", "#666", "#666",
 ];
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { name: string; quality: number; provider: string } }> }) {
+function CustomTooltip({
+  active,
+  payload,
+  metricLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { name: string; quality: number; provider: string } }>;
+  metricLabel: string;
+}) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -27,13 +37,17 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
         Provider: <span className="text-foreground">{d?.provider}</span>
       </p>
       <p className="text-xs text-muted-foreground">
-        Quality: <span className="font-medium text-neon">{d?.quality?.toFixed(1)}</span>
+        {metricLabel}: <span className="font-medium text-neon">{d?.quality?.toFixed(1)}</span>
       </p>
     </div>
   );
 }
 
-export function QualityDistribution({ data }: QualityDistributionProps) {
+export function QualityDistribution({
+  data,
+  title = "Quality Score Distribution",
+  metricLabel = "Quality Score",
+}: QualityDistributionProps) {
   if (data.length === 0) return null;
 
   return (
@@ -41,10 +55,13 @@ export function QualityDistribution({ data }: QualityDistributionProps) {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <BarChart3 className="h-4 w-4 text-neon" />
-          Quality Score Distribution
+          {title}
         </CardTitle>
       </CardHeader>
-      <CardContent role="img" aria-label={`Quality score distribution bar chart showing scores for ${data.length} models`}>
+      <CardContent
+        role="img"
+        aria-label={`${metricLabel} distribution bar chart showing scores for ${data.length} models`}
+      >
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} margin={{ left: 0, right: 10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
@@ -61,9 +78,9 @@ export function QualityDistribution({ data }: QualityDistributionProps) {
                 (dataMax: number) => Math.min(100, Math.ceil(dataMax + 5)),
               ]}
               tick={{ fontSize: 11, fill: "#888" }}
-              label={{ value: "Quality Score", angle: -90, position: "insideLeft", fill: "#888", fontSize: 11 }}
+              label={{ value: metricLabel, angle: -90, position: "insideLeft", fill: "#888", fontSize: 11 }}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip metricLabel={metricLabel} />} />
             <Bar dataKey="quality" radius={[4, 4, 0, 0]} barSize={24}>
               {data.map((_, i) => (
                 <Cell key={i} fill={COLORS[i] ?? "#00d4aa"} opacity={i < 3 ? 1 : 0.8} />

@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import {
+  computePopularDiscoveryScore,
+  computeTrendingDiscoveryScore,
+  sortByDiscoveryScore,
+} from "@/lib/models/discovery";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +36,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes, hf_trending_score, release_date, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, parameter_count, is_open_weights"
       )
       .eq("status", "active");
 
@@ -39,11 +44,7 @@ export async function GET(request: NextRequest) {
       query = query.eq("category", category as import("@/types/database").ModelCategory);
     }
 
-    // Sort by trending score (if available), then by downloads
-    query = query
-      .order("hf_trending_score", { ascending: false, nullsFirst: false })
-      .order("hf_downloads", { ascending: false, nullsFirst: false })
-      .limit(limit);
+    query = query.limit(limit * 5);
 
     const { data, error } = await query;
 
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     let recentQuery = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, release_date, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, release_date, parameter_count, is_open_weights"
       )
       .eq("status", "active")
       .gte("release_date", ninetyDaysAgo.toISOString().split("T")[0])
@@ -71,15 +72,14 @@ export async function GET(request: NextRequest) {
 
     const { data: recentModels } = await recentQuery;
 
-    // Get "most popular" by download count
+    // Get "most popular" by blended traction instead of raw downloads
     let popularQuery = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, hf_likes, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, parameter_count, is_open_weights"
       )
       .eq("status", "active")
-      .order("hf_downloads", { ascending: false, nullsFirst: false })
-      .limit(6);
+      .limit(limit * 5);
 
     if (category) {
       popularQuery = popularQuery.eq("category", category as import("@/types/database").ModelCategory);
@@ -118,10 +118,18 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    const trending = sortByDiscoveryScore(data ?? [], (model) =>
+      computeTrendingDiscoveryScore(model)
+    ).slice(0, limit);
+
+    const popular = sortByDiscoveryScore(popularModels ?? [], (model) =>
+      computePopularDiscoveryScore(model)
+    ).slice(0, limit);
+
     return NextResponse.json({
-      trending: data ?? [],
+      trending,
       recent: recentModels ?? [],
-      popular: popularModels ?? [],
+      popular,
       discussed,
     });
   } catch (err) {

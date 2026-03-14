@@ -88,6 +88,8 @@ export const CategoryModelSchema = z.object({
   overall_rank: z.coerce.number().nullable(),
   category_rank: z.coerce.number().nullable(),
   quality_score: z.coerce.number().nullable(),
+  capability_score: z.coerce.number().nullable().optional(),
+  agent_score: z.coerce.number().nullable().optional(),
   is_open_weights: z.boolean().nullable(),
   parameter_count: z.coerce.number().nullable(),
   benchmark_scores: z.array(z.object({

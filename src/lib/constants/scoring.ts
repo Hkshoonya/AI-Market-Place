@@ -1,7 +1,7 @@
 // --------------- Market Cap Formula Constants (CONST-01) ---------------
 
-/** Scale factor calibrated so GPT-4o ~ $200M/month (usage=95, price=$15) */
-export const MARKET_CAP_SCALE_FACTOR = 1300;
+/** Scale factor calibrated so frontier commercial models land in a plausible nine-figure range. */
+export const MARKET_CAP_SCALE_FACTOR = 1_200_000_000;
 
 /** Exponent applied to usage score: usageScore^USAGE_EXPONENT */
 export const USAGE_EXPONENT = 1.2;

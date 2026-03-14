@@ -6,11 +6,12 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
-import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import { formatNumber, formatTokenPrice } from "@/lib/format";
 import {
   compareModelsByLowestPrice,
   getLowestInputPrice,
 } from "@/lib/models/pricing";
+import { getParameterDisplay } from "@/lib/models/presentation";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
@@ -239,6 +240,7 @@ export default async function ModelsPage({
                 );
                 const rank = model.overall_rank ?? 0;
                 const cheapestInputPrice = getLowestInputPrice(model);
+                const parameterDisplay = getParameterDisplay(model);
 
                 return (
                   <tr
@@ -289,14 +291,10 @@ export default async function ModelsPage({
                       )}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
-                      {model.parameter_count ? (
-                        <span className="flex items-center justify-end gap-1">
-                          <Zap className="h-3 w-3 text-neon" />
-                          {formatParams(model.parameter_count)}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
+                      <span className="flex items-center justify-end gap-1">
+                        <Zap className="h-3 w-3 text-neon" />
+                        {parameterDisplay.label}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-sm font-semibold tabular-nums">

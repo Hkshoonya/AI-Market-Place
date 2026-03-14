@@ -18,14 +18,17 @@ interface Platform {
 }
 
 interface Deployment {
-  id: string;
-  deploy_url: string | null;
-  pricing_model: string | null;
-  price_per_unit: number | null;
-  unit_description: string | null;
-  free_tier: string | null;
-  one_click: boolean;
-  deployment_platforms: Platform;
+  platform: Platform;
+  reason: string;
+  deployment?: {
+    id: string;
+    deploy_url: string | null;
+    pricing_model: string | null;
+    price_per_unit: number | null;
+    unit_description: string | null;
+    free_tier: string | null;
+    one_click: boolean;
+  };
 }
 
 interface DeployTabProps {
@@ -73,12 +76,12 @@ function getLocalCommand(platformSlug: string, modelName: string): string | null
 }
 
 export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProps) {
-  const { data, error, isLoading } = useSWR<{ deployments: Deployment[]; platforms: Platform[] }>(
+  const { data, error, isLoading } = useSWR<{ deployments: Deployment[]; relatedPlatforms: Deployment[] }>(
     `/api/models/${modelSlug}/deployments`,
     { ...SWR_TIERS.SLOW }
   );
   const deployments = data?.deployments ?? [];
-  const platforms = data?.platforms ?? [];
+  const relatedPlatforms = data?.relatedPlatforms ?? [];
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
@@ -101,16 +104,10 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
     return <p className="text-sm text-red-500 p-4">{error?.message || "Failed to load deployment options"}</p>;
   }
 
-  // Group platforms by type
-  const grouped = new Map<string, Platform[]>();
-  for (const p of platforms) {
-    if (!grouped.has(p.type)) grouped.set(p.type, []);
-    grouped.get(p.type)!.push(p);
-  }
-
-  const deploymentMap = new Map<string, Deployment>();
-  for (const d of deployments) {
-    deploymentMap.set(d.deployment_platforms.id, d);
+  const grouped = new Map<string, Deployment[]>();
+  for (const item of relatedPlatforms) {
+    if (!grouped.has(item.platform.type)) grouped.set(item.platform.type, []);
+    grouped.get(item.platform.type)!.push(item);
   }
 
   return (
@@ -135,9 +132,10 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               </thead>
               <tbody>
                 {deployments.map((d, i) => {
-                  const platform = d.deployment_platforms;
+                  const platform = d.platform;
+                  const deployment = d.deployment;
                   return (
-                    <tr key={d.id} className={cn("border-b border-border/20", i === 0 && "bg-[#00d4aa]/5")}>
+                    <tr key={platform.id} className={cn("border-b border-border/20", i === 0 && "bg-[#00d4aa]/5")}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {TYPE_ICONS[platform.type]}
@@ -156,24 +154,24 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                       </td>
                       <td className="px-4 py-3 text-muted-foreground capitalize">{platform.type.replace("-", " ")}</td>
                       <td className="px-4 py-3 text-right font-mono text-white">
-                        {d.pricing_model === "free" ? (
+                        {deployment?.pricing_model === "free" ? (
                           <span className="text-green-400">Free</span>
-                        ) : d.price_per_unit ? (
-                          `$${d.price_per_unit}/${d.unit_description || "unit"}`
+                        ) : deployment?.price_per_unit ? (
+                          `$${deployment.price_per_unit}/${deployment.unit_description || "unit"}`
                         ) : (
                           <span className="text-muted-foreground">--</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {d.free_tier ? (
-                          <span className="text-green-400 text-xs">{d.free_tier}</span>
+                        {deployment?.free_tier ? (
+                          <span className="text-green-400 text-xs">{deployment.free_tier}</span>
                         ) : (
                           <span className="text-muted-foreground">--</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <a
-                          href={getPlatformUrl(platform, d.deploy_url)}
+                          href={getPlatformUrl(platform, deployment?.deploy_url)}
                           target="_blank"
                           rel={getLinkRel(platform)}
                           className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition-colors"
@@ -190,16 +188,23 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         </div>
       )}
 
-      {/* Platform Categories */}
+      {relatedPlatforms.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Related options below are ecosystem or self-hosting paths that fit this model family.
+          They are not stored as verified model-specific deployments unless explicitly marked above.
+        </p>
+      )}
+
+      {/* Related platform categories */}
       {Array.from(grouped.entries()).map(([type, typePlatforms]) => (
         <div key={type}>
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             {TYPE_ICONS[type]}
-            {TYPE_LABELS[type] || type}
+            {TYPE_LABELS[type] || type} <span className="text-xs text-muted-foreground font-normal">Related options</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {typePlatforms.map((platform) => {
-              const deployment = deploymentMap.get(platform.id);
+            {typePlatforms.map((item) => {
+              const platform = item.platform;
               const localCmd = isOpenWeights ? getLocalCommand(platform.slug, modelName) : null;
 
               return (
@@ -215,11 +220,14 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                       </span>
                     )}
                   </div>
-                  {deployment && deployment.price_per_unit && (
+                  {item.deployment?.price_per_unit && (
                     <p className="text-xs text-muted-foreground mb-2 font-mono">
-                      ${deployment.price_per_unit}/{deployment.unit_description || "unit"}
+                      ${item.deployment.price_per_unit}/{item.deployment.unit_description || "unit"}
                     </p>
                   )}
+                  <p className="mb-2 text-xs text-muted-foreground leading-relaxed">
+                    {item.reason}
+                  </p>
                   {localCmd && (
                     <div className="mb-2">
                       <div className="flex items-center gap-1">
@@ -236,12 +244,12 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                     </div>
                   )}
                   <a
-                    href={getPlatformUrl(platform, deployment?.deploy_url)}
+                    href={getPlatformUrl(platform, item.deployment?.deploy_url)}
                     target="_blank"
                     rel={getLinkRel(platform)}
                     className="inline-flex items-center gap-1 text-xs text-[#00d4aa] hover:text-[#00d4aa]/80 transition-colors"
                   >
-                    {deployment ? "Deploy" : "Visit"} <ExternalLink className="h-3 w-3" />
+                    {item.deployment ? "Deploy" : "Explore"} <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
               );

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Settings2, RotateCcw, Info, ChevronDown, Minus, Plus } from "lucide-react";
+import {
+  Settings2,
+  RotateCcw,
+  Info,
+  ChevronDown,
+  Minus,
+  Plus,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -14,7 +21,6 @@ import {
   type WeightKey,
   DEFAULT_WEIGHTS,
   WEIGHT_KEYS,
-  // REMOVED: MIN_WEIGHT,
   MAX_WEIGHT,
   STEP,
   computePercentiles,
@@ -33,13 +39,12 @@ export default function RankingWeightControls({
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"default" | "custom">("default");
   const [weights, setWeights] = useState<Record<WeightKey, number>>(() =>
-    Object.fromEntries(WEIGHT_KEYS.map((k) => [k, DEFAULT_WEIGHTS[k].weight])) as Record<WeightKey, number>,
+    Object.fromEntries(
+      WEIGHT_KEYS.map((key) => [key, DEFAULT_WEIGHTS[key].weight])
+    ) as Record<WeightKey, number>
   );
 
-  // Track whether we've done the initial sort to avoid duplicate calls
   const hasMounted = useRef(false);
-
-  // Memoize percentile maps only when models change
   const percentileMaps = useRef<Map<WeightKey, Map<string, number>>>(new Map());
 
   const buildPercentileMaps = useCallback((modelList: RankableModel[]) => {
@@ -58,99 +63,109 @@ export default function RankingWeightControls({
     if (!hasMounted.current) {
       hasMounted.current = true;
     }
+
     const maps = percentileMaps.current;
     if (maps.size === 0) return;
 
-    const scored = models.map((m) => {
+    const scored = models.map((model) => {
       let composite = 0;
+
       for (const key of WEIGHT_KEYS) {
-        const pctMap = maps.get(key);
-        const percentile = pctMap?.get(m.slug) ?? 0;
+        const percentileMap = maps.get(key);
+        const percentile = percentileMap?.get(model.slug) ?? 0;
         composite += (weights[key] / 100) * percentile;
       }
-      return { model: m, composite };
+
+      return { model, composite };
     });
 
-    scored.sort((a, b) => b.composite - a.composite);
-    onSortedModels(scored.map((s) => s.model));
+    scored.sort((left, right) => right.composite - left.composite);
+    onSortedModels(scored.map((entry) => entry.model));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weights, models]);
 
-  const isDefault = WEIGHT_KEYS.every((k) => weights[k] === DEFAULT_WEIGHTS[k].weight);
+  const isDefault = WEIGHT_KEYS.every(
+    (key) => weights[key] === DEFAULT_WEIGHTS[key].weight
+  );
 
   const handleWeightChange = useCallback((key: WeightKey, delta: number) => {
-    setWeights((prev) => redistributeWeights(prev, key, prev[key] + delta));
+    setWeights((current) =>
+      redistributeWeights(current, key, current[key] + delta)
+    );
     setMode("custom");
   }, []);
 
   const resetToDefault = useCallback(() => {
     const defaults = Object.fromEntries(
-      WEIGHT_KEYS.map((k) => [k, DEFAULT_WEIGHTS[k].weight]),
+      WEIGHT_KEYS.map((key) => [key, DEFAULT_WEIGHTS[key].weight])
     ) as Record<WeightKey, number>;
     setWeights(defaults);
     setMode("default");
   }, []);
 
-  const total = WEIGHT_KEYS.reduce((s, k) => s + weights[k], 0);
+  const total = WEIGHT_KEYS.reduce((sum, key) => sum + weights[key], 0);
 
   return (
     <TooltipProvider>
       <div className="mb-4">
-        {/* Toggle button */}
         <button
-          onClick={() => setIsOpen((v) => !v)}
+          onClick={() => setIsOpen((open) => !open)}
           className={cn(
-            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all border",
+            "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
             isOpen
-              ? "bg-neon/10 text-neon border-neon/30"
-              : "text-muted-foreground border-white/[0.06] hover:bg-secondary hover:text-foreground hover:border-white/10",
+              ? "border-neon/30 bg-neon/10 text-neon"
+              : "border-white/[0.06] text-muted-foreground hover:border-white/10 hover:bg-secondary hover:text-foreground"
           )}
         >
           <Settings2 className="h-4 w-4" />
-          Customize Rankings
+          Customize Thesis
           <ChevronDown
             className={cn(
               "h-3.5 w-3.5 transition-transform duration-200",
-              isOpen && "rotate-180",
+              isOpen && "rotate-180"
             )}
           />
         </button>
 
-        {/* Expanded panel */}
         {isOpen && (
-          <div className="mt-3 rounded-xl border border-border/50 bg-secondary/20 p-4 animate-slide-down">
-            {/* Header with mode tabs */}
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-white/80">
-                Ranking Weights
-              </h4>
-              <div className="flex rounded-lg border border-white/[0.06] overflow-hidden">
-                <button
-                  onClick={resetToDefault}
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors",
-                    mode === "default" || isDefault
-                      ? "bg-neon/10 text-neon"
-                      : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]",
-                  )}
-                >
-                  Our Pick
-                </button>
-                <button
-                  onClick={() => setMode("custom")}
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors",
-                    mode === "custom" && !isDefault
-                      ? "bg-neon/10 text-neon"
-                      : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]",
-                  )}
-                >
-                  Custom
-                </button>
+          <div className="mt-3 animate-slide-down rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <div className="mb-3">
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-white/80">
+                  Market Cap Thesis
+                </h4>
+                <div className="flex overflow-hidden rounded-lg border border-white/[0.06]">
+                  <button
+                    onClick={resetToDefault}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium transition-colors",
+                      mode === "default" || isDefault
+                        ? "bg-neon/10 text-neon"
+                        : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+                    )}
+                  >
+                    House View
+                  </button>
+                  <button
+                    onClick={() => setMode("custom")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-medium transition-colors",
+                      mode === "custom" && !isDefault
+                        ? "bg-neon/10 text-neon"
+                        : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+                    )}
+                  >
+                    Custom Mix
+                  </button>
+                </div>
               </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Our house view prioritizes capability, economic footing, and adoption
+                ahead of short-term hype. Use a custom mix when you want to stress a
+                different thesis.
+              </p>
             </div>
 
-            {/* Weight sliders */}
             <div className="space-y-3">
               {WEIGHT_KEYS.map((key) => (
                 <WeightRow
@@ -163,12 +178,11 @@ export default function RankingWeightControls({
               ))}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/[0.06]">
+            <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
               <span
                 className={cn(
                   "text-xs font-medium tabular-nums",
-                  total === 100 ? "text-white/40" : "text-loss",
+                  total === 100 ? "text-white/40" : "text-loss"
                 )}
               >
                 Total: {total}%
@@ -177,14 +191,14 @@ export default function RankingWeightControls({
                 onClick={resetToDefault}
                 disabled={isDefault}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors border",
+                  "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                   isDefault
-                    ? "text-white/20 border-white/[0.04] cursor-not-allowed"
-                    : "text-white/60 border-white/[0.08] bg-secondary hover:bg-secondary/80 hover:text-white/80",
+                    ? "cursor-not-allowed border-white/[0.04] text-white/20"
+                    : "border-white/[0.08] bg-secondary text-white/60 hover:bg-secondary/80 hover:text-white/80"
                 )}
               >
                 <RotateCcw className="h-3 w-3" />
-                Reset to Default
+                Reset House View
               </button>
             </div>
           </div>
@@ -193,8 +207,6 @@ export default function RankingWeightControls({
     </TooltipProvider>
   );
 }
-
-// WeightRow sub-component
 
 interface WeightRowProps {
   weightKey: WeightKey;
@@ -210,12 +222,11 @@ function WeightRow({ weightKey, signal, value, onChange }: WeightRowProps) {
 
   return (
     <div className="flex items-center gap-3">
-      {/* Label + tooltip */}
-      <div className="flex items-center gap-1.5 w-36 shrink-0">
+      <div className="flex w-36 shrink-0 items-center gap-1.5">
         <span
           className={cn(
-            "text-xs font-medium truncate",
-            isZero ? "text-white/25" : "text-white/70",
+            "truncate text-xs font-medium",
+            isZero ? "text-white/25" : "text-white/70"
           )}
         >
           {signal.label}
@@ -224,7 +235,7 @@ function WeightRow({ weightKey, signal, value, onChange }: WeightRowProps) {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="text-white/20 hover:text-white/50 transition-colors"
+              className="text-white/20 transition-colors hover:text-white/50"
               aria-label={`Info about ${signal.label}`}
             >
               <Info className="h-3 w-3" />
@@ -236,8 +247,7 @@ function WeightRow({ weightKey, signal, value, onChange }: WeightRowProps) {
         </Tooltip>
       </div>
 
-      {/* Bar */}
-      <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
         <div
           className="h-full rounded-full transition-all duration-300 ease-out"
           style={{
@@ -250,27 +260,25 @@ function WeightRow({ weightKey, signal, value, onChange }: WeightRowProps) {
         />
       </div>
 
-      {/* Percentage */}
       <span
         className={cn(
           "w-10 text-right text-xs font-semibold tabular-nums",
-          isZero ? "text-white/20" : "text-white/60",
+          isZero ? "text-white/20" : "text-white/60"
         )}
       >
         {value}%
       </span>
 
-      {/* +/- buttons */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={() => onChange(weightKey, -STEP)}
           disabled={isZero}
           className={cn(
-            "flex items-center justify-center h-6 w-6 rounded text-xs transition-colors",
+            "flex h-6 w-6 items-center justify-center rounded text-xs transition-colors",
             isZero
-              ? "text-white/10 cursor-not-allowed"
-              : "bg-secondary text-white/50 hover:bg-secondary/80 hover:text-white/80",
+              ? "cursor-not-allowed text-white/10"
+              : "bg-secondary text-white/50 hover:bg-secondary/80 hover:text-white/80"
           )}
           aria-label={`Decrease ${signal.label} weight`}
         >
@@ -281,10 +289,10 @@ function WeightRow({ weightKey, signal, value, onChange }: WeightRowProps) {
           onClick={() => onChange(weightKey, STEP)}
           disabled={isMax}
           className={cn(
-            "flex items-center justify-center h-6 w-6 rounded text-xs transition-colors",
+            "flex h-6 w-6 items-center justify-center rounded text-xs transition-colors",
             isMax
-              ? "text-white/10 cursor-not-allowed"
-              : "bg-secondary text-white/50 hover:bg-secondary/80 hover:text-white/80",
+              ? "cursor-not-allowed text-white/10"
+              : "bg-secondary text-white/50 hover:bg-secondary/80 hover:text-white/80"
           )}
           aria-label={`Increase ${signal.label} weight`}
         >

@@ -28,9 +28,10 @@ interface CandleData {
 
 const METRICS = [
   { value: "popularity_score", label: "Popularity" },
+  { value: "adoption_score", label: "Adoption" },
   { value: "economic_footprint_score", label: "Economic" },
   { value: "quality_score", label: "Quality Score" },
-  { value: "market_cap_estimate", label: "Market Cap" },
+  { value: "market_cap_estimate", label: "Market Value" },
   { value: "hf_downloads", label: "Downloads" },
 ];
 

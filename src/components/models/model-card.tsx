@@ -3,7 +3,11 @@ import { Download, Heart, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RankBadge } from "@/components/shared/rank-badge";
 import { CategoryBadge } from "@/components/shared/category-badge";
-import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import { formatNumber, formatTokenPrice } from "@/lib/format";
+import {
+  getModelDisplayDescription,
+  getParameterDisplay,
+} from "@/lib/models/presentation";
 import type { Model, ModelPricing, Ranking } from "@/types/database";
 
 interface ModelCardProps {
@@ -17,15 +21,25 @@ export function ModelCard({ model }: ModelCardProps) {
   const overallRanking = model.rankings?.find(
     (r) => r.ranking_type === "overall"
   );
+  const parameterDisplay = getParameterDisplay(model);
+  const displayDescription = getModelDisplayDescription(model);
   const cheapestPricing = model.model_pricing
     ?.filter((p) => p.input_price_per_million != null)
-    .sort((a, b) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0))[0];
+    .sort(
+      (a, b) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0)
+    )[0];
 
   return (
-    <Link href={`/models/${model.slug}`} aria-label={`${model.name} by ${model.provider}${overallRanking?.rank || model.overall_rank ? `, ranked #${overallRanking?.rank ?? model.overall_rank}` : ""}`}>
+    <Link
+      href={`/models/${model.slug}`}
+      aria-label={`${model.name} by ${model.provider}${
+        overallRanking?.rank || model.overall_rank
+          ? `, ranked #${overallRanking?.rank ?? model.overall_rank}`
+          : ""
+      }`}
+    >
       <Card className="group relative overflow-hidden border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
         <CardContent className="p-4">
-          {/* Top row: rank + category */}
           <div className="flex items-center justify-between">
             <RankBadge
               rank={overallRanking?.rank ?? model.overall_rank}
@@ -35,29 +49,24 @@ export function ModelCard({ model }: ModelCardProps) {
             <CategoryBadge category={model.category} size="sm" />
           </div>
 
-          {/* Model name & provider */}
           <div className="mt-3">
-            <h3 className="text-sm font-semibold text-foreground group-hover:text-neon transition-colors truncate">
+            <h3 className="truncate text-sm font-semibold text-foreground group-hover:text-neon transition-colors">
               {model.name}
             </h3>
             <p className="text-xs text-muted-foreground">{model.provider}</p>
           </div>
 
-          {/* Description */}
-          {model.short_description && (
-            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-              {model.short_description}
+          {displayDescription.text && (
+            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+              {displayDescription.text}
             </p>
           )}
 
-          {/* Stats row */}
           <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-            {model.parameter_count && (
-              <span className="flex items-center gap-1">
-                <Zap className="h-3 w-3 text-neon" />
-                {formatParams(model.parameter_count)}
-              </span>
-            )}
+            <span className="flex items-center gap-1">
+              <Zap className="h-3 w-3 text-neon" />
+              {parameterDisplay.label}
+            </span>
             <span className="flex items-center gap-1">
               <Download className="h-3 w-3" />
               {formatNumber(model.hf_downloads)}
@@ -68,7 +77,6 @@ export function ModelCard({ model }: ModelCardProps) {
             </span>
           </div>
 
-          {/* Pricing */}
           {cheapestPricing && (
             <div className="mt-3 flex items-center justify-between rounded-md bg-secondary/50 px-2 py-1.5">
               <span className="text-[11px] text-muted-foreground">From</span>
@@ -79,7 +87,6 @@ export function ModelCard({ model }: ModelCardProps) {
             </div>
           )}
 
-          {/* Open weights badge */}
           {model.is_open_weights && (
             <div className="absolute right-3 top-3">
               <span className="rounded-full bg-gain/10 px-1.5 py-0.5 text-[10px] font-medium text-gain">

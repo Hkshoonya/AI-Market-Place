@@ -18,7 +18,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { ModelWithDetailsSchema } from "@/lib/schemas/models";
-import { formatNumber, formatParams, formatContextWindow } from "@/lib/format";
+import { formatNumber, formatContextWindow } from "@/lib/format";
 import { CommentsSection } from "@/components/models/comments-section";
 import { SimilarModels } from "@/components/models/similar-models";
 import { DeployTab } from "@/components/models/deploy-tab";
@@ -36,6 +36,7 @@ import { ChangelogTab } from "./_components/changelog-tab";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import { getModelDisplayDescription, getParameterDisplay } from "@/lib/models/presentation";
 
 export const revalidate = 60;
 
@@ -121,6 +122,8 @@ export default async function ModelDetailPage({
     .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()) as Record<string, unknown>[];
 
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
+  const displayDescription = getModelDisplayDescription(model);
+  const parameterDisplay = getParameterDisplay(model);
   const benchmarkScores = model.benchmark_scores ?? [];
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
   const pricingData = (model.model_pricing ?? []) as PricingEntry[];
@@ -143,7 +146,7 @@ export default async function ModelDetailPage({
   const stats = [
     { label: "Quality Score", value: model.quality_score ? Number(model.quality_score).toFixed(1) : "---", icon: BarChart3 },
     { label: "Arena ELO", value: bestElo ? String(bestElo.elo_score) : "---", icon: Trophy },
-    { label: "Parameters", value: model.parameter_count ? formatParams(model.parameter_count) : "---", icon: Zap },
+    { label: "Parameters", value: parameterDisplay.label, icon: Zap },
     { label: "Context", value: model.context_window ? formatContextWindow(model.context_window) : "---", icon: MessageSquare },
     { label: "Downloads", value: formatNumber(model.hf_downloads), icon: Download },
     { label: "Likes", value: formatNumber(model.hf_likes), icon: Heart },
@@ -155,7 +158,7 @@ export default async function ModelDetailPage({
     : null;
   const jsonLd = {
     "@context": "https://schema.org", "@type": "SoftwareApplication",
-    name: model.name, description: model.description ?? model.short_description ?? undefined,
+    name: model.name, description: displayDescription.text ?? undefined,
     applicationCategory: "Artificial Intelligence", operatingSystem: "Cloud",
     author: { "@type": "Organization", name: model.provider },
     ...(model.release_date && { datePublished: model.release_date }),
@@ -191,7 +194,7 @@ export default async function ModelDetailPage({
       <ModelHeader
         name={model.name}
         provider={model.provider}
-        description={model.description}
+        description={displayDescription.text}
         overall_rank={model.overall_rank}
         is_open_weights={model.is_open_weights}
         website_url={model.website_url}
@@ -229,7 +232,7 @@ export default async function ModelDetailPage({
         </TabsContent>
 
         <TabsContent value="pricing" className="mt-6">
-          <PricingTab pricingData={pricingData} />
+          <PricingTab pricingData={pricingData} modelProvider={model.provider} />
         </TabsContent>
 
         <TabsContent value="deploy" className="mt-6">
@@ -244,11 +247,16 @@ export default async function ModelDetailPage({
           <TradingTab
             modelSlug={model.slug}
             popularity_rank={model.popularity_rank}
+            popularity_score={model.popularity_score}
             adoption_score={model.adoption_score}
             economic_footprint_score={model.economic_footprint_score}
             market_cap_estimate={model.market_cap_estimate}
+            capability_score={model.capability_score}
             agent_score={model.agent_score}
             github_stars={model.github_stars}
+            benchmark_count={benchmarkScores.length}
+            arena_family_count={currentArenaRatings.length}
+            pricing_source_count={pricingData.length}
           />
         </TabsContent>
 
@@ -263,7 +271,7 @@ export default async function ModelDetailPage({
         <TabsContent value="details" className="mt-6">
           <DetailsTab
             architecture={model.architecture}
-            parameter_count={model.parameter_count}
+            parameter_label={parameterDisplay.label}
             context_window={model.context_window}
             release_date={model.release_date}
             license_name={model.license_name}

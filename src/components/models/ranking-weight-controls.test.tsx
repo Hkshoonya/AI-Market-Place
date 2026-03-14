@@ -91,14 +91,14 @@ describe('RankingWeightControls', () => {
     onSortedModels.mockClear();
   });
 
-  it('renders "Customize Rankings" toggle button in collapsed state', () => {
+  it('renders the thesis customization toggle button in collapsed state', () => {
     render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
         <RankingWeightControls models={mockModels} onSortedModels={onSortedModels} />
       </SWRConfig>
     );
 
-    expect(screen.getByText('Customize Rankings')).toBeInTheDocument();
+    expect(screen.getByText('Customize Thesis')).toBeInTheDocument();
     // Weight labels should NOT be visible when collapsed
     expect(screen.queryByText('Capability')).not.toBeInTheDocument();
     expect(screen.queryByText('Economic Footprint')).not.toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('RankingWeightControls', () => {
       </SWRConfig>
     );
 
-    await user.click(screen.getByText('Customize Rankings'));
+    await user.click(screen.getByText('Customize Thesis'));
 
     // Weight labels should now be visible
     expect(screen.getByText('Capability')).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('RankingWeightControls', () => {
     );
 
     // Expand the controls
-    await user.click(screen.getByText('Customize Rankings'));
+    await user.click(screen.getByText('Customize Thesis'));
 
     // Clear any initial calls from the mount effect
     onSortedModels.mockClear();
@@ -158,14 +158,14 @@ describe('RankingWeightControls', () => {
     );
 
     // Expand the controls
-    await user.click(screen.getByText('Customize Rankings'));
+    await user.click(screen.getByText('Customize Thesis'));
 
     // Change a weight first so Reset is enabled
     await user.click(screen.getByLabelText('Increase Capability weight'));
     onSortedModels.mockClear();
 
     // Click Reset to Default
-    await user.click(screen.getByText('Reset to Default'));
+    await user.click(screen.getByText('Reset House View'));
 
     // onSortedModels should be called again with the reset-sorted models
     expect(onSortedModels).toHaveBeenCalled();

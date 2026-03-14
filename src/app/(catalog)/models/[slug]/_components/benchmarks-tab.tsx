@@ -32,8 +32,12 @@ export interface BenchmarksTabProps {
   eloRatings: EloRating[];
 }
 
-export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProps) {
+export function BenchmarksTab({
+  benchmarkScores,
+  eloRatings,
+}: BenchmarksTabProps) {
   const currentArenaRatings = collapseArenaRatings(eloRatings);
+  const hasNormalizedBenchmarks = benchmarkScores.length > 0;
 
   return (
     <>
@@ -42,32 +46,43 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
           <CardTitle className="text-lg">Benchmark Scores</CardTitle>
         </CardHeader>
         <CardContent>
-          {benchmarkScores.length > 0 ? (
+          {hasNormalizedBenchmarks ? (
             <>
               <div className="mb-8">
                 <BenchmarkRadar
-                  scores={benchmarkScores.map((bs) => ({
-                    benchmark: bs.benchmarks?.name ?? "Unknown",
-                    score: Number(bs.score_normalized ?? bs.score),
+                  scores={benchmarkScores.map((benchmarkScore) => ({
+                    benchmark: benchmarkScore.benchmarks?.name ?? "Unknown",
+                    score: Number(
+                      benchmarkScore.score_normalized ?? benchmarkScore.score
+                    ),
                     maxScore: 100,
                   }))}
                 />
               </div>
               <div className="space-y-4">
-                {benchmarkScores.map((bs, i) => {
-                  const maxScore = 100;
-                  const score = Number(bs.score_normalized ?? bs.score);
+                {benchmarkScores.map((benchmarkScore, index) => {
+                  const score = Number(
+                    benchmarkScore.score_normalized ?? benchmarkScore.score
+                  );
+
                   return (
-                    <div key={i} className="flex items-center gap-4">
+                    <div key={index} className="flex items-center gap-4">
                       <div className="w-28 shrink-0">
-                        <span className="text-sm font-medium">{bs.benchmarks?.name ?? "Unknown"}</span>
-                        <span className="ml-2 text-[10px] text-muted-foreground capitalize">{bs.benchmarks?.category ?? ""}</span>
+                        <span className="text-sm font-medium">
+                          {benchmarkScore.benchmarks?.name ?? "Unknown"}
+                        </span>
+                        <span className="ml-2 text-[10px] capitalize text-muted-foreground">
+                          {benchmarkScore.benchmarks?.category ?? ""}
+                        </span>
                       </div>
                       <div className="flex-1">
                         <div className="relative h-3 overflow-hidden rounded-full bg-secondary">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-neon/70 to-neon animate-score-bar"
-                            style={{ width: `${(score / maxScore) * 100}%`, animationDelay: `${i * 80}ms` }}
+                            className="animate-score-bar h-full rounded-full bg-gradient-to-r from-neon/70 to-neon"
+                            style={{
+                              width: `${Math.min((score / 100) * 100, 100)}%`,
+                              animationDelay: `${index * 80}ms`,
+                            }}
                           />
                         </div>
                       </div>
@@ -80,14 +95,28 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
               </div>
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No benchmark data available yet.</p>
+            <div className="space-y-3 py-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Normalized benchmark suite coverage has not landed for this model yet.
+              </p>
+              {currentArenaRatings.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Arena evidence is already available below, so the model still has live
+                  competitive signal even while the benchmark table catches up.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  This usually means upstream benchmark datasets have not published a
+                  stable row for this release yet.
+                </p>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Arena ELO Section */}
       {currentArenaRatings.length > 0 && (
-        <Card className="border-border/50 mt-6">
+        <Card className="mt-6 border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Swords className="h-5 w-5 text-neon" />
@@ -96,42 +125,41 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {currentArenaRatings.map((elo, i) => {
-                const ciLow = elo.confidence_interval_low;
-                const ciHigh = elo.confidence_interval_high;
+              {currentArenaRatings.map((rating, index) => {
+                const ciLow = rating.confidence_interval_low;
+                const ciHigh = rating.confidence_interval_high;
                 const ciWidth = ciLow && ciHigh ? ciHigh - ciLow : null;
+
                 return (
-                  <div key={i} className="rounded-lg border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div key={index} className="rounded-lg border border-border/50 p-4">
+                    <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-[#f5a623]" />
-                        <span className="text-sm font-medium">
-                          {elo.displayName}
-                        </span>
+                        <span className="text-sm font-medium">{rating.displayName}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {elo.variantCount > 1 && (
+                        {rating.variantCount > 1 && (
                           <Badge variant="outline" className="text-[10px]">
-                            {elo.variantCount} snapshots
+                            {rating.variantCount} snapshots
                           </Badge>
                         )}
-                        {elo.rank && (
-                          <Badge className="bg-neon/10 text-neon text-xs">
-                            Arena Rank #{elo.rank}
+                        {rating.rank && (
+                          <Badge className="bg-neon/10 text-xs text-neon">
+                            Arena Rank #{rating.rank}
                           </Badge>
                         )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
-                        <p className="text-2xl font-bold tabular-nums">{elo.elo_score}</p>
+                        <p className="text-2xl font-bold tabular-nums">
+                          {rating.elo_score}
+                        </p>
                         <p className="text-[11px] text-muted-foreground">ELO Score</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium tabular-nums">
-                          {ciLow && ciHigh
-                            ? `${ciLow} — ${ciHigh}`
-                            : "—"}
+                          {ciLow && ciHigh ? `${ciLow} - ${ciHigh}` : "--"}
                         </p>
                         <p className="text-[11px] text-muted-foreground">95% Confidence</p>
                         {ciWidth != null && (
@@ -142,34 +170,33 @@ export function BenchmarksTab({ benchmarkScores, eloRatings }: BenchmarksTabProp
                       </div>
                       <div>
                         <p className="text-sm font-medium tabular-nums">
-                          {elo.num_battles ? formatNumber(elo.num_battles) : "—"}
+                          {rating.num_battles ? formatNumber(rating.num_battles) : "--"}
                         </p>
                         <p className="text-[11px] text-muted-foreground">Battles</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium tabular-nums">
-                          {elo.snapshot_date
-                            ? new Date(elo.snapshot_date).toLocaleDateString("en-US", {
+                          {rating.snapshot_date
+                            ? new Date(rating.snapshot_date).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                               })
-                            : "—"}
+                            : "--"}
                         </p>
                         <p className="text-[11px] text-muted-foreground">Last Updated</p>
                       </div>
                     </div>
-                    {/* ELO strength bar */}
                     <div className="mt-3">
                       <div className="relative h-2 overflow-hidden rounded-full bg-secondary">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-[#f5a623] to-neon transition-all duration-700"
                           style={{
-                            width: `${Math.min(((elo.elo_score - 900) / 600) * 100, 100)}%`,
+                            width: `${Math.min(((rating.elo_score - 900) / 600) * 100, 100)}%`,
                           }}
                         />
                       </div>
-                      <div className="flex justify-between mt-1">
+                      <div className="mt-1 flex justify-between">
                         <span className="text-[9px] text-muted-foreground/40">900</span>
                         <span className="text-[9px] text-muted-foreground/40">1200</span>
                         <span className="text-[9px] text-muted-foreground/40">1500</span>

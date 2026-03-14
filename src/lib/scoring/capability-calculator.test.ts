@@ -61,6 +61,43 @@ describe("computeCapabilityScore", () => {
     expect(result!).toBeGreaterThan(0);
   });
 
+  it("penalizes LLM capability when only arena ELO is available", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+
+    const result = computeCapabilityScore({
+      benchmarkScores: [],
+      eloScore: 1364,
+      releaseDate: "2026-02-01",
+      category: "llm",
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!).toBeLessThan(85);
+  });
+
+  it("keeps arena-only image-generation models less penalized than LLMs", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+
+    const llmOnlyArena = computeCapabilityScore({
+      benchmarkScores: [],
+      eloScore: 1364,
+      releaseDate: "2026-02-01",
+      category: "llm",
+    });
+    const imageOnlyArena = computeCapabilityScore({
+      benchmarkScores: [],
+      eloScore: 1364,
+      releaseDate: "2026-02-01",
+      category: "image_generation",
+    });
+
+    expect(llmOnlyArena).not.toBeNull();
+    expect(imageOnlyArena).not.toBeNull();
+    expect(imageOnlyArena!).toBeGreaterThan(llmOnlyArena!);
+  });
+
   it("returns score > 0 for model with benchmarks only (no ELO)", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));

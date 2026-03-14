@@ -1,8 +1,9 @@
 /**
  * Market Cap Calculator
  *
- * Keeps the legacy synthetic market-cap estimate for backward compatibility,
- * while delegating popularity scoring to the newer grouped popularity model.
+ * Uses a bounded, non-linear market value model instead of the old
+ * usage-times-price shortcut. The public site can explain the pillars
+ * (demand, execution, monetization, confidence) without exposing weights.
  */
 
 import {
@@ -30,6 +31,46 @@ export interface PopularityInputs {
   releaseDate?: string | null;
 }
 
+export interface MarketCapInputs {
+  adoptionScore: number;
+  popularityScore: number;
+  capabilityScore: number;
+  economicFootprintScore: number;
+  blendedPricePerMillion: number;
+  agentScore?: number | null;
+  confidenceMultiplier?: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function computePricePowerScore(blendedPricePerMillion: number): number {
+  const effectivePrice = Math.max(blendedPricePerMillion, MIN_EFFECTIVE_PRICE);
+  const normalized =
+    (Math.log10(effectivePrice + 1) / Math.log10(MAX_PRICE_NORMALIZATION + 1)) * 100;
+  return clamp(normalized, 0, 100);
+}
+
+function computeDemandIndex(inputs: MarketCapInputs): number {
+  return clamp(
+    inputs.adoptionScore * 0.45 +
+      inputs.popularityScore * 0.35 +
+      inputs.economicFootprintScore * 0.2,
+    0,
+    100
+  );
+}
+
+function computeExecutionIndex(inputs: MarketCapInputs): number {
+  const agentOrCapability = inputs.agentScore ?? inputs.capabilityScore;
+  return clamp(
+    inputs.capabilityScore * 0.7 + agentOrCapability * 0.3,
+    0,
+    100
+  );
+}
+
 export function computePopularityScore(
   inputs: PopularityInputs,
   stats: PopularityStats
@@ -43,20 +84,22 @@ export function computePopularityScore(
   );
 }
 
-export function computeMarketCap(
-  usageScore: number,
-  blendedApiPrice: number
-): number {
-  if (usageScore <= 0) return 0;
+export function computeMarketCap(inputs: MarketCapInputs): number {
+  const demandIndex = computeDemandIndex(inputs);
+  const executionIndex = computeExecutionIndex(inputs);
+  const pricePowerScore = computePricePowerScore(inputs.blendedPricePerMillion);
+  const confidenceMultiplier = clamp(inputs.confidenceMultiplier ?? 1, 0.85, 1.05);
 
-  const effectivePrice = Math.max(blendedApiPrice, MIN_EFFECTIVE_PRICE);
-  const priceWeight =
-    Math.log10(effectivePrice + 1) / Math.log10(MAX_PRICE_NORMALIZATION + 1);
+  if (demandIndex <= 0 || executionIndex <= 0) return 0;
 
-  const rawMarketCap =
-    Math.pow(usageScore, USAGE_EXPONENT) * priceWeight * MARKET_CAP_SCALE_FACTOR;
+  const rawEstimate =
+    MARKET_CAP_SCALE_FACTOR *
+    Math.pow(demandIndex / 100, USAGE_EXPONENT) *
+    Math.pow(executionIndex / 100, 0.4) *
+    Math.pow(Math.max(pricePowerScore, 5) / 100, 0.9) *
+    confidenceMultiplier;
 
-  return Math.round(rawMarketCap / 1000) * 1000;
+  return Math.round(rawEstimate / 1_000_000) * 1_000_000;
 }
 
 export function computePopularityStats(

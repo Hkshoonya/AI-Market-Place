@@ -75,6 +75,19 @@ function compareArenaRatings(a: ArenaRatingLike, b: ArenaRatingLike): number {
   return (b.elo_score ?? 0) - (a.elo_score ?? 0);
 }
 
+function getArenaVariantKey(rating: ArenaRatingLike): string {
+  return JSON.stringify([
+    rating.arena_name,
+    rating.snapshot_date ?? null,
+    rating.created_at ?? null,
+    rating.elo_score ?? null,
+    rating.rank ?? null,
+    rating.num_battles ?? null,
+    rating.confidence_interval_low ?? null,
+    rating.confidence_interval_high ?? null,
+  ]);
+}
+
 export function collapseArenaRatings<T extends ArenaRatingLike>(
   ratings: T[]
 ): Array<CollapsedArenaRating<T>> {
@@ -89,7 +102,15 @@ export function collapseArenaRatings<T extends ArenaRatingLike>(
 
   return Array.from(families.entries())
     .map(([familyKey, family]) => {
-      const variants = family.rows.toSorted(compareArenaRatings);
+      const seen = new Set<string>();
+      const variants = family.rows
+        .filter((rating) => {
+          const key = getArenaVariantKey(rating);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .toSorted(compareArenaRatings);
       const primary = variants[0];
 
       return {

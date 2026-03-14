@@ -19,7 +19,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { HomeTopModelSchema } from "@/lib/schemas/models";
-import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ProviderMarketShare } from "@/components/charts/provider-market-share";
@@ -30,6 +30,7 @@ import { TrendingModels } from "@/components/models/trending-models";
 import { getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
+import { getParameterDisplay } from "@/lib/models/presentation";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} — Track, Compare & Discover AI Models`,
@@ -52,13 +53,13 @@ export const revalidate = 60;
 export default async function HomePage() {
   const supabase = createPublicClient();
 
-  // Fetch top 10 models by composite overall rank
+  // Fetch top 10 models by current market-value footing instead of stale legacy overall rank
   const topModelsResponse = await supabase
     .from("models")
     .select("*, rankings(*), model_pricing(*)")
     .eq("status", "active")
-    .not("overall_rank", "is", null)
-    .order("overall_rank", { ascending: true })
+    .not("economic_footprint_rank", "is", null)
+    .order("economic_footprint_rank", { ascending: true })
     .limit(10);
 
   const topModels = parseQueryResult(topModelsResponse, HomeTopModelSchema, "HomeTopModel");
@@ -181,7 +182,7 @@ export default async function HomePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-neon" />
-            <h2 className="text-xl font-bold">Top AI Models</h2>
+            <h2 className="text-xl font-bold">Market Leaders</h2>
           </div>
           <Button variant="ghost" size="sm" className="text-neon" asChild>
             <Link href="/leaderboards">
@@ -413,6 +414,7 @@ export default async function HomePage() {
             const catConfig = CATEGORIES.find(
               (c) => c.slug === model.category
             );
+            const parameterDisplay = getParameterDisplay(model);
             const releaseDate = model.release_date
               ? new Date(model.release_date)
               : null;
@@ -472,12 +474,10 @@ export default async function HomePage() {
                           {catConfig.shortLabel}
                         </Badge>
                       )}
-                      {model.parameter_count && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap className="h-3 w-3 text-neon" />
-                          {formatParams(model.parameter_count)}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Zap className="h-3 w-3 text-neon" />
+                        {parameterDisplay.label}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>

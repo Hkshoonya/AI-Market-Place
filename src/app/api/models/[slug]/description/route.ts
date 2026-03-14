@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-error";
+import { buildFallbackOverview } from "@/lib/models/presentation";
 
 export const revalidate = 300;
 
@@ -16,7 +17,7 @@ export async function GET(
     // Get model
     const { data: modelRaw } = await supabase
       .from("models")
-      .select("id")
+      .select("id, slug, name, provider, category, description, short_description, is_open_weights, context_window, capabilities")
       .eq("slug", slug)
       .single();
 
@@ -31,7 +32,7 @@ export async function GET(
       .eq("model_id", modelRaw.id)
       .single();
 
-    return NextResponse.json(description ?? null);
+    return NextResponse.json(description ?? buildFallbackOverview(modelRaw));
   } catch (err) {
     return handleApiError(err, "api/models/description");
   }

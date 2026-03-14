@@ -2,11 +2,11 @@ import { Code, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { formatParams, formatContextWindow } from "@/lib/format";
+import { formatContextWindow } from "@/lib/format";
 
 export interface DetailsTabProps {
   architecture: string | null;
-  parameter_count: number | null;
+  parameter_label: string;
   context_window: number | null;
   release_date: string | null;
   license_name: string | null;
@@ -19,7 +19,7 @@ export interface DetailsTabProps {
 
 export function DetailsTab({
   architecture,
-  parameter_count,
+  parameter_label,
   context_window,
   release_date,
   license_name,
@@ -41,9 +41,21 @@ export function DetailsTab({
         <CardContent className="space-y-3">
           {[
             { label: "Architecture", value: architecture ?? "---" },
-            { label: "Parameters", value: parameter_count ? formatParams(parameter_count) : "---" },
-            { label: "Context Window", value: context_window ? formatContextWindow(context_window) : "---" },
-            { label: "Release Date", value: release_date ? new Date(release_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "---" },
+            { label: "Parameters", value: parameter_label },
+            {
+              label: "Context Window",
+              value: context_window ? formatContextWindow(context_window) : "---",
+            },
+            {
+              label: "Release Date",
+              value: release_date
+                ? new Date(release_date).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "---",
+            },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between py-1">
               <span className="text-sm text-muted-foreground">{item.label}</span>
@@ -74,10 +86,10 @@ export function DetailsTab({
           ))}
           <Separator />
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Capabilities</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Capabilities</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(capabilities)
-                .filter(([, v]) => v)
+                .filter(([, value]) => value)
                 .map(([key]) => (
                   <Badge key={key} variant="outline" className="text-[11px]">
                     {key.replace(/_/g, " ")}

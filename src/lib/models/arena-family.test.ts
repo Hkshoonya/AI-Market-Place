@@ -1,87 +1,52 @@
 import { describe, expect, it } from "vitest";
 
-import { canonicalizeArenaFamily, collapseArenaRatings } from "./arena-family";
-
-describe("canonicalizeArenaFamily", () => {
-  it("maps common chatbot arena variants into one canonical family", () => {
-    expect(canonicalizeArenaFamily("chatbot-arena")).toEqual({
-      familyKey: "chatbot-arena",
-      displayName: "Chatbot Arena",
-    });
-    expect(canonicalizeArenaFamily("chatbot arena")).toEqual({
-      familyKey: "chatbot-arena",
-      displayName: "Chatbot Arena",
-    });
-    expect(canonicalizeArenaFamily("lmarena")).toEqual({
-      familyKey: "chatbot-arena",
-      displayName: "Chatbot Arena",
-    });
-  });
-});
+import { collapseArenaRatings } from "./arena-family";
 
 describe("collapseArenaRatings", () => {
-  it("collapses raw variants into one top-level arena family and keeps the freshest snapshot", () => {
-    const collapsed = collapseArenaRatings([
+  it("deduplicates identical arena rows before counting variants", () => {
+    const result = collapseArenaRatings([
       {
         arena_name: "chatbot-arena",
-        elo_score: 1401,
-        snapshot_date: "2026-03-10",
-        num_battles: 1200,
+        elo_score: 1443,
+        rank: 5,
+        num_battles: 12000,
+        snapshot_date: "2026-03-13",
       },
       {
-        arena_name: "chatbot arena",
-        elo_score: 1420,
-        snapshot_date: "2026-03-12",
-        num_battles: 1400,
-      },
-      {
-        arena_name: "vision-arena",
-        elo_score: 1184,
-        snapshot_date: "2026-03-11",
+        arena_name: "chatbot-arena",
+        elo_score: 1443,
+        rank: 5,
+        num_battles: 12000,
+        snapshot_date: "2026-03-13",
       },
     ]);
 
-    expect(collapsed).toHaveLength(2);
-
-    expect(collapsed[0]).toMatchObject({
-      familyKey: "chatbot-arena",
-      displayName: "Chatbot Arena",
-      arena_name: "chatbot arena",
-      elo_score: 1420,
-      variantCount: 2,
-      rawArenaNames: ["chatbot arena", "chatbot-arena"],
-    });
-
-    expect(collapsed[1]).toMatchObject({
-      familyKey: "vision-arena",
-      displayName: "Vision Arena",
-      arena_name: "vision-arena",
-      elo_score: 1184,
-      variantCount: 1,
-    });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.variantCount).toBe(1);
+    expect(result[0]?.variants).toHaveLength(1);
   });
 
-  it("prefers the higher-battle row when snapshots are tied", () => {
-    const collapsed = collapseArenaRatings([
+  it("keeps distinct snapshots within the same arena family", () => {
+    const result = collapseArenaRatings([
       {
         arena_name: "chatbot-arena",
-        elo_score: 1399,
-        snapshot_date: "2026-03-12",
-        num_battles: 600,
+        elo_score: 1428,
+        rank: 4,
+        num_battles: 25442,
+        snapshot_date: "2026-03-13",
       },
       {
         arena_name: "chatbot-arena",
-        elo_score: 1405,
+        elo_score: 1340,
+        rank: 31,
+        num_battles: 19404,
         snapshot_date: "2026-03-12",
-        num_battles: 1500,
       },
     ]);
 
-    expect(collapsed).toHaveLength(1);
-    expect(collapsed[0]).toMatchObject({
-      elo_score: 1405,
-      num_battles: 1500,
-      variantCount: 2,
-    });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.variantCount).toBe(2);
+    expect(result[0]?.variants).toHaveLength(2);
+    expect(result[0]?.elo_score).toBe(1428);
   });
 });

@@ -33,7 +33,7 @@ import {
   computeAdoptionScore,
   computeEconomicFootprintScore,
 } from "@/lib/scoring/economic-footprint";
-import { buildSourceCoverage } from "@/lib/source-coverage";
+import { buildSourceCoverage, getCorroborationMultiplier } from "@/lib/source-coverage";
 import type { ScoringInputs, ScoringResults } from "./types";
 
 /**
@@ -263,6 +263,7 @@ export async function computeAllLenses(
       eloScore: eloMap.get(m.id) ?? null,
       releaseDate: m.release_date as string | null,
       category: (m.category as string) ?? "other",
+      sourceCoverage: sourceCoverageMap.get(m.id) ?? null,
     };
     capabilityScoreMap.set(m.id, computeCapabilityScore(capInputs));
   }
@@ -382,7 +383,16 @@ export async function computeAllLenses(
     });
     economicFootprintMap.set(input.id, economicFootprintScore);
 
-    const mktCap = computeMarketCap(adoptionScore, blendedPrice);
+    const coverage = sourceCoverageMap.get(input.id) ?? null;
+    const mktCap = computeMarketCap({
+      adoptionScore,
+      popularityScore: popScore,
+      capabilityScore: capabilityScoreMap.get(input.id) ?? 0,
+      economicFootprintScore,
+      blendedPricePerMillion: blendedPrice,
+      agentScore: agentScoreMap.get(input.id) ?? null,
+      confidenceMultiplier: getCorroborationMultiplier(coverage),
+    });
     if (mktCap > 0) {
       marketCapMap.set(input.id, mktCap);
     }

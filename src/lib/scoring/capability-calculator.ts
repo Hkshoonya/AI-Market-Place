@@ -11,12 +11,17 @@
  */
 
 import { normalizeElo, computeRecencyScore } from "@/lib/scoring/scoring-helpers";
+import {
+  getCorroborationMultiplier,
+  type SourceCoverage,
+} from "@/lib/source-coverage";
 
 export interface CapabilityInputs {
   benchmarkScores: Array<{ slug: string; score: number }> | null;
   eloScore: number | null;
   releaseDate: string | null;
   category: string;
+  sourceCoverage?: SourceCoverage | null;
 }
 
 /**
@@ -99,6 +104,7 @@ function computeCategoryWeightedBenchmarks(
 export function computeCapabilityScore(inputs: CapabilityInputs): number | null {
   const hasBenchmarks = inputs.benchmarkScores != null && inputs.benchmarkScores.length > 0;
   const hasELO = inputs.eloScore != null && inputs.eloScore > 0;
+  const benchmarkCount = inputs.benchmarkScores?.length ?? 0;
 
   // Gate: must have at least one quality signal
   if (!hasBenchmarks && !hasELO) return null;
@@ -138,5 +144,21 @@ export function computeCapabilityScore(inputs: CapabilityInputs): number | null 
               + eloNormalized * eloWeight
               + recencyBonus * recencyWeight;
 
-  return Math.round(Math.min(Math.max(score, 0), 100) * 10) / 10;
+  let evidenceMultiplier = getCorroborationMultiplier(inputs.sourceCoverage);
+
+  // Arena-only capability is acceptable for image-gen, but too optimistic for
+  // general frontier model rankings where benchmark breadth matters.
+  if (!hasBenchmarks && hasELO) {
+    if (inputs.category === "image_generation") {
+      evidenceMultiplier *= 1;
+    } else if (inputs.category === "agentic_browser") {
+      evidenceMultiplier *= 0.9;
+    } else {
+      evidenceMultiplier *= 0.82;
+    }
+  } else if (hasBenchmarks && !hasELO && benchmarkCount < 2) {
+    evidenceMultiplier *= 0.94;
+  }
+
+  return Math.round(Math.min(Math.max(score * evidenceMultiplier, 0), 100) * 10) / 10;
 }

@@ -257,9 +257,11 @@ export default async function LeaderboardsPage() {
               <QualityDistribution
                 data={rankedModels.map((m) => ({
                   name: m.name,
-                  quality: Number(m.quality_score) || 0,
+                  quality: Number(m.economic_footprint_score) || 0,
                   provider: m.provider as string,
                 }))}
+                title="Economic Footprint Distribution"
+                metricLabel="Economic Footprint"
               />
             </div>
           )}

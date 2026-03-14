@@ -31,14 +31,25 @@ describe("GET /api/models/[slug]/description", () => {
     vi.clearAllMocks();
   });
 
-  it("returns 200 with null when the model exists but has no description", async () => {
+  it("returns a catalog fallback overview when the model exists but has no saved description", async () => {
     const fromMock = vi.fn((table: string) => {
       if (table === "models") {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: { id: "model-1" },
+            data: {
+              id: "model-1",
+              slug: "openai-o3",
+              name: "o3",
+              provider: "OpenAI",
+              category: "llm",
+              description: null,
+              short_description: null,
+              is_open_weights: false,
+              context_window: 200000,
+              capabilities: { reasoning: true, coding: true },
+            },
           }),
         };
       }
@@ -59,6 +70,11 @@ describe("GET /api/models/[slug]/description", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toBeNull();
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        generated_by: "catalog_fallback",
+        summary: expect.stringMatching(/reasoning model/i),
+      })
+    );
   });
 });
