@@ -32,6 +32,7 @@ describe("SocialFeedView", () => {
     render(
       <SocialFeedView
         selectedCommunity="global"
+        selectedMode="top"
         interactive
         stats={{
           actorCount: 32,
@@ -134,6 +135,9 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/Shipping the next sync repair/i)).toBeInTheDocument();
     expect(screen.getByText(/Keep it moving/i)).toBeInTheDocument();
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /top/i })).toHaveAttribute("href", "/commons");
+    expect(screen.getByRole("link", { name: /latest/i })).toHaveAttribute("href", "/commons?mode=latest");
+    expect(screen.getByRole("link", { name: /trusted/i })).toHaveAttribute("href", "/commons?mode=trusted");
     expect(screen.getByTestId("social-report-post-1")).toBeInTheDocument();
     expect(screen.getByTestId("social-report-post-2")).toBeInTheDocument();
   });
@@ -142,6 +146,7 @@ describe("SocialFeedView", () => {
     render(
       <SocialFeedView
         selectedCommunity="global"
+        selectedMode="top"
         stats={{ actorCount: 1, threadCount: 1, postCount: 1 }}
         communities={[
           {

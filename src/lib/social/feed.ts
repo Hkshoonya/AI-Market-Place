@@ -13,6 +13,7 @@ export interface FeedActorCard {
   handle: string;
   avatar_url: string | null;
   trust_tier: NetworkActorRow["trust_tier"];
+  reputation_score?: number | null;
 }
 
 export interface FeedPostCard {
@@ -32,14 +33,70 @@ export interface FeedThreadCard {
   replies: FeedPostCard[];
 }
 
+export type FeedMode = "top" | "latest" | "trusted";
+
 interface MapFeedRowsInput {
   communities: Array<Pick<SocialCommunityRow, "id" | "slug" | "name"> & Partial<SocialCommunityRow>>;
   threads: SocialThreadRow[];
   rootPosts: SocialPostRow[];
   replies: SocialPostRow[];
   actors: Array<
-    Pick<NetworkActorRow, "id" | "actor_type" | "display_name" | "handle" | "avatar_url" | "trust_tier">
+    Pick<
+      NetworkActorRow,
+      "id" | "actor_type" | "display_name" | "handle" | "avatar_url" | "trust_tier" | "reputation_score"
+    >
   >;
+}
+
+function trustTierScore(trustTier: NetworkActorRow["trust_tier"]) {
+  switch (trustTier) {
+    case "verified":
+      return 1;
+    case "trusted":
+      return 0.75;
+    default:
+      return 0.4;
+  }
+}
+
+function reputationScore(value: number | null | undefined) {
+  const numeric = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return Math.max(0, Math.min(numeric, 100)) / 100;
+}
+
+function recencyScore(timestamp: string) {
+  const hoursAgo = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 3_600_000);
+  return Math.max(0, 1 - Math.min(hoursAgo, 72) / 72);
+}
+
+function engagementScore(replyCount: number) {
+  return Math.min(Math.max(replyCount, 0), 20) / 20;
+}
+
+function scoreThreadForMode(thread: FeedThreadCard, mode: Exclude<FeedMode, "latest">) {
+  const trust = trustTierScore(thread.rootPost.author.trust_tier);
+  const reputation = reputationScore(thread.rootPost.author.reputation_score);
+  const recency = recencyScore(thread.thread.last_posted_at);
+  const engagement = engagementScore(thread.thread.reply_count);
+
+  if (mode === "trusted") {
+    return trust * 0.55 + reputation * 0.25 + recency * 0.15 + engagement * 0.05;
+  }
+
+  return trust * 0.4 + reputation * 0.25 + recency * 0.25 + engagement * 0.1;
+}
+
+export function rankFeedThreads(threads: FeedThreadCard[], mode: FeedMode): FeedThreadCard[] {
+  const ranked = [...threads];
+
+  if (mode === "latest") {
+    return ranked.sort(
+      (left, right) =>
+        new Date(right.thread.last_posted_at).getTime() - new Date(left.thread.last_posted_at).getTime()
+    );
+  }
+
+  return ranked.sort((left, right) => scoreThreadForMode(right, mode) - scoreThreadForMode(left, mode));
 }
 
 export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
@@ -90,6 +147,7 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
             handle: postAuthor.handle,
             avatar_url: postAuthor.avatar_url ?? null,
             trust_tier: postAuthor.trust_tier,
+            reputation_score: postAuthor.reputation_score ?? null,
           },
         };
       };
@@ -114,9 +172,11 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
 
 export async function listPublicFeed(
   supabase: TypedSupabaseClient,
-  options: { communitySlug?: string | null; limit?: number } = {}
+  options: { communitySlug?: string | null; limit?: number; mode?: FeedMode } = {}
 ): Promise<{ communities: SocialCommunityRow[]; threads: FeedThreadCard[] }> {
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
+  const mode = options.mode ?? "top";
+  const candidateLimit = mode === "latest" ? limit : Math.min(limit * 4, 120);
 
   const { data: communities, error: communityError } = await supabase
     .from("social_communities")
@@ -137,7 +197,7 @@ export async function listPublicFeed(
     .from("social_threads")
     .select("*")
     .order("last_posted_at", { ascending: false })
-    .limit(limit);
+    .limit(candidateLimit);
 
   if (selectedCommunity) {
     threadQuery = threadQuery.eq("community_id", selectedCommunity.id);
@@ -156,7 +216,7 @@ export async function listPublicFeed(
   const [{ data: rootPosts, error: rootError }, { data: replies, error: replyError }] =
     await Promise.all([
       rootPostIds.length > 0
-        ? supabase.from("social_posts").select("*").in("id", rootPostIds).eq("status", "published")
+        ? supabase.from("social_posts").select("*").in("id", rootPostIds)
         : Promise.resolve({ data: [], error: null }),
       rootPostIds.length > 0
         ? supabase
@@ -184,21 +244,26 @@ export async function listPublicFeed(
 
   const { data: actors, error: actorError } =
     actorIds.size > 0
-      ? await supabase.from("network_actors").select("*").in("id", [...actorIds])
+      ? await supabase
+          .from("network_actors")
+          .select("id, actor_type, display_name, handle, avatar_url, trust_tier, reputation_score")
+          .in("id", [...actorIds])
       : { data: [], error: null };
 
   if (actorError) {
     throw new Error(`Failed to load actors: ${actorError.message}`);
   }
 
+  const mappedThreads = mapFeedRows({
+    communities: (communities ?? []) as SocialCommunityRow[],
+    threads: (threads ?? []) as SocialThreadRow[],
+    rootPosts: (rootPosts ?? []) as SocialPostRow[],
+    replies: (replies ?? []) as SocialPostRow[],
+    actors: (actors ?? []) as NetworkActorRow[],
+  });
+
   return {
     communities: (communities ?? []) as SocialCommunityRow[],
-    threads: mapFeedRows({
-      communities: (communities ?? []) as SocialCommunityRow[],
-      threads: (threads ?? []) as SocialThreadRow[],
-      rootPosts: (rootPosts ?? []) as SocialPostRow[],
-      replies: (replies ?? []) as SocialPostRow[],
-      actors: (actors ?? []) as NetworkActorRow[],
-    }),
+    threads: rankFeedThreads(mappedThreads, mode).slice(0, limit),
   };
 }

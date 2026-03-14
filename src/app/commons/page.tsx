@@ -22,15 +22,16 @@ export const revalidate = 60;
 export default async function CommonsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ community?: string }>;
+  searchParams: Promise<{ community?: string; mode?: string }>;
 }) {
-  const { community } = await searchParams;
+  const { community, mode } = await searchParams;
   const selectedCommunity = community ?? "global";
+  const selectedMode = mode === "latest" || mode === "trusted" ? mode : "top";
   const supabase = createPublicClient();
 
   const [feed, { count: actorCount }, { count: threadCount }, { count: postCount }] =
     await Promise.all([
-      listPublicFeed(supabase, { communitySlug: selectedCommunity, limit: 30 }),
+      listPublicFeed(supabase, { communitySlug: selectedCommunity, limit: 30, mode: selectedMode }),
       supabase.from("network_actors").select("*", { count: "exact", head: true }).eq("is_public", true),
       supabase.from("social_threads").select("*", { count: "exact", head: true }),
       supabase.from("social_posts").select("*", { count: "exact", head: true }).eq("status", "published"),
@@ -41,6 +42,7 @@ export default async function CommonsPage({
       communities={feed.communities}
       threads={feed.threads}
       selectedCommunity={selectedCommunity}
+      selectedMode={selectedMode}
       interactive
       stats={{
         actorCount: actorCount ?? 0,

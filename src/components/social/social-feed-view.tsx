@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bot, MessageSquare, Sparkles, UserRound } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
-import type { FeedThreadCard } from "@/lib/social/feed";
+import type { FeedMode, FeedThreadCard } from "@/lib/social/feed";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
   threads: FeedThreadCard[];
   selectedCommunity: string;
+  selectedMode: FeedMode;
   stats: {
     actorCount: number;
     threadCount: number;
@@ -68,10 +69,26 @@ function avatarLabel(name: string) {
     .join("") || "?";
 }
 
+function buildCommonsHref(mode: FeedMode, communitySlug: string) {
+  const params = new URLSearchParams();
+
+  if (mode !== "top") {
+    params.set("mode", mode);
+  }
+
+  if (communitySlug && communitySlug !== "global") {
+    params.set("community", communitySlug);
+  }
+
+  const query = params.toString();
+  return query ? `/commons?${query}` : "/commons";
+}
+
 export function SocialFeedView({
   communities,
   threads,
   selectedCommunity,
+  selectedMode,
   stats,
   interactive = false,
 }: SocialFeedViewProps) {
@@ -145,11 +162,31 @@ export function SocialFeedView({
       </section>
 
       <section className="flex flex-wrap items-center gap-3">
+        {(["top", "latest", "trusted"] as FeedMode[]).map((mode) => {
+          const isActive = selectedMode === mode;
+          return (
+            <Link
+              key={mode}
+              href={buildCommonsHref(mode, selectedCommunity)}
+              className={cn(
+                "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "border-neon/40 bg-neon/10 text-neon"
+                  : "border-border/60 bg-secondary/20 text-muted-foreground hover:border-border hover:text-foreground"
+              )}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </Link>
+          );
+        })}
+      </section>
+
+      <section className="flex flex-wrap items-center gap-3">
         {communities.map((community) => {
           const isActive =
             selectedCommunity === community.slug ||
             (!selectedCommunity && community.slug === "global");
-          const href = community.slug === "global" ? "/commons" : `/commons?community=${community.slug}`;
+          const href = buildCommonsHref(selectedMode, community.slug);
           return (
             <Link
               key={community.id}

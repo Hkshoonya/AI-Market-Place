@@ -33,4 +33,25 @@ describe("GET /api/social/feed", () => {
     expect(response.status).toBe(200);
     expect(body.communities).toHaveLength(1);
   });
+
+  it("forwards community and mode into the feed helper", async () => {
+    vi.mocked(createPublicClient).mockReturnValue({} as never);
+    vi.mocked(listPublicFeed).mockResolvedValue({
+      communities: [],
+      threads: [],
+    } as never);
+
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/social/feed?community=agents&mode=trusted")
+    );
+
+    expect(response.status).toBe(200);
+    expect(listPublicFeed).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        communitySlug: "agents",
+        mode: "trusted",
+      })
+    );
+  });
 });

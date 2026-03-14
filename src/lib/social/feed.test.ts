@@ -333,4 +333,164 @@ describe("social feed mapping", () => {
     expect(result[0]?.replies).toHaveLength(1);
     expect(result[0]?.replies[0]?.id).toBe("post-2");
   });
+
+  it("ranks trusted high-reputation threads above low-trust noise in top mode", async () => {
+    const { rankFeedThreads } = await import("./feed");
+
+    const ranked = rankFeedThreads(
+      [
+        {
+          thread: {
+            id: "thread-basic",
+            community_id: "community-1",
+            title: "Fresh but low-trust",
+            reply_count: 0,
+            created_by_actor_id: "actor-basic",
+            created_at: "2026-03-13T00:50:00.000Z",
+            updated_at: "2026-03-13T00:58:00.000Z",
+            last_posted_at: "2026-03-13T00:58:00.000Z",
+            visibility: "public",
+            root_post_id: "post-basic",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-basic",
+            content: "Low trust push",
+            created_at: "2026-03-13T00:50:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 0,
+            author: {
+              id: "actor-basic",
+              actor_type: "agent",
+              display_name: "Basic Agent",
+              handle: "basic-agent",
+              avatar_url: null,
+              trust_tier: "basic",
+              reputation_score: 4,
+            },
+          },
+          replies: [],
+        },
+        {
+          thread: {
+            id: "thread-trusted",
+            community_id: "community-1",
+            title: "Trusted field report",
+            reply_count: 6,
+            created_by_actor_id: "actor-trusted",
+            created_at: "2026-03-13T00:20:00.000Z",
+            updated_at: "2026-03-13T00:40:00.000Z",
+            last_posted_at: "2026-03-13T00:40:00.000Z",
+            visibility: "public",
+            root_post_id: "post-trusted",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-trusted",
+            content: "Verified operator update",
+            created_at: "2026-03-13T00:20:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 6,
+            author: {
+              id: "actor-trusted",
+              actor_type: "human",
+              display_name: "Trusted Operator",
+              handle: "trusted-op",
+              avatar_url: null,
+              trust_tier: "verified",
+              reputation_score: 88,
+            },
+          },
+          replies: [],
+        },
+      ],
+      "top"
+    );
+
+    expect(ranked.map((item) => item.thread.id)).toEqual(["thread-trusted", "thread-basic"]);
+  });
+
+  it("preserves chronology in latest mode", async () => {
+    const { rankFeedThreads } = await import("./feed");
+
+    const ranked = rankFeedThreads(
+      [
+        {
+          thread: {
+            id: "thread-old",
+            community_id: "community-1",
+            title: "Older",
+            reply_count: 4,
+            created_by_actor_id: "actor-1",
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:10:00.000Z",
+            last_posted_at: "2026-03-13T00:10:00.000Z",
+            visibility: "public",
+            root_post_id: "post-old",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-old",
+            content: "Old",
+            created_at: "2026-03-13T00:00:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 4,
+            author: {
+              id: "actor-1",
+              actor_type: "human",
+              display_name: "A",
+              handle: "a",
+              avatar_url: null,
+              trust_tier: "verified",
+              reputation_score: 90,
+            },
+          },
+          replies: [],
+        },
+        {
+          thread: {
+            id: "thread-new",
+            community_id: "community-1",
+            title: "Newer",
+            reply_count: 0,
+            created_by_actor_id: "actor-2",
+            created_at: "2026-03-13T00:20:00.000Z",
+            updated_at: "2026-03-13T00:50:00.000Z",
+            last_posted_at: "2026-03-13T00:50:00.000Z",
+            visibility: "public",
+            root_post_id: "post-new",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-new",
+            content: "New",
+            created_at: "2026-03-13T00:20:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 0,
+            author: {
+              id: "actor-2",
+              actor_type: "agent",
+              display_name: "B",
+              handle: "b",
+              avatar_url: null,
+              trust_tier: "basic",
+              reputation_score: 5,
+            },
+          },
+          replies: [],
+        },
+      ],
+      "latest"
+    );
+
+    expect(ranked.map((item) => item.thread.id)).toEqual(["thread-new", "thread-old"]);
+  });
 });
