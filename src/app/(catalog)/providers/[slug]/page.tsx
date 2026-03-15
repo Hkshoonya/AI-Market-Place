@@ -29,6 +29,7 @@ import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
 export const revalidate = 3600;
 
@@ -103,6 +104,46 @@ export default async function ProviderDetailPage({
     (model) => providerMatchesCanonical(model.provider, providerName)
   );
   if (models.length === 0) notFound();
+
+  const providerModelIds = models.map((model) => model.id);
+  const [deploymentsResponse, platformsResponse] =
+    providerModelIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("model_deployments")
+            .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+            .in("model_id", providerModelIds)
+            .eq("status", "available"),
+          supabase.from("deployment_platforms").select("*").order("name"),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }];
+
+  const deploymentPlatforms = (platformsResponse.data ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+
+  const providerAccessOffers = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: deploymentsResponse.data ?? [],
+    models,
+  }).subscriptionOffers;
 
   const brand = getProviderBrand(providerName);
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
@@ -245,6 +286,54 @@ export default async function ProviderDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {providerAccessOffers.length > 0 && (
+        <Card className="mb-8 border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Best Subscription Access</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            {providerAccessOffers.slice(0, 3).map((offer) => (
+              <div
+                key={offer.platform.id}
+                className="rounded-xl border border-border/50 bg-secondary/20 p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{offer.platform.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{offer.bestFor}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">
+                    {offer.label}
+                  </Badge>
+                </div>
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-lg font-semibold">{offer.monthlyPriceLabel}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Value {offer.userValueScore.toFixed(0)} · Trust {offer.trustScore.toFixed(0)}
+                    </div>
+                    {offer.partnerDisclosure && (
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        {offer.partnerDisclosure}
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href={offer.actionUrl}
+                    target="_blank"
+                    rel={offer.partnerDisclosure ? "noopener sponsored" : "noopener noreferrer"}
+                    className="inline-flex items-center gap-1 rounded-md bg-neon px-2.5 py-1.5 text-xs font-semibold text-background transition-colors hover:bg-neon/90"
+                  >
+                    {offer.actionLabel}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {categoryBreakdown.size > 1 && (
         <Card className="mb-8 border-border/50 bg-card">

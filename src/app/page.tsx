@@ -34,6 +34,8 @@ import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
+import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
+import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
@@ -82,16 +84,53 @@ export default async function HomePage() {
     { count: modelCount },
     { count: benchmarkCount },
     { data: allActiveModels },
+    { data: deploymentPlatformsRaw },
+    { data: modelDeploymentsRaw },
   ] = await Promise.all([
     supabase.from("models").select("*", { count: "exact", head: true }),
     supabase.from("benchmarks").select("*", { count: "exact", head: true }),
     supabase
       .from("models")
-      .select("provider, category, hf_downloads, hf_likes, quality_score, is_open_weights")
+      .select(
+        "id, slug, name, provider, category, hf_downloads, hf_likes, quality_score, capability_score, adoption_score, economic_footprint_score, is_open_weights"
+      )
       .eq("status", "active"),
+    supabase
+      .from("deployment_platforms")
+      .select("*")
+      .order("name"),
+    supabase
+      .from("model_deployments")
+      .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+      .eq("status", "available"),
   ]);
 
   const activeModels = allActiveModels ?? [];
+  const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+  const accessOffers = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: modelDeploymentsRaw ?? [],
+    models: activeModels,
+  });
 
   // Derive all aggregates from the single query result
   const uniqueProviders = new Set(activeModels.map((m) => m.provider)).size;
@@ -573,6 +612,11 @@ export default async function HomePage() {
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* Subscription Access Leaders */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <TopSubscriptionProviders offers={accessOffers.subscriptionOffers.slice(0, 6)} />
       </section>
 
       {/* Categories Grid */}
