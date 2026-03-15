@@ -103,7 +103,7 @@ function getNumericScore(value: number | null | undefined): number {
   return value == null || !Number.isFinite(value) ? 0 : Number(value);
 }
 
-function getOfferActionLabel(
+export function getAccessOfferActionLabel(
   kind: AccessOfferKind,
   freeTier: string | null
 ): RankedAccessOffer["actionLabel"] {
@@ -114,7 +114,7 @@ function getOfferActionLabel(
   return "View Plan";
 }
 
-function getPartnerDisclosure(platform: AccessOfferPlatform): string | null {
+export function getPartnerDisclosure(platform: AccessOfferPlatform): string | null {
   if (platform.has_affiliate || platform.affiliate_url) {
     return "Partner-supported link";
   }
@@ -149,7 +149,7 @@ function summarizeBestFor(models: AccessOfferModel[]): string {
   return `${topCategories[0]} plus ${topCategories[1]}`;
 }
 
-function inferOfferKind(platform: AccessOfferPlatform): AccessOfferKind {
+export function inferAccessOfferKind(platform: Pick<AccessOfferPlatform, "type">): AccessOfferKind {
   if (platform.type === "subscription") return "subscription";
   if (platform.type === "api") return "api_access";
   return "deployment";
@@ -166,7 +166,7 @@ function buildOfferSeed(
 
   if (activeDeployments.length === 0) return null;
 
-  const kind = inferOfferKind(platform);
+  const kind = inferAccessOfferKind(platform);
   const priceCandidates = activeDeployments
     .filter(
       (deployment) =>
@@ -232,7 +232,7 @@ function buildOfferSeed(
     utilityBreadthScore,
     bestFor: summarizeBestFor(sortedModels),
     label,
-    actionLabel: getOfferActionLabel(kind, freeTier),
+    actionLabel: getAccessOfferActionLabel(kind, freeTier),
     actionUrl: getActionUrl(platform),
     partnerDisclosure: getPartnerDisclosure(platform),
   };
@@ -318,7 +318,7 @@ export function buildAccessOffersCatalog(input: {
 
   for (const platform of input.platforms) {
     const platformDeployments = deploymentsByPlatform.get(platform.id) ?? [];
-    const kind = inferOfferKind(platform);
+    const kind = inferAccessOfferKind(platform);
     const isSubscriptionLike =
       kind === "subscription" ||
       platformDeployments.some((deployment) => deployment.pricing_model === "monthly");
@@ -339,4 +339,3 @@ export function buildAccessOffersCatalog(input: {
     subscriptionOffers: finalizeOfferScores(subscriptionSeeds),
   };
 }
-

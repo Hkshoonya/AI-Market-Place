@@ -19,6 +19,11 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
+import {
+  getAccessOfferActionLabel,
+  getPartnerDisclosure,
+  inferAccessOfferKind,
+} from "@/lib/models/access-offers";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
@@ -193,6 +198,7 @@ export default async function SkillsPage() {
     id: z.string(),
     slug: z.string(),
     name: z.string(),
+    type: z.string(),
     affiliate_url_template: z.string().nullable(),
     has_affiliate: z.boolean(),
     base_url: z.string(),
@@ -227,7 +233,7 @@ export default async function SkillsPage() {
   // Build a map: model_id -> affiliate deploy info
   const affiliateMap = new Map<
     string,
-    { url: string; platformName: string }
+    { url: string; platformName: string; actionLabel: string; partnerDisclosure: string | null }
   >();
   for (const dep of deployments) {
     const platform = dep.deployment_platforms;
@@ -240,6 +246,20 @@ export default async function SkillsPage() {
       affiliateMap.set(dep.model_id, {
         url: `${finalUrl}${separator}ref=aimarketcap&utm_source=aimarketcap&utm_medium=skills_page`,
         platformName: platform.name,
+        actionLabel: getAccessOfferActionLabel(
+          inferAccessOfferKind({ type: platform.type }),
+          null
+        ),
+        partnerDisclosure: getPartnerDisclosure({
+          id: platform.id,
+          slug: platform.slug,
+          name: platform.name,
+          type: platform.type,
+          base_url: platform.base_url,
+          has_affiliate: platform.has_affiliate,
+          affiliate_url: template,
+          affiliate_tag: null,
+        }),
       });
     }
   }
@@ -626,23 +646,17 @@ export default async function SkillsPage() {
                               )}
                             </td>
 
-                            {/* Try It / View */}
+                            {/* Access / View */}
                             <td className="px-4 py-3.5 text-right">
                               {affiliate ? (
                                 <a
                                   href={affiliate.url}
                                   target="_blank"
-                                  rel="noopener noreferrer"
+                                  rel={affiliate.partnerDisclosure ? "noopener sponsored" : "noopener noreferrer"}
                                   className="inline-flex items-center gap-1 rounded-md bg-gain/10 px-2.5 py-1 text-xs font-semibold text-gain transition-colors hover:bg-gain/20"
                                 >
-                                  Try It
+                                  {affiliate.actionLabel}
                                   <ExternalLink className="h-3 w-3" />
-                                  <Badge
-                                    variant="outline"
-                                    className="ml-1 border-yellow-500/30 bg-yellow-500/10 text-[9px] text-yellow-500 px-1 py-0"
-                                  >
-                                    Partner
-                                  </Badge>
                                 </a>
                               ) : (
                                 <Link
@@ -652,6 +666,11 @@ export default async function SkillsPage() {
                                   View
                                   <ExternalLink className="h-3 w-3" />
                                 </Link>
+                              )}
+                              {affiliate?.partnerDisclosure && (
+                                <div className="mt-1 text-[10px] text-muted-foreground">
+                                  {affiliate.partnerDisclosure}
+                                </div>
                               )}
                             </td>
                           </tr>

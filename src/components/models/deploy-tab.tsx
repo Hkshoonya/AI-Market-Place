@@ -5,6 +5,11 @@ import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Copy, Check, Zap, DollarSign, Server, Monitor } from "lucide-react";
+import {
+  getAccessOfferActionLabel,
+  getPartnerDisclosure,
+  inferAccessOfferKind,
+} from "@/lib/models/access-offers";
 
 interface Platform {
   id: string;
@@ -49,6 +54,10 @@ function getPlatformUrl(platform: Platform, deployUrl?: string | null): string {
 /** Returns proper rel attribute: sponsored for affiliate links */
 function getLinkRel(platform: Platform): string {
   return platform.affiliate_url ? "noopener sponsored" : "noopener noreferrer";
+}
+
+function getActionLabel(platform: Platform, freeTier: string | null): string {
+  return getAccessOfferActionLabel(inferAccessOfferKind({ type: platform.type }), freeTier);
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -156,11 +165,6 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
                             {CONFIDENCE_LABELS[d.confidence]}
                           </span>
-                          {platform.affiliate_url && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
-                              Partner
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground capitalize">{platform.type.replace("-", " ")}</td>
@@ -187,8 +191,13 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                           rel={getLinkRel(platform)}
                           className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition-colors"
                         >
-                          Deploy <ExternalLink className="h-3 w-3" />
+                          {getActionLabel(platform, deployment?.free_tier ?? null)} <ExternalLink className="h-3 w-3" />
                         </a>
+                        {getPartnerDisclosure(platform) && (
+                          <div className="mt-1 text-[10px] text-muted-foreground">
+                            {getPartnerDisclosure(platform)}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -229,11 +238,6 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
                         {CONFIDENCE_LABELS[item.confidence]}
                       </span>
-                      {platform.has_affiliate && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400">
-                          Partner
-                        </span>
-                      )}
                     </div>
                   </div>
                   {item.deployment?.price_per_unit && (
@@ -265,8 +269,16 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                     rel={getLinkRel(platform)}
                     className="inline-flex items-center gap-1 text-xs text-[#00d4aa] hover:text-[#00d4aa]/80 transition-colors"
                   >
-                    {item.deployment ? "Deploy" : "Explore"} <ExternalLink className="h-3 w-3" />
+                    {item.deployment
+                      ? getActionLabel(platform, item.deployment?.free_tier ?? null)
+                      : getActionLabel(platform, null)}{" "}
+                    <ExternalLink className="h-3 w-3" />
                   </a>
+                  {getPartnerDisclosure(platform) && (
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {getPartnerDisclosure(platform)}
+                    </div>
+                  )}
                 </div>
               );
             })}
