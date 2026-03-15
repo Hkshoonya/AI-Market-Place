@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const dynamic = "force-dynamic";
 
@@ -24,28 +25,29 @@ export async function GET() {
     // Current stats
     const { data: models } = await supabase
       .from("models")
-      .select("id, quality_score, category, provider, is_open_weights, hf_downloads")
+      .select("id, slug, name, quality_score, category, provider, is_open_weights, hf_downloads")
       .eq("status", "active");
 
     if (!models) {
       return NextResponse.json({ error: "No models found" }, { status: 500 });
     }
 
-    const totalModels = models.length;
-    const scoredModels = models.filter((m) => m.quality_score && m.quality_score > 0);
+    const uniqueModels = dedupePublicModelFamilies(models);
+    const totalModels = uniqueModels.length;
+    const scoredModels = uniqueModels.filter((m) => m.quality_score && m.quality_score > 0);
     const avgQuality =
       scoredModels.length > 0
         ? scoredModels.reduce((sum, m) => sum + (m.quality_score ?? 0), 0) / scoredModels.length
         : 0;
-    const openWeightCount = models.filter((m) => m.is_open_weights).length;
-    const totalDownloads = models.reduce(
+    const openWeightCount = uniqueModels.filter((m) => m.is_open_weights).length;
+    const totalDownloads = uniqueModels.reduce(
       (sum, m) => sum + (m.hf_downloads ? Number(m.hf_downloads) : 0),
       0
     );
 
     // Provider distribution
     const providerCounts = new Map<string, number>();
-    for (const m of models) {
+    for (const m of uniqueModels) {
       const provider = getCanonicalProviderName(m.provider as string);
       providerCounts.set(provider, (providerCounts.get(provider) ?? 0) + 1);
     }
@@ -57,7 +59,7 @@ export async function GET() {
 
     // Category distribution
     const categoryCounts = new Map<string, number>();
-    for (const m of models) {
+    for (const m of uniqueModels) {
       const cat = (m.category as string) || "other";
       categoryCounts.set(cat, (categoryCounts.get(cat) ?? 0) + 1);
     }

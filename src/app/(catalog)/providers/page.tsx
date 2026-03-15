@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { createPublicClient } from "@/lib/supabase/public-server";
 
 import { formatNumber } from "@/lib/format";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/lib/constants/providers";
 import { ProviderCharts } from "@/components/charts/provider-charts";
@@ -37,14 +38,16 @@ export default async function ProvidersPage() {
   const { data: models } = await supabase
     .from("models")
     .select(
-      "provider, hf_downloads, quality_score, overall_rank, is_open_weights, category"
+      "id, slug, name, provider, hf_downloads, quality_score, overall_rank, is_open_weights, category"
     )
     .eq("status", "active");
+
+  const uniqueModels = dedupePublicModelFamilies(models ?? []);
 
   // Aggregate stats by provider
   const providerMap = new Map<string, ProviderStats>();
 
-  (models ?? []).forEach((m) => {
+  uniqueModels.forEach((m) => {
     const canonicalProvider = getCanonicalProviderName(m.provider);
     const existing = providerMap.get(canonicalProvider);
     if (existing) {

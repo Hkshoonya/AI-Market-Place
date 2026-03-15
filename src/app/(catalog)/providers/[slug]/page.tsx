@@ -28,6 +28,7 @@ import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
@@ -100,8 +101,10 @@ export default async function ProviderDetailPage({
     .eq("status", "active")
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  const models = parseQueryResultPartial(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
-    (model) => providerMatchesCanonical(model.provider, providerName)
+  const models = dedupePublicModelFamilies(
+    parseQueryResultPartial(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
+      (model) => providerMatchesCanonical(model.provider, providerName)
+    )
   );
   if (models.length === 0) notFound();
 

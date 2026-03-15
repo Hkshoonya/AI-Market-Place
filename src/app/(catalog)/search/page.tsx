@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { formatNumber } from "@/lib/format";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 
 export const revalidate = 0;
@@ -47,7 +48,7 @@ export default async function SearchPage({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  let models: Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; is_open_weights: boolean | null; parameter_count: number | null; short_description: string | null }> = [];
+  let models: Array<{ id: string; slug: string; name: string; provider: string; category: string; overall_rank: number | null; quality_score: number | null; popularity_score: number | null; is_open_weights: boolean | null; parameter_count: number | null; short_description: string | null }> = [];
   let modelCount = 0;
   let marketplace: Array<{ id: string; slug: string; title: string; listing_type: string; price: number | null; avg_rating: number | null; short_description: string | null; pricing_type: string; review_count: number | null }> = [];
   let marketplaceCount = 0;
@@ -61,7 +62,7 @@ export default async function SearchPage({
       const modelQuery = supabase
         .from("models")
         .select(
-          "id, slug, name, provider, category, overall_rank, quality_score, is_open_weights, parameter_count, short_description",
+          "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, is_open_weights, parameter_count, short_description",
           { count: "exact" }
         )
         .eq("status", "active")
@@ -69,11 +70,15 @@ export default async function SearchPage({
           `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
         )
         .order("popularity_score", { ascending: false, nullsFirst: false })
-        .range(offset, offset + PAGE_SIZE - 1);
+        .range(0, 1999);
 
       const { data, count } = await modelQuery;
-      models = data ?? [];
-      modelCount = count ?? 0;
+      const uniqueModels = dedupePublicModelFamilies(data ?? []).sort(
+        (left, right) =>
+          Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0)
+      );
+      models = uniqueModels.slice(offset, offset + PAGE_SIZE);
+      modelCount = uniqueModels.length > 0 ? uniqueModels.length : (count ?? 0);
     }
 
     if (activeTab === "marketplace") {

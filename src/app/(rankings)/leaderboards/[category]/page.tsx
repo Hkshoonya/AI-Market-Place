@@ -18,6 +18,7 @@ import type { z } from "zod";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
 import { getLowestInputPrice } from "@/lib/models/pricing";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const revalidate = 3600;
 
@@ -77,10 +78,12 @@ export default async function CategoryLeaderboardPage({
   const modelsResponse = await modelsQuery;
 
   type CategoryModel = z.infer<typeof CategoryModelSchema>;
-  const models = parseQueryResult(
-    modelsResponse,
-    CategoryModelSchema,
-    "CategoryModel"
+  const models = dedupePublicModelFamilies(
+    parseQueryResult(
+      modelsResponse,
+      CategoryModelSchema,
+      "CategoryModel"
+    )
   );
 
   const isBrowserCategory = category === "agentic_browser";

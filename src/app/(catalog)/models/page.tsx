@@ -11,6 +11,7 @@ import {
   compareModelsByLowestPrice,
   getPublicPricingSummary,
 } from "@/lib/models/pricing";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import {
   getLifecycleBadge,
@@ -124,39 +125,37 @@ export default async function ModelsPage({
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const useInMemoryPriceSort = sort === "price";
 
-  if (!useInMemoryPriceSort) {
-    switch (sort) {
-      case "downloads":
-        dbQuery = dbQuery.order("hf_downloads", {
-          ascending: false,
-          nullsFirst: false,
-        });
-        break;
-      case "newest":
-        dbQuery = dbQuery.order("release_date", {
-          ascending: false,
-          nullsFirst: false,
-        });
-        break;
-      case "quality":
-        dbQuery = dbQuery.order("quality_score", {
-          ascending: false,
-          nullsFirst: false,
-        });
-        break;
-      case "rank":
-      default:
-        dbQuery = dbQuery.order("overall_rank", {
-          ascending: true,
-          nullsFirst: false,
-        });
-        break;
-    }
-
-    dbQuery = dbQuery.range(from, to);
+  switch (sort) {
+    case "downloads":
+      dbQuery = dbQuery.order("hf_downloads", {
+        ascending: false,
+        nullsFirst: false,
+      });
+      break;
+    case "newest":
+      dbQuery = dbQuery.order("release_date", {
+        ascending: false,
+        nullsFirst: false,
+      });
+      break;
+    case "quality":
+      dbQuery = dbQuery.order("quality_score", {
+        ascending: false,
+        nullsFirst: false,
+      });
+      break;
+    case "rank":
+    case "price":
+    default:
+      dbQuery = dbQuery.order("overall_rank", {
+        ascending: true,
+        nullsFirst: false,
+      });
+      break;
   }
+
+  dbQuery = dbQuery.range(0, 1999);
 
   const modelsResponse = await dbQuery;
   const count = modelsResponse.count;
@@ -181,10 +180,31 @@ export default async function ModelsPage({
     "ModelsPage"
   );
 
-  const totalCount = count ?? parsedModels.length;
-  const models = useInMemoryPriceSort
-    ? [...parsedModels].sort(compareModelsByLowestPrice).slice(from, to + 1)
-    : parsedModels;
+  const uniqueModels = dedupePublicModelFamilies(parsedModels);
+  const sortedUniqueModels = [...uniqueModels].sort((left, right) => {
+    switch (sort) {
+      case "downloads":
+        return Number(right.hf_downloads ?? 0) - Number(left.hf_downloads ?? 0);
+      case "newest":
+        return (
+          Date.parse(String(right.release_date ?? "1970-01-01")) -
+          Date.parse(String(left.release_date ?? "1970-01-01"))
+        );
+      case "quality":
+        return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+      case "price":
+        return compareModelsByLowestPrice(left, right);
+      case "rank":
+      default:
+        return Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) - Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
+    }
+  });
+
+  const totalCount =
+    sortedUniqueModels.length > 0
+      ? sortedUniqueModels.length
+      : (count ?? parsedModels.length);
+  const models = sortedUniqueModels.slice(from, to + 1);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

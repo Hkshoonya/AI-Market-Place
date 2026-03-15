@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(`
-        id, slug, name, provider, category, parameter_count, is_open_weights,
+        id, slug, name, provider, category, overall_rank, parameter_count, is_open_weights,
         hf_downloads, quality_score, capability_score, capability_rank,
         adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank,
         usage_score, usage_rank, expert_score, expert_rank, balanced_rank,
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
       `)
       .not(lensConfig.sortCol, "is", null)
       .order(lensConfig.sortCol, { ascending: lensConfig.ascending })
-      .limit(limit);
+      .range(0, 1999);
 
     query =
       lifecycleFilter === "all"
@@ -85,8 +86,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const getSortMetric = (model: Record<string, unknown>) => {
+      const value = model[lensConfig.sortCol];
+      if (typeof value === "number") return value;
+      return lensConfig.ascending ? Number.MAX_SAFE_INTEGER : Number.NEGATIVE_INFINITY;
+    };
+
+    const uniqueModels = dedupePublicModelFamilies(data ?? [])
+      .sort((left, right) => {
+        const leftValue = getSortMetric(left as Record<string, unknown>);
+        const rightValue = getSortMetric(right as Record<string, unknown>);
+        if (leftValue === rightValue) {
+          return Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) - Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
+        }
+        return lensConfig.ascending ? leftValue - rightValue : rightValue - leftValue;
+      })
+      .slice(0, limit);
+
     return NextResponse.json({
-      data: (data ?? []).map((model) => ({
+      data: uniqueModels.map((model) => ({
         ...model,
         elo_ratings: collapseArenaRatings(Array.isArray(model.elo_ratings) ? model.elo_ratings : []),
       })),

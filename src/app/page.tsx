@@ -32,6 +32,7 @@ import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/prov
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
@@ -58,27 +59,6 @@ export const revalidate = 60;
 export default async function HomePage() {
   const supabase = createPublicClient();
 
-  // Fetch top 10 models by current market-value footing instead of stale legacy overall rank
-  const topModelsResponse = await supabase
-    .from("models")
-    .select("*, rankings(*), model_pricing(*), benchmark_scores(benchmark_id, benchmarks(slug)), elo_ratings(arena_name)")
-    .eq("status", "active")
-    .not("economic_footprint_rank", "is", null)
-    .order("economic_footprint_rank", { ascending: true })
-    .limit(10);
-
-  const topModels = parseQueryResult(topModelsResponse, HomeTopModelSchema, "HomeTopModel");
-
-  // Fetch newest models
-  const { data: newModelsRaw } = await supabase
-    .from("models")
-    .select("*")
-    .eq("status", "active")
-    .order("release_date", { ascending: false })
-    .limit(4);
-
-  const newModels = newModelsRaw;
-
   // Consolidated query: fetch key fields from all active models in one go
   const [
     { count: modelCount },
@@ -92,7 +72,7 @@ export default async function HomePage() {
     supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, hf_downloads, hf_likes, quality_score, capability_score, adoption_score, economic_footprint_score, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, parameter_count, short_description, description, context_window, is_open_weights"
       )
       .eq("status", "active"),
     supabase
@@ -105,7 +85,7 @@ export default async function HomePage() {
       .eq("status", "available"),
   ]);
 
-  const activeModels = allActiveModels ?? [];
+  const activeModels = dedupePublicModelFamilies(allActiveModels ?? []);
   const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
     const platformRecord = platform as Record<string, unknown>;
 
@@ -131,6 +111,43 @@ export default async function HomePage() {
     deployments: modelDeploymentsRaw ?? [],
     models: activeModels,
   });
+
+  const topModelIds = [...activeModels]
+    .filter((model) => model.economic_footprint_rank != null)
+    .sort(
+      (left, right) =>
+        Number(left.economic_footprint_rank ?? Number.MAX_SAFE_INTEGER) -
+        Number(right.economic_footprint_rank ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, 10)
+    .map((model) => model.id);
+
+  const topModelsResponse =
+    topModelIds.length > 0
+      ? await supabase
+          .from("models")
+          .select("*, rankings(*), model_pricing(*), benchmark_scores(benchmark_id, benchmarks(slug)), elo_ratings(arena_name)")
+          .in("id", topModelIds)
+      : { data: [], error: null };
+
+  const topModelsById = new Map(
+    parseQueryResult(topModelsResponse, HomeTopModelSchema, "HomeTopModel").map((model) => [
+      model.id,
+      model,
+    ])
+  );
+  const topModels = topModelIds
+    .map((id) => topModelsById.get(id))
+    .filter((model): model is NonNullable<typeof model> => Boolean(model));
+
+  const newModels = [...activeModels]
+    .filter((model) => model.release_date != null)
+    .sort(
+      (left, right) =>
+        Date.parse(String(right.release_date ?? "1970-01-01")) -
+        Date.parse(String(left.release_date ?? "1970-01-01"))
+    )
+    .slice(0, 4);
 
   // Derive all aggregates from the single query result
   const uniqueProviders = new Set(activeModels.map((m) => m.provider)).size;
@@ -413,7 +430,10 @@ export default async function HomePage() {
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">Total Models</p>
               <p className="text-3xl font-bold mt-1">
-                <CountUp end={modelCount ?? 0} className="text-3xl font-bold" />
+                <CountUp
+                  end={activeModels.length > 0 ? activeModels.length : (modelCount ?? 0)}
+                  className="text-3xl font-bold"
+                />
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 across {uniqueProviders} providers
@@ -438,7 +458,7 @@ export default async function HomePage() {
                 <CountUp end={openWeightCount ?? 0} className="text-3xl font-bold" />
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {modelCount ? ((((openWeightCount ?? 0) / modelCount) * 100).toFixed(0)) : 0}% of tracked models
+                {activeModels.length ? ((((openWeightCount ?? 0) / activeModels.length) * 100).toFixed(0)) : 0}% of tracked models
               </p>
             </CardContent>
           </Card>

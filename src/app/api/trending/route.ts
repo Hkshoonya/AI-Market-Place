@@ -8,6 +8,7 @@ import {
   computeTrendingDiscoveryScore,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const dynamic = "force-dynamic";
 
@@ -118,19 +119,29 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const trending = sortByDiscoveryScore(data ?? [], (model) =>
+    const trending = sortByDiscoveryScore(dedupePublicModelFamilies(data ?? []), (model) =>
       computeTrendingDiscoveryScore(model)
     ).slice(0, limit);
 
-    const popular = sortByDiscoveryScore(popularModels ?? [], (model) =>
+    const popular = sortByDiscoveryScore(dedupePublicModelFamilies(popularModels ?? []), (model) =>
       computePopularDiscoveryScore(model)
     ).slice(0, limit);
 
+    const recent = dedupePublicModelFamilies(recentModels ?? [])
+      .sort(
+        (left, right) =>
+          Date.parse(String(right.release_date ?? "1970-01-01")) -
+          Date.parse(String(left.release_date ?? "1970-01-01"))
+      )
+      .slice(0, 6);
+
+    const discussedUnique = dedupePublicModelFamilies(discussed);
+
     return NextResponse.json({
       trending,
-      recent: recentModels ?? [],
+      recent,
       popular,
-      discussed,
+      discussed: discussedUnique.slice(0, limit),
     });
   } catch (err) {
     return handleApiError(err, "api/trending");

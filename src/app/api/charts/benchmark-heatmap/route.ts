@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "30"), 100);
 
   try {
+    const rawLimit = Math.min(Math.max(limit * 8, 200), 2000);
+
     // Get top models by quality score
     let modelQuery = supabase
       .from("models")
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       .eq("status", "active")
       .gt("quality_score", 0)
       .order("quality_score", { ascending: false })
-      .limit(limit);
+      .limit(rawLimit);
 
     if (category) modelQuery = modelQuery.eq("category", category);
     const { data: models, error: modelsError } = await modelQuery;
@@ -49,16 +52,18 @@ export async function GET(request: NextRequest) {
 
     const filteredModels =
       providers && providers.length > 0
-        ? (models ?? []).filter((model) =>
+        ? dedupePublicModelFamilies(models ?? []).filter((model) =>
             providers.some((provider) => providerMatchesCanonical(model.provider, provider))
           )
-        : (models ?? []);
+        : dedupePublicModelFamilies(models ?? []);
 
-    if (filteredModels.length === 0) {
+    const visibleModels = filteredModels.slice(0, limit);
+
+    if (visibleModels.length === 0) {
       return NextResponse.json({ data: [], benchmarks: [], total: 0 });
     }
 
-    const modelIds = filteredModels.map((m) => m.id);
+    const modelIds = visibleModels.map((m) => m.id);
 
     // Get all benchmark scores for these models
     const ScoreWithBenchmarkSchema = z.object({
@@ -101,7 +106,7 @@ export async function GET(request: NextRequest) {
       .map((b) => ({ slug: b.slug, name: b.name, category: b.category }));
 
     // Build result rows
-    const result = filteredModels.map((m) => {
+    const result = visibleModels.map((m) => {
       const modelScores = scoreMap.get(m.id);
       const benchmarkScores: Record<string, number | null> = {};
 

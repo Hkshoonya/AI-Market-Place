@@ -25,6 +25,10 @@ import { Badge as UiBadge } from "@/components/ui/badge";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import {
+  collapsePublicModelFamilies,
+  dedupePublicModelFamilies,
+} from "@/lib/models/public-families";
+import {
   getPublicLensLabel,
   getPublicLensSort,
   parsePublicRankingLens,
@@ -65,31 +69,20 @@ export default async function LeaderboardsPage({
   const lifecycleStatuses = getLifecycleStatuses(lifecycleFilter);
   const lensSort = getPublicLensSort(activeLens);
   const activeLensLabel = getPublicLensLabel(activeLens);
-
-  // Fetch ranked models with benchmarks, pricing, elo â€” sorted by selected lens
-  let rankedModelsQuery = supabase
-    .from("models")
-    .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
-    .not(lensSort.sortCol, "is", null)
-    .order(lensSort.sortCol, { ascending: lensSort.ascending, nullsFirst: false })
-    .limit(20);
-
-  rankedModelsQuery =
-    lifecycleFilter === "all"
-      ? rankedModelsQuery.in("status", lifecycleStatuses)
-      : rankedModelsQuery.eq("status", "active");
-
-  const rankedModelsResponse = await rankedModelsQuery;
+  const getLensSortValue = (model: Record<string, unknown>) => {
+    const value = model[lensSort.sortCol];
+    if (typeof value === "number") return value;
+    return lensSort.ascending ? Number.MAX_SAFE_INTEGER : Number.NEGATIVE_INFINITY;
+  };
 
   type RankedModel = z.infer<typeof RankedModelSchema>;
-  const rankedModels = parseQueryResult(rankedModelsResponse, RankedModelSchema, "RankedModel");
 
   // Fetch ALL ranked models for the explorer (client component)
   let explorerModelsQuery = supabase
     .from("models")
     .select("name, slug, provider, category, status, overall_rank, category_rank, quality_score, value_score, is_open_weights, hf_downloads, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, agent_score, agent_rank, market_cap_estimate, capability_score, capability_rank, usage_score, usage_rank, expert_score, expert_rank, balanced_rank")
     .order(lensSort.sortCol, { ascending: lensSort.ascending, nullsFirst: false })
-    .limit(500);
+    .range(0, 1999);
 
   explorerModelsQuery =
     lifecycleFilter === "all"
@@ -98,35 +91,64 @@ export default async function LeaderboardsPage({
 
   const explorerModelsResponse = await explorerModelsQuery;
 
-  const explorerModels = parseQueryResult(explorerModelsResponse, ExplorerModelSchema, "ExplorerModel").map((m) => ({
-    name: m.name,
-    slug: m.slug,
-    provider: m.provider,
-    category: m.category,
-    status: m.status,
-    overall_rank: m.overall_rank,
-    category_rank: m.category_rank,
-    quality_score: m.quality_score != null ? Number(m.quality_score) : null,
-    value_score: m.value_score != null ? Number(m.value_score) : null,
-    is_open_weights: !!(m.is_open_weights),
-    hf_downloads: m.hf_downloads != null ? Number(m.hf_downloads) : null,
-    popularity_score: m.popularity_score != null ? Number(m.popularity_score) : null,
-    adoption_score: m.adoption_score != null ? Number(m.adoption_score) : null,
-    adoption_rank: m.adoption_rank,
-    agent_score: m.agent_score != null ? Number(m.agent_score) : null,
-    agent_rank: m.agent_rank,
-    popularity_rank: m.popularity_rank,
-    economic_footprint_score: m.economic_footprint_score != null ? Number(m.economic_footprint_score) : null,
-    economic_footprint_rank: m.economic_footprint_rank,
-    market_cap_estimate: m.market_cap_estimate != null ? Number(m.market_cap_estimate) : null,
-    capability_score: m.capability_score != null ? Number(m.capability_score) : null,
-    capability_rank: m.capability_rank,
-    usage_score: m.usage_score != null ? Number(m.usage_score) : null,
-    usage_rank: m.usage_rank,
-    expert_score: m.expert_score != null ? Number(m.expert_score) : null,
-    expert_rank: m.expert_rank,
-    balanced_rank: m.balanced_rank,
-  }));
+  const explorerModels = dedupePublicModelFamilies(
+    parseQueryResult(explorerModelsResponse, ExplorerModelSchema, "ExplorerModel").map((m) => ({
+      id: m.slug,
+      name: m.name,
+      slug: m.slug,
+      provider: m.provider,
+      category: m.category,
+      status: m.status,
+      overall_rank: m.overall_rank,
+      category_rank: m.category_rank,
+      quality_score: m.quality_score != null ? Number(m.quality_score) : null,
+      value_score: m.value_score != null ? Number(m.value_score) : null,
+      is_open_weights: !!m.is_open_weights,
+      hf_downloads: m.hf_downloads != null ? Number(m.hf_downloads) : null,
+      popularity_score: m.popularity_score != null ? Number(m.popularity_score) : null,
+      adoption_score: m.adoption_score != null ? Number(m.adoption_score) : null,
+      adoption_rank: m.adoption_rank,
+      agent_score: m.agent_score != null ? Number(m.agent_score) : null,
+      agent_rank: m.agent_rank,
+      popularity_rank: m.popularity_rank,
+      economic_footprint_score: m.economic_footprint_score != null ? Number(m.economic_footprint_score) : null,
+      economic_footprint_rank: m.economic_footprint_rank,
+      market_cap_estimate: m.market_cap_estimate != null ? Number(m.market_cap_estimate) : null,
+      capability_score: m.capability_score != null ? Number(m.capability_score) : null,
+      capability_rank: m.capability_rank,
+      usage_score: m.usage_score != null ? Number(m.usage_score) : null,
+      usage_rank: m.usage_rank,
+      expert_score: m.expert_score != null ? Number(m.expert_score) : null,
+      expert_rank: m.expert_rank,
+      balanced_rank: m.balanced_rank,
+    }))
+  ).sort((left, right) => {
+    const leftValue = getLensSortValue(left as Record<string, unknown>);
+    const rightValue = getLensSortValue(right as Record<string, unknown>);
+    if (leftValue === rightValue) {
+      return Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) - Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
+    }
+    return lensSort.ascending ? leftValue - rightValue : rightValue - leftValue;
+  });
+
+  const topRankedSlugs = explorerModels.slice(0, 20).map((model) => model.slug);
+  const rankedModelsResponse =
+    topRankedSlugs.length > 0
+      ? await supabase
+          .from("models")
+          .select("*, rankings(*), model_pricing(*), benchmark_scores(*, benchmarks(*)), elo_ratings(*)")
+          .in("slug", topRankedSlugs)
+      : { data: [], error: null };
+
+  const rankedModelsBySlug = new Map(
+    parseQueryResult(rankedModelsResponse, RankedModelSchema, "RankedModel").map((model) => [
+      model.slug,
+      model,
+    ])
+  );
+  const rankedModels = topRankedSlugs
+    .map((slug) => rankedModelsBySlug.get(slug))
+    .filter((model): model is RankedModel => Boolean(model));
 
   const trackedModelsResponse =
     lifecycleFilter === "active"
@@ -140,7 +162,12 @@ export default async function LeaderboardsPage({
 
   const trackedModels =
     lifecycleFilter === "active"
-      ? parseQueryResult(trackedModelsResponse, TrackedModelSchema, "TrackedModel")
+      ? dedupePublicModelFamilies(
+          parseQueryResult(trackedModelsResponse, TrackedModelSchema, "TrackedModel").map((model) => ({
+            ...model,
+            id: model.slug,
+          }))
+        )
       : [];
 
   // Fetch speed-ranked models
@@ -151,7 +178,32 @@ export default async function LeaderboardsPage({
     .order("median_output_tokens_per_second", { ascending: false })
     .limit(10);
 
-  const speedModels = parseQueryResult(speedModelsResponse, SpeedModelSchema, "SpeedModel");
+  const speedModels = collapsePublicModelFamilies(
+    parseQueryResult(speedModelsResponse, SpeedModelSchema, "SpeedModel").map((pricing) => ({
+      ...pricing,
+      id: pricing.models.id,
+      slug: pricing.models.slug,
+      name: pricing.models.name,
+      provider: pricing.models.provider,
+      overall_rank: pricing.models.overall_rank,
+      quality_score: pricing.models.quality_score,
+      hf_downloads: 0,
+    }))
+  )
+    .map((family) =>
+      [...family.variants].sort(
+        (left, right) =>
+          Number(right.median_output_tokens_per_second ?? 0) -
+          Number(left.median_output_tokens_per_second ?? 0)
+      )[0]
+    )
+    .filter((pricing): pricing is NonNullable<typeof pricing> => Boolean(pricing))
+    .sort(
+      (left, right) =>
+        Number(right.median_output_tokens_per_second ?? 0) -
+        Number(left.median_output_tokens_per_second ?? 0)
+    )
+    .slice(0, 10);
 
   // Fetch value-ranked models
   const valueModelsResponse = await supabase
@@ -161,7 +213,32 @@ export default async function LeaderboardsPage({
     .order("input_price_per_million", { ascending: true })
     .limit(10);
 
-  const valueModels = parseQueryResult(valueModelsResponse, ValueModelSchema, "ValueModel");
+  const valueModels = collapsePublicModelFamilies(
+    parseQueryResult(valueModelsResponse, ValueModelSchema, "ValueModel").map((pricing) => ({
+      ...pricing,
+      id: pricing.models.id,
+      slug: pricing.models.slug,
+      name: pricing.models.name,
+      provider: pricing.models.provider,
+      overall_rank: pricing.models.overall_rank,
+      quality_score: pricing.models.quality_score,
+      hf_downloads: 0,
+    }))
+  )
+    .map((family) =>
+      [...family.variants].sort(
+        (left, right) =>
+          Number(left.input_price_per_million ?? Number.MAX_SAFE_INTEGER) -
+          Number(right.input_price_per_million ?? Number.MAX_SAFE_INTEGER)
+      )[0]
+    )
+    .filter((pricing): pricing is NonNullable<typeof pricing> => Boolean(pricing))
+    .sort(
+      (left, right) =>
+        Number(left.input_price_per_million ?? Number.MAX_SAFE_INTEGER) -
+        Number(right.input_price_per_million ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, 10);
 
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
     const scores = model.benchmark_scores;

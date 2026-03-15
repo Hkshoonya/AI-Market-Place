@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "200"), 500);
 
   try {
+    const rawLimit = Math.min(Math.max(limit * 8, 200), 2000);
+
     // Fetch models with quality scores
     let query = supabase
       .from("models")
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       .eq("status", "active")
       .gt("quality_score", 0)
       .order("quality_score", { ascending: false })
-      .limit(limit);
+      .limit(rawLimit);
 
     if (category) query = query.eq("category", category);
     const { data: models, error } = await query;
@@ -49,13 +52,15 @@ export async function GET(request: NextRequest) {
 
     const filteredModels =
       providers && providers.length > 0
-        ? (models ?? []).filter((model) =>
+        ? dedupePublicModelFamilies(models ?? []).filter((model) =>
             providers.some((provider) => providerMatchesCanonical(model.provider, provider))
           )
-        : (models ?? []);
+        : dedupePublicModelFamilies(models ?? []);
+
+    const visibleModels = filteredModels.slice(0, limit);
 
     // Fetch pricing for these models
-    const modelIds = filteredModels.map((m) => m.id);
+    const modelIds = visibleModels.map((m) => m.id);
     if (modelIds.length === 0) {
       return NextResponse.json({ data: [], total: 0 });
     }
@@ -80,7 +85,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result = filteredModels.map((m) => {
+    const result = visibleModels.map((m) => {
       const price = priceMap.get(m.id);
       return {
         name: m.name,
