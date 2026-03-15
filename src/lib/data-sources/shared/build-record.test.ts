@@ -143,4 +143,15 @@ describe("buildRecord()", () => {
     expect(record.license).toBe("commercial");
     expect(record.license_name).toBeNull();
   });
+
+  it("canonicalizes provider defaults before writing the model record", () => {
+    const lowerCaseDefaults: ProviderDefaults = {
+      ...openaiDefaults,
+      provider: "openai",
+    };
+
+    const record = buildRecord("gpt-4o", knownGpt4o, {}, lowerCaseDefaults);
+
+    expect(record.provider).toBe("OpenAI");
+  });
 });

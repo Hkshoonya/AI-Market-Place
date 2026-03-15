@@ -20,6 +20,7 @@ import type {
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 // --------------- Constants ---------------
 
@@ -113,7 +114,7 @@ interface OpenRouterModelsResponse {
  */
 function extractProvider(id: string): string {
   const prefix = id.split("/")[0];
-  return (
+  return getCanonicalProviderName(
     PROVIDER_NAMES[prefix] ||
     prefix.charAt(0).toUpperCase() + prefix.slice(1)
   );

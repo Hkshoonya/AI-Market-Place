@@ -18,4 +18,18 @@ describe("openrouter model record mapping", () => {
     expect(record.license_name).toBe("Open weights");
     expect(record.is_open_weights).toBe(true);
   });
+
+  it("canonicalizes provider names for known router prefixes", () => {
+    const record = __testables.buildModelRecord({
+      id: "openai/gpt-4o",
+      name: "OpenAI: GPT-4o",
+      description: "Frontier model",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.provider).toBe("OpenAI");
+  });
 });

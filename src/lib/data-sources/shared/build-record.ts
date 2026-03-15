@@ -8,6 +8,7 @@
 
 import { inferCategory, inferModalities } from "./infer-category";
 import { makeSlug } from "../utils";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 // ---------------------------------------------------------------------------
 // Unified KnownModelMeta interface
@@ -144,7 +145,7 @@ export function buildRecord(
   return {
     slug,
     name,
-    provider: defaults.provider,
+    provider: getCanonicalProviderName(defaults.provider),
     category,
     status: merged.status ?? "active",
     description: merged.description ?? null,

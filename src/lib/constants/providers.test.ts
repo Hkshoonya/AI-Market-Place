@@ -15,6 +15,11 @@ describe("provider identity", () => {
     expect(getCanonicalProviderName("Alibaba / Qwen")).toBe("Qwen");
   });
 
+  it("does not over-collapse unrelated owner names into major providers", () => {
+    expect(getCanonicalProviderName("meta-innovation")).toBe("meta-innovation");
+    expect(getCanonicalProviderName("topogoogles")).toBe("topogoogles");
+  });
+
   it("builds stable provider slugs from canonical names", () => {
     expect(getProviderSlug("openai")).toBe("openai");
     expect(getProviderSlug("Mistral AI")).toBe("mistral-ai");
@@ -24,7 +29,7 @@ describe("provider identity", () => {
   it("matches canonical variants consistently", () => {
     expect(providerMatchesCanonical("openai", "OpenAI")).toBe(true);
     expect(providerMatchesCanonical("google", "Google")).toBe(true);
-    expect(providerMatchesCanonical("Azure OpenAI", "OpenAI")).toBe(true);
+    expect(providerMatchesCanonical("Azure OpenAI", "OpenAI")).toBe(false);
   });
 
   it("resolves brand metadata from canonicalized names", () => {

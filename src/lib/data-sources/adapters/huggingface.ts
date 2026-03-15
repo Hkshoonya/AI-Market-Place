@@ -21,6 +21,7 @@ import {
   upsertBatch,
   makeSlug,
 } from "../utils";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 // ────────────────────────────────────────────────────────────────
 // Constants
@@ -152,7 +153,7 @@ function transformModel(hf: HFModel): Record<string, unknown> {
   return {
     slug,
     name,
-    provider: provider || "unknown",
+    provider: getCanonicalProviderName(provider || "unknown"),
     category,
     status: hf.disabled ? "archived" : "active",
     architecture: hf.library_name || null,

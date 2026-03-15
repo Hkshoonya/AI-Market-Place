@@ -24,6 +24,7 @@ import {
 } from "../utils";
 import { REPLICATE_KNOWN_MODELS, type KnownReplicateModel } from "../shared/known-models/replicate";
 import { inferCategory } from "../shared/infer-category";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 // ────────────────────────────────────────────────────────────────
 // Constants
@@ -76,7 +77,7 @@ function transformModel(model: ReplicateModel): Record<string, unknown> {
   return {
     slug,
     name: model.name,
-    provider: model.owner,
+    provider: getCanonicalProviderName(model.owner),
     category,
     description: model.description || null,
     status: "active",
@@ -101,7 +102,7 @@ function transformKnownModel(model: KnownReplicateModel): Record<string, unknown
   return {
     slug,
     name: model.name,
-    provider: model.owner,
+    provider: getCanonicalProviderName(model.owner),
     category: model.category,
     description: model.description || null,
     status: "active",

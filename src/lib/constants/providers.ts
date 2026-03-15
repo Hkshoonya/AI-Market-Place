@@ -85,19 +85,6 @@ export function getCanonicalProviderName(providerName: string | null | undefined
     return PROVIDER_ALIASES[key];
   }
 
-  for (const [alias, canonical] of Object.entries(PROVIDER_ALIASES)) {
-    if (key.includes(alias) || alias.includes(key)) {
-      return canonical;
-    }
-  }
-
-  for (const brand of Object.keys(PROVIDER_BRANDS)) {
-    const brandKey = normalizeProviderKey(brand);
-    if (key.includes(brandKey) || brandKey.includes(key)) {
-      return brand;
-    }
-  }
-
   return trimmed;
 }
 
