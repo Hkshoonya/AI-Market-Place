@@ -463,4 +463,52 @@ describe("/api/marketplace/listings/bot", () => {
     expect(insertedPayloads[0]?.status).toBe("draft");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
+
+  it("persists a normalized preview manifest from skill manifests", async () => {
+    const insertedPayloads: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(
+      createBenignAdminClient({
+        sellerVerified: true,
+        insertedPayloads,
+      })
+    );
+    mockAuthenticateApiKey.mockResolvedValue({
+      authenticated: true,
+      keyRecord: {
+        id: "key-1",
+        owner_id: "owner-1",
+        agent_id: null,
+        scopes: ["marketplace"],
+      },
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/bot", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer aimk_valid",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Bot Listing",
+          description: "Bot-created listing",
+          listing_type: "agent",
+          skill_manifest: {
+            name: "Bot Listing",
+            capabilities: ["automation", "workflow"],
+            runtime: "node",
+          },
+        }),
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(insertedPayloads[0]?.preview_manifest).toEqual(
+      expect.objectContaining({
+        schema_version: "1.0",
+        fulfillment_type: "agent_package",
+        capabilities: ["automation", "workflow"],
+      })
+    );
+  });
 });

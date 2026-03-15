@@ -493,6 +493,7 @@ export interface MarketplaceListing {
   is_featured: boolean;
   agent_config?: Record<string, unknown> | null;
   mcp_manifest?: Record<string, unknown> | null;
+  preview_manifest?: Record<string, unknown> | null;
   agent_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -522,6 +523,7 @@ export interface MarketplaceOrder {
   message: string | null;
   price_at_time: number | null;
   delivery_data: Record<string, unknown> | null;
+  fulfillment_manifest_snapshot?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -1200,6 +1202,7 @@ export interface Database {
           message?: string | null;
           price_at_time?: number | null;
           delivery_data?: Record<string, unknown> | null;
+          fulfillment_manifest_snapshot?: Record<string, unknown> | null;
           guest_email?: string | null;
           guest_name?: string | null;
           created_at?: string;

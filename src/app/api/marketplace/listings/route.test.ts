@@ -170,4 +170,20 @@ describe("POST /api/marketplace/listings", () => {
     expect(insertedPayloads[0]?.status).toBe("draft");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
+
+  it("persists a normalized preview manifest on listing creation", async () => {
+    const insertedPayloads: Record<string, unknown>[] = [];
+    mockCreateClient.mockResolvedValue(createMockSupabase(insertedPayloads));
+
+    const response = await POST(makeRequest());
+
+    expect(response.status).toBe(201);
+    expect(insertedPayloads[0]?.preview_manifest).toEqual(
+      expect.objectContaining({
+        schema_version: "1.0",
+        fulfillment_type: "agent_package",
+        title: "Test Listing",
+      })
+    );
+  });
 });

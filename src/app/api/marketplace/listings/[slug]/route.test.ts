@@ -253,4 +253,34 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
     expect(updatePayloads[0]?.status).toBe("paused");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
   });
+
+  it("updates the normalized preview manifest when listing content changes", async () => {
+    const updatePayloads: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(createAdminSupabase(updatePayloads));
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/test-listing", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          short_description: "Updated summary",
+          mcp_manifest: {
+            endpoint: "https://example.com/mcp",
+            tools: [{ name: "search" }],
+          },
+        }),
+      }),
+      {
+        params: Promise.resolve({ slug: "test-listing" }),
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(updatePayloads[0]?.preview_manifest).toEqual(
+      expect.objectContaining({
+        schema_version: "1.0",
+        fulfillment_type: "mcp_endpoint",
+      })
+    );
+  });
 });

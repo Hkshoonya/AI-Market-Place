@@ -21,6 +21,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function GET(
   const { data: listing, error } = await supabase
     .from("marketplace_listings")
     .select(
-      "id, slug, title, listing_type, pricing_type, price, currency, agent_config, status"
+      "id, slug, title, description, short_description, listing_type, pricing_type, price, currency, tags, documentation_url, demo_url, agent_config, mcp_manifest, preview_manifest, status"
     )
     .eq("slug", slug)
     .eq("status", "active")
@@ -61,57 +62,34 @@ export async function GET(
     );
   }
 
-  // Extract skill_manifest from agent_config
-  const agentConfig =
-    listing.agent_config && typeof listing.agent_config === "object"
-      ? listing.agent_config
-      : null;
+  const manifest = buildListingPreviewManifest({
+    id: listing.id,
+    slug: listing.slug,
+    title: listing.title,
+    description: listing.description ?? listing.title,
+    short_description: listing.short_description ?? null,
+    listing_type: listing.listing_type,
+    pricing_type: listing.pricing_type ?? "one_time",
+    price: listing.price ?? 0,
+    currency: listing.currency ?? "USD",
+    tags: Array.isArray(listing.tags) ? listing.tags : [],
+    documentation_url: listing.documentation_url ?? null,
+    demo_url: listing.demo_url ?? null,
+    agent_config:
+      listing.agent_config && typeof listing.agent_config === "object"
+        ? (listing.agent_config as Record<string, unknown>)
+        : null,
+    mcp_manifest:
+      listing.mcp_manifest && typeof listing.mcp_manifest === "object"
+        ? (listing.mcp_manifest as Record<string, unknown>)
+        : null,
+    preview_manifest:
+      listing.preview_manifest && typeof listing.preview_manifest === "object"
+        ? (listing.preview_manifest as Record<string, unknown>)
+        : null,
+  });
 
-  const skillManifest =
-    agentConfig &&
-    typeof (agentConfig as Record<string, unknown>).skill_manifest === "object"
-      ? (agentConfig as Record<string, unknown>).skill_manifest
-      : null;
-
-  if (!skillManifest) {
-    return NextResponse.json(
-      {
-        error:
-          "This listing does not have a skill manifest. Only listings created with a skill_manifest field expose this endpoint.",
-      },
-      { status: 404 }
-    );
-  }
-
-  // Build the standardised manifest response, merging listing-level pricing
-  const manifest = skillManifest as Record<string, unknown>;
-
-  const response: Record<string, unknown> = {
-    name: manifest.name ?? listing.title,
-    version: manifest.version ?? "1.0.0",
-    type: manifest.type ?? listing.listing_type,
-    capabilities: Array.isArray(manifest.capabilities)
-      ? manifest.capabilities
-      : [],
-    ...(manifest.input_schema
-      ? { input_schema: manifest.input_schema }
-      : {}),
-    ...(manifest.output_schema
-      ? { output_schema: manifest.output_schema }
-      : {}),
-    ...(manifest.runtime ? { runtime: manifest.runtime } : {}),
-    ...(manifest.endpoint ? { endpoint: manifest.endpoint } : {}),
-    pricing: manifest.pricing ?? {
-      model: listing.pricing_type ?? "one_time",
-      price: listing.price ?? 0,
-      currency: listing.currency ?? "USD",
-    },
-    // Metadata
-    listing_slug: listing.slug,
-    listing_id: listing.id,
-  };
-
-  return NextResponse.json({ manifest: response });
+  return NextResponse.json({ manifest });
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings/manifest");
   }

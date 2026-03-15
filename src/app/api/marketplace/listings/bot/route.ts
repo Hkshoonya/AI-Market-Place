@@ -22,6 +22,7 @@ import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
+import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -327,6 +328,23 @@ export async function POST(request: NextRequest) {
   });
   const publishStatus =
     policyEvaluation.decision === "allow" ? initialStatus : "draft";
+  const previewManifest = buildListingPreviewManifest({
+    id: `preview:${slug}`,
+    slug,
+    title,
+    description,
+    short_description: short_description ?? null,
+    listing_type,
+    pricing_type: pricing_type || "one_time",
+    price: price ?? null,
+    currency: currency || "USD",
+    documentation_url: documentation_url || null,
+    demo_url: demo_url || null,
+    tags: tags || [],
+    agent_config: mergedAgentConfig,
+    mcp_manifest: mcp_manifest ?? null,
+    preview_manifest: null,
+  });
 
   const { data, error } = await sb
     .from("marketplace_listings")
@@ -346,6 +364,7 @@ export async function POST(request: NextRequest) {
       thumbnail_url: thumbnail_url || null,
       demo_url: demo_url || null,
       documentation_url: documentation_url || null,
+      preview_manifest: previewManifest,
       ...(listing_type === "agent" || listing_type === "mcp_server" || mergedAgentConfig
         ? { agent_config: mergedAgentConfig }
         : {}),
@@ -515,6 +534,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   const mergedListing = {
+    id: currentListing.id,
+    slug: currentListing.slug,
     title:
       typeof updates.title === "string" ? updates.title : currentListing.title,
     description:
@@ -532,6 +553,26 @@ export async function PATCH(request: NextRequest) {
     tags: Array.isArray(updates.tags)
       ? (updates.tags as string[])
       : currentListing.tags,
+    pricing_type:
+      typeof updates.pricing_type === "string"
+        ? updates.pricing_type
+        : currentListing.pricing_type,
+    price:
+      typeof updates.price === "number" || updates.price === null
+        ? updates.price
+        : currentListing.price,
+    currency:
+      typeof updates.currency === "string"
+        ? updates.currency
+        : currentListing.currency,
+    documentation_url:
+      typeof updates.documentation_url === "string" || updates.documentation_url === null
+        ? (updates.documentation_url as string | null)
+        : currentListing.documentation_url,
+    demo_url:
+      typeof updates.demo_url === "string" || updates.demo_url === null
+        ? (updates.demo_url as string | null)
+        : currentListing.demo_url,
     agentConfig:
       "agent_config" in updates
         ? ((updates.agent_config as Record<string, unknown> | null | undefined) ?? null)
@@ -548,6 +589,24 @@ export async function PATCH(request: NextRequest) {
     const wasActive = currentListing.status === "active";
     updates.status = wantsActive || wasActive ? "paused" : "draft";
   }
+
+  updates.preview_manifest = buildListingPreviewManifest({
+    id: currentListing.id,
+    slug: currentListing.slug,
+    title: mergedListing.title,
+    description: mergedListing.description,
+    short_description: mergedListing.shortDescription,
+    listing_type: mergedListing.listingType,
+    pricing_type: mergedListing.pricing_type,
+    price: mergedListing.price,
+    currency: mergedListing.currency,
+    documentation_url: mergedListing.documentation_url,
+    demo_url: mergedListing.demo_url,
+    tags: mergedListing.tags,
+    agent_config: mergedListing.agentConfig,
+    mcp_manifest: mergedListing.mcpManifest,
+    preview_manifest: null,
+  });
 
   await syncListingPolicyReview(sb, {
     listingId: currentListing.id,

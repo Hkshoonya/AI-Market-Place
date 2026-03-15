@@ -10,6 +10,7 @@ import {
 } from "@/lib/rate-limit";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
+import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
@@ -284,6 +285,23 @@ export async function POST(request: NextRequest) {
     sellerVerified || !enforceSellerVerification ? "active" : "draft";
   const publishStatus =
     policyEvaluation.decision === "allow" ? initialStatus : "draft";
+  const previewManifest = buildListingPreviewManifest({
+    id: `preview:${slug}`,
+    slug,
+    title,
+    description,
+    short_description: short_description ?? null,
+    listing_type,
+    pricing_type: pricing_type || "one_time",
+    price: price ?? null,
+    currency: currency || "USD",
+    documentation_url: documentation_url || null,
+    demo_url: demo_url || null,
+    tags: tags || [],
+    agent_config: agent_config ?? null,
+    mcp_manifest: mcp_manifest ?? null,
+    preview_manifest: null,
+  });
 
   // Mark user as seller if not already
   await supabase
@@ -309,6 +327,7 @@ export async function POST(request: NextRequest) {
       thumbnail_url: thumbnail_url || null,
       demo_url: demo_url || null,
       documentation_url: documentation_url || null,
+      preview_manifest: previewManifest,
       ...(listing_type === "agent" && agent_config ? { agent_config } : {}),
       ...(listing_type === "mcp_server" && mcp_manifest
         ? { mcp_manifest }

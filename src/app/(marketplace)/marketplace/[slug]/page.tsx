@@ -15,8 +15,10 @@ import { ContactForm } from "@/components/marketplace/contact-form";
 import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { ReportListingButton } from "@/components/marketplace/report-listing-button";
 import { PurchaseButton } from "@/components/marketplace/purchase-button";
+import { ManifestPreviewCard } from "@/components/marketplace/manifest-preview-card";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
+import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
@@ -77,6 +79,23 @@ export default async function ListingDetailPage(props: {
     rawListing,
     PROFILE_FIELDS_FULL
   );
+  const previewManifest = buildListingPreviewManifest({
+    id: listing.id,
+    slug: listing.slug,
+    title: listing.title,
+    description: listing.description,
+    short_description: listing.short_description ?? null,
+    listing_type: listing.listing_type,
+    pricing_type: listing.pricing_type,
+    price: listing.price,
+    currency: listing.currency,
+    documentation_url: listing.documentation_url ?? null,
+    demo_url: listing.demo_url ?? null,
+    tags: listing.tags,
+    agent_config: listing.agent_config ?? null,
+    mcp_manifest: listing.mcp_manifest ?? null,
+    preview_manifest: listing.preview_manifest ?? null,
+  });
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
@@ -232,6 +251,8 @@ export default async function ListingDetailPage(props: {
               </div>
             </CardContent>
           </Card>
+
+          <ManifestPreviewCard manifest={previewManifest} />
 
           {/* Links */}
           {(listing.demo_url || listing.documentation_url) && (

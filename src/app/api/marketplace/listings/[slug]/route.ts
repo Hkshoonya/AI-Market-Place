@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { systemLog } from "@/lib/logging";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
+import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -234,6 +235,8 @@ export async function PATCH(
     }
 
     const mergedListing = {
+      id: currentListing.id,
+      slug: currentListing.slug,
       title:
         typeof updates.title === "string" ? updates.title : currentListing.title,
       description:
@@ -251,6 +254,26 @@ export async function PATCH(
       tags: Array.isArray(updates.tags)
         ? (updates.tags as string[])
         : currentListing.tags,
+      pricing_type:
+        typeof updates.pricing_type === "string"
+          ? updates.pricing_type
+          : currentListing.pricing_type,
+      price:
+        typeof updates.price === "number" || updates.price === null
+          ? updates.price
+          : currentListing.price,
+      currency:
+        typeof updates.currency === "string"
+          ? updates.currency
+          : currentListing.currency,
+      documentation_url:
+        typeof updates.documentation_url === "string" || updates.documentation_url === null
+          ? (updates.documentation_url as string | null)
+          : currentListing.documentation_url,
+      demo_url:
+        typeof updates.demo_url === "string" || updates.demo_url === null
+          ? (updates.demo_url as string | null)
+          : currentListing.demo_url,
       agentConfig:
         "agent_config" in updates
           ? ((updates.agent_config as Record<string, unknown> | null | undefined) ?? null)
@@ -267,6 +290,24 @@ export async function PATCH(
       const wasActive = currentListing.status === "active";
       updates.status = wantsActive || wasActive ? "paused" : "draft";
     }
+
+    updates.preview_manifest = buildListingPreviewManifest({
+      id: currentListing.id,
+      slug: currentListing.slug,
+      title: mergedListing.title,
+      description: mergedListing.description,
+      short_description: mergedListing.shortDescription,
+      listing_type: mergedListing.listingType,
+      pricing_type: mergedListing.pricing_type,
+      price: mergedListing.price,
+      currency: mergedListing.currency,
+      documentation_url: mergedListing.documentation_url,
+      demo_url: mergedListing.demo_url,
+      tags: mergedListing.tags,
+      agent_config: mergedListing.agentConfig,
+      mcp_manifest: mergedListing.mcpManifest,
+      preview_manifest: null,
+    });
 
     await syncListingPolicyReview(adminSupabase, {
       listingId: currentListing.id,

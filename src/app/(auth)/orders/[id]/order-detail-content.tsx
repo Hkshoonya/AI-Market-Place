@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { OrderWithListingSchema, type OrderWithListing } from "@/lib/schemas/marketplace";
 import { formatDate, formatRelativeDate, formatCurrency } from "@/lib/format";
+import { OrderManifestCard } from "@/components/marketplace/order-manifest-card";
 
 type ProfileInfo = {
   id: string;
@@ -46,6 +47,10 @@ type OrderMessage = {
 
 interface MessagesResponse {
   data: OrderMessage[];
+}
+
+interface ManifestResponse {
+  manifest: Record<string, unknown> | null;
 }
 
 const supabase = createClient();
@@ -79,6 +84,10 @@ export default function OrderDetailContent({
   // SWR for message polling (MEDIUM tier = 60s refresh)
   const { data: messagesData, mutate: mutateMessages } = useSWR<MessagesResponse>(
     user && orderId ? `/api/marketplace/orders/${orderId}/messages` : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: manifestData } = useSWR<ManifestResponse>(
+    user && orderId ? `/api/marketplace/orders/${orderId}/manifest` : null,
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -246,6 +255,8 @@ export default function OrderDetailContent({
           )}
         </CardContent>
       </Card>
+
+      <OrderManifestCard manifest={manifestData?.manifest ?? null} />
 
       {/* Messages */}
       <Card className="border-border/50 bg-card">

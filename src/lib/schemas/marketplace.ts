@@ -27,6 +27,7 @@ export const MarketplaceListingSchema = z.object({
   is_featured: z.boolean(),
   agent_config: z.record(z.string(), z.unknown()).nullable().optional(),
   mcp_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
+  preview_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
   agent_id: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -62,6 +63,10 @@ export const MarketplaceOrderSchema = z.object({
   message: z.string().nullable(),
   price_at_time: z.coerce.number().nullable(),
   delivery_data: z.record(z.string(), z.unknown()).nullable(),
+  fulfillment_manifest_snapshot: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });

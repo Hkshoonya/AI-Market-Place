@@ -5,12 +5,19 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MarketplaceListing } from "@/types/database";
+import { buildOrderFulfillmentManifest } from "@/lib/marketplace/manifest";
 
 export interface DeliveryResult {
   success: boolean;
   deliveryType: string;
   data?: Record<string, unknown>;
   error?: string;
+}
+
+function asManifestObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 /**
@@ -32,12 +39,59 @@ export async function deliverDigitalGood(
     .eq("id", listingId)
     .single();
 
+  const { data: order } = await sb
+    .from("marketplace_orders")
+    .select("id, listing_id, buyer_id, seller_id, created_at, fulfillment_manifest_snapshot")
+    .eq("id", orderId)
+    .single();
+
   if (!listing) {
     return {
       success: false,
       deliveryType: "unknown",
       error: "Listing not found",
     };
+  }
+
+  let fulfillmentManifest = asManifestObject(
+    order?.fulfillment_manifest_snapshot
+  );
+
+  if (!fulfillmentManifest && order) {
+    fulfillmentManifest = buildOrderFulfillmentManifest({
+      listing: {
+        id: listing.id,
+        slug: listing.slug,
+        title: listing.title,
+        description: listing.description,
+        short_description: listing.short_description ?? null,
+        listing_type: listing.listing_type,
+        pricing_type: listing.pricing_type,
+        price: listing.price,
+        currency: listing.currency,
+        documentation_url: listing.documentation_url ?? null,
+        demo_url: listing.demo_url ?? null,
+        tags: listing.tags ?? [],
+        agent_config: listing.agent_config ?? null,
+        mcp_manifest: listing.mcp_manifest ?? null,
+        preview_manifest: listing.preview_manifest ?? null,
+      },
+      order: {
+        id: order.id,
+        listing_id: order.listing_id,
+        buyer_id: order.buyer_id,
+        seller_id: order.seller_id,
+        created_at: order.created_at,
+        price_at_time: listing.price,
+      },
+    });
+
+    await sb
+      .from("marketplace_orders")
+      .update({
+        fulfillment_manifest_snapshot: fulfillmentManifest,
+      })
+      .eq("id", orderId);
   }
 
   switch (listing.listing_type) {
@@ -52,7 +106,7 @@ export async function deliverDigitalGood(
     case "agent":
       return deliverAgent(orderId, listing, buyerId);
     case "mcp_server":
-      return deliverMcpServer(orderId, listing);
+      return deliverMcpServer(orderId, listing, fulfillmentManifest);
     default:
       return {
         success: true,
@@ -274,10 +328,21 @@ async function deliverAgent(
 
 async function deliverMcpServer(
   orderId: string,
-  listing: MarketplaceListing
+  listing: MarketplaceListing,
+  fulfillmentManifest?: Record<string, unknown> | null
 ): Promise<DeliveryResult> {
   // Return MCP endpoint URL + tool definitions
   const manifest = listing.mcp_manifest || {};
+  const snapshotAccess = asManifestObject(fulfillmentManifest?.access);
+  const snapshotArtifacts = asManifestObject(fulfillmentManifest?.artifacts);
+  const endpoint =
+    typeof snapshotAccess?.endpoint === "string"
+      ? snapshotAccess.endpoint
+      : manifest.endpoint;
+  const tools =
+    Array.isArray(snapshotArtifacts?.tools)
+      ? snapshotArtifacts.tools
+      : manifest.tools || [];
 
   const supabase = createAdminClient();
   await supabase
@@ -285,8 +350,8 @@ async function deliverMcpServer(
     .update({
       delivery_data: {
         type: "mcp_server",
-        endpoint: manifest.endpoint,
-        tools: manifest.tools || [],
+        endpoint,
+        tools,
       },
     })
     .eq("id", orderId);
@@ -294,6 +359,6 @@ async function deliverMcpServer(
   return {
     success: true,
     deliveryType: "mcp_server",
-    data: { endpoint: manifest.endpoint, tools: manifest.tools },
+    data: { endpoint, tools },
   };
 }
