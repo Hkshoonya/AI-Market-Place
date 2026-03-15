@@ -28,7 +28,7 @@ import TopMovers from "@/components/charts/top-movers";
 import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
 import { TrendingModels } from "@/components/models/trending-models";
-import { getProviderBrand } from "@/lib/constants/providers";
+import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
@@ -120,7 +120,8 @@ export default async function HomePage() {
   const providerMap = new Map<string, number>();
   const categoryMap = new Map<string, number>();
   for (const m of activeModels) {
-    providerMap.set(m.provider, (providerMap.get(m.provider) ?? 0) + 1);
+    const canonicalProvider = getCanonicalProviderName(m.provider);
+    providerMap.set(canonicalProvider, (providerMap.get(canonicalProvider) ?? 0) + 1);
     if (m.category) categoryMap.set(m.category, (categoryMap.get(m.category) ?? 0) + 1);
   }
 

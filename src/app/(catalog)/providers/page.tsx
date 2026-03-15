@@ -6,7 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 
 import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
-import { getProviderBrand } from "@/lib/constants/providers";
+import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/lib/constants/providers";
 import { ProviderCharts } from "@/components/charts/provider-charts";
 import type { Metadata } from "next";
 
@@ -23,6 +23,8 @@ interface ProviderStats {
   modelCount: number;
   totalDownloads: number;
   avgQuality: number | null;
+  qualityTotal: number;
+  qualitySamples: number;
   topRank: number | null;
   openWeightsCount: number;
   categories: string[];
@@ -43,19 +45,15 @@ export default async function ProvidersPage() {
   const providerMap = new Map<string, ProviderStats>();
 
   (models ?? []).forEach((m) => {
-    const existing = providerMap.get(m.provider);
+    const canonicalProvider = getCanonicalProviderName(m.provider);
+    const existing = providerMap.get(canonicalProvider);
     if (existing) {
       existing.modelCount++;
       existing.totalDownloads += m.hf_downloads ?? 0;
       if (m.quality_score != null) {
-        if (existing.avgQuality == null) {
-          existing.avgQuality = Number(m.quality_score);
-        } else {
-          existing.avgQuality =
-            (existing.avgQuality * (existing.modelCount - 1) +
-              Number(m.quality_score)) /
-            existing.modelCount;
-        }
+        existing.qualityTotal += Number(m.quality_score);
+        existing.qualitySamples++;
+        existing.avgQuality = existing.qualityTotal / existing.qualitySamples;
       }
       if (
         m.overall_rank != null &&
@@ -68,11 +66,13 @@ export default async function ProvidersPage() {
         existing.categories.push(m.category);
       }
     } else {
-      providerMap.set(m.provider, {
-        provider: m.provider,
+      providerMap.set(canonicalProvider, {
+        provider: canonicalProvider,
         modelCount: 1,
         totalDownloads: m.hf_downloads ?? 0,
         avgQuality: m.quality_score != null ? Number(m.quality_score) : null,
+        qualityTotal: m.quality_score != null ? Number(m.quality_score) : 0,
+        qualitySamples: m.quality_score != null ? 1 : 0,
         topRank: m.overall_rank,
         openWeightsCount: m.is_open_weights ? 1 : 0,
         categories: [m.category],
@@ -145,7 +145,7 @@ export default async function ProvidersPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {providers.map((prov) => {
           const brand = getProviderBrand(prov.provider);
-          const slug = prov.provider.toLowerCase().replace(/\s+/g, "-");
+          const slug = getProviderSlug(prov.provider);
 
           return (
             <Link key={prov.provider} href={`/providers/${slug}`}>

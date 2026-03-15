@@ -6,6 +6,35 @@ export interface ProviderBrand {
   domain: string;
 }
 
+const PROVIDER_ALIASES: Record<string, string> = {
+  ai21: "AI21 Labs",
+  ai21labs: "AI21 Labs",
+  alibabaqwen: "Qwen",
+  anthropic: "Anthropic",
+  blackforestlabs: "Black Forest Labs",
+  cohere: "Cohere",
+  databricks: "Databricks",
+  deepseek: "DeepSeek",
+  deepseekai: "DeepSeek",
+  gemini: "Google",
+  google: "Google",
+  googledeepmind: "Google",
+  huggingface: "Hugging Face",
+  inflectionai: "Inflection AI",
+  meta: "Meta",
+  metaai: "Meta",
+  mistral: "Mistral AI",
+  mistralai: "Mistral AI",
+  nvidia: "NVIDIA",
+  openai: "OpenAI",
+  qwen: "Qwen",
+  stabilityai: "Stability AI",
+  togetherai: "Together AI",
+  writer: "Writer",
+  xai: "xAI",
+  zhipuai: "Zhipu AI",
+};
+
 export const PROVIDER_BRANDS: Record<string, ProviderBrand> = {
   "OpenAI": { color: "#10a37f", domain: "openai.com" },
   "Anthropic": { color: "#D4A27F", domain: "anthropic.com" },
@@ -34,18 +63,72 @@ export const PROVIDER_BRANDS: Record<string, ProviderBrand> = {
   "Writer": { color: "#7C3AED", domain: "writer.com" },
 };
 
+export function normalizeProviderKey(providerName: string | null | undefined): string {
+  return (providerName ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function getCanonicalProviderName(providerName: string | null | undefined): string {
+  const trimmed = (providerName ?? "").trim();
+  if (!trimmed) return "Unknown";
+
+  const key = normalizeProviderKey(trimmed);
+  if (!key) return "Unknown";
+
+  const exactBrand = Object.keys(PROVIDER_BRANDS).find(
+    (brand) => normalizeProviderKey(brand) === key
+  );
+  if (exactBrand) {
+    return exactBrand;
+  }
+
+  if (PROVIDER_ALIASES[key]) {
+    return PROVIDER_ALIASES[key];
+  }
+
+  for (const [alias, canonical] of Object.entries(PROVIDER_ALIASES)) {
+    if (key.includes(alias) || alias.includes(key)) {
+      return canonical;
+    }
+  }
+
+  for (const brand of Object.keys(PROVIDER_BRANDS)) {
+    const brandKey = normalizeProviderKey(brand);
+    if (key.includes(brandKey) || brandKey.includes(key)) {
+      return brand;
+    }
+  }
+
+  return trimmed;
+}
+
+export function getProviderSlug(providerName: string | null | undefined): string {
+  return getCanonicalProviderName(providerName)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function providerMatchesCanonical(
+  providerName: string | null | undefined,
+  canonicalProvider: string | null | undefined
+): boolean {
+  return getCanonicalProviderName(providerName) === getCanonicalProviderName(canonicalProvider);
+}
+
 /**
  * Look up provider brand data by provider name.
  * Tries exact match first, then case-insensitive partial match.
  */
 export function getProviderBrand(providerName: string): ProviderBrand | null {
+  const canonicalProvider = getCanonicalProviderName(providerName);
+
   // Exact match
-  if (PROVIDER_BRANDS[providerName]) {
-    return PROVIDER_BRANDS[providerName];
+  if (PROVIDER_BRANDS[canonicalProvider]) {
+    return PROVIDER_BRANDS[canonicalProvider];
   }
 
   // Case-insensitive match
-  const lowerName = providerName.toLowerCase();
+  const lowerName = canonicalProvider.toLowerCase();
   for (const [key, value] of Object.entries(PROVIDER_BRANDS)) {
     if (key.toLowerCase() === lowerName) {
       return value;

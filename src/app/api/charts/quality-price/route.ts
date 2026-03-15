@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
+import { providerMatchesCanonical } from "@/lib/constants/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -41,17 +42,20 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (category) query = query.eq("category", category);
-    if (providers && providers.length > 0) {
-      query = query.in("provider", providers);
-    }
-
     const { data: models, error } = await query;
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const filteredModels =
+      providers && providers.length > 0
+        ? (models ?? []).filter((model) =>
+            providers.some((provider) => providerMatchesCanonical(model.provider, provider))
+          )
+        : (models ?? []);
+
     // Fetch pricing for these models
-    const modelIds = (models ?? []).map((m) => m.id);
+    const modelIds = filteredModels.map((m) => m.id);
     if (modelIds.length === 0) {
       return NextResponse.json({ data: [], total: 0 });
     }
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result = (models ?? []).map((m) => {
+    const result = filteredModels.map((m) => {
       const price = priceMap.get(m.id);
       return {
         name: m.name,

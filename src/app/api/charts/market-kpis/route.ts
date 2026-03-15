@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export async function GET() {
     // Provider distribution
     const providerCounts = new Map<string, number>();
     for (const m of models) {
-      const provider = (m.provider as string) || "Unknown";
+      const provider = getCanonicalProviderName(m.provider as string);
       providerCounts.set(provider, (providerCounts.get(provider) ?? 0) + 1);
     }
 

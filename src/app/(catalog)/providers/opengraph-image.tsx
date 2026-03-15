@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export const runtime = "edge";
 export const alt = "AI Model Providers";
@@ -22,7 +23,8 @@ export default async function OGImage() {
   // Aggregate provider counts
   const providerCounts = new Map<string, number>();
   for (const m of allModels) {
-    providerCounts.set(m.provider, (providerCounts.get(m.provider) || 0) + 1);
+    const provider = getCanonicalProviderName(m.provider);
+    providerCounts.set(provider, (providerCounts.get(provider) || 0) + 1);
   }
 
   const totalProviders = providerCounts.size;

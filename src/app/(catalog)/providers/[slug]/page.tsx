@@ -18,7 +18,12 @@ import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
-import { getProviderBrand, PROVIDER_BRANDS } from "@/lib/constants/providers";
+import {
+  getCanonicalProviderName,
+  getProviderBrand,
+  getProviderSlug,
+  providerMatchesCanonical,
+} from "@/lib/constants/providers";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
@@ -27,13 +32,9 @@ import { getParameterDisplay } from "@/lib/models/presentation";
 
 export const revalidate = 3600;
 
-function slugToProvider(slug: string): string | null {
-  for (const name of Object.keys(PROVIDER_BRANDS)) {
-    if (name.toLowerCase().replace(/\s+/g, "-") === slug) {
-      return name;
-    }
-  }
-  return null;
+function slugToProvider(slug: string, providers: string[]): string | null {
+  const matched = providers.find((provider) => getProviderSlug(provider) === slug);
+  return matched ? getCanonicalProviderName(matched) : null;
 }
 
 export async function generateMetadata({
@@ -42,16 +43,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  let providerName = slugToProvider(slug);
-
-  if (!providerName) {
-    const supabase = createPublicClient();
-    const { data } = await supabase.from("models").select("provider").eq("status", "active");
-    const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
-    providerName =
-      allProviders.find((provider) => provider.toLowerCase().replace(/\s+/g, "-") === slug) ??
-      null;
-  }
+  const supabase = createPublicClient();
+  const { data } = await supabase.from("models").select("provider").eq("status", "active");
+  const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
+  const providerName = slugToProvider(slug, allProviders);
 
   if (!providerName) return { title: "Provider Not Found" };
 
@@ -80,14 +75,12 @@ export default async function ProviderDetailPage({
   const { slug } = await params;
   const supabase = createPublicClient();
 
-  let providerName = slugToProvider(slug);
-  if (!providerName) {
-    const { data } = await supabase.from("models").select("provider").eq("status", "active");
-    const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
-    providerName =
-      allProviders.find((provider) => provider.toLowerCase().replace(/\s+/g, "-") === slug) ??
-      null;
-  }
+  const { data: providerRows } = await supabase
+    .from("models")
+    .select("provider")
+    .eq("status", "active");
+  const allProviders = [...new Set((providerRows ?? []).map((m) => m.provider))];
+  const providerName = slugToProvider(slug, allProviders);
 
   if (!providerName) notFound();
 
@@ -109,10 +102,11 @@ export default async function ProviderDetailPage({
     .from("models")
     .select("*, model_pricing(*)")
     .eq("status", "active")
-    .eq("provider", providerName)
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  const models = parseQueryResult(modelsResponse, ProviderModelSchema, "ProviderModel");
+  const models = parseQueryResult(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
+    (model) => providerMatchesCanonical(model.provider, providerName)
+  );
   if (models.length === 0) notFound();
 
   const brand = getProviderBrand(providerName);
@@ -227,7 +221,7 @@ export default async function ProviderDetailPage({
               {officialPricedModels} / {models.length} models have official company pricing
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Public compact surfaces prefer company pricing first, then other verified routes.
+              Compact public tables show the cheapest verified route, while deeper pricing views keep official first-party pricing separate.
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
