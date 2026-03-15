@@ -95,6 +95,28 @@ export function getProviderSlug(providerName: string | null | undefined): string
     .replace(/^-+|-+$/g, "");
 }
 
+function getLegacyProviderSlug(providerName: string | null | undefined): string {
+  return (providerName ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function resolveProviderSlug(
+  slug: string,
+  providers: string[]
+): string | null {
+  const normalizedSlug = getLegacyProviderSlug(slug);
+  const matched = providers.find((provider) => {
+    const canonicalSlug = getProviderSlug(provider);
+    const legacySlug = getLegacyProviderSlug(provider);
+    return canonicalSlug === normalizedSlug || legacySlug === normalizedSlug;
+  });
+
+  return matched ? getCanonicalProviderName(matched) : null;
+}
+
 export function providerMatchesCanonical(
   providerName: string | null | undefined,
   canonicalProvider: string | null | undefined

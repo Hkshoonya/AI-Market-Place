@@ -21,8 +21,8 @@ import { ProviderLogo } from "@/components/shared/provider-logo";
 import {
   getCanonicalProviderName,
   getProviderBrand,
-  getProviderSlug,
   providerMatchesCanonical,
+  resolveProviderSlug,
 } from "@/lib/constants/providers";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
@@ -31,11 +31,6 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { getParameterDisplay } from "@/lib/models/presentation";
 
 export const revalidate = 3600;
-
-function slugToProvider(slug: string, providers: string[]): string | null {
-  const matched = providers.find((provider) => getProviderSlug(provider) === slug);
-  return matched ? getCanonicalProviderName(matched) : null;
-}
 
 export async function generateMetadata({
   params,
@@ -46,7 +41,7 @@ export async function generateMetadata({
   const supabase = createPublicClient();
   const { data } = await supabase.from("models").select("provider").eq("status", "active");
   const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
-  const providerName = slugToProvider(slug, allProviders);
+  const providerName = resolveProviderSlug(slug, allProviders);
 
   if (!providerName) return { title: "Provider Not Found" };
 
@@ -80,7 +75,7 @@ export default async function ProviderDetailPage({
     .select("provider")
     .eq("status", "active");
   const allProviders = [...new Set((providerRows ?? []).map((m) => m.provider))];
-  const providerName = slugToProvider(slug, allProviders);
+  const providerName = resolveProviderSlug(slug, allProviders);
 
   if (!providerName) notFound();
 

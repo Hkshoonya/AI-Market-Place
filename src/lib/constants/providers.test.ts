@@ -3,6 +3,7 @@ import {
   getCanonicalProviderName,
   getProviderBrand,
   getProviderSlug,
+  resolveProviderSlug,
   providerMatchesCanonical,
 } from "./providers";
 
@@ -24,6 +25,17 @@ describe("provider identity", () => {
     expect(getProviderSlug("openai")).toBe("openai");
     expect(getProviderSlug("Mistral AI")).toBe("mistral-ai");
     expect(getProviderSlug("deepseek-ai")).toBe("deepseek");
+  });
+
+  it("resolves canonical and legacy provider slugs", () => {
+    const providers = ["OpenAI", "Google", "Alibaba / Qwen", "deepseek-ai"];
+
+    expect(resolveProviderSlug("openai", providers)).toBe("OpenAI");
+    expect(resolveProviderSlug("google", providers)).toBe("Google");
+    expect(resolveProviderSlug("qwen", providers)).toBe("Qwen");
+    expect(resolveProviderSlug("alibaba-qwen", providers)).toBe("Qwen");
+    expect(resolveProviderSlug("deepseek", providers)).toBe("DeepSeek");
+    expect(resolveProviderSlug("deepseek-ai", providers)).toBe("DeepSeek");
   });
 
   it("matches canonical variants consistently", () => {
