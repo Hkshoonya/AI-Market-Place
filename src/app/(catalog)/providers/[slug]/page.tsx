@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
-import { parseQueryResult } from "@/lib/schemas/parse";
+import { parseQueryResultPartial } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -99,7 +99,7 @@ export default async function ProviderDetailPage({
     .eq("status", "active")
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  const models = parseQueryResult(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
+  const models = parseQueryResultPartial(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
     (model) => providerMatchesCanonical(model.provider, providerName)
   );
   if (models.length === 0) notFound();

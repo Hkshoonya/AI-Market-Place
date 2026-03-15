@@ -173,6 +173,61 @@ describe("parseQueryResultPartial", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("preserves valid provider rows when one row has malformed JSON-shaped fields", () => {
+    const ProviderLikeSchema = z.object({
+      slug: z.string(),
+      provider: z.string(),
+      supported_languages: z.array(z.string()),
+      capabilities: z.record(z.string(), z.boolean()),
+    });
+
+    const response = {
+      data: [
+        {
+          slug: "openai-o3",
+          provider: "OpenAI",
+          supported_languages: [],
+          capabilities: { reasoning: true },
+        },
+        {
+          slug: "broken-model",
+          provider: "Broken Inc",
+          supported_languages: "en",
+          capabilities: "reasoning",
+        },
+        {
+          slug: "openai-gpt-4o",
+          provider: "OpenAI",
+          supported_languages: ["en"],
+          capabilities: { vision: true },
+        },
+      ],
+      error: null,
+    };
+
+    const result = parseQueryResultPartial(
+      response,
+      ProviderLikeSchema,
+      "ProviderLikeSchema"
+    );
+
+    expect(result).toEqual([
+      {
+        slug: "openai-o3",
+        provider: "OpenAI",
+        supported_languages: [],
+        capabilities: { reasoning: true },
+      },
+      {
+        slug: "openai-gpt-4o",
+        provider: "OpenAI",
+        supported_languages: ["en"],
+        capabilities: { vision: true },
+      },
+    ]);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("parseQueryResultSingle", () => {
