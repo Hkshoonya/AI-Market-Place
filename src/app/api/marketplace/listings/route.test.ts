@@ -119,6 +119,11 @@ describe("POST /api/marketplace/listings", () => {
       confidence: 0.1,
       reasons: [],
       matchedSignals: [],
+      contentRiskLevel: "allow",
+      autonomyRiskLevel: "allow",
+      purchaseMode: "public_purchase_allowed",
+      autonomyMode: "autonomous_allowed",
+      reasonCodes: [],
     });
   });
 
@@ -162,13 +167,29 @@ describe("POST /api/marketplace/listings", () => {
       confidence: 0.98,
       reasons: ["Matched illegal goods pattern"],
       matchedSignals: [{ field: "title", pattern: "stolen credentials", value: "stolen credentials" }],
+      contentRiskLevel: "block",
+      autonomyRiskLevel: "block",
+      purchaseMode: "purchase_blocked",
+      autonomyMode: "autonomous_blocked",
+      reasonCodes: ["illegal_goods"],
     });
 
     const response = await POST(makeRequest());
+    const body = await response.json();
 
     expect(response.status).toBe(201);
     expect(insertedPayloads[0]?.status).toBe("draft");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
+    expect(body.policy).toEqual({
+      decision: "block",
+      label: "illegal_goods",
+      confidence: 0.98,
+      content_risk_level: "block",
+      autonomy_risk_level: "block",
+      purchase_mode: "purchase_blocked",
+      autonomy_mode: "autonomous_blocked",
+      reason_codes: ["illegal_goods"],
+    });
   });
 
   it("persists a normalized preview manifest on listing creation", async () => {

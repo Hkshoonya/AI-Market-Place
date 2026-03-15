@@ -206,6 +206,11 @@ describe("/api/marketplace/listings/bot", () => {
       confidence: 0.1,
       reasons: [],
       matchedSignals: [],
+      contentRiskLevel: "allow",
+      autonomyRiskLevel: "allow",
+      purchaseMode: "public_purchase_allowed",
+      autonomyMode: "autonomous_allowed",
+      reasonCodes: [],
     });
     mockAuthenticateApiKey.mockResolvedValue({
       authenticated: false,
@@ -433,6 +438,11 @@ describe("/api/marketplace/listings/bot", () => {
       confidence: 0.72,
       reasons: ["Matched suspicious exploit language"],
       matchedSignals: [{ field: "description", pattern: "credential bypass", value: "credential bypass" }],
+      contentRiskLevel: "review",
+      autonomyRiskLevel: "block",
+      purchaseMode: "manual_review_required",
+      autonomyMode: "autonomous_blocked",
+      reasonCodes: ["suspicious_capability"],
     });
     mockAuthenticateApiKey.mockResolvedValue({
       authenticated: true,
@@ -459,9 +469,21 @@ describe("/api/marketplace/listings/bot", () => {
       })
     );
 
+    const body = await response.json();
+
     expect(response.status).toBe(201);
     expect(insertedPayloads[0]?.status).toBe("draft");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
+    expect(body.policy).toEqual({
+      decision: "review",
+      label: "suspicious_capability",
+      confidence: 0.72,
+      content_risk_level: "review",
+      autonomy_risk_level: "block",
+      purchase_mode: "manual_review_required",
+      autonomy_mode: "autonomous_blocked",
+      reason_codes: ["suspicious_capability"],
+    });
   });
 
   it("persists a normalized preview manifest from skill manifests", async () => {

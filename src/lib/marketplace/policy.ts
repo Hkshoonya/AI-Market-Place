@@ -14,6 +14,18 @@ export interface ListingPolicyEvaluation {
   confidence: number;
   reasons: string[];
   matchedSignals: ListingPolicySignal[];
+  contentRiskLevel: "allow" | "review" | "block";
+  autonomyRiskLevel: "allow" | "manual_only" | "restricted" | "block";
+  purchaseMode:
+    | "public_purchase_allowed"
+    | "manual_review_required"
+    | "purchase_blocked";
+  autonomyMode:
+    | "autonomous_allowed"
+    | "manual_only"
+    | "restricted"
+    | "autonomous_blocked";
+  reasonCodes: string[];
 }
 
 export interface ListingPolicyInput {
@@ -24,6 +36,7 @@ export interface ListingPolicyInput {
   tags?: string[] | null;
   agentConfig?: Record<string, unknown> | null;
   mcpManifest?: Record<string, unknown> | null;
+  previewManifest?: Record<string, unknown> | null;
 }
 
 export const DEFAULT_AUTONOMOUS_COMMERCE_POLICY = {
@@ -41,6 +54,9 @@ export const DEFAULT_AUTONOMOUS_COMMERCE_POLICY = {
   ],
   require_verified_sellers: true,
   block_flagged_listings: true,
+  require_manifest_snapshot: true,
+  allow_manual_only_listings: false,
+  max_autonomy_risk_level: "allow",
 } as const;
 
 interface AutonomousPurchaseInput {
@@ -51,6 +67,13 @@ interface AutonomousPurchaseInput {
     seller_id: string;
     listing_type: string;
     price: number | string | null;
+    title?: string;
+    description?: string | null;
+    short_description?: string | null;
+    tags?: string[] | null;
+    agent_config?: Record<string, unknown> | null;
+    mcp_manifest?: Record<string, unknown> | null;
+    preview_manifest?: Record<string, unknown> | null;
   };
 }
 
@@ -59,6 +82,19 @@ interface AutonomousGuardrailResult {
   httpStatus?: number;
   code?: string;
   error?: string;
+}
+
+function autonomyRiskRank(level: ListingPolicyEvaluation["autonomyRiskLevel"]) {
+  switch (level) {
+    case "allow":
+      return 0;
+    case "manual_only":
+      return 1;
+    case "restricted":
+      return 2;
+    case "block":
+      return 3;
+  }
 }
 
 const BLOCK_RULES = [
@@ -121,7 +157,46 @@ function buildFieldValues(input: ListingPolicyInput) {
     { field: "listing_type", value: input.listingType },
     { field: "agent_config", value: input.agentConfig ? JSON.stringify(input.agentConfig) : "" },
     { field: "mcp_manifest", value: input.mcpManifest ? JSON.stringify(input.mcpManifest) : "" },
+    {
+      field: "preview_manifest",
+      value: input.previewManifest ? JSON.stringify(input.previewManifest) : "",
+    },
   ];
+}
+
+function hasMachineReadableFulfillment(input: ListingPolicyInput) {
+  const skillManifest =
+    input.agentConfig &&
+    typeof input.agentConfig === "object" &&
+    typeof (input.agentConfig as Record<string, unknown>).skill_manifest === "object";
+
+  return Boolean(
+    skillManifest ||
+      (input.mcpManifest && typeof input.mcpManifest === "object") ||
+      (input.previewManifest && typeof input.previewManifest === "object")
+  );
+}
+
+function deriveAutonomyMode(input: ListingPolicyInput) {
+  if (["agent", "api_access", "mcp_server"].includes(input.listingType)) {
+    if (!hasMachineReadableFulfillment(input)) {
+      return {
+        autonomyRiskLevel: "manual_only" as const,
+        autonomyMode: "manual_only" as const,
+        reasonCodes: ["manifest_missing_or_weak"],
+        reasons: [
+          "This listing is legitimate but does not yet expose a machine-readable fulfillment contract for safe autonomous execution.",
+        ],
+      };
+    }
+  }
+
+  return {
+    autonomyRiskLevel: "allow" as const,
+    autonomyMode: "autonomous_allowed" as const,
+    reasonCodes: [] as string[],
+    reasons: [] as string[],
+  };
 }
 
 export function evaluateListingPolicy(input: ListingPolicyInput): ListingPolicyEvaluation {
@@ -151,6 +226,11 @@ export function evaluateListingPolicy(input: ListingPolicyInput): ListingPolicyE
       confidence: 0.98,
       reasons: [...new Set(reasons)],
       matchedSignals,
+      contentRiskLevel: "block",
+      autonomyRiskLevel: "block",
+      purchaseMode: "purchase_blocked",
+      autonomyMode: "autonomous_blocked",
+      reasonCodes: ["illegal_goods"],
     };
   }
 
@@ -181,15 +261,27 @@ export function evaluateListingPolicy(input: ListingPolicyInput): ListingPolicyE
         : 0.72,
       reasons: [...new Set(reviewReasons)],
       matchedSignals: reviewSignals,
+      contentRiskLevel: "review",
+      autonomyRiskLevel: "block",
+      purchaseMode: "manual_review_required",
+      autonomyMode: "autonomous_blocked",
+      reasonCodes: ["suspicious_capability"],
     };
   }
+
+  const autonomy = deriveAutonomyMode(input);
 
   return {
     decision: "allow",
     label: "allow",
     confidence: 0.1,
-    reasons: [],
+    reasons: autonomy.reasons,
     matchedSignals: [],
+    contentRiskLevel: "allow",
+    autonomyRiskLevel: autonomy.autonomyRiskLevel,
+    purchaseMode: "public_purchase_allowed",
+    autonomyMode: autonomy.autonomyMode,
+    reasonCodes: autonomy.reasonCodes,
   };
 }
 
@@ -206,11 +298,38 @@ export async function enforceAutonomousCommerceGuardrails(
   supabase: TypedSupabaseClient,
   input: AutonomousPurchaseInput
 ): Promise<AutonomousGuardrailResult> {
+  const policyEvaluation = evaluateListingPolicy({
+    title: input.listing.title ?? input.listing.listing_type,
+    description: input.listing.description ?? "",
+    shortDescription: input.listing.short_description ?? null,
+    listingType: input.listing.listing_type,
+    tags: input.listing.tags ?? null,
+    agentConfig: input.listing.agent_config ?? null,
+    mcpManifest: input.listing.mcp_manifest ?? null,
+    previewManifest: input.listing.preview_manifest ?? null,
+  });
+
+  if (policyEvaluation.contentRiskLevel === "block") {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "listing_blocked_by_policy",
+      error: "This listing is blocked by marketplace policy and cannot be purchased.",
+    };
+  }
+
+  if (policyEvaluation.contentRiskLevel === "review") {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "listing_under_review",
+      error: "This listing is under marketplace review and cannot be purchased yet.",
+    };
+  }
+
   if (input.authMethod !== "api_key") {
     return { allowed: true };
   }
-
-  const price = numericPrice(input.listing.price);
 
   const { data: policyRow, error: policyError } = await supabase
     .from("autonomous_commerce_policies")
@@ -226,6 +345,47 @@ export async function enforceAutonomousCommerceGuardrails(
     ...DEFAULT_AUTONOMOUS_COMMERCE_POLICY,
     ...(policyRow ?? {}),
   };
+
+  if (policyEvaluation.autonomyMode === "manual_only") {
+    if (!policy.allow_manual_only_listings) {
+      return {
+        allowed: false,
+        httpStatus: 403,
+        code: "listing_manual_only",
+        error: "This listing requires human-managed purchase and fulfillment right now.",
+      };
+    }
+  }
+
+  if (
+    policy.require_manifest_snapshot &&
+    !(
+      input.listing.preview_manifest &&
+      typeof input.listing.preview_manifest === "object"
+    )
+  ) {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "manifest_snapshot_required",
+      error:
+        "This listing does not expose a strong enough machine-readable contract for autonomous purchase.",
+    };
+  }
+
+  if (
+    autonomyRiskRank(policyEvaluation.autonomyRiskLevel) >
+    autonomyRiskRank(policy.max_autonomy_risk_level)
+  ) {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "autonomy_risk_too_high",
+      error: "This listing exceeds the configured autonomy risk level for this identity.",
+    };
+  }
+
+  const price = numericPrice(input.listing.price);
 
   if (!policy.is_enabled) {
     return {
@@ -371,6 +531,11 @@ export async function syncListingPolicyReview(
     classifier_label: input.evaluation.label,
     classifier_confidence: input.evaluation.confidence,
     reasons: input.evaluation.reasons,
+    content_risk_level: input.evaluation.contentRiskLevel,
+    autonomy_risk_level: input.evaluation.autonomyRiskLevel,
+    purchase_mode: input.evaluation.purchaseMode,
+    autonomy_mode: input.evaluation.autonomyMode,
+    reason_codes: input.evaluation.reasonCodes,
     matched_signals: input.evaluation.matchedSignals,
     excerpt: input.excerpt ?? null,
     review_status: "open",

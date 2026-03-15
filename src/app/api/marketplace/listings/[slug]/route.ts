@@ -193,6 +193,19 @@ export async function PATCH(
     .select("*")
     .eq("slug", slug);
 
+  let responsePolicy:
+    | {
+        decision: string;
+        label: string;
+        confidence: number;
+        content_risk_level: string;
+        autonomy_risk_level: string;
+        purchase_mode: string;
+        autonomy_mode: string;
+        reason_codes: string[];
+      }
+    | null = null;
+
   if (!isAdmin) {
     currentListingQuery = currentListingQuery.eq("seller_id", user.id);
   }
@@ -291,6 +304,20 @@ export async function PATCH(
       updates.status = wantsActive || wasActive ? "paused" : "draft";
     }
 
+    responsePolicy =
+      policyEvaluation.decision === "allow"
+        ? null
+        : {
+            decision: policyEvaluation.decision,
+            label: policyEvaluation.label,
+            confidence: policyEvaluation.confidence,
+            content_risk_level: policyEvaluation.contentRiskLevel,
+            autonomy_risk_level: policyEvaluation.autonomyRiskLevel,
+            purchase_mode: policyEvaluation.purchaseMode,
+            autonomy_mode: policyEvaluation.autonomyMode,
+            reason_codes: policyEvaluation.reasonCodes,
+          };
+
     updates.preview_manifest = buildListingPreviewManifest({
       id: currentListing.id,
       slug: currentListing.slug,
@@ -347,7 +374,7 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, policy: responsePolicy });
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings");
   }

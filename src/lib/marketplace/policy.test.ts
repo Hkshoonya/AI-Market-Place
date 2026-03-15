@@ -100,6 +100,9 @@ describe("evaluateListingPolicy", () => {
 
     expect(result.decision).toBe("block");
     expect(result.label).toBe("illegal_goods");
+    expect(result.contentRiskLevel).toBe("block");
+    expect(result.purchaseMode).toBe("purchase_blocked");
+    expect(result.autonomyMode).toBe("autonomous_blocked");
     expect(result.reasons.length).toBeGreaterThan(0);
   });
 
@@ -116,6 +119,9 @@ describe("evaluateListingPolicy", () => {
 
     expect(result.decision).toBe("review");
     expect(result.label).toBe("suspicious_capability");
+    expect(result.contentRiskLevel).toBe("review");
+    expect(result.purchaseMode).toBe("manual_review_required");
+    expect(result.autonomyMode).toBe("autonomous_blocked");
   });
 
   it("allows normal marketplace listings", () => {
@@ -131,6 +137,26 @@ describe("evaluateListingPolicy", () => {
 
     expect(result.decision).toBe("allow");
     expect(result.label).toBe("allow");
+    expect(result.contentRiskLevel).toBe("allow");
+    expect(result.autonomyMode).toBe("autonomous_allowed");
+  });
+
+  it("marks legitimate listings without machine-readable fulfillment as manual-only for autonomy", () => {
+    const result = evaluateListingPolicy({
+      title: "Custom private agent integration",
+      description: "Manual onboarding service for connecting a private agent runtime.",
+      shortDescription: "Manual setup",
+      listingType: "agent",
+      tags: ["integration", "custom"],
+      agentConfig: null,
+      mcpManifest: null,
+    });
+
+    expect(result.decision).toBe("allow");
+    expect(result.contentRiskLevel).toBe("allow");
+    expect(result.purchaseMode).toBe("public_purchase_allowed");
+    expect(result.autonomyMode).toBe("manual_only");
+    expect(result.reasonCodes).toContain("manifest_missing_or_weak");
   });
 });
 
@@ -140,6 +166,13 @@ describe("enforceAutonomousCommerceGuardrails", () => {
     seller_id: "seller-1",
     listing_type: "agent",
     price: 150,
+    title: "Trusted agent runtime",
+    preview_manifest: {
+      schema_version: "1.0",
+      fulfillment_type: "agent_package",
+      title: "Trusted agent runtime",
+      summary: "Machine-readable preview",
+    },
   };
 
   it("allows session purchases without autonomous caps", async () => {
@@ -203,6 +236,46 @@ describe("enforceAutonomousCommerceGuardrails", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.code).toBe("listing_under_review");
+  });
+
+  it("allows human session purchases for manual-only autonomy risk listings", async () => {
+    const result = await enforceAutonomousCommerceGuardrails(
+      createGuardrailSupabase({
+        policy: { max_order_amount: 250 },
+      }) as never,
+      {
+        buyerId: "buyer-1",
+        authMethod: "session",
+        listing: {
+          ...listing,
+          listing_type: "agent",
+          title: "Custom integration",
+          preview_manifest: null,
+        } as never,
+      }
+    );
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("rejects API-key purchases for legitimate manual-only listings", async () => {
+    const result = await enforceAutonomousCommerceGuardrails(
+      createGuardrailSupabase({
+        policy: { max_order_amount: 250 },
+      }) as never,
+      {
+        buyerId: "buyer-1",
+        authMethod: "api_key",
+        listing: {
+          ...listing,
+          title: "Custom integration",
+          preview_manifest: null,
+        } as never,
+      }
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe("listing_manual_only");
   });
 
   it("rejects API-key purchases when the daily spend cap would be exceeded", async () => {

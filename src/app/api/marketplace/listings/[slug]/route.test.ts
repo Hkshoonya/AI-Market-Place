@@ -189,6 +189,11 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
       confidence: 0.1,
       reasons: [],
       matchedSignals: [],
+      contentRiskLevel: "allow",
+      autonomyRiskLevel: "allow",
+      purchaseMode: "public_purchase_allowed",
+      autonomyMode: "autonomous_allowed",
+      reasonCodes: [],
     });
   });
 
@@ -236,6 +241,11 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
       confidence: 0.75,
       reasons: ["Matched suspicious exploit language"],
       matchedSignals: [{ field: "description", pattern: "credential bypass", value: "credential bypass" }],
+      contentRiskLevel: "review",
+      autonomyRiskLevel: "block",
+      purchaseMode: "manual_review_required",
+      autonomyMode: "autonomous_blocked",
+      reasonCodes: ["suspicious_capability"],
     });
 
     const response = await PATCH(
@@ -249,9 +259,21 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
       }
     );
 
+    const body = await response.json();
+
     expect(response.status).toBe(200);
     expect(updatePayloads[0]?.status).toBe("paused");
     expect(mockSyncListingPolicyReview).toHaveBeenCalled();
+    expect(body.policy).toEqual({
+      decision: "review",
+      label: "suspicious_capability",
+      confidence: 0.75,
+      content_risk_level: "review",
+      autonomy_risk_level: "block",
+      purchase_mode: "manual_review_required",
+      autonomy_mode: "autonomous_blocked",
+      reason_codes: ["suspicious_capability"],
+    });
   });
 
   it("updates the normalized preview manifest when listing content changes", async () => {

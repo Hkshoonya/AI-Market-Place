@@ -400,6 +400,11 @@ export async function POST(request: NextRequest) {
               decision: policyEvaluation.decision,
               label: policyEvaluation.label,
               confidence: policyEvaluation.confidence,
+              content_risk_level: policyEvaluation.contentRiskLevel,
+              autonomy_risk_level: policyEvaluation.autonomyRiskLevel,
+              purchase_mode: policyEvaluation.purchaseMode,
+              autonomy_mode: policyEvaluation.autonomyMode,
+              reason_codes: policyEvaluation.reasonCodes,
             },
     },
     { status: 201 }
@@ -583,12 +588,39 @@ export async function PATCH(request: NextRequest) {
         : (currentListing.mcp_manifest ?? null),
   };
 
+  let responsePolicy:
+    | {
+        decision: string;
+        label: string;
+        confidence: number;
+        content_risk_level: string;
+        autonomy_risk_level: string;
+        purchase_mode: string;
+        autonomy_mode: string;
+        reason_codes: string[];
+      }
+    | null = null;
+
   const policyEvaluation = evaluateListingPolicy(mergedListing);
   if (policyEvaluation.decision !== "allow") {
     const wantsActive = updates.status === "active";
     const wasActive = currentListing.status === "active";
     updates.status = wantsActive || wasActive ? "paused" : "draft";
   }
+
+  responsePolicy =
+    policyEvaluation.decision === "allow"
+      ? null
+      : {
+          decision: policyEvaluation.decision,
+          label: policyEvaluation.label,
+          confidence: policyEvaluation.confidence,
+          content_risk_level: policyEvaluation.contentRiskLevel,
+          autonomy_risk_level: policyEvaluation.autonomyRiskLevel,
+          purchase_mode: policyEvaluation.purchaseMode,
+          autonomy_mode: policyEvaluation.autonomyMode,
+          reason_codes: policyEvaluation.reasonCodes,
+        };
 
   updates.preview_manifest = buildListingPreviewManifest({
     id: currentListing.id,
@@ -645,7 +677,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, policy: responsePolicy });
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings/bot");
   }

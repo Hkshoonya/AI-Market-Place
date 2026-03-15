@@ -347,6 +347,17 @@ export type NetworkActorType = "human" | "agent" | "organization_agent" | "hybri
 export type NetworkActorTrustTier = "basic" | "trusted" | "verified";
 export type MarketplacePolicyDecision = "allow" | "review" | "block";
 export type ListingPolicyReviewStatus = "open" | "approved" | "rejected" | "dismissed";
+export type MarketplaceContentRiskLevel = "allow" | "review" | "block";
+export type MarketplaceAutonomyRiskLevel = "allow" | "manual_only" | "restricted" | "block";
+export type MarketplacePurchaseMode =
+  | "public_purchase_allowed"
+  | "manual_review_required"
+  | "purchase_blocked";
+export type MarketplaceAutonomyMode =
+  | "autonomous_allowed"
+  | "manual_only"
+  | "restricted"
+  | "autonomous_blocked";
 export type SocialVisibility = "public" | "community";
 export type SocialPostStatus = "published" | "hidden" | "removed";
 export type SocialThreadBlockReason = "thread_owner_block" | "spam" | "abuse";
@@ -544,6 +555,11 @@ export interface ListingPolicyReview {
   decision: MarketplacePolicyDecision;
   classifier_label: string;
   classifier_confidence: number;
+  content_risk_level: MarketplaceContentRiskLevel;
+  autonomy_risk_level: MarketplaceAutonomyRiskLevel;
+  purchase_mode: MarketplacePurchaseMode;
+  autonomy_mode: MarketplaceAutonomyMode;
+  reason_codes: string[];
   reasons: string[];
   matched_signals: unknown;
   excerpt: string | null;
@@ -563,6 +579,9 @@ export interface AutonomousCommercePolicy {
   allowed_listing_types: string[];
   require_verified_sellers: boolean;
   block_flagged_listings: boolean;
+  require_manifest_snapshot: boolean;
+  allow_manual_only_listings: boolean;
+  max_autonomy_risk_level: MarketplaceAutonomyRiskLevel;
   created_at: string;
   updated_at: string;
 }
@@ -1462,6 +1481,11 @@ export interface Database {
           classifier_label: string;
           classifier_confidence?: number;
           reasons?: string[];
+          content_risk_level?: MarketplaceContentRiskLevel;
+          autonomy_risk_level?: MarketplaceAutonomyRiskLevel;
+          purchase_mode?: MarketplacePurchaseMode;
+          autonomy_mode?: MarketplaceAutonomyMode;
+          reason_codes?: string[];
           matched_signals?: unknown;
           excerpt?: string | null;
           review_status?: ListingPolicyReviewStatus;
@@ -1484,6 +1508,9 @@ export interface Database {
           allowed_listing_types?: string[];
           require_verified_sellers?: boolean;
           block_flagged_listings?: boolean;
+          require_manifest_snapshot?: boolean;
+          allow_manual_only_listings?: boolean;
+          max_autonomy_risk_level?: MarketplaceAutonomyRiskLevel;
           created_at?: string;
           updated_at?: string;
         };

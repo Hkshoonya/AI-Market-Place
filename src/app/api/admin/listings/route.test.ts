@@ -113,6 +113,11 @@ function createAdminClient() {
                     classifier_label: "suspicious_capability",
                     review_status: "open",
                     created_at: "2026-03-13T01:00:00.000Z",
+                    content_risk_level: "review",
+                    autonomy_risk_level: "block",
+                    purchase_mode: "manual_review_required",
+                    autonomy_mode: "autonomous_blocked",
+                    reason_codes: ["suspicious_capability"],
                   },
                 ],
                 error: null,
@@ -144,6 +149,11 @@ describe("GET /api/admin/listings", () => {
       label: "suspicious_capability",
       review_status: "open",
       created_at: "2026-03-13T01:00:00.000Z",
+      content_risk_level: "review",
+      autonomy_risk_level: "block",
+      purchase_mode: "manual_review_required",
+      autonomy_mode: "autonomous_blocked",
+      reason_codes: ["suspicious_capability"],
     });
   });
 });

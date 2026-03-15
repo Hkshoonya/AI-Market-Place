@@ -47,6 +47,11 @@ interface AdminListing {
     label: string;
     review_status: string;
     created_at: string;
+    content_risk_level: string;
+    autonomy_risk_level: string;
+    purchase_mode: string;
+    autonomy_mode: string;
+    reason_codes: string[];
   } | null;
 }
 
@@ -56,6 +61,14 @@ interface ListingsResponse {
 }
 
 const PAGE_SIZE = 20;
+
+function formatPolicyValue(value: string) {
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function AdminListingsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -240,24 +253,35 @@ export default function AdminListingsPage() {
                   return (
                     <tr key={l.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Link href={`/marketplace/${l.slug}`} className="text-sm font-medium hover:text-neon transition-colors">
-                            {l.title}
-                          </Link>
-                          {l.is_featured && (
-                            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                          )}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Link href={`/marketplace/${l.slug}`} className="text-sm font-medium hover:text-neon transition-colors">
+                              {l.title}
+                            </Link>
+                            {l.is_featured && (
+                              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                            )}
+                            {l.policy_review ? (
+                              <Badge
+                                variant="outline"
+                                className={
+                                  l.policy_review.decision === "block"
+                                    ? "border-loss/30 text-loss"
+                                    : "border-amber-500/30 text-amber-500"
+                                }
+                              >
+                                {l.policy_review.decision === "block" ? "Blocked" : "Review"}
+                              </Badge>
+                            ) : null}
+                          </div>
                           {l.policy_review ? (
-                            <Badge
-                              variant="outline"
-                              className={
-                                l.policy_review.decision === "block"
-                                  ? "border-loss/30 text-loss"
-                                  : "border-amber-500/30 text-amber-500"
-                              }
-                            >
-                              {l.policy_review.decision === "block" ? "Blocked" : "Review"}
-                            </Badge>
+                            <p className="text-xs text-muted-foreground">
+                              Content: {formatPolicyValue(l.policy_review.content_risk_level)} · Autonomy:{" "}
+                              {formatPolicyValue(l.policy_review.autonomy_mode)}
+                              {l.policy_review.reason_codes[0]
+                                ? ` · Reason: ${formatPolicyValue(l.policy_review.reason_codes[0])}`
+                                : ""}
+                            </p>
                           ) : null}
                         </div>
                       </td>

@@ -84,7 +84,9 @@ export async function GET(request: NextRequest) {
 
       const { data: policyReviews } = await admin
         .from("listing_policy_reviews")
-        .select("listing_id, decision, classifier_label, review_status, created_at")
+        .select(
+          "listing_id, decision, classifier_label, review_status, created_at, content_risk_level, autonomy_risk_level, purchase_mode, autonomy_mode, reason_codes"
+        )
         .in("listing_id", listingIds)
         .order("created_at", { ascending: false });
 
@@ -95,6 +97,11 @@ export async function GET(request: NextRequest) {
           label: string;
           review_status: string;
           created_at: string;
+          content_risk_level: string;
+          autonomy_risk_level: string;
+          purchase_mode: string;
+          autonomy_mode: string;
+          reason_codes: string[];
         }
       >();
 
@@ -105,6 +112,11 @@ export async function GET(request: NextRequest) {
             label: review.classifier_label,
             review_status: review.review_status,
             created_at: review.created_at,
+            content_risk_level: review.content_risk_level,
+            autonomy_risk_level: review.autonomy_risk_level,
+            purchase_mode: review.purchase_mode,
+            autonomy_mode: review.autonomy_mode,
+            reason_codes: review.reason_codes ?? [],
           });
         }
       }

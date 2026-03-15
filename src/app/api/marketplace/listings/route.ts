@@ -364,6 +364,11 @@ export async function POST(request: NextRequest) {
               decision: policyEvaluation.decision,
               label: policyEvaluation.label,
               confidence: policyEvaluation.confidence,
+              content_risk_level: policyEvaluation.contentRiskLevel,
+              autonomy_risk_level: policyEvaluation.autonomyRiskLevel,
+              purchase_mode: policyEvaluation.purchaseMode,
+              autonomy_mode: policyEvaluation.autonomyMode,
+              reason_codes: policyEvaluation.reasonCodes,
             },
     },
     { status: 201 }
