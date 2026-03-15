@@ -33,7 +33,7 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { getParameterDisplay } from "@/lib/models/presentation";
-import { getLowestInputPrice } from "@/lib/models/pricing";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
@@ -217,7 +217,7 @@ export default async function HomePage() {
                   Quality
                 </th>
                 <th className="hidden xl:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Cheapest Verified
+                  Verified Price
                 </th>
               </tr>
             </thead>
@@ -232,7 +232,7 @@ export default async function HomePage() {
                     ? Number(model.economic_footprint_score)
                     : null;
                 const popScore = model.popularity_score != null ? Number(model.popularity_score) : null;
-                const cheapestPricing = getLowestInputPrice({
+                const pricingSummary = getPublicPricingSummary({
                   id: model.id,
                   slug: model.slug,
                   name: model.name,
@@ -338,13 +338,17 @@ export default async function HomePage() {
                     </td>
                     <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap xl:table-cell">
                       <Link href={`/models/${model.slug}`} className="block">
-                        {cheapestPricing != null ? (
-                          <span className="text-muted-foreground">
-                            {formatTokenPrice(cheapestPricing)}
-                            /M
-                          </span>
-                        ) : model.is_open_weights ? (
-                          <span className="text-gain font-medium">Free</span>
+                        {pricingSummary.compactPrice != null ? (
+                          <div className="space-y-0.5 text-right text-muted-foreground">
+                            <div>
+                              {pricingSummary.compactPrice === 0
+                                ? "Free"
+                                : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                            </div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                              {pricingSummary.compactLabel}
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">â€”</span>
                         )}

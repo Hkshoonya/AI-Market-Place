@@ -30,7 +30,7 @@ import {
   parsePublicRankingLens,
   type PublicRankingLens,
 } from "@/lib/models/public-lenses";
-import { getLowestInputPrice } from "@/lib/models/pricing";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { z as zod } from "zod";
 
 export const metadata: Metadata = {
@@ -462,7 +462,7 @@ export default async function LeaderboardsPage({
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Cheapest Verified</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Verified Price</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Est. Value</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground 2xl:table-cell">Popularity</th>
                 </tr>
@@ -477,7 +477,7 @@ export default async function LeaderboardsPage({
                   const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
                   const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
                   const lifecycleBadge = getLifecycleBadge(model.status);
-                  const cheapestPricing = getLowestInputPrice({
+                  const pricingSummary = getPublicPricingSummary({
                     id: model.id,
                     name: model.name,
                     slug: model.slug,
@@ -559,12 +559,17 @@ export default async function LeaderboardsPage({
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
-                          {cheapestPricing != null ? (
-                            <span className="text-muted-foreground">
-                              {formatTokenPrice(cheapestPricing)}
-                            </span>
-                          ) : model.is_open_weights ? (
-                            <span className="text-gain font-medium">Free</span>
+                          {pricingSummary.compactPrice != null ? (
+                            <div className="space-y-0.5 text-muted-foreground">
+                              <div>
+                                {pricingSummary.compactPrice === 0
+                                  ? "Free"
+                                  : formatTokenPrice(pricingSummary.compactPrice)}
+                              </div>
+                              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                                {pricingSummary.compactLabel}
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">â€”</span>
                           )}

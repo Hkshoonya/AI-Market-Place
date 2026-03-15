@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { getLifecycleBadge } from "@/lib/models/lifecycle";
-import { getLowestInputPrice } from "@/lib/models/pricing";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { formatMarketValue } from "@/lib/models/market-value";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 
 interface ModelsGridProps {
@@ -19,12 +20,19 @@ interface ModelsGridProps {
     status: string;
     overall_rank: number | null;
     quality_score: number | null;
+    market_cap_estimate?: number | null;
     is_open_weights: boolean | null;
     parameter_count?: number | null;
     short_description?: string | null;
     description?: string | null;
     hf_downloads?: number | null;
-    model_pricing?: Array<{ provider_name?: string | null; input_price_per_million: number | null; source?: string | null }>;
+    model_pricing?: Array<{
+      provider_name?: string | null;
+      input_price_per_million: number | null;
+      source?: string | null;
+      output_price_per_million?: number | null;
+      currency?: string | null;
+    }>;
   }>;
 }
 
@@ -35,7 +43,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const catConfig = CATEGORIES.find((c) => c.slug === model.category);
         const rank = model.overall_rank ?? 0;
         const parameterDisplay = getParameterDisplay(model);
-        const cheapestPricing = getLowestInputPrice(model);
+        const pricingSummary = getPublicPricingSummary(model);
         const lifecycleBadge = getLifecycleBadge(model.status);
 
         return (
@@ -48,7 +56,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                       rank <= 3 ? "text-neon" : "text-muted-foreground"
                     }`}
                   >
-                    #{rank || "â€”"}
+                    #{rank || "—"}
                   </span>
                   {catConfig && (
                     <Badge
@@ -81,9 +89,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                 <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-3">
                   <div className="text-center">
                     <p className="text-lg font-bold tabular-nums">
-                      {model.quality_score
-                        ? Number(model.quality_score).toFixed(1)
-                        : "â€”"}
+                      {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Score</p>
                   </div>
@@ -98,14 +104,21 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium tabular-nums text-muted-foreground">
-                      {cheapestPricing != null
-                        ? `${formatTokenPrice(cheapestPricing)}/M`
-                        : model.is_open_weights
+                      {pricingSummary.compactPrice != null
+                        ? pricingSummary.compactPrice === 0
                           ? "Free"
-                          : "â€”"}
+                          : `${formatTokenPrice(pricingSummary.compactPrice)}/M`
+                        : "—"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">Price</p>
+                    <p className="text-[10px] text-muted-foreground">{pricingSummary.compactLabel}</p>
                   </div>
+                </div>
+
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  Est. Value:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatMarketValue(model.market_cap_estimate ?? null)}
+                  </span>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between">

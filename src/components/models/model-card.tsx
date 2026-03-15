@@ -8,6 +8,8 @@ import {
   getModelDisplayDescription,
   getParameterDisplay,
 } from "@/lib/models/presentation";
+import { formatMarketValue } from "@/lib/models/market-value";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 import type { Model, ModelPricing, Ranking } from "@/types/database";
 
 interface ModelCardProps {
@@ -23,11 +25,7 @@ export function ModelCard({ model }: ModelCardProps) {
   );
   const parameterDisplay = getParameterDisplay(model);
   const displayDescription = getModelDisplayDescription(model);
-  const cheapestPricing = model.model_pricing
-    ?.filter((p) => p.input_price_per_million != null)
-    .sort(
-      (a, b) => (a.input_price_per_million ?? 0) - (b.input_price_per_million ?? 0)
-    )[0];
+  const pricingSummary = getPublicPricingSummary(model);
 
   return (
     <Link
@@ -77,15 +75,25 @@ export function ModelCard({ model }: ModelCardProps) {
             </span>
           </div>
 
-          {cheapestPricing && (
+          {pricingSummary.compactPrice != null && (
             <div className="mt-3 flex items-center justify-between rounded-md bg-secondary/50 px-2 py-1.5">
-              <span className="text-[11px] text-muted-foreground">From</span>
+              <span className="text-[11px] text-muted-foreground">
+                {pricingSummary.compactLabel}
+              </span>
               <span className="text-xs font-medium text-neon">
-                {formatTokenPrice(cheapestPricing.input_price_per_million)} in /{" "}
-                {formatTokenPrice(cheapestPricing.output_price_per_million)} out
+                {pricingSummary.compactPrice === 0
+                  ? "Free"
+                  : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
               </span>
             </div>
           )}
+
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            Est. Value:{" "}
+            <span className="font-medium text-foreground">
+              {formatMarketValue(model.market_cap_estimate)}
+            </span>
+          </div>
 
           {model.is_open_weights && (
             <div className="absolute right-3 top-3">

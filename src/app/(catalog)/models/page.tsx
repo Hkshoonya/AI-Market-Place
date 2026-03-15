@@ -9,10 +9,15 @@ import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import {
   compareModelsByLowestPrice,
-  getLowestInputPrice,
+  getPublicPricingSummary,
 } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
-import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
+import {
+  getLifecycleBadge,
+  getLifecycleStatuses,
+  parseLifecycleFilter,
+} from "@/lib/models/lifecycle";
+import { formatMarketValue } from "@/lib/models/market-value";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
@@ -22,8 +27,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
-  description:
-    "Browse, search, and compare AI models from around the world.",
+  description: "Browse, search, and compare AI models from around the world.",
 };
 export const revalidate = 60;
 
@@ -61,33 +65,30 @@ export default async function ModelsPage({
 
   const supabase = createPublicClient();
 
-  // Build Supabase query
   let dbQuery = supabase
     .from("models")
-    .select("*, rankings(*), model_pricing(*)", { count: "exact" })
-    ;
+    .select("*, rankings(*), model_pricing(*)", { count: "exact" });
 
   dbQuery =
     lifecycleFilter === "all"
       ? dbQuery.in("status", getLifecycleStatuses("all"))
       : dbQuery.eq("status", "active");
 
-  // Category filter
   if (category) {
-    dbQuery = dbQuery.eq("category", category as import("@/types/database").ModelCategory);
+    dbQuery = dbQuery.eq(
+      "category",
+      category as import("@/types/database").ModelCategory
+    );
   }
 
-  // Open weights filter
   if (openOnly) {
     dbQuery = dbQuery.eq("is_open_weights", true);
   }
 
-  // Provider filter
   if (providerFilter) {
     dbQuery = dbQuery.eq("provider", providerFilter);
   }
 
-  // Parameter count range filter
   if (paramsFilter) {
     const billion = 1_000_000_000;
     if (paramsFilter === "0-10") {
@@ -101,17 +102,17 @@ export default async function ModelsPage({
     }
   }
 
-  // API available filter
   if (apiFilter) {
     dbQuery = dbQuery.eq("is_api_available", true);
   }
 
-  // License filter
   if (licenseFilter) {
-    dbQuery = dbQuery.eq("license", licenseFilter as import("@/types/database").LicenseType);
+    dbQuery = dbQuery.eq(
+      "license",
+      licenseFilter as import("@/types/database").LicenseType
+    );
   }
 
-  // Text search
   if (query) {
     const sanitizedQuery = sanitizeFilterValue(query);
     if (sanitizedQuery) {
@@ -121,7 +122,6 @@ export default async function ModelsPage({
     }
   }
 
-  // Pagination
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   const useInMemoryPriceSort = sort === "price";
@@ -162,27 +162,32 @@ export default async function ModelsPage({
   const count = modelsResponse.count;
 
   const ModelsPageSchema = ModelBaseSchema.extend({
-    model_pricing: z.array(z.object({
-      provider_name: z.string().nullable().optional(),
-      input_price_per_million: z.number().nullable(),
-      source: z.string().nullable().optional(),
-    })).optional(),
+    model_pricing: z
+      .array(
+        z.object({
+          provider_name: z.string().nullable().optional(),
+          input_price_per_million: z.number().nullable(),
+          source: z.string().nullable().optional(),
+          output_price_per_million: z.number().nullable().optional(),
+          currency: z.string().nullable().optional(),
+        })
+      )
+      .optional(),
   });
+
   const parsedModels = parseQueryResultPartial(
     modelsResponse,
     ModelsPageSchema,
     "ModelsPage"
   );
+
   const totalCount = count ?? parsedModels.length;
   const models = useInMemoryPriceSort
-    ? [...parsedModels]
-        .sort(compareModelsByLowestPrice)
-        .slice(from, to + 1)
+    ? [...parsedModels].sort(compareModelsByLowestPrice).slice(from, to + 1)
     : parsedModels;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      {/* Page header */}
       <div className="mb-8">
         <div className="flex items-center gap-3">
           <Activity className="h-6 w-6 text-neon" />
@@ -193,20 +198,17 @@ export default async function ModelsPage({
         </p>
         {lifecycleFilter === "active" && (
           <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-            Default view ranks active models only. Preview, beta, deprecated, and archived models stay tracked and can be included with one click.
+            Default view ranks active models only. Preview, beta, deprecated, and archived
+            models stay tracked and can be included with one click.
           </div>
         )}
       </div>
 
-      {/* Client-side Filter Bar */}
       <ModelsFilterBar totalCount={totalCount} />
 
-      {/* Results */}
       {models.length === 0 ? (
         <div className="mt-12 text-center">
-          <p className="text-lg font-medium text-muted-foreground">
-            No models found
-          </p>
+          <p className="text-lg font-medium text-muted-foreground">No models found</p>
           <p className="mt-2 text-sm text-muted-foreground">
             Try adjusting your search or filter criteria.
           </p>
@@ -214,12 +216,11 @@ export default async function ModelsPage({
       ) : view === "grid" ? (
         <ModelsGrid models={models} />
       ) : (
-        /* List View — Table */
         <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/30">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">
+                <th className="w-12 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
@@ -241,21 +242,23 @@ export default async function ModelsPage({
                   Likes
                 </th>
                 <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
-                  Cheapest Verified
+                  Verified Price
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground w-16">
+                <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">
+                  Est. Value
+                </th>
+                <th className="w-16 px-4 py-3 text-center text-xs font-medium text-muted-foreground">
                   Open
                 </th>
               </tr>
             </thead>
             <tbody>
               {models.map((model) => {
-                const catConfig = CATEGORIES.find(
-                  (c) => c.slug === model.category
-                );
+                const catConfig = CATEGORIES.find((c) => c.slug === model.category);
                 const rank = model.overall_rank ?? 0;
-                const cheapestInputPrice = getLowestInputPrice(model);
+                const pricingSummary = getPublicPricingSummary(model);
                 const parameterDisplay = getParameterDisplay(model);
+                const lifecycleBadge = getLifecycleBadge(model.status);
 
                 return (
                   <tr
@@ -266,12 +269,10 @@ export default async function ModelsPage({
                       <Link href={`/models/${model.slug}`}>
                         <span
                           className={`text-sm font-bold tabular-nums ${
-                            rank <= 3
-                              ? "text-neon"
-                              : "text-muted-foreground"
+                            rank <= 3 ? "text-neon" : "text-muted-foreground"
                           }`}
                         >
-                          {rank || "—"}
+                          {rank || "â€”"}
                         </span>
                       </Link>
                     </td>
@@ -286,9 +287,9 @@ export default async function ModelsPage({
                             <span className="ml-2 text-xs text-muted-foreground">
                               {model.provider}
                             </span>
-                            {getLifecycleBadge(model.status) && !getLifecycleBadge(model.status)?.rankedByDefault && (
+                            {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                               <Badge variant="outline" className="ml-2 text-[10px]">
-                                {getLifecycleBadge(model.status)?.label}
+                                {lifecycleBadge.label}
                               </Badge>
                             )}
                           </div>
@@ -318,9 +319,7 @@ export default async function ModelsPage({
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-sm font-semibold tabular-nums">
-                        {model.quality_score
-                          ? Number(model.quality_score).toFixed(1)
-                          : "—"}
+                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
                       </span>
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
@@ -330,16 +329,23 @@ export default async function ModelsPage({
                       {formatNumber(model.hf_likes)}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                      {cheapestInputPrice != null ? (
-                        <span className="text-muted-foreground">
-                          {formatTokenPrice(cheapestInputPrice)}
-                          /M
-                        </span>
-                      ) : model.is_open_weights ? (
-                        <span className="text-gain font-medium">Free</span>
+                      {pricingSummary.compactPrice != null ? (
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>
+                            {pricingSummary.compactPrice === 0
+                              ? "Free"
+                              : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                          </div>
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                            {pricingSummary.compactLabel}
+                          </div>
+                        </div>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">â€”</span>
                       )}
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground xl:table-cell">
+                      {formatMarketValue(model.market_cap_estimate)}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       {model.is_open_weights ? (
@@ -362,7 +368,6 @@ export default async function ModelsPage({
         </div>
       )}
 
-      {/* Pagination */}
       <Pagination totalCount={totalCount} pageSize={PAGE_SIZE} />
     </div>
   );

@@ -4,6 +4,7 @@ import {
   getCheapestVerifiedPricing,
   getLowestInputPrice,
   getOfficialPricing,
+  getPublicPricingSummary,
   type PriceSortableModel,
 } from "./pricing";
 
@@ -20,16 +21,17 @@ function makeModel(overrides: Partial<PriceSortableModel>): PriceSortableModel {
 }
 
 describe("getLowestInputPrice", () => {
-  it("returns the cheapest numeric input price", () => {
+  it("prefers official company pricing on compact public surfaces", () => {
     const model = makeModel({
+      provider: "OpenAI",
       model_pricing: [
-        { provider_name: "Provider A", input_price_per_million: 12 },
-        { provider_name: "Provider B", input_price_per_million: 4.5 },
+        { provider_name: "OpenRouter", input_price_per_million: 1.8 },
+        { provider_name: "OpenAI", input_price_per_million: 2.5 },
         { provider_name: "Provider C", input_price_per_million: 9 },
       ],
     });
 
-    expect(getLowestInputPrice(model)).toBe(4.5);
+    expect(getLowestInputPrice(model)).toBe(2.5);
   });
 
   it("treats open-weight models with no API pricing as free", () => {
@@ -84,7 +86,7 @@ describe("compareModelsByLowestPrice", () => {
 });
 
 describe("pricing summaries", () => {
-  it("prefers the cheapest verified route for table pricing", () => {
+  it("still exposes the cheapest verified route separately", () => {
     const model = makeModel({
       provider: "OpenAI",
       model_pricing: [
@@ -102,7 +104,7 @@ describe("pricing summaries", () => {
     });
 
     expect(getCheapestVerifiedPricing(model)?.provider_name).toBe("OpenRouter");
-    expect(getLowestInputPrice(model)).toBe(2);
+    expect(getLowestInputPrice(model)).toBe(3);
   });
 
   it("keeps the official first-party route available separately", () => {
@@ -123,5 +125,30 @@ describe("pricing summaries", () => {
     });
 
     expect(getOfficialPricing(model)?.provider_name).toBe("Anthropic");
+  });
+
+  it("returns a compact public summary with official-first strategy", () => {
+    const model = makeModel({
+      provider: "Anthropic",
+      model_pricing: [
+        {
+          provider_name: "OpenRouter",
+          input_price_per_million: 2.8,
+          source: "openrouter",
+        },
+        {
+          provider_name: "Anthropic",
+          input_price_per_million: 3,
+          source: "Anthropic Pricing",
+        },
+      ],
+    });
+
+    expect(getPublicPricingSummary(model)).toMatchObject({
+      compactPrice: 3,
+      compactLabel: "Official",
+      compactSourceLabel: "Anthropic",
+      strategy: "official_company_price",
+    });
   });
 });

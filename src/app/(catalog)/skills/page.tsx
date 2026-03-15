@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
+import { formatMarketValue } from "@/lib/models/market-value";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
@@ -320,6 +322,57 @@ export default async function SkillsPage() {
     skillRankings.set(skill.id, computeSkillRanking(skill));
   }
 
+  const surfacedModelIds = Array.from(
+    new Set(
+      Array.from(skillRankings.values()).flatMap((entries) =>
+        entries.slice(0, 10).map((entry) => entry.modelId)
+      )
+    )
+  );
+
+  const PricingRowSchema = z.object({
+    model_id: z.string(),
+    provider_name: z.string().nullable().optional(),
+    input_price_per_million: z.number().nullable(),
+    output_price_per_million: z.number().nullable().optional(),
+    source: z.string().nullable().optional(),
+    currency: z.string().nullable().optional(),
+  });
+
+  const pricingRows =
+    surfacedModelIds.length > 0
+      ? parseQueryResult(
+          await supabase
+            .from("model_pricing")
+            .select("model_id, provider_name, input_price_per_million, output_price_per_million, source, currency")
+            .in("model_id", surfacedModelIds),
+          PricingRowSchema,
+          "SkillPricingRow"
+        )
+      : [];
+
+  const pricingMap = new Map<string, ReturnType<typeof getPublicPricingSummary>>();
+  for (const modelId of surfacedModelIds) {
+    const modelMeta = Array.from(skillRankings.values())
+      .flat()
+      .find((item) => item.modelId === modelId);
+
+    if (!modelMeta) continue;
+
+    pricingMap.set(
+      modelId,
+      getPublicPricingSummary({
+        id: modelId,
+        slug: modelMeta.slug,
+        name: modelMeta.name,
+        provider: modelMeta.provider,
+        overall_rank: null,
+        is_open_weights: modelMeta.isOpenWeights,
+        model_pricing: pricingRows.filter((row) => row.model_id === modelId),
+      })
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -333,8 +386,9 @@ export default async function SkillsPage() {
           <h1 className="text-2xl font-bold">Skills &amp; Capabilities</h1>
         </div>
         <p className="mt-2 text-muted-foreground">
-          Discover which AI models excel at specific skills. Rankings based on
-          benchmark performance and real-world capability.
+          Discover which AI models excel at specific skills. Rankings blend
+          benchmark performance with practical buying context and estimated
+          market footing.
         </p>
       </div>
 
@@ -467,7 +521,10 @@ export default async function SkillsPage() {
                           Benchmarks
                         </th>
                         <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">
-                          Market Cap
+                          Est. Value
+                        </th>
+                        <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
+                          Verified Price
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
                           Try It
@@ -478,6 +535,7 @@ export default async function SkillsPage() {
                       {top10.map((entry, i) => {
                         const rank = i + 1;
                         const affiliate = affiliateMap.get(entry.modelId);
+                        const pricingSummary = pricingMap.get(entry.modelId);
 
                         return (
                           <tr
@@ -545,15 +603,27 @@ export default async function SkillsPage() {
                               {entry.scoreCount}
                             </td>
 
-                            {/* Market Cap */}
+                            {/* Estimated Value */}
                             <td className="hidden px-4 py-3.5 text-right md:table-cell">
                               <span className="text-sm tabular-nums text-muted-foreground">
-                                {entry.marketCap
-                                  ? entry.marketCap >= 1_000_000
-                                    ? `$${(entry.marketCap / 1_000_000).toFixed(1)}M`
-                                    : `$${(entry.marketCap / 1_000).toFixed(0)}K`
+                                {formatMarketValue(entry.marketCap)}
+                              </span>
+                            </td>
+
+                            {/* Verified Price */}
+                            <td className="hidden px-4 py-3.5 text-right lg:table-cell">
+                              <span className="text-sm tabular-nums text-muted-foreground">
+                                {pricingSummary?.compactPrice != null
+                                  ? pricingSummary.compactPrice === 0
+                                    ? "Free"
+                                    : `$${pricingSummary.compactPrice.toFixed(2)}`
                                   : "---"}
                               </span>
+                              {pricingSummary?.compactPrice != null && (
+                                <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                                  {pricingSummary.compactLabel}
+                                </div>
+                              )}
                             </td>
 
                             {/* Try It / View */}

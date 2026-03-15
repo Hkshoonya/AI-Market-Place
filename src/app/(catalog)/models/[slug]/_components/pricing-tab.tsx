@@ -59,7 +59,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
   return (
     <Card className="border-border/50">
       <CardHeader>
-        <CardTitle className="text-lg">Pricing Across Providers</CardTitle>
+        <CardTitle className="text-lg">Verified Pricing & Access Routes</CardTitle>
       </CardHeader>
       <CardContent>
         {sortedPricing.length > 1 && (
@@ -77,7 +77,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
           <>
             <div className="mb-6 grid gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Verified</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Verified Route</div>
                 <div className="mt-2 text-sm font-semibold">
                   {cheapestPricing
                     ? `${cheapestPricing.provider_name} · ${formatTokenPrice(cheapestPricing.input_price_per_million)} /M`
@@ -96,7 +96,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Verified Routes</div>
                 <div className="mt-2 text-sm font-semibold">{sortedPricing.length}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Cheapest price is shown in tables; this view separates direct and routed access.
+                  Public tables show the normalized verified price. This detail view separates direct company pricing from routed alternatives.
                 </div>
               </div>
             </div>

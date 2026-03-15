@@ -16,15 +16,17 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
-import { formatNumber, formatParams, formatTokenPrice } from "@/lib/format";
+import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getProviderBrand, PROVIDER_BRANDS } from "@/lib/constants/providers";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/lib/constants/site";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
+import { formatMarketValue } from "@/lib/models/market-value";
+import { getParameterDisplay } from "@/lib/models/presentation";
 
 export const revalidate = 3600;
 
-// Map slug back to actual provider name
 function slugToProvider(slug: string): string | null {
   for (const name of Object.keys(PROVIDER_BRANDS)) {
     if (name.toLowerCase().replace(/\s+/g, "-") === slug) {
@@ -40,30 +42,21 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-
-  // Try static lookup first
   let providerName = slugToProvider(slug);
 
   if (!providerName) {
-    // Fall back to DB lookup
     const supabase = createPublicClient();
-    const { data } = await supabase
-      .from("models")
-      .select("provider")
-      .eq("status", "active");
-
+    const { data } = await supabase.from("models").select("provider").eq("status", "active");
     const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
-    providerName = allProviders.find(
-      (p) => p.toLowerCase().replace(/\s+/g, "-") === slug
-    ) ?? null;
+    providerName =
+      allProviders.find((provider) => provider.toLowerCase().replace(/\s+/g, "-") === slug) ??
+      null;
   }
 
-  if (!providerName) {
-    return { title: "Provider Not Found" };
-  }
+  if (!providerName) return { title: "Provider Not Found" };
 
   const title = `${providerName} AI Models`;
-  const description = `Explore all AI models by ${providerName}. Rankings, benchmarks, pricing, and comparisons on ${SITE_NAME}.`;
+  const description = `Explore all AI models by ${providerName}. Official pricing posture, rankings, benchmark coverage, and market-value signals on ${SITE_NAME}.`;
 
   return {
     title,
@@ -87,30 +80,29 @@ export default async function ProviderDetailPage({
   const { slug } = await params;
   const supabase = createPublicClient();
 
-  // Resolve provider name from slug
   let providerName = slugToProvider(slug);
-
   if (!providerName) {
-    const { data } = await supabase
-      .from("models")
-      .select("provider")
-      .eq("status", "active");
-
+    const { data } = await supabase.from("models").select("provider").eq("status", "active");
     const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
-    providerName = allProviders.find(
-      (p) => p.toLowerCase().replace(/\s+/g, "-") === slug
-    ) ?? null;
+    providerName =
+      allProviders.find((provider) => provider.toLowerCase().replace(/\s+/g, "-") === slug) ??
+      null;
   }
 
-  if (!providerName) {
-    notFound();
-  }
+  if (!providerName) notFound();
 
-  // Fetch all models for this provider
   const ProviderModelSchema = ModelBaseSchema.extend({
-    model_pricing: z.array(z.object({
-      input_price_per_million: z.number().nullable(),
-    })).optional(),
+    model_pricing: z
+      .array(
+        z.object({
+          provider_name: z.string().nullable().optional(),
+          input_price_per_million: z.number().nullable(),
+          output_price_per_million: z.number().nullable().optional(),
+          source: z.string().nullable().optional(),
+          currency: z.string().nullable().optional(),
+        })
+      )
+      .optional(),
   });
 
   const modelsResponse = await supabase
@@ -121,41 +113,44 @@ export default async function ProviderDetailPage({
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
   const models = parseQueryResult(modelsResponse, ProviderModelSchema, "ProviderModel");
-
-  if (models.length === 0) {
-    notFound();
-  }
+  if (models.length === 0) notFound();
 
   const brand = getProviderBrand(providerName);
-
-  // Compute stats
-  const totalDownloads = models.reduce(
-    (s, m) => s + (m.hf_downloads ?? 0),
-    0
-  );
-  const totalLikes = models.reduce((s, m) => s + (m.hf_likes ?? 0), 0);
+  const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
+  const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
   const qualityScores = models
-    .filter((m) => m.quality_score != null)
-    .map((m) => Number(m.quality_score));
+    .filter((model) => model.quality_score != null)
+    .map((model) => Number(model.quality_score));
   const avgQuality =
     qualityScores.length > 0
-      ? qualityScores.reduce((s, q) => s + q, 0) / qualityScores.length
+      ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
       : null;
-  const topRank = models.find((m) => m.overall_rank != null)?.overall_rank;
-  const openCount = models.filter((m) => m.is_open_weights).length;
+  const topRank = models.find((model) => model.overall_rank != null)?.overall_rank;
+  const openCount = models.filter((model) => model.is_open_weights).length;
+  const topValueModel = [...models].sort(
+    (left, right) =>
+      Number(right.market_cap_estimate ?? 0) - Number(left.market_cap_estimate ?? 0)
+  )[0];
+  const officialPricedModels = models.filter(
+    (model) => getPublicPricingSummary(model).official != null
+  ).length;
+  const verifiedPriceFloor =
+    [...models]
+      .map((model) => getPublicPricingSummary(model).compactPrice)
+      .filter((price): price is number => price != null)
+      .sort((left, right) => left - right)[0] ?? null;
 
-  // Category breakdown
   const categoryBreakdown = new Map<string, number>();
-  models.forEach((m) => {
-    categoryBreakdown.set(
-      m.category,
-      (categoryBreakdown.get(m.category) ?? 0) + 1
-    );
-  });
+  for (const model of models) {
+    categoryBreakdown.set(model.category, (categoryBreakdown.get(model.category) ?? 0) + 1);
+  }
+  const dominantCategory = [...categoryBreakdown.entries()].sort((a, b) => b[1] - a[1])[0];
+  const dominantCategoryConfig = dominantCategory
+    ? CATEGORIES.find((category) => category.slug === dominantCategory[0])
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      {/* Back nav */}
       <Link
         href="/providers"
         className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -164,18 +159,20 @@ export default async function ProviderDetailPage({
         All Providers
       </Link>
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <ProviderLogo provider={providerName} size="lg" />
           <div>
             <h1 className="text-3xl font-bold">{providerName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Company footprint view: strongest categories, official pricing posture, and highest-value active models.
+            </p>
             {brand && (
               <a
                 href={`https://${brand.domain}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-neon transition-colors flex items-center gap-1 mt-0.5"
+                className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-neon transition-colors"
               >
                 {brand.domain}
                 <ExternalLink className="h-3 w-3" />
@@ -185,17 +182,11 @@ export default async function ProviderDetailPage({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/models?provider=${encodeURIComponent(providerName)}`}>
-              View All Models
-            </Link>
+            <Link href={`/models?provider=${encodeURIComponent(providerName)}`}>View All Models</Link>
           </Button>
           {brand && (
             <Button variant="outline" size="sm" asChild>
-              <a
-                href={`https://${brand.domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href={`https://${brand.domain}`} target="_blank" rel="noopener noreferrer">
                 Visit Website
                 <ExternalLink className="ml-1 h-3 w-3" />
               </a>
@@ -204,43 +195,18 @@ export default async function ProviderDetailPage({
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
         {[
-          {
-            label: "Models",
-            value: models.length.toString(),
-            icon: BarChart3,
-          },
-          {
-            label: "Top Rank",
-            value: topRank ? `#${topRank}` : "—",
-            icon: BarChart3,
-          },
-          {
-            label: "Avg Score",
-            value: avgQuality != null ? avgQuality.toFixed(1) : "—",
-            icon: Zap,
-          },
-          {
-            label: "Downloads",
-            value: formatNumber(totalDownloads),
-            icon: Download,
-          },
-          {
-            label: "Likes",
-            value: formatNumber(totalLikes),
-            icon: Heart,
-          },
-          {
-            label: "Open Models",
-            value: openCount.toString(),
-            icon: Zap,
-          },
+          { label: "Models", value: models.length.toString(), icon: BarChart3 },
+          { label: "Top Rank", value: topRank ? `#${topRank}` : "—", icon: BarChart3 },
+          { label: "Avg Score", value: avgQuality != null ? avgQuality.toFixed(1) : "—", icon: Zap },
+          { label: "Downloads", value: formatNumber(totalDownloads), icon: Download },
+          { label: "Likes", value: formatNumber(totalLikes), icon: Heart },
+          { label: "Open Models", value: openCount.toString(), icon: Zap },
         ].map((stat) => (
           <Card key={stat.label} className="border-border/50 bg-card">
             <CardContent className="p-3 text-center">
-              <stat.icon className="mx-auto h-4 w-4 text-neon mb-1" />
+              <stat.icon className="mx-auto mb-1 h-4 w-4 text-neon" />
               <p className="text-lg font-bold">{stat.value}</p>
               <p className="text-[11px] text-muted-foreground">{stat.label}</p>
             </CardContent>
@@ -248,9 +214,51 @@ export default async function ProviderDetailPage({
         ))}
       </div>
 
-      {/* Category Breakdown */}
+      <Card className="mb-8 border-border/50 bg-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Provider Footprint</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Pricing Posture
+            </p>
+            <p className="mt-2 text-sm font-semibold">
+              {officialPricedModels} / {models.length} models have official company pricing
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Public compact surfaces prefer company pricing first, then other verified routes.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Lowest Verified Entry
+            </p>
+            <p className="mt-2 text-sm font-semibold">
+              {verifiedPriceFloor != null ? `${formatTokenPrice(verifiedPriceFloor)}/M` : "Unavailable"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Best verified public entry point across this provider&apos;s active lineup.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Strategic Strength
+            </p>
+            <p className="mt-2 text-sm font-semibold">
+              {dominantCategoryConfig?.shortLabel ?? dominantCategory?.[0] ?? "Mixed portfolio"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {topValueModel
+                ? `${topValueModel.name} leads current estimated value at ${formatMarketValue(topValueModel.market_cap_estimate)}.`
+                : "No estimated market value available yet."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {categoryBreakdown.size > 1 && (
-        <Card className="border-border/50 bg-card mb-8">
+        <Card className="mb-8 border-border/50 bg-card">
           <CardHeader>
             <CardTitle className="text-lg">Models by Category</CardTitle>
           </CardHeader>
@@ -258,29 +266,25 @@ export default async function ProviderDetailPage({
             <div className="flex flex-wrap gap-2">
               {Array.from(categoryBreakdown.entries())
                 .sort(([, a], [, b]) => b - a)
-                .map(([cat, count]) => {
-                  const catConfig = CATEGORIES.find(
-                    (c) => c.slug === cat
-                  );
+                .map(([category, count]) => {
+                  const categoryConfig = CATEGORIES.find((item) => item.slug === category);
                   return (
                     <Link
-                      key={cat}
-                      href={`/models?provider=${encodeURIComponent(providerName!)}&category=${cat}`}
+                      key={category}
+                      href={`/models?provider=${encodeURIComponent(providerName!)}&category=${category}`}
                     >
                       <Badge
                         variant="outline"
                         className="gap-1.5 border-transparent text-xs hover:border-neon/30 transition-colors cursor-pointer"
                         style={{
-                          backgroundColor: catConfig
-                            ? `${catConfig.color}15`
+                          backgroundColor: categoryConfig
+                            ? `${categoryConfig.color}15`
                             : undefined,
-                          color: catConfig?.color,
+                          color: categoryConfig?.color,
                         }}
                       >
-                        {catConfig && (
-                          <catConfig.icon className="h-3 w-3" />
-                        )}
-                        {catConfig?.shortLabel ?? cat} ({count})
+                        {categoryConfig && <categoryConfig.icon className="h-3 w-3" />}
+                        {categoryConfig?.shortLabel ?? category} ({count})
                       </Badge>
                     </Link>
                   );
@@ -290,19 +294,16 @@ export default async function ProviderDetailPage({
         </Card>
       )}
 
-      {/* Models Table */}
       <Card className="border-border/50 bg-card">
         <CardHeader>
-          <CardTitle className="text-lg">
-            All Models ({models.length})
-          </CardTitle>
+          <CardTitle className="text-lg">Active Model Lineup ({models.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/50 bg-secondary/30">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground w-12">
+                  <th className="w-12 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                     #
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
@@ -315,36 +316,28 @@ export default async function ProviderDetailPage({
                     Params
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
-                    Score
+                    Capability
                   </th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">
                     Downloads
                   </th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
-                    Price
+                    Verified Price
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground w-16">
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">
+                    Est. Value
+                  </th>
+                  <th className="w-16 px-4 py-3 text-center text-xs font-medium text-muted-foreground">
                     Open
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {models.map((model) => {
-                  const catConfig = CATEGORIES.find(
-                    (c) => c.slug === model.category
-                  );
+                  const categoryConfig = CATEGORIES.find((item) => item.slug === model.category);
                   const rank = model.overall_rank ?? 0;
-                  const cheapestPricing = (
-                    model.model_pricing as {
-                      input_price_per_million: number | null;
-                    }[]
-                  )
-                    ?.filter((p) => p.input_price_per_million != null)
-                    .sort(
-                      (a, b) =>
-                        (a.input_price_per_million ?? 0) -
-                        (b.input_price_per_million ?? 0)
-                    )[0];
+                  const pricingSummary = getPublicPricingSummary(model);
+                  const parameterDisplay = getParameterDisplay(model);
 
                   return (
                     <tr
@@ -355,9 +348,7 @@ export default async function ProviderDetailPage({
                         <Link href={`/models/${model.slug}`}>
                           <span
                             className={`text-sm font-bold tabular-nums ${
-                              rank <= 3
-                                ? "text-neon"
-                                : "text-muted-foreground"
+                              rank <= 3 ? "text-neon" : "text-muted-foreground"
                             }`}
                           >
                             {rank || "—"}
@@ -372,53 +363,52 @@ export default async function ProviderDetailPage({
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 sm:table-cell">
-                        {catConfig && (
+                        {categoryConfig && (
                           <Badge
                             variant="outline"
                             className="gap-1 border-transparent text-[11px]"
                             style={{
-                              backgroundColor: `${catConfig.color}15`,
-                              color: catConfig.color,
+                              backgroundColor: `${categoryConfig.color}15`,
+                              color: categoryConfig.color,
                             }}
                           >
-                            <catConfig.icon className="h-3 w-3" />
-                            {catConfig.shortLabel}
+                            <categoryConfig.icon className="h-3 w-3" />
+                            {categoryConfig.shortLabel}
                           </Badge>
                         )}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
-                        {model.parameter_count ? (
-                          <span className="flex items-center justify-end gap-1">
-                            <Zap className="h-3 w-3 text-neon" />
-                            {formatParams(model.parameter_count)}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
+                        <span className="flex items-center justify-end gap-1">
+                          <Zap className="h-3 w-3 text-neon" />
+                          {parameterDisplay.label}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <span className="text-sm font-semibold tabular-nums">
-                          {model.quality_score
-                            ? Number(model.quality_score).toFixed(1)
-                            : "—"}
+                          {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
                         </span>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
                         {formatNumber(model.hf_downloads)}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                        {cheapestPricing ? (
-                          <span className="text-muted-foreground">
-                            {formatTokenPrice(
-                              cheapestPricing.input_price_per_million
-                            )}
-                            /M
-                          </span>
-                        ) : model.is_open_weights ? (
-                          <span className="text-gain font-medium">Free</span>
+                        {pricingSummary.compactPrice != null ? (
+                          <div className="space-y-0.5 text-muted-foreground">
+                            <div>
+                              {pricingSummary.compactPrice === 0
+                                ? "Free"
+                                : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                            </div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                              {pricingSummary.compactLabel}
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground xl:table-cell">
+                        {formatMarketValue(model.market_cap_estimate)}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         {model.is_open_weights ? (

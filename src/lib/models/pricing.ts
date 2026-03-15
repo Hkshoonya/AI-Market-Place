@@ -24,6 +24,20 @@ export interface VerifiedPricingEntry {
   currency?: string | null;
 }
 
+export interface PublicPricingSummary {
+  official: VerifiedPricingEntry | null;
+  cheapestVerifiedRoute: VerifiedPricingEntry | null;
+  compactEntry: VerifiedPricingEntry | null;
+  compactPrice: number | null;
+  compactLabel: string;
+  compactSourceLabel: string;
+  strategy:
+    | "official_company_price"
+    | "cheapest_verified_route"
+    | "open_weights_free"
+    | "unavailable";
+}
+
 function normalizeProvider(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -76,14 +90,61 @@ export function getOfficialPricing(
   return directEntries[0] ?? null;
 }
 
-export function getLowestInputPrice(model: PriceSortableModel): number | null {
-  const cheapestVerified = getCheapestVerifiedPricing(model);
+export function getPublicPricingSummary(
+  model: PriceSortableModel
+): PublicPricingSummary {
+  const official = getOfficialPricing(model);
+  const cheapestVerifiedRoute = getCheapestVerifiedPricing(model);
 
-  if (cheapestVerified) {
-    return cheapestVerified.input_price_per_million;
+  if (official) {
+    return {
+      official,
+      cheapestVerifiedRoute,
+      compactEntry: official,
+      compactPrice: official.input_price_per_million,
+      compactLabel: "Official",
+      compactSourceLabel: official.provider_name,
+      strategy: "official_company_price",
+    };
   }
 
-  return model.is_open_weights ? 0 : null;
+  if (cheapestVerifiedRoute) {
+    return {
+      official,
+      cheapestVerifiedRoute,
+      compactEntry: cheapestVerifiedRoute,
+      compactPrice: cheapestVerifiedRoute.input_price_per_million,
+      compactLabel: "Cheapest route",
+      compactSourceLabel: cheapestVerifiedRoute.provider_name,
+      strategy: "cheapest_verified_route",
+    };
+  }
+
+  if (model.is_open_weights) {
+    return {
+      official,
+      cheapestVerifiedRoute,
+      compactEntry: null,
+      compactPrice: 0,
+      compactLabel: "Free",
+      compactSourceLabel: "Open weights",
+      strategy: "open_weights_free",
+    };
+  }
+
+  return {
+    official,
+    cheapestVerifiedRoute,
+    compactEntry: null,
+    compactPrice: null,
+    compactLabel: "Unavailable",
+    compactSourceLabel: "No verified price",
+    strategy: "unavailable",
+  };
+}
+
+export function getLowestInputPrice(model: PriceSortableModel): number | null {
+  return getPublicPricingSummary(model).compactPrice;
 }
 
 export function compareModelsByLowestPrice(
