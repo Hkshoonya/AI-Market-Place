@@ -524,7 +524,7 @@ export default async function SkillsPage() {
                           Est. Value
                         </th>
                         <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
-                          Verified Price
+                          Cheapest Verified
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
                           Try It

@@ -217,7 +217,7 @@ export default async function HomePage() {
                   Quality
                 </th>
                 <th className="hidden xl:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Verified Price
+                  Cheapest Verified
                 </th>
               </tr>
             </thead>

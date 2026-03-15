@@ -38,9 +38,23 @@ export interface PublicPricingSummary {
     | "unavailable";
 }
 
+export interface PublicPricingSummaryOptions {
+  compactStrategy?: "cheapest_verified" | "official_first";
+}
+
 function normalizeProvider(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
+
+const PROVIDER_ALIASES: Record<string, string[]> = {
+  anthropic: ["anthropic"],
+  deepseek: ["deepseek"],
+  google: ["google", "googleai", "gemini"],
+  meta: ["meta", "metaai"],
+  mistralai: ["mistral", "mistralai"],
+  openai: ["openai"],
+  xai: ["xai"],
+};
 
 export function isOfficialPricingProvider(
   modelProvider: string | null | undefined,
@@ -51,10 +65,10 @@ export function isOfficialPricingProvider(
 
   if (!normalizedModelProvider || !normalizedProviderName) return false;
 
-  return (
-    normalizedProviderName.includes(normalizedModelProvider) ||
-    normalizedModelProvider.includes(normalizedProviderName)
-  );
+  const aliases =
+    PROVIDER_ALIASES[normalizedModelProvider] ?? [normalizedModelProvider];
+
+  return aliases.includes(normalizedProviderName);
 }
 
 export function getVerifiedPricingEntries(model: PriceSortableModel): VerifiedPricingEntry[] {
@@ -91,12 +105,14 @@ export function getOfficialPricing(
 }
 
 export function getPublicPricingSummary(
-  model: PriceSortableModel
+  model: PriceSortableModel,
+  options: PublicPricingSummaryOptions = {}
 ): PublicPricingSummary {
   const official = getOfficialPricing(model);
   const cheapestVerifiedRoute = getCheapestVerifiedPricing(model);
+  const compactStrategy = options.compactStrategy ?? "cheapest_verified";
 
-  if (official) {
+  if (compactStrategy === "official_first" && official) {
     return {
       official,
       cheapestVerifiedRoute,
@@ -114,9 +130,21 @@ export function getPublicPricingSummary(
       cheapestVerifiedRoute,
       compactEntry: cheapestVerifiedRoute,
       compactPrice: cheapestVerifiedRoute.input_price_per_million,
-      compactLabel: "Cheapest route",
+      compactLabel: "Cheapest verified",
       compactSourceLabel: cheapestVerifiedRoute.provider_name,
       strategy: "cheapest_verified_route",
+    };
+  }
+
+  if (official) {
+    return {
+      official,
+      cheapestVerifiedRoute,
+      compactEntry: official,
+      compactPrice: official.input_price_per_million,
+      compactLabel: "Official",
+      compactSourceLabel: official.provider_name,
+      strategy: "official_company_price",
     };
   }
 

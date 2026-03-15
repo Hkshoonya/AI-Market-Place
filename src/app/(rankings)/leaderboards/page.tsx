@@ -462,7 +462,7 @@ export default async function LeaderboardsPage({
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">MMLU</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">HumanEval</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">MATH</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Verified Price</th>
+                  <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">Cheapest Verified</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">Est. Value</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground 2xl:table-cell">Popularity</th>
                 </tr>

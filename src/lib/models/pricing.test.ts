@@ -5,6 +5,7 @@ import {
   getLowestInputPrice,
   getOfficialPricing,
   getPublicPricingSummary,
+  isOfficialPricingProvider,
   type PriceSortableModel,
 } from "./pricing";
 
@@ -21,7 +22,7 @@ function makeModel(overrides: Partial<PriceSortableModel>): PriceSortableModel {
 }
 
 describe("getLowestInputPrice", () => {
-  it("prefers official company pricing on compact public surfaces", () => {
+  it("prefers the cheapest verified route on compact public surfaces", () => {
     const model = makeModel({
       provider: "OpenAI",
       model_pricing: [
@@ -31,7 +32,7 @@ describe("getLowestInputPrice", () => {
       ],
     });
 
-    expect(getLowestInputPrice(model)).toBe(2.5);
+    expect(getLowestInputPrice(model)).toBe(1.8);
   });
 
   it("treats open-weight models with no API pricing as free", () => {
@@ -86,6 +87,10 @@ describe("compareModelsByLowestPrice", () => {
 });
 
 describe("pricing summaries", () => {
+  it("does not treat routed third-party providers as official first-party pricing", () => {
+    expect(isOfficialPricingProvider("OpenAI", "Azure OpenAI")).toBe(false);
+  });
+
   it("still exposes the cheapest verified route separately", () => {
     const model = makeModel({
       provider: "OpenAI",
@@ -104,7 +109,7 @@ describe("pricing summaries", () => {
     });
 
     expect(getCheapestVerifiedPricing(model)?.provider_name).toBe("OpenRouter");
-    expect(getLowestInputPrice(model)).toBe(3);
+    expect(getLowestInputPrice(model)).toBe(2);
   });
 
   it("keeps the official first-party route available separately", () => {
@@ -127,7 +132,7 @@ describe("pricing summaries", () => {
     expect(getOfficialPricing(model)?.provider_name).toBe("Anthropic");
   });
 
-  it("returns a compact public summary with official-first strategy", () => {
+  it("returns a compact public summary with cheapest-verified strategy by default", () => {
     const model = makeModel({
       provider: "Anthropic",
       model_pricing: [
@@ -145,6 +150,33 @@ describe("pricing summaries", () => {
     });
 
     expect(getPublicPricingSummary(model)).toMatchObject({
+      compactPrice: 2.8,
+      compactLabel: "Cheapest verified",
+      compactSourceLabel: "OpenRouter",
+      strategy: "cheapest_verified_route",
+    });
+  });
+
+  it("can still return official-first compact pricing when explicitly requested", () => {
+    const model = makeModel({
+      provider: "Anthropic",
+      model_pricing: [
+        {
+          provider_name: "OpenRouter",
+          input_price_per_million: 2.8,
+          source: "openrouter",
+        },
+        {
+          provider_name: "Anthropic",
+          input_price_per_million: 3,
+          source: "Anthropic Pricing",
+        },
+      ],
+    });
+
+    expect(
+      getPublicPricingSummary(model, { compactStrategy: "official_first" })
+    ).toMatchObject({
       compactPrice: 3,
       compactLabel: "Official",
       compactSourceLabel: "Anthropic",

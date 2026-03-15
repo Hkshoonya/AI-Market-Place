@@ -322,7 +322,7 @@ export default async function ProviderDetailPage({
                     Downloads
                   </th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
-                    Verified Price
+                    Cheapest Verified
                   </th>
                   <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground xl:table-cell">
                     Est. Value
