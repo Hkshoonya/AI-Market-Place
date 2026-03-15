@@ -62,6 +62,7 @@ export interface RankedAccessOffer {
 
 export interface AccessOffersCatalog {
   subscriptionOffers: RankedAccessOffer[];
+  offersByModelId: Record<string, RankedAccessOffer[]>;
 }
 
 interface OfferSeed {
@@ -238,6 +239,14 @@ function buildOfferSeed(
   };
 }
 
+function compareRankedAccessOffers(left: RankedAccessOffer, right: RankedAccessOffer): number {
+  if (right.score !== left.score) return right.score - left.score;
+  if ((left.monthlyPrice ?? Number.MAX_SAFE_INTEGER) !== (right.monthlyPrice ?? Number.MAX_SAFE_INTEGER)) {
+    return (left.monthlyPrice ?? Number.MAX_SAFE_INTEGER) - (right.monthlyPrice ?? Number.MAX_SAFE_INTEGER);
+  }
+  return right.modelCount - left.modelCount;
+}
+
 function finalizeOfferScores(seeds: OfferSeed[]): RankedAccessOffer[] {
   const prices = seeds
     .map((seed) => seed.monthlyPrice)
@@ -291,13 +300,7 @@ function finalizeOfferScores(seeds: OfferSeed[]): RankedAccessOffer[] {
         freeTier: seed.freeTier,
       } satisfies RankedAccessOffer;
     })
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      if ((left.monthlyPrice ?? Number.MAX_SAFE_INTEGER) !== (right.monthlyPrice ?? Number.MAX_SAFE_INTEGER)) {
-        return (left.monthlyPrice ?? Number.MAX_SAFE_INTEGER) - (right.monthlyPrice ?? Number.MAX_SAFE_INTEGER);
-      }
-      return right.modelCount - left.modelCount;
-    });
+    .sort(compareRankedAccessOffers);
 }
 
 export function buildAccessOffersCatalog(input: {
@@ -315,15 +318,16 @@ export function buildAccessOffersCatalog(input: {
   }
 
   const subscriptionSeeds: OfferSeed[] = [];
+  const allSeeds: OfferSeed[] = [];
 
   for (const platform of input.platforms) {
     const platformDeployments = deploymentsByPlatform.get(platform.id) ?? [];
+    if (platformDeployments.length === 0) continue;
+
     const kind = inferAccessOfferKind(platform);
     const isSubscriptionLike =
       kind === "subscription" ||
       platformDeployments.some((deployment) => deployment.pricing_model === "monthly");
-
-    if (!isSubscriptionLike) continue;
 
     const platformModels = platformDeployments
       .map((deployment) => modelsById.get(deployment.model_id))
@@ -331,11 +335,43 @@ export function buildAccessOffersCatalog(input: {
 
     const seed = buildOfferSeed(platform, platformDeployments, platformModels);
     if (seed) {
+      allSeeds.push(seed);
+    }
+
+    if (seed && isSubscriptionLike) {
       subscriptionSeeds.push(seed);
     }
   }
 
+  const offersByPlatformId = new Map(
+    finalizeOfferScores(allSeeds).map((offer) => [offer.platform.id, offer])
+  );
+  const offersByModelId: Record<string, RankedAccessOffer[]> = {};
+
+  for (const seed of allSeeds) {
+    const offer = offersByPlatformId.get(seed.platform.id);
+    if (!offer) continue;
+
+    for (const model of seed.models) {
+      const existing = offersByModelId[model.id] ?? [];
+      existing.push(offer);
+      offersByModelId[model.id] = existing;
+    }
+  }
+
+  for (const [modelId, offers] of Object.entries(offersByModelId)) {
+    offersByModelId[modelId] = [...offers].sort(compareRankedAccessOffers);
+  }
+
   return {
     subscriptionOffers: finalizeOfferScores(subscriptionSeeds),
+    offersByModelId,
   };
+}
+
+export function getBestAccessOfferForModel(
+  catalog: AccessOffersCatalog,
+  modelId: string
+): RankedAccessOffer | null {
+  return catalog.offersByModelId[modelId]?.[0] ?? null;
 }

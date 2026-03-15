@@ -17,7 +17,7 @@ import type { Metadata } from "next";
 import type { z } from "zod";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
-import { getLowestInputPrice } from "@/lib/models/pricing";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const revalidate = 3600;
@@ -337,7 +337,7 @@ export default async function CategoryLeaderboardPage({
                 </thead>
                 <tbody>
                   {sortedModels.map((model, index) => {
-                    const price = getLowestInputPrice({
+                    const pricingSummary = getPublicPricingSummary({
                       id: model.id,
                       slug: model.slug,
                       name: model.name,
@@ -424,10 +424,17 @@ export default async function CategoryLeaderboardPage({
                           );
                         })}
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
-                          {price !== null ? (
-                            <span>${price.toFixed(2)}</span>
-                          ) : model.is_open_weights ? (
-                            <span className="text-gain">Free</span>
+                          {pricingSummary.compactPrice != null ? (
+                            <div className="space-y-0.5">
+                              <div>
+                                {pricingSummary.compactPrice === 0
+                                  ? "Free"
+                                  : `$${pricingSummary.compactPrice.toFixed(2)}`}
+                              </div>
+                              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                                {pricingSummary.compactLabel}
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}

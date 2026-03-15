@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAccessOffersCatalog } from "./access-offers";
+import { buildAccessOffersCatalog, getBestAccessOfferForModel } from "./access-offers";
 
 describe("buildAccessOffersCatalog", () => {
   it("ranks trusted affordable subscription offers above expensive weaker ones", () => {
@@ -212,5 +212,95 @@ describe("buildAccessOffersCatalog", () => {
     expect(bySlug.get("minimax-api")?.actionLabel).toBe("Get API Access");
     expect(bySlug.get("minimax-api")?.label).toBe("Verified");
   });
-});
 
+  it("exposes best access offers per model across subscription and deployment routes", () => {
+    const result = buildAccessOffersCatalog({
+      platforms: [
+        {
+          id: "chatgpt-plus",
+          slug: "chatgpt-plus",
+          name: "ChatGPT Plus",
+          type: "subscription",
+          base_url: "https://chat.openai.com",
+          has_affiliate: false,
+        },
+        {
+          id: "runpod",
+          slug: "runpod",
+          name: "RunPod",
+          type: "hosting",
+          base_url: "https://runpod.io",
+          has_affiliate: true,
+          affiliate_url: "https://runpod.io/?ref=aimarketcap",
+        },
+      ],
+      deployments: [
+        {
+          id: "dep-1",
+          model_id: "m1",
+          platform_id: "chatgpt-plus",
+          pricing_model: "monthly",
+          price_per_unit: 20,
+          unit_description: "month",
+          free_tier: null,
+          one_click: false,
+          status: "available",
+        },
+        {
+          id: "dep-2",
+          model_id: "m1",
+          platform_id: "runpod",
+          pricing_model: "per-hour",
+          price_per_unit: 1.2,
+          unit_description: "hour",
+          free_tier: null,
+          one_click: true,
+          status: "available",
+        },
+        {
+          id: "dep-3",
+          model_id: "m2",
+          platform_id: "runpod",
+          pricing_model: "per-hour",
+          price_per_unit: 0.8,
+          unit_description: "hour",
+          free_tier: "Starter credit",
+          one_click: true,
+          status: "available",
+        },
+      ],
+      models: [
+        {
+          id: "m1",
+          slug: "openai-gpt-4o",
+          name: "GPT-4o",
+          provider: "OpenAI",
+          category: "llm",
+          capability_score: 88,
+          economic_footprint_score: 84,
+        },
+        {
+          id: "m2",
+          slug: "deepseek-r1",
+          name: "DeepSeek R1",
+          provider: "DeepSeek",
+          category: "llm",
+          capability_score: 81,
+          economic_footprint_score: 67,
+        },
+      ],
+    });
+
+    expect(getBestAccessOfferForModel(result, "m1")).toMatchObject({
+      platform: { slug: "chatgpt-plus" },
+      actionLabel: "Subscribe",
+      label: "Official",
+    });
+
+    expect(getBestAccessOfferForModel(result, "m2")).toMatchObject({
+      platform: { slug: "runpod" },
+      actionLabel: "Start Free Trial",
+      partnerDisclosure: "Partner-supported link",
+    });
+  });
+});

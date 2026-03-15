@@ -20,9 +20,8 @@ import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import {
-  getAccessOfferActionLabel,
-  getPartnerDisclosure,
-  inferAccessOfferKind,
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -132,27 +131,12 @@ interface ModelScoreEntry {
   slug: string;
   name: string;
   provider: string;
+  category: string;
   marketCap: number | null;
   isOpenWeights: boolean;
   avgScore: number;
   scoreCount: number;
 }
-
-// REMOVED: interface AffiliatePlatform {
-//   id: string;
-//   slug: string;
-//   name: string;
-//   affiliate_url_template: string | null;
-//   has_affiliate: boolean;
-//   base_url: string;
-// }
-
-// REMOVED: interface DeploymentRow {
-//   model_id: string;
-//   deploy_url: string | null;
-//   platform_id: string;
-//   deployment_platforms: AffiliatePlatform | null;
-// }
 
 // ---------------------------------------------------------------------------
 // Page component
@@ -191,78 +175,11 @@ export default async function SkillsPage() {
     .order("score", { ascending: false })
     .limit(2000);
 
-  const benchmarkData = parseQueryResult(benchmarkDataResponse, BenchmarkScoreEntrySchema, "SkillsBenchmarkScore");
-
-  // Fetch affiliate deployment platforms
-  const AffiliatePlatformSchema = z.object({
-    id: z.string(),
-    slug: z.string(),
-    name: z.string(),
-    type: z.string(),
-    affiliate_url_template: z.string().nullable(),
-    has_affiliate: z.boolean(),
-    base_url: z.string(),
-  });
-
-  const platformsResponse = await supabase
-    .from("deployment_platforms")
-    .select("*")
-    .eq("has_affiliate", true);
-
-  const affiliatePlatforms = parseQueryResult(platformsResponse, AffiliatePlatformSchema, "AffiliatePlatform");
-
-  // Fetch model deployments that link to affiliate platforms
-  const affiliatePlatformIds = affiliatePlatforms.map((p) => p.id);
-  const DeploymentRowSchema = z.object({
-    model_id: z.string(),
-    deploy_url: z.string().nullable(),
-    platform_id: z.string(),
-    deployment_platforms: AffiliatePlatformSchema.nullable(),
-  });
-
-  let deployments: z.infer<typeof DeploymentRowSchema>[] = [];
-  if (affiliatePlatformIds.length > 0) {
-    const deploymentsResponse = await supabase
-      .from("model_deployments")
-      .select("model_id, deploy_url, platform_id, deployment_platforms(*)")
-      .in("platform_id", affiliatePlatformIds);
-
-    deployments = parseQueryResult(deploymentsResponse, DeploymentRowSchema, "DeploymentRow");
-  }
-
-  // Build a map: model_id -> affiliate deploy info
-  const affiliateMap = new Map<
-    string,
-    { url: string; platformName: string; actionLabel: string; partnerDisclosure: string | null }
-  >();
-  for (const dep of deployments) {
-    const platform = dep.deployment_platforms;
-    if (!platform) continue;
-    const template: string | null = platform.affiliate_url_template;
-    const deployUrl: string | null = dep.deploy_url;
-    const finalUrl = template ?? deployUrl ?? platform.base_url;
-    if (finalUrl) {
-      const separator = finalUrl.includes("?") ? "&" : "?";
-      affiliateMap.set(dep.model_id, {
-        url: `${finalUrl}${separator}ref=aimarketcap&utm_source=aimarketcap&utm_medium=skills_page`,
-        platformName: platform.name,
-        actionLabel: getAccessOfferActionLabel(
-          inferAccessOfferKind({ type: platform.type }),
-          null
-        ),
-        partnerDisclosure: getPartnerDisclosure({
-          id: platform.id,
-          slug: platform.slug,
-          name: platform.name,
-          type: platform.type,
-          base_url: platform.base_url,
-          has_affiliate: platform.has_affiliate,
-          affiliate_url: template,
-          affiliate_tag: null,
-        }),
-      });
-    }
-  }
+  const benchmarkData = parseQueryResult(
+    benchmarkDataResponse,
+    BenchmarkScoreEntrySchema,
+    "SkillsBenchmarkScore"
+  );
 
   // ---------------------------------------------------------------------------
   // Process: for each skill, compute ranked models by avg benchmark score
@@ -276,6 +193,7 @@ export default async function SkillsPage() {
         slug: string;
         name: string;
         provider: string;
+        category: string;
         marketCap: number | null;
         isOpenWeights: boolean;
         scores: number[];
@@ -306,6 +224,7 @@ export default async function SkillsPage() {
           slug: model.slug,
           name: model.name,
           provider: model.provider,
+          category: model.category,
           marketCap: model.market_cap_estimate
             ? Number(model.market_cap_estimate)
             : null,
@@ -325,6 +244,7 @@ export default async function SkillsPage() {
         slug: data.slug,
         name: data.name,
         provider: data.provider,
+        category: data.category,
         marketCap: data.marketCap,
         isOpenWeights: data.isOpenWeights,
         avgScore: avg,
@@ -350,6 +270,37 @@ export default async function SkillsPage() {
     )
   );
 
+  const SurfacedModelSchema = z.object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    provider: z.string(),
+    category: z.string(),
+    capability_score: z.number().nullable(),
+    quality_score: z.number().nullable(),
+    economic_footprint_score: z.number().nullable(),
+    market_cap_estimate: z.number().nullable(),
+    is_open_weights: z.boolean(),
+  });
+
+  const surfacedModels =
+    surfacedModelIds.length > 0
+      ? parseQueryResult(
+          await supabase
+            .from("models")
+            .select(
+              "id, slug, name, provider, category, capability_score, quality_score, economic_footprint_score, market_cap_estimate, is_open_weights"
+            )
+            .in("id", surfacedModelIds),
+          SurfacedModelSchema,
+          "SkillsSurfacedModel"
+        )
+      : [];
+
+  const surfacedModelMap = new Map(
+    surfacedModels.map((model) => [model.id, model] as const)
+  );
+
   const PricingRowSchema = z.object({
     model_id: z.string(),
     provider_name: z.string().nullable().optional(),
@@ -373,10 +324,7 @@ export default async function SkillsPage() {
 
   const pricingMap = new Map<string, ReturnType<typeof getPublicPricingSummary>>();
   for (const modelId of surfacedModelIds) {
-    const modelMeta = Array.from(skillRankings.values())
-      .flat()
-      .find((item) => item.modelId === modelId);
-
+    const modelMeta = surfacedModelMap.get(modelId);
     if (!modelMeta) continue;
 
     pricingMap.set(
@@ -387,11 +335,83 @@ export default async function SkillsPage() {
         name: modelMeta.name,
         provider: modelMeta.provider,
         overall_rank: null,
-        is_open_weights: modelMeta.isOpenWeights,
+        is_open_weights: modelMeta.is_open_weights,
         model_pricing: pricingRows.filter((row) => row.model_id === modelId),
       })
     );
   }
+
+  const AccessPlatformSchema = z.object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    type: z.string(),
+    base_url: z.string(),
+    has_affiliate: z.boolean(),
+    affiliate_url_template: z.string().nullable().optional(),
+    affiliate_url: z.string().nullable().optional(),
+    affiliate_tag: z.string().nullable().optional(),
+  });
+
+  const AccessDeploymentSchema = z.object({
+    id: z.string(),
+    model_id: z.string(),
+    platform_id: z.string(),
+    pricing_model: z.string().nullable(),
+    price_per_unit: z.number().nullable(),
+    unit_description: z.string().nullable(),
+    free_tier: z.string().nullable(),
+    one_click: z.boolean(),
+    status: z.string().nullable().optional(),
+  });
+
+  const [platformRows, deploymentRows] =
+    surfacedModelIds.length > 0
+      ? await Promise.all([
+          parseQueryResult(
+            await supabase.from("deployment_platforms").select("*").order("name"),
+            AccessPlatformSchema,
+            "SkillsAccessPlatform"
+          ),
+          parseQueryResult(
+            await supabase
+              .from("model_deployments")
+              .select(
+                "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+              )
+              .in("model_id", surfacedModelIds),
+            AccessDeploymentSchema,
+            "SkillsAccessDeployment"
+          ),
+        ])
+      : [[], []];
+
+  const accessCatalog = buildAccessOffersCatalog({
+    platforms: platformRows.map((platform) => ({
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platform.affiliate_url === "string"
+          ? platform.affiliate_url
+          : platform.affiliate_url_template ?? null,
+      affiliate_tag: platform.affiliate_tag ?? null,
+    })),
+    deployments: deploymentRows,
+    models: surfacedModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      name: model.name,
+      provider: model.provider,
+      category: model.category,
+      quality_score: model.quality_score,
+      capability_score: model.capability_score,
+      economic_footprint_score: model.economic_footprint_score,
+    })),
+  });
 
   // ---------------------------------------------------------------------------
   // Render
@@ -554,7 +574,10 @@ export default async function SkillsPage() {
                     <tbody>
                       {top10.map((entry, i) => {
                         const rank = i + 1;
-                        const affiliate = affiliateMap.get(entry.modelId);
+                        const accessOffer = getBestAccessOfferForModel(
+                          accessCatalog,
+                          entry.modelId
+                        );
                         const pricingSummary = pricingMap.get(entry.modelId);
 
                         return (
@@ -648,14 +671,14 @@ export default async function SkillsPage() {
 
                             {/* Access / View */}
                             <td className="px-4 py-3.5 text-right">
-                              {affiliate ? (
+                              {accessOffer ? (
                                 <a
-                                  href={affiliate.url}
+                                  href={accessOffer.actionUrl}
                                   target="_blank"
-                                  rel={affiliate.partnerDisclosure ? "noopener sponsored" : "noopener noreferrer"}
+                                  rel={accessOffer.partnerDisclosure ? "noopener sponsored" : "noopener noreferrer"}
                                   className="inline-flex items-center gap-1 rounded-md bg-gain/10 px-2.5 py-1 text-xs font-semibold text-gain transition-colors hover:bg-gain/20"
                                 >
-                                  {affiliate.actionLabel}
+                                  {accessOffer.actionLabel}
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
                               ) : (
@@ -667,9 +690,9 @@ export default async function SkillsPage() {
                                   <ExternalLink className="h-3 w-3" />
                                 </Link>
                               )}
-                              {affiliate?.partnerDisclosure && (
+                              {accessOffer?.partnerDisclosure && (
                                 <div className="mt-1 text-[10px] text-muted-foreground">
-                                  {affiliate.partnerDisclosure}
+                                  {accessOffer.partnerDisclosure}
                                 </div>
                               )}
                             </td>
