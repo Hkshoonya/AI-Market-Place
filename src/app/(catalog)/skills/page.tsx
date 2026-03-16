@@ -26,6 +26,7 @@ import {
 } from "@/lib/models/access-offers";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { Metadata } from "next";
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
     "Discover which AI models excel at coding, reasoning, math, browser automation, and more.",
 };
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 // ---------------------------------------------------------------------------
 // Skill category definitions
@@ -330,6 +331,10 @@ export default async function SkillsPage() {
           : null,
     }))
   );
+  const latestSignalAt =
+    Array.from(surfacedSignals.values())
+      .map((signal) => signal.publishedAt)
+      .find((value) => Boolean(value)) ?? null;
 
   const PricingRowSchema = z.object({
     model_id: z.string(),
@@ -497,6 +502,13 @@ export default async function SkillsPage() {
           benchmark performance with practical buying context and estimated
           market footing.
         </p>
+        <div className="mt-4">
+          <DataFreshnessBadge
+            label="Skill signals refreshed"
+            timestamp={latestSignalAt}
+            detail="models + launches"
+          />
+        </div>
       </div>
 
       {/* Skills Grid */}

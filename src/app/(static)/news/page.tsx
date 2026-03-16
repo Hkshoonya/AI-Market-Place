@@ -7,6 +7,7 @@ import { formatRelativeDate } from "@/lib/format";
 import { NewsCard, UpdateCard, EmptyState } from "@/components/news/news-card";
 import { LaunchRadar } from "@/components/news/launch-radar";
 import { SignalSummary } from "@/components/news/signal-summary";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     "Latest AI model updates, research papers, benchmarks, and industry news.",
 };
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 export default async function NewsPage() {
   const supabase = createPublicClient();
@@ -104,6 +105,10 @@ export default async function NewsPage() {
   const signalNews = [...social, ...papers, ...benchmarks];
   const signalSummary = summarizeNewsSignals(signalNews);
   const radarItems = buildLaunchRadar(signalNews, 8);
+  const latestPublishedAt =
+    [...updates, ...signalNews]
+      .map((item) => (typeof item.published_at === "string" ? item.published_at : null))
+      .find((value) => Boolean(value)) ?? null;
   const groupedSignals = groupNewsBySignal(signalNews).filter(
     (group) => group.type !== "general"
   );
@@ -141,6 +146,14 @@ export default async function NewsPage() {
         <Badge variant="secondary" className="ml-2 text-xs">
           {totalItems} items
         </Badge>
+      </div>
+
+      <div className="mb-6">
+        <DataFreshnessBadge
+          label="News stream refreshed"
+          timestamp={latestPublishedAt}
+          detail="live signals"
+        />
       </div>
 
       <div className="space-y-6 mb-8">

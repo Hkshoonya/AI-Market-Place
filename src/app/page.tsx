@@ -39,6 +39,7 @@ import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { LaunchRadar } from "@/components/news/launch-radar";
 import { buildLaunchRadar } from "@/lib/news/presentation";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -142,6 +143,7 @@ export default async function HomePage() {
     })),
     6
   );
+  const latestLaunchSignalAt = launchRadar[0]?.published_at ?? null;
 
   const topModelIds = [...activeModels]
     .filter((model) => model.economic_footprint_rank != null)
@@ -267,6 +269,14 @@ export default async function HomePage() {
           totalLikes,
         }}
       />
+
+      <div className="mx-auto mt-6 max-w-7xl px-4">
+        <DataFreshnessBadge
+          label="Market signals refreshed"
+          timestamp={latestLaunchSignalAt}
+          detail="home radar"
+        />
+      </div>
 
       {/* Top 10 Leaderboard */}
       <section className="mx-auto max-w-7xl px-4 py-12">

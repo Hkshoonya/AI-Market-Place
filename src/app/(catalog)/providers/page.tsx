@@ -11,6 +11,7 @@ import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/l
 import { ProviderCharts } from "@/components/charts/provider-charts";
 import { pickBestProviderSignals } from "@/lib/news/provider-signals";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import type { Metadata } from "next";
 
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
     "Explore AI model providers and organizations building the future of artificial intelligence.",
 };
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 interface ProviderStats {
   provider: string;
@@ -119,6 +120,10 @@ export default async function ProvidersPage() {
           : null,
     }))
   );
+  const latestSignalAt =
+    Array.from(providerSignals.values())
+      .map((signal) => signal.publishedAt)
+      .find((value) => Boolean(value)) ?? null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -132,6 +137,13 @@ export default async function ProvidersPage() {
           Organizations and companies building the future of AI. Explore their
           models, rankings, and contributions.
         </p>
+        <div className="mt-4">
+          <DataFreshnessBadge
+            label="Provider activity refreshed"
+            timestamp={latestSignalAt}
+            detail="launches + pricing"
+          />
+        </div>
       </div>
 
       {/* Stats Overview */}
