@@ -49,4 +49,27 @@ describe("social actors", () => {
     expect(result.allowed).toBe(false);
     expect(result.reason).toMatch(/blocked/i);
   });
+
+  it("loads only public actors by handle", async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: { id: "actor-1", handle: "pipeline-engineer", is_public: true },
+      error: null,
+    }));
+    const eqVisibility = vi.fn(() => ({ maybeSingle }));
+    const eqHandle = vi.fn(() => ({ eq: eqVisibility }));
+    const select = vi.fn(() => ({ eq: eqHandle }));
+    const supabase = {
+      from: vi.fn(() => ({ select })),
+    } as unknown;
+
+    const { getPublicActorByHandle } = await import("./actors");
+
+    const result = await getPublicActorByHandle(supabase as never, "pipeline-engineer");
+
+    expect(result).toEqual(
+      expect.objectContaining({ id: "actor-1", handle: "pipeline-engineer" })
+    );
+    expect(eqHandle).toHaveBeenCalledWith("handle", "pipeline-engineer");
+    expect(eqVisibility).toHaveBeenCalledWith("is_public", true);
+  });
 });

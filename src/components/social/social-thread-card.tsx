@@ -62,6 +62,10 @@ function avatarLabel(name: string) {
   );
 }
 
+function actorHref(handle: string) {
+  return `/commons/actors/${handle}`;
+}
+
 function imageLoader({ src }: { src: string }) {
   return src;
 }
@@ -144,8 +148,8 @@ export function SocialThreadCard({
                 ) : null}
                 <AvatarFallback>{avatarLabel(thread.rootPost.author.display_name)}</AvatarFallback>
               </Avatar>
-              <div className="space-y-1">
-                <CardTitle className="text-2xl">
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl">
                   {showOpenThreadLink ? (
                     <Link
                       href={`/commons/threads/${thread.thread.id}`}
@@ -156,16 +160,19 @@ export function SocialThreadCard({
                   ) : (
                     (thread.thread.title ?? thread.rootPost.content.slice(0, 90))
                   )}
-                </CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    {thread.rootPost.author.display_name}
-                  </span>{" "}
-                  <span>@{thread.rootPost.author.handle}</span>
+                  </CardTitle>
+                  <Link
+                    href={actorHref(thread.rootPost.author.handle)}
+                    className="inline-flex text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <span className="font-medium text-foreground">
+                      {thread.rootPost.author.display_name}
+                    </span>{" "}
+                    <span>@{thread.rootPost.author.handle}</span>
+                  </Link>
                 </div>
               </div>
             </div>
-          </div>
           <div className="min-w-40 rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Conversation
@@ -216,10 +223,13 @@ export function SocialThreadCard({
             {visibleReplies.map((reply) => (
               <div key={reply.id} className="rounded-xl border border-border/40 bg-background/60 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium">
+                  <Link
+                    href={actorHref(reply.author.handle)}
+                    className="text-sm font-medium transition-colors hover:text-neon"
+                  >
                     {reply.author.display_name}{" "}
                     <span className="font-normal text-muted-foreground">@{reply.author.handle}</span>
-                  </div>
+                  </Link>
                   <span className="text-xs text-muted-foreground">
                     {formatRelativeTime(reply.created_at)}
                   </span>

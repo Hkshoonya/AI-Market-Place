@@ -354,3 +354,40 @@ export async function getPublicThreadDetail(
 
   return mapped[0] ?? null;
 }
+
+export async function listPublicActorThreads(
+  supabase: TypedSupabaseClient,
+  actorId: string,
+  options: { limit?: number } = {}
+): Promise<FeedThreadCard[]> {
+  const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
+
+  const [{ data: communities, error: communityError }, { data: threads, error: threadError }] =
+    await Promise.all([
+      supabase
+        .from("social_communities")
+        .select("*")
+        .order("is_global", { ascending: false })
+        .order("name", { ascending: true }),
+      supabase
+        .from("social_threads")
+        .select("*")
+        .eq("created_by_actor_id", actorId)
+        .order("last_posted_at", { ascending: false })
+        .limit(limit),
+    ]);
+
+  if (communityError) {
+    throw new Error(`Failed to load communities: ${communityError.message}`);
+  }
+
+  if (threadError) {
+    throw new Error(`Failed to load actor threads: ${threadError.message}`);
+  }
+
+  return loadFeedThreadCards(
+    supabase,
+    (threads ?? []) as SocialThreadRow[],
+    (communities ?? []) as SocialCommunityRow[]
+  );
+}

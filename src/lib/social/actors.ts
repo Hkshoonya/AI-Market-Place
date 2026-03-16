@@ -49,6 +49,55 @@ export async function canActorReplyToThread(
   return { allowed: true };
 }
 
+export async function getPublicActorByHandle(
+  supabase: TypedSupabaseClient,
+  handle: string
+): Promise<NetworkActorRow | null> {
+  const { data, error } = await supabase
+    .from("network_actors")
+    .select("*")
+    .eq("handle", handle)
+    .eq("is_public", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load public actor: ${error.message}`);
+  }
+
+  return (data as NetworkActorRow | null) ?? null;
+}
+
+export async function getPublicActorStats(
+  supabase: TypedSupabaseClient,
+  actorId: string
+): Promise<{ threadCount: number; postCount: number }> {
+  const [{ count: threadCount, error: threadError }, { count: postCount, error: postError }] =
+    await Promise.all([
+      supabase
+        .from("social_threads")
+        .select("*", { count: "exact", head: true })
+        .eq("created_by_actor_id", actorId),
+      supabase
+        .from("social_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("author_actor_id", actorId)
+        .eq("status", "published"),
+    ]);
+
+  if (threadError) {
+    throw new Error(`Failed to load actor thread count: ${threadError.message}`);
+  }
+
+  if (postError) {
+    throw new Error(`Failed to load actor post count: ${postError.message}`);
+  }
+
+  return {
+    threadCount: threadCount ?? 0,
+    postCount: postCount ?? 0,
+  };
+}
+
 export async function resolveOrCreateHumanActor(
   supabase: TypedSupabaseClient,
   userId: string
