@@ -14,6 +14,10 @@ import {
   Activity,
 } from "lucide-react";
 import { SWR_TIERS } from "@/lib/swr/config";
+import {
+  extractAutoPrPolicy,
+  summarizeAutoPrPolicies,
+} from "@/lib/agents/auto-pr-policy";
 
 interface Agent {
   id: string;
@@ -59,6 +63,7 @@ interface AgentIssue {
   severity: "critical" | "high" | "medium" | "low";
   status: string;
   playbook: string | null;
+  evidence: Record<string, unknown> | null;
   updated_at: string;
 }
 
@@ -146,6 +151,7 @@ export default function AgentsContent() {
   const pendingDeferred = deferredItems.filter(
     (item) => item.status !== "done" && item.status !== "dropped"
   ).length;
+  const issuePolicySummary = summarizeAutoPrPolicies(issues);
 
   const statusColor: Record<string, string> = {
     active: "text-emerald-400 bg-emerald-400/10",
@@ -174,11 +180,17 @@ export default function AgentsContent() {
     low: "text-emerald-300 bg-emerald-500/10",
   };
 
+  const proposalColor: Record<string, string> = {
+    draft_candidate: "text-emerald-300 bg-emerald-500/10",
+    manual_only: "text-yellow-300 bg-yellow-500/10",
+    blocked: "text-red-300 bg-red-500/15",
+  };
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
+          {[...Array(7)].map((_, i) => (
             <div key={i} className="h-24 rounded-xl bg-secondary" />
           ))}
         </div>
@@ -190,7 +202,7 @@ export default function AgentsContent() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
             <Bot className="h-3.5 w-3.5" />
@@ -225,6 +237,15 @@ export default function AgentsContent() {
             Open Issues
           </div>
           <p className="text-2xl font-bold text-yellow-300">{openIssues}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Draft Candidates
+          </div>
+          <p className="text-2xl font-bold text-emerald-300">
+            {issuePolicySummary.draftCandidateCount}
+          </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -368,6 +389,9 @@ export default function AgentsContent() {
                   Playbook
                 </th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Proposal
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                   Source
                 </th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground">
@@ -376,36 +400,63 @@ export default function AgentsContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {issues.map((issue) => (
-                <tr key={issue.id} className="hover:bg-secondary/30">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{issue.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {issue.issue_type} · {issue.status}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs ${severityColor[issue.severity] ?? ""}`}
-                    >
-                      {issue.severity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {issue.playbook ?? "manual"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {issue.source ?? "platform"}
-                  </td>
-                  <td className="px-4 py-3 text-right text-muted-foreground text-xs">
-                    {new Date(issue.updated_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {issues.map((issue) => {
+                const proposal = extractAutoPrPolicy(issue.evidence);
+
+                return (
+                  <tr key={issue.id} className="hover:bg-secondary/30">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{issue.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {issue.issue_type} · {issue.status}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs ${severityColor[issue.severity] ?? ""}`}
+                      >
+                        {issue.severity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {issue.playbook ?? "manual"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {proposal ? (
+                        <div className="space-y-1">
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs ${proposalColor[proposal.decision] ?? ""}`}
+                          >
+                            {proposal.decision.replaceAll("_", " ")}
+                          </span>
+                          <div className="text-xs text-muted-foreground">
+                            {proposal.proposalTitle ?? proposal.summary}
+                          </div>
+                          {proposal.branchSlug && (
+                            <div className="font-mono text-[11px] text-muted-foreground">
+                              {proposal.branchSlug}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          no proposal metadata
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {issue.source ?? "platform"}
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground text-xs">
+                      {new Date(issue.updated_at).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
               {issues.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No ledger issues recorded

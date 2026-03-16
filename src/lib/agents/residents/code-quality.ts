@@ -14,6 +14,7 @@ import { callAgentModel, listConfiguredAgentProviders } from "../provider-router
 import { recordAgentIssue } from "../ledger";
 import { makeSlug } from "../../data-sources/utils";
 import { normalizeAgentErrorPatternMessage } from "../error-patterns";
+import { evaluateAutoPrPolicy } from "../auto-pr-policy";
 
 export interface ErrorPattern {
   message: string;
@@ -160,6 +161,10 @@ const codeQuality: ResidentAgent = {
       }
       output.analysisResults = analysisResults;
 
+      let draftCandidateCount = 0;
+      let manualOnlyCount = 0;
+      let blockedCount = 0;
+
       for (const result of analysisResults) {
         const issueTitle =
           (result.issueTitle as string | undefined) ??
@@ -171,6 +176,28 @@ const codeQuality: ResidentAgent = {
           result.severity === "low"
             ? result.severity
             : "medium";
+        const autoPrPolicy = evaluateAutoPrPolicy({
+          issueType: "runtime_error_pattern",
+          issueTitle,
+          severity,
+          confidence: 0.75,
+          occurrenceCount:
+            typeof result.count === "number" ? result.count : null,
+          pattern:
+            typeof result.pattern === "string" ? result.pattern : null,
+          rootCause:
+            typeof result.rootCause === "string" ? result.rootCause : null,
+          suggestedFix:
+            typeof result.suggestedFix === "string" ? result.suggestedFix : null,
+        });
+
+        if (autoPrPolicy.decision === "draft_candidate") {
+          draftCandidateCount += 1;
+        } else if (autoPrPolicy.decision === "manual_only") {
+          manualOnlyCount += 1;
+        } else {
+          blockedCount += 1;
+        }
 
         await recordAgentIssue(sb, {
           slug: makeSlug(`code-quality-${issueTitle}`),
@@ -188,11 +215,14 @@ const codeQuality: ResidentAgent = {
             suggestedFix: result.suggestedFix ?? null,
             llmProvider: result.llmProvider ?? null,
             llmModel: result.llmModel ?? null,
+            autoPrPolicy,
           },
         }).catch(async (err) => {
           const msg = err instanceof Error ? err.message : String(err);
           await log.warn(`Failed to record code quality issue: ${msg}`);
         });
+
+        Object.assign(result, { autoPrPolicy });
       }
 
       const githubToken = process.env.GITHUB_TOKEN;
@@ -222,6 +252,12 @@ const codeQuality: ResidentAgent = {
             const title =
               (result.issueTitle as string) ??
               `Error: ${(result.pattern as string).substring(0, 80)}`;
+            const autoPrPolicy =
+              result.autoPrPolicy &&
+              typeof result.autoPrPolicy === "object" &&
+              !Array.isArray(result.autoPrPolicy)
+                ? (result.autoPrPolicy as Record<string, unknown>)
+                : null;
 
             if (existingTitles.has(title.toLowerCase())) {
               await log.info(`Skipping duplicate issue: ${title}`);
@@ -246,9 +282,18 @@ const codeQuality: ResidentAgent = {
                 "### Suggested Fix",
                 String(result.suggestedFix ?? "Manual investigation needed"),
                 "",
+                "### Draft Patch Policy",
+                `Decision: ${String(autoPrPolicy?.decision ?? "manual_only")}`,
+                `Rationale: ${String(autoPrPolicy?.summary ?? "No structured proposal metadata recorded.")}`,
+                autoPrPolicy?.branchSlug
+                  ? `Suggested Branch: ${String(autoPrPolicy.branchSlug)}`
+                  : null,
+                "",
                 "---",
                 "*This issue was automatically created by the Code Quality Monitor agent.*",
-              ].join("\n");
+              ]
+                .filter(Boolean)
+                .join("\n");
 
               const { data: issue } = await octokit.rest.issues.create({
                 owner: repoOwner,
@@ -288,6 +333,9 @@ const codeQuality: ResidentAgent = {
         uniquePatterns: patterns.length,
         patternsAnalyzed: analysisResults.length,
         issuesCreated: issuesCreated.length,
+        draftCandidateCount,
+        manualOnlyCount,
+        blockedCount,
       };
 
       await log.info(
