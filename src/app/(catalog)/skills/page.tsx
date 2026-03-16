@@ -22,6 +22,7 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
+  type RankedAccessOffer,
 } from "@/lib/models/access-offers";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -442,6 +443,43 @@ export default async function SkillsPage() {
     })),
   });
 
+  function getBestBudgetPick(entries: ModelScoreEntry[]) {
+    return entries
+      .map((entry) => ({
+        entry,
+        pricing: pricingMap.get(entry.modelId) ?? null,
+      }))
+      .filter(
+        (candidate): candidate is { entry: ModelScoreEntry; pricing: NonNullable<typeof candidate.pricing> } =>
+          candidate.pricing?.compactPrice != null
+      )
+      .sort((left, right) => {
+        const priceDelta =
+          Number(left.pricing.compactPrice ?? Number.MAX_SAFE_INTEGER) -
+          Number(right.pricing.compactPrice ?? Number.MAX_SAFE_INTEGER);
+        if (priceDelta !== 0) return priceDelta;
+
+        return right.entry.avgScore - left.entry.avgScore;
+      })[0] ?? null;
+  }
+
+  function getBestOpenWeights(entries: ModelScoreEntry[]) {
+    return entries.find((entry) => entry.isOpenWeights) ?? null;
+  }
+
+  function getBestAccessPath(entries: ModelScoreEntry[]) {
+    return entries
+      .map((entry) => ({
+        entry,
+        accessOffer: getBestAccessOfferForModel(accessCatalog, entry.modelId),
+      }))
+      .filter(
+        (candidate): candidate is { entry: ModelScoreEntry; accessOffer: RankedAccessOffer } =>
+          candidate.accessOffer != null
+      )
+      .sort((left, right) => right.accessOffer.score - left.accessOffer.score)[0] ?? null;
+  }
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -550,6 +588,10 @@ export default async function SkillsPage() {
           const ranked = skillRankings.get(skill.id) ?? [];
           const top10 = ranked.slice(0, 10);
           const Icon = skill.icon;
+          const topPerformer = top10[0] ?? null;
+          const budgetPick = getBestBudgetPick(top10);
+          const openWeightsPick = getBestOpenWeights(top10);
+          const bestAccessPath = getBestAccessPath(top10);
 
           return (
             <section key={skill.id} id={`skill-${skill.id}`}>
@@ -571,6 +613,108 @@ export default async function SkillsPage() {
                   </p>
                 </div>
               </div>
+
+              {top10.length > 0 ? (
+                <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Top Performer
+                    </p>
+                    {topPerformer ? (
+                      <div className="mt-3 space-y-2">
+                        <Link
+                          href={`/models/${topPerformer.slug}`}
+                          className="inline-flex items-center gap-2 text-sm font-semibold hover:text-neon"
+                        >
+                          <ProviderLogo provider={topPerformer.provider} size="sm" />
+                          <span>{topPerformer.name}</span>
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          Avg score {topPerformer.avgScore.toFixed(1)} across {topPerformer.scoreCount} benchmark{topPerformer.scoreCount !== 1 ? "s" : ""}.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">No data yet.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Best Budget Pick
+                    </p>
+                    {budgetPick ? (
+                      <div className="mt-3 space-y-2">
+                        <Link
+                          href={`/models/${budgetPick.entry.slug}`}
+                          className="inline-flex items-center gap-2 text-sm font-semibold hover:text-neon"
+                        >
+                          <ProviderLogo provider={budgetPick.entry.provider} size="sm" />
+                          <span>{budgetPick.entry.name}</span>
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          {budgetPick.pricing.compactPrice === 0
+                            ? "Free access path"
+                            : `Cheapest verified ${budgetPick.pricing.compactPrice?.toFixed(2) ?? "---"}`}
+                          {" · "}
+                          {budgetPick.pricing.compactLabel}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No verified price surfaced yet.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Best Access Path
+                    </p>
+                    {bestAccessPath ? (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold">
+                          <Globe className="h-3.5 w-3.5 text-neon" />
+                          <span>{bestAccessPath.accessOffer.platform.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {bestAccessPath.accessOffer.actionLabel} for {bestAccessPath.entry.name}
+                        </p>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                          Value {bestAccessPath.accessOffer.userValueScore.toFixed(0)} · Trust {bestAccessPath.accessOffer.trustScore.toFixed(0)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No verified access route surfaced yet.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Open Weights Leader
+                    </p>
+                    {openWeightsPick ? (
+                      <div className="mt-3 space-y-2">
+                        <Link
+                          href={`/models/${openWeightsPick.slug}`}
+                          className="inline-flex items-center gap-2 text-sm font-semibold hover:text-neon"
+                        >
+                          <ProviderLogo provider={openWeightsPick.provider} size="sm" />
+                          <span>{openWeightsPick.name}</span>
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          Avg score {openWeightsPick.avgScore.toFixed(1)} with public weights.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No open-weight leader in this skill yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               {top10.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-border/50">
