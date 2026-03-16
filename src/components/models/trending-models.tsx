@@ -12,6 +12,8 @@ import { getParameterDisplay } from "@/lib/models/presentation";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { cn } from "@/lib/utils";
+import type { ModelSignalSummary } from "@/lib/news/model-signals";
+import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 
 interface TrendingModel {
   id: string;
@@ -31,6 +33,7 @@ interface TrendingModel {
   parameter_count: number | null;
   is_open_weights: boolean;
   mention_count?: number;
+  recent_signal?: ModelSignalSummary | null;
 }
 
 type TabKey = "trending" | "recent" | "popular" | "discussed";
@@ -127,7 +130,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
               <Link
                 key={model.id}
                 href={`/models/${model.slug}`}
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-secondary/30"
+                className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-secondary/30"
               >
                 <span className="w-6 text-center text-xs font-bold text-muted-foreground tabular-nums">
                   {idx + 1}
@@ -146,6 +149,11 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                     <span>{model.provider}</span>
                     <span>· {parameterDisplay.label}</span>
                   </div>
+                  {model.recent_signal ? (
+                    <div className="mt-2">
+                      <ModelSignalBadge signal={model.recent_signal} />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {cat && (

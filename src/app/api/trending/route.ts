@@ -9,6 +9,7 @@ import {
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
 
 export const dynamic = "force-dynamic";
 
@@ -136,12 +137,55 @@ export async function GET(request: NextRequest) {
       .slice(0, 6);
 
     const discussedUnique = dedupePublicModelFamilies(discussed);
+    const combinedModels = dedupePublicModelFamilies([
+      ...trending,
+      ...popular,
+      ...recent,
+      ...discussedUnique,
+    ]);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const { data: recentNewsRaw } = await supabase
+      .from("model_news")
+      .select(
+        "id, title, source, related_provider, related_model_ids, published_at, metadata"
+      )
+      .gte("published_at", fourteenDaysAgo.toISOString())
+      .order("published_at", { ascending: false })
+      .limit(250);
+
+    const modelSignals = pickBestModelSignals(
+      combinedModels,
+      ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+        id: typeof item.id === "string" ? item.id : null,
+        title: typeof item.title === "string" ? item.title : null,
+        source: typeof item.source === "string" ? item.source : null,
+        related_provider:
+          typeof item.related_provider === "string" ? item.related_provider : null,
+        related_model_ids: Array.isArray(item.related_model_ids)
+          ? (item.related_model_ids as string[])
+          : null,
+        published_at:
+          typeof item.published_at === "string" ? item.published_at : null,
+        metadata:
+          item.metadata && typeof item.metadata === "object"
+            ? (item.metadata as Record<string, unknown>)
+            : null,
+      }))
+    );
+
+    const attachSignal = <T extends { id: string }>(modelsWithScores: T[]) =>
+      modelsWithScores.map((model) => ({
+        ...model,
+        recent_signal: modelSignals.get(model.id) ?? null,
+      }));
 
     return NextResponse.json({
-      trending,
-      recent,
-      popular,
-      discussed: discussedUnique.slice(0, limit),
+      trending: attachSignal(trending),
+      recent: attachSignal(recent),
+      popular: attachSignal(popular),
+      discussed: attachSignal(discussedUnique.slice(0, limit)),
     });
   } catch (err) {
     return handleApiError(err, "api/trending");

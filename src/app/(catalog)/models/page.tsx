@@ -25,6 +25,8 @@ import { ModelsGrid } from "@/components/models/models-grid";
 import { Pagination } from "@/components/models/pagination";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
+import type { ModelSignalSummary } from "@/lib/news/model-signals";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -205,6 +207,42 @@ export default async function ModelsPage({
       ? sortedUniqueModels.length
       : (count ?? parsedModels.length);
   const models = sortedUniqueModels.slice(from, to + 1);
+  const visibleModelIds = models.map((model) => model.id);
+
+  let modelSignals = new Map<string, ModelSignalSummary>();
+  if (visibleModelIds.length > 0) {
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const { data: recentNewsRaw } = await supabase
+      .from("model_news")
+      .select(
+        "id, title, source, related_provider, related_model_ids, published_at, metadata"
+      )
+      .gte("published_at", fourteenDaysAgo.toISOString())
+      .order("published_at", { ascending: false })
+      .limit(250);
+
+    modelSignals = pickBestModelSignals(
+      models,
+      ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+        id: typeof item.id === "string" ? item.id : null,
+        title: typeof item.title === "string" ? item.title : null,
+        source: typeof item.source === "string" ? item.source : null,
+        related_provider:
+          typeof item.related_provider === "string" ? item.related_provider : null,
+        related_model_ids: Array.isArray(item.related_model_ids)
+          ? (item.related_model_ids as string[])
+          : null,
+        published_at:
+          typeof item.published_at === "string" ? item.published_at : null,
+        metadata:
+          item.metadata && typeof item.metadata === "object"
+            ? (item.metadata as Record<string, unknown>)
+            : null,
+      }))
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -234,7 +272,12 @@ export default async function ModelsPage({
           </p>
         </div>
       ) : view === "grid" ? (
-        <ModelsGrid models={models} />
+        <ModelsGrid
+          models={models.map((model) => ({
+            ...model,
+            recent_signal: modelSignals.get(model.id) ?? null,
+          }))}
+        />
       ) : (
         <div className="mt-4 overflow-hidden rounded-xl border border-border/50">
           <table className="w-full">
@@ -279,6 +322,7 @@ export default async function ModelsPage({
                 const pricingSummary = getPublicPricingSummary(model);
                 const parameterDisplay = getParameterDisplay(model);
                 const lifecycleBadge = getLifecycleBadge(model.status);
+                const recentSignal = modelSignals.get(model.id);
 
                 return (
                   <tr
@@ -310,6 +354,11 @@ export default async function ModelsPage({
                             {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                               <Badge variant="outline" className="ml-2 text-[10px]">
                                 {lifecycleBadge.label}
+                              </Badge>
+                            )}
+                            {recentSignal && (
+                              <Badge variant="outline" className="ml-2 text-[10px]">
+                                {recentSignal.signalLabel}
                               </Badge>
                             )}
                           </div>

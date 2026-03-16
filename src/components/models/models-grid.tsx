@@ -9,6 +9,8 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { ModelSignalBadge } from "@/components/models/model-signal-badge";
+import type { ModelSignalSummary } from "@/lib/news/model-signals";
 
 interface ModelsGridProps {
   models: Array<{
@@ -33,6 +35,7 @@ interface ModelsGridProps {
       output_price_per_million?: number | null;
       currency?: string | null;
     }>;
+    recent_signal?: ModelSignalSummary | null;
   }>;
 }
 
@@ -45,6 +48,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const parameterDisplay = getParameterDisplay(model);
         const pricingSummary = getPublicPricingSummary(model);
         const lifecycleBadge = getLifecycleBadge(model.status);
+        const recentSignal = model.recent_signal ?? null;
 
         return (
           <Link key={model.id} href={`/models/${model.slug}`}>
@@ -85,6 +89,12 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                     </Badge>
                   )}
                 </div>
+
+                {recentSignal ? (
+                  <div className="mt-3">
+                    <ModelSignalBadge signal={recentSignal} />
+                  </div>
+                ) : null}
 
                 <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-3">
                   <div className="text-center">
