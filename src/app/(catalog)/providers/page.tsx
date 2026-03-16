@@ -9,6 +9,8 @@ import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/lib/constants/providers";
 import { ProviderCharts } from "@/components/charts/provider-charts";
+import { pickBestProviderSignals } from "@/lib/news/provider-signals";
+import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -34,13 +36,21 @@ interface ProviderStats {
 export default async function ProvidersPage() {
   const supabase = createPublicClient();
 
-  // Fetch all active models with key fields
-  const { data: models } = await supabase
-    .from("models")
-    .select(
-      "id, slug, name, provider, hf_downloads, quality_score, overall_rank, is_open_weights, category"
-    )
-    .eq("status", "active");
+  // Fetch active provider footprints and recent provider-linked signals.
+  const [{ data: models }, { data: newsRaw }] = await Promise.all([
+    supabase
+      .from("models")
+      .select(
+        "id, slug, name, provider, hf_downloads, quality_score, overall_rank, is_open_weights, category"
+      )
+      .eq("status", "active"),
+    supabase
+      .from("model_news")
+      .select("id, title, source, related_provider, published_at, metadata")
+      .not("related_provider", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(180),
+  ]);
 
   const uniqueModels = dedupePublicModelFamilies(models ?? []);
 
@@ -91,6 +101,22 @@ export default async function ProvidersPage() {
   // Show top providers (2+ models) to keep the page fast
   const providers = allProviders.filter((p) => p.modelCount >= 2);
   const totalProviderCount = allProviders.length;
+  const providerSignals = pickBestProviderSignals(
+    providers.map((provider) => provider.provider),
+    (newsRaw ?? []).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -211,6 +237,15 @@ export default async function ProvidersPage() {
                       </Badge>
                     )}
                   </div>
+
+                  {providerSignals.get(prov.provider) ? (
+                    <div className="mt-3 border-t border-border/40 pt-3">
+                      <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Recent Signal
+                      </p>
+                      <ProviderSignalBadge signal={providerSignals.get(prov.provider)!} />
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </Link>

@@ -19,7 +19,6 @@ import { ModelBaseSchema } from "@/lib/schemas/models";
 import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import {
-  getCanonicalProviderName,
   getProviderBrand,
   providerMatchesCanonical,
   resolveProviderSlug,
@@ -31,6 +30,11 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
+import { buildLaunchRadar, summarizeNewsSignals } from "@/lib/news/presentation";
+import { filterProviderSignals } from "@/lib/news/provider-signals";
+import { SignalSummary } from "@/components/news/signal-summary";
+import { LaunchRadar } from "@/components/news/launch-radar";
+import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 
 export const revalidate = 3600;
 
@@ -120,6 +124,14 @@ export default async function ProviderDetailPage({
           supabase.from("deployment_platforms").select("*").order("name"),
         ])
       : [{ data: [], error: null }, { data: [], error: null }];
+  const providerNewsResponse = await supabase
+    .from("model_news")
+    .select(
+      "id, title, summary, url, source, category, related_provider, related_model_ids, published_at, metadata"
+    )
+    .not("related_provider", "is", null)
+    .order("published_at", { ascending: false })
+    .limit(120);
 
   const deploymentPlatforms = (platformsResponse.data ?? []).map((platform) => {
     const platformRecord = platform as Record<string, unknown>;
@@ -149,6 +161,30 @@ export default async function ProviderDetailPage({
   }).subscriptionOffers;
 
   const brand = getProviderBrand(providerName);
+  const providerNews = filterProviderSignals(
+    providerName,
+    (providerNewsResponse.data ?? []).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      summary: typeof item.summary === "string" ? item.summary : null,
+      url: typeof item.url === "string" ? item.url : null,
+      source: typeof item.source === "string" ? item.source : null,
+      category: typeof item.category === "string" ? item.category : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
+  );
+  const providerSignalSummary = summarizeNewsSignals(providerNews);
+  const providerRadar = buildLaunchRadar(providerNews, 6);
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
   const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
   const qualityScores = models
@@ -200,6 +236,21 @@ export default async function ProviderDetailPage({
             <p className="mt-1 text-sm text-muted-foreground">
               Company footprint view: strongest categories, official pricing posture, and highest-value active models.
             </p>
+            {providerRadar[0] ? (
+              <div className="mt-3">
+                <ProviderSignalBadge
+                  signal={{
+                    title: providerRadar[0].title ?? "Recent provider update",
+                    signalType: providerRadar[0].signalType,
+                    signalLabel: providerRadar[0].signalLabel,
+                    signalImportance: providerRadar[0].signalImportance,
+                    publishedAt: providerRadar[0].published_at ?? null,
+                    source: providerRadar[0].source ?? null,
+                    relatedProvider: providerRadar[0].related_provider ?? null,
+                  }}
+                />
+              </div>
+            ) : null}
             {brand && (
               <a
                 href={`https://${brand.domain}`}
@@ -289,6 +340,22 @@ export default async function ProviderDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {providerNews.length > 0 && (
+        <div className="mb-8 space-y-4">
+          <SignalSummary
+            buckets={providerSignalSummary}
+            emptyLabel="No structured provider signals have synced yet."
+          />
+          <LaunchRadar
+            items={providerRadar}
+            title="Recent Provider Signals"
+            description="Recent launch, pricing, benchmark, API, and research signals linked to this provider."
+            ctaHref="/news"
+            ctaLabel="View all signals"
+          />
+        </div>
+      )}
 
       {providerAccessOffers.length > 0 && (
         <Card className="mb-8 border-border/50 bg-card">
