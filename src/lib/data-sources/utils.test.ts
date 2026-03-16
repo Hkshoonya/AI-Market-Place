@@ -12,6 +12,7 @@ import {
   fetchWithRetry,
   hasPermanentSyncError,
   isPermanentHttpFailure,
+  upsertBatch,
 } from "./utils";
 
 // ────────────────────────────────────────────────────────────────
@@ -168,5 +169,75 @@ describe("hasPermanentSyncError", () => {
     expect(hasPermanentSyncError([
       { message: "timeout", context: "network_error" },
     ])).toBe(false);
+  });
+});
+
+describe("upsertBatch", () => {
+  it("returns the batch count on successful multi-row upserts", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 2 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    const result = await upsertBatch(
+      supabase as never,
+      "model_news",
+      [{ source_id: "row-1" }, { source_id: "row-2" }],
+      "source,source_id"
+    );
+
+    expect(result).toEqual({ created: 2, errors: [] });
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to single-row upserts when a multi-row batch fails", async () => {
+    const upsert = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: "invalid input syntax for type json" }, count: null })
+      .mockResolvedValueOnce({ error: null, count: 1 })
+      .mockResolvedValueOnce({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    const result = await upsertBatch(
+      supabase as never,
+      "model_news",
+      [{ source_id: "row-1" }, { source_id: "row-2" }],
+      "source,source_id"
+    );
+
+    expect(result).toEqual({ created: 2, errors: [] });
+    expect(upsert).toHaveBeenCalledTimes(3);
+    expect(upsert).toHaveBeenNthCalledWith(2, [{ source_id: "row-1" }], {
+      onConflict: "source,source_id",
+      count: "exact",
+    });
+  });
+
+  it("reports only the rows that still fail after fallback", async () => {
+    const upsert = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: "invalid input syntax for type json" }, count: null })
+      .mockResolvedValueOnce({ error: null, count: 1 })
+      .mockResolvedValueOnce({ error: { message: "still bad" }, count: null });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    const result = await upsertBatch(
+      supabase as never,
+      "model_news",
+      [{ source_id: "row-1" }, { source_id: "row-2" }],
+      "source,source_id"
+    );
+
+    expect(result.created).toBe(1);
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        message: "Upsert row failed after batch fallback: still bad",
+        context: expect.stringContaining("row=row-2"),
+      }),
+    ]);
   });
 });

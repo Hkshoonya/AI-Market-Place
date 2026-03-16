@@ -109,10 +109,36 @@ export async function upsertBatch(
       .upsert(batch, { onConflict: conflictColumn, count: "exact" });
 
     if (error) {
-      errors.push({
-        message: `Upsert batch ${Math.floor(i / batchSize) + 1} failed: ${error.message}`,
-        context: `table=${table}, batchStart=${i}, batchSize=${batch.length}`,
-      });
+      if (batch.length === 1) {
+        errors.push({
+          message: `Upsert batch ${Math.floor(i / batchSize) + 1} failed: ${error.message}`,
+          context: `table=${table}, batchStart=${i}, batchSize=${batch.length}`,
+        });
+        continue;
+      }
+
+      for (let rowIndex = 0; rowIndex < batch.length; rowIndex++) {
+        const record = batch[rowIndex];
+        const { error: rowError, count: rowCount } = await sb
+          .from(table)
+          .upsert([record], { onConflict: conflictColumn, count: "exact" });
+
+        if (rowError) {
+          const rowIdentifier =
+            (typeof record.source_id === "string" && record.source_id) ||
+            (typeof record.slug === "string" && record.slug) ||
+            (typeof record.id === "string" && record.id) ||
+            `${i + rowIndex}`;
+
+          errors.push({
+            message: `Upsert row failed after batch fallback: ${rowError.message}`,
+            context:
+              `table=${table}, batchStart=${i}, batchSize=${batch.length}, rowIndex=${rowIndex}, row=${rowIdentifier}`,
+          });
+        } else {
+          totalCreated += rowCount ?? 1;
+        }
+      }
     } else {
       totalCreated += count ?? batch.length;
     }
