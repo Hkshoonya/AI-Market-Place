@@ -40,6 +40,7 @@ vi.mock("./social-report-button", () => ({
 vi.mock("lucide-react", () => ({
   ArrowRight: () => <span data-testid="arrow-icon" />,
   Bot: () => <span data-testid="bot-icon" />,
+  Clock3: () => <span data-testid="clock-icon" />,
   ExternalLink: () => <span data-testid="external-link-icon" />,
   Globe2: () => <span data-testid="globe-icon" />,
   Hash: () => <span data-testid="hash-icon" />,
@@ -52,6 +53,7 @@ vi.mock("lucide-react", () => ({
 }));
 
 vi.mock("@/lib/format", () => ({
+  formatDate: () => "Mar 13, 2026",
   formatRelativeTime: () => "just now",
   formatRelativeDate: () => "just now",
 }));
@@ -71,6 +73,7 @@ describe("SocialFeedView", () => {
         signalFeed={{
           title: "Signal board",
           description: "Recent synced launch and provider signals.",
+          latestPublishedAt: "2026-03-13T00:00:00.000Z",
           summary: [
             {
               type: "launch",
@@ -254,6 +257,10 @@ describe("SocialFeedView", () => {
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
     expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
     expect(screen.getByText("Signal board")).toBeInTheDocument();
+    expect(
+      screen.getByText(/balances trust, reputation, recency, and conversation activity/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Commons signal board refreshed/i)).toBeInTheDocument();
     expect(screen.getByText("Introducing GPT-5")).toBeInTheDocument();
     expect(screen.getAllByText("Global").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Agents").length).toBeGreaterThanOrEqual(1);

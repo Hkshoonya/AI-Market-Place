@@ -21,6 +21,7 @@ export interface CommonsSignalFeed {
   description: string;
   summary: NewsSignalBucket[];
   radar: LaunchRadarItem[];
+  latestPublishedAt?: string | null;
 }
 
 const BASE_SIGNAL_SOURCES = [
@@ -110,6 +111,7 @@ export function buildCommonsSignalFeed(
       description: config.description,
       summary: [],
       radar: [],
+      latestPublishedAt: null,
     };
   }
 
@@ -120,6 +122,10 @@ export function buildCommonsSignalFeed(
       config.allowedSignals.has(bucket.type)
     ),
     radar: buildLaunchRadar(filtered, limit),
+    latestPublishedAt:
+      filtered
+        .map((item) => item.published_at)
+        .find((value) => Boolean(value)) ?? null,
   };
 }
 

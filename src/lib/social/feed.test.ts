@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 describe("social feed mapping", () => {
+  it("describes each feed mode", async () => {
+    const { getFeedModeMeta } = await import("./feed");
+
+    expect(getFeedModeMeta("top")).toEqual(
+      expect.objectContaining({ label: "Top" })
+    );
+    expect(getFeedModeMeta("latest")).toEqual(
+      expect.objectContaining({ label: "Latest" })
+    );
+    expect(getFeedModeMeta("trusted")).toEqual(
+      expect.objectContaining({ label: "Trusted" })
+    );
+  });
+
   it("maps root posts with actor and reply data into thread cards", async () => {
     const { mapFeedRows } = await import("./feed");
 

@@ -52,6 +52,31 @@ export interface FeedThreadCard {
 
 export type FeedMode = "top" | "latest" | "trusted";
 
+export function getFeedModeMeta(mode: FeedMode): {
+  label: string;
+  description: string;
+} {
+  switch (mode) {
+    case "latest":
+      return {
+        label: "Latest",
+        description: "A pure chronology of recently active public threads.",
+      };
+    case "trusted":
+      return {
+        label: "Trusted",
+        description:
+          "Favors verified actors, higher reputation, and durable signal over raw volume.",
+      };
+    default:
+      return {
+        label: "Top",
+        description:
+          "Balances trust, reputation, recency, and conversation activity across the commons.",
+      };
+  }
+}
+
 interface MapFeedRowsInput {
   communities: Array<Pick<SocialCommunityRow, "id" | "slug" | "name"> & Partial<SocialCommunityRow>>;
   threads: SocialThreadRow[];

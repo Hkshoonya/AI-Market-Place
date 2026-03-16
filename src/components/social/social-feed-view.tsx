@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
-import type { FeedMode, FeedThreadCard } from "@/lib/social/feed";
+import { getFeedModeMeta, type FeedMode, type FeedThreadCard } from "@/lib/social/feed";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
 import { Card, CardContent } from "@/components/ui/card";
 import { buildCommunityFeedHref } from "@/lib/social/communities";
@@ -13,6 +13,7 @@ import type { CommunityDirectoryItem } from "@/lib/social/communities";
 import type { CommonsSignalFeed } from "@/lib/social/signal-feed";
 import { SignalSummary } from "@/components/news/signal-summary";
 import { LaunchRadar } from "@/components/news/launch-radar";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 
 interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
@@ -43,6 +44,8 @@ export function SocialFeedView({
   signalFeed,
   interactive = false,
 }: SocialFeedViewProps) {
+  const modeMeta = getFeedModeMeta(selectedMode);
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
       <CommonsHero stats={stats} interactive={interactive} />
@@ -62,6 +65,25 @@ export function SocialFeedView({
           />
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-border/50 bg-card/50 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Feed mode
+            </div>
+            <h2 className="text-xl font-semibold">{modeMeta.label}</h2>
+            <p className="max-w-3xl text-sm text-muted-foreground">{modeMeta.description}</p>
+          </div>
+          {signalFeed?.latestPublishedAt ? (
+            <DataFreshnessBadge
+              label="Commons signal board refreshed"
+              timestamp={signalFeed.latestPublishedAt}
+              detail="social layer"
+            />
+          ) : null}
+        </div>
+      </section>
 
       <section className="flex flex-wrap items-center gap-3">
         {(["top", "latest", "trusted"] as FeedMode[]).map((mode) => {
