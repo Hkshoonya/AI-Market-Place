@@ -35,9 +35,10 @@ import { filterProviderSignals } from "@/lib/news/provider-signals";
 import { SignalSummary } from "@/components/news/signal-summary";
 import { LaunchRadar } from "@/components/news/launch-radar";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
@@ -186,6 +187,7 @@ export default async function ProviderDetailPage({
   );
   const providerSignalSummary = summarizeNewsSignals(providerNews);
   const providerRadar = buildLaunchRadar(providerNews, 6);
+  const latestSignalAt = providerRadar[0]?.published_at ?? null;
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
   const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
   const avgCapability = averageCapabilityMetric(models);
@@ -231,6 +233,13 @@ export default async function ProviderDetailPage({
             <p className="mt-1 text-sm text-muted-foreground">
               Company footprint view: strongest categories, official pricing posture, and highest-value active models.
             </p>
+            <div className="mt-3">
+              <DataFreshnessBadge
+                label="Provider stream refreshed"
+                timestamp={latestSignalAt}
+                detail="detail view"
+              />
+            </div>
             {providerRadar[0] ? (
               <div className="mt-3">
                 <ProviderSignalBadge
