@@ -4,6 +4,7 @@ import {
   type NewsPresentationItem,
 } from "./presentation";
 import { getCanonicalProviderName, providerMatchesCanonical } from "@/lib/constants/providers";
+import { getNewsSignalTrustBonus } from "./evidence";
 
 export interface ProviderSignalCandidate extends NewsPresentationItem {
   related_provider?: string | null;
@@ -55,10 +56,12 @@ function computeCandidateScore(
   if (signalType === "general") return -1;
 
   const importance = getNewsSignalImportance(candidate);
-  const sourceBonus =
-    candidate.source === "provider-blog" || candidate.source === "x-twitter" ? 8 : 0;
 
-  return IMPORTANCE_WEIGHT[importance] * 10 + sourceBonus + publishedAtScore(candidate.published_at);
+  return (
+    IMPORTANCE_WEIGHT[importance] * 10 +
+    getNewsSignalTrustBonus(candidate) +
+    publishedAtScore(candidate.published_at)
+  );
 }
 
 export function pickBestProviderSignals(

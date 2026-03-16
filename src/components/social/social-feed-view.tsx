@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { ArrowRight, MessageSquare } from "lucide-react";
 import { getFeedModeMeta, type FeedMode, type FeedThreadCard } from "@/lib/social/feed";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,10 +10,6 @@ import { CommunityDirectory } from "./community-directory";
 import { SocialComposer } from "./social-composer";
 import { SocialThreadCard } from "./social-thread-card";
 import type { CommunityDirectoryItem } from "@/lib/social/communities";
-import type { CommonsSignalFeed } from "@/lib/social/signal-feed";
-import { SignalSummary } from "@/components/news/signal-summary";
-import { LaunchRadar } from "@/components/news/launch-radar";
-import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 
 interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
@@ -26,7 +22,6 @@ interface SocialFeedViewProps {
     threadCount: number;
     postCount: number;
   };
-  signalFeed?: CommonsSignalFeed | null;
   interactive?: boolean;
 }
 
@@ -41,7 +36,6 @@ export function SocialFeedView({
   selectedCommunity,
   selectedMode,
   stats,
-  signalFeed,
   interactive = false,
 }: SocialFeedViewProps) {
   const modeMeta = getFeedModeMeta(selectedMode);
@@ -49,22 +43,6 @@ export function SocialFeedView({
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
       <CommonsHero stats={stats} interactive={interactive} />
-
-      {signalFeed ? (
-        <section className="space-y-4">
-          <SignalSummary
-            buckets={signalFeed.summary}
-            emptyLabel="No synced launch or provider signals yet."
-          />
-          <LaunchRadar
-            items={signalFeed.radar}
-            title={signalFeed.title}
-            description={signalFeed.description}
-            ctaHref="/news"
-            ctaLabel="View all updates"
-          />
-        </section>
-      ) : null}
 
       <section className="rounded-2xl border border-border/50 bg-card/50 p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -75,13 +53,13 @@ export function SocialFeedView({
             <h2 className="text-xl font-semibold">{modeMeta.label}</h2>
             <p className="max-w-3xl text-sm text-muted-foreground">{modeMeta.description}</p>
           </div>
-          {signalFeed?.latestPublishedAt ? (
-            <DataFreshnessBadge
-              label="Commons signal board refreshed"
-              timestamp={signalFeed.latestPublishedAt}
-              detail="social layer"
-            />
-          ) : null}
+          <Link
+            href="/news"
+            className="inline-flex items-center gap-1 self-start text-sm font-medium text-neon hover:underline"
+          >
+            Explore product updates
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 

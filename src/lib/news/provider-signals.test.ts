@@ -35,14 +35,43 @@ describe("pickBestProviderSignals", () => {
 
     expect(picked.get("OpenAI")).toEqual(
       expect.objectContaining({
-        title: "OpenAI launches new reasoning tier",
-        signalType: "launch",
+        title: "OpenAI benchmark surge",
+        signalType: "benchmark",
       })
     );
     expect(picked.get("Anthropic")).toEqual(
       expect.objectContaining({
         title: "Anthropic pricing refresh",
         signalType: "pricing",
+      })
+    );
+  });
+
+  it("prefers an official provider post over an equivalent X mention", () => {
+    const signals = [
+      {
+        id: "openai-x",
+        title: "OpenAI teases a launch on X",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        published_at: "2026-03-16T10:00:00.000Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+      {
+        id: "openai-blog",
+        title: "OpenAI publishes the launch details",
+        source: "provider-blog",
+        related_provider: "OpenAI",
+        published_at: "2026-03-16T09:30:00.000Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+    ];
+
+    const picked = pickBestProviderSignals(["OpenAI"], signals);
+    expect(picked.get("OpenAI")).toEqual(
+      expect.objectContaining({
+        title: "OpenAI publishes the launch details",
+        source: "provider-blog",
       })
     );
   });

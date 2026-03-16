@@ -37,8 +37,6 @@ import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
-import { LaunchRadar } from "@/components/news/launch-radar";
-import { buildLaunchRadar } from "@/lib/news/presentation";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 
 export const metadata: Metadata = {
@@ -69,7 +67,7 @@ export default async function HomePage() {
     { data: allActiveModels },
     { data: deploymentPlatformsRaw },
     { data: modelDeploymentsRaw },
-    { data: latestNewsRaw },
+    { data: latestSignalNewsRaw },
   ] = await Promise.all([
     supabase.from("models").select("*", { count: "exact", head: true }),
     supabase.from("benchmarks").select("*", { count: "exact", head: true }),
@@ -89,10 +87,10 @@ export default async function HomePage() {
       .eq("status", "available"),
     supabase
       .from("model_news")
-      .select("id, title, summary, url, source, category, related_provider, related_model_ids, published_at, metadata")
+      .select("published_at")
       .in("source", ["x-twitter", "provider-blog"])
       .order("published_at", { ascending: false })
-      .limit(24),
+      .limit(1),
   ]);
 
   const activeModels = dedupePublicModelFamilies(allActiveModels ?? []);
@@ -121,29 +119,10 @@ export default async function HomePage() {
     deployments: modelDeploymentsRaw ?? [],
     models: activeModels,
   });
-  const launchRadar = buildLaunchRadar(
-    ((latestNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
-      id: String(item.id),
-      title: String(item.title ?? ""),
-      summary: typeof item.summary === "string" ? item.summary : null,
-      url: typeof item.url === "string" ? item.url : null,
-      source: typeof item.source === "string" ? item.source : null,
-      category: typeof item.category === "string" ? item.category : null,
-      related_provider:
-        typeof item.related_provider === "string" ? item.related_provider : null,
-      related_model_ids: Array.isArray(item.related_model_ids)
-        ? (item.related_model_ids as string[])
-        : null,
-      published_at:
-        typeof item.published_at === "string" ? item.published_at : null,
-      metadata:
-        item.metadata && typeof item.metadata === "object"
-          ? (item.metadata as Record<string, unknown>)
-          : null,
-    })),
-    6
-  );
-  const latestLaunchSignalAt = launchRadar[0]?.published_at ?? null;
+  const latestLaunchSignalAt =
+    typeof latestSignalNewsRaw?.[0]?.published_at === "string"
+      ? latestSignalNewsRaw[0].published_at
+      : null;
 
   const topModelIds = [...activeModels]
     .filter((model) => model.economic_footprint_rank != null)
@@ -271,11 +250,25 @@ export default async function HomePage() {
       />
 
       <div className="mx-auto mt-6 max-w-7xl px-4">
-        <DataFreshnessBadge
-          label="Market signals refreshed"
-          timestamp={latestLaunchSignalAt}
-          detail="home radar"
-        />
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-card/50 p-4 md:flex-row md:items-center md:justify-between">
+          <DataFreshnessBadge
+            label="Market signals refreshed"
+            timestamp={latestLaunchSignalAt}
+            detail="market updates"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/news"
+              className="inline-flex items-center gap-1 text-sm font-medium text-neon hover:underline"
+            >
+              Explore live updates
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <span className="text-xs text-muted-foreground">
+              Launches, pricing, benchmarks, and API changes live in the dedicated updates page.
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Top 10 Leaderboard */}
@@ -673,16 +666,6 @@ export default async function HomePage() {
             </CardContent>
           </Card>
         </div>
-      </section>
-
-      {/* Subscription Access Leaders */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <LaunchRadar
-          items={launchRadar}
-          ctaHref="/news"
-          ctaLabel="View all updates"
-          description="Live launch, pricing, benchmark, and API signals from official provider posts and blogs, ranked by impact instead of raw chronology."
-        />
       </section>
 
       {/* Subscription Access Leaders */}

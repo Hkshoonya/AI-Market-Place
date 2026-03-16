@@ -13,6 +13,7 @@ import { getStaleSourceCount } from "@/lib/pipeline-health";
 import { buildSourceCoverage } from "@/lib/source-coverage";
 import type { ScoringInputs } from "./types";
 import { createTaggedLogger } from "@/lib/logging";
+import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 
 const log = createTaggedLogger("compute-scores");
 const PAGE_SIZE = 1000;
@@ -146,7 +147,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     }
   }
 
-  // 3. Count news mentions per model (last 30 days)
+  // 3. Aggregate weighted news evidence per model (last 30 days)
   const thirtyDaysAgo = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
@@ -154,19 +155,18 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     () =>
       supabase
         .from("model_news")
-        .select("related_model_ids, source")
+        .select("related_model_ids, source, category, metadata")
         .gte("published_at", thirtyDaysAgo)
         .not("related_model_ids", "is", null),
     "model_news"
   );
 
-  const newsMentionMap = new Map<string, number>();
+  const newsMentionMap = buildModelNewsEvidenceMap(newsItems ?? []);
   const newsSourcesByModel = new Map<string, Set<string>>();
   for (const item of newsItems ?? []) {
     const ids = item.related_model_ids as string[] | null;
     if (!ids) continue;
     for (const id of ids) {
-      newsMentionMap.set(id, (newsMentionMap.get(id) ?? 0) + 1);
       const sources = newsSourcesByModel.get(id) ?? new Set<string>();
       if (item.source) sources.add(item.source);
       newsSourcesByModel.set(id, sources);

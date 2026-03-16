@@ -53,4 +53,36 @@ describe("pickBestModelSignals", () => {
     const picked = pickBestModelSignals(models, signals);
     expect(picked.has("model-1")).toBe(false);
   });
+
+  it("prefers an official provider signal over an X-only provider mention", () => {
+    const models = [{ id: "model-1", provider: "OpenAI" }];
+    const signals = [
+      {
+        id: "x-post",
+        title: "OpenAI teases an update",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: null,
+        published_at: "2026-03-16T10:00:00.000Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+      {
+        id: "blog-post",
+        title: "OpenAI publishes the update notes",
+        source: "provider-blog",
+        related_provider: "OpenAI",
+        related_model_ids: null,
+        published_at: "2026-03-16T09:30:00.000Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+    ];
+
+    const picked = pickBestModelSignals(models, signals);
+    expect(picked.get("model-1")).toEqual(
+      expect.objectContaining({
+        title: "OpenAI publishes the update notes",
+        source: "provider-blog",
+      })
+    );
+  });
 });

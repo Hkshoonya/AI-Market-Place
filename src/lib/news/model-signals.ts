@@ -3,6 +3,7 @@ import {
   getNewsSignalType,
   type NewsPresentationItem,
 } from "./presentation";
+import { getNewsSignalTrustBonus } from "./evidence";
 
 export interface ModelSignalCandidate extends NewsPresentationItem {
   related_provider?: string | null;
@@ -69,6 +70,7 @@ function computeCandidateScore(
   return (
     (directMatch ? 100 : 40) +
     IMPORTANCE_WEIGHT[importance] * 10 +
+    getNewsSignalTrustBonus(candidate) +
     publishedAtScore(candidate.published_at)
   );
 }

@@ -32,7 +32,7 @@ interface TrendingModel {
   release_date: string | null;
   parameter_count: number | null;
   is_open_weights: boolean;
-  mention_count?: number;
+  coverage_score?: number;
   recent_signal?: ModelSignalSummary | null;
 }
 
@@ -42,7 +42,7 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "trending", label: "Trending", icon: Flame },
   { key: "recent", label: "New Releases", icon: Rocket },
   { key: "popular", label: "Most Popular", icon: Crown },
-  { key: "discussed", label: "Most Discussed", icon: Newspaper },
+  { key: "discussed", label: "Coverage", icon: Newspaper },
 ];
 
 interface TrendingModelsProps {
@@ -108,9 +108,9 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
             const parameterDisplay = getParameterDisplay(model);
             const rightLabel =
               activeTab === "discussed"
-                ? model.mention_count
-                  ? `${model.mention_count} mention${model.mention_count !== 1 ? "s" : ""}`
-                  : "0 mentions"
+                ? model.coverage_score != null
+                  ? `Coverage ${Number(model.coverage_score).toFixed(1)}`
+                  : "Coverage 0.0"
                 : activeTab === "popular"
                   ? model.popularity_score != null
                     ? `Pop ${Number(model.popularity_score).toFixed(0)}`

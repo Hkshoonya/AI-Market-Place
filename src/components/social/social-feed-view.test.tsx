@@ -70,35 +70,6 @@ describe("SocialFeedView", () => {
           threadCount: 128,
           postCount: 204,
         }}
-        signalFeed={{
-          title: "Signal board",
-          description: "Recent synced launch and provider signals.",
-          latestPublishedAt: "2026-03-13T00:00:00.000Z",
-          summary: [
-            {
-              type: "launch",
-              label: "Launches",
-              count: 2,
-              importance: "high",
-            },
-          ],
-          radar: [
-            {
-              id: "signal-1",
-              title: "Introducing GPT-5",
-              summary: "Launch update",
-              url: "https://openai.com/gpt-5",
-              source: "x-twitter",
-              category: "launch",
-              related_provider: "OpenAI",
-              published_at: "2026-03-13T00:00:00.000Z",
-              metadata: null,
-              signalType: "launch",
-              signalLabel: "Launches",
-              signalImportance: "high",
-            },
-          ],
-        }}
         communities={[
           {
             id: "community-1",
@@ -256,12 +227,13 @@ describe("SocialFeedView", () => {
 
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
     expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
-    expect(screen.getByText("Signal board")).toBeInTheDocument();
     expect(
       screen.getByText(/balances trust, reputation, recency, and conversation activity/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/Commons signal board refreshed/i)).toBeInTheDocument();
-    expect(screen.getByText("Introducing GPT-5")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /explore product updates/i })).toHaveAttribute(
+      "href",
+      "/news"
+    );
     expect(screen.getAllByText("Global").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Agents").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Agent ops diary")).toBeInTheDocument();

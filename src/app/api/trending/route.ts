@@ -9,6 +9,7 @@ import {
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 
 export const dynamic = "force-dynamic";
@@ -89,36 +90,80 @@ export async function GET(request: NextRequest) {
 
     const { data: popularModels } = await popularQuery;
 
-    // Get "most discussed" — models with most news mentions recently
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: discussedModels } = await (supabase.rpc as any)(
-      "get_most_discussed_models",
-      { days_back: 30, result_limit: limit }
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data: coverageNewsRaw } = await supabase
+      .from("model_news")
+      .select("related_model_ids, source, category, metadata")
+      .gte("published_at", thirtyDaysAgo.toISOString())
+      .not("related_model_ids", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(800);
+
+    const discussedEvidence = buildModelNewsEvidenceMap(
+      ((coverageNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+        related_model_ids: Array.isArray(item.related_model_ids)
+          ? (item.related_model_ids as string[])
+          : null,
+        source: typeof item.source === "string" ? item.source : null,
+        category: typeof item.category === "string" ? item.category : null,
+        metadata:
+          item.metadata && typeof item.metadata === "object"
+            ? (item.metadata as Record<string, unknown>)
+            : null,
+      }))
     );
 
-    // Map discussed models to the same shape as other tabs
-    const discussed = (discussedModels ?? []).map(
-      (m: {
-        model_id: string;
-        mention_count: number;
-        model_name: string;
-        model_slug: string;
-        model_provider: string;
-        quality_score: number | null;
-      }) => ({
-        id: m.model_id,
-        slug: m.model_slug,
-        name: m.model_name,
-        provider: m.model_provider,
-        quality_score: m.quality_score,
-        mention_count: m.mention_count,
-        category: null,
-        overall_rank: null,
-        hf_downloads: 0,
-        parameter_count: null,
-        is_open_weights: false,
-      })
-    );
+    const discussedIds = [...discussedEvidence.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, limit * 4)
+      .map(([modelId]) => modelId);
+
+    let discussed: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      provider: string;
+      category: string | null;
+      overall_rank: number | null;
+      quality_score: number | null;
+      hf_downloads: number;
+      parameter_count: number | null;
+      is_open_weights: boolean;
+      coverage_score: number;
+    }> = [];
+
+    if (discussedIds.length > 0) {
+      let discussedQuery = supabase
+        .from("models")
+        .select(
+          "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, parameter_count, is_open_weights"
+        )
+        .eq("status", "active")
+        .in("id", discussedIds);
+
+      if (category) {
+        discussedQuery = discussedQuery.eq(
+          "category",
+          category as import("@/types/database").ModelCategory
+        );
+      }
+
+      const { data: discussedModels } = await discussedQuery;
+      const discussedById = new Map((discussedModels ?? []).map((model) => [model.id, model]));
+
+      discussed = discussedIds
+        .map((modelId) => {
+          const model = discussedById.get(modelId);
+          if (!model) return null;
+          return {
+            ...model,
+            coverage_score: discussedEvidence.get(modelId) ?? 0,
+          };
+        })
+        .filter((model): model is NonNullable<typeof model> => Boolean(model));
+    }
 
     const trending = sortByDiscoveryScore(dedupePublicModelFamilies(data ?? []), (model) =>
       computeTrendingDiscoveryScore(model)

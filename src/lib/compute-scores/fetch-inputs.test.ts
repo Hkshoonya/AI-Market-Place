@@ -131,8 +131,18 @@ describe("fetchInputs", () => {
     ];
 
     const mockNews = [
-      { related_model_ids: ["m1", "m2"] },
-      { related_model_ids: ["m1"] },
+      {
+        related_model_ids: ["m1", "m2"],
+        source: "provider-blog",
+        category: "launch",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+      {
+        related_model_ids: ["m1"],
+        source: "x-twitter",
+        category: "launch",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
     ];
 
     const supabase = createMockSupabase({
@@ -164,8 +174,8 @@ describe("fetchInputs", () => {
     expect(result.eloMap.get("m1")).toBe(1287);
 
     // News mention map
-    expect(result.newsMentionMap.get("m1")).toBe(2);
-    expect(result.newsMentionMap.get("m2")).toBe(1);
+    expect(result.newsMentionMap.get("m1")).toBeCloseTo(1.02);
+    expect(result.newsMentionMap.get("m2")).toBeCloseTo(0.85);
 
     // Provider benchmark avg
     expect(result.providerBenchmarkAvg.has("openai")).toBe(true);

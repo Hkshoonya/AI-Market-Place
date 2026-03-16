@@ -15,6 +15,7 @@ import {
   groupNewsBySignal,
   summarizeNewsSignals,
 } from "@/lib/news/presentation";
+import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 
 export const metadata: Metadata = {
   title: "News & Updates",
@@ -26,6 +27,8 @@ export const revalidate = 300;
 
 export default async function NewsPage() {
   const supabase = createPublicClient();
+  // eslint-disable-next-line react-hooks/purity -- server component snapshots a single time window per response
+  const ninetyDaysAgoIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
   const NEWS_FIELDS =
     "id, title, summary, url, source, category, related_provider, related_model_ids, tags, metadata, published_at";
@@ -39,7 +42,7 @@ export default async function NewsPage() {
     benchmarksRes,
     totalRes,
     byProviderRes,
-    byModelRes,
+    byModelNewsRes,
   ] = await Promise.all([
     // Model updates (internal changelog)
     supabase
@@ -84,9 +87,13 @@ export default async function NewsPage() {
       .not("related_provider", "is", null)
       .order("published_at", { ascending: false })
       .limit(100),
-    // By Model: models that have linked news (from RPC function)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase.rpc as any)("get_most_discussed_models", { days_back: 90, result_limit: 30 }),
+    supabase
+      .from("model_news")
+      .select("related_model_ids, source, category, metadata")
+      .gte("published_at", ninetyDaysAgoIso)
+      .not("related_model_ids", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(1000),
   ]);
 
   const updates = (updatesRes.data ?? []) as Record<string, unknown>[];
@@ -128,15 +135,46 @@ export default async function NewsPage() {
     (a, b) => b[1].length - a[1].length
   );
 
-  // By Model data from RPC
-  const discussedModels = (byModelRes.data ?? []) as Array<{
-    model_id: string;
-    mention_count: number;
-    model_name: string;
-    model_slug: string;
-    model_provider: string;
-    quality_score: number | null;
-  }>;
+  const coverageMap = buildModelNewsEvidenceMap(
+    ((byModelNewsRes.data ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      source: typeof item.source === "string" ? item.source : null,
+      category: typeof item.category === "string" ? item.category : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
+  );
+  const discussedIds = [...coverageMap.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 30)
+    .map(([modelId]) => modelId);
+  const { data: discussedModelRows } =
+    discussedIds.length > 0
+      ? await supabase
+          .from("models")
+          .select("id, slug, name, provider, quality_score")
+          .eq("status", "active")
+          .in("id", discussedIds)
+      : { data: [] };
+  const discussedById = new Map((discussedModelRows ?? []).map((model) => [model.id, model]));
+  const discussedModels = discussedIds
+    .map((modelId) => {
+      const model = discussedById.get(modelId);
+      if (!model) return null;
+      return {
+        model_id: model.id,
+        model_slug: model.slug,
+        model_name: model.name,
+        model_provider: model.provider,
+        quality_score: model.quality_score,
+        coverage_score: coverageMap.get(modelId) ?? 0,
+      };
+    })
+    .filter((model): model is NonNullable<typeof model> => Boolean(model));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -317,9 +355,9 @@ export default async function NewsPage() {
                           className="flex items-start justify-between gap-3 py-2 border-b border-border/30 last:border-0"
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {item.title as string}
-                            </p>
+                      <p className="text-sm font-medium truncate">
+                        {item.title as string}
+                      </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <Badge
                                 variant="outline"
@@ -359,7 +397,12 @@ export default async function NewsPage() {
         {/* By Model tab */}
         <TabsContent value="by-model">
           {discussedModels.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Weighted coverage favors official provider posts, benchmarks, and research. Raw X
+                volume is capped so social bursts do not overpower stronger evidence.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {discussedModels.map((m) => (
                 <Link
                   key={m.model_id}
@@ -376,8 +419,7 @@ export default async function NewsPage() {
                           variant="secondary"
                           className="text-[11px] shrink-0 ml-2"
                         >
-                          {m.mention_count} mention
-                          {Number(m.mention_count) !== 1 ? "s" : ""}
+                          Coverage {Number(m.coverage_score).toFixed(1)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -402,6 +444,7 @@ export default async function NewsPage() {
                   </Card>
                 </Link>
               ))}
+              </div>
             </div>
           ) : (
             <EmptyState message="No model-linked news yet. Run backfill to link news to models." />
