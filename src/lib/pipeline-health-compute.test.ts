@@ -44,24 +44,24 @@ describe("computeStatus", () => {
       ).toBe("healthy");
     });
 
-    it("1 failure + recent sync => 'degraded'", () => {
+    it("1 failure + recent sync => 'healthy'", () => {
       expect(
         computeStatus({
           consecutive_failures: 1,
           last_success_at: syncedAgo(0.5, 6),
           expected_interval_hours: 6,
         })
-      ).toBe("degraded");
+      ).toBe("healthy");
     });
 
-    it("2 failures + recent sync => 'degraded'", () => {
+    it("2 failures + recent sync => 'healthy'", () => {
       expect(
         computeStatus({
           consecutive_failures: 2,
           last_success_at: syncedAgo(0.5, 6),
           expected_interval_hours: 6,
         })
-      ).toBe("degraded");
+      ).toBe("healthy");
     });
 
     it("3 failures + recent sync => 'down'", () => {
@@ -94,6 +94,16 @@ describe("computeStatus", () => {
           expected_interval_hours: 6,
         })
       ).toBe("healthy");
+    });
+
+    it("1 failure + sync older than the interval => 'degraded'", () => {
+      expect(
+        computeStatus({
+          consecutive_failures: 1,
+          last_success_at: syncedAgo(1.5, 6),
+          expected_interval_hours: 6,
+        })
+      ).toBe("degraded");
     });
 
     it("staleness > 2x interval but < 4x (0 failures) => 'degraded'", () => {

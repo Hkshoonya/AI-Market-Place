@@ -8,6 +8,7 @@
  *
  * Status rules (worst wins):
  *   consecutive_failures >= 3  OR  staleness > 4x interval  -> "down"
+ *   fresh success <= 1x interval and failures < 3           -> "healthy"
  *   consecutive_failures >= 1  OR  staleness > 2x interval  -> "degraded"
  *   otherwise                                                -> "healthy"
  *

@@ -34,8 +34,12 @@ export interface HealthSourceSnapshot {
  *
  * Rules (worst wins):
  *   consecutive_failures >= 3  OR  staleness > 4x interval  -> "down"
+ *   recent success <= 1x interval and failures < 3          -> "healthy"
  *   consecutive_failures >= 1  OR  staleness > 2x interval  -> "degraded"
  *   otherwise                                                -> "healthy"
+ *
+ * This intentionally treats a source with fresh data as healthy even if the
+ * latest sync attempt hit a transient upstream error (for example a 429).
  *
  * Note: last_success_at = null means never synced => staleness = Infinity => "down"
  */
@@ -47,6 +51,7 @@ export function computeStatus(row: HealthRow): HealthStatus {
     : Infinity;
 
   if (failures >= 3 || sinceLastSync > 4 * intervalMs) return "down";
+  if (sinceLastSync <= intervalMs) return "healthy";
   if (failures >= 1 || sinceLastSync > 2 * intervalMs) return "degraded";
   return "healthy";
 }

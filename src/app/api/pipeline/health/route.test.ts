@@ -355,7 +355,7 @@ describe("GET /api/pipeline/health", () => {
       expect(body.down).toBe(1);
     });
 
-    it("adapter with 1 failure -> top-level 'degraded'", async () => {
+    it("adapter with 1 failure and stale sync beyond the interval -> top-level 'degraded'", async () => {
       const supabase = createMockSupabase({
         data_sources: {
           data: makeDataSources([
@@ -365,7 +365,7 @@ describe("GET /api/pipeline/health", () => {
         },
         pipeline_health: {
           data: makePipelineHealth([
-            { source_slug: "a1", consecutive_failures: 1, last_success_at: syncedAgo(1, 6), expected_interval_hours: 6 },
+            { source_slug: "a1", consecutive_failures: 1, last_success_at: syncedAgo(1.5, 6), expected_interval_hours: 6 },
           ]),
           error: null,
         },

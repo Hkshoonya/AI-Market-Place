@@ -37,18 +37,14 @@ interface HFRow {
 }
 
 interface HFRowsResponse {
-  features: { feature_idx: number; name: string; type: unknown }[];
   rows: HFRow[];
-  num_rows_total: number;
-  num_rows_per_page: number;
-  partial: boolean;
+  truncated?: boolean;
 }
 
 // --------------- Constants ---------------
 
 const HF_DATASET = "bigcode/bigcodebench-results";
-const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
-const PAGE_LENGTH = 100;
+const HF_FIRST_ROWS_API = "https://datasets-server.huggingface.co/first-rows";
 
 // Known provider prefixes for slug matching
 const PROVIDER_PREFIXES = [
@@ -63,20 +59,20 @@ const adapter: DataSourceAdapter = {
   name: "BigCodeBench Results",
   outputTypes: ["benchmarks"],
   defaultConfig: {
-    maxEntries: 200,
+    maxEntries: 100,
   },
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const maxEntries = (ctx.config.maxEntries as number) ?? 200;
+    const maxEntries = (ctx.config.maxEntries as number) ?? 100;
     const errors: { message: string; context?: string }[] = [];
     const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
-    // Fetch rows from HF Datasets API
+    // Fetch leaderboard rows from the lighter first-rows endpoint. The dataset
+    // is already exposed as leaderboard-style rows, so we do not need to walk
+    // every page and trigger rate limits just to rank the top entries.
     const allRows: HFRowContent[] = [];
-    let offset = 0;
-    let totalRows = Infinity;
 
     const hfToken = process.env.HUGGINGFACE_API_TOKEN || ctx.secrets?.HUGGINGFACE_API_TOKEN || "";
     const fetchHeaders: Record<string, string> = {
@@ -86,41 +82,34 @@ const adapter: DataSourceAdapter = {
     if (hfToken) fetchHeaders["Authorization"] = `Bearer ${hfToken}`;
 
     try {
-      while (offset < totalRows) {
-        const url = new URL(HF_ROWS_API);
-        url.searchParams.set("dataset", HF_DATASET);
-        url.searchParams.set("config", "default");
-        url.searchParams.set("split", "train");
-        url.searchParams.set("offset", String(offset));
-        url.searchParams.set("length", String(PAGE_LENGTH));
+      const url = new URL(HF_FIRST_ROWS_API);
+      url.searchParams.set("dataset", HF_DATASET);
+      url.searchParams.set("config", "default");
+      url.searchParams.set("split", "train");
 
-        const res = await fetchWithRetry(
-          url.toString(),
-          { headers: fetchHeaders, signal: ctx.signal },
-          { signal: ctx.signal }
-        );
+      const res = await fetchWithRetry(
+        url.toString(),
+        { headers: fetchHeaders, signal: ctx.signal },
+        { signal: ctx.signal, maxRetries: 5, baseDelayMs: 2000 }
+      );
 
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          return {
-            success: false,
-            recordsProcessed: 0,
-            recordsCreated: 0,
-            recordsUpdated: 0,
-            errors: [{
-              message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-              context: "api_error",
-            }],
-            metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
-          };
-        }
-
-        const json: HFRowsResponse = await res.json();
-        totalRows = json.num_rows_total;
-        for (const row of json.rows) allRows.push(row.row);
-        offset += PAGE_LENGTH;
-        if (json.rows.length === 0) break;
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [{
+            message: `HF Datasets API returned ${res.status}: ${body.slice(0, 200)}`,
+            context: "api_error",
+          }],
+          metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
+        };
       }
+
+      const json: HFRowsResponse = await res.json();
+      for (const row of json.rows) allRows.push(row.row);
     } catch (err) {
       return {
         success: false,
@@ -352,12 +341,10 @@ const adapter: DataSourceAdapter = {
   async healthCheck(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      const url = new URL(HF_ROWS_API);
+      const url = new URL(HF_FIRST_ROWS_API);
       url.searchParams.set("dataset", HF_DATASET);
       url.searchParams.set("config", "default");
       url.searchParams.set("split", "train");
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("length", "1");
 
       const res = await fetchWithRetry(url.toString(), {}, { maxRetries: 1 });
       const latencyMs = Date.now() - start;

@@ -41,11 +41,7 @@ interface HFRow {
 }
 
 interface HFRowsResponse {
-  features: { feature_idx: number; name: string; type: unknown }[];
   rows: HFRow[];
-  num_rows_total: number;
-  num_rows_per_page: number;
-  partial: boolean;
 }
 
 // --------------- Constants ---------------
@@ -54,6 +50,20 @@ const HF_DATASET = "livebench/model_judgment";
 const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
 const HF_SPLIT = "leaderboard";
 const PAGE_LENGTH = 100;
+const SAMPLE_OFFSETS = [
+  0,
+  5000,
+  10000,
+  15000,
+  20000,
+  25000,
+  30000,
+  35000,
+  40000,
+  45000,
+  50000,
+  55000,
+];
 
 /**
  * Map LiveBench category names to our benchmark slugs.
@@ -108,14 +118,15 @@ const adapter: DataSourceAdapter = {
   name: "LiveBench",
   outputTypes: ["benchmarks"],
   defaultConfig: {
-    maxRows: 15000, // Sampled: ~100 pages × 100 rows = ~10K rows across all categories
+    maxRows: 1200,
   },
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    // Sample ~10K rows from evenly-spaced offsets across the 60K-row dataset.
-    // This covers all categories while making only ~100 API requests.
-    const maxRows = (ctx.config.maxRows as number) ?? 15000;
+    // Sample evenly-spaced rows across the dataset with a fixed offset plan.
+    // The earlier probe + 100-page sweep was too likely to hit HF 429s in
+    // production. This lighter plan trades depth for reliability.
+    const maxRows = (ctx.config.maxRows as number) ?? 1200;
     const errors: { message: string; context?: string }[] = [];
     const sb = ctx.supabase;
 
@@ -124,7 +135,6 @@ const adapter: DataSourceAdapter = {
     // ────────────────────────────────────────────────────────────────
     const allRows: HFRowContent[] = [];
     // REMOVED: const offset = 0;
-    let totalRows = Infinity;
 
     // Use HF token from env for higher rate limits
     const hfToken = process.env.HUGGINGFACE_API_TOKEN || ctx.secrets?.HUGGINGFACE_API_TOKEN || "";
@@ -134,62 +144,13 @@ const adapter: DataSourceAdapter = {
     };
     if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
 
-    // ── Sampling strategy ──
-    // The dataset is sorted by category (language ~0-35K, coding ~35K-53K,
-    // instruction_following ~53K-60K). Fetching all 60K rows triggers 429s.
-    // Instead, we sample from evenly-spaced offsets across the dataset,
-    // fetching 5 pages (500 rows) at each sample point. This covers all
-    // categories and models while making only ~100 requests total.
-    const SAMPLE_POINTS = 20; // 20 sample points across the dataset
-    const PAGES_PER_SAMPLE = 5; // 5 pages of 100 rows = 500 rows per sample
     const seenCategories = new Set<string>();
 
     try {
-      // First, get the total row count from a single request
-      const probeUrl = new URL(HF_ROWS_API);
-      probeUrl.searchParams.set("dataset", HF_DATASET);
-      probeUrl.searchParams.set("config", "default");
-      probeUrl.searchParams.set("split", HF_SPLIT);
-      probeUrl.searchParams.set("offset", "0");
-      probeUrl.searchParams.set("length", "1");
-
-      const probeRes = await fetchWithRetry(
-        probeUrl.toString(),
-        { headers, signal: ctx.signal },
-        { signal: ctx.signal, maxRetries: 5, baseDelayMs: 2000 }
-      );
-      if (!probeRes.ok) {
-        const body = await probeRes.text().catch(() => "");
-        return {
-          success: false,
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: [{
-            message: `HF Datasets API returned ${probeRes.status}: ${body.slice(0, 200)}`,
-            context: "api_error",
-          }],
-          metadata: { source: "hf_datasets_api", dataset: HF_DATASET },
-        };
-      }
-      const probeJson: HFRowsResponse = await probeRes.json();
-      totalRows = probeJson.num_rows_total;
-
-      // Calculate sample offsets spread evenly across the dataset
-      const step = Math.floor(totalRows / SAMPLE_POINTS);
-      const sampleOffsets: number[] = [];
-      for (let i = 0; i < SAMPLE_POINTS; i++) {
-        const baseOffset = i * step;
-        for (let p = 0; p < PAGES_PER_SAMPLE; p++) {
-          const pageOffset = baseOffset + p * PAGE_LENGTH;
-          if (pageOffset < totalRows) {
-            sampleOffsets.push(pageOffset);
-          }
-        }
-      }
-
-      // Fetch all sample pages with rate limiting
-      for (const sampleOffset of sampleOffsets) {
+      // Fetch a fixed set of sample pages across the dataset with gentler
+      // pacing. Individual 429s are skipped so a partial sample can still
+      // produce a useful refresh instead of failing the whole adapter.
+      for (const sampleOffset of SAMPLE_OFFSETS) {
         if (allRows.length >= maxRows) break;
 
         const url = new URL(HF_ROWS_API);
@@ -219,8 +180,8 @@ const adapter: DataSourceAdapter = {
 
         if (json.rows.length === 0) continue;
 
-        // Rate limit: 300ms delay between requests to be extra safe
-        await new Promise((r) => setTimeout(r, 300));
+        // Rate limit: 500ms delay between requests to reduce HF throttling.
+        await new Promise((r) => setTimeout(r, 500));
       }
     } catch (err) {
       return {
