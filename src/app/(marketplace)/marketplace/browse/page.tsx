@@ -56,6 +56,9 @@ export default async function BrowsePage(props: {
   const sort = searchParams.sort || "newest";
   const page = parseInt(searchParams.page || "1");
   const search = searchParams.q || "";
+  const autonomy = searchParams.autonomy || "";
+  const contract = searchParams.contract || "";
+  const seller = searchParams.seller || "";
 
   const supabase = createPublicClient();
 
@@ -66,6 +69,11 @@ export default async function BrowsePage(props: {
 
   if (type) query = query.eq("listing_type", type as import("@/types/database").ListingType);
   if (search) query = query.textSearch("fts", search);
+  if (autonomy === "ready") query = query.eq("autonomy_mode", "autonomous_allowed");
+  if (seller === "agent") query = query.not("agent_id", "is", null);
+  if (contract === "manifest") {
+    query = query.or("preview_manifest.not.is.null,mcp_manifest.not.is.null,agent_config.not.is.null");
+  }
 
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
     newest: { column: "created_at", ascending: false },
@@ -112,7 +120,7 @@ export default async function BrowsePage(props: {
       )}
       {!typeConfig && !search && (
         <p className="mb-6 text-sm text-muted-foreground">
-          Discover AI models, APIs, datasets, and more.
+          Discover AI models, APIs, datasets, and more, with dedicated filters for autonomous-ready and manifest-backed listings.
         </p>
       )}
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Gavel, ShoppingBag, TrendingUp } from "lucide-react";
+import { ArrowRight, Bot, Gavel, ScrollText, ShoppingBag, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
-  description: "Buy and sell AI models, APIs, datasets, and fine-tuned models.",
+  description: "Buy and sell AI models, APIs, datasets, agents, and MCP servers for both humans and autonomous buyers.",
 };
 
 export const revalidate = 3600;
@@ -23,10 +23,17 @@ export default async function MarketplacePage() {
   // Fetch type counts
   const listingTypeResponse = await supabase
     .from("marketplace_listings")
-    .select("listing_type")
+    .select("listing_type, autonomy_mode, preview_manifest, mcp_manifest, agent_config, agent_id")
     .eq("status", "active");
 
-  const ListingTypeSchema = z.object({ listing_type: z.string() });
+  const ListingTypeSchema = z.object({
+    listing_type: z.string(),
+    autonomy_mode: z.string().nullable().optional(),
+    preview_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
+    mcp_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
+    agent_config: z.record(z.string(), z.unknown()).nullable().optional(),
+    agent_id: z.string().nullable().optional(),
+  });
   const allListings = parseQueryResult(listingTypeResponse, ListingTypeSchema, "MarketplaceListingType");
 
   const counts: Record<string, number> = {};
@@ -54,6 +61,14 @@ export default async function MarketplacePage() {
   );
 
   const totalCount = allListings?.length || 0;
+  const autonomousReadyCount = allListings.filter(
+    (listing) => listing.autonomy_mode === "autonomous_allowed"
+  ).length;
+  const manifestBackedCount = allListings.filter(
+    (listing) =>
+      Boolean(listing.preview_manifest || listing.mcp_manifest || listing.agent_config)
+  ).length;
+  const agentSellerCount = allListings.filter((listing) => Boolean(listing.agent_id)).length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -68,6 +83,9 @@ export default async function MarketplacePage() {
             <p className="mt-2 text-muted-foreground">
               Buy and sell AI models, APIs, datasets, and more.{" "}
               <span className="text-foreground font-medium">{totalCount}</span> listings available.
+            </p>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              This marketplace is built for both people and agents: manifest-backed listings, autonomous-ready offers, and bot-native seller APIs live alongside standard human commerce flows.
             </p>
           </div>
           <div className="flex gap-3">
@@ -89,7 +107,46 @@ export default async function MarketplacePage() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link href="/api-docs">
+                API & Bot Docs
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/50 bg-card p-5">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <Bot className="h-3.5 w-3.5" />
+            Autonomous Ready
+          </div>
+          <div className="mt-3 text-2xl font-bold">{autonomousReadyCount}</div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Listings currently safe for API-key autonomous buying under the active guardrails.
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-5">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <ScrollText className="h-3.5 w-3.5" />
+            Manifest Backed
+          </div>
+          <div className="mt-3 text-2xl font-bold">{manifestBackedCount}</div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Listings with machine-readable preview contracts that explain delivery before purchase.
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-5">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+            <Bot className="h-3.5 w-3.5" />
+            Agent Sellers
+          </div>
+          <div className="mt-3 text-2xl font-bold">{agentSellerCount}</div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Listings tied to a persistent agent identity instead of only a human-managed seller account.
+          </p>
         </div>
       </div>
 
@@ -118,17 +175,25 @@ export default async function MarketplacePage() {
       {/* CTA */}
       <div className="mt-12 rounded-xl border border-neon/20 bg-gradient-to-r from-neon/5 via-neon/10 to-neon/5 p-8 text-center md:flex md:items-center md:justify-between md:text-left">
         <div>
-          <h2 className="text-xl font-bold">Have an AI model to sell?</h2>
+          <h2 className="text-xl font-bold">Have an AI model or agent to sell?</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-md">
-            Join AI creators selling their models, APIs, and datasets on AI Market Cap.
+            Join AI creators, operators, and autonomous sellers listing agents, MCP servers, APIs, and model access on AI Market Cap.
           </p>
         </div>
-        <Button className="mt-4 bg-neon text-background font-semibold hover:bg-neon/90 md:mt-0" asChild>
-          <Link href="/sell">
-            Get Started
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="mt-4 flex flex-wrap justify-center gap-3 md:mt-0 md:justify-end">
+          <Button variant="outline" asChild>
+            <Link href="/marketplace/browse?autonomy=ready">
+              Explore Autonomous Listings
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+          <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
+            <Link href="/sell">
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,11 @@ describe("OrderManifestCard", () => {
           listing_slug: "agent-protocol-kit",
           fulfillment_type: "agent_package",
           purchased_at: "2026-03-14T12:00:00Z",
+          summary: "Autonomous support workflow bundle",
+          runtime: { environment: "node" },
+          access: { mode: "download" },
+          verification: { source: "skill_manifest" },
+          rights: { scope: "buyer_only" },
           pricing_model: {
             model: "one_time",
             price: 49,
@@ -25,6 +30,10 @@ describe("OrderManifestCard", () => {
     expect(screen.getByText("Purchased Contract")).toBeInTheDocument();
     expect(screen.getByText("agent-protocol-kit")).toBeInTheDocument();
     expect(screen.getByText("automation")).toBeInTheDocument();
+    expect(screen.getByText("Autonomous support workflow bundle")).toBeInTheDocument();
+    expect(screen.getByText("node")).toBeInTheDocument();
+    expect(screen.getByText("skill_manifest")).toBeInTheDocument();
+    expect(screen.getByText("buyer_only")).toBeInTheDocument();
   });
 
   it("renders a compatibility note when the order predates manifest snapshots", () => {

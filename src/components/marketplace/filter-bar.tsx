@@ -13,6 +13,24 @@ interface MarketplaceFilterBarProps {
   totalCount: number;
 }
 
+const AGENT_NATIVE_FILTERS = [
+  {
+    key: "autonomy",
+    value: "ready",
+    label: "Autonomous Ready",
+  },
+  {
+    key: "contract",
+    value: "manifest",
+    label: "Manifest Backed",
+  },
+  {
+    key: "seller",
+    value: "agent",
+    label: "Agent Sellers",
+  },
+] as const;
+
 export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,6 +40,9 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
   const currentSort = (searchParams.get("sort") as MarketplaceSortOption) ?? "newest";
   const currentView = searchParams.get("view") ?? "grid";
   const currentQuery = searchParams.get("q") ?? "";
+  const currentAutonomy = searchParams.get("autonomy") ?? "";
+  const currentContract = searchParams.get("contract") ?? "";
+  const currentSeller = searchParams.get("seller") ?? "";
 
   const [searchValue, setSearchValue] = useState(currentQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +143,38 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
               {lt.shortLabel}
             </Badge>
           ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {AGENT_NATIVE_FILTERS.map((filter) => {
+            const currentValue =
+              filter.key === "autonomy"
+                ? currentAutonomy
+                : filter.key === "contract"
+                  ? currentContract
+                  : currentSeller;
+
+            return (
+              <Badge
+                key={filter.key}
+                variant="outline"
+                className={cn(
+                  "cursor-pointer text-xs transition-colors",
+                  currentValue === filter.value
+                    ? "border-neon/30 bg-neon/10 text-neon hover:bg-neon/20"
+                    : "border-border/50 text-muted-foreground hover:border-neon/30 hover:text-foreground"
+                )}
+                onClick={() =>
+                  updateParams({
+                    [filter.key]:
+                      currentValue === filter.value ? null : filter.value,
+                  })
+                }
+              >
+                {filter.label}
+              </Badge>
+            );
+          })}
         </div>
 
         <div className="flex rounded-lg border border-border/50" role="group" aria-label="View mode">

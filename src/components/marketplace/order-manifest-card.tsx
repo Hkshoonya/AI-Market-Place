@@ -10,6 +10,12 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 export function OrderManifestCard({
   manifest,
 }: {
@@ -32,10 +38,12 @@ export function OrderManifestCard({
   }
 
   const capabilities = stringList(manifest.capabilities);
-  const pricing =
-    manifest.pricing_model && typeof manifest.pricing_model === "object"
-      ? (manifest.pricing_model as Record<string, unknown>)
-      : null;
+  const pricing = objectValue(manifest.pricing_model);
+  const runtime = objectValue(manifest.runtime);
+  const access = objectValue(manifest.access);
+  const verification = objectValue(manifest.verification);
+  const rights = objectValue(manifest.rights);
+  const support = objectValue(manifest.support);
   const price =
     typeof pricing?.price === "number" ? pricing.price : Number(pricing?.price ?? 0);
   const currency = typeof pricing?.currency === "string" ? pricing.currency : "USD";
@@ -76,7 +84,24 @@ export function OrderManifestCard({
               <p>{formatCurrency(price, currency)}</p>
             </div>
           ) : null}
+          {typeof manifest.schema_version === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Schema
+              </p>
+              <p>{manifest.schema_version}</p>
+            </div>
+          ) : null}
         </div>
+
+        {typeof manifest.summary === "string" && manifest.summary.trim().length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Contract Summary
+            </p>
+            <p className="text-sm text-muted-foreground">{manifest.summary}</p>
+          </div>
+        ) : null}
 
         {capabilities.length > 0 ? (
           <div className="space-y-2">
@@ -92,6 +117,57 @@ export function OrderManifestCard({
             </div>
           </div>
         ) : null}
+
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          {typeof runtime?.environment === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Runtime
+              </p>
+              <p>{runtime.environment}</p>
+            </div>
+          ) : null}
+          {typeof access?.endpoint === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Access Endpoint
+              </p>
+              <p className="break-all">{access.endpoint}</p>
+            </div>
+          ) : null}
+          {typeof access?.mode === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Access Mode
+              </p>
+              <p>{access.mode}</p>
+            </div>
+          ) : null}
+          {typeof verification?.source === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Verification Source
+              </p>
+              <p>{verification.source}</p>
+            </div>
+          ) : null}
+          {typeof rights?.scope === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Rights Scope
+              </p>
+              <p>{rights.scope}</p>
+            </div>
+          ) : null}
+          {typeof support?.level === "string" ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Support
+              </p>
+              <p>{support.level}</p>
+            </div>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );

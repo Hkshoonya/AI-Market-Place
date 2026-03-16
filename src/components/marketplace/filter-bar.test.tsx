@@ -60,6 +60,9 @@ describe('MarketplaceFilterBar', () => {
     expect(screen.getByText('Prompts')).toBeInTheDocument();
     expect(screen.getByText('Agent')).toBeInTheDocument();
     expect(screen.getByText('MCP')).toBeInTheDocument();
+    expect(screen.getByText('Autonomous Ready')).toBeInTheDocument();
+    expect(screen.getByText('Manifest Backed')).toBeInTheDocument();
+    expect(screen.getByText('Agent Sellers')).toBeInTheDocument();
 
     // Sort options
     expect(screen.getByText('Newest')).toBeInTheDocument();
@@ -90,7 +93,7 @@ describe('MarketplaceFilterBar', () => {
   });
 
   it('reflects initial URL search params in active state', () => {
-    mockSearchParams = new URLSearchParams('type=dataset&sort=rating');
+    mockSearchParams = new URLSearchParams('type=dataset&sort=rating&autonomy=ready');
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={5} /></SWRConfig>);
 
     // The Dataset badge should have the active style (checked via aria-pressed on sort)
@@ -99,6 +102,20 @@ describe('MarketplaceFilterBar', () => {
       name: /sort by rating/i,
     });
     expect(ratingBadge).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Autonomous Ready')).toHaveClass('text-neon');
+  });
+
+  it('clicking an agent-native filter updates the URL state', async () => {
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={10} /></SWRConfig>);
+
+    await user.click(screen.getByText('Manifest Backed'));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    const pushedUrl = mockPush.mock.calls[0][0] as string;
+    expect(pushedUrl).toContain('contract=manifest');
   });
 
   it('shows total count in the component', () => {
