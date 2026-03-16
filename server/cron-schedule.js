@@ -8,10 +8,10 @@
  * @type {Array<{ name: string, cron: string, path: string }>}
  */
 const CRON_JOBS = [
-  { name: "Tier 1 Sync", cron: "0 */6 * * *", path: "/api/cron/sync?tier=1" },
-  { name: "Tier 2 Sync", cron: "0 */12 * * *", path: "/api/cron/sync?tier=2" },
-  { name: "Tier 3 Sync", cron: "0 8 * * *", path: "/api/cron/sync?tier=3" },
-  { name: "Tier 4 Sync", cron: "0 0 * * 1", path: "/api/cron/sync?tier=4" },
+  { name: "Tier 1 Sync", cron: "0 */2 * * *", path: "/api/cron/sync?tier=1" },
+  { name: "Tier 2 Sync", cron: "0 */4 * * *", path: "/api/cron/sync?tier=2" },
+  { name: "Tier 3 Sync", cron: "0 */8 * * *", path: "/api/cron/sync?tier=3" },
+  { name: "Tier 4 Sync", cron: "0 0 * * *", path: "/api/cron/sync?tier=4" },
   {
     name: "Auction Settlement",
     cron: "*/5 * * * *",
@@ -19,12 +19,12 @@ const CRON_JOBS = [
   },
   {
     name: "Compute Scores",
-    cron: "45 */6 * * *",
+    cron: "45 */2 * * *",
     path: "/api/cron/compute-scores",
   },
   {
     name: "Pipeline Agent",
-    cron: "30 */6 * * *",
+    cron: "30 */2 * * *",
     path: "/api/cron/agents/pipeline",
   },
   {
@@ -39,7 +39,7 @@ const CRON_JOBS = [
   },
   {
     name: "Verifier Agent",
-    cron: "15 */6 * * *",
+    cron: "15 */4 * * *",
     path: "/api/cron/agents/verifier",
   },
 ];

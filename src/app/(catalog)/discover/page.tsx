@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { formatRelativeDate } from "@/lib/format";
+import { sortWatchlistsForDiscovery } from "@/lib/discover/watchlists";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import type { Metadata } from "next";
 import type { Watchlist, Profile } from "@/types/database";
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
 export const revalidate = 1800;
 
 const PAGE_SIZE = 24;
+const DISCOVERY_FETCH_LIMIT = 250;
 
 export default async function DiscoverPage(props: {
   searchParams: Promise<{ page?: string; q?: string }>;
@@ -45,7 +47,7 @@ export default async function DiscoverPage(props: {
     )
     .eq("is_public", true)
     .order("updated_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
+    .range(0, DISCOVERY_FETCH_LIMIT - 1);
 
   if (searchQuery && searchQuery.length >= 2) {
     const sanitizedSearch = sanitizeFilterValue(searchQuery);
@@ -81,6 +83,12 @@ export default async function DiscoverPage(props: {
       }));
     }
   }
+
+  watchlists = sortWatchlistsForDiscovery(watchlists).slice(
+    offset,
+    offset + PAGE_SIZE
+  );
+
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   return (

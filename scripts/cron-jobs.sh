@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AI Market Cap â€” Cron Job Trigger
+# AI Market Cap - Cron Job Trigger
 #
 # This script is called by system crontab to trigger API cron endpoints.
 # Usage:
@@ -9,16 +9,16 @@
 # Install crontab entries (run: crontab -e):
 #
 #   # AI Market Cap cron jobs
-#   0 */6 * * *   /opt/aimc/scripts/cron-jobs.sh sync-t1
-#   0 */12 * * *  /opt/aimc/scripts/cron-jobs.sh sync-t2
-#   0 8 * * *     /opt/aimc/scripts/cron-jobs.sh sync-t3
-#   0 0 * * 1     /opt/aimc/scripts/cron-jobs.sh sync-t4
+#   0 */2 * * *   /opt/aimc/scripts/cron-jobs.sh sync-t1
+#   0 */4 * * *  /opt/aimc/scripts/cron-jobs.sh sync-t2
+#   0 */8 * * *     /opt/aimc/scripts/cron-jobs.sh sync-t3
+#   0 0 * * *     /opt/aimc/scripts/cron-jobs.sh sync-t4
 #   */5 * * * *   /opt/aimc/scripts/cron-jobs.sh auctions
-#   30 */6 * * *  /opt/aimc/scripts/cron-jobs.sh pipeline
+#   30 */2 * * *  /opt/aimc/scripts/cron-jobs.sh pipeline
 #   0 9 * * *     /opt/aimc/scripts/cron-jobs.sh code-quality
 #   0 10 * * 1    /opt/aimc/scripts/cron-jobs.sh ux-monitor
-#   15 */6 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
-#   45 */6 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
+#   15 */4 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
+#   45 */2 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
 
 set -euo pipefail
 

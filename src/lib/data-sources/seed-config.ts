@@ -7,7 +7,7 @@
  *
  * Field rules:
  *   - slug / adapter_type: must match the adapter's `id` field
- *   - tier: 1=6h, 2=12h, 3=daily, 4=weekly (DB constraint: 1-4)
+ *   - tier: 1=2h, 2=4h, 3=8h, 4=24h (DB constraint: 1-4)
  *   - secret_env_keys: must match the adapter's requiredSecrets array
  *   - output_types: must match the adapter's outputTypes array
  *   - priority: lower number = runs first within a tier
@@ -35,7 +35,7 @@ export interface SeedEntry {
  * Priorities sourced from migration 002_enable_free_pipeline.sql.
  */
 export const DATA_SOURCE_SEEDS: SeedEntry[] = [
-  // ── Tier 1 (every 6h): Provider model catalogs ─────────────────────────
+  // ── Tier 1 (every 2h): Provider model catalogs ─────────────────────────
   {
     slug: "openrouter-models",
     name: "OpenRouter Models",
@@ -43,7 +43,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Primary model discovery: 400+ models with pricing and metadata from OpenRouter free API",
     tier: 1,
-    sync_interval_hours: 6,
+    sync_interval_hours: 2,
     priority: 5,
     secret_env_keys: [],
     output_types: ["models", "pricing"],
@@ -56,7 +56,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "openai-models",
     description: "Official OpenAI model catalog scraped from public API",
     tier: 1,
-    sync_interval_hours: 6,
+    sync_interval_hours: 2,
     priority: 25,
     secret_env_keys: [],
     output_types: ["models"],
@@ -69,7 +69,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "anthropic-models",
     description: "Official Anthropic model catalog scraped from public API",
     tier: 1,
-    sync_interval_hours: 6,
+    sync_interval_hours: 2,
     priority: 35,
     secret_env_keys: [],
     output_types: ["models"],
@@ -83,7 +83,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Official Google model catalog from Gemini API and AI Studio",
     tier: 1,
-    sync_interval_hours: 6,
+    sync_interval_hours: 2,
     priority: 45,
     secret_env_keys: [],
     output_types: ["models"],
@@ -91,7 +91,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
 
-  // ── Tier 2 (every 12h): HF stats, benchmarks, ELO ────────────────────────
+  // ── Tier 2 (every 4h): HF stats, benchmarks, ELO ────────────────────────
   {
     slug: "huggingface",
     name: "HuggingFace Hub",
@@ -99,7 +99,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "HuggingFace model downloads, likes, and trending scores",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 15,
     secret_env_keys: [],
     output_types: ["models"],
@@ -113,7 +113,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Replicate model catalog with run counts and popularity metrics",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 55,
     secret_env_keys: [],
     output_types: ["models"],
@@ -127,7 +127,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Benchmark results and pricing data from Artificial Analysis API",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 20,
     secret_env_keys: [],
     output_types: ["benchmarks", "pricing"],
@@ -141,7 +141,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "HuggingFace Open LLM Leaderboard benchmark scores",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 30,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -155,7 +155,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "LMSYS Chatbot Arena Elo ratings from human preference battles",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 40,
     secret_env_keys: [],
     output_types: ["elo_ratings"],
@@ -163,7 +163,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
 
-  // ── Tier 3 (daily): GitHub, news, pricing ────────────────────────────
+  // ── Tier 3 (every 8h): GitHub, news, pricing ────────────────────────────
   {
     slug: "arxiv",
     name: "arXiv Papers",
@@ -171,7 +171,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Recent AI/ML papers from arXiv for model announcement tracking",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 10,
     secret_env_keys: [],
     output_types: ["news"],
@@ -184,7 +184,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "hf-papers",
     description: "Trending papers from HuggingFace Papers feed",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 15,
     secret_env_keys: [],
     output_types: ["news"],
@@ -198,7 +198,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Trending AI repositories on GitHub for model discovery",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 20,
     secret_env_keys: [],
     output_types: ["models"],
@@ -211,7 +211,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "civitai",
     description: "Image generation model catalog from Civitai",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 25,
     secret_env_keys: ["CIVITAI_API_KEY"],
     output_types: ["models"],
@@ -225,7 +225,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Scrapes AI company blogs for model announcements and updates",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 5,
     secret_env_keys: [],
     output_types: ["news"],
@@ -239,7 +239,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Monitors AI company X/Twitter accounts for model announcements via RSS",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 15,
     secret_env_keys: [],
     output_types: ["news"],
@@ -253,7 +253,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Deployment platform pricing data from major AI API providers",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 30,
     secret_env_keys: [],
     output_types: ["pricing"],
@@ -267,7 +267,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "GitHub star counts for open-source AI model repositories",
     tier: 3,
-    sync_interval_hours: 24,
+    sync_interval_hours: 8,
     priority: 35,
     secret_env_keys: ["GITHUB_TOKEN"],
     output_types: ["models"],
@@ -283,7 +283,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "LiveBench contamination-free benchmark scores updated monthly",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 10,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -297,7 +297,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Arena vision leaderboard Elo ratings from the official site",
     tier: 2,
-    sync_interval_hours: 12,
+    sync_interval_hours: 4,
     priority: 42,
     secret_env_keys: [],
     output_types: ["elo_ratings"],
@@ -310,7 +310,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "livecodebench",
     description: "LiveCodeBench code-generation benchmark artifact feed",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 15,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -323,7 +323,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "swe-bench",
     description: "SWE-Bench verified software-engineering benchmark results",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 18,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -337,7 +337,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Arena-Hard-Auto official Gemini-judged preference leaderboard",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 19,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -350,7 +350,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "seal-leaderboard",
     description: "SEAL instruction-following leaderboard scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 20,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -363,7 +363,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "bigcode-leaderboard",
     description: "BigCode code generation benchmark leaderboard",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 30,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -377,7 +377,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "OpenCompass Visual Language Model leaderboard scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 40,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -392,7 +392,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "terminal-bench",
     description: "Terminal/CLI agent task benchmark scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 50,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -405,7 +405,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "osworld",
     description: "Desktop GUI agent benchmark scores from OSWorld",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 60,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -419,7 +419,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "GAIA real-world assistant task benchmark scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 70,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -432,7 +432,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "webarena",
     description: "WebArena web browsing agent benchmark scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 80,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -446,7 +446,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     description:
       "Tool-augmented understanding benchmark scores",
     tier: 4,
-    sync_interval_hours: 168,
+    sync_interval_hours: 24,
     priority: 90,
     secret_env_keys: [],
     output_types: ["benchmarks"],
