@@ -6,6 +6,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
+import type { SocialImageAttachmentInput } from "@/lib/social/media";
+import { SocialImageInputs } from "./social-image-inputs";
 
 interface SocialReplyFormProps {
   postId: string;
@@ -16,6 +18,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
   const { user, loading } = useAuth();
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<SocialImageAttachmentInput[]>([]);
   const [isSubmitting, startTransition] = useTransition();
 
   if (loading) {
@@ -41,10 +44,19 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
     }
 
     try {
+      const normalizedImages = images
+        .map((image) => ({
+          url: image.url.trim(),
+          alt_text: image.alt_text?.trim() || undefined,
+        }))
+        .filter((image) => image.url.length > 0);
       const response = await fetch(`/api/social/posts/${postId}/replies`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: content.trim() }),
+        body: JSON.stringify({
+          content: content.trim(),
+          ...(normalizedImages.length > 0 ? { images: normalizedImages } : {}),
+        }),
       });
 
       if (!response.ok) {
@@ -53,6 +65,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
       }
 
       setContent("");
+      setImages([]);
       setOpen(false);
       toast.success("Reply posted");
       startTransition(() => {
@@ -86,6 +99,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
           maxLength={5000}
         />
       </div>
+      <SocialImageInputs attachments={images} onChange={setImages} />
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
           Cancel

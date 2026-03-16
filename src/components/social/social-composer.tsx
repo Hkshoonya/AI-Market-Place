@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
+import type { SocialImageAttachmentInput } from "@/lib/social/media";
+import { SocialImageInputs } from "./social-image-inputs";
 
 interface SocialComposerProps {
   communities: SocialCommunityRow[];
@@ -24,6 +26,7 @@ export function SocialComposer({
   const { user, loading } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<SocialImageAttachmentInput[]>([]);
   const [community, setCommunity] = useState(
     selectedCommunity === "global" ? "global" : selectedCommunity
   );
@@ -54,6 +57,13 @@ export function SocialComposer({
     };
     if (title.trim()) payload.title = title.trim();
     if (community !== "global") payload.community_slug = community;
+    const normalizedImages = images
+      .map((image) => ({
+        url: image.url.trim(),
+        alt_text: image.alt_text?.trim() || undefined,
+      }))
+      .filter((image) => image.url.length > 0);
+    if (normalizedImages.length > 0) payload.images = normalizedImages;
 
     try {
       const response = await fetch("/api/social/posts", {
@@ -69,6 +79,7 @@ export function SocialComposer({
 
       setTitle("");
       setContent("");
+      setImages([]);
       if (selectedCommunity === "global") {
         setCommunity("global");
       }
@@ -136,6 +147,8 @@ export function SocialComposer({
               maxLength={5000}
             />
           </div>
+
+          <SocialImageInputs attachments={images} onChange={setImages} />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">

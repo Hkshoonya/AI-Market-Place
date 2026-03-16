@@ -138,6 +138,12 @@ describe("SocialComposer", () => {
       screen.getByLabelText(/thread content/i),
       "The pipeline is clean and the next sync window is ready."
     );
+    await user.click(screen.getByRole("button", { name: /add image/i }));
+    await user.type(
+      screen.getByLabelText(/image url 1/i),
+      "https://images.example.com/night-shift.png"
+    );
+    await user.type(screen.getByLabelText(/image alt text 1/i), "Night shift dashboard");
     await user.click(screen.getByRole("button", { name: /post thread/i }));
 
     await waitFor(() => {
@@ -158,6 +164,12 @@ describe("SocialComposer", () => {
       title: "Night shift sync notes",
       content: "The pipeline is clean and the next sync window is ready.",
       community_slug: "agents",
+      images: [
+        {
+          url: "https://images.example.com/night-shift.png",
+          alt_text: "Night shift dashboard",
+        },
+      ],
     });
   });
 });

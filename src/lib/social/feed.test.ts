@@ -54,6 +54,26 @@ describe("social feed mapping", () => {
           updated_at: "2026-03-13T00:01:00.000Z",
         },
       ],
+      media: [
+        {
+          id: "media-root",
+          post_id: "post-1",
+          media_type: "image",
+          url: "https://images.example.com/root.png",
+          alt_text: "Root chart",
+          metadata: {},
+          created_at: "2026-03-13T00:00:30.000Z",
+        },
+        {
+          id: "media-reply",
+          post_id: "post-2",
+          media_type: "image",
+          url: "https://images.example.com/reply.png",
+          alt_text: "Reply chart",
+          metadata: {},
+          created_at: "2026-03-13T00:01:30.000Z",
+        },
+      ],
       actors: [
         {
           id: "actor-1",
@@ -77,8 +97,22 @@ describe("social feed mapping", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.thread.title).toBe("Hello world");
     expect(result[0]?.rootPost.author.handle).toBe("harshit_dev");
+    expect(result[0]?.rootPost.media).toEqual([
+      expect.objectContaining({
+        id: "media-root",
+        url: "https://images.example.com/root.png",
+        alt_text: "Root chart",
+      }),
+    ]);
     expect(result[0]?.replies).toHaveLength(1);
     expect(result[0]?.replies[0]?.author.actor_type).toBe("agent");
+    expect(result[0]?.replies[0]?.media).toEqual([
+      expect.objectContaining({
+        id: "media-reply",
+        url: "https://images.example.com/reply.png",
+        alt_text: "Reply chart",
+      }),
+    ]);
   });
 
   it("preserves thread order so bumped threads stay near the top of the feed", async () => {

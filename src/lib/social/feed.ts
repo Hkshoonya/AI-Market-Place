@@ -2,6 +2,7 @@ import type { TypedSupabaseClient } from "@/types/database";
 import type {
   NetworkActorRow,
   SocialCommunityRow,
+  SocialPostMediaRow,
   SocialPostRow,
   SocialThreadRow,
 } from "@/lib/schemas/social";
@@ -24,6 +25,12 @@ export interface FeedPostCard {
   status: SocialPostRow["status"];
   moderation_reason?: string | null;
   reply_count: number;
+  media?: Array<{
+    id: string;
+    media_type: SocialPostMediaRow["media_type"];
+    url: string;
+    alt_text?: string | null;
+  }>;
   author: FeedActorCard;
 }
 
@@ -40,6 +47,7 @@ interface MapFeedRowsInput {
   threads: SocialThreadRow[];
   rootPosts: SocialPostRow[];
   replies: SocialPostRow[];
+  media?: SocialPostMediaRow[];
   actors: Array<
     Pick<
       NetworkActorRow,
@@ -104,6 +112,7 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
   const communityMap = new Map(input.communities.map((community) => [community.id, community]));
   const rootPostMap = new Map(input.rootPosts.map((post) => [post.id, post]));
   const repliesByRoot = new Map<string, SocialPostRow[]>();
+  const mediaByPostId = new Map<string, SocialPostMediaRow[]>();
 
   for (const reply of input.replies) {
     const parentId = reply.parent_post_id;
@@ -111,6 +120,12 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
     const existing = repliesByRoot.get(parentId) ?? [];
     existing.push(reply);
     repliesByRoot.set(parentId, existing);
+  }
+
+  for (const media of input.media ?? []) {
+    const existing = mediaByPostId.get(media.post_id) ?? [];
+    existing.push(media);
+    mediaByPostId.set(media.post_id, existing);
   }
 
   const mapped = input.threads.map((thread): FeedThreadCard | null => {
@@ -140,6 +155,14 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
           status: post.status,
           moderation_reason: moderationReason,
           reply_count: post.reply_count,
+          media: (mediaByPostId.get(post.id) ?? [])
+            .filter((item) => item.media_type === "image")
+            .map((item) => ({
+              id: item.id,
+              media_type: item.media_type,
+              url: item.url,
+              alt_text: item.alt_text ?? null,
+            })),
           author: {
             id: postAuthor.id,
             actor_type: postAuthor.actor_type,
@@ -235,6 +258,11 @@ export async function listPublicFeed(
     throw new Error(`Failed to load replies: ${replyError.message}`);
   }
 
+  const postIds = [
+    ...(rootPosts ?? []).map((post) => post.id),
+    ...(replies ?? []).map((post) => post.id),
+  ];
+
   for (const rootPost of rootPosts ?? []) {
     actorIds.add(rootPost.author_actor_id);
   }
@@ -254,11 +282,24 @@ export async function listPublicFeed(
     throw new Error(`Failed to load actors: ${actorError.message}`);
   }
 
+  const { data: media, error: mediaError } =
+    postIds.length > 0
+      ? await supabase
+          .from("social_post_media")
+          .select("*")
+          .in("post_id", postIds)
+      : { data: [], error: null };
+
+  if (mediaError) {
+    throw new Error(`Failed to load post media: ${mediaError.message}`);
+  }
+
   const mappedThreads = mapFeedRows({
     communities: (communities ?? []) as SocialCommunityRow[],
     threads: (threads ?? []) as SocialThreadRow[],
     rootPosts: (rootPosts ?? []) as SocialPostRow[],
     replies: (replies ?? []) as SocialPostRow[],
+    media: (media ?? []) as SocialPostMediaRow[],
     actors: (actors ?? []) as NetworkActorRow[],
   });
 

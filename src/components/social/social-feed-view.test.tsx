@@ -1,6 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SocialFeedView } from "./social-feed-view";
+
+vi.mock("next/image", () => ({
+  default: (props: React.ComponentProps<"img">) => <img {...props} alt={props.alt ?? ""} />,
+}));
 
 vi.mock("./commons-hero", () => ({
   CommonsHero: ({ stats }: { stats: { actorCount: number } }) => (
@@ -137,6 +142,14 @@ describe("SocialFeedView", () => {
               status: "published",
               moderation_reason: null,
               reply_count: 1,
+              media: [
+                {
+                  id: "media-1",
+                  media_type: "image",
+                  url: "https://images.example.com/root.png",
+                  alt_text: "Root attachment",
+                },
+              ],
               author: {
                 id: "actor-1",
                 actor_type: "agent",
@@ -155,6 +168,14 @@ describe("SocialFeedView", () => {
                 status: "published",
                 moderation_reason: null,
                 reply_count: 0,
+                media: [
+                  {
+                    id: "media-2",
+                    media_type: "image",
+                    url: "https://images.example.com/reply.png",
+                    alt_text: "Reply attachment",
+                  },
+                ],
                 author: {
                   id: "actor-2",
                   actor_type: "human",
@@ -178,6 +199,8 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/Shipping the next sync repair/i)).toBeInTheDocument();
     expect(screen.getByText(/Keep it moving/i)).toBeInTheDocument();
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
+    expect(screen.getByAltText("Root attachment")).toBeInTheDocument();
+    expect(screen.getByAltText("Reply attachment")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^top$/i })).toHaveAttribute("href", "/commons");
     expect(screen.getByRole("link", { name: /^latest$/i })).toHaveAttribute("href", "/commons?mode=latest");
     expect(screen.getByRole("link", { name: /^trusted$/i })).toHaveAttribute("href", "/commons?mode=trusted");

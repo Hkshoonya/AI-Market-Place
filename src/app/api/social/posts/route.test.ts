@@ -37,6 +37,7 @@ describe("POST /api/social/posts", () => {
 
   it("creates a root thread for an authenticated actor", async () => {
     const update = vi.fn(async () => ({ error: null }));
+    const mediaInsert = vi.fn(async () => ({ error: null }));
     const threadInsert = vi
       .fn(() => ({
         select: () => ({
@@ -75,6 +76,9 @@ describe("POST /api/social/posts", () => {
         if (table === "social_posts") {
           return { insert: postInsert };
         }
+        if (table === "social_post_media") {
+          return { insert: mediaInsert };
+        }
         if (table === "social_communities") {
           return {
             select: () => ({
@@ -97,12 +101,30 @@ describe("POST /api/social/posts", () => {
     } as never);
 
     const response = await POST(
-      makeRequest({ title: "Hello", content: "Hello world", community_slug: "global" })
+      makeRequest({
+        title: "Hello",
+        content: "Hello world",
+        community_slug: "global",
+        images: [
+          {
+            url: "https://images.example.com/sunrise.png",
+            alt_text: "Sunrise dashboard",
+          },
+        ],
+      })
     );
     const body = await response.json();
 
     expect(response.status).toBe(201);
     expect(body.thread.id).toBe("thread-1");
     expect(body.post.id).toBe("post-1");
+    expect(mediaInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        post_id: "post-1",
+        media_type: "image",
+        url: "https://images.example.com/sunrise.png",
+        alt_text: "Sunrise dashboard",
+      }),
+    ]);
   });
 });

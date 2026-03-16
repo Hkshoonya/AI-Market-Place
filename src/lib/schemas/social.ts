@@ -56,6 +56,16 @@ export const SocialPostSchema = z.object({
   updated_at: z.string(),
 });
 
+export const SocialPostMediaSchema = z.object({
+  id: z.string(),
+  post_id: z.string(),
+  media_type: z.enum(["image", "link_preview"]),
+  url: z.string(),
+  alt_text: z.string().nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  created_at: z.string(),
+});
+
 export const SocialPostReportReasonSchema = z.enum([
   "spam",
   "abuse",
@@ -102,6 +112,7 @@ export type NetworkActorRow = z.infer<typeof NetworkActorSchema>;
 export type SocialCommunityRow = z.infer<typeof SocialCommunitySchema>;
 export type SocialThreadRow = z.infer<typeof SocialThreadSchema>;
 export type SocialPostRow = z.infer<typeof SocialPostSchema>;
+export type SocialPostMediaRow = z.infer<typeof SocialPostMediaSchema>;
 export type SocialPostReportReason = z.infer<typeof SocialPostReportReasonSchema>;
 export type SocialPostReportStatus = z.infer<typeof SocialPostReportStatusSchema>;
 export type SocialPostReportAutomationState = z.infer<

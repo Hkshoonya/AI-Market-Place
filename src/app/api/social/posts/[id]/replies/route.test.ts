@@ -45,6 +45,7 @@ describe("POST /api/social/posts/[id]/replies", () => {
   it("increments the parent post and thread reply counters when creating a reply", async () => {
     const socialPostUpdateEq = vi.fn(async () => ({ error: null }));
     const socialThreadUpdateEq = vi.fn(async () => ({ error: null }));
+    const mediaInsert = vi.fn(async () => ({ error: null }));
     const replySingle = vi.fn(async () => ({
       data: {
         id: "reply-1",
@@ -85,6 +86,9 @@ describe("POST /api/social/posts/[id]/replies", () => {
             }),
           };
         }
+        if (table === "social_post_media") {
+          return { insert: mediaInsert };
+        }
 
         if (table === "social_threads") {
           return {
@@ -123,13 +127,32 @@ describe("POST /api/social/posts/[id]/replies", () => {
     } as never);
     vi.mocked(canActorReplyToThread).mockResolvedValue({ allowed: true });
 
-    const response = await POST(makeRequest({ content: "reply" }), {
+    const response = await POST(
+      makeRequest({
+        content: "reply",
+        images: [
+          {
+            url: "https://images.example.com/reply.png",
+            alt_text: "Reply attachment",
+          },
+        ],
+      }),
+      {
       params: Promise.resolve({ id: "post-1" }),
-    });
+      }
+    );
     const body = await response.json();
 
     expect(response.status).toBe(201);
     expect(body.reply.id).toBe("reply-1");
+    expect(mediaInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        post_id: "reply-1",
+        media_type: "image",
+        url: "https://images.example.com/reply.png",
+        alt_text: "Reply attachment",
+      }),
+    ]);
     expect(socialPostUpdateEq).toHaveBeenCalledWith(
       expect.objectContaining({ reply_count: 2 }),
       "id",

@@ -3,11 +3,13 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { canActorReplyToThread } from "@/lib/social/actors";
+import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 
 const ReplySchema = z.object({
   content: z.string().trim().min(1).max(5000),
   language_code: z.string().trim().min(2).max(12).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  images: SocialImageAttachmentListSchema.optional(),
 });
 
 export const dynamic = "force-dynamic";
@@ -84,6 +86,8 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  await insertSocialPostImages(admin, reply.id, parsed.data.images);
 
   const now = new Date().toISOString();
   const [{ error: parentUpdateError }, { error: threadUpdateError }] = await Promise.all([

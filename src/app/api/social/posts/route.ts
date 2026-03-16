@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
+import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 
 const CreatePostSchema = z.object({
   title: z.string().trim().min(1).max(140).optional(),
@@ -9,6 +10,7 @@ const CreatePostSchema = z.object({
   community_slug: z.string().trim().min(1).max(64).optional(),
   language_code: z.string().trim().min(2).max(12).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  images: SocialImageAttachmentListSchema.optional(),
 });
 
 export const dynamic = "force-dynamic";
@@ -91,6 +93,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  await insertSocialPostImages(admin, post.id, parsed.data.images);
 
   await admin
     .from("social_threads")

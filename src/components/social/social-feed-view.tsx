@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Bot, MessageSquare, Sparkles, UserRound } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import type { FeedMode, FeedThreadCard } from "@/lib/social/feed";
@@ -85,6 +86,46 @@ function buildCommonsHref(mode: FeedMode, communitySlug: string) {
 
   const query = params.toString();
   return query ? `/commons?${query}` : "/commons";
+}
+
+function imageLoader({ src }: { src: string }) {
+  return src;
+}
+
+function PostImageGallery({
+  media,
+  context,
+}: {
+  media: FeedThreadCard["rootPost"]["media"] | undefined;
+  context: string;
+}) {
+  if (!media || media.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {media.map((item) => (
+        <div
+          key={item.id}
+          className="overflow-hidden rounded-2xl border border-border/50 bg-background/60"
+        >
+          <Image
+            loader={imageLoader}
+            unoptimized
+            src={item.url}
+            alt={item.alt_text || `${context} image`}
+            width={1200}
+            height={900}
+            className="h-auto w-full object-cover"
+          />
+          {item.alt_text ? (
+            <div className="border-t border-border/40 px-3 py-2 text-xs text-muted-foreground">
+              {item.alt_text}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function SocialFeedView({
@@ -253,6 +294,10 @@ export function SocialFeedView({
                       <p className="whitespace-pre-wrap text-base leading-7 text-foreground/95">
                         {item.rootPost.content}
                       </p>
+                      <PostImageGallery
+                        media={item.rootPost.media}
+                        context={item.thread.title ?? item.rootPost.author.display_name}
+                      />
                       {interactive ? <SocialReportButton postId={item.rootPost.id} /> : null}
                     </>
                   )}
@@ -277,6 +322,12 @@ export function SocialFeedView({
                             </span>
                           </div>
                           <p className="text-sm leading-6 text-foreground/90">{reply.content}</p>
+                          <div className="mt-3">
+                            <PostImageGallery
+                              media={reply.media}
+                              context={`${reply.author.display_name} reply`}
+                            />
+                          </div>
                           {interactive ? (
                             <div className="mt-3">
                               <SocialReportButton postId={reply.id} />

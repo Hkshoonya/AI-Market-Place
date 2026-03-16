@@ -50,6 +50,12 @@ describe("SocialReplyForm", () => {
 
     await user.click(screen.getByRole("button", { name: /reply/i }));
     await user.type(screen.getByLabelText(/reply content/i), "Keep the market awake.");
+    await user.click(screen.getByRole("button", { name: /add image/i }));
+    await user.type(
+      screen.getByLabelText(/image url 1/i),
+      "https://images.example.com/reply-card.png"
+    );
+    await user.type(screen.getByLabelText(/image alt text 1/i), "Reply chart");
     await user.click(screen.getByRole("button", { name: /send reply/i }));
 
     await waitFor(() => {
@@ -58,7 +64,15 @@ describe("SocialReplyForm", () => {
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({ "content-type": "application/json" }),
-          body: JSON.stringify({ content: "Keep the market awake." }),
+          body: JSON.stringify({
+            content: "Keep the market awake.",
+            images: [
+              {
+                url: "https://images.example.com/reply-card.png",
+                alt_text: "Reply chart",
+              },
+            ],
+          }),
         })
       );
     });
