@@ -3,7 +3,13 @@
 import { ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatTokenPrice } from "@/lib/format";
+import { ModelSignalBadge } from "@/components/models/model-signal-badge";
+import type { ModelSignalSummary } from "@/lib/news/model-signals";
+import {
+  getListingCommerceSignals,
+  getListingPillClasses,
+} from "@/lib/marketplace/presentation";
 
 export interface SearchResult {
   id: string;
@@ -13,8 +19,14 @@ export interface SearchResult {
   category: string;
   overall_rank: number | null;
   quality_score: number | null;
+  capability_score?: number | null;
   is_open_weights?: boolean;
   parameter_count?: number | null;
+  short_description?: string | null;
+  compact_price?: number | null;
+  compact_price_label?: string;
+  market_cap_estimate?: number | null;
+  recent_signal?: ModelSignalSummary | null;
 }
 
 export interface MarketplaceResult {
@@ -24,6 +36,12 @@ export interface MarketplaceResult {
   listing_type: string;
   price: number | null;
   avg_rating: number | null;
+  purchase_mode?: string | null;
+  autonomy_mode?: string | null;
+  preview_manifest?: Record<string, unknown> | null;
+  mcp_manifest?: Record<string, unknown> | null;
+  agent_config?: Record<string, unknown> | null;
+  agent_id?: string | null;
 }
 
 interface SearchDialogResultsProps {
@@ -56,6 +74,8 @@ export function SearchDialogResults({
           {results.map((r, i) => {
             const cat =
               CATEGORY_MAP[r.category as keyof typeof CATEGORY_MAP];
+            const capabilityValue =
+              typeof r.capability_score === "number" ? r.capability_score : r.quality_score;
             return (
               <button
                 key={r.id}
@@ -83,9 +103,16 @@ export function SearchDialogResults({
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {r.provider}
-                    {r.quality_score &&
-                      ` \u00b7 Score: ${Number(r.quality_score).toFixed(1)}`}
+                    {capabilityValue != null &&
+                      ` \u00b7 Cap: ${Number(capabilityValue).toFixed(1)}`}
+                    {r.compact_price != null &&
+                      ` \u00b7 ${r.compact_price === 0 ? "Free" : `${formatTokenPrice(r.compact_price)}/M`}`}
                   </p>
+                  {r.recent_signal ? (
+                    <div className="mt-1">
+                      <ModelSignalBadge signal={r.recent_signal} />
+                    </div>
+                  ) : null}
                 </div>
                 {cat && (
                   <Badge
@@ -116,6 +143,7 @@ export function SearchDialogResults({
           </div>
           {marketplaceResults.map((r, i) => {
             const globalIdx = results.length + i;
+            const commerceSignals = getListingCommerceSignals(r);
             return (
               <button
                 key={r.id}
@@ -136,6 +164,20 @@ export function SearchDialogResults({
                     {r.avg_rating != null && (
                       <span>&middot; &#9733; {Number(r.avg_rating).toFixed(1)}</span>
                     )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${getListingPillClasses(commerceSignals.autonomy.tone)}`}
+                    >
+                      {commerceSignals.autonomy.label}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${getListingPillClasses(commerceSignals.manifest.tone)}`}
+                    >
+                      {commerceSignals.manifest.label}
+                    </Badge>
                   </div>
                 </div>
                 <span className="text-xs font-medium shrink-0">
