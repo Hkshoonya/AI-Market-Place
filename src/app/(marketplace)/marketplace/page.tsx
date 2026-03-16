@@ -8,6 +8,7 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
+import { sortMarketplaceListings } from "@/lib/marketplace/discovery";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -41,24 +42,23 @@ export default async function MarketplacePage() {
     counts[l.listing_type] = (counts[l.listing_type] || 0) + 1;
   }
 
-  // Fetch featured listings (up to 6)
-  // NOTE: is_featured column may not exist yet — order by created_at only
-  // When migration adds the column, re-enable: .order("is_featured", { ascending: false })
   const featuredResponse = await supabase
     .from("marketplace_listings")
     .select("*")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(6);
+    .eq("status", "active");
 
   const rawFeatured = parseQueryResult(featuredResponse, MarketplaceListingSchema, "MarketplaceFeatured");
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
-  const featured = await enrichListingsWithProfiles(
+  const featuredCandidates = await enrichListingsWithProfiles(
     supabase,
     rawFeatured,
     PROFILE_FIELDS_CARD
   );
+  const featured = sortMarketplaceListings(
+    featuredCandidates as import("@/types/database").MarketplaceListingWithSeller[],
+    "trust"
+  ).slice(0, 6);
 
   const totalCount = allListings?.length || 0;
   const autonomousReadyCount = allListings.filter(
@@ -96,7 +96,7 @@ export default async function MarketplacePage() {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/marketplace/browse">
+              <Link href="/marketplace/browse?sort=trust">
                 Browse All
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -161,7 +161,7 @@ export default async function MarketplacePage() {
             <h2 className="text-xl font-bold">Featured Listings</h2>
           </div>
           <Button variant="ghost" size="sm" className="text-neon" asChild>
-            <Link href="/marketplace/browse">
+            <Link href="/marketplace/browse?sort=trust">
               View All <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>

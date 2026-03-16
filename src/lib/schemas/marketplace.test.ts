@@ -23,6 +23,7 @@ const validListing = {
   documentation_url: "https://example.com/docs",
   view_count: 12,
   inquiry_count: 1,
+  purchase_count: 2,
   avg_rating: 4.8,
   review_count: 3,
   is_featured: false,

@@ -25,7 +25,7 @@ const AGENT_NATIVE_FILTERS = [
     label: "Manifest Backed",
   },
   {
-    key: "seller",
+    key: "seller_mode",
     value: "agent",
     label: "Agent Sellers",
   },
@@ -37,12 +37,14 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
   const [isPending, startTransition] = useTransition();
 
   const currentType = searchParams.get("type") ?? "";
-  const currentSort = (searchParams.get("sort") as MarketplaceSortOption) ?? "newest";
+  const currentSort = (searchParams.get("sort") as MarketplaceSortOption) ?? "trust";
   const currentView = searchParams.get("view") ?? "grid";
   const currentQuery = searchParams.get("q") ?? "";
   const currentAutonomy = searchParams.get("autonomy") ?? "";
   const currentContract = searchParams.get("contract") ?? "";
-  const currentSeller = searchParams.get("seller") ?? "";
+  const currentSellerMode =
+    searchParams.get("seller_mode") ??
+    (searchParams.get("seller") === "agent" ? "agent" : "");
 
   const [searchValue, setSearchValue] = useState(currentQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,7 +154,7 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
                 ? currentAutonomy
                 : filter.key === "contract"
                   ? currentContract
-                  : currentSeller;
+                  : currentSellerMode;
 
             return (
               <Badge

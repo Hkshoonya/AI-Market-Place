@@ -4,8 +4,16 @@ import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { Pagination } from "@/components/models/pagination";
-import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
+import {
+  LISTING_TYPE_MAP,
+  type MarketplaceSortOption,
+} from "@/lib/constants/marketplace";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
+import {
+  filterMarketplaceListings,
+  paginateMarketplaceListings,
+  sortMarketplaceListings,
+} from "@/lib/marketplace/discovery";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -53,52 +61,50 @@ export default async function BrowsePage(props: {
 }) {
   const searchParams = await props.searchParams;
   const type = searchParams.type || "";
-  const sort = searchParams.sort || "newest";
+  const sort = (searchParams.sort as MarketplaceSortOption) || "trust";
   const page = parseInt(searchParams.page || "1");
   const search = searchParams.q || "";
   const autonomy = searchParams.autonomy || "";
   const contract = searchParams.contract || "";
-  const seller = searchParams.seller || "";
+  const sellerParam = searchParams.seller || "";
+  const sellerMode =
+    searchParams.seller_mode || (sellerParam === "agent" ? "agent" : "");
+  const seller = sellerParam === "agent" ? "" : sellerParam;
 
   const supabase = createPublicClient();
 
   let query = supabase
     .from("marketplace_listings")
-    .select("*", { count: "exact" })
+    .select("*")
     .eq("status", "active");
 
   if (type) query = query.eq("listing_type", type as import("@/types/database").ListingType);
   if (search) query = query.textSearch("fts", search);
   if (autonomy === "ready") query = query.eq("autonomy_mode", "autonomous_allowed");
-  if (seller === "agent") query = query.not("agent_id", "is", null);
+  if (seller) query = query.eq("seller_id", seller);
+  if (sellerMode === "agent") query = query.not("agent_id", "is", null);
+  if (sellerMode === "human") query = query.is("agent_id", null);
   if (contract === "manifest") {
     query = query.or("preview_manifest.not.is.null,mcp_manifest.not.is.null,agent_config.not.is.null");
   }
 
-  const sortMap: Record<string, { column: string; ascending: boolean }> = {
-    newest: { column: "created_at", ascending: false },
-    price_asc: { column: "price", ascending: true },
-    price_desc: { column: "price", ascending: false },
-    rating: { column: "avg_rating", ascending: false },
-    popular: { column: "view_count", ascending: false },
-  };
-
-  const sortConfig = sortMap[sort] || sortMap.newest;
-  query = query.order(sortConfig.column, {
-    ascending: sortConfig.ascending,
-    nullsFirst: false,
-  });
-
-  const from = (page - 1) * ITEMS_PER_PAGE;
-  const to = from + ITEMS_PER_PAGE - 1;
-  query = query.range(from, to);
-
   const browseResponse = await query;
-  const totalCount = browseResponse.count || 0;
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const rawData = parseQueryResult(browseResponse, MarketplaceListingSchema, "MarketplaceBrowse");
-  const data = await enrichListingsWithProfiles(supabase, rawData);
+  const enriched = await enrichListingsWithProfiles(supabase, rawData);
+  const filtered = filterMarketplaceListings(
+    enriched as import("@/types/database").MarketplaceListingWithSeller[],
+    {
+      autonomy,
+      contract,
+      sellerId: seller,
+      sellerMode,
+    }
+  );
+  const sorted = sortMarketplaceListings(filtered, sort);
+  const totalCount = sorted.length;
+  const data = paginateMarketplaceListings(sorted, page, ITEMS_PER_PAGE);
 
   const typeConfig = type
     ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]
@@ -120,7 +126,7 @@ export default async function BrowsePage(props: {
       )}
       {!typeConfig && !search && (
         <p className="mb-6 text-sm text-muted-foreground">
-          Discover AI models, APIs, datasets, and more, with dedicated filters for autonomous-ready and manifest-backed listings.
+          Discover AI models, APIs, datasets, and more, with dedicated filters for autonomous-ready and manifest-backed listings, plus trust-first marketplace ranking.
         </p>
       )}
 

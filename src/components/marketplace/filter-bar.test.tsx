@@ -65,6 +65,9 @@ describe('MarketplaceFilterBar', () => {
     expect(screen.getByText('Agent Sellers')).toBeInTheDocument();
 
     // Sort options
+    expect(screen.getByText('Trust')).toBeInTheDocument();
+    expect(screen.getByText('Autonomy')).toBeInTheDocument();
+    expect(screen.getByText('Value')).toBeInTheDocument();
     expect(screen.getByText('Newest')).toBeInTheDocument();
     expect(screen.getByText('Rating')).toBeInTheDocument();
     expect(screen.getByText('Popular')).toBeInTheDocument();
@@ -93,16 +96,16 @@ describe('MarketplaceFilterBar', () => {
   });
 
   it('reflects initial URL search params in active state', () => {
-    mockSearchParams = new URLSearchParams('type=dataset&sort=rating&autonomy=ready');
+    mockSearchParams = new URLSearchParams('type=dataset&sort=trust&autonomy=ready&seller_mode=agent');
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={5} /></SWRConfig>);
 
     // The Dataset badge should have the active style (checked via aria-pressed on sort)
-    // Sort "Rating" should be pressed
-    const ratingBadge = screen.getByRole('button', {
-      name: /sort by rating/i,
+    const trustBadge = screen.getByRole('button', {
+      name: /sort by trust/i,
     });
-    expect(ratingBadge).toHaveAttribute('aria-pressed', 'true');
+    expect(trustBadge).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Autonomous Ready')).toHaveClass('text-neon');
+    expect(screen.getByText('Agent Sellers')).toHaveClass('text-neon');
   });
 
   it('clicking an agent-native filter updates the URL state', async () => {
@@ -116,6 +119,21 @@ describe('MarketplaceFilterBar', () => {
 
     const pushedUrl = mockPush.mock.calls[0][0] as string;
     expect(pushedUrl).toContain('contract=manifest');
+  });
+
+  it('keeps seller ids separate from agent-seller filtering', async () => {
+    mockSearchParams = new URLSearchParams('seller=seller-123');
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MarketplaceFilterBar totalCount={10} /></SWRConfig>);
+
+    await user.click(screen.getByText('Agent Sellers'));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    const pushedUrl = mockPush.mock.calls[0][0] as string;
+    expect(pushedUrl).toContain('seller=seller-123');
+    expect(pushedUrl).toContain('seller_mode=agent');
   });
 
   it('shows total count in the component', () => {

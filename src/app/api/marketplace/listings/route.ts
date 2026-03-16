@@ -9,11 +9,17 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { enrichListingsWithProfiles } from "@/lib/marketplace/enrich-listings";
+import {
+  filterMarketplaceListings,
+  paginateMarketplaceListings,
+  sortMarketplaceListings,
+} from "@/lib/marketplace/discovery";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import type { MarketplaceSortOption } from "@/lib/constants/marketplace";
 
 const createListingSchema = z.object({
   title: z
@@ -110,17 +116,24 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
   const type = searchParams.get("type");
-  const sort = searchParams.get("sort") || "newest";
+  const sort = (searchParams.get("sort") as MarketplaceSortOption) || "trust";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
   const search = searchParams.get("q");
   const pricingType = searchParams.get("pricing_type");
   const minPrice = searchParams.get("min_price");
   const maxPrice = searchParams.get("max_price");
+  const autonomy = searchParams.get("autonomy");
+  const contract = searchParams.get("contract");
+  const sellerParam = searchParams.get("seller");
+  const sellerMode =
+    searchParams.get("seller_mode") ||
+    (sellerParam === "agent" ? "agent" : null);
+  const sellerId = sellerParam === "agent" ? null : sellerParam;
 
   let query = supabase
     .from("marketplace_listings")
-    .select("*", { count: "exact" })
+    .select("*")
     .eq("status", "active");
 
   if (type)
@@ -133,24 +146,15 @@ export async function GET(request: NextRequest) {
   if (search) query = query.textSearch("fts", search);
   if (minPrice) query = query.gte("price", parseFloat(minPrice));
   if (maxPrice) query = query.lte("price", parseFloat(maxPrice));
+  if (autonomy === "ready") query = query.eq("autonomy_mode", "autonomous_allowed");
+  if (sellerId) query = query.eq("seller_id", sellerId);
+  if (sellerMode === "agent") query = query.not("agent_id", "is", null);
+  if (sellerMode === "human") query = query.is("agent_id", null);
+  if (contract === "manifest") {
+    query = query.or("preview_manifest.not.is.null,mcp_manifest.not.is.null,agent_config.not.is.null");
+  }
 
-  // Sorting
-  const sortMap: Record<string, { column: string; ascending: boolean }> = {
-    newest: { column: "created_at", ascending: false },
-    price_asc: { column: "price", ascending: true },
-    price_desc: { column: "price", ascending: false },
-    rating: { column: "avg_rating", ascending: false },
-    popular: { column: "view_count", ascending: false },
-  };
-
-  const sortConfig = sortMap[sort] || sortMap.newest;
-  query = query.order(sortConfig.column, {
-    ascending: sortConfig.ascending,
-    nullsFirst: false,
-  });
-  query = query.range((page - 1) * limit, page * limit - 1);
-
-  const { data, error, count } = await query;
+  const { data, error } = await query;
 
   if (error) {
     void systemLog.error("api/marketplace/listings", "Query error", { error: JSON.stringify(error) });
@@ -166,13 +170,25 @@ export async function GET(request: NextRequest) {
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   // enrichListingsWithProfiles accepts AnyClient internally
   const enriched = await enrichListingsWithProfiles(supabase, data || []);
+  const filtered = filterMarketplaceListings(
+    enriched as import("@/types/database").MarketplaceListingWithSeller[],
+    {
+      autonomy,
+      contract,
+      sellerId,
+      sellerMode,
+    }
+  );
+  const sorted = sortMarketplaceListings(filtered, sort);
+  const paginated = paginateMarketplaceListings(sorted, page, limit);
+  const total = sorted.length;
 
   return NextResponse.json({
-    data: enriched,
-    total: count,
+    data: paginated,
+    total,
     page,
     limit,
-    totalPages: Math.ceil((count || 0) / limit),
+    totalPages: Math.ceil(total / limit),
   });
   } catch (err) {
     return handleApiError(err, "api/marketplace/listings");

@@ -22,6 +22,7 @@ export const MarketplaceListingSchema = z.object({
   documentation_url: z.string().nullable(),
   view_count: z.coerce.number(),
   inquiry_count: z.coerce.number(),
+  purchase_count: z.coerce.number(),
   avg_rating: z.coerce.number().nullable(),
   review_count: z.coerce.number(),
   is_featured: z.boolean(),

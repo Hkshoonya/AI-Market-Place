@@ -90,9 +90,20 @@ export const PRICING_TYPE_LABELS: Record<MarketplacePricingType, string> = {
   contact: "Contact for Pricing",
 };
 
-export type MarketplaceSortOption = "newest" | "price_asc" | "price_desc" | "rating" | "popular";
+export type MarketplaceSortOption =
+  | "trust"
+  | "autonomous"
+  | "value"
+  | "newest"
+  | "price_asc"
+  | "price_desc"
+  | "rating"
+  | "popular";
 
 export const MARKETPLACE_SORT_OPTIONS: { value: MarketplaceSortOption; label: string }[] = [
+  { value: "trust", label: "Trust" },
+  { value: "autonomous", label: "Autonomy" },
+  { value: "value", label: "Value" },
   { value: "newest", label: "Newest" },
   { value: "price_asc", label: "Price: Low" },
   { value: "price_desc", label: "Price: High" },
