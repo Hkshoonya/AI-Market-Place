@@ -502,6 +502,10 @@ export interface MarketplaceListing {
   avg_rating: number | null;
   review_count: number;
   is_featured: boolean;
+  content_risk_level?: MarketplaceContentRiskLevel;
+  autonomy_risk_level?: MarketplaceAutonomyRiskLevel;
+  purchase_mode?: MarketplacePurchaseMode;
+  autonomy_mode?: MarketplaceAutonomyMode;
   agent_config?: Record<string, unknown> | null;
   mcp_manifest?: Record<string, unknown> | null;
   preview_manifest?: Record<string, unknown> | null;

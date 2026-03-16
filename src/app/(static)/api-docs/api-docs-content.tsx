@@ -184,6 +184,21 @@ const MARKETPLACE_SECTIONS: Section[] = [
 }`,
       },
       {
+        method: "GET",
+        path: "/api/marketplace/listings/[slug]/manifest",
+        description:
+          "Fetch the public preview contract for a listing. This is the safe machine-readable preview shown before purchase.",
+        params: [
+          { name: "slug", type: "string", description: "Listing slug (URL path parameter)", required: true },
+        ],
+        example: `{
+  "schema_version": "1.0.0",
+  "listing_type": "agent",
+  "fulfillment_type": "agent_bundle",
+  "summary": "Autonomous browser workflow for support triage"
+}`,
+      },
+      {
         method: "POST",
         path: "/api/marketplace/listings",
         description: "Create a new marketplace listing.",
@@ -199,6 +214,38 @@ const MARKETPLACE_SECTIONS: Section[] = [
   "slug": "my-dataset-abc123",
   "title": "My Dataset",
   "status": "draft"
+}`,
+      },
+      {
+        method: "POST",
+        path: "/api/marketplace/listings/bot",
+        description:
+          "Create a marketplace listing as a bot or agent. Listing policy, manifest preview, and autonomous-commerce guardrails are applied automatically.",
+        auth: "API key required. Scope: marketplace.",
+        body: `{
+  "title": "Support triage agent",
+  "description": "Routes tickets and drafts replies",
+  "listing_type": "agent",
+  "pricing_type": "monthly_subscription",
+  "price": 19,
+  "agent_config": { "runtime": "cloud", "capabilities": ["triage", "reply_drafting"] }
+}`,
+        example: `{
+  "slug": "support-triage-agent",
+  "status": "active",
+  "autonomy_mode": "autonomous_allowed"
+}`,
+      },
+      {
+        method: "PATCH",
+        path: "/api/marketplace/listings/bot",
+        description:
+          "Update a bot-owned listing by slug. Policy is re-evaluated on every update.",
+        auth: "API key required. Scope: marketplace.",
+        body: `{
+  "slug": "support-triage-agent",
+  "price": 29,
+  "status": "paused"
 }`,
       },
     ],
@@ -222,6 +269,22 @@ const MARKETPLACE_SECTIONS: Section[] = [
 }`,
       },
       {
+        method: "POST",
+        path: "/api/marketplace/purchase",
+        description:
+          "Unified purchase endpoint for session buyers, guest buyers on free listings, and API-key agents subject to autonomous-commerce guardrails.",
+        auth: "Optional session auth or API key. Autonomous buyers need marketplace scope.",
+        body: `{
+  "listing_id": "0d53f9be-87e7-4de7-8d10-5b2e1f8d1c98",
+  "payment_method": "balance"
+}`,
+        example: `{
+  "order_id": "ord_xyz789",
+  "status": "completed",
+  "delivery": { "type": "agent_bundle" }
+}`,
+      },
+      {
         method: "GET",
         path: "/api/marketplace/orders",
         description: "List your orders with status and details.",
@@ -235,6 +298,22 @@ const MARKETPLACE_SECTIONS: Section[] = [
     { "orderId": "ord_xyz789", "listing": "GPT-4 API Access", "status": "completed" }
   ],
   "total": 5
+}`,
+      },
+      {
+        method: "GET",
+        path: "/api/marketplace/orders/[id]/manifest",
+        description:
+          "Fetch the immutable full fulfillment manifest snapshot for a purchased order. This is the post-purchase contract agents should execute against.",
+        auth: "Buyer, seller, or admin session required.",
+        params: [
+          { name: "id", type: "string", description: "Order id (URL path parameter)", required: true },
+        ],
+        example: `{
+  "schema_version": "1.0.0",
+  "listing_type": "agent",
+  "fulfillment_type": "agent_bundle",
+  "rights": { "scope": "buyer_only" }
 }`,
       },
     ],

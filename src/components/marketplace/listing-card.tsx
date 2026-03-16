@@ -5,6 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { formatCurrency } from "@/lib/format";
 import type { MarketplaceListingWithSeller } from "@/types/database";
+import {
+  getListingCommerceSignals,
+  getListingPillClasses,
+} from "@/lib/marketplace/presentation";
 
 interface ListingCardProps {
   listing: MarketplaceListingWithSeller;
@@ -14,6 +18,7 @@ export function ListingCard({ listing }: ListingCardProps) {
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type];
   const TypeIcon = typeConfig?.icon;
   const sellerName = listing.profiles?.display_name || "Unknown Seller";
+  const commerceSignals = getListingCommerceSignals(listing);
 
   return (
     <Link href={`/marketplace/${listing.slug}`} aria-label={`${listing.title} by ${sellerName}, ${listing.pricing_type === "free" ? "Free" : listing.pricing_type === "contact" ? "Contact for pricing" : formatCurrency(listing.price)}`}>
@@ -27,6 +32,13 @@ export function ListingCard({ listing }: ListingCardProps) {
             {listing.is_featured && (
               <Badge className="bg-neon/10 text-neon text-[10px] border-neon/30">Featured</Badge>
             )}
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${getListingPillClasses(commerceSignals.autonomy.tone)}`}
+              title={commerceSignals.autonomy.description}
+            >
+              {commerceSignals.autonomy.label}
+            </Badge>
           </div>
           <h3 className="mt-3 text-sm font-semibold group-hover:text-neon transition-colors line-clamp-2">
             {listing.title}
@@ -43,6 +55,23 @@ export function ListingCard({ listing }: ListingCardProps) {
               {listing.short_description}
             </p>
           )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${getListingPillClasses(commerceSignals.manifest.tone)}`}
+              title={commerceSignals.manifest.description}
+            >
+              {commerceSignals.manifest.label}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${getListingPillClasses(commerceSignals.seller.tone)}`}
+              title={commerceSignals.seller.description}
+            >
+              {commerceSignals.seller.label}
+            </Badge>
+          </div>
 
           <div className="mt-4 flex items-center gap-2">
             {listing.avg_rating != null && (

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-import { ArrowLeft, Calendar, Eye, Tag } from "lucide-react";
+import { ArrowLeft, Bot, Calendar, Eye, ScrollText, ShieldCheck, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,10 @@ import { ManifestPreviewCard } from "@/components/marketplace/manifest-preview-c
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
+import {
+  getListingCommerceSignals,
+  getListingPillClasses,
+} from "@/lib/marketplace/presentation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
@@ -96,6 +100,7 @@ export default async function ListingDetailPage(props: {
     mcp_manifest: listing.mcp_manifest ?? null,
     preview_manifest: listing.preview_manifest ?? null,
   });
+  const commerceSignals = getListingCommerceSignals(listing);
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
@@ -206,6 +211,71 @@ export default async function ListingDetailPage(props: {
                     price: listing.price,
                   }}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-card">
+            <CardContent className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Purchase Mode
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`mt-3 ${getListingPillClasses(commerceSignals.purchase.tone)}`}
+                >
+                  {commerceSignals.purchase.label}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {commerceSignals.purchase.description}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <Bot className="h-3.5 w-3.5" />
+                  Autonomy
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`mt-3 ${getListingPillClasses(commerceSignals.autonomy.tone)}`}
+                >
+                  {commerceSignals.autonomy.label}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {commerceSignals.autonomy.description}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <ScrollText className="h-3.5 w-3.5" />
+                  Delivery Contract
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`mt-3 ${getListingPillClasses(commerceSignals.manifest.tone)}`}
+                >
+                  {commerceSignals.manifest.label}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {commerceSignals.manifest.description}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <Bot className="h-3.5 w-3.5" />
+                  Seller Mode
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`mt-3 ${getListingPillClasses(commerceSignals.seller.tone)}`}
+                >
+                  {commerceSignals.seller.label}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {commerceSignals.seller.description}
+                </p>
               </div>
             </CardContent>
           </Card>
