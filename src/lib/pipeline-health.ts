@@ -59,6 +59,15 @@ export async function recordSyncFailure(
 /** Get count of stale sources (not synced within 2x expected interval) */
 export async function getStaleSourceCount(): Promise<number> {
   const sb = createServiceClient();
+  const { data: sources } = await sb
+    .from("data_sources")
+    .select("slug")
+    .eq("is_enabled", true)
+    .is("quarantined_at", null);
+
+  if (!sources?.length) return 0;
+
+  const activeSlugs = new Set(sources.map((source) => source.slug));
   const { data } = await sb
     .from("pipeline_health")
     .select("source_slug, last_success_at, expected_interval_hours");
@@ -68,6 +77,7 @@ export async function getStaleSourceCount(): Promise<number> {
   const now = Date.now();
   let staleCount = 0;
   for (const row of data) {
+    if (!activeSlugs.has(row.source_slug)) continue;
     if (!row.last_success_at) { staleCount++; continue; }
     const lastSync = new Date(row.last_success_at).getTime();
     const maxAge = (row.expected_interval_hours ?? 6) * 2 * 60 * 60 * 1000;
