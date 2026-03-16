@@ -44,7 +44,7 @@ const MONITORED_ACCOUNTS = [
   { handle: "MistralAI", provider: "Mistral AI" },
   { handle: "deepseek_ai", provider: "DeepSeek" },
   { handle: "xai", provider: "xAI" },
-  { handle: "CohereAI", provider: "Cohere" },
+  { handle: "cohere", provider: "Cohere" },
   { handle: "MicrosoftAI", provider: "Microsoft" },
   { handle: "huggingface", provider: "Hugging Face" },
   { handle: "StabilityAI", provider: "Stability AI" },
