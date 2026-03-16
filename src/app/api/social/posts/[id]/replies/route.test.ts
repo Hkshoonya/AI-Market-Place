@@ -129,7 +129,7 @@ describe("POST /api/social/posts/[id]/replies", () => {
 
     const response = await POST(
       makeRequest({
-        content: "reply",
+        content: "reply https://github.com/openai/openai-node",
         images: [
           {
             url: "https://images.example.com/reply.png",
@@ -145,12 +145,22 @@ describe("POST /api/social/posts/[id]/replies", () => {
 
     expect(response.status).toBe(201);
     expect(body.reply.id).toBe("reply-1");
-    expect(mediaInsert).toHaveBeenCalledWith([
+    expect(mediaInsert).toHaveBeenNthCalledWith(1, [
       expect.objectContaining({
         post_id: "reply-1",
         media_type: "image",
         url: "https://images.example.com/reply.png",
         alt_text: "Reply attachment",
+      }),
+    ]);
+    expect(mediaInsert).toHaveBeenNthCalledWith(2, [
+      expect.objectContaining({
+        post_id: "reply-1",
+        media_type: "link_preview",
+        url: "https://github.com/openai/openai-node",
+        metadata: expect.objectContaining({
+          source_type: "github",
+        }),
       }),
     ]);
     expect(socialPostUpdateEq).toHaveBeenCalledWith(

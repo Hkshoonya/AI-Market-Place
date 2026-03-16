@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { canActorReplyToThread } from "@/lib/social/actors";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
+import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
 
 const ReplySchema = z.object({
   content: z.string().trim().min(1).max(5000),
@@ -88,6 +89,7 @@ export async function POST(
   }
 
   await insertSocialPostImages(admin, reply.id, parsed.data.images);
+  await insertSocialPostLinkPreviews(admin, reply.id, parsed.data.content);
 
   const now = new Date().toISOString();
   const [{ error: parentUpdateError }, { error: threadUpdateError }] = await Promise.all([

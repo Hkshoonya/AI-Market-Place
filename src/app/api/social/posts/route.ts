@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
+import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
 
 const CreatePostSchema = z.object({
   title: z.string().trim().min(1).max(140).optional(),
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
   }
 
   await insertSocialPostImages(admin, post.id, parsed.data.images);
+  await insertSocialPostLinkPreviews(admin, post.id, parsed.data.content);
 
   await admin
     .from("social_threads")

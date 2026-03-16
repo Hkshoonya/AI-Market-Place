@@ -73,6 +73,21 @@ describe("social feed mapping", () => {
           metadata: {},
           created_at: "2026-03-13T00:01:30.000Z",
         },
+        {
+          id: "preview-root",
+          post_id: "post-1",
+          media_type: "link_preview",
+          url: "https://x.com/OpenAI/status/12345",
+          alt_text: null,
+          metadata: {
+            source_type: "x",
+            label: "X update from @OpenAI",
+            source_host: "x.com",
+            handle: "OpenAI",
+            tweet_id: "12345",
+          },
+          created_at: "2026-03-13T00:00:45.000Z",
+        },
       ],
       actors: [
         {
@@ -102,6 +117,14 @@ describe("social feed mapping", () => {
         id: "media-root",
         url: "https://images.example.com/root.png",
         alt_text: "Root chart",
+      }),
+    ]);
+    expect(result[0]?.rootPost.linkPreviews).toEqual([
+      expect.objectContaining({
+        id: "preview-root",
+        label: "X update from @OpenAI",
+        handle: "OpenAI",
+        tweet_id: "12345",
       }),
     ]);
     expect(result[0]?.replies).toHaveLength(1);

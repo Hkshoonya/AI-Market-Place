@@ -11,6 +11,7 @@ import {
   resolveNewsRelations,
   type ModelLookupEntry,
 } from "../model-matcher";
+import { classifyNewsSignal } from "@/lib/news/signals";
 
 /**
  * X.com Model Announcements Adapter
@@ -91,6 +92,7 @@ interface ParsedTweet {
   text: string;
   url: string;
   publishedAt: string;
+  imageUrl: string | null;
 }
 
 /**
@@ -116,6 +118,15 @@ function decodeEntities(text: string): string {
 /** Strip HTML tags and collapse whitespace. */
 function stripHtml(raw: string): string {
   return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractImageUrl(block: string): string | null {
+  const mediaMatch =
+    block.match(/<media:content[^>]+url="([^"]+)"/i) ||
+    block.match(/<media:thumbnail[^>]+url="([^"]+)"/i) ||
+    block.match(/<img[^>]+src="([^"]+)"/i);
+
+  return mediaMatch?.[1]?.trim() ?? null;
 }
 
 /**
@@ -168,8 +179,9 @@ function parseRssFeed(xml: string, fallbackHandle: string): ParsedTweet[] {
     }
 
     const tweetId = extractTweetId(itemUrl);
+    const imageUrl = extractImageUrl(block);
 
-    tweets.push({ id: tweetId, text, url: itemUrl, publishedAt });
+    tweets.push({ id: tweetId, text, url: itemUrl, publishedAt, imageUrl });
   }
 
   return tweets;
@@ -269,8 +281,17 @@ const adapter: DataSourceAdapter = {
           const tweetUrl = tweet.id
             ? `https://x.com/${account.handle}/status/${tweet.id}`
             : tweet.url;
+          const signal = classifyNewsSignal(tweet.text);
 
-          const tweetMeta = { handle: account.handle, provider: account.provider };
+          const tweetMeta = {
+            handle: account.handle,
+            provider: account.provider,
+            tweet_id: tweet.id,
+            preview_image_url: tweet.imageUrl,
+            signal_type: signal.signalType,
+            signal_importance: signal.importance,
+            signal_flags: signal.flags,
+          };
           const { modelIds } = modelLookup.length > 0
             ? resolveNewsRelations(tweet.text, null, tweetMeta, modelLookup)
             : { modelIds: [] };
@@ -282,10 +303,10 @@ const adapter: DataSourceAdapter = {
             summary: tweet.text,
             url: tweetUrl,
             published_at: tweet.publishedAt,
-            category: "social",
+            category: signal.category,
             related_provider: account.provider,
             related_model_ids: modelIds.length > 0 ? modelIds : [],
-            tags: [account.provider.toLowerCase(), "twitter", "x"],
+            tags: [...new Set([account.provider.toLowerCase(), "twitter", "x", ...signal.tags])],
             metadata: tweetMeta,
           });
         }
@@ -362,3 +383,9 @@ const adapter: DataSourceAdapter = {
 
 registerAdapter(adapter);
 export default adapter;
+
+export const __testables = {
+  parseRssFeed,
+  extractImageUrl,
+  extractTweetId,
+};

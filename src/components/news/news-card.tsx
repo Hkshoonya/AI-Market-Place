@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { ExternalLink, FlaskConical, Twitter, Rss } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,11 +67,36 @@ export function NewsCard({ item, showModelLinks, linkedModels }: NewsCardProps) 
         : FlaskConical;
 
   const handle = metadata.handle as string | undefined;
+  const signalType = metadata.signal_type as string | undefined;
+  const signalImportance = metadata.signal_importance as string | undefined;
+  const previewImageUrl = metadata.preview_image_url as string | undefined;
+  const signalLabel = signalType ? signalType.replace(/_/g, " ") : null;
+  const signalBadgeTone =
+    signalImportance === "high"
+      ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+      : signalImportance === "medium"
+        ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/20"
+        : "bg-muted text-muted-foreground border-border";
 
   return (
     <Card className="border-border/50 bg-card">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
+          {previewImageUrl ? (
+            <a
+              href={item.url as string}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden shrink-0 overflow-hidden rounded-2xl border border-border/50 bg-background/60 md:block"
+            >
+              <img
+                src={previewImageUrl}
+                alt={item.title as string}
+                className="h-24 w-36 object-cover"
+                loading="lazy"
+              />
+            </a>
+          ) : null}
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Badge className={`text-[11px] border ${config.color}`}>
@@ -93,6 +119,11 @@ export function NewsCard({ item, showModelLinks, linkedModels }: NewsCardProps) 
               ) ? (
                 <Badge variant="secondary" className="text-[11px]">
                   {item.category as string}
+                </Badge>
+              ) : null}
+              {signalLabel ? (
+                <Badge className={`text-[11px] border capitalize ${signalBadgeTone}`}>
+                  {signalLabel}
                 </Badge>
               ) : null}
               <span className="text-xs text-muted-foreground">

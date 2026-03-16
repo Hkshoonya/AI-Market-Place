@@ -98,6 +98,9 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
           onChange={(event) => setContent(event.target.value)}
           maxLength={5000}
         />
+        <p className="text-xs text-muted-foreground">
+          Paste X or article links in your reply to attach a rich preview.
+        </p>
       </div>
       <SocialImageInputs attachments={images} onChange={setImages} />
       <div className="flex items-center justify-end gap-2">

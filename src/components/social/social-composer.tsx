@@ -146,6 +146,9 @@ export function SocialComposer({
               onChange={(event) => setContent(event.target.value)}
               maxLength={5000}
             />
+            <p className="text-xs text-muted-foreground">
+              Paste X, GitHub, Hugging Face, or provider update links in the post body to generate rich previews.
+            </p>
           </div>
 
           <SocialImageInputs attachments={images} onChange={setImages} />

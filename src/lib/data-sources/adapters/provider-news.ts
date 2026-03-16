@@ -11,6 +11,7 @@ import {
   resolveNewsRelations,
   type ModelLookupEntry,
 } from "../model-matcher";
+import { classifyNewsSignal } from "@/lib/news/signals";
 
 /**
  * Provider News Adapter
@@ -260,7 +261,14 @@ const adapter: DataSourceAdapter = {
 
         for (const article of relevant) {
           recordsProcessed++;
-          const metadata = { provider: blog.provider, blog_url: blog.url };
+          const signal = classifyNewsSignal(article.title);
+          const metadata = {
+            provider: blog.provider,
+            blog_url: blog.url,
+            signal_type: signal.signalType,
+            signal_importance: signal.importance,
+            signal_flags: signal.flags,
+          };
           const { modelIds } = modelLookup.length > 0
             ? resolveNewsRelations(article.title, null, metadata, modelLookup)
             : { modelIds: [] };
@@ -274,10 +282,10 @@ const adapter: DataSourceAdapter = {
             summary: null,
             url: article.url,
             published_at: article.date ?? new Date().toISOString(),
-            category: "announcement",
+            category: signal.category,
             related_provider: blog.provider,
             related_model_ids: modelIds.length > 0 ? modelIds : [],
-            tags: [blog.provider.toLowerCase(), "blog"],
+            tags: [...new Set([blog.provider.toLowerCase(), "blog", ...signal.tags])],
             metadata,
           });
         }

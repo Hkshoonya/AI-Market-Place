@@ -31,6 +31,16 @@ export interface FeedPostCard {
     url: string;
     alt_text?: string | null;
   }>;
+  linkPreviews?: Array<{
+    id: string;
+    url: string;
+    label: string;
+    source_type: string;
+    source_host?: string | null;
+    action_label?: string | null;
+    handle?: string | null;
+    tweet_id?: string | null;
+  }>;
   author: FeedActorCard;
 }
 
@@ -163,6 +173,29 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
               url: item.url,
               alt_text: item.alt_text ?? null,
             })),
+          linkPreviews: (mediaByPostId.get(post.id) ?? [])
+            .filter((item) => item.media_type === "link_preview")
+            .map((item) => {
+              const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+              return {
+                id: item.id,
+                url: item.url,
+                label:
+                  typeof metadata.label === "string" && metadata.label
+                    ? metadata.label
+                    : "External link",
+                source_type:
+                  typeof metadata.source_type === "string" && metadata.source_type
+                    ? metadata.source_type
+                    : "link",
+                source_host:
+                  typeof metadata.source_host === "string" ? metadata.source_host : null,
+                action_label:
+                  typeof metadata.action_label === "string" ? metadata.action_label : null,
+                handle: typeof metadata.handle === "string" ? metadata.handle : null,
+                tweet_id: typeof metadata.tweet_id === "string" ? metadata.tweet_id : null,
+              };
+            }),
           author: {
             id: postAuthor.id,
             actor_type: postAuthor.actor_type,

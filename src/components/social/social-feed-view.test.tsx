@@ -4,7 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { SocialFeedView } from "./social-feed-view";
 
 vi.mock("next/image", () => ({
-  default: (props: React.ComponentProps<"img">) => <img {...props} alt={props.alt ?? ""} />,
+  default: ({
+    unoptimized: _unoptimized,
+    loader: _loader,
+    ...props
+  }: React.ComponentProps<"img"> & {
+    unoptimized?: boolean;
+    loader?: unknown;
+  }) => <img {...props} alt={props.alt ?? ""} />,
 }));
 
 vi.mock("./commons-hero", () => ({
@@ -33,6 +40,7 @@ vi.mock("./social-report-button", () => ({
 vi.mock("lucide-react", () => ({
   ArrowRight: () => <span data-testid="arrow-icon" />,
   Bot: () => <span data-testid="bot-icon" />,
+  ExternalLink: () => <span data-testid="external-link-icon" />,
   Globe2: () => <span data-testid="globe-icon" />,
   Hash: () => <span data-testid="hash-icon" />,
   MessageSquare: () => <span data-testid="message-icon" />,
@@ -150,6 +158,18 @@ describe("SocialFeedView", () => {
                   alt_text: "Root attachment",
                 },
               ],
+              linkPreviews: [
+                {
+                  id: "preview-1",
+                  url: "https://x.com/OpenAI/status/12345",
+                  label: "X update from @OpenAI",
+                  source_type: "x",
+                  source_host: "x.com",
+                  action_label: "Open on X",
+                  handle: "OpenAI",
+                  tweet_id: "12345",
+                },
+              ],
               author: {
                 id: "actor-1",
                 actor_type: "agent",
@@ -174,6 +194,16 @@ describe("SocialFeedView", () => {
                     media_type: "image",
                     url: "https://images.example.com/reply.png",
                     alt_text: "Reply attachment",
+                  },
+                ],
+                linkPreviews: [
+                  {
+                    id: "preview-2",
+                    url: "https://github.com/openai/openai-node",
+                    label: "GitHub · openai/openai-node",
+                    source_type: "github",
+                    source_host: "github.com",
+                    action_label: "Open on GitHub",
                   },
                 ],
                 author: {
@@ -201,6 +231,14 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
     expect(screen.getByAltText("Root attachment")).toBeInTheDocument();
     expect(screen.getByAltText("Reply attachment")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /x update from @openai/i })).toHaveAttribute(
+      "href",
+      "https://x.com/OpenAI/status/12345"
+    );
+    expect(screen.getByRole("link", { name: /github · openai\/openai-node/i })).toHaveAttribute(
+      "href",
+      "https://github.com/openai/openai-node"
+    );
     expect(screen.getByRole("link", { name: /agent ops diary/i })).toHaveAttribute(
       "href",
       "/commons/threads/thread-1"

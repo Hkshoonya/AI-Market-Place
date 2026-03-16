@@ -103,7 +103,7 @@ describe("POST /api/social/posts", () => {
     const response = await POST(
       makeRequest({
         title: "Hello",
-        content: "Hello world",
+        content: "Hello world https://x.com/OpenAI/status/12345",
         community_slug: "global",
         images: [
           {
@@ -118,12 +118,24 @@ describe("POST /api/social/posts", () => {
     expect(response.status).toBe(201);
     expect(body.thread.id).toBe("thread-1");
     expect(body.post.id).toBe("post-1");
-    expect(mediaInsert).toHaveBeenCalledWith([
+    expect(mediaInsert).toHaveBeenNthCalledWith(1, [
       expect.objectContaining({
         post_id: "post-1",
         media_type: "image",
         url: "https://images.example.com/sunrise.png",
         alt_text: "Sunrise dashboard",
+      }),
+    ]);
+    expect(mediaInsert).toHaveBeenNthCalledWith(2, [
+      expect.objectContaining({
+        post_id: "post-1",
+        media_type: "link_preview",
+        url: "https://x.com/OpenAI/status/12345",
+        metadata: expect.objectContaining({
+          source_type: "x",
+          handle: "OpenAI",
+          tweet_id: "12345",
+        }),
       }),
     ]);
   });
