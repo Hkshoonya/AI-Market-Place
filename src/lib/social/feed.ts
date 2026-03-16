@@ -193,45 +193,12 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
   return mapped.filter((item): item is FeedThreadCard => item !== null);
 }
 
-export async function listPublicFeed(
+async function loadFeedThreadCards(
   supabase: TypedSupabaseClient,
-  options: { communitySlug?: string | null; limit?: number; mode?: FeedMode } = {}
-): Promise<{ communities: SocialCommunityRow[]; threads: FeedThreadCard[] }> {
-  const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
-  const mode = options.mode ?? "top";
-  const candidateLimit = mode === "latest" ? limit : Math.min(limit * 4, 120);
-
-  const { data: communities, error: communityError } = await supabase
-    .from("social_communities")
-    .select("*")
-    .order("is_global", { ascending: false })
-    .order("name", { ascending: true });
-
-  if (communityError) {
-    throw new Error(`Failed to load communities: ${communityError.message}`);
-  }
-
-  const selectedCommunity =
-    options.communitySlug && options.communitySlug !== "global"
-      ? (communities ?? []).find((community) => community.slug === options.communitySlug) ?? null
-      : null;
-
-  let threadQuery = supabase
-    .from("social_threads")
-    .select("*")
-    .order("last_posted_at", { ascending: false })
-    .limit(candidateLimit);
-
-  if (selectedCommunity) {
-    threadQuery = threadQuery.eq("community_id", selectedCommunity.id);
-  }
-
-  const { data: threads, error: threadError } = await threadQuery;
-  if (threadError) {
-    throw new Error(`Failed to load threads: ${threadError.message}`);
-  }
-
-  const rootPostIds = (threads ?? [])
+  threads: SocialThreadRow[],
+  communities: SocialCommunityRow[]
+): Promise<FeedThreadCard[]> {
+  const rootPostIds = threads
     .map((thread) => thread.root_post_id)
     .filter((value): value is string => Boolean(value));
   const actorIds = new Set<string>();
@@ -284,27 +251,106 @@ export async function listPublicFeed(
 
   const { data: media, error: mediaError } =
     postIds.length > 0
-      ? await supabase
-          .from("social_post_media")
-          .select("*")
-          .in("post_id", postIds)
+      ? await supabase.from("social_post_media").select("*").in("post_id", postIds)
       : { data: [], error: null };
 
   if (mediaError) {
     throw new Error(`Failed to load post media: ${mediaError.message}`);
   }
 
-  const mappedThreads = mapFeedRows({
-    communities: (communities ?? []) as SocialCommunityRow[],
-    threads: (threads ?? []) as SocialThreadRow[],
+  return mapFeedRows({
+    communities,
+    threads,
     rootPosts: (rootPosts ?? []) as SocialPostRow[],
     replies: (replies ?? []) as SocialPostRow[],
     media: (media ?? []) as SocialPostMediaRow[],
     actors: (actors ?? []) as NetworkActorRow[],
   });
+}
+
+export async function listPublicFeed(
+  supabase: TypedSupabaseClient,
+  options: { communitySlug?: string | null; limit?: number; mode?: FeedMode } = {}
+): Promise<{ communities: SocialCommunityRow[]; threads: FeedThreadCard[] }> {
+  const limit = Math.min(Math.max(options.limit ?? 20, 1), 50);
+  const mode = options.mode ?? "top";
+  const candidateLimit = mode === "latest" ? limit : Math.min(limit * 4, 120);
+
+  const { data: communities, error: communityError } = await supabase
+    .from("social_communities")
+    .select("*")
+    .order("is_global", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (communityError) {
+    throw new Error(`Failed to load communities: ${communityError.message}`);
+  }
+
+  const selectedCommunity =
+    options.communitySlug && options.communitySlug !== "global"
+      ? (communities ?? []).find((community) => community.slug === options.communitySlug) ?? null
+      : null;
+
+  let threadQuery = supabase
+    .from("social_threads")
+    .select("*")
+    .order("last_posted_at", { ascending: false })
+    .limit(candidateLimit);
+
+  if (selectedCommunity) {
+    threadQuery = threadQuery.eq("community_id", selectedCommunity.id);
+  }
+
+  const { data: threads, error: threadError } = await threadQuery;
+  if (threadError) {
+    throw new Error(`Failed to load threads: ${threadError.message}`);
+  }
+
+  const mappedThreads = await loadFeedThreadCards(
+    supabase,
+    (threads ?? []) as SocialThreadRow[],
+    (communities ?? []) as SocialCommunityRow[]
+  );
 
   return {
     communities: (communities ?? []) as SocialCommunityRow[],
     threads: rankFeedThreads(mappedThreads, mode).slice(0, limit),
   };
+}
+
+export async function getPublicThreadDetail(
+  supabase: TypedSupabaseClient,
+  threadId: string
+): Promise<FeedThreadCard | null> {
+  const { data: thread, error: threadError } = await supabase
+    .from("social_threads")
+    .select("*")
+    .eq("id", threadId)
+    .maybeSingle();
+
+  if (threadError) {
+    throw new Error(`Failed to load thread: ${threadError.message}`);
+  }
+
+  if (!thread) {
+    return null;
+  }
+
+  const { data: communities, error: communityError } = await supabase
+    .from("social_communities")
+    .select("*")
+    .order("is_global", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (communityError) {
+    throw new Error(`Failed to load communities: ${communityError.message}`);
+  }
+
+  const mapped = await loadFeedThreadCards(
+    supabase,
+    [thread as SocialThreadRow],
+    (communities ?? []) as SocialCommunityRow[]
+  );
+
+  return mapped[0] ?? null;
 }

@@ -201,6 +201,14 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
     expect(screen.getByAltText("Root attachment")).toBeInTheDocument();
     expect(screen.getByAltText("Reply attachment")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /agent ops diary/i })).toHaveAttribute(
+      "href",
+      "/commons/threads/thread-1"
+    );
+    expect(screen.getByRole("link", { name: /open thread/i })).toHaveAttribute(
+      "href",
+      "/commons/threads/thread-1"
+    );
     expect(screen.getByRole("link", { name: /^top$/i })).toHaveAttribute("href", "/commons");
     expect(screen.getByRole("link", { name: /^latest$/i })).toHaveAttribute("href", "/commons?mode=latest");
     expect(screen.getByRole("link", { name: /^trusted$/i })).toHaveAttribute("href", "/commons?mode=trusted");
