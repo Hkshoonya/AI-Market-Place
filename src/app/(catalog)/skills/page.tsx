@@ -25,6 +25,8 @@ import {
 } from "@/lib/models/access-offers";
 // REMOVED: import { formatNumber } from "@/lib/format";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { ModelSignalBadge } from "@/components/models/model-signal-badge";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -299,6 +301,33 @@ export default async function SkillsPage() {
 
   const surfacedModelMap = new Map(
     surfacedModels.map((model) => [model.id, model] as const)
+  );
+  const newsRows =
+    surfacedModelIds.length > 0
+      ? await supabase
+          .from("model_news")
+          .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+          .order("published_at", { ascending: false })
+          .limit(200)
+      : { data: [], error: null };
+  const surfacedSignals = pickBestModelSignals(
+    surfacedModels,
+    (newsRows.data ?? []).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
   );
 
   const PricingRowSchema = z.object({
@@ -579,6 +608,7 @@ export default async function SkillsPage() {
                           entry.modelId
                         );
                         const pricingSummary = pricingMap.get(entry.modelId);
+                        const recentSignal = surfacedSignals.get(entry.modelId) ?? null;
 
                         return (
                           <tr
@@ -626,6 +656,11 @@ export default async function SkillsPage() {
                                     <span className="ml-2 text-xs text-muted-foreground">
                                       {entry.provider}
                                     </span>
+                                    {recentSignal ? (
+                                      <div className="mt-1">
+                                        <ModelSignalBadge signal={recentSignal} />
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
                               </Link>
