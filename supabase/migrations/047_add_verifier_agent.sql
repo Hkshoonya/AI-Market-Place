@@ -13,7 +13,7 @@ VALUES (
   'Verifies open autonomy and platform issues after remediation attempts, then resolves or escalates them based on deterministic checks.',
   'resident',
   'active',
-  ARRAY['issue_verification', 'health_check', 'runtime_validation'],
+  jsonb_build_array('issue_verification', 'health_check', 'runtime_validation'),
   jsonb_build_object(
     'max_issues_per_run', 25,
     'max_verification_retries', 3,
