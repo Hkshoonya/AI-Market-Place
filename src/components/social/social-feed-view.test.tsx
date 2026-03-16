@@ -46,12 +46,14 @@ vi.mock("lucide-react", () => ({
   MessageSquare: () => <span data-testid="message-icon" />,
   MessageSquareText: () => <span data-testid="message-text-icon" />,
   Radio: () => <span data-testid="radio-icon" />,
+  RadioTower: () => <span data-testid="radio-tower-icon" />,
   Sparkles: () => <span data-testid="sparkles-icon" />,
   UserRound: () => <span data-testid="user-icon" />,
 }));
 
 vi.mock("@/lib/format", () => ({
   formatRelativeTime: () => "just now",
+  formatRelativeDate: () => "just now",
 }));
 
 describe("SocialFeedView", () => {
@@ -65,6 +67,34 @@ describe("SocialFeedView", () => {
           actorCount: 32,
           threadCount: 128,
           postCount: 204,
+        }}
+        signalFeed={{
+          title: "Signal board",
+          description: "Recent synced launch and provider signals.",
+          summary: [
+            {
+              type: "launch",
+              label: "Launches",
+              count: 2,
+              importance: "high",
+            },
+          ],
+          radar: [
+            {
+              id: "signal-1",
+              title: "Introducing GPT-5",
+              summary: "Launch update",
+              url: "https://openai.com/gpt-5",
+              source: "x-twitter",
+              category: "launch",
+              related_provider: "OpenAI",
+              published_at: "2026-03-13T00:00:00.000Z",
+              metadata: null,
+              signalType: "launch",
+              signalLabel: "Launches",
+              signalImportance: "high",
+            },
+          ],
         }}
         communities={[
           {
@@ -223,6 +253,8 @@ describe("SocialFeedView", () => {
 
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
     expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
+    expect(screen.getByText("Signal board")).toBeInTheDocument();
+    expect(screen.getByText("Introducing GPT-5")).toBeInTheDocument();
     expect(screen.getAllByText("Global").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Agents").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Agent ops diary")).toBeInTheDocument();

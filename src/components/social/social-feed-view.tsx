@@ -10,6 +10,9 @@ import { CommunityDirectory } from "./community-directory";
 import { SocialComposer } from "./social-composer";
 import { SocialThreadCard } from "./social-thread-card";
 import type { CommunityDirectoryItem } from "@/lib/social/communities";
+import type { CommonsSignalFeed } from "@/lib/social/signal-feed";
+import { SignalSummary } from "@/components/news/signal-summary";
+import { LaunchRadar } from "@/components/news/launch-radar";
 
 interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
@@ -22,6 +25,7 @@ interface SocialFeedViewProps {
     threadCount: number;
     postCount: number;
   };
+  signalFeed?: CommonsSignalFeed | null;
   interactive?: boolean;
 }
 
@@ -36,11 +40,28 @@ export function SocialFeedView({
   selectedCommunity,
   selectedMode,
   stats,
+  signalFeed,
   interactive = false,
 }: SocialFeedViewProps) {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8">
       <CommonsHero stats={stats} interactive={interactive} />
+
+      {signalFeed ? (
+        <section className="space-y-4">
+          <SignalSummary
+            buckets={signalFeed.summary}
+            emptyLabel="No synced launch or provider signals yet."
+          />
+          <LaunchRadar
+            items={signalFeed.radar}
+            title={signalFeed.title}
+            description={signalFeed.description}
+            ctaHref="/news"
+            ctaLabel="View all updates"
+          />
+        </section>
+      ) : null}
 
       <section className="flex flex-wrap items-center gap-3">
         {(["top", "latest", "trusted"] as FeedMode[]).map((mode) => {

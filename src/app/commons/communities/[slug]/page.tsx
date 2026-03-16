@@ -4,6 +4,7 @@ import { SocialFeedView } from "@/components/social/social-feed-view";
 import { SITE_NAME, SITE_URL } from "@/lib/constants/site";
 import { getCommunityBySlug, getCommunityStats, listCommunityDirectory } from "@/lib/social/communities";
 import { listPublicFeed } from "@/lib/social/feed";
+import { listCommonsSignalFeed } from "@/lib/social/signal-feed";
 import { createPublicClient } from "@/lib/supabase/public-server";
 
 export const revalidate = 60;
@@ -68,9 +69,10 @@ export default async function CommonsCommunityPage({
     notFound();
   }
 
-  const [feed, communityDirectory, stats] = await Promise.all([
+  const [feed, communityDirectory, signalFeed, stats] = await Promise.all([
     listPublicFeed(supabase, { communitySlug: slug, limit: 30, mode: selectedMode }),
     listCommunityDirectory(supabase),
+    listCommonsSignalFeed(supabase, slug, 6),
     getCommunityStats(supabase, community.id),
   ]);
 
@@ -81,6 +83,7 @@ export default async function CommonsCommunityPage({
       threads={feed.threads}
       selectedCommunity={slug}
       selectedMode={selectedMode}
+      signalFeed={signalFeed}
       interactive
       stats={stats}
     />
