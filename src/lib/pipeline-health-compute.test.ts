@@ -13,6 +13,7 @@ import {
   computeStatus,
   mapSyncJobStatus,
   HEALTH_PRIORITY,
+  resolveEffectiveHealthRow,
 } from "./pipeline-health-compute";
 
 // NOW = 2026-03-12T00:00:00Z for deterministic staleness calculations
@@ -172,5 +173,47 @@ describe("HEALTH_PRIORITY", () => {
       (a, b) => HEALTH_PRIORITY[a] - HEALTH_PRIORITY[b]
     );
     expect(sorted).toEqual(["down", "down", "degraded", "healthy", "healthy"]);
+  });
+});
+
+describe("resolveEffectiveHealthRow", () => {
+  it("prefers the canonical source interval when pipeline_health is stale and lower", () => {
+    expect(
+      resolveEffectiveHealthRow(
+        {
+          sync_interval_hours: 168,
+          last_success_at: "2026-03-13T00:00:00.000Z",
+        },
+        {
+          expected_interval_hours: 6,
+          consecutive_failures: 0,
+          last_success_at: "2026-03-13T00:00:00.000Z",
+        }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        expected_interval_hours: 168,
+      })
+    );
+  });
+
+  it("falls back to the row interval when the source snapshot has no interval", () => {
+    expect(
+      resolveEffectiveHealthRow(
+        {
+          sync_interval_hours: null,
+          last_success_at: "2026-03-13T00:00:00.000Z",
+        },
+        {
+          expected_interval_hours: 24,
+          consecutive_failures: 0,
+          last_success_at: "2026-03-13T00:00:00.000Z",
+        }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        expected_interval_hours: 24,
+      })
+    );
   });
 });

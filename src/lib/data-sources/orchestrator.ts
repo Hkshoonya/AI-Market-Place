@@ -199,7 +199,10 @@ async function executeAdapter(
 
   // Track pipeline health
   if (status === "failed") {
-    const failureCount = await recordSyncFailure(source.slug).catch((err: unknown) => {
+    const failureCount = await recordSyncFailure(
+      source.slug,
+      source.sync_interval_hours
+    ).catch((err: unknown) => {
       void systemLog.warn("sync-orchestrator", "Failed to record sync failure status", {
         slug: source.slug,
         error: err instanceof Error ? err.message : String(err),
@@ -245,7 +248,10 @@ async function executeAdapter(
       });
     }
   } else {
-    await recordSyncSuccess(source.slug).catch((err: unknown) => {
+    await recordSyncSuccess(
+      source.slug,
+      source.sync_interval_hours
+    ).catch((err: unknown) => {
       void systemLog.warn("sync-orchestrator", "Failed to record sync success status", {
         slug: source.slug,
         error: err instanceof Error ? err.message : String(err),

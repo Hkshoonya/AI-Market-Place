@@ -15,30 +15,41 @@ function createServiceClient() {
 }
 
 /** Record a successful sync for a source */
-export async function recordSyncSuccess(sourceSlug: string): Promise<void> {
+export async function recordSyncSuccess(
+  sourceSlug: string,
+  expectedIntervalHours?: number | null
+): Promise<void> {
   const sb = createServiceClient();
+  const intervalHours = expectedIntervalHours ?? 6;
   await sb.from("pipeline_health").upsert({
     source_slug: sourceSlug,
     last_success_at: new Date().toISOString(),
     consecutive_failures: 0,
+    expected_interval_hours: intervalHours,
     updated_at: new Date().toISOString(),
   }, { onConflict: "source_slug" });
 }
 
 /** Record a failed sync for a source. Returns the new consecutive failure count. */
-export async function recordSyncFailure(sourceSlug: string): Promise<number> {
+export async function recordSyncFailure(
+  sourceSlug: string,
+  expectedIntervalHours?: number | null
+): Promise<number> {
   const sb = createServiceClient();
   const { data: existing } = await sb
     .from("pipeline_health")
-    .select("consecutive_failures")
+    .select("consecutive_failures, expected_interval_hours")
     .eq("source_slug", sourceSlug)
     .single();
 
   const failures = (existing?.consecutive_failures ?? 0) + 1;
+  const intervalHours =
+    expectedIntervalHours ?? existing?.expected_interval_hours ?? 6;
 
   await sb.from("pipeline_health").upsert({
     source_slug: sourceSlug,
     consecutive_failures: failures,
+    expected_interval_hours: intervalHours,
     updated_at: new Date().toISOString(),
   }, { onConflict: "source_slug" });
 

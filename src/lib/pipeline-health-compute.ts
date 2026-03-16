@@ -62,6 +62,9 @@ export function resolveEffectiveHealthRow(
   source: HealthSourceSnapshot,
   row?: Partial<HealthRow> | null
 ): HealthRow {
+  const canonicalInterval = source.sync_interval_hours ?? 0;
+  const rowInterval = row?.expected_interval_hours ?? 0;
+
   return {
     consecutive_failures: row?.consecutive_failures ?? 0,
     last_success_at:
@@ -70,7 +73,7 @@ export function resolveEffectiveHealthRow(
       source.last_sync_at ??
       null,
     expected_interval_hours:
-      row?.expected_interval_hours ?? source.sync_interval_hours ?? 6,
+      Math.max(rowInterval, canonicalInterval, 6),
   };
 }
 

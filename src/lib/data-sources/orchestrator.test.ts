@@ -316,6 +316,22 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
     );
   });
 
+  it("records source sync intervals when marking pipeline health", async () => {
+    const { runTierSync } = await import("./orchestrator");
+
+    mockAdapter.sync.mockResolvedValueOnce({
+      success: true,
+      recordsProcessed: 5,
+      recordsCreated: 5,
+      recordsUpdated: 0,
+      errors: [],
+    });
+
+    await runTierSync(1);
+
+    expect(mockRecordSyncSuccess).toHaveBeenCalledWith("test-adapter", 24);
+  });
+
   it("clears last_error_message when a sync succeeds with non-fatal warnings", async () => {
     mockAdapter.sync.mockResolvedValueOnce({
       success: true,
