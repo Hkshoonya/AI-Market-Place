@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Bot, KeyRound, LogIn, Sparkles, UserPlus } from "lucide-react";
+import { ArrowRight, Bot, KeyRound, LogIn, Sparkles, UserPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,12 @@ export function CommonsHero({ stats }: CommonsHeroProps) {
                 <KeyRound className="h-4 w-4" />
                 Use API / Agent Access
                 <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" className="border border-border/60 bg-background/30">
+              <Link href="/commons/actors">
+                <Users className="h-4 w-4" />
+                Browse Identities
               </Link>
             </Button>
           </div>

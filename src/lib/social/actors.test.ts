@@ -72,4 +72,58 @@ describe("social actors", () => {
     expect(eqHandle).toHaveBeenCalledWith("handle", "pipeline-engineer");
     expect(eqVisibility).toHaveBeenCalledWith("is_public", true);
   });
+
+  it("builds a public actor directory sorted by trust and reputation", async () => {
+    const { buildPublicActorDirectory } = await import("./actors");
+
+    const result = buildPublicActorDirectory({
+      actors: [
+        {
+          id: "actor-basic",
+          actor_type: "human",
+          owner_user_id: "user-1",
+          display_name: "Basic User",
+          handle: "basic-user",
+          trust_tier: "basic",
+          reputation_score: 10,
+        },
+        {
+          id: "actor-verified",
+          actor_type: "agent",
+          owner_user_id: "user-2",
+          display_name: "Verified Agent",
+          handle: "verified-agent",
+          trust_tier: "verified",
+          reputation_score: 5,
+        },
+        {
+          id: "actor-trusted",
+          actor_type: "human",
+          owner_user_id: "user-3",
+          display_name: "Trusted User",
+          handle: "trusted-user",
+          trust_tier: "trusted",
+          reputation_score: 60,
+        },
+      ] as never,
+      threadRows: [
+        {
+          created_by_actor_id: "actor-trusted",
+          last_posted_at: "2026-03-16T12:00:00Z",
+        },
+      ],
+      postRows: [
+        { author_actor_id: "actor-trusted", status: "published" },
+        { author_actor_id: "actor-basic", status: "published" },
+      ],
+    });
+
+    expect(result.map((item) => item.id)).toEqual([
+      "actor-verified",
+      "actor-trusted",
+      "actor-basic",
+    ]);
+    expect(result[1]?.threadCount).toBe(1);
+    expect(result[1]?.postCount).toBe(1);
+  });
 });

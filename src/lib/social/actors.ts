@@ -1,5 +1,5 @@
 import type { TypedSupabaseClient } from "@/types/database";
-import type { NetworkActorRow } from "@/lib/schemas/social";
+import type { NetworkActorRow, SocialPostRow, SocialThreadRow } from "@/lib/schemas/social";
 
 interface ActorHandleInput {
   actorType: "human" | "agent" | "organization_agent" | "hybrid";
@@ -7,6 +7,12 @@ interface ActorHandleInput {
   agentSlug?: string | null;
   displayName?: string | null;
   fallbackId: string;
+}
+
+export interface PublicActorDirectoryItem extends NetworkActorRow {
+  threadCount: number;
+  postCount: number;
+  lastPostedAt: string | null;
 }
 
 function slugify(value: string): string {
@@ -96,6 +102,110 @@ export async function getPublicActorStats(
     threadCount: threadCount ?? 0,
     postCount: postCount ?? 0,
   };
+}
+
+function trustOrder(tier: NetworkActorRow["trust_tier"]) {
+  switch (tier) {
+    case "verified":
+      return 3;
+    case "trusted":
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function byNewest(first: string | null, second: string | null) {
+  if (!first && !second) return 0;
+  if (!first) return 1;
+  if (!second) return -1;
+  return new Date(second).getTime() - new Date(first).getTime();
+}
+
+export function buildPublicActorDirectory(input: {
+  actors: NetworkActorRow[];
+  threadRows: Array<Pick<SocialThreadRow, "created_by_actor_id" | "last_posted_at">>;
+  postRows: Array<Pick<SocialPostRow, "author_actor_id" | "status">>;
+}): PublicActorDirectoryItem[] {
+  const items: PublicActorDirectoryItem[] = input.actors.map((actor) => ({
+    ...actor,
+    threadCount: 0,
+    postCount: 0,
+    lastPostedAt: null,
+  }));
+
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+
+  for (const thread of input.threadRows) {
+    const item = itemMap.get(thread.created_by_actor_id);
+    if (!item) continue;
+    item.threadCount += 1;
+    if (!item.lastPostedAt || new Date(thread.last_posted_at).getTime() > new Date(item.lastPostedAt).getTime()) {
+      item.lastPostedAt = thread.last_posted_at;
+    }
+  }
+
+  for (const post of input.postRows) {
+    if (post.status !== "published") continue;
+    const item = itemMap.get(post.author_actor_id);
+    if (!item) continue;
+    item.postCount += 1;
+  }
+
+  return items.sort((left, right) => {
+    const trustDiff = trustOrder(right.trust_tier) - trustOrder(left.trust_tier);
+    if (trustDiff !== 0) return trustDiff;
+
+    const reputationDiff = (right.reputation_score ?? 0) - (left.reputation_score ?? 0);
+    if (reputationDiff !== 0) return reputationDiff;
+
+    if (right.threadCount !== left.threadCount) return right.threadCount - left.threadCount;
+    if (right.postCount !== left.postCount) return right.postCount - left.postCount;
+
+    const recencyDiff = byNewest(left.lastPostedAt, right.lastPostedAt);
+    if (recencyDiff !== 0) return recencyDiff;
+
+    return left.display_name.localeCompare(right.display_name);
+  });
+}
+
+export async function listPublicActorDirectory(
+  supabase: TypedSupabaseClient,
+  options: { limit?: number } = {}
+): Promise<PublicActorDirectoryItem[]> {
+  const limit = Math.min(Math.max(options.limit ?? 40, 1), 200);
+  const [{ data: actors, error: actorError }, { data: threadRows, error: threadError }, { data: postRows, error: postError }] =
+    await Promise.all([
+      supabase
+        .from("network_actors")
+        .select("*")
+        .eq("is_public", true)
+        .limit(limit),
+      supabase.from("social_threads").select("created_by_actor_id, last_posted_at"),
+      supabase.from("social_posts").select("author_actor_id, status"),
+    ]);
+
+  if (actorError) {
+    throw new Error(`Failed to load public actors: ${actorError.message}`);
+  }
+
+  if (threadError) {
+    throw new Error(`Failed to load actor threads: ${threadError.message}`);
+  }
+
+  if (postError) {
+    throw new Error(`Failed to load actor posts: ${postError.message}`);
+  }
+
+  return buildPublicActorDirectory({
+    actors: (actors ?? []) as NetworkActorRow[],
+    threadRows: (threadRows ?? []) as Array<
+      Pick<SocialThreadRow, "created_by_actor_id" | "last_posted_at">
+    >,
+    postRows: (postRows ?? []) as Array<
+      Pick<SocialPostRow, "author_actor_id" | "status">
+    >,
+  });
 }
 
 export async function resolveOrCreateHumanActor(
