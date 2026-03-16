@@ -35,6 +35,7 @@ import { filterProviderSignals } from "@/lib/news/provider-signals";
 import { SignalSummary } from "@/components/news/signal-summary";
 import { LaunchRadar } from "@/components/news/launch-radar";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
+import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
 
 export const revalidate = 3600;
 
@@ -187,13 +188,7 @@ export default async function ProviderDetailPage({
   const providerRadar = buildLaunchRadar(providerNews, 6);
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
   const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
-  const qualityScores = models
-    .filter((model) => model.quality_score != null)
-    .map((model) => Number(model.quality_score));
-  const avgQuality =
-    qualityScores.length > 0
-      ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
-      : null;
+  const avgCapability = averageCapabilityMetric(models);
   const topRank = models.find((model) => model.overall_rank != null)?.overall_rank;
   const openCount = models.filter((model) => model.is_open_weights).length;
   const topValueModel = [...models].sort(
@@ -283,7 +278,11 @@ export default async function ProviderDetailPage({
         {[
           { label: "Models", value: models.length.toString(), icon: BarChart3 },
           { label: "Top Rank", value: topRank ? `#${topRank}` : "—", icon: BarChart3 },
-          { label: "Avg Score", value: avgQuality != null ? avgQuality.toFixed(1) : "—", icon: Zap },
+          {
+            label: "Avg Capability",
+            value: avgCapability != null ? avgCapability.toFixed(1) : "—",
+            icon: Zap,
+          },
           { label: "Downloads", value: formatNumber(totalDownloads), icon: Download },
           { label: "Likes", value: formatNumber(totalLikes), icon: Heart },
           { label: "Open Models", value: openCount.toString(), icon: Zap },
@@ -486,6 +485,7 @@ export default async function ProviderDetailPage({
                   const rank = model.overall_rank ?? 0;
                   const pricingSummary = getPublicPricingSummary(model);
                   const parameterDisplay = getParameterDisplay(model);
+                  const capabilityValue = getCapabilityMetricValue(model);
 
                   return (
                     <tr
@@ -533,7 +533,7 @@ export default async function ProviderDetailPage({
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <span className="text-sm font-semibold tabular-nums">
-                          {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
+                          {capabilityValue != null ? capabilityValue.toFixed(1) : "—"}
                         </span>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">

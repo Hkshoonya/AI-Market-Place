@@ -11,7 +11,7 @@ interface ProviderChartData {
   name: string;
   models: number;
   downloads: number;
-  avgQuality: number | null;
+  avgCapability: number | null;
 }
 
 const CHART_COLORS = [
@@ -45,9 +45,9 @@ export function ProviderCharts({ providers }: { providers: ProviderChartData[] }
 
   // Quality comparison - only providers with quality scores, top 10
   const qualityData = providers
-    .filter((p) => p.avgQuality != null && p.avgQuality > 0)
+    .filter((p) => p.avgCapability != null && p.avgCapability > 0)
     .slice(0, 10)
-    .map((p) => ({ name: p.name, quality: Number(p.avgQuality!.toFixed(1)) }));
+    .map((p) => ({ name: p.name, quality: Number(p.avgCapability!.toFixed(1)) }));
 
   return (
     <div className="grid gap-6 md:grid-cols-2 mb-8">
@@ -99,10 +99,10 @@ export function ProviderCharts({ providers }: { providers: ProviderChartData[] }
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4 text-neon" />
-              Average Quality Score
+              Average Capability Score
             </CardTitle>
           </CardHeader>
-          <CardContent role="img" aria-label={`Bar chart comparing average quality scores across ${qualityData.length} providers`}>
+          <CardContent role="img" aria-label={`Bar chart comparing average capability scores across ${qualityData.length} providers`}>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={qualityData} layout="vertical" margin={{ left: 0, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />

@@ -11,6 +11,7 @@ import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/l
 import { ProviderCharts } from "@/components/charts/provider-charts";
 import { pickBestProviderSignals } from "@/lib/news/provider-signals";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
+import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,9 +26,9 @@ interface ProviderStats {
   provider: string;
   modelCount: number;
   totalDownloads: number;
-  avgQuality: number | null;
-  qualityTotal: number;
-  qualitySamples: number;
+  avgCapability: number | null;
+  capabilityTotal: number;
+  capabilitySamples: number;
   topRank: number | null;
   openWeightsCount: number;
   categories: string[];
@@ -39,11 +40,11 @@ export default async function ProvidersPage() {
   // Fetch active provider footprints and recent provider-linked signals.
   const [{ data: models }, { data: newsRaw }] = await Promise.all([
     supabase
-      .from("models")
-      .select(
-        "id, slug, name, provider, hf_downloads, quality_score, overall_rank, is_open_weights, category"
-      )
-      .eq("status", "active"),
+    .from("models")
+    .select(
+      "id, slug, name, provider, hf_downloads, capability_score, quality_score, overall_rank, is_open_weights, category"
+    )
+    .eq("status", "active"),
     supabase
       .from("model_news")
       .select("id, title, source, related_provider, published_at, metadata")
@@ -59,14 +60,15 @@ export default async function ProvidersPage() {
 
   uniqueModels.forEach((m) => {
     const canonicalProvider = getCanonicalProviderName(m.provider);
+    const capabilityValue = getCapabilityMetricValue(m);
     const existing = providerMap.get(canonicalProvider);
     if (existing) {
       existing.modelCount++;
       existing.totalDownloads += m.hf_downloads ?? 0;
-      if (m.quality_score != null) {
-        existing.qualityTotal += Number(m.quality_score);
-        existing.qualitySamples++;
-        existing.avgQuality = existing.qualityTotal / existing.qualitySamples;
+      if (capabilityValue != null) {
+        existing.capabilityTotal += capabilityValue;
+        existing.capabilitySamples += 1;
+        existing.avgCapability = existing.capabilityTotal / existing.capabilitySamples;
       }
       if (
         m.overall_rank != null &&
@@ -83,9 +85,9 @@ export default async function ProvidersPage() {
         provider: canonicalProvider,
         modelCount: 1,
         totalDownloads: m.hf_downloads ?? 0,
-        avgQuality: m.quality_score != null ? Number(m.quality_score) : null,
-        qualityTotal: m.quality_score != null ? Number(m.quality_score) : 0,
-        qualitySamples: m.quality_score != null ? 1 : 0,
+        avgCapability: capabilityValue,
+        capabilityTotal: capabilityValue ?? 0,
+        capabilitySamples: capabilityValue != null ? 1 : 0,
         topRank: m.overall_rank,
         openWeightsCount: m.is_open_weights ? 1 : 0,
         categories: [m.category],
@@ -166,7 +168,7 @@ export default async function ProvidersPage() {
           name: p.provider,
           models: p.modelCount,
           downloads: p.totalDownloads,
-          avgQuality: p.avgQuality,
+          avgCapability: p.avgCapability,
         }))}
       />
 
@@ -211,12 +213,12 @@ export default async function ProvidersPage() {
                     </div>
                     <div>
                       <p className="text-lg font-bold">
-                        {prov.avgQuality != null
-                          ? prov.avgQuality.toFixed(1)
+                        {prov.avgCapability != null
+                          ? prov.avgCapability.toFixed(1)
                           : "—"}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Avg Score
+                        Capability
                       </p>
                     </div>
                   </div>
