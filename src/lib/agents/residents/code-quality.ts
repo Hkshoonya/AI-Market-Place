@@ -13,6 +13,7 @@ import { registerAgent } from "../registry";
 import { callAgentModel, listConfiguredAgentProviders } from "../provider-router";
 import { recordAgentIssue } from "../ledger";
 import { makeSlug } from "../../data-sources/utils";
+import { normalizeAgentErrorPatternMessage } from "../error-patterns";
 
 export interface ErrorPattern {
   message: string;
@@ -109,13 +110,7 @@ const codeQuality: ResidentAgent = {
 
       const patternMap = new Map<string, ErrorPattern>();
       for (const entry of logs) {
-        const normalized = entry.message
-          .replace(
-            /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-            "<UUID>"
-          )
-          .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, "<TIMESTAMP>")
-          .replace(/\d+/g, "<N>");
+        const normalized = normalizeAgentErrorPatternMessage(entry.message);
 
         const existing = patternMap.get(normalized);
         if (existing) {

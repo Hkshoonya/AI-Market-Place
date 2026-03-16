@@ -37,6 +37,11 @@ const CRON_JOBS = [
     cron: "0 10 * * 1",
     path: "/api/cron/agents/ux-monitor",
   },
+  {
+    name: "Verifier Agent",
+    cron: "15 */6 * * *",
+    path: "/api/cron/agents/verifier",
+  },
 ];
 
 module.exports = { CRON_JOBS };

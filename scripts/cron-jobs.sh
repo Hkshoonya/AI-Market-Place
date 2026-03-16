@@ -17,6 +17,7 @@
 #   30 */6 * * *  /opt/aimc/scripts/cron-jobs.sh pipeline
 #   0 9 * * *     /opt/aimc/scripts/cron-jobs.sh code-quality
 #   0 10 * * 1    /opt/aimc/scripts/cron-jobs.sh ux-monitor
+#   15 */6 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
 #   45 */6 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
 
 set -euo pipefail
@@ -67,9 +68,10 @@ case "${1:-}" in
   pipeline)       call_cron "/api/cron/agents/pipeline"      "Pipeline Agent" ;;
   code-quality)   call_cron "/api/cron/agents/code-quality"  "Code Quality" ;;
   ux-monitor)     call_cron "/api/cron/agents/ux-monitor"    "UX Monitor" ;;
+  verifier)       call_cron "/api/cron/agents/verifier"      "Verifier Agent" ;;
   compute-scores) call_cron "/api/cron/compute-scores"       "Compute Scores" ;;
   *)
-    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|compute-scores}"
+    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores}"
     echo "       $0 sync-source <source-slug>"
     exit 1
     ;;
