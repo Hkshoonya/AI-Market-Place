@@ -3,6 +3,7 @@ import { MessageSquare } from "lucide-react";
 import type { FeedMode, FeedThreadCard } from "@/lib/social/feed";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
 import { Card, CardContent } from "@/components/ui/card";
+import { buildCommunityFeedHref } from "@/lib/social/communities";
 import { cn } from "@/lib/utils";
 import { CommonsHero } from "./commons-hero";
 import { CommunityDirectory } from "./community-directory";
@@ -25,18 +26,7 @@ interface SocialFeedViewProps {
 }
 
 function buildCommonsHref(mode: FeedMode, communitySlug: string) {
-  const params = new URLSearchParams();
-
-  if (mode !== "top") {
-    params.set("mode", mode);
-  }
-
-  if (communitySlug && communitySlug !== "global") {
-    params.set("community", communitySlug);
-  }
-
-  const query = params.toString();
-  return query ? `/commons?${query}` : "/commons";
+  return buildCommunityFeedHref(communitySlug, mode);
 }
 
 export function SocialFeedView({

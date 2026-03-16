@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCommunityDirectory } from "./communities";
+import { buildCommunityDirectory, buildCommunityFeedHref } from "./communities";
 
 describe("buildCommunityDirectory", () => {
   it("keeps global first and rolls null-community activity into it", () => {
@@ -125,5 +125,16 @@ describe("buildCommunityDirectory", () => {
       "launches",
       "agents",
     ]);
+  });
+});
+
+describe("buildCommunityFeedHref", () => {
+  it("routes global feeds through /commons and topic feeds through dedicated community pages", () => {
+    expect(buildCommunityFeedHref("global")).toBe("/commons");
+    expect(buildCommunityFeedHref("agents")).toBe("/commons/communities/agents");
+    expect(buildCommunityFeedHref("agents", "trusted")).toBe(
+      "/commons/communities/agents?mode=trusted"
+    );
+    expect(buildCommunityFeedHref("global", "latest")).toBe("/commons?mode=latest");
   });
 });

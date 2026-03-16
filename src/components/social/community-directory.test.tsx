@@ -59,6 +59,10 @@ describe("CommunityDirectory", () => {
       "href",
       "/commons"
     );
+    expect(screen.getAllByRole("link", { name: /open feed/i })[1]).toHaveAttribute(
+      "href",
+      "/commons/communities/agents"
+    );
     expect(screen.getAllByRole("link", { name: /open feed/i })).toHaveLength(2);
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("64")).toBeInTheDocument();

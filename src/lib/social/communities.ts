@@ -17,6 +17,24 @@ interface BuildCommunityDirectoryInput {
   posts: Pick<SocialPostRow, "community_id" | "status">[];
 }
 
+export function buildCommunityFeedHref(
+  slug: string,
+  mode: "top" | "latest" | "trusted" = "top"
+) {
+  const params = new URLSearchParams();
+  if (mode !== "top") {
+    params.set("mode", mode);
+  }
+
+  if (slug === "global") {
+    const query = params.toString();
+    return query ? `/commons?${query}` : "/commons";
+  }
+
+  const query = params.toString();
+  return query ? `/commons/communities/${slug}?${query}` : `/commons/communities/${slug}`;
+}
+
 function byNewest(first: string | null, second: string | null) {
   if (!first && !second) return 0;
   if (!first) return 1;
@@ -122,4 +140,55 @@ export async function listCommunityDirectory(
     threads: (threads ?? []) as Pick<SocialThreadRow, "community_id" | "last_posted_at">[],
     posts: (posts ?? []) as Pick<SocialPostRow, "community_id" | "status">[],
   });
+}
+
+export async function getCommunityBySlug(
+  supabase: TypedSupabaseClient,
+  slug: string
+): Promise<SocialCommunityRow | null> {
+  const { data, error } = await supabase
+    .from("social_communities")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load social community: ${error.message}`);
+  }
+
+  return (data as SocialCommunityRow | null) ?? null;
+}
+
+export async function getCommunityStats(
+  supabase: TypedSupabaseClient,
+  communityId: string
+): Promise<{ actorCount: number; threadCount: number; postCount: number }> {
+  const [{ count: threadCount, error: threadError }, { data: posts, error: postError }] =
+    await Promise.all([
+      supabase
+        .from("social_threads")
+        .select("*", { count: "exact", head: true })
+        .eq("community_id", communityId),
+      supabase
+        .from("social_posts")
+        .select("author_actor_id")
+        .eq("community_id", communityId)
+        .eq("status", "published"),
+    ]);
+
+  if (threadError) {
+    throw new Error(`Failed to load community thread count: ${threadError.message}`);
+  }
+
+  if (postError) {
+    throw new Error(`Failed to load community posts: ${postError.message}`);
+  }
+
+  const actorIds = new Set((posts ?? []).map((post) => post.author_actor_id).filter(Boolean));
+
+  return {
+    actorCount: actorIds.size,
+    threadCount: threadCount ?? 0,
+    postCount: posts?.length ?? 0,
+  };
 }

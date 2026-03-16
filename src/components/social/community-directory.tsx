@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Globe2, Hash, MessageSquareText, Radio } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
-import type { CommunityDirectoryItem } from "@/lib/social/communities";
+import { buildCommunityFeedHref, type CommunityDirectoryItem } from "@/lib/social/communities";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,10 +42,7 @@ export function CommunityDirectory({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visible.map((community) => {
-          const href =
-            community.slug === "global"
-              ? "/commons"
-              : `/commons?community=${community.slug}`;
+          const href = buildCommunityFeedHref(community.slug);
           return (
             <Card key={community.id} className="border-border/60 bg-card/70">
               <CardHeader className="space-y-3">
