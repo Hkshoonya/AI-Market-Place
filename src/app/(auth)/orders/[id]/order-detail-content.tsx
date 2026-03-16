@@ -24,6 +24,7 @@ import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { OrderWithListingSchema, type OrderWithListing } from "@/lib/schemas/marketplace";
 import { formatDate, formatRelativeDate, formatCurrency } from "@/lib/format";
 import { OrderManifestCard } from "@/components/marketplace/order-manifest-card";
+import { OrderDeliverySummaryCard } from "@/components/marketplace/order-delivery-summary-card";
 
 type ProfileInfo = {
   id: string;
@@ -255,6 +256,12 @@ export default function OrderDetailContent({
           )}
         </CardContent>
       </Card>
+
+      <OrderDeliverySummaryCard
+        status={order.status}
+        deliveryData={order.delivery_data}
+        manifest={manifestData?.manifest ?? null}
+      />
 
       <OrderManifestCard manifest={manifestData?.manifest ?? null} />
 
