@@ -5,8 +5,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { formatRelativeDate } from "@/lib/format";
 import { NewsCard, UpdateCard, EmptyState } from "@/components/news/news-card";
+import { LaunchRadar } from "@/components/news/launch-radar";
+import { SignalSummary } from "@/components/news/signal-summary";
 import Link from "next/link";
 import type { Metadata } from "next";
+import {
+  buildLaunchRadar,
+  groupNewsBySignal,
+  summarizeNewsSignals,
+} from "@/lib/news/presentation";
 
 export const metadata: Metadata = {
   title: "News & Updates",
@@ -94,6 +101,12 @@ export default async function NewsPage() {
   const benchmarks = (benchmarksRes.data ?? []) as Record<string, unknown>[];
   const totalNewsCount = (totalRes.count as number) ?? 0;
   const totalItems = updates.length + totalNewsCount;
+  const signalNews = [...social, ...papers, ...benchmarks];
+  const signalSummary = summarizeNewsSignals(signalNews);
+  const radarItems = buildLaunchRadar(signalNews, 8);
+  const groupedSignals = groupNewsBySignal(signalNews).filter(
+    (group) => group.type !== "general"
+  );
 
   // Group news by provider for "By Provider" view
   const byProviderItems = (byProviderRes.data ?? []) as Record<string, unknown>[];
@@ -130,9 +143,19 @@ export default async function NewsPage() {
         </Badge>
       </div>
 
+      <div className="space-y-6 mb-8">
+        <SignalSummary buckets={signalSummary} emptyLabel="No structured news signals have synced yet." />
+        <LaunchRadar
+          items={radarItems}
+          title="Signal Radar"
+          description="The highest-impact launch, pricing, benchmark, and API updates from official sources and synced research streams."
+        />
+      </div>
+
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-6 flex-wrap">
           <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="signals">Signals</TabsTrigger>
           <TabsTrigger value="social">
             Social{social.length > 0 ? ` (${social.length})` : ""}
           </TabsTrigger>
@@ -172,6 +195,35 @@ export default async function NewsPage() {
                 .slice(0, 5),
             ]}
           />
+        </TabsContent>
+
+        <TabsContent value="signals">
+          {groupedSignals.length > 0 ? (
+            <div className="space-y-8">
+              {groupedSignals.map((group) => (
+                <section key={group.type}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-muted-foreground">
+                      {group.label}
+                    </h2>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {group.items.length}
+                    </Badge>
+                  </div>
+                    <div className="space-y-4">
+                      {group.items.map((item) => (
+                        <NewsCard
+                          key={item.id}
+                          item={item as unknown as Record<string, unknown>}
+                        />
+                      ))}
+                    </div>
+                  </section>
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No structured signals yet. Launch, pricing, benchmark, and API updates will appear here as they sync." />
+          )}
         </TabsContent>
 
         {/* Social tab — X/Twitter + provider blogs */}

@@ -37,6 +37,8 @@ import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
+import { LaunchRadar } from "@/components/news/launch-radar";
+import { buildLaunchRadar } from "@/lib/news/presentation";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
@@ -66,6 +68,7 @@ export default async function HomePage() {
     { data: allActiveModels },
     { data: deploymentPlatformsRaw },
     { data: modelDeploymentsRaw },
+    { data: latestNewsRaw },
   ] = await Promise.all([
     supabase.from("models").select("*", { count: "exact", head: true }),
     supabase.from("benchmarks").select("*", { count: "exact", head: true }),
@@ -83,6 +86,12 @@ export default async function HomePage() {
       .from("model_deployments")
       .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
       .eq("status", "available"),
+    supabase
+      .from("model_news")
+      .select("id, title, summary, url, source, category, related_provider, related_model_ids, published_at, metadata")
+      .in("source", ["x-twitter", "provider-blog"])
+      .order("published_at", { ascending: false })
+      .limit(24),
   ]);
 
   const activeModels = dedupePublicModelFamilies(allActiveModels ?? []);
@@ -111,6 +120,28 @@ export default async function HomePage() {
     deployments: modelDeploymentsRaw ?? [],
     models: activeModels,
   });
+  const launchRadar = buildLaunchRadar(
+    ((latestNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      id: String(item.id),
+      title: String(item.title ?? ""),
+      summary: typeof item.summary === "string" ? item.summary : null,
+      url: typeof item.url === "string" ? item.url : null,
+      source: typeof item.source === "string" ? item.source : null,
+      category: typeof item.category === "string" ? item.category : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    })),
+    6
+  );
 
   const topModelIds = [...activeModels]
     .filter((model) => model.economic_footprint_rank != null)
@@ -632,6 +663,16 @@ export default async function HomePage() {
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* Subscription Access Leaders */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <LaunchRadar
+          items={launchRadar}
+          ctaHref="/news"
+          ctaLabel="View all updates"
+          description="Live launch, pricing, benchmark, and API signals from official provider posts and blogs, ranked by impact instead of raw chronology."
+        />
       </section>
 
       {/* Subscription Access Leaders */}

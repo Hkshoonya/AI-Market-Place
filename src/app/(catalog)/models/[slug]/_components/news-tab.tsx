@@ -1,6 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NewsCard } from "@/components/news/news-card";
+import { LaunchRadar } from "@/components/news/launch-radar";
+import { SignalSummary } from "@/components/news/signal-summary";
+import { buildLaunchRadar, summarizeNewsSignals } from "@/lib/news/presentation";
 
 export interface NewsTabProps {
   modelNews: Record<string, unknown>[];
@@ -34,9 +37,22 @@ export function NewsTab({ modelNews }: NewsTabProps) {
         n.source as string
       )
   );
+  const signalSummary = summarizeNewsSignals(modelNews);
+  const radarItems = buildLaunchRadar(modelNews, 5);
 
   return (
     <div className="space-y-4">
+      <SignalSummary
+        buckets={signalSummary}
+        emptyLabel="No structured news signals are linked to this model yet."
+      />
+
+      <LaunchRadar
+        items={radarItems}
+        title="What Changed Recently"
+        description="Recent launch, pricing, benchmark, and API signals linked to this model or its provider."
+      />
+
       {socialItems.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
