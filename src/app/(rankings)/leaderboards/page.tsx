@@ -389,7 +389,7 @@ export default async function LeaderboardsPage({
                           ? `#${model.popularity_rank}`
                           : model.popularity_score != null
                             ? Number(model.popularity_score).toFixed(1)
-                            : "â€”"}
+                            : "—"}
                       </td>
                     </tr>
                   );
@@ -602,35 +602,35 @@ export default async function LeaderboardsPage({
                       <td className="px-4 py-3.5 text-right">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-bold tabular-nums text-neon">
-                            {lensScore != null ? lensScore.toFixed(1) : "â€”"}
+                            {lensScore != null ? lensScore.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right sm:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className="text-sm font-semibold tabular-nums">
-                            {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
+                            {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={mmlu ? "text-foreground" : "text-muted-foreground"}>
-                            {mmlu ? mmlu.toFixed(1) : "â€”"}
+                            {mmlu ? mmlu.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={humanEval ? "text-foreground" : "text-muted-foreground"}>
-                            {humanEval ? humanEval.toFixed(1) : "â€”"}
+                            {humanEval ? humanEval.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
                         <Link href={`/models/${model.slug}`} className="block">
                           <span className={math ? "text-foreground" : "text-muted-foreground"}>
-                            {math ? math.toFixed(1) : "â€”"}
+                            {math ? math.toFixed(1) : "—"}
                           </span>
                         </Link>
                       </td>
@@ -648,7 +648,7 @@ export default async function LeaderboardsPage({
                               </div>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">â€”</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </Link>
                       </td>
@@ -679,7 +679,7 @@ export default async function LeaderboardsPage({
                               />
                             </div>
                             <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
-                              {popScore?.toFixed(0) ?? "â€”"}
+                              {popScore?.toFixed(0) ?? "—"}
                             </span>
                           </div>
                         </Link>
@@ -744,12 +744,12 @@ export default async function LeaderboardsPage({
                         </span>
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">
-                        {pricing.median_time_to_first_token ? `${Number(pricing.median_time_to_first_token).toFixed(2)}s` : "â€”"}
+                        {pricing.median_time_to_first_token ? `${Number(pricing.median_time_to_first_token).toFixed(2)}s` : "—"}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
                         {pricing.input_price_per_million
                           ? formatTokenPrice(pricing.input_price_per_million)
-                          : "â€”"}
+                          : "—"}
                       </td>
                     </tr>
                   );
@@ -798,7 +798,7 @@ export default async function LeaderboardsPage({
                         {formatTokenPrice(pricing.output_price_per_million)}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
-                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
+                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
                       </td>
                     </tr>
                   );

@@ -41,17 +41,17 @@ import { LaunchRadar } from "@/components/news/launch-radar";
 import { buildLaunchRadar } from "@/lib/news/presentation";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
+  title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
   description: SITE_DESCRIPTION,
   openGraph: {
-    title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
+    title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
     description: SITE_DESCRIPTION,
     type: "website",
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} â€” Track, Compare & Discover AI Models`,
+    title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
     description: SITE_DESCRIPTION,
   },
 };
@@ -410,7 +410,7 @@ export default async function HomePage() {
                             />
                           </div>
                           <span className="text-sm tabular-nums text-muted-foreground w-10 text-right">
-                            {popScore?.toFixed(0) ?? "â€”"}
+                            {popScore?.toFixed(0) ?? "—"}
                           </span>
                         </div>
                       </Link>
@@ -420,7 +420,7 @@ export default async function HomePage() {
                         <span className="text-sm font-semibold tabular-nums">
                           {model.quality_score
                             ? Number(model.quality_score).toFixed(1)
-                            : "â€”"}
+                            : "—"}
                         </span>
                       </Link>
                     </td>
@@ -438,7 +438,7 @@ export default async function HomePage() {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">â€”</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </Link>
                     </td>

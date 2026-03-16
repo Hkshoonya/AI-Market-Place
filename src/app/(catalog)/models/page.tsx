@@ -336,7 +336,7 @@ export default async function ModelsPage({
                             rank <= 3 ? "text-neon" : "text-muted-foreground"
                           }`}
                         >
-                          {rank || "â€”"}
+                          {rank || "—"}
                         </span>
                       </Link>
                     </td>
@@ -388,7 +388,7 @@ export default async function ModelsPage({
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <span className="text-sm font-semibold tabular-nums">
-                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "â€”"}
+                        {model.quality_score ? Number(model.quality_score).toFixed(1) : "—"}
                       </span>
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground md:table-cell">
@@ -410,7 +410,7 @@ export default async function ModelsPage({
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">â€”</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm text-muted-foreground xl:table-cell">

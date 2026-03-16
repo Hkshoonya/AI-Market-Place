@@ -19,10 +19,11 @@ import { classifyNewsSignal } from "@/lib/news/signals";
  * Monitors AI company X/Twitter accounts for model-related posts.
  *
  * Fetch strategy (tried in order per account):
- *   1. Self-hosted RSSHub  — RSSHUB_BASE_URL/twitter/user/{handle} (needs TWITTER_COOKIE)
- *   2. xcancel.com         — public Nitter fork RSS (unreliable)
- *   3. Public RSSHub       — rsshub.app (often blocked without cookie)
- *   4. rss.app             — fallback (often blocked)
+ *   1. X syndication timeline — embedded public timeline HTML
+ *   2. Self-hosted RSSHub     — RSSHUB_BASE_URL/twitter/user/{handle} (needs TWITTER_COOKIE)
+ *   3. xcancel.com            — public Nitter fork RSS (unreliable)
+ *   4. Public RSSHub          — rsshub.app (often blocked without cookie)
+ *   5. rss.app                — fallback (often blocked)
  *
  * Setup for reliable feeds:
  *   1. Add TWITTER_COOKIE to .env.local (auth_token + ct0 from browser)
@@ -30,8 +31,8 @@ import { classifyNewsSignal } from "@/lib/news/signals";
  *   3. Optionally set RSSHUB_BASE_URL if not using default port
  *
  * Tweets are filtered by MODEL_KEYWORDS and upserted into model_news.
- * If every RSS endpoint fails for every account the adapter returns
- * success=true with 0 records (graceful disable).
+ * If every timeline source fails for every account the adapter returns
+ * success=false so pipeline health reflects the gap honestly.
  */
 
 const MONITORED_ACCOUNTS = [
@@ -48,6 +49,9 @@ const MONITORED_ACCOUNTS = [
   { handle: "huggingface", provider: "Hugging Face" },
   { handle: "StabilityAI", provider: "Stability AI" },
 ];
+
+const SYNDICATION_TIMELINE_URL =
+  "https://syndication.twitter.com/srv/timeline-profile/screen-name/";
 
 const MODEL_KEYWORDS = [
   "model", "launch", "release", "introducing", "announce", "available",
@@ -127,6 +131,117 @@ function extractImageUrl(block: string): string | null {
     block.match(/<img[^>]+src="([^"]+)"/i);
 
   return mediaMatch?.[1]?.trim() ?? null;
+}
+
+function hasStatusLikeUrl(url: string): boolean {
+  return /\/status(?:es)?\/\d+/.test(url);
+}
+
+function isBlockedRssFeed(xml: string): boolean {
+  const lower = xml.toLowerCase();
+
+  return (
+    lower.includes("rss reader not yet whitelist") ||
+    lower.includes("rss reader not yet whitelisted") ||
+    lower.includes("please send an email rss [at] xcancel")
+  );
+}
+
+function isUsableRssFeed(xml: string, fallbackHandle: string): boolean {
+  if (!(xml.includes("<item") || xml.includes("<entry"))) return false;
+  if (isBlockedRssFeed(xml)) return false;
+
+  const tweets = parseRssFeed(xml, fallbackHandle);
+  return tweets.some((tweet) => tweet.id != null || hasStatusLikeUrl(tweet.url));
+}
+
+function extractSyndicationTimelineData(html: string): string | null {
+  const match = html.match(
+    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/i
+  );
+
+  return match?.[1] ?? null;
+}
+
+function parseSyndicationTimeline(html: string, fallbackHandle: string): ParsedTweet[] {
+  const payload = extractSyndicationTimelineData(html);
+  if (!payload) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return [];
+  }
+
+  const entries = (parsed as {
+    props?: { pageProps?: { timeline?: { entries?: Array<Record<string, unknown>> } } };
+  })?.props?.pageProps?.timeline?.entries;
+
+  if (!Array.isArray(entries)) return [];
+
+  return entries.flatMap((entry) => {
+    if (entry.type !== "tweet") return [];
+
+    const content =
+      entry.content && typeof entry.content === "object"
+        ? (entry.content as Record<string, unknown>)
+        : null;
+    const tweet =
+      content?.tweet && typeof content.tweet === "object"
+        ? (content.tweet as Record<string, unknown>)
+        : null;
+    if (!tweet) return [];
+
+    const rawText =
+      typeof tweet.full_text === "string"
+        ? tweet.full_text
+        : typeof tweet.text === "string"
+          ? tweet.text
+          : "";
+    const text = decodeEntities(stripHtml(rawText));
+    const isReply = typeof tweet.in_reply_to_name === "string" && tweet.in_reply_to_name.length > 0;
+    if (!text || text.startsWith("RT @") || isReply) return [];
+
+    const id =
+      typeof tweet.id_str === "string"
+        ? tweet.id_str
+        : typeof tweet.conversation_id_str === "string"
+          ? tweet.conversation_id_str
+          : null;
+
+    const permalink =
+      typeof tweet.permalink === "string" && tweet.permalink.startsWith("/")
+        ? `https://x.com${tweet.permalink}`
+        : id
+          ? `https://x.com/${fallbackHandle}/status/${id}`
+          : `https://x.com/${fallbackHandle}`;
+
+    const rawDate = typeof tweet.created_at === "string" ? tweet.created_at : "";
+    let publishedAt = new Date().toISOString();
+    const parsedDate = rawDate ? Date.parse(rawDate) : Number.NaN;
+    if (Number.isFinite(parsedDate)) {
+      publishedAt = new Date(parsedDate).toISOString();
+    }
+
+    const mediaContainers = [tweet.entities, tweet.extended_entities]
+      .filter((value): value is Record<string, unknown> => Boolean(value && typeof value === "object"))
+      .flatMap((value) =>
+        Array.isArray(value.media)
+          ? (value.media as Array<Record<string, unknown>>)
+          : []
+      );
+
+    const firstMedia = mediaContainers[0];
+    const imageUrl =
+      typeof firstMedia?.media_url_https === "string"
+        ? firstMedia.media_url_https
+        : typeof firstMedia?.media_url === "string"
+          ? firstMedia.media_url
+          : null;
+
+    return [{ id, text, url: permalink, publishedAt, imageUrl }];
+  });
 }
 
 /**
@@ -213,8 +328,7 @@ async function fetchRssForHandle(
       if (!res.ok) continue;
 
       const text = await res.text();
-      // Sanity check: must look like XML with feed items
-      if (text.includes("<item") || text.includes("<entry")) {
+      if (isUsableRssFeed(text, handle)) {
         return { xml: text, source: new URL(url).hostname };
       }
     } catch {
@@ -222,6 +336,40 @@ async function fetchRssForHandle(
     }
   }
   return null;
+}
+
+async function fetchSyndicationForHandle(
+  handle: string,
+  signal?: AbortSignal
+): Promise<{ tweets: ParsedTweet[]; source: string } | null> {
+  try {
+    const headers: Record<string, string> = {
+      "User-Agent": "AI-Market-Cap-Bot/1.0",
+      Accept: "text/html,application/xhtml+xml",
+    };
+
+    if (process.env.TWITTER_COOKIE) {
+      headers.Cookie = process.env.TWITTER_COOKIE;
+    }
+
+    const res = await fetchWithRetry(
+      `${SYNDICATION_TIMELINE_URL}${handle}`,
+      { headers },
+      { signal, maxRetries: 1 }
+    );
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const tweets = parseSyndicationTimeline(html, handle);
+    if (tweets.length === 0) return null;
+
+    return {
+      tweets,
+      source: new URL(SYNDICATION_TIMELINE_URL).hostname,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // --------------- Adapter ---------------
@@ -255,20 +403,34 @@ const adapter: DataSourceAdapter = {
 
     for (const account of MONITORED_ACCOUNTS) {
       try {
-        const result = await fetchRssForHandle(account.handle, templates, ctx.signal);
+        const syndication = await fetchSyndicationForHandle(account.handle, ctx.signal);
+        let tweets: ParsedTweet[] = [];
 
-        if (!result) {
-          // All RSS endpoints failed for this account — skip silently
+        if (syndication) {
+          tweets = syndication.tweets;
+          if (!workingSource) workingSource = syndication.source;
+        } else {
+          const result = await fetchRssForHandle(account.handle, templates, ctx.signal);
+          if (!result) {
+            errors.push({
+              message: `All timeline endpoints failed for @${account.handle}`,
+              context: `handle=${account.handle}`,
+            });
+            continue;
+          }
+
+          if (!workingSource) workingSource = result.source;
+          tweets = parseRssFeed(result.xml, account.handle);
+        }
+
+        if (tweets.length === 0) {
           errors.push({
-            message: `All RSS endpoints failed for @${account.handle}`,
+            message: `No usable timeline entries for @${account.handle}`,
             context: `handle=${account.handle}`,
           });
           continue;
         }
 
-        if (!workingSource) workingSource = result.source;
-
-        const tweets = parseRssFeed(result.xml, account.handle);
         const relevant = tweets
           .filter((t) => isModelRelated(t.text))
           .slice(0, maxTweetsPerAccount);
@@ -329,11 +491,10 @@ const adapter: DataSourceAdapter = {
       errors.push(...ue);
     }
 
-    // Adapter is considered successful even if all RSS endpoints fail —
-    // the data source is optional and may be unavailable in some environments.
     const fatalErrors = errors.filter((e) => !e.context?.startsWith("handle="));
+    const hadAnyTimelineData = recordsProcessed > 0 || workingSource !== null;
     return {
-      success: fatalErrors.length === 0,
+      success: fatalErrors.length === 0 && hadAnyTimelineData,
       recordsProcessed,
       recordsCreated: allRecords.length,
       recordsUpdated: 0,
@@ -341,6 +502,7 @@ const adapter: DataSourceAdapter = {
       metadata: {
         rssSource: workingSource ?? "none",
         rsshubConfigured: !!process.env.RSSHUB_BASE_URL,
+        syndicationEnabled: true,
       },
     };
   },
@@ -350,6 +512,15 @@ const adapter: DataSourceAdapter = {
     const templates = getRssEndpointTemplates();
     const testHandle = MONITORED_ACCOUNTS[0].handle;
 
+    const syndication = await fetchSyndicationForHandle(testHandle);
+    if (syndication && syndication.tweets.length > 0) {
+      return {
+        healthy: true,
+        latencyMs: Date.now() - start,
+        message: `Timeline feeds available via ${syndication.source}`,
+      };
+    }
+
     // Try each endpoint template until one works
     for (const template of templates) {
       const testUrl = template(testHandle);
@@ -358,8 +529,7 @@ const adapter: DataSourceAdapter = {
           headers: { "User-Agent": "AI-Market-Cap-Bot/1.0", Accept: "application/rss+xml, application/xml, text/xml" },
         });
         const text = res.ok ? await res.text() : "";
-        const validXml = text.includes("<item") || text.includes("<entry");
-        if (res.ok && validXml) {
+        if (res.ok && isUsableRssFeed(text, testHandle)) {
           return {
             healthy: true,
             latencyMs: Date.now() - start,
@@ -375,8 +545,8 @@ const adapter: DataSourceAdapter = {
       healthy: false,
       latencyMs: Date.now() - start,
       message: process.env.RSSHUB_BASE_URL
-        ? "Self-hosted RSSHub unreachable — check docker compose up"
-        : "No RSS bridge available — set RSSHUB_BASE_URL and run docker compose up",
+        ? "Timeline feeds unavailable — syndication and RSSHub both failed"
+        : "Timeline feeds unavailable — syndication failed and no RSSHub bridge is configured",
     };
   },
 };
@@ -388,4 +558,7 @@ export const __testables = {
   parseRssFeed,
   extractImageUrl,
   extractTweetId,
+  extractSyndicationTimelineData,
+  parseSyndicationTimeline,
+  isUsableRssFeed,
 };

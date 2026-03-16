@@ -30,7 +30,7 @@ import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AI Skills & Capabilities | AI Market Cap",
+  title: "AI Skills & Capabilities",
   description:
     "Discover which AI models excel at coding, reasoning, math, browser automation, and more.",
 };

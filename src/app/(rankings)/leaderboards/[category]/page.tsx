@@ -399,14 +399,14 @@ export default async function CategoryLeaderboardPage({
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-bold tabular-nums text-neon">
-                            {primaryMetric != null ? Number(primaryMetric).toFixed(1) : "â€”"}
+                            {primaryMetric != null ? Number(primaryMetric).toFixed(1) : "—"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm tabular-nums text-muted-foreground">
                             {model.quality_score != null
                               ? Number(model.quality_score).toFixed(1)
-                              : "â€”"}
+                              : "—"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-muted-foreground tabular-nums">
@@ -419,7 +419,7 @@ export default async function CategoryLeaderboardPage({
                               key={benchmark.slug}
                               className="hidden px-4 py-3 text-right text-sm tabular-nums lg:table-cell"
                             >
-                              {score !== null ? score.toFixed(1) : "â€”"}
+                              {score !== null ? score.toFixed(1) : "—"}
                             </td>
                           );
                         })}
@@ -440,7 +440,7 @@ export default async function CategoryLeaderboardPage({
                           )}
                         </td>
                         <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">
-                          {speed !== null ? `${speed.toFixed(0)} tok/s` : "â€”"}
+                          {speed !== null ? `${speed.toFixed(0)} tok/s` : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
                           {model.is_open_weights ? (
