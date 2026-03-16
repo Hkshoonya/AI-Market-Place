@@ -31,6 +31,17 @@ const AGENT_NATIVE_FILTERS = [
   },
 ] as const;
 
+const SORT_META: Record<MarketplaceSortOption, string> = {
+  trust: "Trust prioritizes seller verification, commerce posture, ratings, and safer marketplace signals.",
+  autonomous: "Autonomy lifts listings that are machine-readable, manifest-backed, and safer for agent execution.",
+  value: "Value favors stronger utility relative to price instead of only hype, freshness, or absolute cost.",
+  newest: "Newest shows the latest active listings first.",
+  price_asc: "Price: Low surfaces the cheapest purchasable offers first.",
+  price_desc: "Price: High surfaces the most expensive offers first.",
+  rating: "Rating favors listings with stronger buyer review scores.",
+  popular: "Popular highlights listings with more marketplace traction and attention.",
+};
+
 export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,6 +56,7 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
   const currentSellerMode =
     searchParams.get("seller_mode") ??
     (searchParams.get("seller") === "agent" ? "agent" : "");
+  const currentSortDescription = SORT_META[currentSort];
 
   const [searchValue, setSearchValue] = useState(currentQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -243,6 +255,10 @@ export function MarketplaceFilterBar({ totalCount }: MarketplaceFilterBarProps) 
           ))}
         </div>
       </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        {currentSortDescription}
+      </p>
     </>
   );
 }

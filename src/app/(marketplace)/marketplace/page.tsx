@@ -9,6 +9,7 @@ import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import { sortMarketplaceListings } from "@/lib/marketplace/discovery";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   description: "Buy and sell AI models, APIs, datasets, agents, and MCP servers for both humans and autonomous buyers.",
 };
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export default async function MarketplacePage() {
   const supabase = createPublicClient();
@@ -24,7 +25,7 @@ export default async function MarketplacePage() {
   // Fetch type counts
   const listingTypeResponse = await supabase
     .from("marketplace_listings")
-    .select("listing_type, autonomy_mode, preview_manifest, mcp_manifest, agent_config, agent_id")
+    .select("listing_type, autonomy_mode, preview_manifest, mcp_manifest, agent_config, agent_id, updated_at")
     .eq("status", "active");
 
   const ListingTypeSchema = z.object({
@@ -34,6 +35,7 @@ export default async function MarketplacePage() {
     mcp_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
     agent_config: z.record(z.string(), z.unknown()).nullable().optional(),
     agent_id: z.string().nullable().optional(),
+    updated_at: z.string(),
   });
   const allListings = parseQueryResult(listingTypeResponse, ListingTypeSchema, "MarketplaceListingType");
 
@@ -69,6 +71,10 @@ export default async function MarketplacePage() {
       Boolean(listing.preview_manifest || listing.mcp_manifest || listing.agent_config)
   ).length;
   const agentSellerCount = allListings.filter((listing) => Boolean(listing.agent_id)).length;
+  const latestListingAt =
+    allListings
+      .map((listing) => listing.updated_at)
+      .find((value) => Boolean(value)) ?? null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -87,6 +93,13 @@ export default async function MarketplacePage() {
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               This marketplace is built for both people and agents: manifest-backed listings, autonomous-ready offers, and bot-native seller APIs live alongside standard human commerce flows.
             </p>
+            <div className="mt-4">
+              <DataFreshnessBadge
+                label="Marketplace refreshed"
+                timestamp={latestListingAt}
+                detail="listing universe"
+              />
+            </div>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" asChild>

@@ -68,6 +68,9 @@ describe('MarketplaceFilterBar', () => {
     expect(screen.getByText('Trust')).toBeInTheDocument();
     expect(screen.getByText('Autonomy')).toBeInTheDocument();
     expect(screen.getByText('Value')).toBeInTheDocument();
+    expect(
+      screen.getByText(/trust prioritizes seller verification, commerce posture, ratings, and safer marketplace signals/i)
+    ).toBeInTheDocument();
     expect(screen.getByText('Newest')).toBeInTheDocument();
     expect(screen.getByText('Rating')).toBeInTheDocument();
     expect(screen.getByText('Popular')).toBeInTheDocument();
@@ -104,6 +107,9 @@ describe('MarketplaceFilterBar', () => {
       name: /sort by trust/i,
     });
     expect(trustBadge).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByText(/trust prioritizes seller verification, commerce posture, ratings, and safer marketplace signals/i)
+    ).toBeInTheDocument();
     expect(screen.getByText('Autonomous Ready')).toHaveClass('text-neon');
     expect(screen.getByText('Agent Sellers')).toHaveClass('text-neon');
   });
