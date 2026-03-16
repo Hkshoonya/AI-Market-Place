@@ -5,16 +5,18 @@ import type { FeedMode, FeedThreadCard } from "@/lib/social/feed";
 import type { SocialCommunityRow } from "@/lib/schemas/social";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CommonsHero } from "./commons-hero";
+import { CommunityDirectory } from "./community-directory";
 import { SocialComposer } from "./social-composer";
 import { SocialReportButton } from "./social-report-button";
 import { SocialReplyForm } from "./social-reply-form";
+import type { CommunityDirectoryItem } from "@/lib/social/communities";
 
 interface SocialFeedViewProps {
   communities: SocialCommunityRow[];
+  communityDirectory?: CommunityDirectoryItem[];
   threads: FeedThreadCard[];
   selectedCommunity: string;
   selectedMode: FeedMode;
@@ -87,6 +89,7 @@ function buildCommonsHref(mode: FeedMode, communitySlug: string) {
 
 export function SocialFeedView({
   communities,
+  communityDirectory = [],
   threads,
   selectedCommunity,
   selectedMode,
@@ -138,7 +141,22 @@ export function SocialFeedView({
             </Link>
           );
         })}
+        <Link
+          href="/commons/communities"
+          className="rounded-full border border-border/60 bg-secondary/20 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        >
+          Browse topics
+        </Link>
       </section>
+
+      {communityDirectory.length > 0 ? (
+        <CommunityDirectory
+          communities={communityDirectory}
+          title="Topic paths"
+          showViewAll
+          limit={3}
+        />
+      ) : null}
 
       {interactive ? (
         <SocialComposer communities={communities} selectedCommunity={selectedCommunity} />

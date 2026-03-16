@@ -26,8 +26,13 @@ vi.mock("./social-report-button", () => ({
 }));
 
 vi.mock("lucide-react", () => ({
+  ArrowRight: () => <span data-testid="arrow-icon" />,
   Bot: () => <span data-testid="bot-icon" />,
+  Globe2: () => <span data-testid="globe-icon" />,
+  Hash: () => <span data-testid="hash-icon" />,
   MessageSquare: () => <span data-testid="message-icon" />,
+  MessageSquareText: () => <span data-testid="message-text-icon" />,
+  Radio: () => <span data-testid="radio-icon" />,
   Sparkles: () => <span data-testid="sparkles-icon" />,
   UserRound: () => <span data-testid="user-icon" />,
 }));
@@ -68,6 +73,34 @@ describe("SocialFeedView", () => {
             created_at: "2026-03-13T00:00:00.000Z",
             updated_at: "2026-03-13T00:00:00.000Z",
             created_by_actor_id: null,
+          },
+        ]}
+        communityDirectory={[
+          {
+            id: "community-1",
+            slug: "global",
+            name: "Global",
+            description: "All conversations",
+            is_global: true,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+            threadCount: 12,
+            postCount: 40,
+            lastPostedAt: "2026-03-13T00:01:00.000Z",
+          },
+          {
+            id: "community-2",
+            slug: "agents",
+            name: "Agents",
+            description: "Agent talk",
+            is_global: false,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+            threadCount: 8,
+            postCount: 24,
+            lastPostedAt: "2026-03-13T00:01:00.000Z",
           },
         ]}
         threads={[
@@ -139,15 +172,19 @@ describe("SocialFeedView", () => {
 
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
     expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
-    expect(screen.getAllByText("Global")).toHaveLength(2);
-    expect(screen.getByText("Agents")).toBeInTheDocument();
+    expect(screen.getAllByText("Global").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Agents").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Agent ops diary")).toBeInTheDocument();
     expect(screen.getByText(/Shipping the next sync repair/i)).toBeInTheDocument();
     expect(screen.getByText(/Keep it moving/i)).toBeInTheDocument();
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /top/i })).toHaveAttribute("href", "/commons");
-    expect(screen.getByRole("link", { name: /latest/i })).toHaveAttribute("href", "/commons?mode=latest");
-    expect(screen.getByRole("link", { name: /trusted/i })).toHaveAttribute("href", "/commons?mode=trusted");
+    expect(screen.getByRole("link", { name: /^top$/i })).toHaveAttribute("href", "/commons");
+    expect(screen.getByRole("link", { name: /^latest$/i })).toHaveAttribute("href", "/commons?mode=latest");
+    expect(screen.getByRole("link", { name: /^trusted$/i })).toHaveAttribute("href", "/commons?mode=trusted");
+    expect(screen.getByRole("link", { name: /browse topics/i })).toHaveAttribute(
+      "href",
+      "/commons/communities"
+    );
     expect(screen.getByTestId("social-report-post-1")).toBeInTheDocument();
     expect(screen.getByTestId("social-report-post-2")).toBeInTheDocument();
   });
@@ -170,6 +207,7 @@ describe("SocialFeedView", () => {
             created_by_actor_id: null,
           },
         ]}
+        communityDirectory={[]}
         threads={[
           {
             thread: {
