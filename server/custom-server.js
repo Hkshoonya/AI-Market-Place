@@ -31,20 +31,19 @@ function isTruthy(value) {
 
 function resolveCronRunnerMode() {
   const rawMode = (process.env.CRON_RUNNER_MODE || "").trim().toLowerCase();
-
-  if (
-    rawMode === "disabled" ||
-    rawMode === "internal" ||
-    rawMode === "external"
-  ) {
-    return rawMode;
-  }
-
   const isRailway = Boolean(
     process.env.RAILWAY_ENVIRONMENT ||
       process.env.RAILWAY_PROJECT_ID ||
       process.env.RAILWAY_STATIC_URL
   );
+
+  if (rawMode === "disabled" || rawMode === "internal") {
+    return rawMode;
+  }
+
+  if (rawMode === "external") {
+    return isRailway ? "internal" : "external";
+  }
 
   return isRailway ? "internal" : "external";
 }
@@ -76,6 +75,12 @@ function startCronScheduler() {
   const shouldRunInProcess =
     cronMode === "internal" ||
     (!hasExplicitCronMode && isTruthy(process.env.ENABLE_IN_PROCESS_CRON));
+
+  if (cronMode === "internal" && (process.env.CRON_RUNNER_MODE || "").trim().toLowerCase() === "external") {
+    console.warn(
+      "[cron] CRON_RUNNER_MODE=external was ignored on Railway; using internal scheduling to avoid hidden external-cron drift."
+    );
+  }
 
   if (!shouldRunInProcess) {
     console.log(

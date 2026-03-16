@@ -303,8 +303,10 @@ describe("GET /api/health", () => {
   describe("authenticated response (Bearer CRON_SECRET)", () => {
     it("returns 200 with full detail including database, uptime, cron, pipeline", async () => {
       const originalSecret = process.env.CRON_SECRET;
+      const originalRailwayEnv = process.env.RAILWAY_ENVIRONMENT;
       process.env.CRON_SECRET = "test-secret";
       delete process.env.CRON_RUNNER_MODE;
+      delete process.env.RAILWAY_ENVIRONMENT;
 
       mockCreateAdminClient.mockReturnValue(
         createFullMockSupabase({
@@ -349,6 +351,7 @@ describe("GET /api/health", () => {
       expect(body.pipeline).toHaveProperty("down");
 
       process.env.CRON_SECRET = originalSecret;
+      process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
     });
 
     it("pipeline counts correct: 1 healthy, 1 degraded adapter", async () => {
@@ -422,8 +425,10 @@ describe("GET /api/health", () => {
     it("reports internal cron mode and recent failures from cron_runs", async () => {
       const originalSecret = process.env.CRON_SECRET;
       const originalMode = process.env.CRON_RUNNER_MODE;
+      const originalRailwayEnv = process.env.RAILWAY_ENVIRONMENT;
       process.env.CRON_SECRET = "test-secret";
       process.env.CRON_RUNNER_MODE = "internal";
+      delete process.env.RAILWAY_ENVIRONMENT;
 
       mockCreateAdminClient.mockReturnValue(
         createFullMockSupabase({
@@ -460,6 +465,39 @@ describe("GET /api/health", () => {
 
       process.env.CRON_SECRET = originalSecret;
       process.env.CRON_RUNNER_MODE = originalMode;
+      process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
+    });
+
+    it("coerces legacy external cron mode to internal on Railway", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      const originalMode = process.env.CRON_RUNNER_MODE;
+      const originalRailwayEnv = process.env.RAILWAY_ENVIRONMENT;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.CRON_RUNNER_MODE = "external";
+      process.env.RAILWAY_ENVIRONMENT = "production";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
+          pipeline_health: {
+            data: makePipelineHealth([
+              { source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) },
+            ]),
+            error: null,
+          },
+          cron_runs: { data: [], error: null },
+        }) as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(body.cron.mode).toBe("internal");
+      expect(body.cron.schedulerConfigured).toBe(true);
+
+      process.env.CRON_SECRET = originalSecret;
+      process.env.CRON_RUNNER_MODE = originalMode;
+      process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
     });
 
     it("returns 503 with status 'unhealthy' when authenticated but DB fails", async () => {
