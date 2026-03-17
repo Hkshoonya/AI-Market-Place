@@ -240,4 +240,42 @@ describe("upsertBatch", () => {
       }),
     ]);
   });
+
+  it("sanitizes JSON-invalid string content before upserting", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "model_news",
+      [{
+        source_id: "row-1",
+        summary: "bad\u0000text\ud800",
+        metadata: {
+          nested: "more\u0000bad\udfff",
+          tags: ["ok", "tag\u0000\ud800"],
+        },
+      }],
+      "source,source_id"
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      [
+        {
+          source_id: "row-1",
+          summary: "badtext\ufffd",
+          metadata: {
+            nested: "morebad\ufffd",
+            tags: ["ok", "tag\ufffd"],
+          },
+        },
+      ],
+      {
+        onConflict: "source,source_id",
+        count: "exact",
+      }
+    );
+  });
 });

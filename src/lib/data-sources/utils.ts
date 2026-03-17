@@ -100,9 +100,10 @@ export async function upsertBatch(
   const sb = supabase as any;
   let totalCreated = 0;
   const errors: SyncError[] = [];
+  const sanitizedRecords = records.map((record) => sanitizeRecordForJson(record));
 
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize);
+  for (let i = 0; i < sanitizedRecords.length; i += batchSize) {
+    const batch = sanitizedRecords.slice(i, i + batchSize);
 
     const { error, count } = await sb
       .from(table)
@@ -145,6 +146,38 @@ export async function upsertBatch(
   }
 
   return { created: totalCreated, errors };
+}
+
+function sanitizeStringForJson(value: string): string {
+  const withoutNulls = value.replace(/\u0000/g, "");
+
+  // Round-tripping through UTF-8 coerces lone surrogate code units into the
+  // replacement character, which keeps Postgres jsonb parsing happy.
+  return new TextDecoder().decode(new TextEncoder().encode(withoutNulls));
+}
+
+function sanitizeJsonValue<T>(value: T): T {
+  if (typeof value === "string") {
+    return sanitizeStringForJson(value) as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeJsonValue(entry)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeJsonValue(entry)])
+    ) as T;
+  }
+
+  return value;
+}
+
+function sanitizeRecordForJson(
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  return sanitizeJsonValue(record);
 }
 
 // --------------- String Helpers ---------------
