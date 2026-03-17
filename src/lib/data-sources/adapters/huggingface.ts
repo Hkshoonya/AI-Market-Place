@@ -96,6 +96,25 @@ function mapLicense(tags: string[]): { type: string; name: string } {
   return { type: "commercial", name: "proprietary" };
 }
 
+export function inferOpenWeightsFromHfModel(hfId: string, tags: string[] = []): boolean {
+  const normalizedId = hfId.toLowerCase();
+  const normalizedTags = tags.map((tag) => tag.toLowerCase());
+
+  if (normalizedTags.includes("open_access")) return true;
+  if (normalizedTags.some((tag) => tag.includes("gguf"))) return true;
+  if (normalizedId.includes("gguf")) return true;
+
+  return (
+    normalizedId.startsWith("google/gemma") ||
+    normalizedId.startsWith("google/translategemma") ||
+    normalizedId.startsWith("nvidia/nvidia-nemotron") ||
+    normalizedId.startsWith("liquidai/lfm") ||
+    normalizedId.startsWith("unsloth/") ||
+    normalizedId.startsWith("aessedai/") ||
+    normalizedId.startsWith("sehyo/")
+  );
+}
+
 /** Extract parameter count from model tags (e.g. "7b", "1.5b", "130m"). */
 function extractParamCount(tags: string[]): number | null {
   for (const tag of tags) {
@@ -148,7 +167,11 @@ function transformModel(hf: HFModel): Record<string, unknown> {
   const isOpenWeights =
     license.type === "open_source" ||
     license.type === "research_only" ||
-    hf.tags.includes("open_access");
+    inferOpenWeightsFromHfModel(hf.id, hf.tags);
+  const resolvedLicense =
+    isOpenWeights && license.type === "commercial"
+      ? { type: "open_source", name: "Open weights" }
+      : license;
 
   return {
     slug,
@@ -162,8 +185,8 @@ function transformModel(hf: HFModel): Record<string, unknown> {
     hf_downloads: hf.downloads || 0,
     hf_likes: hf.likes || 0,
     hf_trending_score: hf.trendingScore || 0,
-    license: license.type,
-    license_name: license.name,
+    license: resolvedLicense.type,
+    license_name: resolvedLicense.name,
     is_open_weights: isOpenWeights,
     is_api_available: false,
     supported_languages: [],

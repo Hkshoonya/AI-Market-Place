@@ -9,6 +9,9 @@ export interface PriceSortableModel {
     provider_name?: string | null;
     input_price_per_million?: number | null;
     output_price_per_million?: number | null;
+    price_per_call?: number | null;
+    price_per_gpu_second?: number | null;
+    subscription_monthly?: number | null;
     source?: string | null;
     pricing_model?: string | null;
     currency?: string | null;
@@ -19,8 +22,11 @@ export interface PriceSortableModel {
 
 export interface VerifiedPricingEntry {
   provider_name: string;
-  input_price_per_million: number;
+  input_price_per_million?: number | null;
   output_price_per_million?: number | null;
+  price_per_call?: number | null;
+  price_per_gpu_second?: number | null;
+  subscription_monthly?: number | null;
   median_output_tokens_per_second?: number | null;
   median_time_to_first_token?: number | null;
   source?: string | null;
@@ -30,11 +36,26 @@ export interface VerifiedPricingEntry {
   updated_at?: string | null;
 }
 
+export type CompactPricingKind =
+  | "token"
+  | "request"
+  | "gpu_second"
+  | "monthly";
+
+export interface CompactPricingSignal {
+  amount: number;
+  kind: CompactPricingKind;
+  suffix: string;
+}
+
 export interface PublicPricingSummary {
   official: VerifiedPricingEntry | null;
   cheapestVerifiedRoute: VerifiedPricingEntry | null;
   compactEntry: VerifiedPricingEntry | null;
   compactPrice: number | null;
+  compactKind: CompactPricingKind | null;
+  compactSuffix: string | null;
+  compactDisplay: string | null;
   compactLabel: string;
   compactSourceLabel: string;
   strategy:
@@ -116,12 +137,65 @@ export function getTrackedPricingEntries(model: PriceSortableModel): VerifiedPri
     model.model_pricing?.filter((pricing): pricing is VerifiedPricingEntry => {
       if (!pricing.provider_name) return false;
       if (pricing.currency && pricing.currency !== "USD") return false;
-      if (pricing.input_price_per_million == null) return false;
-      if (typeof pricing.input_price_per_million !== "number") return false;
-      if (!Number.isFinite(pricing.input_price_per_million)) return false;
-      return pricing.input_price_per_million >= 0;
+      return getPrimaryPricingSignal(pricing) != null;
     }) ?? []
   );
+}
+
+export function getPrimaryPricingSignal(
+  entry: Pick<
+    VerifiedPricingEntry,
+    | "input_price_per_million"
+    | "price_per_call"
+    | "price_per_gpu_second"
+    | "subscription_monthly"
+  >
+): CompactPricingSignal | null {
+  const tokenPrice = entry.input_price_per_million;
+  if (typeof tokenPrice === "number" && Number.isFinite(tokenPrice) && tokenPrice >= 0) {
+    return { amount: tokenPrice, kind: "token", suffix: "/M" };
+  }
+
+  const requestPrice = entry.price_per_call;
+  if (typeof requestPrice === "number" && Number.isFinite(requestPrice) && requestPrice >= 0) {
+    return { amount: requestPrice, kind: "request", suffix: "/request" };
+  }
+
+  const gpuSecondPrice = entry.price_per_gpu_second;
+  if (typeof gpuSecondPrice === "number" && Number.isFinite(gpuSecondPrice) && gpuSecondPrice >= 0) {
+    return { amount: gpuSecondPrice, kind: "gpu_second", suffix: "/GPU-s" };
+  }
+
+  const monthlyPrice = entry.subscription_monthly;
+  if (typeof monthlyPrice === "number" && Number.isFinite(monthlyPrice) && monthlyPrice >= 0) {
+    return { amount: monthlyPrice, kind: "monthly", suffix: "/mo" };
+  }
+
+  return null;
+}
+
+function comparePrimaryPricingSignals(
+  left: VerifiedPricingEntry,
+  right: VerifiedPricingEntry
+): number {
+  const leftSignal = getPrimaryPricingSignal(left);
+  const rightSignal = getPrimaryPricingSignal(right);
+  if (!leftSignal && !rightSignal) return 0;
+  if (!leftSignal) return 1;
+  if (!rightSignal) return -1;
+
+  const kindOrder: Record<CompactPricingKind, number> = {
+    token: 0,
+    request: 1,
+    gpu_second: 2,
+    monthly: 3,
+  };
+
+  if (leftSignal.kind !== rightSignal.kind) {
+    return kindOrder[leftSignal.kind] - kindOrder[rightSignal.kind];
+  }
+
+  return leftSignal.amount - rightSignal.amount;
 }
 
 export function getVerifiedPricingEntries(
@@ -146,9 +220,7 @@ export function getCheapestVerifiedPricing(
   model: PriceSortableModel,
   asOf: Date = new Date()
 ): VerifiedPricingEntry | null {
-  const prices = [...getVerifiedPricingEntries(model, asOf)].sort(
-    (left, right) => left.input_price_per_million - right.input_price_per_million
-  );
+  const prices = [...getVerifiedPricingEntries(model, asOf)].sort(comparePrimaryPricingSignals);
 
   return prices[0] ?? null;
 }
@@ -159,9 +231,30 @@ export function getOfficialPricing(
 ): VerifiedPricingEntry | null {
   const directEntries = getVerifiedPricingEntries(model, asOf)
     .filter((pricing) => isOfficialPricingProvider(model.provider, pricing.provider_name))
-    .sort((left, right) => left.input_price_per_million - right.input_price_per_million);
+    .sort(comparePrimaryPricingSignals);
 
   return directEntries[0] ?? null;
+}
+
+export function formatCompactPricingSignal(
+  signal: Pick<PublicPricingSummary, "compactPrice" | "compactKind" | "compactSuffix">
+): string | null {
+  if (signal.compactPrice == null || signal.compactKind == null || signal.compactSuffix == null) {
+    return null;
+  }
+
+  if (signal.compactPrice === 0) return "Free";
+  return `$${Number(signal.compactPrice).toFixed(signal.compactPrice < 1 ? 4 : 2)}${signal.compactSuffix}`;
+}
+
+export function formatVerifiedPricingEntry(entry: VerifiedPricingEntry): string | null {
+  const signal = getPrimaryPricingSignal(entry);
+  if (!signal) return null;
+  return formatCompactPricingSignal({
+    compactPrice: signal.amount,
+    compactKind: signal.kind,
+    compactSuffix: signal.suffix,
+  });
 }
 
 export function getPublicPricingSummary(
@@ -180,11 +273,21 @@ export function getPublicPricingSummary(
   const compactStrategy = options.compactStrategy ?? "cheapest_verified";
 
   if (compactStrategy === "official_first" && official) {
+    const officialSignal = getPrimaryPricingSignal(official);
     return {
       official,
       cheapestVerifiedRoute,
       compactEntry: official,
-      compactPrice: official.input_price_per_million,
+      compactPrice: officialSignal?.amount ?? null,
+      compactKind: officialSignal?.kind ?? null,
+      compactSuffix: officialSignal?.suffix ?? null,
+      compactDisplay: officialSignal
+        ? formatCompactPricingSignal({
+            compactPrice: officialSignal.amount,
+            compactKind: officialSignal.kind,
+            compactSuffix: officialSignal.suffix,
+          })
+        : null,
       compactLabel: "Official",
       compactSourceLabel: official.provider_name,
       strategy: "official_company_price",
@@ -192,11 +295,21 @@ export function getPublicPricingSummary(
   }
 
   if (cheapestVerifiedRoute) {
+    const cheapestSignal = getPrimaryPricingSignal(cheapestVerifiedRoute);
     return {
       official,
       cheapestVerifiedRoute,
       compactEntry: cheapestVerifiedRoute,
-      compactPrice: cheapestVerifiedRoute.input_price_per_million,
+      compactPrice: cheapestSignal?.amount ?? null,
+      compactKind: cheapestSignal?.kind ?? null,
+      compactSuffix: cheapestSignal?.suffix ?? null,
+      compactDisplay: cheapestSignal
+        ? formatCompactPricingSignal({
+            compactPrice: cheapestSignal.amount,
+            compactKind: cheapestSignal.kind,
+            compactSuffix: cheapestSignal.suffix,
+          })
+        : null,
       compactLabel: "Cheapest verified",
       compactSourceLabel: cheapestVerifiedRoute.provider_name,
       strategy: "cheapest_verified_route",
@@ -204,11 +317,21 @@ export function getPublicPricingSummary(
   }
 
   if (official) {
+    const officialSignal = getPrimaryPricingSignal(official);
     return {
       official,
       cheapestVerifiedRoute,
       compactEntry: official,
-      compactPrice: official.input_price_per_million,
+      compactPrice: officialSignal?.amount ?? null,
+      compactKind: officialSignal?.kind ?? null,
+      compactSuffix: officialSignal?.suffix ?? null,
+      compactDisplay: officialSignal
+        ? formatCompactPricingSignal({
+            compactPrice: officialSignal.amount,
+            compactKind: officialSignal.kind,
+            compactSuffix: officialSignal.suffix,
+          })
+        : null,
       compactLabel: "Official",
       compactSourceLabel: official.provider_name,
       strategy: "official_company_price",
@@ -221,6 +344,9 @@ export function getPublicPricingSummary(
       cheapestVerifiedRoute,
       compactEntry: null,
       compactPrice: 0,
+      compactKind: "token",
+      compactSuffix: "/M",
+      compactDisplay: "Free",
       compactLabel: "Free",
       compactSourceLabel: "Open weights",
       strategy: "open_weights_free",
@@ -234,6 +360,9 @@ export function getPublicPricingSummary(
       cheapestVerifiedRoute,
       compactEntry: null,
       compactPrice: null,
+      compactKind: null,
+      compactSuffix: null,
+      compactDisplay: null,
       compactLabel: "Needs refresh",
       compactSourceLabel: freshestTracked.provider_name,
       strategy: "stale_refresh_needed",
@@ -245,6 +374,9 @@ export function getPublicPricingSummary(
     cheapestVerifiedRoute,
     compactEntry: null,
     compactPrice: null,
+    compactKind: null,
+    compactSuffix: null,
+    compactDisplay: null,
     compactLabel: "Unavailable",
     compactSourceLabel: "No verified price",
     strategy: "unavailable",
@@ -252,7 +384,7 @@ export function getPublicPricingSummary(
 }
 
 export function getLowestInputPrice(model: PriceSortableModel): number | null {
-  return getPublicPricingSummary(model).compactPrice;
+  return getCheapestVerifiedPricing(model)?.input_price_per_million ?? (model.is_open_weights ? 0 : null);
 }
 
 export function compareModelsByLowestPrice(

@@ -161,6 +161,7 @@ describe("pricing summaries", () => {
 
     expect(getPublicPricingSummary(model)).toMatchObject({
       compactPrice: 2.8,
+      compactDisplay: "$2.80/M",
       compactLabel: "Cheapest verified",
       compactSourceLabel: "OpenRouter",
       strategy: "cheapest_verified_route",
@@ -190,6 +191,7 @@ describe("pricing summaries", () => {
       getPublicPricingSummary(model, { compactStrategy: "official_first" })
     ).toMatchObject({
       compactPrice: 3,
+      compactDisplay: "$3.00/M",
       compactLabel: "Official",
       compactSourceLabel: "Anthropic",
       strategy: "official_company_price",
@@ -217,6 +219,7 @@ describe("pricing summaries", () => {
     expect(getOfficialPricing(model)).toBeNull();
     expect(getPublicPricingSummary(model)).toMatchObject({
       compactPrice: null,
+      compactDisplay: null,
       compactLabel: "Needs refresh",
       compactSourceLabel: "OpenAI",
       strategy: "stale_refresh_needed",
@@ -241,6 +244,31 @@ describe("pricing summaries", () => {
     });
 
     expect(getStaleTrackedPricingEntries(model)).toHaveLength(1);
+  });
+
+  it("surfaces verified per-request pricing when no token price exists", () => {
+    const model = makeModel({
+      provider: "OpenAI",
+      model_pricing: [
+        {
+          provider_name: "OpenAI",
+          input_price_per_million: null,
+          output_price_per_million: null,
+          price_per_call: 0.04,
+          source: "platform.openai.com/docs/pricing",
+          effective_date: "2026-03-17",
+        },
+      ],
+    });
+
+    expect(getLowestInputPrice(model)).toBeNull();
+    expect(getPublicPricingSummary(model)).toMatchObject({
+      compactPrice: 0.04,
+      compactKind: "request",
+      compactDisplay: "$0.0400/request",
+      compactLabel: "Cheapest verified",
+      strategy: "cheapest_verified_route",
+    });
   });
 });
 

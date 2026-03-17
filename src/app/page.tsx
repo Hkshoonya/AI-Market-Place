@@ -19,7 +19,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { HomeTopModelSchema } from "@/lib/schemas/models";
-import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ProviderMarketShare } from "@/components/charts/provider-market-share";
@@ -429,12 +429,10 @@ export default async function HomePage() {
                     </td>
                     <td className="hidden px-4 py-3 text-right text-sm whitespace-nowrap xl:table-cell">
                       <Link href={`/models/${model.slug}`} className="block">
-                        {pricingSummary.compactPrice != null ? (
+                        {pricingSummary.compactDisplay ? (
                           <div className="space-y-0.5 text-right text-muted-foreground">
                             <div>
-                              {pricingSummary.compactPrice === 0
-                                ? "Free"
-                                : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                              {pricingSummary.compactDisplay}
                             </div>
                             <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
                               {pricingSummary.compactLabel}

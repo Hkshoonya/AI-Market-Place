@@ -19,18 +19,49 @@
 
 export interface ProviderPrice {
   provider: string;
-  inputPricePerMillion: number;
-  outputPricePerMillion: number;
+  inputPricePerMillion: number | null;
+  outputPricePerMillion: number | null;
+  pricePerCall?: number | null;
+  pricePerGpuSecond?: number | null;
+  subscriptionMonthly?: number | null;
   source: string;
   lastUpdated: string;
 }
 
-// Prices as of March 2026. Input/Output per 1M tokens in USD.
+// Prices as of March 2026. Most entries are input/output token prices in USD;
+// service-style models may use pricePerCall when the provider only publishes
+// request/image pricing rather than token pricing.
 export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   // ─── OpenAI — Legacy ───────────────────────────────────────────
+  "gpt-3-5-turbo": { provider: "OpenAI", inputPricePerMillion: 0.50, outputPricePerMillion: 1.50, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo": { provider: "OpenAI", inputPricePerMillion: 0.50, outputPricePerMillion: 1.50, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-turbo-0125": { provider: "OpenAI", inputPricePerMillion: 0.50, outputPricePerMillion: 1.50, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo-0125": { provider: "OpenAI", inputPricePerMillion: 0.50, outputPricePerMillion: 1.50, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-turbo-1106": { provider: "OpenAI", inputPricePerMillion: 1.00, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo-1106": { provider: "OpenAI", inputPricePerMillion: 1.00, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-turbo-0613": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo-0613": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-0301": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-0301": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-turbo-instruct": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo-instruct": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3-5-turbo-16k-0613": { provider: "OpenAI", inputPricePerMillion: 3.00, outputPricePerMillion: 4.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-3.5-turbo-16k-0613": { provider: "OpenAI", inputPricePerMillion: 3.00, outputPricePerMillion: 4.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-0125-preview": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4.0125-preview": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-1106-preview": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4.1106-preview": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-0613": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 60.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4.0613": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 60.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-0314": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 60.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4.0314": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 60.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-32k": { provider: "OpenAI", inputPricePerMillion: 60.00, outputPricePerMillion: 120.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-32k-0314": { provider: "OpenAI", inputPricePerMillion: 60.00, outputPricePerMillion: 120.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4-32k-0613": { provider: "OpenAI", inputPricePerMillion: 60.00, outputPricePerMillion: 120.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
   "gpt-4o": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "gpt-4o-mini": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "gpt-4-turbo": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-4-turbo-2024-04-09": { provider: "OpenAI", inputPricePerMillion: 10.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
 
   // ─── OpenAI — GPT-4.1 family ───────────────────────────────────
   "gpt-4-1": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
@@ -57,6 +88,32 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "o3-mini": { provider: "OpenAI", inputPricePerMillion: 1.10, outputPricePerMillion: 4.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "o3-pro": { provider: "OpenAI", inputPricePerMillion: 20.00, outputPricePerMillion: 80.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "o4-mini": { provider: "OpenAI", inputPricePerMillion: 1.10, outputPricePerMillion: 4.40, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
+  "gpt-realtime": { provider: "OpenAI", inputPricePerMillion: 4.00, outputPricePerMillion: 16.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-realtime-mini": { provider: "OpenAI", inputPricePerMillion: 0.60, outputPricePerMillion: 2.40, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-audio": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-audio-mini": { provider: "OpenAI", inputPricePerMillion: 0.60, outputPricePerMillion: 2.40, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-realtime-preview": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 20.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-mini-realtime-preview": { provider: "OpenAI", inputPricePerMillion: 0.60, outputPricePerMillion: 2.40, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-audio-preview": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-mini-audio-preview": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-search-preview": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-4o-mini-search-preview": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "computer-use-preview": { provider: "OpenAI", inputPricePerMillion: 3.00, outputPricePerMillion: 12.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-image-1-5": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 10.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "chatgpt-image-latest": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 10.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-image-1": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 40.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "gpt-image-1-mini": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "tts-1": { provider: "OpenAI", inputPricePerMillion: 15.00, outputPricePerMillion: 0, source: "platform.openai.com/docs/models/tts-1", lastUpdated: "2026-03-17" },
+  "tts-1-hd": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 0, source: "platform.openai.com/docs/models/tts-1-hd", lastUpdated: "2026-03-17" },
+  "text-embedding-3-small": { provider: "OpenAI", inputPricePerMillion: 0.02, outputPricePerMillion: 0, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "text-embedding-3-large": { provider: "OpenAI", inputPricePerMillion: 0.13, outputPricePerMillion: 0, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "text-embedding-ada-002": { provider: "OpenAI", inputPricePerMillion: 0.10, outputPricePerMillion: 0, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "davinci-002": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 2.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "babbage-002": { provider: "OpenAI", inputPricePerMillion: 0.40, outputPricePerMillion: 0.40, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "omni-moderation-latest": { provider: "OpenAI", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "omni-moderation-2024-09-26": { provider: "OpenAI", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
+  "codex-mini-latest": { provider: "OpenAI", inputPricePerMillion: 1.50, outputPricePerMillion: 6.00, source: "platform.openai.com/docs/models/codex-mini-latest", lastUpdated: "2026-03-17" },
+  "dall-e-3": { provider: "OpenAI", inputPricePerMillion: null, outputPricePerMillion: null, pricePerCall: 0.04, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-03-17" },
 
   // ─── Anthropic — Claude 3.x ────────────────────────────────────
   "claude-3-5-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
@@ -102,6 +159,7 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "grok-4": { provider: "xAI", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-17" },
   "grok-3": { provider: "xAI", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-01" },
   "grok-3-mini": { provider: "xAI", inputPricePerMillion: 0.30, outputPricePerMillion: 0.50, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-01" },
+  "grok-2": { provider: "xAI", inputPricePerMillion: 2.00, outputPricePerMillion: 10.00, source: "x.ai/news/grok-1212", lastUpdated: "2026-03-17" },
 
   // ─── Cohere — Command family ──────────────────────────────────
   "command-r": { provider: "Cohere", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "cohere.com/pricing", lastUpdated: "2026-03-17" },
@@ -116,6 +174,15 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
 
   // ─── MiniMax — M2.5 family ────────────────────────────────────
   "minimax-m2-5": { provider: "MiniMax", inputPricePerMillion: 0.30, outputPricePerMillion: 1.20, source: "platform.minimax.io/pricing", lastUpdated: "2026-03-17" },
+
+  // ─── Amazon Nova ──────────────────────────────────────────────
+  "nova-pro": { provider: "Amazon", inputPricePerMillion: 0.80, outputPricePerMillion: 3.20, source: "aws.amazon.com/blogs/machine-learning/prompting-for-the-best-price-performance", lastUpdated: "2026-03-17" },
+
+  // ─── Google — newer Gemini tiers ─────────────────────────────
+  "gemini-3-1-flash-lite": { provider: "Google", inputPricePerMillion: 0.25, outputPricePerMillion: 1.50, source: "blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-lite", lastUpdated: "2026-03-17" },
+
+  // ─── Black Forest Labs — FLUX API pricing ────────────────────
+  "flux-1-pro": { provider: "Black Forest Labs", inputPricePerMillion: null, outputPricePerMillion: null, pricePerCall: 0.05, source: "docs.bfl.ai/quick_start/pricing", lastUpdated: "2026-03-17" },
 
   // ─── Meta (open weights, listed at zero for self-hosted) ──────
   "llama-4-maverick": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },

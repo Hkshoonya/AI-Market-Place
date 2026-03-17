@@ -119,15 +119,20 @@ export async function computeAllLenses(
   let pricingSynced = 0;
   const { data: allPricing } = await supabase
     .from("model_pricing")
-    .select("model_id, input_price_per_million, provider_name, source, effective_date, updated_at")
-    .not("input_price_per_million", "is", null);
+    .select("model_id, input_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, provider_name, source, effective_date, updated_at");
 
   const cheapestPriceMap = new Map<string, number>();
   const pricingSourceMap = new Map<string, Set<string>>();
   for (const p of allPricing ?? []) {
     const isFresh = isFreshVerifiedPricingEntry({
       provider_name: p.provider_name ?? "pricing",
-      input_price_per_million: Number(p.input_price_per_million ?? 0),
+      input_price_per_million:
+        typeof p.input_price_per_million === "number" ? Number(p.input_price_per_million) : null,
+      price_per_call: typeof p.price_per_call === "number" ? Number(p.price_per_call) : null,
+      price_per_gpu_second:
+        typeof p.price_per_gpu_second === "number" ? Number(p.price_per_gpu_second) : null,
+      subscription_monthly:
+        typeof p.subscription_monthly === "number" ? Number(p.subscription_monthly) : null,
       source: p.source ?? null,
       effective_date: typeof p.effective_date === "string" ? p.effective_date : null,
       updated_at: typeof p.updated_at === "string" ? p.updated_at : null,
@@ -150,9 +155,18 @@ export async function computeAllLenses(
     const curatedPrice = lookupProviderPrice(m.slug as string);
     if (!curatedPrice) continue;
 
-    const pricingModel = curatedPrice.inputPricePerMillion === 0
-      ? "free"
-      : "token_based";
+    const pricingModel =
+      curatedPrice.inputPricePerMillion != null
+        ? curatedPrice.inputPricePerMillion === 0
+          ? "free"
+          : "token_based"
+        : curatedPrice.pricePerCall != null
+          ? "per_api_call"
+          : curatedPrice.pricePerGpuSecond != null
+            ? "per_gpu_second"
+            : curatedPrice.subscriptionMonthly != null
+              ? "subscription"
+              : "token_based";
 
     const { error: upsertErr } = await supabase.from("model_pricing").upsert(
       {
@@ -161,7 +175,13 @@ export async function computeAllLenses(
         pricing_model: pricingModel,
         input_price_per_million: curatedPrice.inputPricePerMillion,
         output_price_per_million: curatedPrice.outputPricePerMillion,
-        blended_price_per_million: curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4,
+        price_per_call: curatedPrice.pricePerCall ?? null,
+        price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
+        subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
+        blended_price_per_million:
+          curatedPrice.inputPricePerMillion != null && curatedPrice.outputPricePerMillion != null
+            ? curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4
+            : null,
         effective_date: curatedPrice.lastUpdated,
         source: curatedPrice.source,
         updated_at: new Date().toISOString(),
@@ -174,12 +194,15 @@ export async function computeAllLenses(
         provider_name: curatedPrice.provider,
         input_price_per_million: curatedPrice.inputPricePerMillion,
         output_price_per_million: curatedPrice.outputPricePerMillion,
+        price_per_call: curatedPrice.pricePerCall ?? null,
+        price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
+        subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
         source: curatedPrice.source,
         effective_date: curatedPrice.lastUpdated,
       });
       const pricingSources = pricingSourceMap.get(m.id) ?? new Set<string>();
       const price = curatedPrice.inputPricePerMillion;
-      if (curatedEntryIsFresh && price > 0) {
+      if (curatedEntryIsFresh && price != null && price > 0) {
         const existing = cheapestPriceMap.get(m.id);
         if (!existing || price < existing) {
           cheapestPriceMap.set(m.id, price);
@@ -221,6 +244,9 @@ export async function computeAllLenses(
         provider_name: curatedPrice.provider,
         input_price_per_million: curatedPrice.inputPricePerMillion,
         output_price_per_million: curatedPrice.outputPricePerMillion,
+        price_per_call: curatedPrice.pricePerCall ?? null,
+        price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
+        subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
         source: curatedPrice.source,
         effective_date: curatedPrice.lastUpdated,
       })

@@ -549,12 +549,10 @@ export default async function ProviderDetailPage({
                         {formatNumber(model.hf_downloads)}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                        {pricingSummary.compactPrice != null ? (
+                        {pricingSummary.compactDisplay ? (
                           <div className="space-y-0.5 text-muted-foreground">
                             <div>
-                              {pricingSummary.compactPrice === 0
-                                ? "Free"
-                                : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                              {pricingSummary.compactDisplay}
                             </div>
                             <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
                               {pricingSummary.compactLabel}

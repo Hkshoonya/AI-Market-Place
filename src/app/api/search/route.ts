@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         ? supabase
             .from("model_pricing")
             .select(
-              "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at"
+              "model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at"
             )
             .in("model_id", uniqueModels.map((model) => model.id))
         : Promise.resolve({ data: [], error: null }),
@@ -113,6 +113,9 @@ export async function GET(request: NextRequest) {
         provider_name?: string | null;
         input_price_per_million?: number | null;
         output_price_per_million?: number | null;
+        price_per_call?: number | null;
+        price_per_gpu_second?: number | null;
+        subscription_monthly?: number | null;
         source?: string | null;
         currency?: string | null;
         effective_date?: string | null;
@@ -129,6 +132,11 @@ export async function GET(request: NextRequest) {
           typeof row.input_price_per_million === "number" ? row.input_price_per_million : null,
         output_price_per_million:
           typeof row.output_price_per_million === "number" ? row.output_price_per_million : null,
+        price_per_call: typeof row.price_per_call === "number" ? row.price_per_call : null,
+        price_per_gpu_second:
+          typeof row.price_per_gpu_second === "number" ? row.price_per_gpu_second : null,
+        subscription_monthly:
+          typeof row.subscription_monthly === "number" ? row.subscription_monthly : null,
         source: typeof row.source === "string" ? row.source : null,
         currency: typeof row.currency === "string" ? row.currency : null,
         effective_date: typeof row.effective_date === "string" ? row.effective_date : null,
@@ -168,6 +176,7 @@ export async function GET(request: NextRequest) {
         display_description: getModelDisplayDescription(model).text,
         compact_price: pricingSummary.compactPrice,
         compact_price_label: pricingSummary.compactLabel,
+        compact_price_display: pricingSummary.compactDisplay,
         recent_signal: modelSignals.get(model.id) ?? null,
       };
     });

@@ -424,12 +424,10 @@ export default async function CategoryLeaderboardPage({
                           );
                         })}
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
-                          {pricingSummary.compactPrice != null ? (
+                          {pricingSummary.compactDisplay ? (
                             <div className="space-y-0.5">
                               <div>
-                                {pricingSummary.compactPrice === 0
-                                  ? "Free"
-                                  : `$${pricingSummary.compactPrice.toFixed(2)}`}
+                                {pricingSummary.compactDisplay}
                               </div>
                               <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
                                 {pricingSummary.compactLabel}

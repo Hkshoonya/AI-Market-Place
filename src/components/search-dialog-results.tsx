@@ -3,7 +3,7 @@
 import { ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
-import { formatCurrency, formatTokenPrice } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
 import {
@@ -25,6 +25,7 @@ export interface SearchResult {
   display_description?: string | null;
   compact_price?: number | null;
   compact_price_label?: string;
+  compact_price_display?: string | null;
   market_cap_estimate?: number | null;
   recent_signal?: ModelSignalSummary | null;
 }
@@ -105,8 +106,8 @@ export function SearchDialogResults({
                     {r.provider}
                     {capabilityValue != null &&
                       ` \u00b7 Cap: ${Number(capabilityValue).toFixed(1)}`}
-                    {r.compact_price != null &&
-                      ` \u00b7 ${r.compact_price === 0 ? "Free" : `${formatTokenPrice(r.compact_price)}/M`}`}
+                    {r.compact_price_display &&
+                      ` \u00b7 ${r.compact_price_display}`}
                   </p>
                   {r.display_description ? (
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">

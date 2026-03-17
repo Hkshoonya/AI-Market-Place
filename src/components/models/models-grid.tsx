@@ -3,7 +3,7 @@ import { Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getParameterDisplay } from "@/lib/models/presentation";
@@ -114,10 +114,8 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium tabular-nums text-muted-foreground">
-                      {pricingSummary.compactPrice != null
-                        ? pricingSummary.compactPrice === 0
-                          ? "Free"
-                          : `${formatTokenPrice(pricingSummary.compactPrice)}/M`
+                      {pricingSummary.compactDisplay
+                        ? pricingSummary.compactDisplay
                         : "—"}
                     </p>
                     <p className="text-[10px] text-muted-foreground">{pricingSummary.compactLabel}</p>

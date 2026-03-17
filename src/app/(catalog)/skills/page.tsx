@@ -341,6 +341,9 @@ export default async function SkillsPage() {
     provider_name: z.string().nullable().optional(),
     input_price_per_million: z.number().nullable(),
     output_price_per_million: z.number().nullable().optional(),
+    price_per_call: z.number().nullable().optional(),
+    price_per_gpu_second: z.number().nullable().optional(),
+    subscription_monthly: z.number().nullable().optional(),
     source: z.string().nullable().optional(),
     currency: z.string().nullable().optional(),
     effective_date: z.string().nullable().optional(),
@@ -352,7 +355,7 @@ export default async function SkillsPage() {
       ? parseQueryResult(
             await supabase
               .from("model_pricing")
-              .select("model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at")
+              .select("model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at")
               .in("model_id", surfacedModelIds),
           PricingRowSchema,
           "SkillPricingRow"
@@ -849,13 +852,11 @@ export default async function SkillsPage() {
                             {/* Verified Price */}
                             <td className="hidden px-4 py-3.5 text-right lg:table-cell">
                               <span className="text-sm tabular-nums text-muted-foreground">
-                                {pricingSummary?.compactPrice != null
-                                  ? pricingSummary.compactPrice === 0
-                                    ? "Free"
-                                    : `$${pricingSummary.compactPrice.toFixed(2)}`
+                                {pricingSummary?.compactDisplay
+                                  ? pricingSummary.compactDisplay
                                   : "---"}
                               </span>
-                              {pricingSummary?.compactPrice != null && (
+                              {pricingSummary?.compactDisplay && (
                                 <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
                                   {pricingSummary.compactLabel}
                                 </div>

@@ -3,9 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { formatTokenPrice } from "@/lib/format";
 import {
+  formatVerifiedPricingEntry,
   getCheapestVerifiedPricing,
   getOfficialPricing,
   getPricingAgeDays,
+  getPrimaryPricingSignal,
   getStaleTrackedPricingEntries,
   getTrackedPricingEntries,
   isFreshVerifiedPricingEntry,
@@ -16,6 +18,9 @@ export interface PricingEntry {
   provider_name: string;
   input_price_per_million: number | null;
   output_price_per_million: number | null;
+  price_per_call?: number | null;
+  price_per_gpu_second?: number | null;
+  subscription_monthly?: number | null;
   median_output_tokens_per_second: number | null;
   median_time_to_first_token: number | null;
   source?: string | null;
@@ -69,7 +74,10 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
       Number(isDirectProvider(modelProvider, left.provider_name));
     if (directDelta !== 0) return directDelta;
 
-    return getNumericPrice(left.input_price_per_million) - getNumericPrice(right.input_price_per_million);
+    return (
+      getNumericPrice(getPrimaryPricingSignal(left)?.amount ?? null) -
+      getNumericPrice(getPrimaryPricingSignal(right)?.amount ?? null)
+    );
   });
 
   const cheapestPricing = getCheapestVerifiedPricing({
@@ -89,6 +97,9 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
     model_pricing: pricingData,
   });
   const cheapestProviderName = cheapestPricing?.provider_name ?? null;
+  const tokenPricingRows = sortedPricing.filter(
+    (pricing) => pricing.input_price_per_million != null
+  );
 
   return (
     <Card className="border-border/50">
@@ -96,12 +107,12 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
         <CardTitle className="text-lg">Verified Pricing & Access Routes</CardTitle>
       </CardHeader>
       <CardContent>
-        {sortedPricing.length > 1 && (
+        {tokenPricingRows.length > 1 && (
           <div className="mb-6">
             <PriceComparison
-              models={sortedPricing.map((p) => ({
+              models={tokenPricingRows.map((p) => ({
                 name: p.provider_name,
-                inputPrice: p.input_price_per_million,
+                inputPrice: p.input_price_per_million ?? null,
                 outputPrice: p.output_price_per_million ?? null,
               }))}
             />
@@ -114,7 +125,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Verified Route</div>
                 <div className="mt-2 text-sm font-semibold">
                   {cheapestPricing
-                    ? `${cheapestPricing.provider_name} · ${formatTokenPrice(cheapestPricing.input_price_per_million)} /M`
+                    ? `${cheapestPricing.provider_name} · ${formatVerifiedPricingEntry(cheapestPricing) ?? "---"}`
                     : "Not available yet"}
                 </div>
               </div>
@@ -122,7 +133,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Official First-Party</div>
                 <div className="mt-2 text-sm font-semibold">
                   {officialPricing
-                    ? `${officialPricing.provider_name} · ${formatTokenPrice(officialPricing.input_price_per_million)} /M`
+                    ? `${officialPricing.provider_name} · ${formatVerifiedPricingEntry(officialPricing) ?? "---"}`
                     : "No direct first-party price tracked"}
                 </div>
               </div>
@@ -156,7 +167,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                       Access
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
-                      Input $/M
+                      Primary Price
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
                       Output $/M
@@ -190,7 +201,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                           )}
                           {isCheapest && (
                             <Badge className="ml-2 bg-gain/10 text-[10px] text-gain">
-                              Lowest input
+                              Best priced
                             </Badge>
                           )}
                           {!isFresh && (
@@ -211,9 +222,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
-                          {pricing.input_price_per_million != null
-                            ? formatTokenPrice(pricing.input_price_per_million)
-                            : "---"}
+                          {formatVerifiedPricingEntry(pricing) ?? "---"}
                         </td>
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
                           {pricing.output_price_per_million != null

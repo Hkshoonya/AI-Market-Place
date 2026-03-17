@@ -3,7 +3,7 @@ import { Download, Heart, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RankBadge } from "@/components/shared/rank-badge";
 import { CategoryBadge } from "@/components/shared/category-badge";
-import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import {
   getModelDisplayDescription,
   getParameterDisplay,
@@ -75,15 +75,13 @@ export function ModelCard({ model }: ModelCardProps) {
             </span>
           </div>
 
-          {pricingSummary.compactPrice != null && (
+          {pricingSummary.compactDisplay && (
             <div className="mt-3 flex items-center justify-between rounded-md bg-secondary/50 px-2 py-1.5">
               <span className="text-[11px] text-muted-foreground">
                 {pricingSummary.compactLabel}
               </span>
               <span className="text-xs font-medium text-neon">
-                {pricingSummary.compactPrice === 0
-                  ? "Free"
-                  : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                {pricingSummary.compactDisplay}
               </span>
             </div>
           )}

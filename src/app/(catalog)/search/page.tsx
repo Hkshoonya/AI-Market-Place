@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
-import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { createPublicClient } from "@/lib/supabase/public-server";
@@ -78,6 +78,9 @@ export default async function SearchPage({
       provider_name?: string | null;
       input_price_per_million?: number | null;
       output_price_per_million?: number | null;
+      price_per_call?: number | null;
+      price_per_gpu_second?: number | null;
+      subscription_monthly?: number | null;
       source?: string | null;
       currency?: string | null;
       effective_date?: string | null;
@@ -139,7 +142,7 @@ export default async function SearchPage({
           ? supabase
               .from("model_pricing")
               .select(
-                "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at"
+                "model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at"
               )
               .in("model_id", uniqueModels.map((model) => model.id))
           : Promise.resolve({ data: [], error: null }),
@@ -169,6 +172,9 @@ export default async function SearchPage({
           provider_name?: string | null;
           input_price_per_million?: number | null;
           output_price_per_million?: number | null;
+          price_per_call?: number | null;
+          price_per_gpu_second?: number | null;
+          subscription_monthly?: number | null;
           source?: string | null;
           currency?: string | null;
           effective_date?: string | null;
@@ -189,6 +195,16 @@ export default async function SearchPage({
           output_price_per_million:
             typeof entry.output_price_per_million === "number"
               ? entry.output_price_per_million
+              : null,
+          price_per_call:
+            typeof entry.price_per_call === "number" ? entry.price_per_call : null,
+          price_per_gpu_second:
+            typeof entry.price_per_gpu_second === "number"
+              ? entry.price_per_gpu_second
+              : null,
+          subscription_monthly:
+            typeof entry.subscription_monthly === "number"
+              ? entry.subscription_monthly
               : null,
           source: typeof entry.source === "string" ? entry.source : null,
           currency: typeof entry.currency === "string" ? entry.currency : null,
@@ -375,12 +391,10 @@ export default async function SearchPage({
                                 {capabilityValue.toFixed(1)} cap
                               </span>
                             )}
-                            {pricingSummary.compactPrice != null && (
+                            {pricingSummary.compactDisplay && (
                               <span className="flex items-center gap-0.5">
                                 <Zap className="h-2.5 w-2.5 text-neon" />
-                                {pricingSummary.compactPrice === 0
-                                  ? "Free"
-                                  : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                                {pricingSummary.compactDisplay}
                               </span>
                             )}
                             {model.market_cap_estimate != null && (

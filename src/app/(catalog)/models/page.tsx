@@ -6,7 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
 import { parseQueryResultPartial } from "@/lib/schemas/parse";
 import { ModelBaseSchema } from "@/lib/schemas/models";
-import { formatNumber, formatTokenPrice } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import {
   compareModelsByLowestPrice,
   getPublicPricingSummary,
@@ -398,12 +398,10 @@ export default async function ModelsPage({
                       {formatNumber(model.hf_likes)}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                      {pricingSummary.compactPrice != null ? (
+                      {pricingSummary.compactDisplay ? (
                         <div className="space-y-0.5 text-muted-foreground">
                           <div>
-                            {pricingSummary.compactPrice === 0
-                              ? "Free"
-                              : `${formatTokenPrice(pricingSummary.compactPrice)}/M`}
+                            {pricingSummary.compactDisplay}
                           </div>
                           <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
                             {pricingSummary.compactLabel}
