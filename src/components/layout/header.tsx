@@ -117,7 +117,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[min(20rem,100vw)] bg-background">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-              <nav className="mt-8 flex flex-col gap-2" aria-label="Mobile navigation">
+              <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 pb-6" aria-label="Mobile navigation">
                 {NAV_ITEMS.map((item) => {
                   const isActive = pathname.startsWith(item.href);
                   return (

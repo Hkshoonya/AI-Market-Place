@@ -31,7 +31,7 @@ export function ChartCard({
     <div
       className={`rounded-xl border border-white/[0.06] bg-[#0a0a0a] overflow-hidden ${
         isFullscreen
-          ? "fixed inset-4 z-50 flex flex-col"
+          ? "fixed inset-2 z-50 flex min-h-0 flex-col sm:inset-4"
           : ""
       } ${className}`}
     >
@@ -65,7 +65,7 @@ export function ChartCard({
 
       {/* Content */}
       <div
-        className={`p-4 ${isFullscreen ? "flex-1" : ""}`}
+        className={`p-4 ${isFullscreen ? "min-h-0 flex-1 overflow-auto" : ""}`}
         style={{ minHeight: isFullscreen ? undefined : minHeight }}
       >
         {loading ? (
