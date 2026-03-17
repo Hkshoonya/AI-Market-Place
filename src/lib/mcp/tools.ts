@@ -10,6 +10,7 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import { createPurchaseEscrow, completePurchaseEscrow } from "@/lib/marketplace/escrow";
 import { deliverDigitalGood } from "@/lib/marketplace/delivery";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
 
 export const MCP_TOOLS: McpTool[] = [
   {
@@ -158,7 +159,13 @@ export async function executeTool(
 
       const { data, error } = await q;
       if (error) throw new Error(error.message);
-      return { models: data ?? [], count: (data ?? []).length };
+      return {
+        models: (data ?? []).map((model) => ({
+          ...model,
+          display_description: getModelDisplayDescription(model).text,
+        })),
+        count: (data ?? []).length,
+      };
     }
 
     case "get_model": {
@@ -172,7 +179,10 @@ export async function executeTool(
         .single();
 
       if (error) throw new Error(`Model not found: ${slug}`);
-      return data;
+      return {
+        ...data,
+        display_description: getModelDisplayDescription(data).text,
+      };
     }
 
     case "list_rankings": {

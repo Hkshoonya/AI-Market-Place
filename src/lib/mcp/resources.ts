@@ -4,6 +4,7 @@
 
 import type { McpResource } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
 
 export const MCP_RESOURCES: McpResource[] = [
   {
@@ -43,11 +44,17 @@ export async function readResource(
     case "models://catalog": {
       const { data } = await sb
         .from("models")
-        .select("slug, name, provider, category, status, quality_score, hf_downloads, overall_rank, is_open_weights, release_date")
+        .select("slug, name, provider, category, status, quality_score, hf_downloads, overall_rank, is_open_weights, release_date, description, short_description")
         .eq("status", "active")
         .order("overall_rank", { ascending: true, nullsFirst: false })
         .limit(500);
-      return { models: data ?? [], count: (data ?? []).length };
+      return {
+        models: (data ?? []).map((model) => ({
+          ...model,
+          display_description: getModelDisplayDescription(model).text,
+        })),
+        count: (data ?? []).length,
+      };
     }
 
     case "rankings://leaderboard": {
