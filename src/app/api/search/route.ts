@@ -9,6 +9,7 @@ import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
+import { rankModelsForSearch } from "@/lib/models/search-ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const uniqueModels = dedupePublicModelFamilies(models ?? []).slice(0, limit);
+    const uniqueModels = rankModelsForSearch(
+      dedupePublicModelFamilies(models ?? []),
+      safeQuery
+    ).slice(0, limit);
     const [{ data: pricingRows }, { data: newsRaw }] = await Promise.all([
       uniqueModels.length > 0
         ? supabase

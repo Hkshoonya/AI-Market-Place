@@ -21,6 +21,7 @@ import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
+import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import {
   getListingCommerceSignals,
   getListingPillClasses,
@@ -119,9 +120,9 @@ export default async function SearchPage({
         .range(0, 1999);
 
       const { data, count } = await modelQuery;
-      const uniqueModels = dedupePublicModelFamilies(data ?? []).sort(
-        (left, right) =>
-          Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0)
+      const uniqueModels = rankModelsForSearch(
+        dedupePublicModelFamilies(data ?? []),
+        safeQuery
       );
       const [{ data: newsRaw }, { data: pricingRaw }] = await Promise.all([
         supabase
