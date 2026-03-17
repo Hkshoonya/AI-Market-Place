@@ -80,8 +80,8 @@ export default async function MarketplacePage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-3">
               <ShoppingBag className="h-6 w-6 text-neon" />
               <h1 className="text-2xl font-bold">AI Marketplace</h1>
@@ -101,7 +101,7 @@ export default async function MarketplacePage() {
               />
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 lg:max-w-[28rem] lg:justify-end">
             <Button variant="outline" asChild>
               <Link href="/marketplace/auctions">
                 <Gavel className="mr-2 h-4 w-4" />
@@ -186,7 +186,7 @@ export default async function MarketplacePage() {
       </div>
 
       {/* CTA */}
-      <div className="mt-12 rounded-xl border border-neon/20 bg-gradient-to-r from-neon/5 via-neon/10 to-neon/5 p-8 text-center md:flex md:items-center md:justify-between md:text-left">
+      <div className="mt-12 rounded-xl border border-neon/20 bg-gradient-to-r from-neon/5 via-neon/10 to-neon/5 p-6 text-center md:flex md:items-center md:justify-between md:p-8 md:text-left">
         <div>
           <h2 className="text-xl font-bold">Have an AI model or agent to sell?</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-md">

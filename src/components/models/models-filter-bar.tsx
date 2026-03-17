@@ -74,9 +74,9 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-card p-4">
+      <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card p-4">
         {/* Search Input */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative w-full min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search models by name, provider, or description..."
@@ -128,7 +128,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
         </div>
 
         {/* Filters + View Toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -144,7 +144,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80 bg-background">
+            <SheetContent side="right" className="w-[min(20rem,85dvw)] max-w-[100dvw] bg-background">
               <SheetTitle className="sr-only">Filters</SheetTitle>
               <FilterSheetContent
                 currentProvider={currentProvider}
@@ -180,7 +180,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
       </div>
 
       {/* Results count + sort */}
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {isPending ? (
             <span className="animate-pulse">Loading...</span>
@@ -191,7 +191,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
             </>
           )}
         </p>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="group" aria-label="Sort options">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" role="group" aria-label="Sort options">
           <Badge
             variant="outline"
             className={cn(
@@ -222,7 +222,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
           >
             Include Non-Active
           </Badge>
-          Sort by:
+          <span className="text-xs text-muted-foreground/80">Sort by:</span>
           {SORT_OPTIONS.map((opt) => (
             <Badge
               key={opt.value} variant="outline"
