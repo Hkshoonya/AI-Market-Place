@@ -56,6 +56,8 @@ export function computeEconomicConfidenceMultiplier(inputs: {
   qualityScore?: number | null;
 }): number {
   let multiplier = getBaseEconomicConfidence(inputs.corroborationLevel);
+  const capabilityScore = inputs.capabilityScore ?? 0;
+  const qualityScore = inputs.qualityScore ?? 0;
   const directQualitySignalCount =
     (inputs.sourceCoverage?.benchmarkSourceCount ?? 0) +
     (inputs.sourceCoverage?.eloSourceCount ?? 0);
@@ -64,12 +66,24 @@ export function computeEconomicConfidenceMultiplier(inputs: {
     multiplier *= 0.78;
   }
 
-  if ((inputs.capabilityScore ?? 0) <= 0) {
+  if (capabilityScore <= 0) {
     multiplier *= 0.86;
+  } else if (capabilityScore < 20) {
+    multiplier *= 0.78;
+  } else if (capabilityScore < 35) {
+    multiplier *= 0.86;
+  } else if (capabilityScore < 50) {
+    multiplier *= 0.93;
   }
 
-  if ((inputs.qualityScore ?? 0) <= 0) {
+  if (qualityScore <= 0) {
     multiplier *= 0.92;
+  } else if (qualityScore < 20) {
+    multiplier *= 0.8;
+  } else if (qualityScore < 40) {
+    multiplier *= 0.88;
+  } else if (qualityScore < 55) {
+    multiplier *= 0.95;
   }
 
   if (inputs.pricingSourceCount === 0) {

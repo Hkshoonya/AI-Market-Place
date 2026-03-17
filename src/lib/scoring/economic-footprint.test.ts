@@ -123,4 +123,68 @@ describe("economic footprint scoring", () => {
     expect(strongConfidence).toBeGreaterThan(thinConfidence);
     expect(thinConfidence).toBeLessThan(0.6);
   });
+
+  it("penalizes economically prominent models when capability is weak", () => {
+    const weakExecution = computeEconomicFootprintScore({
+      adoptionScore: 80,
+      blendedPricePerMillion: 3,
+      pricingSourceCount: 2,
+      isApiAvailable: true,
+      releaseDate: "2024-05-01",
+      corroborationLevel: "multi_source",
+      sourceCoverage: {
+        totalDistinctSources: 4,
+        independentQualitySourceCount: 2,
+        sourceFamilyCount: 3,
+        benchmarkSourceCount: 1,
+        benchmarkCategoryCount: 1,
+        eloSourceCount: 1,
+        newsSourceCount: 0,
+        pricingSourceCount: 2,
+        corroborationLevel: "multi_source",
+        biasRisk: "medium",
+        sourceFamilies: ["benchmarks", "elo", "pricing"],
+        benchmarkSources: ["livebench"],
+        benchmarkCategories: ["general"],
+        eloSources: ["chatbot-arena"],
+        newsSources: [],
+        pricingSources: ["provider-site", "openrouter"],
+        hasCommunitySignals: true,
+      },
+      capabilityScore: 19,
+      qualityScore: 34,
+    });
+
+    const strongerExecution = computeEconomicFootprintScore({
+      adoptionScore: 80,
+      blendedPricePerMillion: 3,
+      pricingSourceCount: 2,
+      isApiAvailable: true,
+      releaseDate: "2024-05-01",
+      corroborationLevel: "multi_source",
+      sourceCoverage: {
+        totalDistinctSources: 4,
+        independentQualitySourceCount: 2,
+        sourceFamilyCount: 3,
+        benchmarkSourceCount: 1,
+        benchmarkCategoryCount: 1,
+        eloSourceCount: 1,
+        newsSourceCount: 0,
+        pricingSourceCount: 2,
+        corroborationLevel: "multi_source",
+        biasRisk: "medium",
+        sourceFamilies: ["benchmarks", "elo", "pricing"],
+        benchmarkSources: ["livebench"],
+        benchmarkCategories: ["general"],
+        eloSources: ["chatbot-arena"],
+        newsSources: [],
+        pricingSources: ["provider-site", "openrouter"],
+        hasCommunitySignals: true,
+      },
+      capabilityScore: 72,
+      qualityScore: 68,
+    });
+
+    expect(strongerExecution).toBeGreaterThan(weakExecution);
+  });
 });
