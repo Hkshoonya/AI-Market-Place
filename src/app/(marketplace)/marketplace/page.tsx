@@ -5,7 +5,7 @@ import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { parseQueryResult, parseQueryResultPartial } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
@@ -23,7 +23,7 @@ export const revalidate = 300;
 
 export default async function MarketplacePage() {
   const supabase = createPublicClient();
-  const admin = createAdminClient();
+  const policyClient = createOptionalAdminClient() ?? supabase;
 
   // Fetch type counts
   const listingTypeResponse = await supabase
@@ -45,7 +45,7 @@ export default async function MarketplacePage() {
     ListingTypeSchema,
     "MarketplaceListingType"
   );
-  const allListings = await attachListingPolicies(admin, listingTypeRows);
+  const allListings = await attachListingPolicies(policyClient, listingTypeRows);
 
   const counts: Record<string, number> = {};
   for (const l of allListings) {
@@ -58,7 +58,7 @@ export default async function MarketplacePage() {
     .eq("status", "active");
 
   const rawFeatured = parseQueryResult(featuredResponse, MarketplaceListingSchema, "MarketplaceFeatured");
-  const featuredWithPolicy = await attachListingPolicies(admin, rawFeatured);
+  const featuredWithPolicy = await attachListingPolicies(policyClient, rawFeatured);
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const featuredCandidates = await enrichListingsWithProfiles(
