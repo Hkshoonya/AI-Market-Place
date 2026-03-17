@@ -64,13 +64,64 @@ function canonicalize(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function toSentenceSummary(value: string, maxLength = 320): string {
+  if (value.length <= maxLength) return value;
+
+  const sentences = value.match(/[^.!?]+[.!?]+/g) ?? [];
+  let combined = "";
+
+  for (const sentence of sentences) {
+    const next = `${combined} ${sentence}`.trim();
+    if (next.length > maxLength) break;
+    combined = next;
+    if (combined.length >= Math.min(220, maxLength)) break;
+  }
+
+  if (combined) return combined.trim();
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
 function cleanText(value: string | null | undefined): string | null {
   if (!value) return null;
-  const stripped = value
+  let stripped = value
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, " ")
     .replace(/<[^>]+>/g, " ")
+    .replace(/[`*_>#]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return stripped.length > 0 ? stripped : null;
+
+  const cutoffPatterns = [
+    /\bFor more information, please see\b/i,
+    /\bTo read more about the model release\b/i,
+    /\bUsage of this model is subject to\b/i,
+    /\bClick here for more information\b/i,
+  ];
+
+  for (const pattern of cutoffPatterns) {
+    const match = stripped.match(pattern);
+    if (match?.index != null) {
+      stripped = stripped.slice(0, match.index).trim();
+    }
+  }
+
+  if (stripped.length === 0) return null;
+  return toSentenceSummary(stripped);
+}
+
+function isSuspiciousDescriptionText(
+  rawValue: string | null | undefined,
+  cleanedValue: string | null
+): boolean {
+  if (!cleanedValue) return true;
+  if (cleanedValue.length < 55) return true;
+
+  const raw = rawValue ?? "";
+  if (/TensorFlow-based neural network library/i.test(cleanedValue)) return true;
+  if (/Tensors and Dynamic neural networks in Python/i.test(cleanedValue)) return true;
+  if (/^this model is a placeholder$/i.test(raw.trim())) return true;
+
+  return false;
 }
 
 function getProviderCatalog(provider: string): KnownCatalog | null {
@@ -106,6 +157,7 @@ function findKnownModelMeta(model: PresentableModel): KnownModelMeta | null {
 
 function buildSyntheticDescription(model: PresentableModel): string {
   const category = model.category ? model.category.replace(/_/g, " ") : "AI";
+  const modelType = model.is_open_weights ? "open-weight" : "proprietary";
   const contextWindow =
     model.context_window && model.context_window > 0
       ? ` with a ${model.context_window.toLocaleString()} token context window`
@@ -120,7 +172,7 @@ function buildSyntheticDescription(model: PresentableModel): string {
       ? ` focused on ${capabilityKeys.join(", ")}`
       : "";
 
-  return `${model.name} is a ${model.provider} ${category} model${contextWindow}${capabilityText}.`;
+  return `${model.name} is a ${modelType} ${model.provider} ${category} model${contextWindow}${capabilityText}.`;
 }
 
 function inferParameterCountFromText(value: string): number | null {
@@ -164,15 +216,53 @@ function inferUseCases(model: PresentableModel): string[] {
 }
 
 export function getModelDisplayDescription(model: PresentableModel): ModelDisplayDescription {
-  const catalogText = cleanText(model.description) ?? cleanText(model.short_description);
-  if (catalogText) {
-    return { text: catalogText, source: "catalog" };
+  const cleanedDescription = cleanText(model.description);
+  const cleanedShortDescription = cleanText(model.short_description);
+  const descriptionIsSuspicious = isSuspiciousDescriptionText(
+    model.description,
+    cleanedDescription
+  );
+  const shortDescriptionIsSuspicious = isSuspiciousDescriptionText(
+    model.short_description,
+    cleanedShortDescription
+  );
+
+  if (cleanedDescription && !descriptionIsSuspicious) {
+    return { text: cleanedDescription, source: "catalog" };
+  }
+
+  if (cleanedShortDescription && !shortDescriptionIsSuspicious) {
+    return { text: cleanedShortDescription, source: "catalog" };
   }
 
   const knownMeta = findKnownModelMeta(model);
   const officialText = cleanText(knownMeta?.description);
+  if (officialText && !isSuspiciousDescriptionText(knownMeta?.description, officialText)) {
+    return { text: officialText, source: "official_catalog" };
+  }
+
+  if (cleanedDescription && !descriptionIsSuspicious && cleanedDescription.length >= 80) {
+    return { text: cleanedDescription, source: "catalog" };
+  }
+
+  if (
+    cleanedShortDescription &&
+    !shortDescriptionIsSuspicious &&
+    cleanedShortDescription.length >= 55
+  ) {
+    return { text: cleanedShortDescription, source: "catalog" };
+  }
+
   if (officialText) {
     return { text: officialText, source: "official_catalog" };
+  }
+
+  if (cleanedDescription && !descriptionIsSuspicious) {
+    return { text: cleanedDescription, source: "catalog" };
+  }
+
+  if (cleanedShortDescription && !shortDescriptionIsSuspicious) {
+    return { text: cleanedShortDescription, source: "catalog" };
   }
 
   return { text: buildSyntheticDescription(model), source: "synthetic" };

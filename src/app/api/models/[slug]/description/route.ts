@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-error";
-import { buildFallbackOverview } from "@/lib/models/presentation";
+import { buildFallbackOverview, getModelDisplayDescription } from "@/lib/models/presentation";
 
 export const revalidate = 300;
 
@@ -38,9 +38,18 @@ export async function GET(
       return NextResponse.json(fallbackOverview);
     }
 
+    const preferredSummary = getModelDisplayDescription({
+      ...modelRaw,
+      description:
+        typeof description.summary === "string" && description.summary.trim().length > 0
+          ? description.summary
+          : modelRaw.description,
+    }).text;
+
     return NextResponse.json({
       ...fallbackOverview,
       ...description,
+      summary: preferredSummary ?? fallbackOverview.summary,
       highlights: fallbackOverview.highlights,
       evidence_badges: [
         "Generated Overview",

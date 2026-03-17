@@ -91,4 +91,59 @@ describe("GET /api/models/[slug]/description", () => {
       })
     );
   });
+
+  it("does not let a bad saved summary override a cleaner fallback summary", async () => {
+    const fromMock = vi.fn((table: string) => {
+      if (table === "models") {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: "model-2",
+              slug: "google-deepmind-sonnet",
+              name: "sonnet",
+              provider: "Google",
+              category: "specialized",
+              description: "TensorFlow-based neural network library",
+              short_description: null,
+              is_open_weights: false,
+              context_window: null,
+              capabilities: { reasoning: true },
+            },
+          }),
+        };
+      }
+
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({
+          data: {
+            model_id: "model-2",
+            summary: "TensorFlow-based neural network library",
+            pros: [],
+            cons: [],
+            best_for: [],
+            not_ideal_for: [],
+            comparison_notes: null,
+            generated_by: "catalog_fallback",
+            upvotes: 0,
+            downvotes: 0,
+          },
+        }),
+      };
+    });
+
+    mockCreateClient.mockResolvedValue({ from: fromMock } as never);
+
+    const response = await GET(new Request("http://localhost/api/models/test/description") as never, {
+      params: Promise.resolve({ slug: "test-model" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.summary).toMatch(/Google specialized model/i);
+    expect(body.summary).not.toMatch(/TensorFlow-based neural network library/i);
+  });
 });

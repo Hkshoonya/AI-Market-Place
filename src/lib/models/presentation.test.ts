@@ -74,4 +74,39 @@ describe("model presentation helpers", () => {
     expect(result.best_for.length).toBeGreaterThan(0);
     expect(result.generated_by).toBe("catalog_fallback");
   });
+
+  it("cleans markdown-heavy catalog descriptions into readable summaries", () => {
+    const result = getModelDisplayDescription({
+      slug: "microsoft-phi-4",
+      name: "Phi 4",
+      provider: "Microsoft",
+      category: "llm",
+      description:
+        "[Microsoft Research](/microsoft) Phi-4 is designed to perform well in complex reasoning tasks. For more information, please see [Phi-4 Technical Report](https://example.com/report).",
+      short_description: null,
+      is_open_weights: false,
+    });
+
+    expect(result.source).toBe("catalog");
+    expect(result.text).toBe(
+      "Microsoft Research Phi-4 is designed to perform well in complex reasoning tasks."
+    );
+  });
+
+  it("falls back to a generated description when the catalog text is clearly wrong", () => {
+    const result = getModelDisplayDescription({
+      slug: "google-deepmind-sonnet",
+      name: "sonnet",
+      provider: "Google",
+      category: "specialized",
+      description: "TensorFlow-based neural network library",
+      short_description: null,
+      is_open_weights: false,
+      context_window: null,
+      capabilities: { reasoning: true },
+    });
+
+    expect(result.source).toBe("synthetic");
+    expect(result.text).toMatch(/Google specialized model/i);
+  });
 });
