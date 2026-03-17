@@ -22,7 +22,7 @@ export interface SearchResult {
   capability_score?: number | null;
   is_open_weights?: boolean;
   parameter_count?: number | null;
-  short_description?: string | null;
+  display_description?: string | null;
   compact_price?: number | null;
   compact_price_label?: string;
   market_cap_estimate?: number | null;
@@ -108,6 +108,11 @@ export function SearchDialogResults({
                     {r.compact_price != null &&
                       ` \u00b7 ${r.compact_price === 0 ? "Free" : `${formatTokenPrice(r.compact_price)}/M`}`}
                   </p>
+                  {r.display_description ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {r.display_description}
+                    </p>
+                  ) : null}
                   {r.recent_signal ? (
                     <div className="mt-1">
                       <ModelSignalBadge signal={r.recent_signal} />

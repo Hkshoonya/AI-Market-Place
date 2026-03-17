@@ -88,6 +88,7 @@ describe('SearchDialog', () => {
         category: 'llm',
         overall_rank: 1,
         quality_score: 92.5,
+        display_description: 'A multimodal reasoning model for chat, coding, and analysis.',
       },
     ];
 
@@ -117,6 +118,9 @@ describe('SearchDialog', () => {
 
     // Check provider text is rendered
     expect(screen.getByText(/OpenAI/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/multimodal reasoning model for chat, coding, and analysis/i)
+    ).toBeInTheDocument();
   });
 
   it('displays marketplace results alongside model results when API returns both', async () => {

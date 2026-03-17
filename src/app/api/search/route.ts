@@ -8,6 +8,7 @@ import { handleApiError } from "@/lib/api-error";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +154,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...model,
+        display_description: getModelDisplayDescription(model).text,
         compact_price: pricingSummary.compactPrice,
         compact_price_label: pricingSummary.compactLabel,
         recent_signal: modelSignals.get(model.id) ?? null,

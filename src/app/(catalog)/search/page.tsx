@@ -20,6 +20,7 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
 import {
   getListingCommerceSignals,
   getListingPillClasses,
@@ -67,6 +68,7 @@ export default async function SearchPage({
     is_open_weights: boolean | null;
     parameter_count: number | null;
     short_description: string | null;
+    description?: string | null;
     market_cap_estimate?: number | null;
     model_pricing?: Array<{
       provider_name?: string | null;
@@ -317,6 +319,7 @@ export default async function SearchPage({
                   (() => {
                     const capabilityValue = getCapabilityMetricValue(model);
                     const pricingSummary = getPublicPricingSummary(model);
+                    const displayDescription = getModelDisplayDescription(model).text;
 
                     return (
                       <Link
@@ -337,11 +340,11 @@ export default async function SearchPage({
                               </Badge>
                             )}
                           </div>
-                          {model.short_description && (
+                          {displayDescription ? (
                             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                              {model.short_description}
+                              {displayDescription}
                             </p>
-                          )}
+                          ) : null}
                           {model.recent_signal ? (
                             <div className="mt-2">
                               <ModelSignalBadge signal={model.recent_signal} />
