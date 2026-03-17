@@ -101,13 +101,27 @@ export function inferOpenWeightsFromHfModel(hfId: string, tags: string[] = []): 
   const normalizedTags = tags.map((tag) => tag.toLowerCase());
 
   if (normalizedTags.includes("open_access")) return true;
+  if (normalizedTags.includes("license:gemma")) return true;
   if (normalizedTags.some((tag) => tag.includes("gguf"))) return true;
+  if (normalizedTags.some((tag) => tag === "sam3" || tag.startsWith("ltx-") || tag === "ltx-video" || tag === "ltxv")) {
+    return true;
+  }
+  if (normalizedTags.some((tag) => tag === "personaplex" || tag.startsWith("magpie"))) {
+    return true;
+  }
   if (normalizedId.includes("gguf")) return true;
 
   return (
     normalizedId.startsWith("google/gemma") ||
+    normalizedId.startsWith("google/embeddinggemma") ||
     normalizedId.startsWith("google/translategemma") ||
+    normalizedId.startsWith("facebook/sam3") ||
+    normalizedId.startsWith("lightricks/ltx") ||
+    normalizedId.startsWith("black-forest-labs/flux.1-dev") ||
+    normalizedId.startsWith("black-forest-labs/flux.2-klein") ||
     normalizedId.startsWith("nvidia/nvidia-nemotron") ||
+    normalizedId.startsWith("nvidia/personaplex") ||
+    normalizedId.startsWith("nvidia/magpie") ||
     normalizedId.startsWith("liquidai/lfm") ||
     normalizedId.startsWith("unsloth/") ||
     normalizedId.startsWith("aessedai/") ||
