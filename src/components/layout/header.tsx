@@ -44,17 +44,17 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5" aria-label="AI Market Cap - Home">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neon/10">
+        <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-2.5" aria-label="AI Market Cap - Home">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neon/10">
             <Activity className="h-5 w-5 text-neon" aria-hidden="true" />
           </div>
-          <span className="text-lg font-bold tracking-tight">
+          <span className="truncate text-base font-bold tracking-tight sm:text-lg">
             AI Market <span className="text-neon">Cap</span>
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -90,32 +90,32 @@ export function Header() {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-2">
+        <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
 
           {/* Wallet Badge */}
-          <div className="hidden md:flex">
+          <div className="hidden xl:flex">
             <WalletBadge />
           </div>
 
           {/* Notification Bell */}
-          <div className="hidden md:flex">
+          <div className="hidden xl:flex">
             <NotificationBell />
           </div>
 
           {/* Auth Button */}
-          <div className="hidden md:flex">
+          <div className="hidden xl:flex">
             <AuthButton />
           </div>
 
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" aria-label="Open navigation menu">
+              <Button variant="ghost" size="icon" className="h-9 w-9 xl:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 bg-background">
+            <SheetContent side="right" className="w-[min(20rem,100vw)] bg-background">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <nav className="mt-8 flex flex-col gap-2" aria-label="Mobile navigation">
                 {NAV_ITEMS.map((item) => {

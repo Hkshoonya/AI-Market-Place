@@ -285,7 +285,7 @@ export default async function HomePage() {
           </Button>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-xl border border-border/50">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-border/50">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/30">
