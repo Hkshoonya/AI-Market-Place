@@ -34,4 +34,16 @@ describe("marketplace presentation helpers", () => {
     expect(result.manifest.label).toBe("Lightweight Preview");
     expect(result.seller.label).toBe("Human Seller");
   });
+
+  it("uses neutral labels when policy metadata is missing", () => {
+    const result = getListingCommerceSignals({
+      preview_manifest: null,
+      mcp_manifest: null,
+      agent_config: null,
+      agent_id: null,
+    });
+
+    expect(result.purchase.label).toBe("Availability Unverified");
+    expect(result.autonomy.label).toBe("Autonomy Unverified");
+  });
 });

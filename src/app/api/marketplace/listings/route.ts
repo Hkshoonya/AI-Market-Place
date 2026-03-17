@@ -15,6 +15,7 @@ import {
   sortMarketplaceListings,
 } from "@/lib/marketplace/discovery";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
+import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
@@ -146,7 +147,6 @@ export async function GET(request: NextRequest) {
   if (search) query = query.textSearch("fts", search);
   if (minPrice) query = query.gte("price", parseFloat(minPrice));
   if (maxPrice) query = query.lte("price", parseFloat(maxPrice));
-  if (autonomy === "ready") query = query.eq("autonomy_mode", "autonomous_allowed");
   if (sellerId) query = query.eq("seller_id", sellerId);
   if (sellerMode === "agent") query = query.not("agent_id", "is", null);
   if (sellerMode === "human") query = query.is("agent_id", null);
@@ -169,7 +169,8 @@ export async function GET(request: NextRequest) {
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   // enrichListingsWithProfiles accepts AnyClient internally
-  const enriched = await enrichListingsWithProfiles(supabase, data || []);
+  const listingsWithPolicy = await attachListingPolicies(supabase, data || []);
+  const enriched = await enrichListingsWithProfiles(supabase, listingsWithPolicy);
   const filtered = filterMarketplaceListings(
     enriched as import("@/types/database").MarketplaceListingWithSeller[],
     {

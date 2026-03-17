@@ -26,6 +26,7 @@ import {
   getListingCommerceSignals,
   getListingPillClasses,
 } from "@/lib/marketplace/presentation";
+import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 
 export const revalidate = 0;
 
@@ -202,7 +203,7 @@ export default async function SearchPage({
       const mkQuery = supabase
         .from("marketplace_listings")
         .select(
-          "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count, purchase_mode, autonomy_mode, preview_manifest, mcp_manifest, agent_config, agent_id",
+          "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count, preview_manifest, mcp_manifest, agent_config, agent_id",
           { count: "exact" }
         )
         .eq("status", "active")
@@ -213,7 +214,7 @@ export default async function SearchPage({
         .range(offset, offset + PAGE_SIZE - 1);
 
       const { data, count } = await mkQuery;
-      marketplace = data ?? [];
+      marketplace = await attachListingPolicies(supabase, data ?? []);
       marketplaceCount = count ?? 0;
     }
 

@@ -19,6 +19,7 @@ import { ManifestPreviewCard } from "@/components/marketplace/manifest-preview-c
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
+import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import {
   getListingCommerceSignals,
   getListingPillClasses,
@@ -76,11 +77,13 @@ export default async function ListingDetailPage(props: {
 
   const rawListing = parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "ListingDetail");
   if (!rawListing) notFound();
+  const [listingWithPolicy] = await attachListingPolicies(supabase, [rawListing]);
+  if (!listingWithPolicy) notFound();
 
   // Enrich with seller profile (no FK exists, so fetch separately)
   const listing = await enrichListingWithProfile(
     supabase,
-    rawListing,
+    listingWithPolicy,
     PROFILE_FIELDS_FULL
   );
   const previewManifest = buildListingPreviewManifest({

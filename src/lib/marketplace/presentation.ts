@@ -40,6 +40,12 @@ function getPurchaseSignal(
   purchaseMode: MarketplacePurchaseMode | string | null | undefined
 ): ListingStatusPill {
   switch (purchaseMode) {
+    case "public_purchase_allowed":
+      return {
+        label: "Public Purchase",
+        tone: "emerald",
+        description: "Eligible buyers can place orders without extra review gates.",
+      };
     case "purchase_blocked":
       return {
         label: "Purchase Blocked",
@@ -54,9 +60,9 @@ function getPurchaseSignal(
       };
     default:
       return {
-        label: "Public Purchase",
-        tone: "emerald",
-        description: "Eligible buyers can place orders without extra review gates.",
+        label: "Availability Unverified",
+        tone: "blue",
+        description: "Public purchase availability has not been verified from the latest marketplace policy review yet.",
       };
   }
 }
@@ -65,6 +71,12 @@ function getAutonomySignal(
   autonomyMode: MarketplaceAutonomyMode | string | null | undefined
 ): ListingStatusPill {
   switch (autonomyMode) {
+    case "autonomous_allowed":
+      return {
+        label: "Autonomous Ready",
+        tone: "emerald",
+        description: "This listing exposes enough machine-readable structure for autonomous buyers.",
+      };
     case "autonomous_blocked":
       return {
         label: "Human Only",
@@ -85,9 +97,9 @@ function getAutonomySignal(
       };
     default:
       return {
-        label: "Autonomous Ready",
-        tone: "emerald",
-        description: "This listing exposes enough machine-readable structure for autonomous buyers.",
+        label: "Autonomy Unverified",
+        tone: "blue",
+        description: "Autonomous readiness has not been confirmed from the latest marketplace policy review yet.",
       };
   }
 }

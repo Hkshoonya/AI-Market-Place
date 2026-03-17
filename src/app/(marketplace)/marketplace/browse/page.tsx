@@ -14,6 +14,7 @@ import {
   paginateMarketplaceListings,
   sortMarketplaceListings,
 } from "@/lib/marketplace/discovery";
+import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +81,6 @@ export default async function BrowsePage(props: {
 
   if (type) query = query.eq("listing_type", type as import("@/types/database").ListingType);
   if (search) query = query.textSearch("fts", search);
-  if (autonomy === "ready") query = query.eq("autonomy_mode", "autonomous_allowed");
   if (seller) query = query.eq("seller_id", seller);
   if (sellerMode === "agent") query = query.not("agent_id", "is", null);
   if (sellerMode === "human") query = query.is("agent_id", null);
@@ -92,7 +92,8 @@ export default async function BrowsePage(props: {
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const rawData = parseQueryResult(browseResponse, MarketplaceListingSchema, "MarketplaceBrowse");
-  const enriched = await enrichListingsWithProfiles(supabase, rawData);
+  const listingsWithPolicy = await attachListingPolicies(supabase, rawData);
+  const enriched = await enrichListingsWithProfiles(supabase, listingsWithPolicy);
   const filtered = filterMarketplaceListings(
     enriched as import("@/types/database").MarketplaceListingWithSeller[],
     {

@@ -5,11 +5,12 @@ import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
-import { parseQueryResult } from "@/lib/schemas/parse";
+import { parseQueryResult, parseQueryResultPartial } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
 import { sortMarketplaceListings } from "@/lib/marketplace/discovery";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
+import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,19 +26,24 @@ export default async function MarketplacePage() {
   // Fetch type counts
   const listingTypeResponse = await supabase
     .from("marketplace_listings")
-    .select("listing_type, autonomy_mode, preview_manifest, mcp_manifest, agent_config, agent_id, updated_at")
+    .select("id, listing_type, preview_manifest, mcp_manifest, agent_config, agent_id, updated_at")
     .eq("status", "active");
 
   const ListingTypeSchema = z.object({
+    id: z.string(),
     listing_type: z.string(),
-    autonomy_mode: z.string().nullable().optional(),
     preview_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
     mcp_manifest: z.record(z.string(), z.unknown()).nullable().optional(),
     agent_config: z.record(z.string(), z.unknown()).nullable().optional(),
     agent_id: z.string().nullable().optional(),
     updated_at: z.string(),
   });
-  const allListings = parseQueryResult(listingTypeResponse, ListingTypeSchema, "MarketplaceListingType");
+  const listingTypeRows = parseQueryResultPartial(
+    listingTypeResponse,
+    ListingTypeSchema,
+    "MarketplaceListingType"
+  );
+  const allListings = await attachListingPolicies(supabase, listingTypeRows);
 
   const counts: Record<string, number> = {};
   for (const l of allListings) {
@@ -50,11 +56,12 @@ export default async function MarketplacePage() {
     .eq("status", "active");
 
   const rawFeatured = parseQueryResult(featuredResponse, MarketplaceListingSchema, "MarketplaceFeatured");
+  const featuredWithPolicy = await attachListingPolicies(supabase, rawFeatured);
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const featuredCandidates = await enrichListingsWithProfiles(
     supabase,
-    rawFeatured,
+    featuredWithPolicy,
     PROFILE_FIELDS_CARD
   );
   const featured = sortMarketplaceListings(
