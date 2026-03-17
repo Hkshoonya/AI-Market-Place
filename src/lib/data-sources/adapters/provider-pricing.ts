@@ -11,6 +11,9 @@
  *   - Google:    ai.google.dev/gemini-api/docs/pricing
  *   - DeepSeek:  api-docs.deepseek.com/quick_start/pricing
  *   - xAI:       docs.x.ai/developers/models
+ *   - Cohere:    cohere.com/pricing
+ *   - AI21:      docs.ai21.com/docs/inference-models
+ *   - MiniMax:   platform.minimax.io/pricing
  *   - Mistral:   mistral.ai/pricing
  */
 
@@ -96,8 +99,23 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "deepseek-reasoner": { provider: "DeepSeek", inputPricePerMillion: 0.28, outputPricePerMillion: 0.42, source: "api-docs.deepseek.com/quick_start/pricing", lastUpdated: "2026-03-01" },
 
   // ─── xAI — Grok ───────────────────────────────────────────────
+  "grok-4": { provider: "xAI", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-17" },
   "grok-3": { provider: "xAI", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-01" },
   "grok-3-mini": { provider: "xAI", inputPricePerMillion: 0.30, outputPricePerMillion: 0.50, source: "docs.x.ai/developers/models", lastUpdated: "2026-03-01" },
+
+  // ─── Cohere — Command family ──────────────────────────────────
+  "command-r": { provider: "Cohere", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "cohere.com/pricing", lastUpdated: "2026-03-17" },
+  "command-r-plus": { provider: "Cohere", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "cohere.com/pricing", lastUpdated: "2026-03-17" },
+  "command-a": { provider: "Cohere", inputPricePerMillion: 2.50, outputPricePerMillion: 10.00, source: "cohere.com/pricing", lastUpdated: "2026-03-17" },
+
+  // ─── AI21 — Jamba family ──────────────────────────────────────
+  "jamba-large": { provider: "AI21", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "docs.ai21.com/docs/inference-models", lastUpdated: "2026-03-17" },
+  "jamba-mini": { provider: "AI21", inputPricePerMillion: 0.20, outputPricePerMillion: 0.40, source: "docs.ai21.com/docs/inference-models", lastUpdated: "2026-03-17" },
+  "jamba-1-5-large": { provider: "AI21", inputPricePerMillion: 2.00, outputPricePerMillion: 8.00, source: "docs.ai21.com/docs/inference-models", lastUpdated: "2026-03-17" },
+  "jamba-1-5-mini": { provider: "AI21", inputPricePerMillion: 0.20, outputPricePerMillion: 0.40, source: "docs.ai21.com/docs/inference-models", lastUpdated: "2026-03-17" },
+
+  // ─── MiniMax — M2.5 family ────────────────────────────────────
+  "minimax-m2-5": { provider: "MiniMax", inputPricePerMillion: 0.30, outputPricePerMillion: 1.20, source: "platform.minimax.io/pricing", lastUpdated: "2026-03-17" },
 
   // ─── Meta (open weights, listed at zero for self-hosted) ──────
   "llama-4-maverick": { provider: "Meta", inputPricePerMillion: 0, outputPricePerMillion: 0, source: "open-weights", lastUpdated: "2026-03-01" },
