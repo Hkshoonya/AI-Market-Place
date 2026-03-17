@@ -71,6 +71,36 @@ function normalizeSource(source: string | null | undefined): string {
   return source?.trim().toLowerCase() ?? "unknown";
 }
 
+function normalizeText(value: string | null | undefined): string | null {
+  const normalized = value
+    ?.toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+  return normalized ? normalized.slice(0, 80) : null;
+}
+
+function getPublishedDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function getEventSignature(candidate: NewsEvidenceCandidate): string {
+  const signalType = getNewsSignalType(candidate);
+  const provider = normalizeText(candidate.related_provider) ?? "unknown-provider";
+  const normalizedTitle =
+    normalizeText(candidate.title) ??
+    normalizeText(typeof candidate.metadata?.headline === "string" ? candidate.metadata.headline : null) ??
+    normalizeText(typeof candidate.url === "string" ? candidate.url : null) ??
+    "untitled";
+  const day = getPublishedDay(candidate.published_at) ?? "unknown-day";
+
+  return `${signalType}|${provider}|${day}|${normalizedTitle}`;
+}
+
 function round(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -102,19 +132,22 @@ export function getNewsSignalTrustBonus(candidate: NewsPresentationItem): number
 export function buildModelNewsEvidenceMap(
   items: NewsEvidenceCandidate[]
 ): Map<string, number> {
-  const evidenceByModel = new Map<string, Map<string, number>>();
+  const evidenceByModel = new Map<string, Map<string, Map<string, number>>>();
 
   for (const item of items) {
     const rawModelIds = Array.isArray(item.related_model_ids) ? item.related_model_ids : [];
     if (rawModelIds.length === 0) continue;
 
     const source = normalizeSource(item.source);
+    const eventSignature = getEventSignature(item);
     const weight = getNewsEvidenceWeight(item);
     if (weight <= 0) continue;
 
     for (const modelId of new Set(rawModelIds)) {
-      const bySource = evidenceByModel.get(modelId) ?? new Map<string, number>();
-      bySource.set(source, (bySource.get(source) ?? 0) + weight);
+      const bySource = evidenceByModel.get(modelId) ?? new Map<string, Map<string, number>>();
+      const byEvent = bySource.get(source) ?? new Map<string, number>();
+      byEvent.set(eventSignature, Math.max(byEvent.get(eventSignature) ?? 0, weight));
+      bySource.set(source, byEvent);
       evidenceByModel.set(modelId, bySource);
     }
   }
@@ -122,7 +155,8 @@ export function buildModelNewsEvidenceMap(
   const totals = new Map<string, number>();
   for (const [modelId, bySource] of evidenceByModel) {
     let total = 0;
-    for (const [source, sourceTotal] of bySource) {
+    for (const [source, byEvent] of bySource) {
+      const sourceTotal = [...byEvent.values()].reduce((sum, value) => sum + value, 0);
       total += Math.min(sourceTotal, getNewsEvidenceCap(source));
     }
     totals.set(modelId, round(total));

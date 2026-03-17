@@ -155,7 +155,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     () =>
       supabase
         .from("model_news")
-        .select("related_model_ids, source, category, metadata")
+        .select("title, related_provider, related_model_ids, source, category, published_at, metadata")
         .gte("published_at", thirtyDaysAgo)
         .not("related_model_ids", "is", null),
     "model_news"

@@ -83,6 +83,67 @@ describe("buildModelNewsEvidenceMap", () => {
       })
     );
   });
+
+  it("does not stack near-duplicate X posts about the same event", () => {
+    const evidence = buildModelNewsEvidenceMap([
+      {
+        id: "tweet-1",
+        title: "OpenAI launches GPT-Next today",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: ["m1"],
+        published_at: "2026-03-17T10:00:00Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+      {
+        id: "tweet-2",
+        title: "OpenAI launches GPT Next today!!!",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: ["m1"],
+        published_at: "2026-03-17T10:30:00Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+    ]);
+
+    expect(evidence.get("m1")).toBeCloseTo(
+      getNewsEvidenceWeight({
+        source: "x-twitter",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      })
+    );
+  });
+
+  it("still counts distinct events from the same source separately up to the source cap", () => {
+    const evidence = buildModelNewsEvidenceMap([
+      {
+        id: "tweet-1",
+        title: "OpenAI launches GPT-Next today",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: ["m1"],
+        published_at: "2026-03-17T10:00:00Z",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      },
+      {
+        id: "tweet-2",
+        title: "OpenAI cuts GPT-Next pricing",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: ["m1"],
+        published_at: "2026-03-17T14:00:00Z",
+        metadata: { signal_type: "pricing", signal_importance: "high" },
+      },
+    ]);
+
+    expect(evidence.get("m1")).toBeGreaterThan(
+      getNewsEvidenceWeight({
+        source: "x-twitter",
+        metadata: { signal_type: "launch", signal_importance: "high" },
+      })
+    );
+    expect(evidence.get("m1")).toBeLessThanOrEqual(getNewsEvidenceCap("x-twitter"));
+  });
 });
 
 describe("getNewsSignalTrustBonus", () => {
