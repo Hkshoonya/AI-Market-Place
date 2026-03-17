@@ -40,10 +40,6 @@ import { collapseArenaRatings } from "@/lib/models/arena-family";
 import { getModelDisplayDescription, getParameterDisplay } from "@/lib/models/presentation";
 import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
-import { pickBestModelSignals } from "@/lib/news/model-signals";
-import { buildLaunchRadar, summarizeNewsSignals } from "@/lib/news/presentation";
-import { SignalSummary } from "@/components/news/signal-summary";
-import { LaunchRadar } from "@/components/news/launch-radar";
 
 export const revalidate = 60;
 
@@ -131,11 +127,6 @@ export default async function ModelDetailPage({
   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
   const displayDescription = getModelDisplayDescription(model);
   const lifecycleBadge = getLifecycleBadge(model.status);
-  const recentSignal =
-    pickBestModelSignals([{ id: model.id, provider: model.provider }], modelNews).get(model.id) ??
-    null;
-  const signalSummary = summarizeNewsSignals(modelNews);
-  const launchRadar = buildLaunchRadar(modelNews, 3);
   const parameterDisplay = getParameterDisplay(model);
   const benchmarkScores = model.benchmark_scores ?? [];
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
@@ -220,7 +211,7 @@ export default async function ModelDetailPage({
         slug={model.slug}
         id={model.id}
         catConfig={catConfig}
-        recentSignal={recentSignal}
+        hasNews={modelNews.length > 0}
       />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
@@ -236,20 +227,6 @@ export default async function ModelDetailPage({
 
       {/* Quick Stats Row */}
       <ModelStatsRow stats={stats} />
-
-      {modelNews.length > 0 ? (
-        <div className="mt-6 space-y-4">
-          <SignalSummary
-            buckets={signalSummary}
-            emptyLabel="No structured news signals are linked to this model yet."
-          />
-          <LaunchRadar
-            items={launchRadar}
-            title="Recent Model Signals"
-            description="The strongest recent launch, pricing, benchmark, API, and research updates linked to this model or its provider."
-          />
-        </div>
-      ) : null}
 
       {/* Model Overview (AI-generated pros/cons) */}
       <div className="mt-8">
@@ -309,7 +286,7 @@ export default async function ModelDetailPage({
           <TrendsTab snapshots={snapshots} />
         </TabsContent>
 
-        <TabsContent value="news" className="mt-6">
+        <TabsContent value="news" className="mt-6" id="model-news-tab">
           <NewsTab modelNews={modelNews} />
         </TabsContent>
 

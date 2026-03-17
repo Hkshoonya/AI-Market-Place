@@ -1,12 +1,11 @@
-import { ExternalLink, Globe } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Globe, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ModelActions } from "@/components/models/model-actions";
 import { ShareModel } from "@/components/models/share-model";
-import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { CategoryConfig } from "@/lib/constants/categories";
-import type { ModelSignalSummary } from "@/lib/news/model-signals";
 
 export interface ModelHeaderProps {
   name: string;
@@ -18,7 +17,7 @@ export interface ModelHeaderProps {
   slug: string;
   id: string;
   catConfig: CategoryConfig | undefined;
-  recentSignal?: ModelSignalSummary | null;
+  hasNews?: boolean;
 }
 
 export function ModelHeader({
@@ -31,7 +30,7 @@ export function ModelHeader({
   slug,
   id,
   catConfig,
-  recentSignal,
+  hasNews,
 }: ModelHeaderProps) {
   return (
     <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
@@ -68,11 +67,6 @@ export function ModelHeader({
             <ProviderLogo provider={provider} size="md" />
             <p className="text-lg text-muted-foreground">{provider}</p>
           </div>
-          {recentSignal ? (
-            <div className="mt-3">
-              <ModelSignalBadge signal={recentSignal} />
-            </div>
-          ) : null}
           {description && (
             <p className="mt-4 max-w-3xl text-sm text-muted-foreground leading-relaxed">
               {description}
@@ -91,6 +85,14 @@ export function ModelHeader({
               </a>
             </Button>
           )}
+          {hasNews ? (
+            <Button variant="outline" size="sm" className="gap-2" asChild>
+              <Link href="#model-news-tab">
+                <Newspaper className="h-4 w-4" />
+                View Updates
+              </Link>
+            </Button>
+          ) : null}
           <ModelActions modelSlug={slug} modelName={name} modelId={id} />
           <ShareModel modelSlug={slug} modelName={name} provider={provider} />
         </div>
