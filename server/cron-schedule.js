@@ -23,6 +23,11 @@ const CRON_JOBS = [
     path: "/api/cron/compute-scores",
   },
   {
+    name: "Social Signal Publisher",
+    cron: "55 */2 * * *",
+    path: "/api/cron/social/publish-signals",
+  },
+  {
     name: "Pipeline Agent",
     cron: "30 */2 * * *",
     path: "/api/cron/agents/pipeline",

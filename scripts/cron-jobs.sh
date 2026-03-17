@@ -19,6 +19,7 @@
 #   0 10 * * 1    /opt/aimc/scripts/cron-jobs.sh ux-monitor
 #   15 */4 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
 #   45 */2 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
+#   55 */2 * * *  /opt/aimc/scripts/cron-jobs.sh social-publish
 
 set -euo pipefail
 
@@ -70,8 +71,9 @@ case "${1:-}" in
   ux-monitor)     call_cron "/api/cron/agents/ux-monitor"    "UX Monitor" ;;
   verifier)       call_cron "/api/cron/agents/verifier"      "Verifier Agent" ;;
   compute-scores) call_cron "/api/cron/compute-scores"       "Compute Scores" ;;
+  social-publish) call_cron "/api/cron/social/publish-signals" "Social Signal Publisher" ;;
   *)
-    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores}"
+    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores|social-publish}"
     echo "       $0 sync-source <source-slug>"
     exit 1
     ;;
