@@ -116,6 +116,32 @@ describe("computeCapabilityScore", () => {
     expect(result!).toBeGreaterThan(0);
   });
 
+  it("penalizes sparse benchmark-only capability more than broader benchmark coverage", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+
+    const sparse = computeCapabilityScore({
+      benchmarkScores: [{ slug: "mmlu", score: 88 }],
+      eloScore: null,
+      releaseDate: "2025-12-01",
+      category: "llm",
+    });
+    const broader = computeCapabilityScore({
+      benchmarkScores: [
+        { slug: "mmlu", score: 88 },
+        { slug: "gpqa", score: 84 },
+        { slug: "math", score: 82 },
+      ],
+      eloScore: null,
+      releaseDate: "2025-12-01",
+      category: "llm",
+    });
+
+    expect(sparse).not.toBeNull();
+    expect(broader).not.toBeNull();
+    expect(broader!).toBeGreaterThan(sparse!);
+  });
+
   it("handles image_generation category with ELO (no primary benchmarks)", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
@@ -129,6 +155,29 @@ describe("computeCapabilityScore", () => {
     const result = computeCapabilityScore(inputs);
     expect(result).not.toBeNull();
     expect(result!).toBeGreaterThan(0);
+  });
+
+  it("still lets image-generation arena-only models outrank LLM arena-only ones while damping them", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
+
+    const llmOnlyArena = computeCapabilityScore({
+      benchmarkScores: [],
+      eloScore: 1300,
+      releaseDate: "2026-01-01",
+      category: "llm",
+    });
+    const imageOnlyArena = computeCapabilityScore({
+      benchmarkScores: [],
+      eloScore: 1300,
+      releaseDate: "2026-01-01",
+      category: "image_generation",
+    });
+
+    expect(llmOnlyArena).not.toBeNull();
+    expect(imageOnlyArena).not.toBeNull();
+    expect(imageOnlyArena!).toBeGreaterThan(llmOnlyArena!);
+    expect(imageOnlyArena!).toBeLessThan(80);
   });
 
   it("null benchmarkScores treated same as empty array", () => {

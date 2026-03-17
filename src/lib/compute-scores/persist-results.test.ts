@@ -266,4 +266,28 @@ describe("persistResults", () => {
       economic_footprint_score: 71,
     });
   });
+
+  it("clears stale capability and market-cap fields when new results omit them", async () => {
+    const modelIds = ["m1"];
+    const inputs = buildFixtureInputs(modelIds);
+    const results = buildFixtureResults(modelIds);
+    results.capabilityScoreMap = new Map();
+    results.capRankMap = new Map();
+    results.marketCapMap = new Map();
+    results.agentScoreMap = new Map();
+    results.agentRankMap = new Map();
+    const modelUpdates: Array<Record<string, unknown>> = [];
+    const supabase = createPersistMockSupabase({ modelUpdateCollector: modelUpdates });
+
+    await persistResults(supabase, inputs, results);
+
+    expect(modelUpdates[0]).toMatchObject({
+      id: "m1",
+      capability_score: null,
+      capability_rank: null,
+      market_cap_estimate: null,
+      agent_score: null,
+      agent_rank: null,
+    });
+  });
 });

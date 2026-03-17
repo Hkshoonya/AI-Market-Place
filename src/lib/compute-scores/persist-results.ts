@@ -65,6 +65,12 @@ export async function persistResults(
       const updateData: Record<string, unknown> = {
         quality_score: sm.qualityScore,
         popularity_score: popularityMap.get(sm.id) ?? 0,
+        capability_score: null,
+        capability_rank: null,
+        agent_score: null,
+        agent_rank: null,
+        popularity_rank: null,
+        market_cap_estimate: null,
       };
 
       // Lens scores

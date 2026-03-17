@@ -31,6 +31,7 @@ import {
 } from "@/lib/scoring/popularity-score";
 import {
   computeAdoptionScore,
+  computeEconomicConfidenceMultiplier,
   computeEconomicFootprintScore,
 } from "@/lib/scoring/economic-footprint";
 import { buildSourceCoverage, getCorroborationMultiplier } from "@/lib/source-coverage";
@@ -111,6 +112,7 @@ export async function computeAllLenses(
       qualityScore: score,
     });
   }
+  const qualityScoreMap = new Map(scoredModels.map((model) => [model.id, model.qualityScore]));
 
   // 5b. Sync curated pricing to model_pricing table
   let pricingSynced = 0;
@@ -358,6 +360,9 @@ export async function computeAllLenses(
     popularityMap.set(input.id, popScore);
 
     const m = models.find((x) => x.id === input.id);
+    const sourceCoverage = sourceCoverageMap.get(input.id) ?? null;
+    const capabilityScore = capabilityScoreMap.get(input.id) ?? null;
+    const qualityScore = qualityScoreMap.get(input.id) ?? null;
     const pricingSourceCount = pricingSourceMap.get(input.id)?.size ?? 0;
     const adoptionScore = computeAdoptionScore({
       downloads: input.downloads,
@@ -379,19 +384,30 @@ export async function computeAllLenses(
       pricingSourceCount,
       isApiAvailable: m?.is_api_available ?? false,
       releaseDate: input.releaseDate,
-      corroborationLevel: sourceCoverageMap.get(input.id)?.corroborationLevel ?? "none",
+      corroborationLevel: sourceCoverage?.corroborationLevel ?? "none",
+      sourceCoverage,
+      capabilityScore,
+      qualityScore,
     });
     economicFootprintMap.set(input.id, economicFootprintScore);
+
+    const economicConfidenceMultiplier = computeEconomicConfidenceMultiplier({
+      corroborationLevel: sourceCoverage?.corroborationLevel ?? "none",
+      pricingSourceCount,
+      sourceCoverage,
+      capabilityScore,
+      qualityScore,
+    });
 
     const coverage = sourceCoverageMap.get(input.id) ?? null;
     const mktCap = computeMarketCap({
       adoptionScore,
       popularityScore: popScore,
-      capabilityScore: capabilityScoreMap.get(input.id) ?? 0,
+      capabilityScore: capabilityScore ?? 0,
       economicFootprintScore,
       blendedPricePerMillion: blendedPrice,
       agentScore: agentScoreMap.get(input.id) ?? null,
-      confidenceMultiplier: getCorroborationMultiplier(coverage),
+      confidenceMultiplier: economicConfidenceMultiplier * getCorroborationMultiplier(coverage),
     });
     if (mktCap > 0) {
       marketCapMap.set(input.id, mktCap);

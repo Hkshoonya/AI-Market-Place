@@ -1,4 +1,7 @@
-import { getCorroborationMultiplier, type CorroborationLevel } from "@/lib/source-coverage";
+import type {
+  CorroborationLevel,
+  SourceCoverage,
+} from "@/lib/source-coverage";
 
 const MIN_EFFECTIVE_PRICE = 0.1;
 const MAX_PRICE_NORMALIZATION = 20;
@@ -31,6 +34,51 @@ function computeDistributionScore(pricingSourceCount: number, isApiAvailable: bo
   return clamp((sourceScore + apiBoost) * 100, 0, 100);
 }
 
+function getBaseEconomicConfidence(level: CorroborationLevel): number {
+  switch (level) {
+    case "strong":
+      return 1;
+    case "multi_source":
+      return 0.96;
+    case "single_source":
+      return 0.88;
+    case "none":
+    default:
+      return 0.74;
+  }
+}
+
+export function computeEconomicConfidenceMultiplier(inputs: {
+  corroborationLevel: CorroborationLevel;
+  pricingSourceCount: number;
+  sourceCoverage?: SourceCoverage | null;
+  capabilityScore?: number | null;
+  qualityScore?: number | null;
+}): number {
+  let multiplier = getBaseEconomicConfidence(inputs.corroborationLevel);
+  const directQualitySignalCount =
+    (inputs.sourceCoverage?.benchmarkSourceCount ?? 0) +
+    (inputs.sourceCoverage?.eloSourceCount ?? 0);
+
+  if (directQualitySignalCount === 0) {
+    multiplier *= 0.78;
+  }
+
+  if ((inputs.capabilityScore ?? 0) <= 0) {
+    multiplier *= 0.86;
+  }
+
+  if ((inputs.qualityScore ?? 0) <= 0) {
+    multiplier *= 0.92;
+  }
+
+  if (inputs.pricingSourceCount === 0) {
+    multiplier *= 0.9;
+  }
+
+  return clamp(multiplier, 0.45, 1);
+}
+
 export function computeAdoptionScore(inputs: {
   downloads: number;
   providerUsageEstimate: number;
@@ -59,30 +107,14 @@ export function computeEconomicFootprintScore(inputs: {
   isApiAvailable: boolean;
   releaseDate: string | null;
   corroborationLevel: CorroborationLevel;
+  sourceCoverage?: SourceCoverage | null;
+  capabilityScore?: number | null;
+  qualityScore?: number | null;
 }): number {
   const monetizationScore = computeMonetizationScore(inputs.blendedPricePerMillion);
   const distributionScore = computeDistributionScore(inputs.pricingSourceCount, inputs.isApiAvailable);
   const durabilityScore = computeDurabilityScore(inputs.releaseDate);
-
-  const confidenceMultiplier = getCorroborationMultiplier({
-    totalDistinctSources: 0,
-    independentQualitySourceCount: 0,
-    sourceFamilyCount: 0,
-    benchmarkSourceCount: 0,
-    benchmarkCategoryCount: 0,
-    eloSourceCount: 0,
-    newsSourceCount: 0,
-    pricingSourceCount: inputs.pricingSourceCount,
-    corroborationLevel: inputs.corroborationLevel,
-    biasRisk: inputs.corroborationLevel === "strong" ? "low" : inputs.corroborationLevel === "multi_source" ? "medium" : "high",
-    sourceFamilies: [],
-    benchmarkSources: [],
-    benchmarkCategories: [],
-    eloSources: [],
-    newsSources: [],
-    pricingSources: [],
-    hasCommunitySignals: false,
-  });
+  const confidenceMultiplier = computeEconomicConfidenceMultiplier(inputs);
 
   const weighted =
     inputs.adoptionScore * 0.45 +

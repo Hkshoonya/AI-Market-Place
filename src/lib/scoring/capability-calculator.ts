@@ -150,14 +150,20 @@ export function computeCapabilityScore(inputs: CapabilityInputs): number | null 
   // general frontier model rankings where benchmark breadth matters.
   if (!hasBenchmarks && hasELO) {
     if (inputs.category === "image_generation") {
-      evidenceMultiplier *= 1;
+      evidenceMultiplier *= 0.92;
     } else if (inputs.category === "agentic_browser") {
       evidenceMultiplier *= 0.9;
     } else {
       evidenceMultiplier *= 0.82;
     }
-  } else if (hasBenchmarks && !hasELO && benchmarkCount < 2) {
-    evidenceMultiplier *= 0.94;
+  } else if (hasBenchmarks) {
+    if (benchmarkCount <= 1) {
+      evidenceMultiplier *= hasELO ? 0.92 : 0.84;
+    } else if (benchmarkCount === 2) {
+      evidenceMultiplier *= hasELO ? 0.97 : 0.9;
+    } else if (benchmarkCount === 3 && !hasELO) {
+      evidenceMultiplier *= 0.95;
+    }
   }
 
   return Math.round(Math.min(Math.max(score * evidenceMultiplier, 0), 100) * 10) / 10;

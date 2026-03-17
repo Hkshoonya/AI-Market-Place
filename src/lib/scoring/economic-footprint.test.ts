@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { computeAdoptionScore, computeEconomicFootprintScore } from "./economic-footprint";
+import {
+  computeAdoptionScore,
+  computeEconomicConfidenceMultiplier,
+  computeEconomicFootprintScore,
+} from "./economic-footprint";
 
 describe("economic footprint scoring", () => {
   it("lets broad durable adoption outrank thin high-price exposure", () => {
@@ -61,5 +65,62 @@ describe("economic footprint scoring", () => {
     });
 
     expect(strong).toBeGreaterThan(lowConfidence);
+  });
+
+  it("heavily penalizes economic confidence when direct quality evidence is missing", () => {
+    const thinConfidence = computeEconomicConfidenceMultiplier({
+      corroborationLevel: "none",
+      pricingSourceCount: 1,
+      sourceCoverage: {
+        totalDistinctSources: 1,
+        independentQualitySourceCount: 0,
+        sourceFamilyCount: 1,
+        benchmarkSourceCount: 0,
+        benchmarkCategoryCount: 0,
+        eloSourceCount: 0,
+        newsSourceCount: 0,
+        pricingSourceCount: 1,
+        corroborationLevel: "none",
+        biasRisk: "high",
+        sourceFamilies: ["pricing"],
+        benchmarkSources: [],
+        benchmarkCategories: [],
+        eloSources: [],
+        newsSources: [],
+        pricingSources: ["provider-pricing"],
+        hasCommunitySignals: false,
+      },
+      capabilityScore: null,
+      qualityScore: 0,
+    });
+
+    const strongConfidence = computeEconomicConfidenceMultiplier({
+      corroborationLevel: "strong",
+      pricingSourceCount: 3,
+      sourceCoverage: {
+        totalDistinctSources: 6,
+        independentQualitySourceCount: 3,
+        sourceFamilyCount: 4,
+        benchmarkSourceCount: 2,
+        benchmarkCategoryCount: 2,
+        eloSourceCount: 1,
+        newsSourceCount: 1,
+        pricingSourceCount: 3,
+        corroborationLevel: "strong",
+        biasRisk: "low",
+        sourceFamilies: ["benchmarks", "elo", "pricing", "news"],
+        benchmarkSources: ["livebench", "mmlu-pro"],
+        benchmarkCategories: ["general", "reasoning"],
+        eloSources: ["chatbot-arena"],
+        newsSources: ["provider-blog"],
+        pricingSources: ["openai", "azure", "openrouter"],
+        hasCommunitySignals: true,
+      },
+      capabilityScore: 78,
+      qualityScore: 72,
+    });
+
+    expect(strongConfidence).toBeGreaterThan(thinConfidence);
+    expect(thinConfidence).toBeLessThan(0.6);
   });
 });
