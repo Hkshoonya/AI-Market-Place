@@ -8,6 +8,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import {
   buildModelLookup,
+  limitProviderScopedModelIds,
   resolveNewsRelations,
   type ModelLookupEntry,
 } from "../model-matcher";
@@ -445,7 +446,7 @@ const adapter: DataSourceAdapter = {
             : tweet.url;
           const signal = classifyNewsSignal(tweet.text);
 
-          const tweetMeta = {
+          const tweetMeta: Record<string, unknown> = {
             handle: account.handle,
             provider: account.provider,
             tweet_id: tweet.id,
@@ -457,6 +458,11 @@ const adapter: DataSourceAdapter = {
           const { modelIds } = modelLookup.length > 0
             ? resolveNewsRelations(tweet.text, null, tweetMeta, modelLookup)
             : { modelIds: [] };
+          const relatedModelIds = limitProviderScopedModelIds(modelIds);
+          const relationScope =
+            relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
+          tweetMeta.match_scope = relationScope;
+          tweetMeta.matched_model_count = modelIds.length;
 
           allRecords.push({
             source: "x-twitter",
@@ -467,7 +473,7 @@ const adapter: DataSourceAdapter = {
             published_at: tweet.publishedAt,
             category: signal.category,
             related_provider: account.provider,
-            related_model_ids: modelIds.length > 0 ? modelIds : [],
+            related_model_ids: relatedModelIds,
             tags: [...new Set([account.provider.toLowerCase(), "twitter", "x", ...signal.tags])],
             metadata: tweetMeta,
           });

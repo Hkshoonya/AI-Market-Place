@@ -83,6 +83,7 @@ const SKIP_NAMES = new Set([
 
 /** Minimum alias length to include (avoids false positives from "R1", "o1") */
 const MIN_ALIAS_LENGTH = 4;
+const DEFAULT_PROVIDER_SCOPED_MODEL_LIMIT = 3;
 
 // --------------- Alias Generation ---------------
 
@@ -415,4 +416,12 @@ export function resolveNewsRelations(
   }
 
   return { modelIds, provider };
+}
+
+export function limitProviderScopedModelIds(
+  modelIds: string[],
+  maxLinks = DEFAULT_PROVIDER_SCOPED_MODEL_LIMIT
+): string[] {
+  const uniqueIds = [...new Set(modelIds)];
+  return uniqueIds.length > maxLinks ? [] : uniqueIds;
 }

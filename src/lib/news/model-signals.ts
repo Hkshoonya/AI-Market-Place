@@ -61,6 +61,8 @@ function computeCandidateScore(
   if (signalType === "general") return -1;
 
   const directMatch = candidate.related_model_ids?.includes(model.id) ?? false;
+  if (!directMatch && candidate.source === "x-twitter") return -1;
+
   const providerMatch =
     normalizeProvider(candidate.related_provider) === normalizeProvider(model.provider);
 

@@ -8,6 +8,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import {
   buildModelLookup,
+  limitProviderScopedModelIds,
   resolveNewsRelations,
   type ModelLookupEntry,
 } from "../model-matcher";
@@ -262,7 +263,7 @@ const adapter: DataSourceAdapter = {
         for (const article of relevant) {
           recordsProcessed++;
           const signal = classifyNewsSignal(article.title);
-          const metadata = {
+          const metadata: Record<string, unknown> = {
             provider: blog.provider,
             blog_url: blog.url,
             signal_type: signal.signalType,
@@ -272,6 +273,11 @@ const adapter: DataSourceAdapter = {
           const { modelIds } = modelLookup.length > 0
             ? resolveNewsRelations(article.title, null, metadata, modelLookup)
             : { modelIds: [] };
+          const relatedModelIds = limitProviderScopedModelIds(modelIds);
+          const relationScope =
+            relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
+          metadata.match_scope = relationScope;
+          metadata.matched_model_count = modelIds.length;
 
           allRecords.push({
             source: "provider-blog",
@@ -284,7 +290,7 @@ const adapter: DataSourceAdapter = {
             published_at: article.date ?? new Date().toISOString(),
             category: signal.category,
             related_provider: blog.provider,
-            related_model_ids: modelIds.length > 0 ? modelIds : [],
+            related_model_ids: relatedModelIds,
             tags: [...new Set([blog.provider.toLowerCase(), "blog", ...signal.tags])],
             metadata,
           });

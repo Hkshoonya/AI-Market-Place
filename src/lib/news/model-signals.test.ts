@@ -85,4 +85,22 @@ describe("pickBestModelSignals", () => {
       })
     );
   });
+
+  it("does not surface provider-wide X posts as model-level signals", () => {
+    const models = [{ id: "model-1", provider: "OpenAI" }];
+    const signals = [
+      {
+        id: "x-post",
+        title: "OpenAI posts a broad platform update",
+        source: "x-twitter",
+        related_provider: "OpenAI",
+        related_model_ids: null,
+        published_at: "2026-03-16T10:00:00.000Z",
+        metadata: { signal_type: "launch", signal_importance: "high", match_scope: "provider" },
+      },
+    ];
+
+    const picked = pickBestModelSignals(models, signals);
+    expect(picked.has("model-1")).toBe(false);
+  });
 });
