@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   compareModelsByLowestPrice,
   getCheapestVerifiedPricing,
+  getPricingAgeDays,
   getLowestInputPrice,
   getOfficialPricing,
   getPublicPricingSummary,
+  getStaleTrackedPricingEntries,
   isOfficialPricingProvider,
+  isFreshVerifiedPricingEntry,
+  VERIFIED_PRICING_MAX_AGE_DAYS,
   type PriceSortableModel,
 } from "./pricing";
 
@@ -99,11 +103,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenAI",
           input_price_per_million: 3,
           source: "OpenAI Pricing",
+          effective_date: "2026-03-10",
         },
         {
           provider_name: "OpenRouter",
           input_price_per_million: 2,
           source: "openrouter",
+          effective_date: "2026-03-10",
         },
       ],
     });
@@ -120,11 +126,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
+          effective_date: "2026-03-10",
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
+          effective_date: "2026-03-10",
         },
       ],
     });
@@ -140,11 +148,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
+          effective_date: "2026-03-10",
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
+          effective_date: "2026-03-10",
         },
       ],
     });
@@ -165,11 +175,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
+          effective_date: "2026-03-10",
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
+          effective_date: "2026-03-10",
         },
       ],
     });
@@ -182,5 +194,87 @@ describe("pricing summaries", () => {
       compactSourceLabel: "Anthropic",
       strategy: "official_company_price",
     });
+  });
+
+  it("filters stale tracked pricing out of the verified summary", () => {
+    const staleDate = new Date(Date.now() - (VERIFIED_PRICING_MAX_AGE_DAYS + 10) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+
+    const model = makeModel({
+      provider: "OpenAI",
+      model_pricing: [
+        {
+          provider_name: "OpenAI",
+          input_price_per_million: 2.5,
+          source: "openai.com/pricing",
+          effective_date: staleDate,
+        },
+      ],
+    });
+
+    expect(getCheapestVerifiedPricing(model)).toBeNull();
+    expect(getOfficialPricing(model)).toBeNull();
+    expect(getPublicPricingSummary(model)).toMatchObject({
+      compactPrice: null,
+      compactLabel: "Needs refresh",
+      compactSourceLabel: "OpenAI",
+      strategy: "stale_refresh_needed",
+    });
+  });
+
+  it("still exposes stale tracked entries for detail views", () => {
+    const staleDate = new Date(Date.now() - (VERIFIED_PRICING_MAX_AGE_DAYS + 5) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+
+    const model = makeModel({
+      provider: "Anthropic",
+      model_pricing: [
+        {
+          provider_name: "Anthropic",
+          input_price_per_million: 3,
+          source: "anthropic.com/pricing",
+          effective_date: staleDate,
+        },
+      ],
+    });
+
+    expect(getStaleTrackedPricingEntries(model)).toHaveLength(1);
+  });
+});
+
+describe("pricing freshness helpers", () => {
+  it("computes price age from effective_date", () => {
+    const age = getPricingAgeDays(
+      { effective_date: "2026-03-01", updated_at: null },
+      new Date("2026-03-17T00:00:00.000Z")
+    );
+
+    expect(age).toBe(16);
+  });
+
+  it("treats recent prices as fresh and old prices as stale", () => {
+    expect(
+      isFreshVerifiedPricingEntry(
+        {
+          provider_name: "OpenAI",
+          input_price_per_million: 2.5,
+          effective_date: "2026-03-01",
+        },
+        new Date("2026-03-17T00:00:00.000Z")
+      )
+    ).toBe(true);
+
+    expect(
+      isFreshVerifiedPricingEntry(
+        {
+          provider_name: "OpenAI",
+          input_price_per_million: 2.5,
+          effective_date: "2025-12-01",
+        },
+        new Date("2026-03-17T00:00:00.000Z")
+      )
+    ).toBe(false);
   });
 });

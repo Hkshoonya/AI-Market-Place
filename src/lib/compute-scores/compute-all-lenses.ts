@@ -35,6 +35,7 @@ import {
   computeEconomicFootprintScore,
 } from "@/lib/scoring/economic-footprint";
 import { buildSourceCoverage, getCorroborationMultiplier } from "@/lib/source-coverage";
+import { isFreshVerifiedPricingEntry } from "@/lib/models/pricing";
 import type { ScoringInputs, ScoringResults } from "./types";
 
 /**
@@ -118,12 +119,21 @@ export async function computeAllLenses(
   let pricingSynced = 0;
   const { data: allPricing } = await supabase
     .from("model_pricing")
-    .select("model_id, input_price_per_million, provider_name, source")
+    .select("model_id, input_price_per_million, provider_name, source, effective_date, updated_at")
     .not("input_price_per_million", "is", null);
 
   const cheapestPriceMap = new Map<string, number>();
   const pricingSourceMap = new Map<string, Set<string>>();
   for (const p of allPricing ?? []) {
+    const isFresh = isFreshVerifiedPricingEntry({
+      provider_name: p.provider_name ?? "pricing",
+      input_price_per_million: Number(p.input_price_per_million ?? 0),
+      source: p.source ?? null,
+      effective_date: typeof p.effective_date === "string" ? p.effective_date : null,
+      updated_at: typeof p.updated_at === "string" ? p.updated_at : null,
+    });
+    if (!isFresh) continue;
+
     const price = Number(p.input_price_per_million);
     if (price > 0) {
       const existing = cheapestPriceMap.get(p.model_id);
@@ -152,6 +162,7 @@ export async function computeAllLenses(
         input_price_per_million: curatedPrice.inputPricePerMillion,
         output_price_per_million: curatedPrice.outputPricePerMillion,
         blended_price_per_million: curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4,
+        effective_date: curatedPrice.lastUpdated,
         source: curatedPrice.source,
         updated_at: new Date().toISOString(),
       },
@@ -159,16 +170,25 @@ export async function computeAllLenses(
     );
 
     if (!upsertErr) {
+      const curatedEntryIsFresh = isFreshVerifiedPricingEntry({
+        provider_name: curatedPrice.provider,
+        input_price_per_million: curatedPrice.inputPricePerMillion,
+        output_price_per_million: curatedPrice.outputPricePerMillion,
+        source: curatedPrice.source,
+        effective_date: curatedPrice.lastUpdated,
+      });
+      const pricingSources = pricingSourceMap.get(m.id) ?? new Set<string>();
       const price = curatedPrice.inputPricePerMillion;
-      if (price > 0) {
+      if (curatedEntryIsFresh && price > 0) {
         const existing = cheapestPriceMap.get(m.id);
         if (!existing || price < existing) {
           cheapestPriceMap.set(m.id, price);
         }
       }
-      const pricingSources = pricingSourceMap.get(m.id) ?? new Set<string>();
-      pricingSources.add(curatedPrice.source ?? curatedPrice.provider);
-      pricingSourceMap.set(m.id, pricingSources);
+      if (curatedEntryIsFresh) {
+        pricingSources.add(curatedPrice.source ?? curatedPrice.provider);
+        pricingSourceMap.set(m.id, pricingSources);
+      }
 
       const existingCoverage = sourceCoverageMap.get(m.id);
       if (existingCoverage) {
@@ -195,8 +215,19 @@ export async function computeAllLenses(
     if (!sm || sm.qualityScore <= 0) continue;
 
     const curatedPrice = lookupProviderPrice(m.slug as string);
+    const freshCuratedPrice =
+      curatedPrice &&
+      isFreshVerifiedPricingEntry({
+        provider_name: curatedPrice.provider,
+        input_price_per_million: curatedPrice.inputPricePerMillion,
+        output_price_per_million: curatedPrice.outputPricePerMillion,
+        source: curatedPrice.source,
+        effective_date: curatedPrice.lastUpdated,
+      })
+        ? curatedPrice
+        : null;
     const dbPrice = cheapestPriceMap.get(m.id);
-    const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? null;
+    const inputPrice = freshCuratedPrice?.inputPricePerMillion ?? dbPrice ?? null;
 
     if (inputPrice && inputPrice > 0) {
       const valueMetric = sm.qualityScore / inputPrice;

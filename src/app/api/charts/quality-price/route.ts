@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
+import { isFreshVerifiedPricingEntry } from "@/lib/models/pricing";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 
 export const dynamic = "force-dynamic";
@@ -66,13 +67,24 @@ export async function GET(request: NextRequest) {
     }
     const { data: pricing } = await supabase
       .from("model_pricing")
-      .select("model_id, input_price_per_million, output_price_per_million, provider_name")
+      .select("model_id, input_price_per_million, output_price_per_million, provider_name, effective_date, updated_at")
       .in("model_id", modelIds)
       .not("input_price_per_million", "is", null);
 
     // Build cheapest price map
     const priceMap = new Map<string, { input: number; output: number; provider: string }>();
     for (const p of pricing ?? []) {
+      if (
+        !isFreshVerifiedPricingEntry({
+          provider_name: p.provider_name ?? "",
+          input_price_per_million: Number(p.input_price_per_million ?? 0),
+          output_price_per_million: Number(p.output_price_per_million ?? 0),
+          effective_date: typeof p.effective_date === "string" ? p.effective_date : null,
+          updated_at: typeof p.updated_at === "string" ? p.updated_at : null,
+        })
+      ) {
+        continue;
+      }
       const input = Number(p.input_price_per_million);
       if (input <= 0) continue;
       const existing = priceMap.get(p.model_id);

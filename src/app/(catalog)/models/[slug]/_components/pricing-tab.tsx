@@ -2,7 +2,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { formatTokenPrice } from "@/lib/format";
-import { getCheapestVerifiedPricing, getOfficialPricing, isOfficialPricingProvider } from "@/lib/models/pricing";
+import {
+  getCheapestVerifiedPricing,
+  getOfficialPricing,
+  getPricingAgeDays,
+  getStaleTrackedPricingEntries,
+  getTrackedPricingEntries,
+  isFreshVerifiedPricingEntry,
+  isOfficialPricingProvider,
+} from "@/lib/models/pricing";
 
 export interface PricingEntry {
   provider_name: string;
@@ -13,6 +21,8 @@ export interface PricingEntry {
   source?: string | null;
   pricing_model?: string | null;
   currency?: string | null;
+  effective_date?: string | null;
+  updated_at?: string | null;
 }
 
 export interface PricingTabProps {
@@ -29,7 +39,31 @@ function getNumericPrice(value: number | null): number {
 }
 
 export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
-  const sortedPricing = [...pricingData].sort((left, right) => {
+  const trackedPricing = getTrackedPricingEntries({
+    id: "model-pricing",
+    name: "pricing",
+    slug: "pricing",
+    provider: modelProvider,
+    overall_rank: null,
+    model_pricing: pricingData,
+  });
+  const staleTrackedPricing = getStaleTrackedPricingEntries({
+    id: "model-pricing",
+    name: "pricing",
+    slug: "pricing",
+    provider: modelProvider,
+    overall_rank: null,
+    model_pricing: pricingData,
+  });
+  const freshPricing = trackedPricing.filter((pricing) =>
+    isFreshVerifiedPricingEntry(pricing)
+  );
+
+  const sortedPricing = [...trackedPricing].sort((left, right) => {
+    const freshnessDelta =
+      Number(isFreshVerifiedPricingEntry(right)) - Number(isFreshVerifiedPricingEntry(left));
+    if (freshnessDelta !== 0) return freshnessDelta;
+
     const directDelta =
       Number(isDirectProvider(modelProvider, right.provider_name)) -
       Number(isDirectProvider(modelProvider, left.provider_name));
@@ -68,7 +102,7 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
               models={sortedPricing.map((p) => ({
                 name: p.provider_name,
                 inputPrice: p.input_price_per_million,
-                outputPrice: p.output_price_per_million,
+                outputPrice: p.output_price_per_million ?? null,
               }))}
             />
           </div>
@@ -94,9 +128,9 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
               </div>
               <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Verified Routes</div>
-                <div className="mt-2 text-sm font-semibold">{sortedPricing.length}</div>
+                <div className="mt-2 text-sm font-semibold">{freshPricing.length}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Public tables show the normalized verified price. This detail view separates direct company pricing from routed alternatives.
+                  Public tables only use fresh verified pricing. Older tracked prices stay visible here with refresh warnings instead of being treated as current truth.
                 </div>
               </div>
             </div>
@@ -104,6 +138,13 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
               Direct first-party access is shown first. Brokers and routers are kept visible separately so
               the cheapest path does not get confused with the official one.
             </p>
+            {staleTrackedPricing.length > 0 ? (
+              <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                {staleTrackedPricing.length} tracked price
+                {staleTrackedPricing.length === 1 ? "" : "s"} need refresh. They are shown below for context,
+                but are excluded from verified pricing summaries and value calculations until re-verified.
+              </div>
+            ) : null}
             <div className="overflow-hidden rounded-lg border border-border/50">
               <table className="w-full">
                 <thead>
@@ -132,11 +173,13 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                   {sortedPricing.map((pricing, index) => {
                     const isDirect = isDirectProvider(modelProvider, pricing.provider_name);
                     const isCheapest = pricing.provider_name === cheapestProviderName;
+                    const isFresh = isFreshVerifiedPricingEntry(pricing);
+                    const ageDays = getPricingAgeDays(pricing);
 
                     return (
                       <tr
                         key={`${pricing.provider_name}-${index}`}
-                        className={`border-b border-border/30 ${isDirect ? "bg-neon/5" : ""}`}
+                        className={`border-b border-border/30 ${isDirect && isFresh ? "bg-neon/5" : ""} ${!isFresh ? "bg-amber-500/5" : ""}`}
                       >
                         <td className="px-4 py-3">
                           <span className="text-sm font-medium">{pricing.provider_name}</span>
@@ -150,9 +193,15 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                               Lowest input
                             </Badge>
                           )}
+                          {!isFresh && (
+                            <Badge className="ml-2 bg-amber-500/10 text-[10px] text-amber-500">
+                              Stale
+                            </Badge>
+                          )}
                           {pricing.source && (
                             <div className="mt-1 text-[11px] text-muted-foreground">
                               Source: {pricing.source}
+                              {!isFresh && ageDays != null ? ` · ${ageDays}d old` : ""}
                             </div>
                           )}
                         </td>

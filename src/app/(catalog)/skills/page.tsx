@@ -343,15 +343,17 @@ export default async function SkillsPage() {
     output_price_per_million: z.number().nullable().optional(),
     source: z.string().nullable().optional(),
     currency: z.string().nullable().optional(),
+    effective_date: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
   });
 
   const pricingRows =
     surfacedModelIds.length > 0
       ? parseQueryResult(
-          await supabase
-            .from("model_pricing")
-            .select("model_id, provider_name, input_price_per_million, output_price_per_million, source, currency")
-            .in("model_id", surfacedModelIds),
+            await supabase
+              .from("model_pricing")
+              .select("model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at")
+              .in("model_id", surfacedModelIds),
           PricingRowSchema,
           "SkillPricingRow"
         )

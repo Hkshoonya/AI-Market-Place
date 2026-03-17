@@ -12,6 +12,8 @@ export interface PriceSortableModel {
     source?: string | null;
     pricing_model?: string | null;
     currency?: string | null;
+    effective_date?: string | null;
+    updated_at?: string | null;
   }> | null;
 }
 
@@ -19,9 +21,13 @@ export interface VerifiedPricingEntry {
   provider_name: string;
   input_price_per_million: number;
   output_price_per_million?: number | null;
+  median_output_tokens_per_second?: number | null;
+  median_time_to_first_token?: number | null;
   source?: string | null;
   pricing_model?: string | null;
   currency?: string | null;
+  effective_date?: string | null;
+  updated_at?: string | null;
 }
 
 export interface PublicPricingSummary {
@@ -35,12 +41,15 @@ export interface PublicPricingSummary {
     | "official_company_price"
     | "cheapest_verified_route"
     | "open_weights_free"
+    | "stale_refresh_needed"
     | "unavailable";
 }
 
 export interface PublicPricingSummaryOptions {
   compactStrategy?: "cheapest_verified" | "official_first";
 }
+
+export const VERIFIED_PRICING_MAX_AGE_DAYS = 45;
 
 function normalizeProvider(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -71,7 +80,38 @@ export function isOfficialPricingProvider(
   return aliases.includes(normalizedProviderName);
 }
 
-export function getVerifiedPricingEntries(model: PriceSortableModel): VerifiedPricingEntry[] {
+function parsePricingDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getPricingReferenceDate(entry: VerifiedPricingEntry): Date | null {
+  return parsePricingDate(entry.effective_date) ?? parsePricingDate(entry.updated_at);
+}
+
+export function getPricingAgeDays(
+  entry: Pick<VerifiedPricingEntry, "effective_date" | "updated_at">,
+  asOf: Date = new Date()
+): number | null {
+  const referenceDate = parsePricingDate(entry.effective_date) ?? parsePricingDate(entry.updated_at);
+  if (!referenceDate) return null;
+
+  const diffMs = asOf.getTime() - referenceDate.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 0;
+  return Math.floor(diffMs / 86_400_000);
+}
+
+export function isFreshVerifiedPricingEntry(
+  entry: VerifiedPricingEntry,
+  asOf: Date = new Date()
+): boolean {
+  const ageDays = getPricingAgeDays(entry, asOf);
+  if (ageDays == null) return true;
+  return ageDays <= VERIFIED_PRICING_MAX_AGE_DAYS;
+}
+
+export function getTrackedPricingEntries(model: PriceSortableModel): VerifiedPricingEntry[] {
   return (
     model.model_pricing?.filter((pricing): pricing is VerifiedPricingEntry => {
       if (!pricing.provider_name) return false;
@@ -84,10 +124,29 @@ export function getVerifiedPricingEntries(model: PriceSortableModel): VerifiedPr
   );
 }
 
+export function getVerifiedPricingEntries(
+  model: PriceSortableModel,
+  asOf: Date = new Date()
+): VerifiedPricingEntry[] {
+  return getTrackedPricingEntries(model).filter((pricing) =>
+    isFreshVerifiedPricingEntry(pricing, asOf)
+  );
+}
+
+export function getStaleTrackedPricingEntries(
+  model: PriceSortableModel,
+  asOf: Date = new Date()
+): VerifiedPricingEntry[] {
+  return getTrackedPricingEntries(model).filter(
+    (pricing) => !isFreshVerifiedPricingEntry(pricing, asOf)
+  );
+}
+
 export function getCheapestVerifiedPricing(
-  model: PriceSortableModel
+  model: PriceSortableModel,
+  asOf: Date = new Date()
 ): VerifiedPricingEntry | null {
-  const prices = [...getVerifiedPricingEntries(model)].sort(
+  const prices = [...getVerifiedPricingEntries(model, asOf)].sort(
     (left, right) => left.input_price_per_million - right.input_price_per_million
   );
 
@@ -95,9 +154,10 @@ export function getCheapestVerifiedPricing(
 }
 
 export function getOfficialPricing(
-  model: PriceSortableModel
+  model: PriceSortableModel,
+  asOf: Date = new Date()
 ): VerifiedPricingEntry | null {
-  const directEntries = getVerifiedPricingEntries(model)
+  const directEntries = getVerifiedPricingEntries(model, asOf)
     .filter((pricing) => isOfficialPricingProvider(model.provider, pricing.provider_name))
     .sort((left, right) => left.input_price_per_million - right.input_price_per_million);
 
@@ -108,8 +168,15 @@ export function getPublicPricingSummary(
   model: PriceSortableModel,
   options: PublicPricingSummaryOptions = {}
 ): PublicPricingSummary {
-  const official = getOfficialPricing(model);
-  const cheapestVerifiedRoute = getCheapestVerifiedPricing(model);
+  const asOf = new Date();
+  const official = getOfficialPricing(model, asOf);
+  const cheapestVerifiedRoute = getCheapestVerifiedPricing(model, asOf);
+  const staleTrackedPricing = getStaleTrackedPricingEntries(model, asOf)
+    .sort((left, right) => {
+      const leftDate = getPricingReferenceDate(left)?.getTime() ?? 0;
+      const rightDate = getPricingReferenceDate(right)?.getTime() ?? 0;
+      return rightDate - leftDate;
+    });
   const compactStrategy = options.compactStrategy ?? "cheapest_verified";
 
   if (compactStrategy === "official_first" && official) {
@@ -157,6 +224,19 @@ export function getPublicPricingSummary(
       compactLabel: "Free",
       compactSourceLabel: "Open weights",
       strategy: "open_weights_free",
+    };
+  }
+
+  if (staleTrackedPricing.length > 0) {
+    const freshestTracked = staleTrackedPricing[0];
+    return {
+      official,
+      cheapestVerifiedRoute,
+      compactEntry: null,
+      compactPrice: null,
+      compactLabel: "Needs refresh",
+      compactSourceLabel: freshestTracked.provider_name,
+      strategy: "stale_refresh_needed",
     };
   }
 

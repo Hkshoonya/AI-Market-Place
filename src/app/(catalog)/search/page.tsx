@@ -80,6 +80,8 @@ export default async function SearchPage({
       output_price_per_million?: number | null;
       source?: string | null;
       currency?: string | null;
+      effective_date?: string | null;
+      updated_at?: string | null;
     }> | null;
     recent_signal?: ModelSignalSummary | null;
   }> = [];
@@ -137,7 +139,7 @@ export default async function SearchPage({
           ? supabase
               .from("model_pricing")
               .select(
-                "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency"
+                "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at"
               )
               .in("model_id", uniqueModels.map((model) => model.id))
           : Promise.resolve({ data: [], error: null }),
@@ -169,6 +171,8 @@ export default async function SearchPage({
           output_price_per_million?: number | null;
           source?: string | null;
           currency?: string | null;
+          effective_date?: string | null;
+          updated_at?: string | null;
         }>
       >();
 
@@ -188,6 +192,9 @@ export default async function SearchPage({
               : null,
           source: typeof entry.source === "string" ? entry.source : null,
           currency: typeof entry.currency === "string" ? entry.currency : null,
+          effective_date:
+            typeof entry.effective_date === "string" ? entry.effective_date : null,
+          updated_at: typeof entry.updated_at === "string" ? entry.updated_at : null,
         });
         pricingByModelId.set(entry.model_id, existing);
       }

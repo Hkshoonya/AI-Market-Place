@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         popularity_score, popularity_rank, market_cap_estimate, agent_score, agent_rank,
         value_score,
         benchmark_scores(score_normalized, benchmarks(slug, name)),
-        model_pricing(input_price_per_million, output_price_per_million, provider_name, median_output_tokens_per_second),
+        model_pricing(input_price_per_million, output_price_per_million, provider_name, median_output_tokens_per_second, source, currency, effective_date, updated_at),
         elo_ratings(elo_score, arena_name)
       `)
       .not(lensConfig.sortCol, "is", null)

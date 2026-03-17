@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         ? supabase
             .from("model_pricing")
             .select(
-              "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency"
+              "model_id, provider_name, input_price_per_million, output_price_per_million, source, currency, effective_date, updated_at"
             )
             .in("model_id", uniqueModels.map((model) => model.id))
         : Promise.resolve({ data: [], error: null }),
@@ -115,6 +115,8 @@ export async function GET(request: NextRequest) {
         output_price_per_million?: number | null;
         source?: string | null;
         currency?: string | null;
+        effective_date?: string | null;
+        updated_at?: string | null;
       }>
     >();
 
@@ -129,6 +131,8 @@ export async function GET(request: NextRequest) {
           typeof row.output_price_per_million === "number" ? row.output_price_per_million : null,
         source: typeof row.source === "string" ? row.source : null,
         currency: typeof row.currency === "string" ? row.currency : null,
+        effective_date: typeof row.effective_date === "string" ? row.effective_date : null,
+        updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
       });
       pricingByModelId.set(row.model_id, existing);
     }

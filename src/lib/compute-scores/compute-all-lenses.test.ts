@@ -8,6 +8,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { computeAllLenses } from "./compute-all-lenses";
 import type { ScoringInputs, ScoringResults } from "./types";
+import { lookupProviderPrice } from "@/lib/data-sources/adapters/provider-pricing";
 
 // Mock logging to prevent real Supabase calls
 vi.mock("@/lib/logging", () => ({
@@ -174,6 +175,41 @@ function createMockSupabase() {
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 }
 
+function createUpsertCapturingSupabase(captured: Array<Record<string, unknown>>) {
+  return {
+    from: (table: string) => {
+      if (table === "model_pricing") {
+        return {
+          select() {
+            return {
+              not() {
+                return Promise.resolve({ data: [], error: null });
+              },
+            };
+          },
+          upsert(payload: Record<string, unknown>) {
+            captured.push(payload);
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+
+      const result = { data: [], error: null };
+      const chain: Record<string, unknown> = {};
+      const self = new Proxy(chain, {
+        get(_target, prop) {
+          if (prop === "then") {
+            return <R>(onFulfilled: (v: typeof result) => R) =>
+              Promise.resolve(onFulfilled(result));
+          }
+          return (..._args: unknown[]) => self;
+        },
+      });
+      return self;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+}
+
 describe("computeAllLenses", () => {
   it("produces ScoringResults with all expected maps populated for 3 models", async () => {
     const inputs = buildFixtureInputs();
@@ -307,5 +343,31 @@ describe("computeAllLenses", () => {
     expect(result.economicFootprintRankMap.size).toBe(3);
     expect(result.adoptionScoreMap.get("gpt-4o")).toBeGreaterThan(0);
     expect(result.economicFootprintMap.get("gpt-4o")).toBeGreaterThan(0);
+  });
+
+  it("persists curated pricing with the source verification date as effective_date", async () => {
+    vi.mocked(lookupProviderPrice).mockImplementation((slug: string) =>
+      slug === "gpt-4o"
+        ? {
+            provider: "OpenAI",
+            inputPricePerMillion: 2.5,
+            outputPricePerMillion: 10,
+            source: "openai.com/pricing",
+            lastUpdated: "2026-03-01",
+          }
+        : null
+    );
+
+    const captured: Array<Record<string, unknown>> = [];
+    const supabase = createUpsertCapturingSupabase(captured);
+
+    await computeAllLenses(buildFixtureInputs(), supabase);
+
+    expect(captured).toContainEqual(
+      expect.objectContaining({
+        provider_name: "OpenAI",
+        effective_date: "2026-03-01",
+      })
+    );
   });
 });
