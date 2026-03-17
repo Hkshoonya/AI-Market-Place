@@ -1,4 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/public-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { MarketplaceFilterBar } from "@/components/marketplace/filter-bar";
@@ -73,6 +74,7 @@ export default async function BrowsePage(props: {
   const seller = sellerParam === "agent" ? "" : sellerParam;
 
   const supabase = createPublicClient();
+  const admin = createAdminClient();
 
   let query = supabase
     .from("marketplace_listings")
@@ -92,7 +94,7 @@ export default async function BrowsePage(props: {
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const rawData = parseQueryResult(browseResponse, MarketplaceListingSchema, "MarketplaceBrowse");
-  const listingsWithPolicy = await attachListingPolicies(supabase, rawData);
+  const listingsWithPolicy = await attachListingPolicies(admin, rawData);
   const enriched = await enrichListingsWithProfiles(supabase, listingsWithPolicy);
   const filtered = filterMarketplaceListings(
     enriched as import("@/types/database").MarketplaceListingWithSeller[],

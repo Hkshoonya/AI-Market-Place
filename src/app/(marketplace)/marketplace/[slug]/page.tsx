@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { SellerCard } from "@/components/marketplace/seller-card";
@@ -68,6 +69,7 @@ export default async function ListingDetailPage(props: {
 }) {
   const { slug } = await props.params;
   const supabase = createPublicClient();
+  const admin = createAdminClient();
 
   const listingResponse = await supabase
     .from("marketplace_listings")
@@ -77,7 +79,7 @@ export default async function ListingDetailPage(props: {
 
   const rawListing = parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "ListingDetail");
   if (!rawListing) notFound();
-  const [listingWithPolicy] = await attachListingPolicies(supabase, [rawListing]);
+  const [listingWithPolicy] = await attachListingPolicies(admin, [rawListing]);
   if (!listingWithPolicy) notFound();
 
   // Enrich with seller profile (no FK exists, so fetch separately)

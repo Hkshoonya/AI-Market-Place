@@ -15,6 +15,7 @@ import { formatNumber, formatTokenPrice } from "@/lib/format";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { createPublicClient } from "@/lib/supabase/public-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
@@ -56,6 +57,7 @@ export default async function SearchPage({
   const PAGE_SIZE = 20;
 
   const supabase = createPublicClient();
+  const admin = createAdminClient();
 
   let models: Array<{
     id: string;
@@ -214,7 +216,7 @@ export default async function SearchPage({
         .range(offset, offset + PAGE_SIZE - 1);
 
       const { data, count } = await mkQuery;
-      marketplace = await attachListingPolicies(supabase, data ?? []);
+      marketplace = await attachListingPolicies(admin, data ?? []);
       marketplaceCount = count ?? 0;
     }
 

@@ -20,6 +20,7 @@ import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { MarketplaceSortOption } from "@/lib/constants/marketplace";
 
 const createListingSchema = z.object({
@@ -114,6 +115,7 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+  const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
 
   const type = searchParams.get("type");
@@ -169,7 +171,7 @@ export async function GET(request: NextRequest) {
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   // enrichListingsWithProfiles accepts AnyClient internally
-  const listingsWithPolicy = await attachListingPolicies(supabase, data || []);
+  const listingsWithPolicy = await attachListingPolicies(admin, data || []);
   const enriched = await enrichListingsWithProfiles(supabase, listingsWithPolicy);
   const filtered = filterMarketplaceListings(
     enriched as import("@/types/database").MarketplaceListingWithSeller[],

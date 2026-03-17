@@ -505,6 +505,15 @@ export async function syncListingPolicyReview(
     excerpt?: string | null;
   }
 ) {
+  const safeReviewStatus =
+    input.evaluation.decision === "allow" ? "approved" : "open";
+  const safeReviewedAt =
+    input.evaluation.decision === "allow" ? new Date().toISOString() : null;
+  const safeResolutionNotes =
+    input.evaluation.decision === "allow"
+      ? "Auto-approved by deterministic marketplace policy scan."
+      : null;
+
   if (input.evaluation.decision === "allow") {
     const { error } = await supabase
       .from("listing_policy_reviews")
@@ -519,8 +528,6 @@ export async function syncListingPolicyReview(
     if (error) {
       throw new Error(`Failed to clear listing policy reviews: ${error.message}`);
     }
-
-    return;
   }
 
   const { error } = await supabase.from("listing_policy_reviews").insert({
@@ -538,7 +545,9 @@ export async function syncListingPolicyReview(
     reason_codes: input.evaluation.reasonCodes,
     matched_signals: input.evaluation.matchedSignals,
     excerpt: input.excerpt ?? null,
-    review_status: "open",
+    review_status: safeReviewStatus,
+    reviewed_at: safeReviewedAt,
+    resolution_notes: safeResolutionNotes,
   });
 
   if (error) {

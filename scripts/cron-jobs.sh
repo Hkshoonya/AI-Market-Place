@@ -20,6 +20,7 @@
 #   15 */4 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
 #   45 */2 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
 #   55 */2 * * *  /opt/aimc/scripts/cron-jobs.sh social-publish
+#   20 1 * * *    /opt/aimc/scripts/cron-jobs.sh marketplace-policy
 
 set -euo pipefail
 
@@ -72,8 +73,9 @@ case "${1:-}" in
   verifier)       call_cron "/api/cron/agents/verifier"      "Verifier Agent" ;;
   compute-scores) call_cron "/api/cron/compute-scores"       "Compute Scores" ;;
   social-publish) call_cron "/api/cron/social/publish-signals" "Social Signal Publisher" ;;
+  marketplace-policy) call_cron "/api/cron/marketplace/policy-rescan?mode=missing&limit=500" "Marketplace Policy Rescan" ;;
   *)
-    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores|social-publish}"
+    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores|social-publish|marketplace-policy}"
     echo "       $0 sync-source <source-slug>"
     exit 1
     ;;

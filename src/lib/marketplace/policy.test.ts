@@ -4,6 +4,7 @@ import {
   DEFAULT_AUTONOMOUS_COMMERCE_POLICY,
   evaluateListingPolicy,
   enforceAutonomousCommerceGuardrails,
+  syncListingPolicyReview,
 } from "./policy";
 
 function createGuardrailSupabase(options?: {
@@ -296,5 +297,69 @@ describe("enforceAutonomousCommerceGuardrails", () => {
 
     expect(result.allowed).toBe(false);
     expect(result.code).toBe("daily_spend_limit_exceeded");
+  });
+});
+
+describe("syncListingPolicyReview", () => {
+  it("persists allow decisions as approved rows after clearing open reviews", async () => {
+    const updates: Array<Record<string, unknown>> = [];
+    const inserts: Array<Record<string, unknown>> = [];
+
+    const supabase = {
+      from(table: string) {
+        if (table !== "listing_policy_reviews") {
+          throw new Error(`Unexpected table ${table}`);
+        }
+
+        return {
+          update(payload: Record<string, unknown>) {
+            updates.push(payload);
+            return {
+              eq() {
+                return {
+                  eq: async () => ({
+                    error: null,
+                  }),
+                };
+              },
+            };
+          },
+          insert(payload: Record<string, unknown>) {
+            inserts.push(payload);
+            return Promise.resolve({ error: null });
+          },
+        };
+      },
+    };
+
+    await syncListingPolicyReview(supabase as never, {
+      listingId: "listing-1",
+      sellerId: "seller-1",
+      sourceAction: "manual_rescan",
+      evaluation: {
+        decision: "allow",
+        label: "allow",
+        confidence: 0.12,
+        reasons: [],
+        matchedSignals: [],
+        contentRiskLevel: "allow",
+        autonomyRiskLevel: "allow",
+        purchaseMode: "public_purchase_allowed",
+        autonomyMode: "autonomous_allowed",
+        reasonCodes: [],
+      },
+      excerpt: "safe listing",
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatchObject({
+      listing_id: "listing-1",
+      source_action: "manual_rescan",
+      decision: "allow",
+      review_status: "approved",
+      purchase_mode: "public_purchase_allowed",
+      autonomy_mode: "autonomous_allowed",
+    });
   });
 });

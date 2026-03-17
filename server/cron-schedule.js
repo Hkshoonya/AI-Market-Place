@@ -28,6 +28,11 @@ const CRON_JOBS = [
     path: "/api/cron/social/publish-signals",
   },
   {
+    name: "Marketplace Policy Rescan",
+    cron: "20 1 * * *",
+    path: "/api/cron/marketplace/policy-rescan?mode=missing&limit=500",
+  },
+  {
     name: "Pipeline Agent",
     cron: "30 */2 * * *",
     path: "/api/cron/agents/pipeline",

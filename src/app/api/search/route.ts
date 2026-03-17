@@ -11,6 +11,7 @@ import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
+    const admin = createAdminClient();
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
@@ -210,7 +212,7 @@ export async function GET(request: NextRequest) {
         marketplaceResults = mkIlike;
       }
 
-      marketplace = await attachListingPolicies(supabase, marketplaceResults ?? []);
+      marketplace = await attachListingPolicies(admin, marketplaceResults ?? []);
     }
 
     return NextResponse.json({

@@ -5,6 +5,7 @@ import { CategoryCards } from "@/components/marketplace/category-cards";
 import { ListingsGrid } from "@/components/marketplace/listings-grid";
 import { z } from "zod";
 import { createPublicClient } from "@/lib/supabase/public-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseQueryResult, parseQueryResultPartial } from "@/lib/schemas/parse";
 import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { enrichListingsWithProfiles, PROFILE_FIELDS_CARD } from "@/lib/marketplace/enrich-listings";
@@ -22,6 +23,7 @@ export const revalidate = 300;
 
 export default async function MarketplacePage() {
   const supabase = createPublicClient();
+  const admin = createAdminClient();
 
   // Fetch type counts
   const listingTypeResponse = await supabase
@@ -43,7 +45,7 @@ export default async function MarketplacePage() {
     ListingTypeSchema,
     "MarketplaceListingType"
   );
-  const allListings = await attachListingPolicies(supabase, listingTypeRows);
+  const allListings = await attachListingPolicies(admin, listingTypeRows);
 
   const counts: Record<string, number> = {};
   for (const l of allListings) {
@@ -56,7 +58,7 @@ export default async function MarketplacePage() {
     .eq("status", "active");
 
   const rawFeatured = parseQueryResult(featuredResponse, MarketplaceListingSchema, "MarketplaceFeatured");
-  const featuredWithPolicy = await attachListingPolicies(supabase, rawFeatured);
+  const featuredWithPolicy = await attachListingPolicies(admin, rawFeatured);
 
   // Enrich with seller profiles (no FK constraint exists, so fetch separately)
   const featuredCandidates = await enrichListingsWithProfiles(
