@@ -154,4 +154,16 @@ describe("buildRecord()", () => {
 
     expect(record.provider).toBe("OpenAI");
   });
+
+  it("normalizes preview lifecycle from model identifiers even when upstream status says active", () => {
+    const previewMeta: KnownModelMeta = {
+      name: "GPT-4o Realtime Preview",
+      description: "Realtime preview model",
+      status: "active",
+    };
+
+    const record = buildRecord("gpt-4o-realtime-preview", previewMeta, {}, openaiDefaults);
+
+    expect(record.status).toBe("preview");
+  });
 });

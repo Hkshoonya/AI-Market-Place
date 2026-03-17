@@ -9,6 +9,7 @@
 import { inferCategory, inferModalities } from "./infer-category";
 import { makeSlug } from "../utils";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { normalizeLifecycleStatus } from "@/lib/models/lifecycle";
 
 // ---------------------------------------------------------------------------
 // Unified KnownModelMeta interface
@@ -142,12 +143,19 @@ export function buildRecord(
     merged.is_open_weights ??
     false;
 
+  const status = normalizeLifecycleStatus(
+    merged.status,
+    modelId,
+    merged.name ?? modelId,
+    merged.description ?? null
+  );
+
   return {
     slug,
     name,
     provider: getCanonicalProviderName(defaults.provider),
     category,
-    status: merged.status ?? "active",
+    status,
     description: merged.description ?? null,
     architecture: defaults.architecture ?? merged.architecture ?? null,
     parameter_count: merged.parameter_count ?? null,

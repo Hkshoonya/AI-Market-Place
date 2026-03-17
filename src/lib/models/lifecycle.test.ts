@@ -4,7 +4,9 @@ import {
   filterRankableModels,
   getLifecycleBadge,
   getLifecycleStatuses,
+  inferLifecycleStatus,
   isRankableLifecycleStatus,
+  normalizeLifecycleStatus,
   type LifecycleFilter,
 } from "./lifecycle";
 
@@ -49,5 +51,20 @@ describe("model lifecycle helpers", () => {
       label: "Deprecated",
       rankedByDefault: false,
     });
+  });
+
+  it("infers preview and beta lifecycle from model naming signals", () => {
+    expect(inferLifecycleStatus("gpt-4-1106-preview")).toBe("preview");
+    expect(inferLifecycleStatus("Gemini 3.1 Flash Lite Beta")).toBe("beta");
+  });
+
+  it("normalizes active status down to tracked non-active states when signals require it", () => {
+    expect(normalizeLifecycleStatus("active", "openai-gpt-4o-realtime-preview")).toBe("preview");
+    expect(normalizeLifecycleStatus("active", "legacy model")).toBe("deprecated");
+  });
+
+  it("preserves explicit non-active statuses", () => {
+    expect(normalizeLifecycleStatus("deprecated", "gpt-4o")).toBe("deprecated");
+    expect(normalizeLifecycleStatus("archived", "gpt-4o")).toBe("archived");
   });
 });

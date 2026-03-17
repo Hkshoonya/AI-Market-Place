@@ -10,6 +10,11 @@ export const TRACKED_NON_ACTIVE_STATUSES = [
 export type TrackedNonActiveStatus = (typeof TRACKED_NON_ACTIVE_STATUSES)[number];
 export type RankableLifecycleStatus = "active" | TrackedNonActiveStatus;
 
+const PREVIEW_PATTERN = /\bpreview\b/i;
+const BETA_PATTERN = /\bbeta\b/i;
+const DEPRECATED_PATTERN = /\b(deprecated|legacy|retired|sunset)\b/i;
+const ARCHIVED_PATTERN = /\b(archived|archive)\b/i;
+
 export interface LifecycleBadge {
   label: string;
   rankedByDefault: boolean;
@@ -24,6 +29,34 @@ export function getLifecycleStatuses(filter: LifecycleFilter): RankableLifecycle
 
 export function parseLifecycleFilter(value: string | null | undefined): LifecycleFilter {
   return value === "all" ? "all" : "active";
+}
+
+export function inferLifecycleStatus(
+  ...signals: Array<string | null | undefined>
+): RankableLifecycleStatus {
+  const haystack = signals
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join(" ")
+    .toLowerCase();
+
+  if (!haystack) return "active";
+  if (DEPRECATED_PATTERN.test(haystack)) return "deprecated";
+  if (ARCHIVED_PATTERN.test(haystack)) return "archived";
+  if (BETA_PATTERN.test(haystack)) return "beta";
+  if (PREVIEW_PATTERN.test(haystack)) return "preview";
+  return "active";
+}
+
+export function normalizeLifecycleStatus(
+  currentStatus: string | null | undefined,
+  ...signals: Array<string | null | undefined>
+): RankableLifecycleStatus {
+  if (isTrackedLifecycleStatus(currentStatus)) {
+    if (currentStatus !== "active") return currentStatus;
+    return inferLifecycleStatus(...signals);
+  }
+
+  return inferLifecycleStatus(...signals);
 }
 
 export function isTrackedLifecycleStatus(status: string | null | undefined): status is RankableLifecycleStatus {
