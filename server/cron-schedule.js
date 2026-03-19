@@ -18,6 +18,11 @@ const CRON_JOBS = [
     path: "/api/cron/auctions",
   },
   {
+    name: "Wallet Chain Deposit Scan",
+    cron: "2-59/5 * * * *",
+    path: "/api/webhooks/chain-deposits",
+  },
+  {
     name: "Compute Scores",
     cron: "45 */2 * * *",
     path: "/api/cron/compute-scores",

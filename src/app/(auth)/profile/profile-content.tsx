@@ -328,7 +328,8 @@ export default function ProfileContent() {
             </div>
             <p className="text-xs text-muted-foreground">
               Wallet deposits and withdrawals use USDC. API keys are one-time reveal only, so
-              copy them when you create them.
+              copy them when you create them. On-chain deposits are detected automatically on a
+              short cron cadence, so new wallet funding may take a few minutes to appear.
             </p>
           </CardContent>
         </Card>

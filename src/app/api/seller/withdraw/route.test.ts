@@ -147,4 +147,30 @@ describe("POST /api/seller/withdraw", () => {
     );
     expect(response.status).toBe(401);
   });
+
+  it("rejects invalid EVM destination addresses before processing a withdrawal", async () => {
+    mockResolveAuthUser.mockResolvedValue({
+      userId: "seller-1",
+      authMethod: "session",
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/seller/withdraw", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 25,
+          chain: "base",
+          wallet_address: "not-a-real-evm-address",
+        }),
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("Validation failed");
+  });
 });

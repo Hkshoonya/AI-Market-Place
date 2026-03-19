@@ -38,6 +38,7 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -59,6 +60,7 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const supabase = createPublicClient();
+  const admin = createAdminClient();
 
   // Consolidated query: fetch key fields from all active models in one go
   const [
@@ -68,6 +70,7 @@ export default async function HomePage() {
     { data: deploymentPlatformsRaw },
     { data: modelDeploymentsRaw },
     { data: latestSignalNewsRaw },
+    { data: latestPipelineSyncRaw },
   ] = await Promise.all([
     supabase.from("models").select("*", { count: "exact", head: true }),
     supabase.from("benchmarks").select("*", { count: "exact", head: true }),
@@ -90,6 +93,14 @@ export default async function HomePage() {
       .select("published_at")
       .in("source", ["x-twitter", "provider-blog"])
       .order("published_at", { ascending: false })
+      .limit(1),
+    admin
+      .from("data_sources")
+      .select("last_sync_at")
+      .eq("is_enabled", true)
+      .is("quarantined_at", null)
+      .not("last_sync_at", "is", null)
+      .order("last_sync_at", { ascending: false })
       .limit(1),
   ]);
 
@@ -123,6 +134,11 @@ export default async function HomePage() {
     typeof latestSignalNewsRaw?.[0]?.published_at === "string"
       ? latestSignalNewsRaw[0].published_at
       : null;
+  const latestPipelineSyncAt =
+    typeof latestPipelineSyncRaw?.[0]?.last_sync_at === "string"
+      ? latestPipelineSyncRaw[0].last_sync_at
+      : null;
+  const marketSignalsRefreshedAt = latestPipelineSyncAt ?? latestLaunchSignalAt;
 
   const topModelIds = [...activeModels]
     .filter((model) => model.economic_footprint_rank != null)
@@ -253,8 +269,8 @@ export default async function HomePage() {
         <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-card/50 p-4 md:flex-row md:items-center md:justify-between">
           <DataFreshnessBadge
             label="Market signals refreshed"
-            timestamp={latestLaunchSignalAt}
-            detail="market updates"
+            timestamp={marketSignalsRefreshedAt}
+            detail={latestPipelineSyncAt ? "pipeline sync" : "market updates"}
           />
           <div className="flex flex-wrap items-center gap-3">
             <Link

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { trackCronRun } from "@/lib/cron-tracker";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TypedSupabaseClient } from "@/types/database";
 // REMOVED: import { creditWallet, type Chain, type Token } from "@/lib/payments/wallet";
@@ -11,7 +12,6 @@ import {
   checkEvmDeposits,
   isEvmConfigured,
 } from "@/lib/payments/chains/evm";
-import { handleApiError } from "@/lib/api-error";
 import { createTaggedLogger } from "@/lib/logging";
 
 const log = createTaggedLogger("webhook/chain-deposits");
@@ -42,7 +42,18 @@ interface DepositSummary {
  *
  * Authorization: Bearer ${CRON_SECRET}
  */
+export async function GET(request: NextRequest) {
+  return runDepositScan(request, parseTargetChainFromSearchParams(request));
+}
+
 export async function POST(request: NextRequest) {
+  return runDepositScan(request, await parseTargetChainFromBody(request));
+}
+
+async function runDepositScan(
+  request: NextRequest,
+  targetChain?: DepositChain
+) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -51,22 +62,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Parse optional body
-  let targetChain: DepositChain | undefined;
-  try {
-    const body = await request.json().catch(() => { void log.warn("Invalid JSON body"); return {}; });
-    if (body.chain && ["solana", "base", "polygon"].includes(body.chain)) {
-      targetChain = body.chain as DepositChain;
-    }
-  } catch {
-    // No body or invalid JSON -- check all chains
-  }
-
   const summary: DepositSummary = {
     processed: 0,
     credited: 0,
     errors: [],
   };
+  const tracker = await trackCronRun("wallet-chain-deposits", {
+    staleAfterMs: 10 * 60 * 1000,
+  });
+
+  if (tracker.shouldSkip) {
+    return tracker.skip({ targetChain: targetChain ?? "all" });
+  }
 
   try {
     const supabase = createAdminClient();
@@ -83,9 +90,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (configuredChains.length === 0) {
-      return NextResponse.json({
-        ok: true,
+      return tracker.complete({
         message: "No chains configured for deposit checking",
+        targetChain: targetChain ?? "all",
+        configuredChains: [],
         ...summary,
       });
     }
@@ -105,13 +113,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      ok: true,
+    return tracker.complete({
+      targetChain: targetChain ?? "all",
+      configuredChains,
       ...summary,
     });
   } catch (err) {
     void log.error("Unexpected error in chain-deposits webhook", { error: err instanceof Error ? err.message : String(err) });
-    return handleApiError(err, "webhook/chain-deposits");
+    return tracker.fail(err);
   }
 }
 
@@ -266,4 +275,30 @@ async function isTxHashProcessed(
   }
 
   return data && data.length > 0;
+}
+
+function isDepositChain(value: unknown): value is DepositChain {
+  return value === "solana" || value === "base" || value === "polygon";
+}
+
+function parseTargetChainFromSearchParams(
+  request: NextRequest
+): DepositChain | undefined {
+  const value = new URL(request.url).searchParams.get("chain");
+  return isDepositChain(value) ? value : undefined;
+}
+
+async function parseTargetChainFromBody(
+  request: NextRequest
+): Promise<DepositChain | undefined> {
+  try {
+    const body = await request.json().catch(() => {
+      void log.warn("Invalid JSON body");
+      return {};
+    });
+
+    return isDepositChain(body.chain) ? body.chain : undefined;
+  } catch {
+    return undefined;
+  }
 }

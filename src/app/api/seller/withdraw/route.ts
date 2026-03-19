@@ -10,6 +10,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { PublicKey } from "@solana/web3.js";
+import { isAddress } from "viem";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -34,8 +36,30 @@ const withdrawSchema = z.object({
   }),
   wallet_address: z
     .string()
+    .trim()
     .min(20, "wallet_address is too short")
     .max(200, "wallet_address is too long"),
+}).superRefine(({ chain, wallet_address }, ctx) => {
+  if (chain === "solana") {
+    try {
+      new PublicKey(wallet_address);
+    } catch {
+      ctx.addIssue({
+        code: "custom",
+        path: ["wallet_address"],
+        message: "wallet_address must be a valid Solana address",
+      });
+    }
+    return;
+  }
+
+  if (!isAddress(wallet_address)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["wallet_address"],
+      message: "wallet_address must be a valid EVM address",
+    });
+  }
 });
 
 export const dynamic = "force-dynamic";

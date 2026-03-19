@@ -800,7 +800,7 @@ function AuthSection() {
         <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
           <li>Sign in, then open <a href="/profile" className="text-neon hover:underline">Profile</a> to set your display name, username, and bio.</li>
           <li>Open <a href="/wallet" className="text-neon hover:underline">Wallet</a> to create your wallet and copy your Solana or Base/Polygon USDC deposit address.</li>
-          <li>Fund the wallet with USDC if you want balance-based marketplace purchases.</li>
+          <li>Fund the wallet with USDC if you want balance-based marketplace purchases. On-chain deposits are detected automatically on a short scheduler cadence, so balances may take a few minutes to update.</li>
           <li>Create API keys in <a href="/settings/api-keys" className="text-neon hover:underline">Settings &rarr; API Keys</a> and choose only the scopes you need.</li>
           <li>If you plan to sell, complete your seller setup from <a href="/sell" className="text-neon hover:underline">Sell</a>, then use the wallet withdraw flow for USDC payouts.</li>
         </ol>

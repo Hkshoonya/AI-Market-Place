@@ -14,6 +14,7 @@
 #   0 */8 * * *     /opt/aimc/scripts/cron-jobs.sh sync-t3
 #   0 0 * * *     /opt/aimc/scripts/cron-jobs.sh sync-t4
 #   */5 * * * *   /opt/aimc/scripts/cron-jobs.sh auctions
+#   2-59/5 * * * * /opt/aimc/scripts/cron-jobs.sh chain-deposits
 #   30 */2 * * *  /opt/aimc/scripts/cron-jobs.sh pipeline
 #   0 9 * * *     /opt/aimc/scripts/cron-jobs.sh code-quality
 #   0 10 * * 1    /opt/aimc/scripts/cron-jobs.sh ux-monitor
@@ -67,6 +68,7 @@ case "${1:-}" in
   sync-t3)        call_cron "/api/cron/sync?tier=3"          "Tier 3 Sync" ;;
   sync-t4)        call_cron "/api/cron/sync?tier=4"          "Tier 4 Sync" ;;
   auctions)       call_cron "/api/cron/auctions"             "Auction Settlement" ;;
+  chain-deposits) call_cron "/api/webhooks/chain-deposits"   "Wallet Chain Deposit Scan" ;;
   pipeline)       call_cron "/api/cron/agents/pipeline"      "Pipeline Agent" ;;
   code-quality)   call_cron "/api/cron/agents/code-quality"  "Code Quality" ;;
   ux-monitor)     call_cron "/api/cron/agents/ux-monitor"    "UX Monitor" ;;
@@ -75,7 +77,7 @@ case "${1:-}" in
   social-publish) call_cron "/api/cron/social/publish-signals" "Social Signal Publisher" ;;
   marketplace-policy) call_cron "/api/cron/marketplace/policy-rescan?mode=missing&limit=500" "Marketplace Policy Rescan" ;;
   *)
-    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|pipeline|code-quality|ux-monitor|verifier|compute-scores|social-publish|marketplace-policy}"
+    echo "Usage: $0 {sync-t1|sync-t2|sync-t3|sync-t4|auctions|chain-deposits|pipeline|code-quality|ux-monitor|verifier|compute-scores|social-publish|marketplace-policy}"
     echo "       $0 sync-source <source-slug>"
     exit 1
     ;;
