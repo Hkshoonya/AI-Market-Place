@@ -23,6 +23,7 @@ import {
 import { getOrCreateWallet, getWalletBalance } from "@/lib/payments/wallet";
 import {
   processWithdrawal,
+  getWithdrawalFee,
   getSupportedChains,
 } from "@/lib/payments/withdraw";
 import { handleApiError } from "@/lib/api-error";
@@ -150,16 +151,18 @@ export async function POST(request: NextRequest) {
   }
 
   const { amount, chain, wallet_address } = parsed.data;
+  const withdrawalFee = getWithdrawalFee(chain);
+  const totalDebit = amount + withdrawalFee;
 
   // Get wallet
   const wallet = await getOrCreateWallet(auth.userId);
 
   // Verify available balance covers withdrawal
   const balance = await getWalletBalance(wallet.id);
-  if (balance.available < amount) {
+  if (balance.available < totalDebit) {
     return NextResponse.json(
       {
-        error: `Insufficient available balance. Available: $${balance.available.toFixed(2)}, Held in escrow: $${balance.held.toFixed(2)}, Requested: $${amount.toFixed(2)}`,
+        error: `Insufficient available balance. Available: $${balance.available.toFixed(2)}, Held in escrow: $${balance.held.toFixed(2)}, Requested: $${amount.toFixed(2)}, Network fee: $${withdrawalFee.toFixed(2)}, Total debit: $${totalDebit.toFixed(2)}`,
       },
       { status: 400 }
     );

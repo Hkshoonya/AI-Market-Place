@@ -34,6 +34,11 @@ vi.mock("@/lib/payments/withdraw", () => ({
     txId: "tx-1",
     txHash: "hash-1",
   }),
+  getWithdrawalFee: vi.fn((chain: string) => {
+    if (chain === "base") return 0.5;
+    if (chain === "polygon") return 0.1;
+    return 0.01;
+  }),
   getSupportedChains: vi.fn(() => []),
 }));
 
@@ -59,9 +64,11 @@ vi.mock("@/lib/api-error", () => ({
   ),
 }));
 
+import { getWalletBalance } from "@/lib/payments/wallet";
 import { GET, POST } from "./route";
 
 const ORIGINAL_ENFORCE_WITHDRAW_SCOPE = process.env.ENFORCE_WITHDRAW_SCOPE;
+const mockGetWalletBalance = vi.mocked(getWalletBalance);
 
 function createMockAdminClient() {
   return {
@@ -216,6 +223,40 @@ describe("POST /api/seller/withdraw", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toMatch(/verification is required/i);
+  });
+
+  it("accounts for chain fees in available balance checks", async () => {
+    mockResolveAuthUser.mockResolvedValue({
+      userId: "seller-1",
+      authMethod: "session",
+    });
+    mockGetWalletBalance.mockResolvedValueOnce({
+      available: 25.2,
+      held: 0,
+      total: 25.2,
+      totalEarned: 0,
+      totalSpent: 0,
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/seller/withdraw", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 25,
+          chain: "base",
+          wallet_address: "0x000000000000000000000000000000000000dEaD",
+        }),
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toMatch(/network fee/i);
+    expect(body.error).toMatch(/total debit/i);
   });
 });
 

@@ -45,6 +45,14 @@ const WITHDRAWAL_FEE: Record<string, number> = {
   polygon: 0.1,
 };
 
+export function getMinimumWithdrawal(chain: Chain): number {
+  return MIN_WITHDRAWAL[chain] || 1.0;
+}
+
+export function getWithdrawalFee(chain: Chain): number {
+  return WITHDRAWAL_FEE[chain] || 0;
+}
+
 /**
  * Process a withdrawal request.
  *
@@ -75,7 +83,7 @@ export async function processWithdrawal(
   }
 
   // Validate minimum amount
-  const minAmount = MIN_WITHDRAWAL[chain] || 1.0;
+  const minAmount = getMinimumWithdrawal(chain);
   if (amount < minAmount) {
     return {
       success: false,
@@ -84,7 +92,7 @@ export async function processWithdrawal(
   }
 
   // Calculate fee
-  const fee = WITHDRAWAL_FEE[chain] || 0;
+  const fee = getWithdrawalFee(chain);
   const totalDebit = amount + fee;
 
   // Step 1: Debit wallet (atomic balance check + deduction)
@@ -120,10 +128,20 @@ export async function processWithdrawal(
 
     // Step 3: Update transaction with on-chain tx hash
     const supabase = createAdminClient();
-    await supabase
+    const { error: updateError } = await supabase
       .from("wallet_transactions")
       .update({ tx_hash: txHash, chain, status: "confirmed" })
       .eq("id", txId);
+
+    if (updateError) {
+      void log.error("Failed to update confirmed withdrawal transaction metadata", {
+        walletId,
+        txId,
+        txHash,
+        chain,
+        error: updateError.message,
+      });
+    }
 
     return { success: true, txId, txHash };
   } catch (err) {
@@ -136,10 +154,18 @@ export async function processWithdrawal(
 
       // Mark original tx as failed
       const supabase = createAdminClient();
-      await supabase
+      const { error: failUpdateError } = await supabase
         .from("wallet_transactions")
         .update({ status: "failed" })
         .eq("id", txId);
+
+      if (failUpdateError) {
+        void log.error("Failed to mark withdrawal transaction as failed", {
+          walletId,
+          txId,
+          error: failUpdateError.message,
+        });
+      }
     } catch (refundErr) {
       // Critical: refund failed -- log for manual intervention
       void log.error("CRITICAL: Failed to refund wallet after failed withdrawal", {
