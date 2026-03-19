@@ -54,7 +54,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex" aria-label="Main navigation">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 2xl:flex" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -94,24 +94,24 @@ export function Header() {
           <SearchDialog />
 
           {/* Wallet Badge */}
-          <div className="hidden xl:flex">
+          <div className="hidden 2xl:flex">
             <WalletBadge />
           </div>
 
           {/* Notification Bell */}
-          <div className="hidden xl:flex">
+          <div className="hidden 2xl:flex">
             <NotificationBell />
           </div>
 
           {/* Auth Button */}
-          <div className="hidden xl:flex">
+          <div className="hidden 2xl:flex">
             <AuthButton />
           </div>
 
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 xl:hidden" aria-label="Open navigation menu">
+              <Button variant="ghost" size="icon" className="h-9 w-9 2xl:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
