@@ -4,6 +4,8 @@
 
 This audit covers the implementation burst from the early March milestone work through the resumed recovery work completed on March 19, 2026. It maps roadmap themes to current code evidence and recent live production fixes.
 
+The strict per-file matrix lives in `docs/plans/2026-03-19-plan-matrix.md`.
+
 Reference head at audit time:
 
 - Local / GitHub `main`: `490c6eb90d86b52d04e5e66e925ed139f7c1e444`
