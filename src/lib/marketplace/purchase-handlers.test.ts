@@ -39,22 +39,24 @@ import { handleAuthenticatedCheckout, handleGuestCheckout } from "./purchase-han
 const ORIGINAL_BLOCK_GUEST_DELIVERY =
   process.env.BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY;
 
-function createMockSupabase() {
+function createMockSupabase(existingOrder: { id: string; status: string } | null = null) {
+  const marketplaceOrdersQuery = {
+    select: vi.fn(() => marketplaceOrdersQuery),
+    eq: vi.fn(() => marketplaceOrdersQuery),
+    in: vi.fn(() => marketplaceOrdersQuery),
+    order: vi.fn(() => marketplaceOrdersQuery),
+    limit: vi.fn(() => marketplaceOrdersQuery),
+    maybeSingle: vi.fn(() =>
+      Promise.resolve({ data: existingOrder, error: null })
+    ),
+    single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+  };
+
   return {
     from: (table: string) => {
       if (table === "marketplace_orders") {
         return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                eq: () => ({
-                  limit: () => ({
-                    single: () => Promise.resolve({ data: null, error: null }),
-                  }),
-                }),
-              }),
-            }),
-          }),
+          select: () => marketplaceOrdersQuery,
           insert: () => ({
             select: () => ({
               single: () =>
@@ -168,5 +170,31 @@ describe("handleGuestCheckout", () => {
     expect(result.success).toBe(false);
     expect(result.httpStatus).toBe(403);
     expect(result.error).toMatch(/cap/i);
+  });
+
+  it("rejects duplicate authenticated purchases when an active order already exists", async () => {
+    mockEnforceAutonomousCommerceGuardrails.mockResolvedValue({
+      allowed: true,
+    });
+
+    const result = await handleAuthenticatedCheckout(
+      createMockSupabase({ id: "order-existing", status: "pending" }) as never,
+      {
+        id: "listing-1",
+        seller_id: "seller-2",
+        price: 25,
+        pricing_type: "one_time",
+        listing_type: "agent",
+        slug: "agent-listing",
+      },
+      "buyer-1",
+      "session"
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.httpStatus).toBe(409);
+    expect(result.orderId).toBe("order-existing");
+    expect(result.error).toMatch(/already in progress/i);
+    expect(mockCreatePurchaseEscrow).not.toHaveBeenCalled();
   });
 });

@@ -82,6 +82,24 @@ async function createOrderRecord(
   return order;
 }
 
+async function findExistingActiveOrder(
+  sb: TypedSupabaseClient,
+  listingId: string,
+  buyerId: string
+): Promise<{ id: string; status: string } | null> {
+  const { data: existingOrder } = await sb
+    .from("marketplace_orders")
+    .select("id, status")
+    .eq("listing_id", listingId)
+    .eq("buyer_id", buyerId)
+    .in("status", ["pending", "completed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return existingOrder ?? null;
+}
+
 async function autoCompleteOrder(
   sb: TypedSupabaseClient,
   orderId: string,
@@ -371,6 +389,23 @@ export async function handleAuthenticatedCheckout(
         },
       };
     }
+  }
+
+  const existingOrder = await findExistingActiveOrder(sb, listing.id, userId);
+  if (existingOrder) {
+    return {
+      success: false,
+      orderId: existingOrder.id,
+      status: existingOrder.status === "completed" ? "completed" : "pending",
+      escrowId: null,
+      delivery: null,
+      payment: null,
+      httpStatus: 409,
+      error:
+        existingOrder.status === "completed"
+          ? "You have already purchased this listing."
+          : "A purchase for this listing is already in progress.",
+    };
   }
 
   // Create order record
