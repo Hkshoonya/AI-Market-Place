@@ -48,6 +48,7 @@ interface AgentTask {
   error_message: string | null;
   created_at: string;
   agents?: { name: string; slug: string };
+  llm?: { provider: AgentProviderName | null; model: string | null };
 }
 
 interface AgentLog {
@@ -787,6 +788,9 @@ export default function AgentsContent() {
                   Status
                 </th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Model
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                   Error
                 </th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground">
@@ -809,6 +813,16 @@ export default function AgentsContent() {
                       {task.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {task.llm?.provider || task.llm?.model ? (
+                      <div>
+                        <div className="capitalize">{task.llm.provider ?? "unknown"}</div>
+                        <div className="font-mono">{task.llm.model ?? "unknown"}</div>
+                      </div>
+                    ) : (
+                      "n/a"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-xs text-red-400 max-w-xs truncate">
                     {task.error_message}
                   </td>
@@ -820,7 +834,7 @@ export default function AgentsContent() {
               {tasks.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No tasks yet

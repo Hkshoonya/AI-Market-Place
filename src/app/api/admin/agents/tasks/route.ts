@@ -7,6 +7,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { extractAgentTaskModelMetadata } from "@/lib/agents/task-model-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ tasks: data ?? [] });
+    const tasks = (data ?? []).map((task) => ({
+      ...task,
+      llm: extractAgentTaskModelMetadata(task.output),
+    }));
+
+    return NextResponse.json({ tasks });
   } catch (err) {
     return handleApiError(err, "api/admin/agents/tasks");
   }
