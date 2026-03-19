@@ -108,8 +108,8 @@ const PUBLIC_SECTIONS: Section[] = [
           { name: "limit", type: "number", description: "Max results (default: 10)" },
         ],
         example: `{
-  "models": [{ "slug": "gpt-4o", "name": "GPT-4o" }],
-  "listings": [{ "slug": "gpt4-api-access", "title": "GPT-4 API Access" }]
+  "data": [{ "slug": "gpt-4o", "name": "GPT-4o" }],
+  "marketplace": [{ "slug": "gpt4-api-access", "title": "GPT-4 API Access" }]
 }`,
       },
       {

@@ -17,7 +17,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "How often is data updated?",
-        a: "Model data including downloads, likes, and trending scores are refreshed every 6 hours from sources like Hugging Face. Benchmark scores and pricing are updated as new evaluations and pricing changes are published by providers.",
+        a: "Source refresh cadence is tiered by importance rather than fixed to one interval. High-priority feeds sync about every 2 hours, secondary sources around every 4 hours, slower sources around every 8 hours, and low-priority reference sources daily. Benchmark scores and pricing also update as new evaluations and provider pricing changes are published.",
       },
       {
         q: "Is AI Market Cap free to use?",
@@ -25,7 +25,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "Is the data real-time?",
-        a: "Our data is near-real-time rather than strictly real-time. Model metrics (downloads, likes, trending scores) are refreshed every 6 hours. Benchmark scores update when new evaluations are published. Pricing data is updated as providers announce changes. Marketplace listings and reviews reflect changes immediately.",
+        a: "Our data is near-real-time rather than strictly real-time. Public source refreshes run on a tiered schedule from roughly every 2 hours for the hottest feeds through daily for lower-priority sources. Benchmark scores update as new evaluations are published. Pricing data updates as providers announce changes. Marketplace listings, orders, and reviews update immediately when users act.",
       },
     ],
   },
@@ -59,7 +59,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "Are marketplace transactions secure?",
-        a: "All transactions go through our order system which tracks status from inquiry through completion. Buyers can leave reviews and ratings. We recommend reviewing seller profiles and ratings before making purchases.",
+        a: "Paid marketplace transactions go through the wallet and escrow system rather than raw direct transfers. Funds are held until delivery and payout conditions are met, and recent hardening work keeps order, refund, withdrawal, and auction states aligned with the actual money-moving result. We still recommend reviewing seller reputation, manifests, and ratings before purchasing.",
       },
       {
         q: "How do I report a problem with a listing or seller?",
