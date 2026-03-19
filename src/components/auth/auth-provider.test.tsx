@@ -2,6 +2,7 @@ import { render, screen, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
   getUser: vi.fn(),
   onAuthStateChange: vi.fn(),
   unsubscribe: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock("posthog-js", () => ({
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
+      getSession: authMocks.getSession,
       getUser: authMocks.getUser,
       onAuthStateChange: authMocks.onAuthStateChange,
       signOut: authMocks.signOut,
@@ -52,6 +54,9 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    authMocks.getSession.mockResolvedValue({
+      data: { session: null },
+    });
     authMocks.onAuthStateChange.mockReturnValue({
       data: {
         subscription: {
@@ -83,5 +88,36 @@ describe("AuthProvider", () => {
 
     expect(screen.getByTestId("loading").textContent).toBe("false");
     expect(screen.getByTestId("user").textContent).toBe("none");
+  });
+
+  it("hydrates from an existing browser session even if getUser is still pending", async () => {
+    authMocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+          },
+        },
+      },
+    });
+    authMocks.getUser.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved
+        })
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(screen.getByTestId("user").textContent).toBe("user");
   });
 });

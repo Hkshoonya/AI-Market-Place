@@ -67,26 +67,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isActive = true;
+    let hasResolvedInitialUser = false;
     const timeoutId = window.setTimeout(() => {
       if (!isActive) return;
       console.warn("Auth initialization timed out");
       setLoading(false);
     }, AUTH_INIT_TIMEOUT_MS);
 
-    // Get initial session
-    const getUser = async () => {
+    const applyUser = async (currentUser: User | null) => {
+      if (!isActive) return;
+
+      setUser(currentUser);
+
+      if (currentUser) {
+        const profileData = await fetchProfile(currentUser.id);
+        if (!isActive) return;
+        setProfile(profileData);
+        posthog.identify(currentUser.id, { email: currentUser.email });
+        hasResolvedInitialUser = true;
+        return;
+      }
+
+      posthog.reset();
+      setProfile(null);
+      hasResolvedInitialUser = true;
+    };
+
+    const initializeAuth = async () => {
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await applyUser(session?.user ?? null);
+
         const {
           data: { user: currentUser },
         } = await supabase.auth.getUser();
-        if (!isActive) return;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const profileData = await fetchProfile(currentUser.id);
-          if (!isActive) return;
-          setProfile(profileData);
-          posthog.identify(currentUser.id, { email: currentUser.email });
+        if (!hasResolvedInitialUser || currentUser?.id !== session?.user?.id) {
+          await applyUser(currentUser);
         }
       } catch (err) {
         console.warn("Auth initialization failed:", err);
@@ -98,27 +116,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    getUser();
+    initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       window.clearTimeout(timeoutId);
-      if (!isActive) return;
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const profileData = await fetchProfile(currentUser.id);
-        if (!isActive) return;
-        setProfile(profileData);
-        posthog.identify(currentUser.id, { email: currentUser.email });
-      } else {
-        posthog.reset();
-        setProfile(null);
-      }
-
+      await applyUser(session?.user ?? null);
       setLoading(false);
     });
 
