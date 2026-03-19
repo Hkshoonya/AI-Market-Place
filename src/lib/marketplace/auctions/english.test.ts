@@ -129,6 +129,93 @@ describe("settleEnglishAuction", () => {
       })
     );
   });
+
+  it("does not cancel a no-winner auction when refunding an active bid fails", async () => {
+    const auctionUpdates: Array<Record<string, unknown>> = [];
+    const bidUpdates: Array<Record<string, unknown>> = [];
+    let bidSelectCall = 0;
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "auctions") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: "auction-1",
+                    seller_id: "seller-1",
+                    status: "active",
+                    ends_at: "2000-03-19T00:00:00.000Z",
+                    reserve_price: 100,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: (payload: Record<string, unknown>) => {
+              auctionUpdates.push(payload);
+              return {
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              };
+            },
+          };
+        }
+
+        if (table === "auction_bids") {
+          return {
+            select: () => ({
+              eq: () => {
+                return {
+                  eq: vi.fn(() => {
+                    bidSelectCall += 1;
+                    if (bidSelectCall === 1) {
+                      return {
+                        order: () => ({
+                          limit: () => ({
+                            single: vi.fn().mockResolvedValue({
+                              data: {
+                                id: "bid-1",
+                                bidder_id: "buyer-1",
+                                bid_amount: 80,
+                                escrow_hold_id: "escrow-1",
+                              },
+                              error: null,
+                            }),
+                          }),
+                        }),
+                      };
+                    }
+
+                    return Promise.resolve({
+                      data: [{ id: "bid-1", escrow_hold_id: "escrow-1" }],
+                      error: null,
+                    });
+                  }),
+                };
+              },
+            }),
+            update: (payload: Record<string, unknown>) => {
+              bidUpdates.push(payload);
+              return {
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              };
+            },
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+    mockCreateAdminClient.mockReturnValue(supabase);
+    mockRefundEscrow.mockRejectedValueOnce(new Error("refund offline"));
+
+    const result = await settleEnglishAuction("auction-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to refund an active bid during auction cancellation");
+    expect(auctionUpdates).toHaveLength(0);
+    expect(bidUpdates).toHaveLength(0);
+  });
 });
 
 describe("placeBid", () => {

@@ -275,17 +275,8 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
       (reservePrice === null || Number(winningBid.bid_amount) >= reservePrice);
 
     if (!hasWinner) {
-      // No winner — cancel auction, refund all remaining held bids
-      await sb
-        .from("auctions")
-        .update({
-          status: "cancelled",
-          final_price: null,
-          winner_id: null,
-        })
-        .eq("id", auctionId);
-
-      // Refund all active bids (there might be none, or one that didn't meet reserve)
+      // No winner — refund/cancel all remaining active bids first. Only mark the
+      // auction cancelled once funds are safely returned.
       const { data: activeBids } = await sb
         .from("auction_bids")
         .select("id, escrow_hold_id")
@@ -294,11 +285,6 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
 
       if (activeBids && activeBids.length > 0) {
         for (const bid of activeBids) {
-          await sb
-            .from("auction_bids")
-            .update({ status: "cancelled" })
-            .eq("id", bid.id);
-
           if (bid.escrow_hold_id) {
             try {
               await refundEscrow(bid.escrow_hold_id);
@@ -307,10 +293,28 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
                 escrowHoldId: bid.escrow_hold_id,
                 error: err instanceof Error ? err.message : String(err),
               });
+              return {
+                success: false,
+                error: "Failed to refund an active bid during auction cancellation",
+              };
             }
           }
+
+          await sb
+            .from("auction_bids")
+            .update({ status: "cancelled" })
+            .eq("id", bid.id);
         }
       }
+
+      await sb
+        .from("auctions")
+        .update({
+          status: "cancelled",
+          final_price: null,
+          winner_id: null,
+        })
+        .eq("id", auctionId);
 
       return {
         success: true,
