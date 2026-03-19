@@ -24,6 +24,10 @@ import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
+import {
   getListingCommerceSignals,
   getListingPillClasses,
 } from "@/lib/marketplace/presentation";
@@ -68,6 +72,7 @@ export default async function SearchPage({
     overall_rank: number | null;
     quality_score: number | null;
     capability_score?: number | null;
+    economic_footprint_score?: number | null;
     popularity_score: number | null;
     is_open_weights: boolean | null;
     parameter_count: number | null;
@@ -89,6 +94,11 @@ export default async function SearchPage({
     recent_signal?: ModelSignalSummary | null;
   }> = [];
   let modelCount = 0;
+  let modelAccessCatalog = buildAccessOffersCatalog({
+    platforms: [],
+    deployments: [],
+    models: [],
+  });
   let marketplace: Array<{
     id: string;
     slug: string;
@@ -117,7 +127,7 @@ export default async function SearchPage({
       const modelQuery = supabase
         .from("models")
         .select(
-          "id, slug, name, provider, category, overall_rank, quality_score, capability_score, popularity_score, is_open_weights, parameter_count, short_description, market_cap_estimate",
+          "id, slug, name, provider, category, overall_rank, quality_score, capability_score, economic_footprint_score, popularity_score, is_open_weights, parameter_count, short_description, market_cap_estimate",
           { count: "exact" }
         )
         .eq("status", "active")
@@ -132,7 +142,12 @@ export default async function SearchPage({
         dedupePublicModelFamilies(data ?? []),
         safeQuery
       );
-      const [{ data: newsRaw }, { data: pricingRaw }] = await Promise.all([
+      const [
+        { data: newsRaw },
+        { data: pricingRaw },
+        { data: deploymentPlatformsRaw },
+        { data: modelDeploymentsRaw },
+      ] = await Promise.all([
         supabase
           .from("model_news")
           .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
@@ -145,6 +160,18 @@ export default async function SearchPage({
                 "model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at"
               )
               .in("model_id", uniqueModels.map((model) => model.id))
+          : Promise.resolve({ data: [], error: null }),
+        uniqueModels.length > 0
+          ? supabase.from("deployment_platforms").select("*").order("name")
+          : Promise.resolve({ data: [], error: null }),
+        uniqueModels.length > 0
+          ? supabase
+              .from("model_deployments")
+              .select(
+                "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+              )
+              .in("model_id", uniqueModels.map((model) => model.id))
+              .eq("status", "available")
           : Promise.resolve({ data: [], error: null }),
       ]);
       const modelSignals = pickBestModelSignals(
@@ -214,6 +241,41 @@ export default async function SearchPage({
         });
         pricingByModelId.set(entry.model_id, existing);
       }
+
+      const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+        const platformRecord = platform as Record<string, unknown>;
+        return {
+          id: platform.id,
+          slug: platform.slug,
+          name: platform.name,
+          type: platform.type,
+          base_url: platform.base_url,
+          has_affiliate: platform.has_affiliate,
+          affiliate_url:
+            typeof platformRecord.affiliate_url === "string"
+              ? platformRecord.affiliate_url
+              : platform.affiliate_url_template,
+          affiliate_tag:
+            typeof platformRecord.affiliate_tag === "string"
+              ? platformRecord.affiliate_tag
+              : null,
+        };
+      });
+
+      modelAccessCatalog = buildAccessOffersCatalog({
+        platforms: deploymentPlatforms,
+        deployments: modelDeploymentsRaw ?? [],
+        models: uniqueModels.map((model) => ({
+          id: model.id,
+          slug: model.slug,
+          name: model.name,
+          provider: model.provider,
+          category: model.category,
+          quality_score: model.quality_score,
+          capability_score: model.capability_score,
+          economic_footprint_score: model.economic_footprint_score,
+        })),
+      });
 
       models = uniqueModels.slice(offset, offset + PAGE_SIZE).map((model) => ({
         ...model,
@@ -346,6 +408,7 @@ export default async function SearchPage({
                   (() => {
                     const capabilityValue = getCapabilityMetricValue(model);
                     const pricingSummary = getPublicPricingSummary(model);
+                    const accessOffer = getBestAccessOfferForModel(modelAccessCatalog, model.id);
                     const displayDescription = getModelDisplayDescription(model).text;
 
                     return (
@@ -391,10 +454,10 @@ export default async function SearchPage({
                                 {capabilityValue.toFixed(1)} cap
                               </span>
                             )}
-                            {pricingSummary.compactDisplay && (
+                            {(accessOffer || pricingSummary.compactDisplay) && (
                               <span className="flex items-center gap-0.5">
                                 <Zap className="h-2.5 w-2.5 text-neon" />
-                                {pricingSummary.compactDisplay}
+                                {accessOffer ? accessOffer.monthlyPriceLabel : pricingSummary.compactDisplay}
                               </span>
                             )}
                             {model.market_cap_estimate != null && (

@@ -29,7 +29,10 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
-import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
 import { buildLaunchRadar, summarizeNewsSignals } from "@/lib/news/presentation";
 import { filterProviderSignals } from "@/lib/news/provider-signals";
 import { SignalSummary } from "@/components/news/signal-summary";
@@ -156,11 +159,12 @@ export default async function ProviderDetailPage({
     };
   });
 
-  const providerAccessOffers = buildAccessOffersCatalog({
+  const providerAccessCatalog = buildAccessOffersCatalog({
     platforms: deploymentPlatforms,
     deployments: deploymentsResponse.data ?? [],
     models,
-  }).subscriptionOffers;
+  });
+  const providerAccessOffers = providerAccessCatalog.subscriptionOffers;
 
   const brand = getProviderBrand(providerName);
   const providerNews = filterProviderSignals(
@@ -493,6 +497,7 @@ export default async function ProviderDetailPage({
                   const categoryConfig = CATEGORIES.find((item) => item.slug === model.category);
                   const rank = model.overall_rank ?? 0;
                   const pricingSummary = getPublicPricingSummary(model);
+                  const accessOffer = getBestAccessOfferForModel(providerAccessCatalog, model.id);
                   const parameterDisplay = getParameterDisplay(model);
                   const capabilityValue = getCapabilityMetricValue(model);
 
@@ -549,7 +554,14 @@ export default async function ProviderDetailPage({
                         {formatNumber(model.hf_downloads)}
                       </td>
                       <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                        {pricingSummary.compactDisplay ? (
+                        {accessOffer ? (
+                          <div className="space-y-0.5 text-muted-foreground">
+                            <div>{accessOffer.monthlyPriceLabel}</div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                              {accessOffer.actionLabel}
+                            </div>
+                          </div>
+                        ) : pricingSummary.compactDisplay ? (
                           <div className="space-y-0.5 text-muted-foreground">
                             <div>
                               {pricingSummary.compactDisplay}
