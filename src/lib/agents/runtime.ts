@@ -35,6 +35,10 @@ function runtimeIssueSlug(agentSlug: string) {
   return `agent-runtime-${agentSlug}`;
 }
 
+function staleTaskIssueSlug(agentSlug: string) {
+  return `agent-stale-task-${agentSlug}`;
+}
+
 /**
  * Execute a resident agent by slug.
  * Creates a task, runs the agent, and records the result.
@@ -96,13 +100,11 @@ export async function executeAgent(
     };
   }
 
-  const runningTaskCutoff = new Date(Date.now() - timeoutMs).toISOString();
   const { data: runningTask, error: runningTaskError } = await sb
     .from("agent_tasks")
     .select("id, started_at, task_type")
     .eq("agent_id", record.id)
     .eq("status", "running")
-    .gte("started_at", runningTaskCutoff)
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -121,20 +123,79 @@ export async function executeAgent(
   }
 
   if (runningTask) {
-    return {
-      agentSlug: slug,
-      taskId: typeof runningTask.id === "string" ? runningTask.id : null,
-      success: false,
-      skipped: true,
-      output: {
-        skippedReason: "agent_run_already_in_progress",
-        runningTaskId: runningTask.id,
-        runningTaskType: runningTask.task_type,
-        runningSince: runningTask.started_at,
-      },
-      errors: [`Agent "${slug}" already has a running task in progress.`],
-      durationMs: Date.now() - startTime,
-    };
+    const startedAt = typeof runningTask.started_at === "string" ? runningTask.started_at : null;
+    const runningSinceMs = startedAt ? new Date(startedAt).getTime() : Number.NaN;
+    const isStaleTask =
+      !startedAt || !Number.isFinite(runningSinceMs) || Date.now() - runningSinceMs > timeoutMs;
+
+    if (isStaleTask) {
+      const staleReason = `Marked failed by runtime after exceeding timeout of ${timeoutMs}ms`;
+      const { error: staleTaskUpdateErr } = await sb
+        .from("agent_tasks")
+        .update({
+          status: "failed",
+          error_message: staleReason,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", runningTask.id);
+
+      if (staleTaskUpdateErr) {
+        return {
+          agentSlug: slug,
+          taskId: typeof runningTask.id === "string" ? runningTask.id : null,
+          success: false,
+          output: null,
+          errors: [
+            `Failed to mark stale running task for agent "${slug}": ${staleTaskUpdateErr.message}`,
+          ],
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      try {
+        await recordAgentIssue(sb, {
+          slug: staleTaskIssueSlug(record.slug),
+          title: `${record.name} had a stale running task auto-failed`,
+          issueType: "stale_running_task",
+          source: "scheduled_run",
+          severity: "high",
+          confidence: 0.95,
+          detectedBy: "runtime",
+          playbook: "inspect_stuck_task_and_verify_agent_health",
+          evidence: {
+            agentSlug: record.slug,
+            staleTaskId: runningTask.id,
+            staleTaskType: runningTask.task_type,
+            startedAt,
+            timeoutMs,
+          },
+          verification: {
+            status: "auto_failed_stale_task",
+            recoveredAt: new Date().toISOString(),
+          },
+        });
+      } catch (issueErr) {
+        void log.warn("Failed to record stale running task issue", {
+          agentSlug: record.slug,
+          error: issueErr instanceof Error ? issueErr.message : String(issueErr),
+        });
+      }
+    } else {
+      return {
+        agentSlug: slug,
+        taskId: typeof runningTask.id === "string" ? runningTask.id : null,
+        success: false,
+        skipped: true,
+        output: {
+          skippedReason: "agent_run_already_in_progress",
+          runningTaskId: runningTask.id,
+          runningTaskType: runningTask.task_type,
+          runningSince: runningTask.started_at,
+        },
+        errors: [`Agent "${slug}" already has a running task in progress.`],
+        durationMs: Date.now() - startTime,
+      };
+    }
   }
 
   // Create task record
