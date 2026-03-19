@@ -97,6 +97,34 @@ function createMockSessionClient(options: {
     }),
   };
 
+  const cronRunsChain = {
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "cron-1",
+          job_name: "agent-pipeline-engineer",
+          status: "failed",
+          error_message: "provider timeout",
+          started_at: "2026-03-19T11:00:00.000Z",
+          finished_at: "2026-03-19T11:01:00.000Z",
+          created_at: "2026-03-19T11:00:00.000Z",
+        },
+        {
+          id: "cron-2",
+          job_name: "sync-data-sources",
+          status: "failed",
+          error_message: "source timeout",
+          started_at: "2026-03-19T10:00:00.000Z",
+          finished_at: "2026-03-19T10:01:00.000Z",
+          created_at: "2026-03-19T10:00:00.000Z",
+        },
+      ],
+      error: null,
+    }),
+  };
+
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({
@@ -132,6 +160,12 @@ function createMockSessionClient(options: {
       if (table === "agent_deferred_items") {
         return {
           select: () => deferredChain,
+        };
+      }
+
+      if (table === "cron_runs") {
+        return {
+          select: () => cronRunsChain,
         };
       }
 
@@ -176,6 +210,8 @@ describe("GET /api/admin/agents", () => {
     expect(body.configuredProviders).toEqual(["openrouter", "anthropic"]);
     expect(body.issues).toHaveLength(1);
     expect(body.deferredItems).toHaveLength(1);
+    expect(body.recentFailingRuns).toHaveLength(1);
+    expect(body.recentFailingRuns[0].job_name).toBe("agent-pipeline-engineer");
     expect(body.summary).toEqual(
       expect.objectContaining({
         totalAgents: 2,
@@ -186,6 +222,7 @@ describe("GET /api/admin/agents", () => {
         openIssues: 1,
         escalatedIssues: 0,
         openDeferredItems: 1,
+        recentFailingRuns: 1,
       })
     );
   });

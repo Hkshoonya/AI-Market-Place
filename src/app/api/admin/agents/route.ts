@@ -16,6 +16,11 @@ function isStaleAgent(lastActiveAt: string | null | undefined, now = Date.now())
   return now - new Date(lastActiveAt).getTime() > 24 * 60 * 60 * 1000;
 }
 
+function isAgentCronJob(jobName: string | null | undefined) {
+  if (!jobName) return false;
+  return jobName.startsWith("agent-") || jobName.startsWith("cron-agents-");
+}
+
 // GET /api/admin/agents — list all agents
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -45,7 +50,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [agentsResult, issuesResult, deferredResult] = await Promise.all([
+    const [agentsResult, issuesResult, deferredResult, cronRunsResult] = await Promise.all([
       supabase
         .from("agents")
         .select("*")
@@ -62,6 +67,12 @@ export async function GET(request: NextRequest) {
         .select("*")
         .order("updated_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("cron_runs")
+        .select("id, job_name, status, error_message, started_at, finished_at, created_at")
+        .eq("status", "failed")
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
     if (agentsResult.error) {
@@ -73,10 +84,16 @@ export async function GET(request: NextRequest) {
     if (deferredResult.error) {
       return NextResponse.json({ error: deferredResult.error.message }, { status: 500 });
     }
+    if (cronRunsResult.error) {
+      return NextResponse.json({ error: cronRunsResult.error.message }, { status: 500 });
+    }
 
     const agents = agentsResult.data ?? [];
     const issues = issuesResult.data ?? [];
     const deferredItems = deferredResult.data ?? [];
+    const recentFailingRuns = (cronRunsResult.data ?? []).filter((run) =>
+      isAgentCronJob(run.job_name)
+    );
     const summary = {
       totalAgents: agents.length,
       activeAgents: agents.filter((agent) => agent.status === "active").length,
@@ -88,6 +105,7 @@ export async function GET(request: NextRequest) {
       openIssues: issues.filter((issue) => issue.status === "open").length,
       escalatedIssues: issues.filter((issue) => issue.status === "escalated").length,
       openDeferredItems: deferredItems.filter((item) => item.status === "open").length,
+      recentFailingRuns: recentFailingRuns.length,
     };
 
     return NextResponse.json({
@@ -95,6 +113,7 @@ export async function GET(request: NextRequest) {
       configuredProviders: listConfiguredAgentProviders(),
       issues,
       deferredItems,
+      recentFailingRuns,
       summary,
     });
   } catch (err) {

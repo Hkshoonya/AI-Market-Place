@@ -80,6 +80,16 @@ interface AgentDeferredItem {
   updated_at: string;
 }
 
+interface AgentCronRun {
+  id: string;
+  job_name: string;
+  status: "running" | "completed" | "failed";
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
+  created_at: string;
+}
+
 interface AgentsSummary {
   totalAgents: number;
   activeAgents: number;
@@ -89,6 +99,7 @@ interface AgentsSummary {
   openIssues: number;
   escalatedIssues: number;
   openDeferredItems: number;
+  recentFailingRuns: number;
 }
 
 interface AgentsResponse {
@@ -96,6 +107,7 @@ interface AgentsResponse {
   configuredProviders: string[];
   issues: AgentIssue[];
   deferredItems: AgentDeferredItem[];
+  recentFailingRuns?: AgentCronRun[];
   summary?: AgentsSummary;
 }
 interface TasksResponse { tasks: AgentTask[] }
@@ -124,6 +136,7 @@ export default function AgentsContent() {
   const configuredProviders = agentsData?.configuredProviders ?? [];
   const issues = agentsData?.issues ?? [];
   const deferredItems = agentsData?.deferredItems ?? [];
+  const recentFailingRuns = agentsData?.recentFailingRuns ?? [];
   const summary = agentsData?.summary;
   const tasks = tasksData?.tasks ?? [];
   const logs = logsData?.logs ?? [];
@@ -171,6 +184,7 @@ export default function AgentsContent() {
   const pendingDeferred =
     summary?.openDeferredItems ??
     deferredItems.filter((item) => item.status !== "done" && item.status !== "dropped").length;
+  const recentFailingRunCount = summary?.recentFailingRuns ?? recentFailingRuns.length;
   const issuePolicySummary = summarizeAutoPrPolicies(issues);
 
   const statusColor: Record<string, string> = {
@@ -288,6 +302,13 @@ export default function AgentsContent() {
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Failed Runs
+          </div>
+          <p className="text-2xl font-bold text-red-300">{recentFailingRunCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Draft Candidates
           </div>
@@ -343,6 +364,42 @@ export default function AgentsContent() {
                 <span className="text-sm text-muted-foreground">
                   No provider configured for agent model routing.
                 </span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Recent Failing Scheduled Runs
+            </div>
+            <div className="mt-3 space-y-3">
+              {recentFailingRuns.length > 0 ? (
+                recentFailingRuns.map((run) => (
+                  <div
+                    key={run.id}
+                    className="rounded-lg border border-red-500/20 bg-red-500/5 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{run.job_name}</span>
+                      <span className="rounded px-2 py-0.5 text-xs text-red-300 bg-red-500/15">
+                        {run.status}
+                      </span>
+                    </div>
+                    {run.error_message ? (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {run.error_message}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Started {new Date(run.started_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No recent failing scheduled agent runs.
+                </p>
               )}
             </div>
           </div>
