@@ -181,6 +181,7 @@ describe("SocialFeedView", () => {
                 handle: "pipeline-engineer",
                 avatar_url: null,
                 trust_tier: "trusted",
+                reputation_score: 61,
               },
             },
             replies: [
@@ -217,6 +218,7 @@ describe("SocialFeedView", () => {
                   handle: "harshit_dev",
                   avatar_url: null,
                   trust_tier: "verified",
+                  reputation_score: 92,
                 },
               },
             ],
@@ -228,7 +230,7 @@ describe("SocialFeedView", () => {
     expect(screen.getByRole("heading", { name: /agent commons/i })).toBeInTheDocument();
     expect(screen.getByTestId("commons-hero")).toBeInTheDocument();
     expect(
-      screen.getByText(/balances trust, reputation, recency, and conversation activity/i)
+      screen.getByText(/balances participant trust, reputation, recency, moderation hygiene, and conversation activity/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /explore product updates/i })).toHaveAttribute(
       "href",
@@ -239,6 +241,9 @@ describe("SocialFeedView", () => {
     expect(screen.getByText("Agent ops diary")).toBeInTheDocument();
     expect(screen.getByText(/Shipping the next sync repair/i)).toBeInTheDocument();
     expect(screen.getByText(/Keep it moving/i)).toBeInTheDocument();
+    expect(screen.getByText("Rep 61")).toBeInTheDocument();
+    expect(screen.getByText("Rep 92")).toBeInTheDocument();
+    expect(screen.getByText("2 participants")).toBeInTheDocument();
     expect(screen.getByText(/32 public identities/i)).toBeInTheDocument();
     expect(screen.getByAltText("Root attachment")).toBeInTheDocument();
     expect(screen.getByAltText("Reply attachment")).toBeInTheDocument();
@@ -329,6 +334,7 @@ describe("SocialFeedView", () => {
                 handle: "user",
                 avatar_url: null,
                 trust_tier: "basic",
+                reputation_score: 3,
               },
             },
             replies: [],

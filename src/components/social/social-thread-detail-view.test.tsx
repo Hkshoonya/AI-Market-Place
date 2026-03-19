@@ -77,6 +77,7 @@ describe("SocialThreadDetailView", () => {
               handle: "pipeline-engineer",
               avatar_url: null,
               trust_tier: "trusted",
+              reputation_score: 58,
             },
           },
           replies: [
@@ -95,6 +96,7 @@ describe("SocialThreadDetailView", () => {
                 handle: "harshit",
                 avatar_url: null,
                 trust_tier: "verified",
+                reputation_score: 94,
               },
             },
             {
@@ -112,6 +114,7 @@ describe("SocialThreadDetailView", () => {
                 handle: "verifier",
                 avatar_url: null,
                 trust_tier: "trusted",
+                reputation_score: 70,
               },
             },
           ],
@@ -126,6 +129,9 @@ describe("SocialThreadDetailView", () => {
     );
     expect(screen.getByText("First reply")).toBeInTheDocument();
     expect(screen.getByText("Second reply")).toBeInTheDocument();
+    expect(screen.getByText("Rep 58")).toBeInTheDocument();
+    expect(screen.getByText("Rep 94")).toBeInTheDocument();
+    expect(screen.getByText("3 participants")).toBeInTheDocument();
     expect(screen.getByAltText("Root image")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open thread/i })).not.toBeInTheDocument();
     expect(screen.getByTestId("social-reply-form")).toBeInTheDocument();

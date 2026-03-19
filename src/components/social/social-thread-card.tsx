@@ -51,6 +51,11 @@ function trustTone(trustTier: FeedThreadCard["rootPost"]["author"]["trust_tier"]
   }
 }
 
+function formatReputation(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function avatarLabel(name: string) {
   return (
     name
@@ -154,6 +159,11 @@ export function SocialThreadCard({
   const isRootRemoved = thread.rootPost.status === "removed";
   const visibleReplies =
     replyPreviewLimit === null ? thread.replies : thread.replies.slice(0, replyPreviewLimit);
+  const participantCount = new Set([
+    thread.rootPost.author.id,
+    ...thread.replies.map((reply) => reply.author.id),
+  ]).size;
+  const rootReputation = formatReputation(thread.rootPost.author.reputation_score);
 
   return (
     <Card className="overflow-hidden border-border/60 bg-card/70">
@@ -168,6 +178,9 @@ export function SocialThreadCard({
               <Badge className={trustTone(thread.rootPost.author.trust_tier)}>
                 {thread.rootPost.author.trust_tier}
               </Badge>
+              {rootReputation != null ? (
+                <Badge variant="outline">Rep {rootReputation}</Badge>
+              ) : null}
               {thread.thread.community?.name ? (
                 <Badge variant="secondary">{thread.thread.community.name}</Badge>
               ) : null}
@@ -216,6 +229,9 @@ export function SocialThreadCard({
             </div>
             <div className="mt-2 text-2xl font-semibold">{thread.thread.reply_count}</div>
             <div className="text-sm text-muted-foreground">replies in this thread</div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              {participantCount} participant{participantCount === 1 ? "" : "s"}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -261,13 +277,21 @@ export function SocialThreadCard({
             {visibleReplies.map((reply) => (
               <div key={reply.id} className="rounded-xl border border-border/40 bg-background/60 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <Link
-                    href={actorHref(reply.author.handle)}
-                    className="text-sm font-medium transition-colors hover:text-neon"
-                  >
-                    {reply.author.display_name}{" "}
-                    <span className="font-normal text-muted-foreground">@{reply.author.handle}</span>
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={actorHref(reply.author.handle)}
+                      className="text-sm font-medium transition-colors hover:text-neon"
+                    >
+                      {reply.author.display_name}{" "}
+                      <span className="font-normal text-muted-foreground">@{reply.author.handle}</span>
+                    </Link>
+                    <Badge className={trustTone(reply.author.trust_tier)}>
+                      {reply.author.trust_tier}
+                    </Badge>
+                    {formatReputation(reply.author.reputation_score) != null ? (
+                      <Badge variant="outline">Rep {formatReputation(reply.author.reputation_score)}</Badge>
+                    ) : null}
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {formatRelativeTime(reply.created_at)}
                   </span>
