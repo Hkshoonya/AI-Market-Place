@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants/categories";
-import { createPublicClient } from "@/lib/supabase/public-server";
+import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { HomeTopModelSchema } from "@/lib/schemas/models";
 import { formatNumber } from "@/lib/format";
@@ -38,7 +38,7 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOptionalAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -59,10 +59,8 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const supabase = createPublicClient();
-  const admin = createAdminClient();
+  const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
 
-  // Consolidated query: fetch key fields from all active models in one go
   const [
     { count: modelCount },
     { count: benchmarkCount },
@@ -71,38 +69,48 @@ export default async function HomePage() {
     { data: modelDeploymentsRaw },
     { data: latestSignalNewsRaw },
     { data: latestPipelineSyncRaw },
-  ] = await Promise.all([
-    supabase.from("models").select("*", { count: "exact", head: true }),
-    supabase.from("benchmarks").select("*", { count: "exact", head: true }),
-    supabase
-      .from("models")
-      .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, parameter_count, short_description, description, context_window, is_open_weights"
-      )
-      .eq("status", "active"),
-    supabase
-      .from("deployment_platforms")
-      .select("*")
-      .order("name"),
-    supabase
-      .from("model_deployments")
-      .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
-      .eq("status", "available"),
-    supabase
-      .from("model_news")
-      .select("published_at")
-      .in("source", ["x-twitter", "provider-blog"])
-      .order("published_at", { ascending: false })
-      .limit(1),
-    admin
-      .from("data_sources")
-      .select("last_sync_at")
-      .eq("is_enabled", true)
-      .is("quarantined_at", null)
-      .not("last_sync_at", "is", null)
-      .order("last_sync_at", { ascending: false })
-      .limit(1),
-  ]);
+  ] = supabase
+    ? await Promise.all([
+        supabase.from("models").select("*", { count: "exact", head: true }),
+        supabase.from("benchmarks").select("*", { count: "exact", head: true }),
+        supabase
+          .from("models")
+          .select(
+            "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, parameter_count, short_description, description, context_window, is_open_weights"
+          )
+          .eq("status", "active"),
+        supabase
+          .from("deployment_platforms")
+          .select("*")
+          .order("name"),
+        supabase
+          .from("model_deployments")
+          .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+          .eq("status", "available"),
+        supabase
+          .from("model_news")
+          .select("published_at")
+          .in("source", ["x-twitter", "provider-blog"])
+          .order("published_at", { ascending: false })
+          .limit(1),
+        supabase
+          .from("data_sources")
+          .select("last_sync_at")
+          .eq("is_enabled", true)
+          .is("quarantined_at", null)
+          .not("last_sync_at", "is", null)
+          .order("last_sync_at", { ascending: false })
+          .limit(1),
+      ])
+    : [
+        { count: 0 },
+        { count: 0 },
+        { data: [] },
+        { data: [] },
+        { data: [] },
+        { data: [] },
+        { data: [] },
+      ];
 
   const activeModels = dedupePublicModelFamilies(allActiveModels ?? []);
   const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
@@ -151,7 +159,7 @@ export default async function HomePage() {
     .map((model) => model.id);
 
   const topModelsResponse =
-    topModelIds.length > 0
+    supabase && topModelIds.length > 0
       ? await supabase
           .from("models")
           .select("*, rankings(*), model_pricing(*), benchmark_scores(benchmark_id, benchmarks(slug)), elo_ratings(arena_name)")
