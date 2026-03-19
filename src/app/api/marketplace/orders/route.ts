@@ -17,6 +17,10 @@ const createOrderSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
+function isRequestOnlyPricingType(pricingType: string | null | undefined) {
+  return pricingType === "free" || pricingType === "contact";
+}
+
 export async function GET(request: NextRequest) {
   try {
   const ip = getClientIp(request);
@@ -163,12 +167,19 @@ export async function POST(request: NextRequest) {
   // Get listing to find seller and price
   const { data: listing } = await adminSb
     .from("marketplace_listings")
-    .select("seller_id, price, pricing_type")
+    .select("seller_id, price, pricing_type, status")
     .eq("id", listing_id)
     .single();
 
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  if (listing.status !== "active") {
+    return NextResponse.json(
+      { error: "Listing not found or not active." },
+      { status: 404 }
+    );
   }
 
   // Authenticated users can't order their own listing
@@ -177,6 +188,52 @@ export async function POST(request: NextRequest) {
       { error: "Cannot order your own listing" },
       { status: 400 }
     );
+  }
+
+  if (!isRequestOnlyPricingType(listing.pricing_type)) {
+    return NextResponse.json(
+      {
+        error:
+          "Direct paid checkout now requires the purchase flow. Use /api/marketplace/purchase for paid listings.",
+      },
+      { status: 409 }
+    );
+  }
+
+  if (user) {
+    const { data: existingBuyerOrder } = await adminSb
+      .from("marketplace_orders")
+      .select("id")
+      .eq("listing_id", listing_id)
+      .eq("buyer_id", user.id)
+      .in("status", ["pending", "completed"])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingBuyerOrder) {
+      return NextResponse.json(
+        { error: "You already have an active request or order for this listing." },
+        { status: 409 }
+      );
+    }
+  }
+
+  if (!user && guest_email) {
+    const { data: existingGuestOrder } = await adminSb
+      .from("marketplace_orders")
+      .select("id")
+      .eq("listing_id", listing_id)
+      .eq("guest_email", guest_email)
+      .in("status", ["pending", "completed"])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingGuestOrder) {
+      return NextResponse.json(
+        { error: "You already have an active request or order for this listing." },
+        { status: 409 }
+      );
+    }
   }
 
   // Build insert payload — buyer_id is nullable for guest orders
