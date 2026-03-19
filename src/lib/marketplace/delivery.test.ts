@@ -39,6 +39,7 @@ function createMockSupabase(options?: {
     seller_id: "seller-1",
     created_at: "2026-03-14T12:00:00Z",
     fulfillment_manifest_snapshot: null,
+    delivery_data: null,
   };
 
   return {
@@ -243,5 +244,85 @@ describe("deliverDigitalGood", () => {
         tools: [{ name: "search" }, { name: "summarize" }],
       })
     );
+  });
+
+  it("reuses existing api access delivery metadata instead of minting a second key", async () => {
+    const orderUpdates: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(
+      createMockSupabase({
+        order: {
+          id: "order-1",
+          listing_id: "listing-1",
+          buyer_id: "buyer-1",
+          seller_id: "seller-1",
+          created_at: "2026-03-14T12:00:00Z",
+          fulfillment_manifest_snapshot: null,
+          delivery_data: {
+            type: "api_access",
+            key_id: "key-1",
+            key_prefix: "aimk_saved",
+          },
+        },
+        orderUpdates,
+      })
+    );
+
+    const result = await deliverDigitalGood("order-1", "listing-1", "buyer-1");
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      key_prefix: "aimk_saved",
+      reused: true,
+    });
+    expect(orderUpdates).toHaveLength(1);
+  });
+
+  it("reuses existing agent delivery metadata instead of creating a duplicate agent", async () => {
+    const orderUpdates: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(
+      createMockSupabase({
+        listing: {
+          id: "listing-1",
+          title: "Agent Access",
+          slug: "agent-access",
+          listing_type: "agent",
+          description: "Listing",
+          short_description: "Listing",
+          pricing_type: "one_time",
+          price: 10,
+          currency: "USD",
+          tags: ["agent"],
+          documentation_url: null,
+          demo_url: null,
+          agent_config: { capabilities: ["research"] },
+          mcp_manifest: null,
+          preview_manifest: null,
+        },
+        order: {
+          id: "order-1",
+          listing_id: "listing-1",
+          buyer_id: "buyer-1",
+          seller_id: "seller-1",
+          created_at: "2026-03-14T12:00:00Z",
+          fulfillment_manifest_snapshot: null,
+          delivery_data: {
+            type: "agent",
+            agent_id: "agent-1",
+            agent_slug: "agent-access-buyer",
+          },
+        },
+        orderUpdates,
+      })
+    );
+
+    const result = await deliverDigitalGood("order-1", "listing-1", "buyer-1");
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      agent_id: "agent-1",
+      agent_slug: "agent-access-buyer",
+      reused: true,
+    });
+    expect(orderUpdates).toHaveLength(1);
   });
 });

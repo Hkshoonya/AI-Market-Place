@@ -20,6 +20,12 @@ function asManifestObject(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function asDeliveryObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 /**
  * Auto-deliver a digital good based on listing type.
  * Called after order is completed and payment confirmed.
@@ -41,7 +47,9 @@ export async function deliverDigitalGood(
 
   const { data: order } = await sb
     .from("marketplace_orders")
-    .select("id, listing_id, buyer_id, seller_id, created_at, fulfillment_manifest_snapshot")
+    .select(
+      "id, listing_id, buyer_id, seller_id, created_at, fulfillment_manifest_snapshot, delivery_data"
+    )
     .eq("id", orderId)
     .single();
 
@@ -56,6 +64,7 @@ export async function deliverDigitalGood(
   let fulfillmentManifest = asManifestObject(
     order?.fulfillment_manifest_snapshot
   );
+  const existingDeliveryData = asDeliveryObject(order?.delivery_data);
 
   if (!fulfillmentManifest && order) {
     fulfillmentManifest = buildOrderFulfillmentManifest({
@@ -96,7 +105,7 @@ export async function deliverDigitalGood(
 
   switch (listing.listing_type) {
     case "api_access":
-      return deliverApiAccess(orderId, listing, buyerId);
+      return deliverApiAccess(orderId, listing, buyerId, existingDeliveryData);
     case "model_weights":
     case "dataset":
     case "fine_tuned_model":
@@ -104,7 +113,7 @@ export async function deliverDigitalGood(
     case "prompt_template":
       return deliverPromptTemplate(orderId, listing);
     case "agent":
-      return deliverAgent(orderId, listing, buyerId);
+      return deliverAgent(orderId, listing, buyerId, existingDeliveryData);
     case "mcp_server":
       return deliverMcpServer(orderId, listing, fulfillmentManifest);
     default:
@@ -142,8 +151,23 @@ async function ensureAccountBoundBuyer(
 async function deliverApiAccess(
   orderId: string,
   listing: MarketplaceListing,
-  buyerId: string
+  buyerId: string,
+  existingDeliveryData?: Record<string, unknown> | null
 ): Promise<DeliveryResult> {
+  if (
+    existingDeliveryData?.type === "api_access" &&
+    typeof existingDeliveryData.key_prefix === "string"
+  ) {
+    return {
+      success: true,
+      deliveryType: "api_access",
+      data: {
+        key_prefix: existingDeliveryData.key_prefix,
+        reused: true,
+      },
+    };
+  }
+
   const accountCheck = await ensureAccountBoundBuyer(buyerId);
   if (!accountCheck.ok) {
     return {
@@ -258,8 +282,25 @@ async function deliverPromptTemplate(
 async function deliverAgent(
   orderId: string,
   listing: MarketplaceListing,
-  buyerId: string
+  buyerId: string,
+  existingDeliveryData?: Record<string, unknown> | null
 ): Promise<DeliveryResult> {
+  if (
+    existingDeliveryData?.type === "agent" &&
+    typeof existingDeliveryData.agent_id === "string" &&
+    typeof existingDeliveryData.agent_slug === "string"
+  ) {
+    return {
+      success: true,
+      deliveryType: "agent",
+      data: {
+        agent_id: existingDeliveryData.agent_id,
+        agent_slug: existingDeliveryData.agent_slug,
+        reused: true,
+      },
+    };
+  }
+
   const accountCheck = await ensureAccountBoundBuyer(buyerId);
   if (!accountCheck.ok) {
     return {
