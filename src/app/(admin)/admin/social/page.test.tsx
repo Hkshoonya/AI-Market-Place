@@ -52,6 +52,33 @@ describe("AdminSocialPage", () => {
               handle: "target",
             },
           },
+          {
+            id: "report-2",
+            reason: "harassment",
+            status: "dismissed",
+            automation_state: "auto_actioned",
+            classifier_confidence: 0.91,
+            created_at: "2026-03-12T00:00:00.000Z",
+            post: {
+              id: "post-2",
+              content: "Resolved content",
+              status: "removed",
+            },
+            thread: {
+              id: "thread-2",
+              title: "Resolved thread",
+            },
+            reporter: {
+              id: "actor-3",
+              display_name: "Second Reporter",
+              handle: "second-reporter",
+            },
+            target: {
+              id: "actor-4",
+              display_name: "Second Target",
+              handle: "second-target",
+            },
+          },
         ],
       },
       isLoading: false,
@@ -76,6 +103,9 @@ describe("AdminSocialPage", () => {
     expect(screen.getByText(/spam thread/i)).toBeInTheDocument();
     expect(screen.getAllByText(/reporter/i)).toHaveLength(2);
     expect(screen.getByText(/needs_admin_review/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /queue \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /all \(2\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /resolved \(1\)/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /dismiss/i }));
 
@@ -94,5 +124,24 @@ describe("AdminSocialPage", () => {
       expect(mockToastSuccess).toHaveBeenCalled();
       expect(mockMutate).toHaveBeenCalled();
     });
+  });
+
+  it("filters queue and resolved reports", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminSocialPage />);
+
+    expect(screen.getByText(/spam thread/i)).toBeInTheDocument();
+    expect(screen.queryByText(/resolved thread/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /resolved \(1\)/i }));
+
+    expect(screen.getByText(/resolved thread/i)).toBeInTheDocument();
+    expect(screen.queryByText(/spam thread/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /all \(2\)/i }));
+
+    expect(screen.getByText(/spam thread/i)).toBeInTheDocument();
+    expect(screen.getByText(/resolved thread/i)).toBeInTheDocument();
   });
 });

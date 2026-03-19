@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Flag, MessageSquareWarning, RotateCcw, ShieldBan } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatRelativeTime } from "@/lib/format";
 
 interface AdminSocialReportItem {
   id: string;
@@ -39,11 +41,28 @@ interface AdminSocialReportsResponse {
 }
 
 export default function AdminSocialPage() {
+  const [filter, setFilter] = useState<"queue" | "all" | "resolved">("queue");
   const { data, isLoading, mutate } = useSWR<AdminSocialReportsResponse>(
     "/api/admin/social/reports"
   );
 
   const reports = data?.reports ?? [];
+  const queueReports = reports.filter(
+    (report) => report.status === "open" || report.automation_state === "needs_admin_review"
+  );
+  const resolvedReports = reports.filter((report) => report.status !== "open");
+  const autoActionedReports = reports.filter(
+    (report) => report.automation_state === "auto_actioned"
+  );
+  const escalatedReports = reports.filter(
+    (report) => report.automation_state === "needs_admin_review"
+  );
+  const visibleReports =
+    filter === "all"
+      ? reports
+      : filter === "resolved"
+        ? resolvedReports
+        : queueReports;
 
   async function runAction(reportId: string, action: "dismiss" | "remove" | "restore") {
     try {
@@ -80,6 +99,53 @@ export default function AdminSocialPage() {
         <Badge className="border-neon/30 bg-neon/10 text-neon">{reports.length} reports</Badge>
       </div>
 
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Review queue</div>
+          <div className="mt-2 text-2xl font-semibold">{queueReports.length}</div>
+          <div className="text-xs text-muted-foreground">Open or escalated reports</div>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Needs admin</div>
+          <div className="mt-2 text-2xl font-semibold">{escalatedReports.length}</div>
+          <div className="text-xs text-muted-foreground">Bot asked for a human call</div>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Auto actioned</div>
+          <div className="mt-2 text-2xl font-semibold">{autoActionedReports.length}</div>
+          <div className="text-xs text-muted-foreground">Bot already applied a decision</div>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Resolved</div>
+          <div className="mt-2 text-2xl font-semibold">{resolvedReports.length}</div>
+          <div className="text-xs text-muted-foreground">Closed or dismissed reports</div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant={filter === "queue" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("queue")}
+        >
+          Queue ({queueReports.length})
+        </Button>
+        <Button
+          variant={filter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("all")}
+        >
+          All ({reports.length})
+        </Button>
+        <Button
+          variant={filter === "resolved" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("resolved")}
+        >
+          Resolved ({resolvedReports.length})
+        </Button>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-border/50">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -103,7 +169,7 @@ export default function AdminSocialPage() {
                     </td>
                   </tr>
                 ))
-              ) : reports.length === 0 ? (
+              ) : visibleReports.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -120,12 +186,15 @@ export default function AdminSocialPage() {
                   </td>
                 </tr>
               ) : (
-                reports.map((report) => {
+                visibleReports.map((report) => {
                   const postIsPublished = report.post?.status === "published";
+                  const needsAdmin = report.automation_state === "needs_admin_review";
                   return (
                     <tr
                       key={report.id}
-                      className="border-b border-border/30 align-top transition-colors hover:bg-secondary/10"
+                      className={`border-b border-border/30 align-top transition-colors hover:bg-secondary/10 ${
+                        needsAdmin ? "bg-amber-500/5" : ""
+                      }`}
                     >
                       <td className="px-4 py-4">
                         <div className="space-y-1">
@@ -134,6 +203,9 @@ export default function AdminSocialPage() {
                           </div>
                           <p className="max-w-xl text-xs text-muted-foreground">
                             {report.post?.content || "Post missing"}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Reported {formatRelativeTime(report.created_at)}
                           </p>
                         </div>
                       </td>
@@ -148,7 +220,9 @@ export default function AdminSocialPage() {
                       </td>
                       <td className="px-4 py-4 text-center text-xs">
                         <div className="space-y-1">
-                          <div className="font-medium">{report.automation_state}</div>
+                          <div className={`font-medium ${needsAdmin ? "text-amber-400" : ""}`}>
+                            {report.automation_state}
+                          </div>
                           {typeof report.classifier_confidence === "number" ? (
                             <div className="text-muted-foreground">
                               {(report.classifier_confidence * 100).toFixed(0)}%
