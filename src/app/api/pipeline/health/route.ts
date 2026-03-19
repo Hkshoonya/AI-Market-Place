@@ -51,6 +51,20 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   adapters: z.array(AdapterHealthSchema),
 });
 
+function sanitizePipelineErrorMessage(error: string | null | undefined) {
+  if (!error) return null;
+
+  const collapsed = error.replace(/\s+/g, " ").trim();
+  const htmlStart = collapsed.search(/<!DOCTYPE|<html|<head|<body|<[a-z]/i);
+  const useful = htmlStart >= 0 ? collapsed.slice(0, htmlStart).trim() : collapsed;
+
+  if (!useful) {
+    return "Upstream response error";
+  }
+
+  return useful.length > 280 ? `${useful.slice(0, 277)}...` : useful;
+}
+
 // ---------------------------------------------------------------------------
 // GET handler
 // ---------------------------------------------------------------------------
@@ -104,7 +118,7 @@ export async function GET(request: NextRequest) {
         lastSync: source.last_success_at ?? source.last_sync_at ?? null,
         consecutiveFailures: effectiveRow.consecutive_failures,
         recordCount: source.last_sync_records ?? 0,
-        error: source.last_error_message ?? null,
+        error: sanitizePipelineErrorMessage(source.last_error_message),
       };
     });
 

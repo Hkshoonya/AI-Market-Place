@@ -295,6 +295,43 @@ describe("GET /api/pipeline/health", () => {
 
       process.env.CRON_SECRET = originalSecret;
     });
+
+    it("sanitizes raw HTML from upstream adapter errors in detail responses", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            {
+              slug: "adapter-a",
+              last_sync_at: syncedAgo(1, 6),
+              last_sync_records: 0,
+              last_error_message:
+                "Failed to fetch GAIA public results: GAIA validation returned HTTP 429: <!DOCTYPE html><html><head><title>Too Many Requests</title></head><body>rate limited</body></html>",
+            },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "adapter-a", consecutive_failures: 1, last_success_at: syncedAgo(1, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.adapters[0].error).toBe(
+        "Failed to fetch GAIA public results: GAIA validation returned HTTP 429:"
+      );
+
+      process.env.CRON_SECRET = originalSecret;
+    });
   });
 
   // -------------------------------------------------------------------------
