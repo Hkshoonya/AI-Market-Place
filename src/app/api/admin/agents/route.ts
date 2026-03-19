@@ -11,6 +11,11 @@ import { listConfiguredAgentProviders } from "@/lib/agents/provider-router";
 
 export const dynamic = "force-dynamic";
 
+function isStaleAgent(lastActiveAt: string | null | undefined, now = Date.now()) {
+  if (!lastActiveAt) return true;
+  return now - new Date(lastActiveAt).getTime() > 24 * 60 * 60 * 1000;
+}
+
 // GET /api/admin/agents — list all agents
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -69,11 +74,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: deferredResult.error.message }, { status: 500 });
     }
 
+    const agents = agentsResult.data ?? [];
+    const issues = issuesResult.data ?? [];
+    const deferredItems = deferredResult.data ?? [];
+    const summary = {
+      totalAgents: agents.length,
+      activeAgents: agents.filter((agent) => agent.status === "active").length,
+      unhealthyAgents: agents.filter(
+        (agent) => agent.status !== "active" || Number(agent.error_count ?? 0) > 0
+      ).length,
+      autoDisabledAgents: agents.filter((agent) => agent.status === "error").length,
+      staleAgents: agents.filter((agent) => isStaleAgent(agent.last_active_at)).length,
+      openIssues: issues.filter((issue) => issue.status === "open").length,
+      escalatedIssues: issues.filter((issue) => issue.status === "escalated").length,
+      openDeferredItems: deferredItems.filter((item) => item.status === "open").length,
+    };
+
     return NextResponse.json({
-      agents: agentsResult.data ?? [],
+      agents,
       configuredProviders: listConfiguredAgentProviders(),
-      issues: issuesResult.data ?? [],
-      deferredItems: deferredResult.data ?? [],
+      issues,
+      deferredItems,
+      summary,
     });
   } catch (err) {
     return handleApiError(err, "api/admin/agents");

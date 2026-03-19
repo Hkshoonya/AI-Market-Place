@@ -80,11 +80,23 @@ interface AgentDeferredItem {
   updated_at: string;
 }
 
+interface AgentsSummary {
+  totalAgents: number;
+  activeAgents: number;
+  unhealthyAgents: number;
+  autoDisabledAgents: number;
+  staleAgents: number;
+  openIssues: number;
+  escalatedIssues: number;
+  openDeferredItems: number;
+}
+
 interface AgentsResponse {
   agents: Agent[];
   configuredProviders: string[];
   issues: AgentIssue[];
   deferredItems: AgentDeferredItem[];
+  summary?: AgentsSummary;
 }
 interface TasksResponse { tasks: AgentTask[] }
 interface LogsResponse { logs: AgentLog[] }
@@ -112,6 +124,7 @@ export default function AgentsContent() {
   const configuredProviders = agentsData?.configuredProviders ?? [];
   const issues = agentsData?.issues ?? [];
   const deferredItems = agentsData?.deferredItems ?? [];
+  const summary = agentsData?.summary;
   const tasks = tasksData?.tasks ?? [];
   const logs = logsData?.logs ?? [];
 
@@ -141,16 +154,23 @@ export default function AgentsContent() {
     }
   };
 
-  const totalTasks = agents.reduce(
-    (sum, a) => sum + a.total_tasks_completed,
-    0
-  );
+  const totalTasks = agents.reduce((sum, a) => sum + a.total_tasks_completed, 0);
   const totalErrors = agents.reduce((sum, a) => sum + a.error_count, 0);
-  const activeCount = agents.filter((a) => a.status === "active").length;
-  const openIssues = issues.filter((issue) => issue.status !== "resolved").length;
-  const pendingDeferred = deferredItems.filter(
-    (item) => item.status !== "done" && item.status !== "dropped"
-  ).length;
+  const activeCount = summary?.activeAgents ?? agents.filter((a) => a.status === "active").length;
+  const unhealthyCount =
+    summary?.unhealthyAgents ??
+    agents.filter((agent) => agent.status !== "active" || agent.error_count > 0).length;
+  const autoDisabledCount =
+    summary?.autoDisabledAgents ?? agents.filter((agent) => agent.status === "error").length;
+  const staleCount =
+    summary?.staleAgents ??
+    agents.filter((agent) => !agent.last_active_at).length;
+  const openIssues = summary?.openIssues ?? issues.filter((issue) => issue.status === "open").length;
+  const escalatedIssues =
+    summary?.escalatedIssues ?? issues.filter((issue) => issue.status === "escalated").length;
+  const pendingDeferred =
+    summary?.openDeferredItems ??
+    deferredItems.filter((item) => item.status !== "done" && item.status !== "dropped").length;
   const issuePolicySummary = summarizeAutoPrPolicies(issues);
 
   const statusColor: Record<string, string> = {
@@ -189,8 +209,8 @@ export default function AgentsContent() {
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
-          {[...Array(7)].map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-8">
+          {[...Array(8)].map((_, i) => (
             <div key={i} className="h-24 rounded-xl bg-secondary" />
           ))}
         </div>
@@ -202,13 +222,13 @@ export default function AgentsContent() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-8">
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
             <Bot className="h-3.5 w-3.5" />
             Total Agents
           </div>
-          <p className="text-2xl font-bold">{agents.length}</p>
+          <p className="text-2xl font-bold">{summary?.totalAgents ?? agents.length}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -216,6 +236,27 @@ export default function AgentsContent() {
             Active
           </div>
           <p className="text-2xl font-bold text-emerald-400">{activeCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Unhealthy
+          </div>
+          <p className="text-2xl font-bold text-red-400">{unhealthyCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <XCircle className="h-3.5 w-3.5" />
+            Auto-disabled
+          </div>
+          <p className="text-2xl font-bold text-red-300">{autoDisabledCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <Clock className="h-3.5 w-3.5" />
+            Stale
+          </div>
+          <p className="text-2xl font-bold text-yellow-300">{staleCount}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -237,6 +278,13 @@ export default function AgentsContent() {
             Open Issues
           </div>
           <p className="text-2xl font-bold text-yellow-300">{openIssues}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Escalated
+          </div>
+          <p className="text-2xl font-bold text-red-300">{escalatedIssues}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -311,7 +359,7 @@ export default function AgentsContent() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-medium">{agent.name}</span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded ${statusColor[agent.status] ?? ""}`}
@@ -321,6 +369,16 @@ export default function AgentsContent() {
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
                       {agent.agent_type}
                     </span>
+                    {(agent.status !== "active" || agent.error_count > 0) && (
+                      <span className="text-xs px-2 py-0.5 rounded text-red-300 bg-red-500/15">
+                        unhealthy
+                      </span>
+                    )}
+                    {!agent.last_active_at && (
+                      <span className="text-xs px-2 py-0.5 rounded text-yellow-300 bg-yellow-500/10">
+                        stale
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
                     {agent.description}

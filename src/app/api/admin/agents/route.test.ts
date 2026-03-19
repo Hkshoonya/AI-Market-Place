@@ -48,6 +48,17 @@ function createMockSessionClient(options: {
           name: "Pipeline Engineer",
           agent_type: "resident",
           status: "active",
+          error_count: 0,
+          last_active_at: "2026-03-19T12:00:00.000Z",
+        },
+        {
+          id: "agent-2",
+          slug: "ux-monitor",
+          name: "UX Monitor",
+          agent_type: "resident",
+          status: "error",
+          error_count: 10,
+          last_active_at: null,
         },
       ],
       error: null,
@@ -161,9 +172,21 @@ describe("GET /api/admin/agents", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.agents).toHaveLength(1);
+    expect(body.agents).toHaveLength(2);
     expect(body.configuredProviders).toEqual(["openrouter", "anthropic"]);
     expect(body.issues).toHaveLength(1);
     expect(body.deferredItems).toHaveLength(1);
+    expect(body.summary).toEqual(
+      expect.objectContaining({
+        totalAgents: 2,
+        activeAgents: 1,
+        unhealthyAgents: 1,
+        autoDisabledAgents: 1,
+        staleAgents: 1,
+        openIssues: 1,
+        escalatedIssues: 0,
+        openDeferredItems: 1,
+      })
+    );
   });
 });
