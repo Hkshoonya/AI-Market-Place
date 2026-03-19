@@ -111,20 +111,30 @@ export async function processWithdrawal(
 
   // Step 2: Send on-chain transaction
   try {
-    let txHash: string;
+    let transferResult:
+      | { txHash: string; status: "confirmed" | "failed" }
+      | undefined;
 
     if (chain === "solana") {
-      const result = await sendSolanaTransfer(toAddress, amount, token);
-      txHash = result.txHash;
+      transferResult = await sendSolanaTransfer(toAddress, amount, token);
     } else {
-      const result = await sendEvmTransfer(
+      transferResult = await sendEvmTransfer(
         chain as "base" | "polygon",
         toAddress,
         amount,
         token
       );
-      txHash = result.txHash;
     }
+
+    if (
+      !transferResult ||
+      transferResult.status !== "confirmed" ||
+      !transferResult.txHash
+    ) {
+      throw new Error(`On-chain transfer failed on ${chain}`);
+    }
+
+    const txHash = transferResult.txHash;
 
     // Step 3: Update transaction with on-chain tx hash
     const supabase = createAdminClient();
