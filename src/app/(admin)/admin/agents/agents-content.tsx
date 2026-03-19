@@ -596,9 +596,13 @@ export default function AgentsContent() {
                   </button>
                   <button
                     onClick={() => triggerAgent(agent.id)}
-                    disabled={triggering === agent.id}
+                    disabled={triggering === agent.id || agent.status !== "active"}
                     className="rounded-lg p-2 hover:bg-secondary transition-colors disabled:opacity-50"
-                    title="Trigger manual run"
+                    title={
+                      agent.status === "active"
+                        ? "Trigger manual run"
+                        : "Resume the agent before triggering a manual run"
+                    }
                   >
                     <RefreshCw
                       className={`h-4 w-4 text-neon ${triggering === agent.id ? "animate-spin" : ""}`}

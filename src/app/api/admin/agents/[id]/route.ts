@@ -58,9 +58,36 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    const { data: existingAgent } = await supabase
+      .from("agents")
+      .select("status, error_count")
+      .eq("id", id)
+      .single();
+
+    if (!existingAgent) {
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    const updates: {
+      status: "active" | "paused" | "disabled";
+      updated_at: string;
+      error_count?: number;
+    } = {
+      status: status as "active" | "paused" | "disabled",
+      updated_at: new Date().toISOString(),
+    };
+
+    if (
+      status === "active" &&
+      existingAgent.status !== "active" &&
+      Number(existingAgent.error_count ?? 0) > 0
+    ) {
+      updates.error_count = 0;
+    }
+
     const { error } = await supabase
       .from("agents")
-      .update({ status: status as "active" | "paused" | "disabled", updated_at: new Date().toISOString() })
+      .update(updates)
       .eq("id", id);
 
     if (error) {
@@ -110,12 +137,22 @@ export async function POST(
     // Look up agent slug by id
     const { data: agent } = await supabase
       .from("agents")
-      .select("slug")
+      .select("slug, status")
       .eq("id", id)
       .single();
 
     if (!agent) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    if (agent.status !== "active") {
+      return NextResponse.json(
+        {
+          error:
+            "Agent must be active before it can be triggered manually. Resume it first from admin controls.",
+        },
+        { status: 409 }
+      );
     }
 
     const result = await executeAgent(agent.slug, "manual_trigger");
