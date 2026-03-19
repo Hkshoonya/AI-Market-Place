@@ -11,6 +11,10 @@ import {
   compareModelsByLowestPrice,
   getPublicPricingSummary,
 } from "@/lib/models/pricing";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import {
@@ -210,18 +214,69 @@ export default async function ModelsPage({
   const visibleModelIds = models.map((model) => model.id);
 
   let modelSignals = new Map<string, ModelSignalSummary>();
+  let accessCatalog = buildAccessOffersCatalog({
+    platforms: [],
+    deployments: [],
+    models: [],
+  });
   if (visibleModelIds.length > 0) {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    const { data: recentNewsRaw } = await supabase
-      .from("model_news")
-      .select(
-        "id, title, source, related_provider, related_model_ids, published_at, metadata"
-      )
-      .gte("published_at", fourteenDaysAgo.toISOString())
-      .order("published_at", { ascending: false })
-      .limit(250);
+    const [{ data: recentNewsRaw }, { data: deploymentPlatformsRaw }, { data: modelDeploymentsRaw }] =
+      await Promise.all([
+        supabase
+          .from("model_news")
+          .select(
+            "id, title, source, related_provider, related_model_ids, published_at, metadata"
+          )
+          .gte("published_at", fourteenDaysAgo.toISOString())
+          .order("published_at", { ascending: false })
+          .limit(250),
+        supabase.from("deployment_platforms").select("*").order("name"),
+        supabase
+          .from("model_deployments")
+          .select(
+            "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+          )
+          .in("model_id", visibleModelIds)
+          .eq("status", "available"),
+      ]);
+
+    const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+      const platformRecord = platform as Record<string, unknown>;
+      return {
+        id: platform.id,
+        slug: platform.slug,
+        name: platform.name,
+        type: platform.type,
+        base_url: platform.base_url,
+        has_affiliate: platform.has_affiliate,
+        affiliate_url:
+          typeof platformRecord.affiliate_url === "string"
+            ? platformRecord.affiliate_url
+            : platform.affiliate_url_template,
+        affiliate_tag:
+          typeof platformRecord.affiliate_tag === "string"
+            ? platformRecord.affiliate_tag
+            : null,
+      };
+    });
+
+    accessCatalog = buildAccessOffersCatalog({
+      platforms: deploymentPlatforms,
+      deployments: modelDeploymentsRaw ?? [],
+      models: models.map((model) => ({
+        id: model.id,
+        slug: model.slug,
+        name: model.name,
+        provider: model.provider,
+        category: model.category,
+        quality_score: model.quality_score,
+        capability_score: model.capability_score,
+        economic_footprint_score: model.economic_footprint_score,
+      })),
+    });
 
     modelSignals = pickBestModelSignals(
       models,
@@ -276,6 +331,14 @@ export default async function ModelsPage({
           models={models.map((model) => ({
             ...model,
             recent_signal: modelSignals.get(model.id) ?? null,
+            access_offer: (() => {
+              const offer = getBestAccessOfferForModel(accessCatalog, model.id);
+              if (!offer) return null;
+              return {
+                monthlyPriceLabel: offer.monthlyPriceLabel,
+                actionLabel: offer.actionLabel,
+              };
+            })(),
           }))}
         />
       ) : (
@@ -320,6 +383,7 @@ export default async function ModelsPage({
                 const catConfig = CATEGORIES.find((c) => c.slug === model.category);
                 const rank = model.overall_rank ?? 0;
                 const pricingSummary = getPublicPricingSummary(model);
+                const accessOffer = getBestAccessOfferForModel(accessCatalog, model.id);
                 const parameterDisplay = getParameterDisplay(model);
                 const lifecycleBadge = getLifecycleBadge(model.status);
                 const recentSignal = modelSignals.get(model.id);
@@ -398,7 +462,14 @@ export default async function ModelsPage({
                       {formatNumber(model.hf_likes)}
                     </td>
                     <td className="hidden px-4 py-3.5 text-right text-sm lg:table-cell">
-                      {pricingSummary.compactDisplay ? (
+                      {accessOffer ? (
+                        <div className="space-y-0.5 text-muted-foreground">
+                          <div>{accessOffer.monthlyPriceLabel}</div>
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                            {accessOffer.actionLabel}
+                          </div>
+                        </div>
+                      ) : pricingSummary.compactDisplay ? (
                         <div className="space-y-0.5 text-muted-foreground">
                           <div>
                             {pricingSummary.compactDisplay}

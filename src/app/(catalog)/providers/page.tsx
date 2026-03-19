@@ -13,6 +13,10 @@ import { pickBestProviderSignals } from "@/lib/news/provider-signals";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -31,6 +35,7 @@ interface ProviderStats {
   capabilityTotal: number;
   capabilitySamples: number;
   topRank: number | null;
+  topModelId: string;
   openWeightsCount: number;
   categories: string[];
 }
@@ -43,7 +48,7 @@ export default async function ProvidersPage() {
     supabase
     .from("models")
     .select(
-      "id, slug, name, provider, hf_downloads, capability_score, quality_score, overall_rank, is_open_weights, category"
+      "id, slug, name, provider, hf_downloads, capability_score, quality_score, economic_footprint_score, overall_rank, is_open_weights, category"
     )
     .eq("status", "active"),
     supabase
@@ -55,6 +60,18 @@ export default async function ProvidersPage() {
   ]);
 
   const uniqueModels = dedupePublicModelFamilies(models ?? []);
+  const uniqueModelIds = uniqueModels.map((model) => model.id);
+  const [deploymentPlatformsRaw, modelDeploymentsRaw] =
+    uniqueModelIds.length > 0
+      ? await Promise.all([
+          supabase.from("deployment_platforms").select("*").order("name"),
+          supabase
+            .from("model_deployments")
+            .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+            .in("model_id", uniqueModelIds)
+            .eq("status", "available"),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }];
 
   // Aggregate stats by provider
   const providerMap = new Map<string, ProviderStats>();
@@ -76,6 +93,7 @@ export default async function ProvidersPage() {
         (existing.topRank == null || m.overall_rank < existing.topRank)
       ) {
         existing.topRank = m.overall_rank;
+        existing.topModelId = m.id;
       }
       if (m.is_open_weights) existing.openWeightsCount++;
       if (!existing.categories.includes(m.category)) {
@@ -90,6 +108,7 @@ export default async function ProvidersPage() {
         capabilityTotal: capabilityValue ?? 0,
         capabilitySamples: capabilityValue != null ? 1 : 0,
         topRank: m.overall_rank,
+        topModelId: m.id,
         openWeightsCount: m.is_open_weights ? 1 : 0,
         categories: [m.category],
       });
@@ -104,6 +123,38 @@ export default async function ProvidersPage() {
   // Show top providers (2+ models) to keep the page fast
   const providers = allProviders.filter((p) => p.modelCount >= 2);
   const totalProviderCount = allProviders.length;
+  const accessCatalog = buildAccessOffersCatalog({
+    platforms: (deploymentPlatformsRaw.data ?? []).map((platform) => {
+      const platformRecord = platform as Record<string, unknown>;
+      return {
+        id: platform.id,
+        slug: platform.slug,
+        name: platform.name,
+        type: platform.type,
+        base_url: platform.base_url,
+        has_affiliate: platform.has_affiliate,
+        affiliate_url:
+          typeof platformRecord.affiliate_url === "string"
+            ? platformRecord.affiliate_url
+            : platform.affiliate_url_template,
+        affiliate_tag:
+          typeof platformRecord.affiliate_tag === "string"
+            ? platformRecord.affiliate_tag
+            : null,
+      };
+    }),
+    deployments: modelDeploymentsRaw.data ?? [],
+    models: uniqueModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      name: model.name,
+      provider: model.provider,
+      category: model.category,
+      quality_score: model.quality_score,
+      capability_score: model.capability_score,
+      economic_footprint_score: model.economic_footprint_score,
+    })),
+  });
   const providerSignals = pickBestProviderSignals(
     providers.map((provider) => provider.provider),
     (newsRaw ?? []).map((item) => ({
@@ -189,6 +240,7 @@ export default async function ProvidersPage() {
         {providers.map((prov) => {
           const brand = getProviderBrand(prov.provider);
           const slug = getProviderSlug(prov.provider);
+          const bestAccessOffer = getBestAccessOfferForModel(accessCatalog, prov.topModelId);
 
           return (
             <Link key={prov.provider} href={`/providers/${slug}`}>
@@ -250,7 +302,20 @@ export default async function ProvidersPage() {
                         {prov.openWeightsCount} open
                       </Badge>
                     )}
+                    {bestAccessOffer && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] border-neon/30 text-neon bg-neon/10"
+                      >
+                        {bestAccessOffer.monthlyPriceLabel}
+                      </Badge>
+                    )}
                   </div>
+                  {bestAccessOffer ? (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {bestAccessOffer.actionLabel} via {bestAccessOffer.platform.name}
+                    </p>
+                  ) : null}
 
                   {providerSignals.get(prov.provider) ? (
                     <div className="mt-3 border-t border-border/40 pt-3">

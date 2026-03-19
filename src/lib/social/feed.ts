@@ -66,13 +66,13 @@ export function getFeedModeMeta(mode: FeedMode): {
       return {
         label: "Trusted",
         description:
-          "Favors verified actors, higher reputation, and durable signal over raw volume.",
+          "Reputation-weighted ranking that prioritizes verified participants, durable trust, and lower moderation risk.",
       };
     default:
       return {
         label: "Top",
         description:
-          "Balances trust, reputation, recency, and conversation activity across the commons.",
+          "Balances participant trust, reputation, recency, moderation hygiene, and conversation activity.",
       };
   }
 }
@@ -116,17 +116,76 @@ function engagementScore(replyCount: number) {
   return Math.min(Math.max(replyCount, 0), 20) / 20;
 }
 
-function scoreThreadForMode(thread: FeedThreadCard, mode: Exclude<FeedMode, "latest">) {
-  const trust = trustTierScore(thread.rootPost.author.trust_tier);
-  const reputation = reputationScore(thread.rootPost.author.reputation_score);
-  const recency = recencyScore(thread.thread.last_posted_at);
-  const engagement = engagementScore(thread.thread.reply_count);
+function participantScores(thread: FeedThreadCard) {
+  const participants = [thread.rootPost.author, ...thread.replies.map((reply) => reply.author)];
+  const uniqueParticipants = new Set(participants.map((participant) => participant.id)).size;
 
-  if (mode === "trusted") {
-    return trust * 0.55 + reputation * 0.25 + recency * 0.15 + engagement * 0.05;
+  if (participants.length === 0) {
+    return {
+      rootTrust: 0,
+      rootReputation: 0,
+      participantTrust: 0,
+      participantReputation: 0,
+      diversity: 0,
+    };
   }
 
-  return trust * 0.4 + reputation * 0.25 + recency * 0.25 + engagement * 0.1;
+  const rootTrust = trustTierScore(thread.rootPost.author.trust_tier);
+  const rootReputation = reputationScore(thread.rootPost.author.reputation_score);
+  const participantTrust =
+    participants.reduce((sum, participant) => sum + trustTierScore(participant.trust_tier), 0) /
+    participants.length;
+  const participantReputation =
+    participants.reduce((sum, participant) => sum + reputationScore(participant.reputation_score), 0) /
+    participants.length;
+  const diversity = Math.min(uniqueParticipants, 6) / 6;
+
+  return {
+    rootTrust,
+    rootReputation,
+    participantTrust,
+    participantReputation,
+    diversity,
+  };
+}
+
+function moderationMultiplier(thread: FeedThreadCard): number {
+  if (thread.rootPost.status === "removed") return 0.35;
+  if (thread.rootPost.status !== "published") return 0.55;
+  if (thread.rootPost.moderation_reason) return 0.8;
+  return 1;
+}
+
+function scoreThreadForMode(thread: FeedThreadCard, mode: Exclude<FeedMode, "latest">) {
+  const { rootTrust, rootReputation, participantTrust, participantReputation, diversity } =
+    participantScores(thread);
+  const recency = recencyScore(thread.thread.last_posted_at);
+  const engagement = engagementScore(Math.max(thread.thread.reply_count, thread.replies.length));
+  const multiplier = moderationMultiplier(thread);
+
+  if (mode === "trusted") {
+    return (
+      (rootTrust * 0.3 +
+        rootReputation * 0.1 +
+        participantTrust * 0.25 +
+        participantReputation * 0.2 +
+        recency * 0.1 +
+        engagement * 0.03 +
+        diversity * 0.02) *
+      multiplier
+    );
+  }
+
+  return (
+    (rootTrust * 0.18 +
+      rootReputation * 0.08 +
+      participantTrust * 0.17 +
+      participantReputation * 0.16 +
+      recency * 0.25 +
+      engagement * 0.1 +
+      diversity * 0.06) *
+    multiplier
+  );
 }
 
 export function rankFeedThreads(threads: FeedThreadCard[], mode: FeedMode): FeedThreadCard[] {
@@ -139,7 +198,16 @@ export function rankFeedThreads(threads: FeedThreadCard[], mode: FeedMode): Feed
     );
   }
 
-  return ranked.sort((left, right) => scoreThreadForMode(right, mode) - scoreThreadForMode(left, mode));
+  return ranked.sort((left, right) => {
+    const scoreDelta = scoreThreadForMode(right, mode) - scoreThreadForMode(left, mode);
+    if (scoreDelta !== 0) return scoreDelta;
+
+    const postedDelta =
+      new Date(right.thread.last_posted_at).getTime() - new Date(left.thread.last_posted_at).getTime();
+    if (postedDelta !== 0) return postedDelta;
+
+    return right.thread.reply_count - left.thread.reply_count;
+  });
 }
 
 export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {

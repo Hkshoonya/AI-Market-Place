@@ -564,4 +564,204 @@ describe("social feed mapping", () => {
 
     expect(ranked.map((item) => item.thread.id)).toEqual(["thread-new", "thread-old"]);
   });
+
+  it("elevates trusted conversations when replies add strong reputation in trusted mode", async () => {
+    const { rankFeedThreads } = await import("./feed");
+
+    const ranked = rankFeedThreads(
+      [
+        {
+          thread: {
+            id: "thread-high-root-low-network",
+            community_id: "community-1",
+            title: "Single weak root author",
+            reply_count: 0,
+            created_by_actor_id: "actor-root-strong",
+            created_at: "2026-03-13T00:20:00.000Z",
+            updated_at: "2026-03-13T00:50:00.000Z",
+            last_posted_at: "2026-03-13T00:50:00.000Z",
+            visibility: "public",
+            root_post_id: "post-root-strong",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-root-strong",
+            content: "Weak root only",
+            created_at: "2026-03-13T00:20:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 0,
+            author: {
+              id: "actor-root-strong",
+              actor_type: "agent",
+              display_name: "Weak Root",
+              handle: "strong-root",
+              avatar_url: null,
+              trust_tier: "basic",
+              reputation_score: 12,
+            },
+          },
+          replies: [],
+        },
+        {
+          thread: {
+            id: "thread-network-trust",
+            community_id: "community-1",
+            title: "Trusted network thread",
+            reply_count: 4,
+            created_by_actor_id: "actor-root-basic",
+            created_at: "2026-03-13T00:10:00.000Z",
+            updated_at: "2026-03-13T00:45:00.000Z",
+            last_posted_at: "2026-03-13T00:45:00.000Z",
+            visibility: "public",
+            root_post_id: "post-root-basic",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-root-basic",
+            content: "Root is basic, conversation is trusted",
+            created_at: "2026-03-13T00:10:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 4,
+            author: {
+              id: "actor-root-basic",
+              actor_type: "agent",
+              display_name: "Basic Starter",
+              handle: "basic-starter",
+              avatar_url: null,
+              trust_tier: "basic",
+              reputation_score: 15,
+            },
+          },
+          replies: [
+            {
+              id: "reply-1",
+              content: "Trusted reply 1",
+              created_at: "2026-03-13T00:20:00.000Z",
+              language_code: "en",
+              status: "published",
+              moderation_reason: null,
+              reply_count: 0,
+              author: {
+                id: "actor-trusted-1",
+                actor_type: "human",
+                display_name: "Trusted One",
+                handle: "trusted-one",
+                avatar_url: null,
+                trust_tier: "verified",
+                reputation_score: 90,
+              },
+            },
+            {
+              id: "reply-2",
+              content: "Trusted reply 2",
+              created_at: "2026-03-13T00:22:00.000Z",
+              language_code: "en",
+              status: "published",
+              moderation_reason: null,
+              reply_count: 0,
+              author: {
+                id: "actor-trusted-2",
+                actor_type: "human",
+                display_name: "Trusted Two",
+                handle: "trusted-two",
+                avatar_url: null,
+                trust_tier: "trusted",
+                reputation_score: 82,
+              },
+            },
+          ],
+        },
+      ],
+      "trusted"
+    );
+
+    expect(ranked.map((item) => item.thread.id)).toEqual([
+      "thread-network-trust",
+      "thread-high-root-low-network",
+    ]);
+  });
+
+  it("demotes moderation-removed root posts in top mode", async () => {
+    const { rankFeedThreads } = await import("./feed");
+
+    const ranked = rankFeedThreads(
+      [
+        {
+          thread: {
+            id: "thread-clean",
+            community_id: "community-1",
+            title: "Clean thread",
+            reply_count: 0,
+            created_by_actor_id: "actor-clean",
+            created_at: "2026-03-13T00:35:00.000Z",
+            updated_at: "2026-03-13T00:50:00.000Z",
+            last_posted_at: "2026-03-13T00:50:00.000Z",
+            visibility: "public",
+            root_post_id: "post-clean",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-clean",
+            content: "Clean post",
+            created_at: "2026-03-13T00:35:00.000Z",
+            language_code: "en",
+            status: "published",
+            moderation_reason: null,
+            reply_count: 0,
+            author: {
+              id: "actor-clean",
+              actor_type: "human",
+              display_name: "Clean Author",
+              handle: "clean-author",
+              avatar_url: null,
+              trust_tier: "trusted",
+              reputation_score: 62,
+            },
+          },
+          replies: [],
+        },
+        {
+          thread: {
+            id: "thread-removed",
+            community_id: "community-1",
+            title: "Removed root",
+            reply_count: 6,
+            created_by_actor_id: "actor-removed",
+            created_at: "2026-03-13T00:20:00.000Z",
+            updated_at: "2026-03-13T00:49:00.000Z",
+            last_posted_at: "2026-03-13T00:49:00.000Z",
+            visibility: "public",
+            root_post_id: "post-removed",
+            community: { id: "community-1", slug: "global", name: "Global" },
+          },
+          rootPost: {
+            id: "post-removed",
+            content: "Removed by moderation",
+            created_at: "2026-03-13T00:20:00.000Z",
+            language_code: "en",
+            status: "removed",
+            moderation_reason: "spam",
+            reply_count: 6,
+            author: {
+              id: "actor-removed",
+              actor_type: "agent",
+              display_name: "Removed Actor",
+              handle: "removed-actor",
+              avatar_url: null,
+              trust_tier: "verified",
+              reputation_score: 95,
+            },
+          },
+          replies: [],
+        },
+      ],
+      "top"
+    );
+
+    expect(ranked.map((item) => item.thread.id)).toEqual(["thread-clean", "thread-removed"]);
+  });
 });

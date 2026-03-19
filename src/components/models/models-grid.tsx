@@ -36,6 +36,10 @@ interface ModelsGridProps {
       currency?: string | null;
     }>;
     recent_signal?: ModelSignalSummary | null;
+    access_offer?: {
+      monthlyPriceLabel: string;
+      actionLabel: string;
+    } | null;
   }>;
 }
 
@@ -47,6 +51,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const rank = model.overall_rank ?? 0;
         const parameterDisplay = getParameterDisplay(model);
         const pricingSummary = getPublicPricingSummary(model);
+        const accessOffer = model.access_offer ?? null;
         const lifecycleBadge = getLifecycleBadge(model.status);
         const recentSignal = model.recent_signal ?? null;
 
@@ -114,11 +119,15 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium tabular-nums text-muted-foreground">
-                      {pricingSummary.compactDisplay
-                        ? pricingSummary.compactDisplay
-                        : "—"}
+                      {accessOffer
+                        ? accessOffer.monthlyPriceLabel
+                        : pricingSummary.compactDisplay
+                          ? pricingSummary.compactDisplay
+                          : "—"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">{pricingSummary.compactLabel}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {accessOffer ? accessOffer.actionLabel : pricingSummary.compactLabel}
+                    </p>
                   </div>
                 </div>
 
