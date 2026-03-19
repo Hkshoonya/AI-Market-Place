@@ -96,6 +96,16 @@ interface AgentCronRun {
   created_at: string;
 }
 
+interface StaleRunningTask {
+  id: string;
+  agent_id: string;
+  task_type: string;
+  status: "running";
+  started_at: string | null;
+  created_at: string;
+  agents?: { name: string; slug: string };
+}
+
 interface AgentsSummary {
   totalAgents: number;
   activeAgents: number;
@@ -106,6 +116,7 @@ interface AgentsSummary {
   escalatedIssues: number;
   openDeferredItems: number;
   recentFailingRuns: number;
+  staleRunningTasks: number;
 }
 
 interface AgentsResponse {
@@ -114,6 +125,7 @@ interface AgentsResponse {
   issues: AgentIssue[];
   deferredItems: AgentDeferredItem[];
   recentFailingRuns?: AgentCronRun[];
+  staleRunningTasks?: StaleRunningTask[];
   summary?: AgentsSummary;
 }
 interface AgentModelSettingsResponse {
@@ -154,6 +166,7 @@ export default function AgentsContent() {
   const issues = agentsData?.issues ?? [];
   const deferredItems = agentsData?.deferredItems ?? [];
   const recentFailingRuns = agentsData?.recentFailingRuns ?? [];
+  const staleRunningTasks = agentsData?.staleRunningTasks ?? [];
   const summary = agentsData?.summary;
   const tasks = tasksData?.tasks ?? [];
   const logs = logsData?.logs ?? [];
@@ -242,6 +255,7 @@ export default function AgentsContent() {
     summary?.openDeferredItems ??
     deferredItems.filter((item) => item.status !== "done" && item.status !== "dropped").length;
   const recentFailingRunCount = summary?.recentFailingRuns ?? recentFailingRuns.length;
+  const staleRunningTaskCount = summary?.staleRunningTasks ?? staleRunningTasks.length;
   const issuePolicySummary = summarizeAutoPrPolicies(issues);
 
   const statusColor: Record<string, string> = {
@@ -363,6 +377,13 @@ export default function AgentsContent() {
             Failed Runs
           </div>
           <p className="text-2xl font-bold text-red-300">{recentFailingRunCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+            <Clock className="h-3.5 w-3.5" />
+            Stuck Tasks
+          </div>
+          <p className="text-2xl font-bold text-yellow-300">{staleRunningTaskCount}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
@@ -521,6 +542,42 @@ export default function AgentsContent() {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No recent failing scheduled agent runs.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Stale Running Tasks
+            </div>
+            <div className="mt-3 space-y-3">
+              {staleRunningTasks.length > 0 ? (
+                staleRunningTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {task.agents?.name ?? task.agent_id}
+                      </span>
+                      <span className="rounded px-2 py-0.5 text-xs text-yellow-300 bg-yellow-500/15">
+                        {task.task_type}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Running since{" "}
+                      {task.started_at
+                        ? new Date(task.started_at).toLocaleString()
+                        : new Date(task.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No stale running tasks detected.
                 </p>
               )}
             </div>

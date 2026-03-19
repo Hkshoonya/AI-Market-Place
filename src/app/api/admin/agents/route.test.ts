@@ -125,6 +125,34 @@ function createMockSessionClient(options: {
     }),
   };
 
+  const runningTasksChain = {
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "task-1",
+          agent_id: "agent-1",
+          task_type: "scheduled_run",
+          status: "running",
+          started_at: "2026-03-19T10:00:00.000Z",
+          created_at: "2026-03-19T10:00:00.000Z",
+          agents: { name: "Pipeline Engineer", slug: "pipeline-engineer" },
+        },
+        {
+          id: "task-2",
+          agent_id: "agent-2",
+          task_type: "manual_trigger",
+          status: "running",
+          started_at: "2099-03-19T12:20:00.000Z",
+          created_at: "2099-03-19T12:20:00.000Z",
+          agents: { name: "UX Monitor", slug: "ux-monitor" },
+        },
+      ],
+      error: null,
+    }),
+  };
+
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({
@@ -166,6 +194,12 @@ function createMockSessionClient(options: {
       if (table === "cron_runs") {
         return {
           select: () => cronRunsChain,
+        };
+      }
+
+      if (table === "agent_tasks") {
+        return {
+          select: () => runningTasksChain,
         };
       }
 
@@ -212,6 +246,8 @@ describe("GET /api/admin/agents", () => {
     expect(body.deferredItems).toHaveLength(1);
     expect(body.recentFailingRuns).toHaveLength(1);
     expect(body.recentFailingRuns[0].job_name).toBe("agent-pipeline-engineer");
+    expect(body.staleRunningTasks).toHaveLength(1);
+    expect(body.staleRunningTasks[0].id).toBe("task-1");
     expect(body.summary).toEqual(
       expect.objectContaining({
         totalAgents: 2,
@@ -223,6 +259,7 @@ describe("GET /api/admin/agents", () => {
         escalatedIssues: 0,
         openDeferredItems: 1,
         recentFailingRuns: 1,
+        staleRunningTasks: 1,
       })
     );
   });

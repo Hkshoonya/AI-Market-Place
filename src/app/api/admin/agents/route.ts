@@ -10,6 +10,7 @@ import { handleApiError } from "@/lib/api-error";
 import { listConfiguredAgentProviders } from "@/lib/agents/provider-router";
 
 export const dynamic = "force-dynamic";
+const STALE_RUNNING_TASK_MINUTES = 30;
 
 function isStaleAgent(lastActiveAt: string | null | undefined, now = Date.now()) {
   if (!lastActiveAt) return true;
@@ -19,6 +20,11 @@ function isStaleAgent(lastActiveAt: string | null | undefined, now = Date.now())
 function isAgentCronJob(jobName: string | null | undefined) {
   if (!jobName) return false;
   return jobName.startsWith("agent-") || jobName.startsWith("cron-agents-");
+}
+
+function isStaleRunningTask(startedAt: string | null | undefined, now = Date.now()) {
+  if (!startedAt) return false;
+  return now - new Date(startedAt).getTime() > STALE_RUNNING_TASK_MINUTES * 60 * 1000;
 }
 
 // GET /api/admin/agents — list all agents
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [agentsResult, issuesResult, deferredResult, cronRunsResult] = await Promise.all([
+    const [agentsResult, issuesResult, deferredResult, cronRunsResult, runningTasksResult] = await Promise.all([
       supabase
         .from("agents")
         .select("*")
@@ -73,6 +79,12 @@ export async function GET(request: NextRequest) {
         .eq("status", "failed")
         .order("created_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("agent_tasks")
+        .select("id, agent_id, task_type, status, started_at, created_at, agents:agent_id(name, slug)")
+        .eq("status", "running")
+        .order("started_at", { ascending: false })
+        .limit(20),
     ]);
 
     if (agentsResult.error) {
@@ -87,12 +99,18 @@ export async function GET(request: NextRequest) {
     if (cronRunsResult.error) {
       return NextResponse.json({ error: cronRunsResult.error.message }, { status: 500 });
     }
+    if (runningTasksResult.error) {
+      return NextResponse.json({ error: runningTasksResult.error.message }, { status: 500 });
+    }
 
     const agents = agentsResult.data ?? [];
     const issues = issuesResult.data ?? [];
     const deferredItems = deferredResult.data ?? [];
     const recentFailingRuns = (cronRunsResult.data ?? []).filter((run) =>
       isAgentCronJob(run.job_name)
+    );
+    const staleRunningTasks = (runningTasksResult.data ?? []).filter((task) =>
+      isStaleRunningTask(task.started_at)
     );
     const summary = {
       totalAgents: agents.length,
@@ -106,6 +124,7 @@ export async function GET(request: NextRequest) {
       escalatedIssues: issues.filter((issue) => issue.status === "escalated").length,
       openDeferredItems: deferredItems.filter((item) => item.status === "open").length,
       recentFailingRuns: recentFailingRuns.length,
+      staleRunningTasks: staleRunningTasks.length,
     };
 
     return NextResponse.json({
@@ -114,6 +133,7 @@ export async function GET(request: NextRequest) {
       issues,
       deferredItems,
       recentFailingRuns,
+      staleRunningTasks,
       summary,
     });
   } catch (err) {
