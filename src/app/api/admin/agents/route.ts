@@ -27,6 +27,16 @@ function isStaleRunningTask(startedAt: string | null | undefined, now = Date.now
   return now - new Date(startedAt).getTime() > STALE_RUNNING_TASK_MINUTES * 60 * 1000;
 }
 
+type RunningTaskRow = {
+  id: string;
+  agent_id: string;
+  task_type: string;
+  status: string;
+  started_at: string | null;
+  created_at: string;
+  agents?: { name: string; slug: string } | null;
+};
+
 // GET /api/admin/agents — list all agents
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -109,7 +119,8 @@ export async function GET(request: NextRequest) {
     const recentFailingRuns = (cronRunsResult.data ?? []).filter((run) =>
       isAgentCronJob(run.job_name)
     );
-    const staleRunningTasks = (runningTasksResult.data ?? []).filter((task) =>
+    const runningTasks = (runningTasksResult.data ?? []) as RunningTaskRow[];
+    const staleRunningTasks = runningTasks.filter((task) =>
       isStaleRunningTask(task.started_at)
     );
     const summary = {
