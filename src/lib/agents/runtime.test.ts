@@ -197,6 +197,13 @@ describe("executeAgent", () => {
         verifier: "runtime",
       })
     );
+    expect(mockResolveAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      "agent-stale-task-pipeline-engineer",
+      expect.objectContaining({
+        verifier: "runtime",
+      })
+    );
     expect(supabase.updates).toContainEqual({
       table: "agents",
       payload: expect.objectContaining({

@@ -295,11 +295,14 @@ export async function executeAgent(
 
   if (result.success) {
     updates.total_tasks_completed = record.total_tasks_completed + 1;
-    // Reset error count on success
     if (record.error_count > 0) {
       updates.error_count = 0;
+    }
+
+    const recoveryIssues = [runtimeIssueSlug(record.slug), staleTaskIssueSlug(record.slug)];
+    for (const issueSlug of recoveryIssues) {
       try {
-        await resolveAgentIssue(sb, runtimeIssueSlug(record.slug), {
+        await resolveAgentIssue(sb, issueSlug, {
           verifier: "runtime",
           reason: "agent recovered after successful scheduled run",
           recoveredAt: new Date().toISOString(),
@@ -307,6 +310,7 @@ export async function executeAgent(
       } catch (resolveErr) {
         void log.warn("Failed to resolve runtime issue after agent recovery", {
           agentSlug: record.slug,
+          issueSlug,
           error:
             resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
         });
