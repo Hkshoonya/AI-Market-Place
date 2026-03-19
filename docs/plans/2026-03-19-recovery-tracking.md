@@ -4,7 +4,7 @@ This note records what was recovered after the reinstall and how it maps to the 
 
 Reference head while writing:
 
-- Local `main`: `8df051a5ab7c9718f9c2a8bd92972b19b678e861`
+- Local `main`: `6b03337f35cfd5d622ca786102831f1b0a174f11`
 
 ## Recovered artifacts
 
@@ -39,6 +39,11 @@ The recovered work is not just archival. The following commit chain on `main` re
 - `0809303` Show provider model usage in agent tasks
 - `1c53dca` Fix admin agent tasks build typing
 - `8df051a` Normalize sync interval migration version
+- `69b0a7d` Handle failed withdrawal transfer results safely
+- `1d01029` Align legacy order completion with safe escrow flow
+- `95d7fa1` Auto-fail stale running agent tasks
+- `676ed67` Require refunds before closing legacy orders
+- `6b03337` Reopen auctions when payout settlement fails
 
 ## What is now accounted for
 
@@ -50,4 +55,5 @@ The recovered work is not just archival. The following commit chain on `main` re
 
 - Railway runtime proof still needs live verification from deployed state, not just repo state
 - broad roadmap closure is still partially an operator/runtime verification problem rather than a missing-history problem
+- Railway may lag the newest pushed SHA briefly; the public health endpoint should be used to distinguish pushed vs deployed commit state
 - `recovery/` remains intentionally untracked so it is preserved locally without polluting production source control

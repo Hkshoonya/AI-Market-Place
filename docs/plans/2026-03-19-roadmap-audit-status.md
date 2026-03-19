@@ -8,7 +8,7 @@ The strict per-file matrix lives in `docs/plans/2026-03-19-plan-matrix.md`.
 
 Reference head at audit time:
 
-- Local / GitHub `main`: `490c6eb90d86b52d04e5e66e925ed139f7c1e444`
+- Local / GitHub `main`: `6b03337f35cfd5d622ca786102831f1b0a174f11`
 
 Recovery tracking note:
 
@@ -22,6 +22,7 @@ The roadmap is not fully closed, but the majority of the implementation-heavy sl
 - wallet funding refresh is now scheduled
 - financial integrity protections were added around duplicate purchase and order completion
 - resident-agent cron failures now surface as actual failing health signals
+- legacy order and auction settlement paths now keep terminal state aligned with payout/refund success instead of closing early
 
 What remains is mostly verification, operator-facing closure, and a few deeper control-loop/runtime hardening tasks rather than broad net-new feature construction.
 
@@ -102,6 +103,10 @@ Additional hardening completed after the initial audit snapshot:
 
 - verified-seller enforcement for withdrawal routes
 - recovery-history tracking note tying preserved sessions to the pushed live commit chain
+- withdrawal execution now treats failed chain-transfer results as failed withdrawals and refunds automatically
+- stale running resident-agent tasks are now auto-failed and escalated before the next run starts
+- legacy seller order completion/rejection paths now keep escrow and status transitions in the safe order
+- auction settlement now reopens the auction if payout release fails instead of leaving it falsely closed
 
 ## Partial
 
@@ -127,7 +132,6 @@ What exists:
 What still looks partial:
 
 - safe playbook coverage is narrow
-- admin/operator summary does not yet strongly spotlight unhealthy or auto-disabled agents
 - the loop is still better at observation and bounded repair than full unattended recovery across all site subsystems
 
 ### User onboarding / API access / wallet documentation
@@ -155,29 +159,33 @@ Open task:
 
 ### Railway runtime verification
 
-Open task:
+Status:
 
-- confirm Railway is actually deploying the newest commit after the homepage build-safe change
-- verify live cron activity in `cron_runs`
-- verify live wallet deposit scan execution on schedule
+- public `/api/health` has been checked live from production and reports Railway deployment metadata
+- public `/api/pipeline/health` has been checked live and returned healthy
+- public `/api/search` has been checked live and returned working results
 
-### Older marketplace order route family
+Still open:
 
-The newer `/api/marketplace/purchase` path is more hardened, but the older `/api/marketplace/orders` family still needs cleanup and consistency review.
+- confirm each newly pushed fix has rolled all the way through Railway deploys to production
+- verify authenticated/internal cron evidence in `cron_runs`, not only public health summaries
 
-Open concerns:
+### Legacy commerce edge-case closure
 
-- duplicate/legacy flow overlap
-- guest/auth parity
-- possible drift between old order creation path and newer purchase path
+The old order family and auction settlement paths have been materially hardened during recovery, but commerce still deserves one more final consistency/security pass.
+
+Remaining concerns:
+
+- guest/auth parity on older non-primary flows
+- broader end-to-end audit across auctions, messages, manifests, and manual seller actions
+- final documentation/proof that the legacy paths are now subordinate to the safer purchase flow
 
 ### Agent/operator visibility polish
 
 Open task:
 
-- surface unhealthy/errored resident agents prominently in admin
-- highlight auto-disabled agents and recent failing scheduled runs
-- make unattended maintenance status easy to inspect without digging through logs
+- continue expanding unattended repair playbooks beyond stale-task cleanup and auto-disable escalation
+- make authenticated operator review easier for stuck tasks, escalations, and recovery actions
 
 ## Current Position Against The Roadmap
 
@@ -191,6 +199,6 @@ Practical status:
 ## Recommended Next Steps
 
 1. Verify Railway is deploying `490c6eb` or newer and not retrying an old build context.
-2. Audit and simplify the legacy `/api/marketplace/orders` flow so commerce has one trusted primary path.
-3. Add admin-visible unhealthy agent summaries and auto-disabled agent escalation.
-4. Produce a file-by-file plan matrix for all `docs/plans/*.md` to finish the audit trail.
+2. Keep validating that the newest pushed commits are reaching production, not just GitHub.
+3. Finish the last commerce edge-case audit around auctions and legacy/manual flows.
+4. Close public-data-trust and ranking-integrity proof with any remaining explicit verification markers.

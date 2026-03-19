@@ -1,6 +1,6 @@
 # Plan Matrix — 2026-03-19
 
-This is the strict file-by-file audit matrix for `docs/plans/*.md` as of local/GitHub `main` at `ff8c01e`.
+This is the strict file-by-file audit matrix for `docs/plans/*.md` as of local/GitHub `main` at `6b03337`.
 
 Status legend:
 
@@ -19,14 +19,14 @@ Status legend:
 | `2026-03-02-multi-lens-scoring-plan.md` | done | `014_multi_lens_scoring.sql`, `015_tiered_sync_pg_cron.sql`, ranking APIs, and leaderboard surfaces are in code. |
 | `2026-03-02-multi-lens-scoring-redesign.md` | done | Same shipped lens system as above. |
 | `2026-03-12-audit-fix-plan.md` | partial | Many critical fixes landed across March 12-19, but not every original audit item has a fresh end-to-end verification marker. |
-| `2026-03-12-live-remediation-rollout-design.md` | partial | Live-safe rollout pattern was used, but runtime verification on Railway and some old commerce paths still need closure. |
-| `2026-03-12-live-remediation-rollout-plan.md` | partial | Recent live commits addressed cron, wallet, homepage build safety, search, purchase dedupe, and order completion, but full remediation proof is still incomplete. |
+| `2026-03-12-live-remediation-rollout-design.md` | partial | Live-safe rollout pattern was used and live health/search verification now exists, but newest-commit Railway rollout proof is still ongoing. |
+| `2026-03-12-live-remediation-rollout-plan.md` | partial | Recent live commits addressed cron, wallet, homepage build safety, search, legacy order integrity, and auction settlement fallback, but full remediation proof is still incomplete. |
 | `2026-03-12-low-api-data-source-roadmap.md` | done | Reflected in `028_add_low_api_benchmark_sources.sql`, `030_add_arena_hard_auto_source.sql`, `031_add_vision_arena_source.sql`, and the expanded adapters in `src/lib/data-sources/adapters/`. |
 | `2026-03-13-agent-autonomy-design.md` | done | Provider-resilient routing and structured ledgers are implemented in migrations `032-034`, `047-049` and `src/lib/agents/`. |
 | `2026-03-13-agent-autonomy-implementation-plan.md` | done | Provider router, issue/deferred ledgers, and verifier rollout are live. |
 | `2026-03-13-agent-native-marketplace-social-design.md` | done | Social commons + agent-native marketplace foundation shipped across migrations `035-037`, `040`, `043`, `045`. |
 | `2026-03-13-agent-native-marketplace-social-implementation-plan.md` | done | Public actors, threads, feed, and marketplace-social substrate are implemented. |
-| `2026-03-13-autonomous-maintainability-plan.md` | partial | Detection, ledgers, scheduled agents, verifier, and failure surfacing now exist, but full unattended remediation coverage remains incomplete. |
+| `2026-03-13-autonomous-maintainability-plan.md` | partial | Detection, ledgers, scheduled agents, verifier, auto-disable escalation, and stale-task auto-fail now exist, but full unattended remediation coverage remains incomplete. |
 | `2026-03-13-marketplace-trust-rails-design.md` | done | Trust-rail schema and listing policy controls shipped in `040_marketplace_trust_rails.sql`. |
 | `2026-03-13-marketplace-trust-rails-implementation-plan.md` | done | Guardrail flows, policy scans, and admin visibility exist; later guardrail expansion built on this. |
 | `2026-03-13-social-commons-moderation-design.md` | done | Moderation design is implemented through report/tombstone/admin review flows. |
@@ -36,7 +36,7 @@ Status legend:
 | `2026-03-14-access-offers-design.md` | done | Shared access-offers layer now powers home/models/providers views. |
 | `2026-03-14-access-offers-implementation-plan.md` | done | Implemented and pushed in the recovery slice that unified access-offer signals across catalog surfaces. |
 | `2026-03-14-autonomous-commerce-guardrails-design.md` | done | Expanded autonomy/content policy model exists in `045_expand_marketplace_policy_modes.sql`. |
-| `2026-03-14-autonomous-commerce-guardrails-implementation-plan.md` | partial | Core guardrails are live and migration `046_mark_marketplace_guardrails_expanded_done.sql` exists, but old order-path cleanup and a full security pass are still open. |
+| `2026-03-14-autonomous-commerce-guardrails-implementation-plan.md` | partial | Core guardrails are live and migration `046_mark_marketplace_guardrails_expanded_done.sql` exists; recovery work hardened legacy order closing, withdrawal handling, and auction settlement, but a final commerce security pass is still open. |
 | `2026-03-14-fulfillment-manifests-design.md` | done | Protocol-native manifest design is implemented by `043_add_marketplace_fulfillment_manifests.sql`. |
 | `2026-03-14-fulfillment-manifests-implementation-plan.md` | done | `044_mark_protocol_native_fulfillment_done.sql` and current listing/order manifest components cover this. |
 | `2026-03-14-public-consistency-design.md` | done | Shared truth/access-offer/public-surface consistency work is in code. |
@@ -54,8 +54,8 @@ Status legend:
 
 1. Verify Railway runtime from live deploy state, not only repo state:
    cron execution cadence, `cron_runs`, homepage freshness movement, and latest deployed SHA.
-2. Finish old marketplace order-path cleanup so the legacy `/api/marketplace/orders` family cannot drift from the newer purchase path.
-3. Continue autonomous maintainability hardening:
+2. Continue autonomous maintainability hardening:
    broaden safe playbooks, escalation paths, and unattended repair coverage beyond detection and visibility.
+3. Finish the final commerce edge-case audit across auctions and legacy/manual seller flows.
 4. Close public-data-trust and ranking-integrity proof:
    add any missing end-to-end verification and mark completion explicitly where appropriate.
