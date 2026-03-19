@@ -38,7 +38,7 @@ vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SheetTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("lucide-react", () => ({
@@ -66,9 +66,13 @@ describe("Header", () => {
 
     const brandLink = screen.getByRole("link", { name: /ai market cap - home/i });
     const brandText = screen.getByText("AI Market", { exact: false });
+    const desktopNav = screen.getByRole("navigation", { name: /main navigation/i });
+    const [modelsLink] = Array.from(desktopNav.querySelectorAll("a[href=\"/models\"]"));
 
     expect(brandLink).toHaveClass("shrink-0");
     expect(brandText).toHaveClass("whitespace-nowrap");
     expect(brandText).not.toHaveClass("truncate");
+    expect(modelsLink).toHaveClass("shrink-0");
+    expect(modelsLink).toHaveClass("whitespace-nowrap");
   });
 });

@@ -62,7 +62,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-neon/10 text-neon"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -77,7 +77,7 @@ export function Header() {
             <Link
               href="/admin"
               className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 pathname.startsWith("/admin")
                   ? "bg-neon/10 text-neon"
                   : "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
