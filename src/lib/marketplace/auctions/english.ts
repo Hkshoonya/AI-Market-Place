@@ -367,6 +367,18 @@ export async function settleEnglishAuction(auctionId: string): Promise<{
           escrowHoldId: winningBid.escrow_hold_id,
           error: err instanceof Error ? err.message : String(err),
         });
+        await Promise.allSettled([
+          sb
+            .from("auctions")
+            .update({
+              status: "active",
+              winner_id: null,
+              final_price: null,
+            })
+            .eq("id", auctionId)
+            .eq("status", "ended"),
+          sb.from("auction_bids").update({ status: "active" }).eq("id", winningBid.id),
+        ]);
         return {
           success: false,
           error: `Escrow release failed: ${err instanceof Error ? err.message : String(err)}`,

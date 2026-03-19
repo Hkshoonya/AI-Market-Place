@@ -6,7 +6,7 @@
 
 import {
   holdEscrow,
-  // REMOVED: refundEscrow,
+  refundEscrow,
   releaseEscrow,
   calculatePlatformFee,
   getOrCreateWallet,
@@ -179,6 +179,26 @@ export async function acceptDutchAuction(
         escrowId,
         error: err instanceof Error ? err.message : String(err),
       });
+
+      await Promise.allSettled([
+        sb
+          .from("auctions")
+          .update({ status: "active", winner_id: null, final_price: null })
+          .eq("id", auctionId),
+        bidRecord?.id
+          ? sb.from("auction_bids").update({ status: "cancelled" }).eq("id", bidRecord.id)
+          : Promise.resolve({ error: null }),
+      ]);
+
+      try {
+        await refundEscrow(escrowId);
+      } catch (refundErr) {
+        void log.error("Failed to refund Dutch auction escrow after payout failure", {
+          escrowId,
+          error: refundErr instanceof Error ? refundErr.message : String(refundErr),
+        });
+      }
+
       return {
         success: false,
         error: `Payment settlement failed: ${err instanceof Error ? err.message : String(err)}`,
