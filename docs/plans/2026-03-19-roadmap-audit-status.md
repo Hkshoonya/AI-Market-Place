@@ -10,6 +10,10 @@ Reference head at audit time:
 
 - Local / GitHub `main`: `490c6eb90d86b52d04e5e66e925ed139f7c1e444`
 
+Recovery tracking note:
+
+- `docs/plans/2026-03-19-recovery-tracking.md`
+
 ## Executive Summary
 
 The roadmap is not fully closed, but the majority of the implementation-heavy slices are in code and many of the highest-risk production gaps have now been fixed live:
@@ -89,6 +93,15 @@ These were the resumed recovery fixes and are now part of live `main`:
 - `5e25aac` Complete marketplace orders only after delivery succeeds
 - `5dbfb0f` Surface agent cron failures in health checks
 - `490c6eb` Harden search fallback and client handling
+- `0532ad8` Add admin-managed agent model overrides
+- `0809303` Show provider model usage in agent tasks
+- `1c53dca` Fix admin agent tasks build typing
+- `8df051a` Normalize sync interval migration version
+
+Additional hardening completed after the initial audit snapshot:
+
+- verified-seller enforcement for withdrawal routes
+- recovery-history tracking note tying preserved sessions to the pushed live commit chain
 
 ## Partial
 

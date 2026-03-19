@@ -47,6 +47,7 @@ Status legend:
 | `2026-03-14-ranking-integrity-implementation-plan.md` | partial | Substantially implemented and now better tested via `f9d3618`, but still not fully closed with a dedicated completion marker. |
 | `2026-03-14-ranking-lifecycle-pricing-design.md` | done | Lifecycle-aware rankings and cheapest-verified pricing behavior exist in public pages. |
 | `2026-03-14-ranking-lifecycle-pricing-implementation-plan.md` | done | Recovery work unified cheapest verified access signals and made ranking lens/lifecycle behavior materially consistent. |
+| `2026-03-19-recovery-tracking.md` | done | Recovery exports under `recovery/codex-history/` are now mapped to the resumed March 19 live commit chain. |
 | `2026-03-19-roadmap-audit-status.md` | done | Current thematic audit summary, now pushed live. |
 
 ## Highest-value remaining open work

@@ -2,8 +2,8 @@
  * Tests for /api/health route
  *
  * Covers:
- *  - Public GET: returns 200 with { status, version, timestamp }
- *  - Authenticated GET (Bearer CRON_SECRET): returns full detail with DB, uptime, cron, pipeline
+ *  - Public GET: returns 200 with { status, version, timestamp, release }
+ *  - Authenticated GET (Bearer CRON_SECRET): returns full detail with DB, uptime, cron, pipeline, release
  *  - DB unreachable: returns 503 with { status: "unhealthy", version, timestamp, error }
  *  - Wrong token: treated as unauthenticated (public response)
  */
@@ -192,6 +192,7 @@ describe("GET /api/health", () => {
       expect(body).toHaveProperty("status");
       expect(body).toHaveProperty("version");
       expect(body).toHaveProperty("timestamp");
+      expect(body).toHaveProperty("release");
     });
 
     it("does NOT include database, uptime, cron, or pipeline fields in public response", async () => {
@@ -209,6 +210,42 @@ describe("GET /api/health", () => {
       expect(body).not.toHaveProperty("uptime");
       expect(body).not.toHaveProperty("cron");
       expect(body).not.toHaveProperty("pipeline");
+      expect(body.release).toEqual({
+        provider: "unknown",
+        commitSha: null,
+        branch: null,
+        environment: null,
+      });
+    });
+
+    it("surfaces Railway deployment metadata when present", async () => {
+      const originalSha = process.env.RAILWAY_GIT_COMMIT_SHA;
+      const originalBranch = process.env.RAILWAY_GIT_BRANCH;
+      const originalEnvironment = process.env.RAILWAY_ENVIRONMENT_NAME;
+      process.env.RAILWAY_GIT_COMMIT_SHA = "8df051a5ab7c9718f9c2a8bd92972b19b678e861";
+      process.env.RAILWAY_GIT_BRANCH = "main";
+      process.env.RAILWAY_ENVIRONMENT_NAME = "production";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: { data: makeDataSources([{ slug: "a1", last_sync_at: syncedAgo(0.5, 6) }]), error: null },
+          pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 }]), error: null },
+        }) as unknown as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(body.release).toEqual({
+        provider: "railway",
+        commitSha: "8df051a5ab7c9718f9c2a8bd92972b19b678e861",
+        branch: "main",
+        environment: "production",
+      });
+
+      process.env.RAILWAY_GIT_COMMIT_SHA = originalSha;
+      process.env.RAILWAY_GIT_BRANCH = originalBranch;
+      process.env.RAILWAY_ENVIRONMENT_NAME = originalEnvironment;
     });
 
     it("status is 'healthy' when all adapters healthy", async () => {
@@ -335,12 +372,19 @@ describe("GET /api/health", () => {
       expect(body).toHaveProperty("timestamp");
       expect(body).toHaveProperty("uptime");
       expect(body).toHaveProperty("database");
+      expect(body).toHaveProperty("release");
       expect(body).toHaveProperty("cron");
       expect(body).toHaveProperty("pipeline");
 
       expect(typeof body.uptime).toBe("number");
       expect(body.database).toHaveProperty("connected");
       expect(body.database).toHaveProperty("latencyMs");
+      expect(body.release).toEqual({
+        provider: "unknown",
+        commitSha: null,
+        branch: null,
+        environment: null,
+      });
       expect(body.cron).toHaveProperty("mode", "external");
       expect(body.cron).toHaveProperty("schedulerConfigured", true);
       expect(body.cron).toHaveProperty("stale", false);

@@ -59,7 +59,7 @@ vi.mock("@/lib/api-error", () => ({
   ),
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const ORIGINAL_ENFORCE_WITHDRAW_SCOPE = process.env.ENFORCE_WITHDRAW_SCOPE;
 
@@ -73,6 +73,31 @@ function createMockAdminClient() {
               single: () =>
                 Promise.resolve({
                   data: { is_seller: true, seller_verified: true },
+                  error: null,
+                }),
+            }),
+          }),
+        };
+      }
+
+      return {};
+    },
+  };
+}
+
+function createMockAdminClientWithProfile(profile: {
+  is_seller: boolean;
+  seller_verified: boolean;
+}) {
+  return {
+    from: (table: string) => {
+      if (table === "profiles") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: profile,
                   error: null,
                 }),
             }),
@@ -172,5 +197,54 @@ describe("POST /api/seller/withdraw", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toBe("Validation failed");
+  });
+
+  it("requires seller verification before allowing a withdrawal", async () => {
+    mockResolveAuthUser.mockResolvedValue({
+      userId: "seller-1",
+      authMethod: "session",
+    });
+    mockCreateAdminClient.mockReturnValue(
+      createMockAdminClientWithProfile({
+        is_seller: true,
+        seller_verified: false,
+      })
+    );
+
+    const response = await POST(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toMatch(/verification is required/i);
+  });
+});
+
+describe("GET /api/seller/withdraw", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateAdminClient.mockReturnValue(createMockAdminClient());
+  });
+
+  it("requires seller verification before exposing withdrawal options", async () => {
+    mockResolveAuthUser.mockResolvedValue({
+      userId: "seller-1",
+      authMethod: "session",
+    });
+    mockCreateAdminClient.mockReturnValue(
+      createMockAdminClientWithProfile({
+        is_seller: true,
+        seller_verified: false,
+      })
+    );
+
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/seller/withdraw", {
+        method: "GET",
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toMatch(/verification is required/i);
   });
 });

@@ -45,6 +45,12 @@ const HealthPublicSchema = z.object({
   status: z.enum(["healthy", "degraded"]),
   version: z.string(),
   timestamp: z.string(),
+  release: z.object({
+    provider: z.enum(["railway", "vercel", "unknown"]),
+    commitSha: z.string().nullable(),
+    branch: z.string().nullable(),
+    environment: z.string().nullable(),
+  }),
 });
 
 const HealthDetailSchema = HealthPublicSchema.extend({
@@ -74,6 +80,48 @@ const HealthUnhealthySchema = z.object({
   timestamp: z.string(),
   error: z.string(),
 });
+
+function resolveReleaseMetadata() {
+  const normalizeEnvValue = (value: string | undefined) => {
+    const trimmed = value?.trim();
+    if (!trimmed || trimmed === "undefined" || trimmed === "null") {
+      return null;
+    }
+    return trimmed;
+  };
+
+  const railwayCommitSha = normalizeEnvValue(process.env.RAILWAY_GIT_COMMIT_SHA);
+  const railwayBranch = normalizeEnvValue(process.env.RAILWAY_GIT_BRANCH);
+  const railwayEnvironment = normalizeEnvValue(process.env.RAILWAY_ENVIRONMENT_NAME);
+  const vercelCommitSha = normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_SHA);
+  const vercelBranch = normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_REF);
+  const vercelEnvironment = normalizeEnvValue(process.env.VERCEL_ENV);
+
+  if (railwayCommitSha || railwayBranch || railwayEnvironment) {
+    return {
+      provider: "railway" as const,
+      commitSha: railwayCommitSha,
+      branch: railwayBranch,
+      environment: railwayEnvironment,
+    };
+  }
+
+  if (vercelCommitSha || vercelBranch || vercelEnvironment) {
+    return {
+      provider: "vercel" as const,
+      commitSha: vercelCommitSha,
+      branch: vercelBranch,
+      environment: vercelEnvironment,
+    };
+  }
+
+  return {
+    provider: "unknown" as const,
+    commitSha: null,
+    branch: null,
+    environment: null,
+  };
+}
 
 async function pingDb(
   version: string,
@@ -112,6 +160,7 @@ async function pingDb(
 export async function GET(request: NextRequest) {
   const timestamp = new Date().toISOString();
   const version = APP_VERSION;
+  const release = resolveReleaseMetadata();
 
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -192,6 +241,7 @@ export async function GET(request: NextRequest) {
           connected: true,
           latencyMs: dbLatencyMs,
         },
+        release,
         cron: {
           mode: cronMode,
           schedulerConfigured,
@@ -214,6 +264,7 @@ export async function GET(request: NextRequest) {
       status: overallStatus,
       version,
       timestamp,
+      release,
     });
     return NextResponse.json(body);
   } catch (err) {

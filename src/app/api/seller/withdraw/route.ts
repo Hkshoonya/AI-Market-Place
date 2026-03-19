@@ -123,6 +123,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!profile.seller_verified) {
+    return NextResponse.json(
+      { error: "Seller verification is required before withdrawing funds." },
+      { status: 403 }
+    );
+  }
+
   // Parse body
   let body: unknown;
   try {
@@ -213,6 +220,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Authentication required." },
       { status: 401 }
+    );
+  }
+
+  const adminSb = createAdminClient();
+  const { data: profile } = await adminSb
+    .from("profiles")
+    .select("is_seller, seller_verified")
+    .eq("id", authResult.userId)
+    .single();
+
+  if (!profile?.is_seller) {
+    return NextResponse.json(
+      { error: "You must be a registered seller to view withdrawal options." },
+      { status: 403 }
+    );
+  }
+
+  if (!profile.seller_verified) {
+    return NextResponse.json(
+      { error: "Seller verification is required before withdrawing funds." },
+      { status: 403 }
     );
   }
 
