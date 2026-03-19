@@ -303,16 +303,19 @@ const MARKETPLACE_SECTIONS: Section[] = [
       {
         method: "POST",
         path: "/api/marketplace/orders",
-        description: "Create a new order for a marketplace listing.",
-        auth: "Bearer token required. Scope: marketplace or write.",
+        description:
+          "Create a request/contact order for request-only listings (`free` or `contact`). Paid checkout must use `/api/marketplace/purchase`.",
+        auth: "Optional session auth. Guests must provide `guest_email`.",
         body: `{
-  "listingId": "listing_abc123",
-  "quantity": 1
+  "listing_id": "0d53f9be-87e7-4de7-8d10-5b2e1f8d1c98",
+  "message": "I would like access for my support team",
+  "guest_email": "buyer@example.com"
 }`,
         example: `{
-  "orderId": "ord_xyz789",
-  "status": "completed",
-  "total": 29.99
+  "data": {
+    "id": "ord_xyz789",
+    "status": "pending"
+  }
 }`,
       },
       {
@@ -337,14 +340,12 @@ const MARKETPLACE_SECTIONS: Section[] = [
         description: "List your orders with status and details.",
         auth: "Bearer token required. Scope: marketplace or read.",
         params: [
-          { name: "status", type: "string", description: "Filter: pending, completed, refunded" },
-          { name: "page", type: "number", description: "Page number" },
+          { name: "role", type: "string", description: "Use `buyer` (default) or `seller`." },
         ],
         example: `{
   "data": [
-    { "orderId": "ord_xyz789", "listing": "GPT-4 API Access", "status": "completed" }
-  ],
-  "total": 5
+    { "id": "ord_xyz789", "status": "completed", "marketplace_listings": { "title": "GPT-4 API Access" } }
+  ]
 }`,
       },
       {
