@@ -88,9 +88,40 @@ export async function PATCH(
     );
   }
 
+  // After successful status update, handle escrow and delivery
+  let deliveryResult = null;
+
+  if (status === "completed") {
+    try {
+      await completePurchaseEscrow(id);
+      deliveryResult = await deliverDigitalGood(id, currentOrder.listing_id, currentOrder.buyer_id);
+      if (!deliveryResult.success) {
+        return NextResponse.json(
+          {
+            error:
+              deliveryResult.error ??
+              "Failed to deliver the order. Status was not changed.",
+          },
+          { status: 409 }
+        );
+      }
+    } catch (escrowErr) {
+      void systemLog.error("api/marketplace/orders", "Escrow/delivery failed for order", { orderId: id, error: escrowErr instanceof Error ? escrowErr.message : String(escrowErr) });
+      return NextResponse.json(
+        { error: "Failed to complete payout or delivery. Status was not changed." },
+        { status: 409 }
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("marketplace_orders")
-    .update({ status: status as MarketplaceOrder["status"] })
+    .update({
+      status: status as MarketplaceOrder["status"],
+      ...(status === "completed"
+        ? { completed_at: new Date().toISOString() }
+        : {}),
+    })
     .eq("id", id)
     .eq("seller_id", user.id)
     .select()
@@ -101,18 +132,6 @@ export async function PATCH(
       { error: "Failed to update order status. Please try again later." },
       { status: 500 }
     );
-  }
-
-  // After successful status update, handle escrow and delivery
-  let deliveryResult = null;
-
-  if (status === "completed") {
-    try {
-      await completePurchaseEscrow(id);
-      deliveryResult = await deliverDigitalGood(id, currentOrder.listing_id, currentOrder.buyer_id);
-    } catch (escrowErr) {
-      void systemLog.error("api/marketplace/orders", "Escrow/delivery failed for order", { orderId: id, error: escrowErr instanceof Error ? escrowErr.message : String(escrowErr) });
-    }
   }
 
   if (status === "cancelled" || status === "rejected") {
