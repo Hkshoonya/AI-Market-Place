@@ -31,7 +31,8 @@ vi.mock("@/components/marketplace/wallet-badge", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: ComponentProps<"button">) => <button {...props}>{children}</button>,
+  Button: ({ asChild, children, ...props }: ComponentProps<"button"> & { asChild?: boolean }) =>
+    asChild ? <>{children}</> : <button {...props}>{children}</button>,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -45,6 +46,7 @@ vi.mock("lucide-react", () => ({
   Activity: (props: ComponentProps<"svg">) => <svg data-testid="activity-icon" {...props} />,
   BarChart3: (props: ComponentProps<"svg">) => <svg {...props} />,
   Building2: (props: ComponentProps<"svg">) => <svg {...props} />,
+  LogIn: (props: ComponentProps<"svg">) => <svg {...props} />,
   Menu: (props: ComponentProps<"svg">) => <svg {...props} />,
   MessageSquare: (props: ComponentProps<"svg">) => <svg {...props} />,
   Newspaper: (props: ComponentProps<"svg">) => <svg {...props} />,
@@ -57,7 +59,7 @@ vi.mock("lucide-react", () => ({
 describe("Header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue({ profile: null });
+    mockUseAuth.mockReturnValue({ user: null, profile: null });
     mockUsePathname.mockReturnValue("/");
   });
 
@@ -74,5 +76,18 @@ describe("Header", () => {
     expect(brandText).not.toHaveClass("truncate");
     expect(modelsLink).toHaveClass("shrink-0");
     expect(modelsLink).toHaveClass("whitespace-nowrap");
+  });
+
+  it("keeps wallet and admin access visible in the compact desktop state for signed-in admins", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "admin@example.com" },
+      profile: { is_admin: true },
+    });
+
+    render(<Header />);
+
+    expect(screen.getByRole("link", { name: /open wallet/i })).toHaveAttribute("href", "/wallet");
+    expect(screen.getByRole("link", { name: /open admin dashboard/i })).toHaveAttribute("href", "/admin");
+    expect(screen.getAllByTestId("auth-button").length).toBeGreaterThanOrEqual(2);
   });
 });

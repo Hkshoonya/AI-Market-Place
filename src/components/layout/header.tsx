@@ -7,6 +7,7 @@ import {
   Activity,
   BarChart3,
   Building2,
+  LogIn,
   Menu,
   MessageSquare,
   Newspaper,
@@ -38,7 +39,7 @@ const NAV_ITEMS = [
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -92,6 +93,34 @@ export function Header() {
         {/* Right side */}
         <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
+
+          <div className="hidden items-center gap-1 xl:flex 2xl:hidden">
+            {user ? (
+              <>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href="/wallet" aria-label="Open wallet">
+                    <Wallet className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <NotificationBell />
+                {profile?.is_admin && (
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href="/admin" aria-label="Open admin dashboard">
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  </Button>
+                )}
+                <AuthButton />
+              </>
+            ) : (
+              <Button variant="outline" size="sm" className="border-border/50" asChild>
+                <Link href="/login">
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </Link>
+              </Button>
+            )}
+          </div>
 
           {/* Wallet Badge */}
           <div className="hidden 2xl:flex">
