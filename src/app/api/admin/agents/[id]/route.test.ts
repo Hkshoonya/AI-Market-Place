@@ -167,4 +167,31 @@ describe("admin agent control route", () => {
       "manual_trigger"
     );
   });
+
+  it("returns 409 when a manual trigger is skipped because the agent is already running", async () => {
+    mockExecuteAgent.mockResolvedValue({
+      success: false,
+      skipped: true,
+      agentSlug: "pipeline-engineer",
+      taskId: "task-running",
+      durationMs: 3,
+      output: { skippedReason: "agent_run_already_in_progress" },
+      errors: ["Agent \"pipeline-engineer\" already has a running task in progress."],
+    });
+    mockCreateClient.mockResolvedValue(
+      createSessionClient({ status: "active", error_count: 0 })
+    );
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id: "agent-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.success).toBe(false);
+    expect(body.taskId).toBe("task-running");
+  });
 });

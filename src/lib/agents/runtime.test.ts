@@ -98,6 +98,16 @@ function createSupabaseStub(agentOverrides?: Partial<Record<string, unknown>>) {
 
       if (table === "agent_tasks") {
         return {
+          select: () => {
+            const chain = {
+              eq: vi.fn().mockReturnThis(),
+              gte: vi.fn().mockReturnThis(),
+              order: vi.fn().mockReturnThis(),
+              limit: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            };
+            return chain;
+          },
           insert: () => ({
             select: () => ({
               single: vi.fn().mockResolvedValue({ data: taskRecord, error: null }),
@@ -195,5 +205,99 @@ describe("executeAgent", () => {
         total_tasks_completed: 8,
       }),
     });
+  });
+
+  it("skips execution when another running task already exists for the same agent", async () => {
+    const supabase = createSupabaseStub({ error_count: 0 });
+    supabase.from = vi.fn((table: string) => {
+      if (table === "agents") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: "agent-1",
+                  slug: "pipeline-engineer",
+                  name: "Pipeline Engineer",
+                  description: null,
+                  agent_type: "resident",
+                  owner_id: null,
+                  status: "active",
+                  capabilities: [],
+                  config: {},
+                  mcp_endpoint: null,
+                  api_key_hash: null,
+                  last_active_at: "2026-03-19T00:00:00.000Z",
+                  total_tasks_completed: 2,
+                  total_conversations: 0,
+                  error_count: 0,
+                  created_at: "2026-03-19T00:00:00.000Z",
+                  updated_at: "2026-03-19T00:00:00.000Z",
+                },
+                error: null,
+              }),
+            }),
+          }),
+          update: (payload: Record<string, unknown>) => {
+            supabase.updates.push({ table, payload });
+            return {
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            };
+          },
+        };
+      }
+
+      if (table === "agent_tasks") {
+        return {
+          select: () => {
+            const chain = {
+              eq: vi.fn().mockReturnThis(),
+              gte: vi.fn().mockReturnThis(),
+              order: vi.fn().mockReturnThis(),
+              limit: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "task-running",
+                  started_at: "2026-03-19T00:01:00.000Z",
+                  task_type: "scheduled_run",
+                },
+                error: null,
+              }),
+            };
+            return chain;
+          },
+          insert: vi.fn(() => {
+            throw new Error("should not create a duplicate task");
+          }),
+          update: (payload: Record<string, unknown>) => {
+            supabase.updates.push({ table, payload });
+            return {
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    });
+    mockCreateClient.mockReturnValue(supabase);
+    mockGetAgent.mockReturnValue({
+      slug: "pipeline-engineer",
+      name: "Pipeline Engineer",
+      run: vi.fn(),
+    });
+
+    const result = await executeAgent("pipeline-engineer", "scheduled_run");
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.taskId).toBe("task-running");
+    expect(result.output).toEqual(
+      expect.objectContaining({
+        skippedReason: "agent_run_already_in_progress",
+        runningTaskId: "task-running",
+      })
+    );
+    expect(supabase.updates).toHaveLength(0);
   });
 });

@@ -104,4 +104,33 @@ describe("runScheduledAgentCron", () => {
       })
     );
   });
+
+  it("treats an already-running agent task as a skipped completion instead of a cron failure", async () => {
+    mockExecuteAgent.mockResolvedValue({
+      agentSlug: "pipeline-engineer",
+      taskId: "task-running",
+      success: false,
+      skipped: true,
+      output: { skippedReason: "agent_run_already_in_progress" },
+      errors: ["Agent \"pipeline-engineer\" already has a running task in progress."],
+      durationMs: 9,
+    });
+
+    const { runScheduledAgentCron } = await import("./_shared");
+    const response = await runScheduledAgentCron(
+      new Request("https://aimarketcap.tech/api/cron/agents/pipeline", {
+        headers: { authorization: "Bearer test-cron-secret" },
+      }),
+      { agentSlug: "pipeline-engineer", jobName: "agent-pipeline-engineer" }
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockTrackerComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skipped: true,
+        taskId: "task-running",
+      })
+    );
+    expect(mockTrackerFail).not.toHaveBeenCalled();
+  });
 });

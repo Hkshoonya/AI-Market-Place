@@ -26,10 +26,15 @@ export async function runScheduledAgentCron(
     agent: result.agentSlug,
     taskId: result.taskId,
     success: result.success,
+    skipped: result.skipped ?? false,
     durationMs: result.durationMs,
     output: result.output,
     errors: result.errors,
   };
+
+  if (result.skipped) {
+    return tracker.complete(payload);
+  }
 
   if (!result.success) {
     return tracker.fail(

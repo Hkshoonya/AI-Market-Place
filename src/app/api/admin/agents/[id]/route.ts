@@ -157,6 +157,20 @@ export async function POST(
 
     const result = await executeAgent(agent.slug, "manual_trigger");
 
+    if (result.skipped) {
+      return NextResponse.json(
+        {
+          success: false,
+          agent: result.agentSlug,
+          taskId: result.taskId,
+          durationMs: result.durationMs,
+          output: result.output,
+          errors: result.errors,
+        },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json({
       success: result.success,
       agent: result.agentSlug,

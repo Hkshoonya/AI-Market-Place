@@ -25,6 +25,7 @@ export interface RuntimeResult {
   agentSlug: string;
   taskId: string | null;
   success: boolean;
+  skipped?: boolean;
   output: Record<string, unknown> | null;
   errors: string[];
   durationMs: number;
@@ -88,8 +89,50 @@ export async function executeAgent(
       agentSlug: slug,
       taskId: null,
       success: false,
+      skipped: true,
       output: null,
       errors: [`Agent "${slug}" is ${record.status}, skipping`],
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  const runningTaskCutoff = new Date(Date.now() - timeoutMs).toISOString();
+  const { data: runningTask, error: runningTaskError } = await sb
+    .from("agent_tasks")
+    .select("id, started_at, task_type")
+    .eq("agent_id", record.id)
+    .eq("status", "running")
+    .gte("started_at", runningTaskCutoff)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (runningTaskError) {
+    return {
+      agentSlug: slug,
+      taskId: null,
+      success: false,
+      output: null,
+      errors: [
+        `Failed to inspect running tasks for agent "${slug}": ${runningTaskError.message}`,
+      ],
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  if (runningTask) {
+    return {
+      agentSlug: slug,
+      taskId: typeof runningTask.id === "string" ? runningTask.id : null,
+      success: false,
+      skipped: true,
+      output: {
+        skippedReason: "agent_run_already_in_progress",
+        runningTaskId: runningTask.id,
+        runningTaskType: runningTask.task_type,
+        runningSince: runningTask.started_at,
+      },
+      errors: [`Agent "${slug}" already has a running task in progress.`],
       durationMs: Date.now() - startTime,
     };
   }
