@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   Bot,
@@ -12,12 +12,17 @@ import {
   Clock,
   AlertTriangle,
   Activity,
+  Save,
 } from "lucide-react";
 import { SWR_TIERS } from "@/lib/swr/config";
 import {
   extractAutoPrPolicy,
   summarizeAutoPrPolicies,
 } from "@/lib/agents/auto-pr-policy";
+import {
+  AGENT_PROVIDER_ORDER,
+  type AgentProviderName,
+} from "@/lib/agents/provider-model-constants";
 
 interface Agent {
   id: string;
@@ -110,6 +115,13 @@ interface AgentsResponse {
   recentFailingRuns?: AgentCronRun[];
   summary?: AgentsSummary;
 }
+interface AgentModelSettingsResponse {
+  defaults: Record<AgentProviderName, string>;
+  overrides: Partial<Record<AgentProviderName, string>>;
+  effectiveModels: Record<AgentProviderName, string>;
+  suggestions: Record<AgentProviderName, string[]>;
+  providerOrder: AgentProviderName[];
+}
 interface TasksResponse { tasks: AgentTask[] }
 interface LogsResponse { logs: AgentLog[] }
 
@@ -127,6 +139,10 @@ export default function AgentsContent() {
     "/api/admin/agents/tasks",
     { ...SWR_TIERS.MEDIUM }
   );
+  const { data: agentModelData, mutate: mutateAgentModels } =
+    useSWR<AgentModelSettingsResponse>("/api/admin/agent-models", {
+      ...SWR_TIERS.MEDIUM,
+    });
   const { data: logsData } = useSWR<LogsResponse>(
     "/api/admin/agents/logs",
     { ...SWR_TIERS.MEDIUM }
@@ -140,6 +156,22 @@ export default function AgentsContent() {
   const summary = agentsData?.summary;
   const tasks = tasksData?.tasks ?? [];
   const logs = logsData?.logs ?? [];
+  const [modelDrafts, setModelDrafts] = useState<Partial<Record<AgentProviderName, string>>>({});
+  const [savingProvider, setSavingProvider] = useState<AgentProviderName | null>(null);
+
+  useEffect(() => {
+    if (!agentModelData) return;
+
+    setModelDrafts((current) => {
+      const next = { ...current };
+      for (const provider of agentModelData.providerOrder ?? AGENT_PROVIDER_ORDER) {
+        if (!(provider in current)) {
+          next[provider] = agentModelData.overrides[provider] ?? "";
+        }
+      }
+      return next;
+    });
+  }, [agentModelData]);
 
   const toggleAgent = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "paused" : "active";
@@ -164,6 +196,30 @@ export default function AgentsContent() {
       // ignore trigger errors
     } finally {
       setTriggering(null);
+    }
+  };
+
+  const saveProviderModel = async (provider: AgentProviderName) => {
+    setSavingProvider(provider);
+    try {
+      const res = await fetch("/api/admin/agent-models", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          model: modelDrafts[provider] ?? "",
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to save provider model");
+      }
+
+      await mutateAgentModels();
+    } catch {
+      // handled by stale UI state for now
+    } finally {
+      setSavingProvider(null);
     }
   };
 
@@ -365,6 +421,71 @@ export default function AgentsContent() {
                   No provider configured for agent model routing.
                 </span>
               )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <Bot className="h-3.5 w-3.5" />
+              Agent Model Routing
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Override provider model IDs without changing API keys. Leave blank to use the built-in default.
+            </p>
+            <div className="mt-4 space-y-4">
+              {(agentModelData?.providerOrder ?? AGENT_PROVIDER_ORDER).map((provider) => {
+                const suggestions = agentModelData?.suggestions[provider] ?? [];
+                const effectiveModel = agentModelData?.effectiveModels[provider] ?? "";
+                const defaultModel = agentModelData?.defaults[provider] ?? "";
+                const overrideValue = modelDrafts[provider] ?? "";
+
+                return (
+                  <div
+                    key={provider}
+                    className="rounded-lg border border-border/60 bg-secondary/10 p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="font-medium capitalize">{provider}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Effective: <span className="font-mono">{effectiveModel}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Default: <span className="font-mono">{defaultModel}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => saveProviderModel(provider)}
+                        disabled={savingProvider === provider}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-secondary disabled:opacity-50"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save
+                      </button>
+                    </div>
+                    <input
+                      list={`agent-model-suggestions-${provider}`}
+                      value={overrideValue}
+                      onChange={(event) =>
+                        setModelDrafts((current) => ({
+                          ...current,
+                          [provider]: event.target.value,
+                        }))
+                      }
+                      placeholder={`Use default (${defaultModel})`}
+                      className="mt-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <datalist id={`agent-model-suggestions-${provider}`}>
+                      {suggestions.map((model) => (
+                        <option key={model} value={model} />
+                      ))}
+                    </datalist>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Example suggestions: {suggestions.join(", ")}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

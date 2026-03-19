@@ -1,5 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("./provider-model-config", async () => {
+  const actual = await vi.importActual<typeof import("./provider-model-config")>(
+    "./provider-model-config"
+  );
+  return {
+    ...actual,
+    getEffectiveAgentProviderModels: vi.fn().mockResolvedValue({
+      openrouter: "openai/gpt-4.1-mini",
+      deepseek: "deepseek-chat",
+      minimax: "MiniMax-M2.5",
+      anthropic: "claude-sonnet-4-20250514",
+    }),
+  };
+});
+
 describe("callAgentModel", () => {
   beforeEach(() => {
     vi.resetModules();

@@ -662,6 +662,11 @@ export type AgentIssueStatus =
   | "ignored";
 export type AgentDeferredStatus = "open" | "planned" | "done" | "dropped";
 export type AgentDeferredRiskLevel = "high" | "medium" | "low";
+export type AgentProviderSettingProvider =
+  | "openrouter"
+  | "deepseek"
+  | "minimax"
+  | "anthropic";
 
 export interface Agent {
   id: string;
@@ -740,6 +745,13 @@ export interface AgentDeferredItem {
   status: AgentDeferredStatus;
   created_at: string;
   updated_at: string;
+}
+
+export interface AgentProviderSetting {
+  provider: AgentProviderSettingProvider;
+  model_id: string;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 export interface ApiKeyRecord {
@@ -1313,6 +1325,12 @@ export interface Database {
         Row: AsRow<AgentDeferredItem>;
         Insert: Partial<AgentDeferredItem> & Pick<AgentDeferredItem, "slug" | "title" | "area" | "reason" | "risk_level">;
         Update: Partial<AgentDeferredItem>;
+        Relationships: [];
+      };
+      agent_provider_settings: {
+        Row: AsRow<AgentProviderSetting>;
+        Insert: Partial<AgentProviderSetting> & Pick<AgentProviderSetting, "provider" | "model_id">;
+        Update: Partial<AgentProviderSetting>;
         Relationships: [];
       };
       api_keys: {

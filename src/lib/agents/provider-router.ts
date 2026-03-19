@@ -1,10 +1,9 @@
 import type { MessageParam as AnthropicMessageParam } from "@anthropic-ai/sdk/resources/messages/messages";
-
-export type AgentProviderName =
-  | "openrouter"
-  | "deepseek"
-  | "minimax"
-  | "anthropic";
+import { getEffectiveAgentProviderModels } from "./provider-model-config";
+import {
+  DEFAULT_AGENT_PROVIDER_MODELS,
+  type AgentProviderName,
+} from "./provider-model-constants";
 
 export interface AgentModelMessage {
   role: "system" | "user" | "assistant";
@@ -48,13 +47,6 @@ const MINIMAX_API_BASE = "https://api.minimax.io/v1/openai";
 function getOptionalEnv(name: string): string {
   return process.env[name] ?? "";
 }
-
-const DEFAULT_MODELS: Record<AgentProviderName, string> = {
-  openrouter: "openai/gpt-4.1-mini",
-  deepseek: "deepseek-chat",
-  minimax: "MiniMax-M2.5",
-  anthropic: "claude-sonnet-4-20250514",
-};
 
 function getConfiguredProviders(): ProviderCandidate[] {
   const candidates: ProviderCandidate[] = [];
@@ -104,11 +96,16 @@ function buildMessages(request: AgentModelRequest): AgentModelMessage[] {
   return messages;
 }
 
-function resolveModel(
+async function resolveModel(
   provider: AgentProviderName,
   request: AgentModelRequest
-): string {
-  return request.providerModels?.[provider] ?? DEFAULT_MODELS[provider];
+): Promise<string> {
+  if (request.providerModels?.[provider]) {
+    return request.providerModels[provider] as string;
+  }
+
+  const effectiveModels = await getEffectiveAgentProviderModels();
+  return effectiveModels[provider] ?? DEFAULT_AGENT_PROVIDER_MODELS[provider];
 }
 
 function normalizeOpenAiUsage(usage: Record<string, unknown> | null | undefined): AgentModelUsage | null {
@@ -164,7 +161,7 @@ async function callOpenAiCompatibleProvider(
   apiKey: string,
   request: AgentModelRequest
 ): Promise<AgentModelResponse> {
-  const model = resolveModel(provider, request);
+  const model = await resolveModel(provider, request);
   const messages = buildMessages(request);
 
   const baseUrl =
@@ -257,7 +254,7 @@ async function callAnthropicProvider(
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
 
   const client = new Anthropic({ apiKey });
-  const model = resolveModel("anthropic", request);
+  const model = await resolveModel("anthropic", request);
   const messages = buildMessages(request);
   const systemMessage = messages.find((message) => message.role === "system")?.content;
   const anthropicMessages: AnthropicMessageParam[] = messages
