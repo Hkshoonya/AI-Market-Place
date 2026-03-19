@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
@@ -12,8 +10,79 @@ import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 
 export const dynamic = "force-dynamic";
+
+const SEARCH_MODEL_SELECT =
+  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
+const SEARCH_MARKETPLACE_SELECT =
+  "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
+
+async function searchModelsWithFallback(
+  queryClient: ReturnType<typeof createAdminClient>,
+  safeQuery: string,
+  limit: number
+) {
+  const ftsResult = await queryClient
+    .from("models")
+    .select(SEARCH_MODEL_SELECT)
+    .textSearch("fts", safeQuery)
+    .eq("status", "active")
+    .order("popularity_score", { ascending: false, nullsFirst: false })
+    .limit(Math.min(limit * 4, 50));
+
+  if (ftsResult.data && ftsResult.data.length > 0) {
+    return ftsResult.data;
+  }
+
+  const ilikeResult = await queryClient
+    .from("models")
+    .select(SEARCH_MODEL_SELECT)
+    .eq("status", "active")
+    .or(
+      `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
+    )
+    .order("popularity_score", { ascending: false, nullsFirst: false })
+    .limit(Math.min(limit * 4, 50));
+
+  if (ilikeResult.error) {
+    throw ilikeResult.error;
+  }
+
+  return ilikeResult.data ?? [];
+}
+
+async function searchMarketplaceWithFallback(
+  queryClient: ReturnType<typeof createAdminClient>,
+  safeQuery: string
+) {
+  const ftsResult = await queryClient
+    .from("marketplace_listings")
+    .select(SEARCH_MARKETPLACE_SELECT)
+    .textSearch("fts", safeQuery)
+    .eq("status", "active")
+    .order("view_count", { ascending: false, nullsFirst: false })
+    .limit(4);
+
+  if (ftsResult.data && ftsResult.data.length > 0) {
+    return ftsResult.data;
+  }
+
+  const ilikeResult = await queryClient
+    .from("marketplace_listings")
+    .select(SEARCH_MARKETPLACE_SELECT)
+    .eq("status", "active")
+    .or(`title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`)
+    .order("view_count", { ascending: false, nullsFirst: false })
+    .limit(4);
+
+  if (ilikeResult.error) {
+    throw ilikeResult.error;
+  }
+
+  return ilikeResult.data ?? [];
+}
 
 export async function GET(request: NextRequest) {
   // Rate limit: search endpoints
@@ -31,11 +100,8 @@ export async function GET(request: NextRequest) {
     const pw = await checkPaywall(request);
     if (!pw.allowed) return paywallErrorResponse(pw);
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     const admin = createAdminClient();
+    const supabase = createOptionalPublicClient() ?? admin;
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
@@ -50,40 +116,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [], marketplace: [] });
     }
 
-    // Try FTS first for models
-    const result = await supabase
-      .from("models")
-      .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate"
-      )
-      .textSearch("fts", safeQuery)
-      .eq("status", "active")
-      .order("popularity_score", { ascending: false, nullsFirst: false })
-      .limit(Math.min(limit * 4, 50));
-
-    let models = result.data;
-    const error = result.error;
-
-    // Fallback to ilike if FTS returns no results
-    if ((!models || models.length === 0) && !error) {
-      const { data: ilikeFallback } = await supabase
-        .from("models")
-        .select(
-          "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate"
-        )
-        .eq("status", "active")
-        .or(
-          `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
-        )
-        .order("popularity_score", { ascending: false, nullsFirst: false })
-        .limit(Math.min(limit * 4, 50));
-
-      models = ilikeFallback;
-    }
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const models = await searchModelsWithFallback(supabase, safeQuery, limit);
 
     const uniqueModels = rankModelsForSearch(
       dedupePublicModelFamilies(models ?? []),
@@ -198,32 +231,7 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     if (includeMarketplace && query.length >= 2) {
-      // Try FTS first for marketplace
-      let { data: marketplaceResults } = await supabase
-        .from("marketplace_listings")
-        .select(
-          "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id"
-        )
-        .textSearch("fts", safeQuery)
-        .eq("status", "active")
-        .order("view_count", { ascending: false, nullsFirst: false })
-        .limit(4);
-
-      // Fallback to ilike
-      if (!marketplaceResults || marketplaceResults.length === 0) {
-        const { data: mkIlike } = await supabase
-          .from("marketplace_listings")
-          .select(
-            "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id"
-          )
-          .eq("status", "active")
-          .or(
-            `title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
-          )
-          .order("view_count", { ascending: false, nullsFirst: false })
-          .limit(4);
-        marketplaceResults = mkIlike;
-      }
+      const marketplaceResults = await searchMarketplaceWithFallback(supabase, safeQuery);
 
       marketplace = await attachListingPolicies(admin, marketplaceResults ?? []);
     }

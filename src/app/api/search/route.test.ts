@@ -33,12 +33,59 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/supabase/public-server", () => ({
+  createOptionalPublicClient: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(),
+}));
+
+vi.mock("@/lib/marketplace/policy-read", () => ({
+  attachListingPolicies: vi.fn(async (_admin, listings) => listings),
+}));
+
 import { createClient } from "@supabase/supabase-js";
+import { createOptionalPublicClient } from "@/lib/supabase/public-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { GET } from "./route";
 
 const createClientMock = vi.mocked(createClient);
+const createOptionalPublicClientMock = vi.mocked(createOptionalPublicClient);
+const createAdminClientMock = vi.mocked(createAdminClient);
 
-function createMockSupabase() {
+function createMockSupabase(options?: {
+  modelFtsData?: Array<Record<string, unknown>>;
+  modelFtsError?: { message: string } | null;
+  modelIlikeData?: Array<Record<string, unknown>>;
+  marketplaceFtsData?: Array<Record<string, unknown>>;
+  marketplaceFtsError?: { message: string } | null;
+  marketplaceIlikeData?: Array<Record<string, unknown>>;
+}) {
+  const {
+    modelFtsData = [
+      {
+        id: "model-1",
+        slug: "google-deepmind-sonnet",
+        name: "Sonnet",
+        provider: "Google",
+        category: "llm",
+        overall_rank: 12,
+        quality_score: 84,
+        capability_score: 84,
+        is_open_weights: false,
+        parameter_count: null,
+        short_description: "TensorFlow-based neural network library",
+        market_cap_estimate: 123_000_000,
+      },
+    ],
+    modelFtsError = null,
+    modelIlikeData = [],
+    marketplaceFtsData = [],
+    marketplaceFtsError = null,
+    marketplaceIlikeData = [],
+  } = options ?? {};
+
   return {
     from: (table: string) => {
       if (table === "models") {
@@ -48,23 +95,8 @@ function createMockSupabase() {
               eq: () => ({
                 order: () => ({
                   limit: async () => ({
-                    data: [
-                      {
-                        id: "model-1",
-                        slug: "google-deepmind-sonnet",
-                        name: "Sonnet",
-                        provider: "Google",
-                        category: "llm",
-                        overall_rank: 12,
-                        quality_score: 84,
-                        capability_score: 84,
-                        is_open_weights: false,
-                        parameter_count: null,
-                        short_description: "TensorFlow-based neural network library",
-                        market_cap_estimate: 123_000_000,
-                      },
-                    ],
-                    error: null,
+                    data: modelFtsData,
+                    error: modelFtsError,
                   }),
                 }),
               }),
@@ -73,7 +105,7 @@ function createMockSupabase() {
               or: () => ({
                 order: () => ({
                   limit: async () => ({
-                    data: [],
+                    data: modelIlikeData,
                     error: null,
                   }),
                 }),
@@ -114,8 +146,8 @@ function createMockSupabase() {
               eq: () => ({
                 order: () => ({
                   limit: async () => ({
-                    data: [],
-                    error: null,
+                    data: marketplaceFtsData,
+                    error: marketplaceFtsError,
                   }),
                 }),
               }),
@@ -124,7 +156,7 @@ function createMockSupabase() {
               or: () => ({
                 order: () => ({
                   limit: async () => ({
-                    data: [],
+                    data: marketplaceIlikeData,
                     error: null,
                   }),
                 }),
@@ -145,6 +177,8 @@ describe("GET /api/search", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     createClientMock.mockReturnValue(createMockSupabase());
+    createOptionalPublicClientMock.mockReturnValue(null);
+    createAdminClientMock.mockReturnValue(createMockSupabase());
   });
 
   it("returns cleaned display descriptions instead of raw suspicious snippets", async () => {
@@ -163,6 +197,79 @@ describe("GET /api/search", () => {
     );
     expect(body.data[0].display_description).not.toMatch(
       /TensorFlow-based neural network library/i
+    );
+  });
+
+  it("falls back to ilike search when model full-text search errors", async () => {
+    const fallbackClient = createMockSupabase({
+      modelFtsData: [],
+      modelFtsError: { message: "fts missing" },
+      modelIlikeData: [
+        {
+          id: "model-2",
+          slug: "gpt-4o",
+          name: "GPT-4o",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 1,
+          quality_score: 95,
+          capability_score: 95,
+          is_open_weights: false,
+          parameter_count: null,
+          short_description: "Multimodal assistant",
+          market_cap_estimate: 500_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(fallbackClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=gpt") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "gpt-4o",
+        name: "GPT-4o",
+      })
+    );
+  });
+
+  it("falls back to ilike search when marketplace full-text search errors", async () => {
+    const fallbackClient = createMockSupabase({
+      marketplaceFtsError: { message: "fts missing" },
+      marketplaceIlikeData: [
+        {
+          id: "listing-1",
+          slug: "gpt-4-api-access",
+          title: "GPT-4 API Access",
+          listing_type: "api_access",
+          price: 19,
+          avg_rating: 4.8,
+          preview_manifest: null,
+          mcp_manifest: null,
+          agent_config: null,
+          agent_id: null,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(fallbackClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=gpt&marketplace=true") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.marketplace).toHaveLength(1);
+    expect(body.marketplace[0]).toEqual(
+      expect.objectContaining({
+        slug: "gpt-4-api-access",
+        title: "GPT-4 API Access",
+      })
     );
   });
 });
