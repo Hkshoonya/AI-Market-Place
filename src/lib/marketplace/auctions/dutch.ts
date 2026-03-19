@@ -163,6 +163,22 @@ export async function acceptDutchAuction(
 
     if (bidError) {
       void log.error("Failed to create bid record for Dutch auction", { error: bidError.message });
+      await sb
+        .from("auctions")
+        .update({ status: "active", winner_id: null, final_price: null })
+        .eq("id", auctionId);
+      try {
+        await refundEscrow(escrowId);
+      } catch (refundErr) {
+        void log.error("Failed to refund Dutch auction escrow after bid record failure", {
+          escrowId,
+          error: refundErr instanceof Error ? refundErr.message : String(refundErr),
+        });
+      }
+      return {
+        success: false,
+        error: "Failed to record winning bid",
+      };
     }
 
     // 6. Release escrow to seller minus platform fee

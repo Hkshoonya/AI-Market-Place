@@ -107,7 +107,8 @@ export async function placeBid(
       return { success: false, error: `Failed to hold escrow: ${message}` };
     }
 
-    // 4. Find and refund the previous highest bid
+    // 4. Identify the previous highest bid, but do not refund it until
+    // the optimistic-lock update confirms this bid actually won the race.
     const { data: previousBid } = await sb
       .from("auction_bids")
       .select("id, escrow_hold_id, bidder_id")
@@ -116,25 +117,6 @@ export async function placeBid(
       .order("bid_amount", { ascending: false })
       .limit(1)
       .single();
-
-    if (previousBid && previousBid.escrow_hold_id) {
-      // Mark previous bid as outbid
-      await sb
-        .from("auction_bids")
-        .update({ status: "outbid" })
-        .eq("id", previousBid.id);
-
-      // Refund previous bidder's escrow
-      try {
-        await refundEscrow(previousBid.escrow_hold_id);
-      } catch (err) {
-        // Log but don't fail the bid — the previous hold may already be handled
-        void log.error("Failed to refund previous bid escrow", {
-          escrowHoldId: previousBid.escrow_hold_id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
 
     // 5. Insert new bid record
     const { data: newBid, error: bidError } = await sb
@@ -207,6 +189,22 @@ export async function placeBid(
         success: false,
         error: "Another bid was placed simultaneously. Your escrow has been refunded. Please try again.",
       };
+    }
+
+    if (previousBid && previousBid.escrow_hold_id) {
+      await sb
+        .from("auction_bids")
+        .update({ status: "outbid" })
+        .eq("id", previousBid.id);
+
+      try {
+        await refundEscrow(previousBid.escrow_hold_id);
+      } catch (err) {
+        void log.error("Failed to refund previous bid escrow", {
+          escrowHoldId: previousBid.escrow_hold_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     return {

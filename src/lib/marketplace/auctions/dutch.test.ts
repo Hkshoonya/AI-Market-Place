@@ -137,4 +137,89 @@ describe("acceptDutchAuction", () => {
       })
     );
   });
+
+  it("reopens the auction and refunds the buyer when the winning bid record cannot be saved", async () => {
+    const supabase = createDutchSupabaseStub();
+    supabase.from = vi.fn((table: string) => {
+      if (table === "auctions") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: "auction-1",
+                  seller_id: "seller-1",
+                  status: "active",
+                  ends_at: "2099-03-19T00:10:00.000Z",
+                  auction_type: "dutch",
+                  start_price: 100,
+                  floor_price: 50,
+                  price_decrement: 10,
+                  decrement_interval_seconds: 60,
+                  starts_at: "2099-03-19T00:00:00.000Z",
+                },
+                error: null,
+              }),
+            }),
+          }),
+          update: (payload: Record<string, unknown>) => {
+            supabase.auctionUpdates.push(payload);
+            return {
+              eq: () => ({
+                eq: () => ({
+                  select: () => ({
+                    single: vi.fn().mockResolvedValue({
+                      data: { id: "auction-1" },
+                      error: null,
+                    }),
+                  }),
+                }),
+                single: vi.fn().mockResolvedValue({
+                  data: { id: "auction-1" },
+                  error: null,
+                }),
+              }),
+            };
+          },
+        };
+      }
+
+      if (table === "auction_bids") {
+        return {
+          insert: () => ({
+            select: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "insert failed" },
+              }),
+            }),
+          }),
+          update: (payload: Record<string, unknown>) => {
+            supabase.bidUpdates.push(payload);
+            return {
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    });
+    mockCreateAdminClient.mockReturnValue(supabase);
+    mockReleaseEscrow.mockResolvedValue(undefined);
+
+    const result = await acceptDutchAuction("auction-1", "buyer-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Failed to record winning bid");
+    expect(mockRefundEscrow).toHaveBeenCalledWith("escrow-1");
+    expect(supabase.auctionUpdates).toContainEqual(
+      expect.objectContaining({
+        status: "active",
+        winner_id: null,
+        final_price: null,
+      })
+    );
+    expect(mockReleaseEscrow).not.toHaveBeenCalled();
+  });
 });
