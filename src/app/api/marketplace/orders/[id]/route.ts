@@ -93,7 +93,6 @@ export async function PATCH(
 
   if (status === "completed") {
     try {
-      await completePurchaseEscrow(id);
       deliveryResult = await deliverDigitalGood(id, currentOrder.listing_id, currentOrder.buyer_id);
       if (!deliveryResult.success) {
         return NextResponse.json(
@@ -105,6 +104,8 @@ export async function PATCH(
           { status: 409 }
         );
       }
+
+      await completePurchaseEscrow(id);
     } catch (escrowErr) {
       void systemLog.error("api/marketplace/orders", "Escrow/delivery failed for order", { orderId: id, error: escrowErr instanceof Error ? escrowErr.message : String(escrowErr) });
       return NextResponse.json(

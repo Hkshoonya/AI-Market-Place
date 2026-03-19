@@ -127,7 +127,7 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
 
     expect(response.status).toBe(409);
     expect(body.error).toBe("Provisioning failed");
-    expect(mockCompletePurchaseEscrow).toHaveBeenCalledWith("order-1");
+    expect(mockCompletePurchaseEscrow).not.toHaveBeenCalled();
     const ordersTable = supabase.from.mock.results[0]?.value;
     expect(ordersTable.update).not.toHaveBeenCalled();
   });
@@ -147,11 +147,14 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mockCompletePurchaseEscrow).toHaveBeenCalledWith("order-1");
     expect(mockDeliverDigitalGood).toHaveBeenCalledWith(
       "order-1",
       "listing-1",
       "buyer-1"
+    );
+    expect(mockCompletePurchaseEscrow).toHaveBeenCalledWith("order-1");
+    expect(mockDeliverDigitalGood.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCompletePurchaseEscrow.mock.invocationCallOrder[0]
     );
     const ordersTable = supabase.from.mock.results[0]?.value;
     expect(ordersTable.update).toHaveBeenCalledTimes(1);
