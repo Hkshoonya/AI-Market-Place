@@ -159,4 +159,35 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     const ordersTable = supabase.from.mock.results[0]?.value;
     expect(ordersTable.update).toHaveBeenCalledTimes(1);
   });
+
+  it("does not mark an order rejected when escrow refund fails", async () => {
+    const supabase = createSupabaseClient({
+      order: {
+        id: "order-1",
+        seller_id: "seller-1",
+        buyer_id: "buyer-1",
+        listing_id: "listing-1",
+        status: "pending",
+      },
+    });
+    mockCreateClient.mockResolvedValueOnce(supabase);
+    mockRefundPurchaseEscrow.mockRejectedValueOnce(new Error("refund failed"));
+
+    const { PATCH } = await import("./route");
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1", {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rejected" }),
+      }),
+      { params: Promise.resolve({ id: "order-1" }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Failed to refund the order. Status was not changed.");
+    const ordersTable = supabase.from.mock.results[0]?.value;
+    expect(mockRefundPurchaseEscrow).toHaveBeenCalledWith("order-1");
+    expect(ordersTable.update).not.toHaveBeenCalled();
+  });
 });

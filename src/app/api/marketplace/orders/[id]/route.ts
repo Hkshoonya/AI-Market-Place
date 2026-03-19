@@ -88,7 +88,7 @@ export async function PATCH(
     );
   }
 
-  // After successful status update, handle escrow and delivery
+  // For financial transitions, complete the money-moving step before mutating order status.
   let deliveryResult = null;
 
   if (status === "completed") {
@@ -115,6 +115,21 @@ export async function PATCH(
     }
   }
 
+  if (status === "cancelled" || status === "rejected") {
+    try {
+      await refundPurchaseEscrow(id);
+    } catch (refundErr) {
+      void systemLog.error("api/marketplace/orders", "Escrow refund failed for order", {
+        orderId: id,
+        error: refundErr instanceof Error ? refundErr.message : String(refundErr),
+      });
+      return NextResponse.json(
+        { error: "Failed to refund the order. Status was not changed." },
+        { status: 409 }
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("marketplace_orders")
     .update({
@@ -133,14 +148,6 @@ export async function PATCH(
       { error: "Failed to update order status. Please try again later." },
       { status: 500 }
     );
-  }
-
-  if (status === "cancelled" || status === "rejected") {
-    try {
-      await refundPurchaseEscrow(id);
-    } catch (refundErr) {
-      void systemLog.error("api/marketplace/orders", "Escrow refund failed for order", { orderId: id, error: refundErr instanceof Error ? refundErr.message : String(refundErr) });
-    }
   }
 
   return NextResponse.json({ data, delivery: deliveryResult });
