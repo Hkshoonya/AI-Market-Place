@@ -40,6 +40,7 @@ import { collapseArenaRatings } from "@/lib/models/arena-family";
 import { getModelDisplayDescription, getParameterDisplay } from "@/lib/models/presentation";
 import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
+import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
 export const revalidate = 60;
 
@@ -89,6 +90,15 @@ export default async function ModelDetailPage({
     notFound();
   }
 
+  const [deploymentsResponse, platformsResponse] = await Promise.all([
+    supabase
+      .from("model_deployments")
+      .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+      .eq("model_id", model.id)
+      .eq("status", "available"),
+    supabase.from("deployment_platforms").select("*").order("name"),
+  ]);
+
   // Fetch historical snapshots for trends
   const { data: snapshotsRaw } = await supabase
     .from("model_snapshots")
@@ -131,6 +141,42 @@ export default async function ModelDetailPage({
   const benchmarkScores = model.benchmark_scores ?? [];
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
   const pricingData = (model.model_pricing ?? []) as PricingEntry[];
+  const deploymentPlatforms = (platformsResponse.data ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+  const modelAccessOffers = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: deploymentsResponse.data ?? [],
+    models: [
+      {
+        id: model.id,
+        slug: model.slug,
+        name: model.name,
+        provider: model.provider,
+        category: model.category,
+        quality_score: model.quality_score,
+        capability_score: model.capability_score,
+        economic_footprint_score: model.economic_footprint_score,
+        adoption_score: model.adoption_score,
+      },
+    ],
+  }).offersByModelId[model.id] ?? [];
   type UpdateEntry = import("./_components/changelog-tab").UpdateEntry;
   const updates = (model.model_updates ?? []) as UpdateEntry[];
   type EloEntry = import("./_components/benchmarks-tab").EloRating;
@@ -254,7 +300,11 @@ export default async function ModelDetailPage({
         </TabsContent>
 
         <TabsContent value="pricing" className="mt-6">
-          <PricingTab pricingData={pricingData} modelProvider={model.provider} />
+          <PricingTab
+            pricingData={pricingData}
+            modelProvider={model.provider}
+            accessOffers={modelAccessOffers}
+          />
         </TabsContent>
 
         <TabsContent value="deploy" className="mt-6">

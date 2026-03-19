@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PriceComparison } from "@/components/charts/price-comparison";
 import { formatTokenPrice } from "@/lib/format";
+import type { RankedAccessOffer } from "@/lib/models/access-offers";
+import { ExternalLink } from "lucide-react";
 import {
   formatVerifiedPricingEntry,
   getCheapestVerifiedPricing,
@@ -33,6 +35,7 @@ export interface PricingEntry {
 export interface PricingTabProps {
   pricingData: PricingEntry[];
   modelProvider: string;
+  accessOffers?: RankedAccessOffer[];
 }
 
 function isDirectProvider(modelProvider: string, providerName: string): boolean {
@@ -43,7 +46,7 @@ function getNumericPrice(value: number | null): number {
   return value == null ? Number.MAX_SAFE_INTEGER : value;
 }
 
-export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
+export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: PricingTabProps) {
   const trackedPricing = getTrackedPricingEntries({
     id: "model-pricing",
     name: "pricing",
@@ -145,6 +148,48 @@ export function PricingTab({ pricingData, modelProvider }: PricingTabProps) {
                 </div>
               </div>
             </div>
+            {accessOffers.length > 0 ? (
+              <div className="mb-6 grid gap-3 md:grid-cols-3">
+                {accessOffers.slice(0, 3).map((offer) => (
+                  <div
+                    key={offer.platform.id}
+                    className="rounded-xl border border-border/50 bg-card/40 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-semibold">{offer.platform.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {offer.bestFor}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        {offer.label}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 text-sm font-semibold">
+                      {offer.monthlyPriceLabel}
+                    </div>
+                    <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {offer.actionLabel} · Value {offer.userValueScore.toFixed(0)} · Trust {offer.trustScore.toFixed(0)}
+                    </div>
+                    <a
+                      href={offer.actionUrl}
+                      target="_blank"
+                      rel={offer.partnerDisclosure ? "noopener sponsored" : "noopener noreferrer"}
+                      className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-neon hover:underline"
+                    >
+                      {offer.actionLabel}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {offer.partnerDisclosure ? (
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        {offer.partnerDisclosure}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <p className="mb-4 text-xs text-muted-foreground">
               Direct first-party access is shown first. Brokers and routers are kept visible separately so
               the cheapest path does not get confused with the official one.
