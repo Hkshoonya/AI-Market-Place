@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { AgentRecord, AgentTask, AgentContext, AgentTaskResult } from "./types";
 import { getAgent, loadAllAgents } from "./registry";
 import { createAgentLogger } from "./logger";
+import { recordAgentIssue, resolveAgentIssue } from "./ledger";
 import { createTaggedLogger } from "@/lib/logging";
 
 const log = createTaggedLogger("agents/runtime");
@@ -27,6 +28,10 @@ export interface RuntimeResult {
   output: Record<string, unknown> | null;
   errors: string[];
   durationMs: number;
+}
+
+function runtimeIssueSlug(agentSlug: string) {
+  return `agent-runtime-${agentSlug}`;
 }
 
 /**
@@ -189,6 +194,19 @@ export async function executeAgent(
     // Reset error count on success
     if (record.error_count > 0) {
       updates.error_count = 0;
+      try {
+        await resolveAgentIssue(sb, runtimeIssueSlug(record.slug), {
+          verifier: "runtime",
+          reason: "agent recovered after successful scheduled run",
+          recoveredAt: new Date().toISOString(),
+        });
+      } catch (resolveErr) {
+        void log.warn("Failed to resolve runtime issue after agent recovery", {
+          agentSlug: record.slug,
+          error:
+            resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+        });
+      }
     }
   } else {
     updates.error_count = record.error_count + 1;
@@ -196,6 +214,36 @@ export async function executeAgent(
     if (record.error_count + 1 >= 10) {
       updates.status = "error";
       await logger.error("Agent auto-disabled after 10 consecutive failures");
+      try {
+        await recordAgentIssue(sb, {
+          slug: runtimeIssueSlug(record.slug),
+          title: `${record.name} auto-disabled after repeated failures`,
+          issueType: "agent_runtime_failure",
+          source: "scheduled_run",
+          severity: "high",
+          confidence: 0.98,
+          detectedBy: "runtime",
+          playbook: "manual_reenable_after_investigation",
+          evidence: {
+            agentSlug: record.slug,
+            taskId: task.id,
+            errorCount: record.error_count + 1,
+            latestErrors: result.errors,
+            taskType,
+          },
+          verification: {
+            status: "auto_disabled",
+            disabledAt: new Date().toISOString(),
+          },
+          status: "escalated",
+          retryCount: record.error_count + 1,
+        });
+      } catch (issueErr) {
+        void log.error("Failed to record auto-disabled runtime issue", {
+          agentSlug: record.slug,
+          error: issueErr instanceof Error ? issueErr.message : String(issueErr),
+        });
+      }
     }
   }
 
