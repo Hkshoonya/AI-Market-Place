@@ -50,10 +50,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const tasks = (data ?? []).map((task) => ({
-      ...task,
-      llm: extractAgentTaskModelMetadata(task.output),
-    }));
+    const tasks = (data ?? []).map((task) => {
+      const taskRow = task as Record<string, unknown> & { output?: unknown };
+      return {
+        ...taskRow,
+        llm: extractAgentTaskModelMetadata(taskRow.output),
+      };
+    });
 
     return NextResponse.json({ tasks });
   } catch (err) {
