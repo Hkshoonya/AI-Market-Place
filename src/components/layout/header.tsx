@@ -42,19 +42,19 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
         {/* Logo */}
-        <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-2.5" aria-label="AI Market Cap - Home">
+        <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5" aria-label="AI Market Cap - Home">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neon/10">
             <Activity className="h-5 w-5 text-neon" aria-hidden="true" />
           </div>
-          <span className="truncate text-base font-bold tracking-tight sm:text-lg">
+          <span className="whitespace-nowrap text-base font-bold tracking-tight sm:text-lg">
             AI Market <span className="text-neon">Cap</span>
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 xl:flex" aria-label="Main navigation">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (

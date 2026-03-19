@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 function readMigration(filename: string) {
@@ -49,5 +49,34 @@ describe("RLS policy regressions", () => {
     );
 
     expect(serviceRoleGuards).toHaveLength(6);
+  });
+
+  it("does not introduce new broad FOR ALL write policies outside the historical repaired migration", () => {
+    const migrationsDir = join(process.cwd(), "supabase", "migrations");
+    const offenders = readdirSync(migrationsDir)
+      .filter((filename) => filename.endsWith(".sql"))
+      .flatMap((filename) => {
+        const sql = readMigration(filename);
+        const matches = sql.match(/CREATE POLICY [^\n]+ FOR ALL USING \(true\) WITH CHECK \(true\);/g) ?? [];
+        return matches.map((statement) => ({ filename, statement }));
+      });
+
+    expect(offenders).toEqual([
+      {
+        filename: "007_phase6_market_cap_agent_deploy.sql",
+        statement:
+          'CREATE POLICY "Service write deployment_platforms" ON deployment_platforms FOR ALL USING (true) WITH CHECK (true);',
+      },
+      {
+        filename: "007_phase6_market_cap_agent_deploy.sql",
+        statement:
+          'CREATE POLICY "Service write model_deployments" ON model_deployments FOR ALL USING (true) WITH CHECK (true);',
+      },
+      {
+        filename: "007_phase6_market_cap_agent_deploy.sql",
+        statement:
+          'CREATE POLICY "Service write model_descriptions" ON model_descriptions FOR ALL USING (true) WITH CHECK (true);',
+      },
+    ]);
   });
 });
