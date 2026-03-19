@@ -182,7 +182,7 @@ describe("GET /api/health", () => {
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1", last_sync_at: syncedAgo(0.5, 6) }]), error: null },
           pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 }]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -199,7 +199,7 @@ describe("GET /api/health", () => {
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
           pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) }]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -216,7 +216,7 @@ describe("GET /api/health", () => {
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1", last_sync_at: syncedAgo(0.5, 6) }]), error: null },
           pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 }]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -225,12 +225,12 @@ describe("GET /api/health", () => {
       expect(body.status).toBe("healthy");
     });
 
-    it("status is 'degraded' when adapter has failures", async () => {
+    it("status is 'degraded' when adapter data is stale beyond the healthy window", async () => {
       mockCreateAdminClient.mockReturnValue(
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
-          pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 1, last_success_at: syncedAgo(1, 6), expected_interval_hours: 6 }]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+          pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 1, last_success_at: syncedAgo(3, 6), expected_interval_hours: 6 }]), error: null },
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -262,7 +262,7 @@ describe("GET /api/health", () => {
             ]),
             error: null,
           },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -286,7 +286,7 @@ describe("GET /api/health", () => {
             error: null,
           },
           pipeline_health: { data: [], error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);
@@ -323,7 +323,7 @@ describe("GET /api/health", () => {
             ],
             error: null,
           },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest("Bearer test-secret") as never);
@@ -343,6 +343,7 @@ describe("GET /api/health", () => {
       expect(body.database).toHaveProperty("latencyMs");
       expect(body.cron).toHaveProperty("mode", "external");
       expect(body.cron).toHaveProperty("schedulerConfigured", true);
+      expect(body.cron).toHaveProperty("stale", false);
       expect(body.cron).toHaveProperty("runningJobs", 0);
       expect(body.cron).toHaveProperty("recentFailures24h", 0);
       expect(body.cron).toHaveProperty("lastRunAt", "2026-03-11T23:45:00.000Z");
@@ -366,9 +367,9 @@ describe("GET /api/health", () => {
           ]), error: null },
           pipeline_health: { data: makePipelineHealth([
             { source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
-            { source_slug: "a2", consecutive_failures: 1, last_success_at: syncedAgo(1, 6), expected_interval_hours: 6 },
+            { source_slug: "a2", consecutive_failures: 1, last_success_at: syncedAgo(3, 6), expected_interval_hours: 6 },
           ]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest("Bearer test-secret") as never);
@@ -389,7 +390,7 @@ describe("GET /api/health", () => {
         createFullMockSupabase({
           data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
           pipeline_health: { data: makePipelineHealth([{ source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) }]), error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest("Bearer wrong-token") as never);
@@ -451,7 +452,7 @@ describe("GET /api/health", () => {
             ],
             error: null,
           },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest("Bearer test-secret") as never);
@@ -459,9 +460,11 @@ describe("GET /api/health", () => {
 
       expect(body.cron.mode).toBe("internal");
       expect(body.cron.schedulerConfigured).toBe(true);
+      expect(body.cron.stale).toBe(false);
       expect(body.cron.runningJobs).toBe(1);
       expect(body.cron.recentFailures24h).toBe(1);
       expect(body.cron.lastRunAt).toBe("2026-03-12T00:30:00.000Z");
+      expect(body.status).toBe("degraded");
 
       process.env.CRON_SECRET = originalSecret;
       process.env.CRON_RUNNER_MODE = originalMode;
@@ -486,7 +489,7 @@ describe("GET /api/health", () => {
             error: null,
           },
           cron_runs: { data: [], error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest("Bearer test-secret") as never);
@@ -494,6 +497,8 @@ describe("GET /api/health", () => {
 
       expect(body.cron.mode).toBe("internal");
       expect(body.cron.schedulerConfigured).toBe(true);
+      expect(body.cron.stale).toBe(true);
+      expect(body.status).toBe("degraded");
 
       process.env.CRON_SECRET = originalSecret;
       process.env.CRON_RUNNER_MODE = originalMode;
@@ -527,7 +532,7 @@ describe("GET /api/health", () => {
         createFullMockSupabase({
           data_sources: { data: [], error: null },
           pipeline_health: { data: [], error: null },
-        }) as ReturnType<typeof createAdminClient>
+        }) as unknown as ReturnType<typeof createAdminClient>
       );
 
       const response = await GET(makeRequest() as never);

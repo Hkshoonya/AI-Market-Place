@@ -117,14 +117,18 @@ const PUBLIC_SECTIONS: Section[] = [
         path: "/api/rankings",
         description: "Get model rankings and leaderboards.",
         params: [
-          { name: "category", type: "string", description: "Filter by category" },
-          { name: "type", type: "string", description: "Ranking type: overall, category" },
+          { name: "lens", type: "string", description: "Ranking lens: capability, popularity, adoption, economic, value, plus compatibility aliases such as economic_footprint" },
+          { name: "category", type: "string", description: "Filter by category slug such as llm or agentic_browser" },
+          { name: "lifecycle", type: "string", description: "Filter lifecycle scope: active or all" },
+          { name: "limit", type: "number", description: "Max results (default: 50, max: 200)" },
         ],
         example: `{
   "data": [
-    { "rank": 1, "slug": "gpt-4o", "score": 95.2 },
-    { "rank": 2, "slug": "claude-3-opus", "score": 94.8 }
-  ]
+    { "slug": "gpt-4o", "capability_rank": 1, "capability_score": 95.2 },
+    { "slug": "claude-3-opus", "capability_rank": 2, "capability_score": 94.8 }
+  ],
+  "lens": "capability",
+  "lifecycle": "active"
 }`,
       },
       {
@@ -146,6 +150,49 @@ const PUBLIC_SECTIONS: Section[] = [
 ];
 
 const MARKETPLACE_SECTIONS: Section[] = [
+  {
+    title: "Wallet & Funding",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/api/marketplace/wallet",
+        description:
+          "Get the signed-in user's wallet balances, deposit addresses, and paginated transaction history for crypto-funded marketplace purchases.",
+        auth: "Bearer token required. Session auth only.",
+        params: [
+          { name: "type", type: "string", description: "Optional transaction filter: deposit, purchase, sale, withdrawal" },
+          { name: "page", type: "number", description: "Page number (default: 1)" },
+          { name: "limit", type: "number", description: "Results per page (default: 20, max: 100)" },
+        ],
+        example: `{
+  "balance": 125,
+  "escrow_balance": 20,
+  "primary_chain": "solana",
+  "solana_deposit_address": "So11111111111111111111111111111111111111112",
+  "evm_deposit_address": "0x1111111111111111111111111111111111111111",
+  "transactions": [{ "id": "tx_1", "type": "deposit", "amount": 50 }],
+  "total_transactions": 17,
+  "page": 1,
+  "limit": 20,
+  "type": "all"
+}`,
+      },
+      {
+        method: "POST",
+        path: "/api/marketplace/wallet",
+        description:
+          "Create the current user's wallet if it does not exist yet and return deposit-ready wallet metadata.",
+        auth: "Bearer token required. Session auth only.",
+        example: `{
+  "balance": 0,
+  "escrow_balance": 0,
+  "primary_chain": "solana",
+  "solana_deposit_address": "So11111111111111111111111111111111111111112",
+  "evm_deposit_address": "0x1111111111111111111111111111111111111111"
+}`,
+      },
+    ],
+  },
   {
     title: "Listings",
     endpoints: [
@@ -748,6 +795,17 @@ function AuthSection() {
         </p>
       </div>
 
+      <div className="rounded-xl border border-border/50 bg-card p-5">
+        <h3 className="text-md font-semibold mb-3">Account Setup Walkthrough</h3>
+        <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+          <li>Sign in, then open <a href="/profile" className="text-neon hover:underline">Profile</a> to set your display name, username, and bio.</li>
+          <li>Open <a href="/wallet" className="text-neon hover:underline">Wallet</a> to create your wallet and copy your Solana or Base/Polygon USDC deposit address.</li>
+          <li>Fund the wallet with USDC if you want balance-based marketplace purchases.</li>
+          <li>Create API keys in <a href="/settings/api-keys" className="text-neon hover:underline">Settings &rarr; API Keys</a> and choose only the scopes you need.</li>
+          <li>If you plan to sell, complete your seller setup from <a href="/sell" className="text-neon hover:underline">Sell</a>, then use the wallet withdraw flow for USDC payouts.</li>
+        </ol>
+      </div>
+
       {/* Creating API keys */}
       <div className="rounded-xl border border-border/50 bg-card p-5">
         <h3 className="text-md font-semibold mb-3">Creating API Keys</h3>
@@ -849,6 +907,10 @@ function AuthSection() {
         <pre className="rounded-lg bg-black/60 border border-border/30 p-4 text-xs font-mono text-foreground/80 overflow-x-auto">
 {`# Public endpoint (no auth needed)
 curl https://aimarketcap.tech/api/models?category=llm&limit=5
+
+# Signed-in wallet view
+curl -H "Authorization: Bearer <session-or-cookie-backed request>" \\
+  "https://aimarketcap.tech/api/marketplace/wallet?type=deposit&page=1&limit=20"
 
 # Authenticated endpoint
 curl -H "Authorization: Bearer aimk_your_key_here" \\

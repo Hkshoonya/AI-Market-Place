@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import type { WalletTxType } from "@/types/database";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -16,10 +17,18 @@ import {
   getOrCreateWallet,
   getWalletBalance,
   getTransactionHistory,
+  getTransactionHistoryCount,
 } from "@/lib/payments/wallet";
 import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
+
+const WALLET_TX_TYPES = new Set<WalletTxType>([
+  "deposit",
+  "purchase",
+  "sale",
+  "withdrawal",
+]);
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -45,9 +54,32 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const limitParam = Number.parseInt(searchParams.get("limit") || "20", 10);
+    const pageParam = Number.parseInt(searchParams.get("page") || "1", 10);
+    const typeParam = searchParams.get("type");
+    const limit = Number.isFinite(limitParam)
+      ? Math.min(Math.max(limitParam, 1), 100)
+      : 20;
+    const page = Number.isFinite(pageParam) ? Math.max(pageParam, 1) : 1;
+    const offset = (page - 1) * limit;
+    const type: WalletTxType | undefined =
+      typeParam && WALLET_TX_TYPES.has(typeParam as WalletTxType)
+        ? (typeParam as WalletTxType)
+        : undefined;
+
     const wallet = await getOrCreateWallet(user.id);
     const balance = await getWalletBalance(wallet.id);
-    const transactions = await getTransactionHistory(wallet.id, { limit: 20 });
+    const [transactions, totalTransactions] = await Promise.all([
+      getTransactionHistory(wallet.id, {
+        limit,
+        offset,
+        type,
+      }),
+      getTransactionHistoryCount(wallet.id, {
+        type,
+      }),
+    ]);
 
     // Flatten response to match client expectations (wallet-content.tsx, purchase-button.tsx)
     return NextResponse.json({
@@ -59,7 +91,10 @@ export async function GET(request: NextRequest) {
       solana_deposit_address: wallet.deposit_address_solana || null,
       evm_deposit_address: wallet.deposit_address_evm || null,
       transactions,
-      total_transactions: transactions.length,
+      total_transactions: totalTransactions,
+      page,
+      limit,
+      type: type ?? "all",
     });
   } catch (err) {
     return handleApiError(err, "api/marketplace/wallet");

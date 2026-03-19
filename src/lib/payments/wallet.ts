@@ -395,3 +395,32 @@ export async function getTransactionHistory(
 
   return (data ?? []) as WalletTransaction[];
 }
+
+/**
+ * Count transactions for a wallet, optionally filtered by type.
+ */
+export async function getTransactionHistoryCount(
+  walletId: string,
+  opts?: {
+    type?: TxType;
+  }
+): Promise<number> {
+  const sb = adminClient();
+
+  let query = sb
+    .from("wallet_transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("wallet_id", walletId);
+
+  if (opts?.type) {
+    query = query.eq("type", opts.type);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to count transactions: ${error.message}`);
+  }
+
+  return count ?? 0;
+}

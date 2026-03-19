@@ -56,6 +56,7 @@ const HealthDetailSchema = HealthPublicSchema.extend({
   cron: z.object({
     mode: z.enum(["disabled", "internal", "external"]),
     schedulerConfigured: z.boolean(),
+    stale: z.boolean(),
     runningJobs: z.number(),
     recentFailures24h: z.number(),
     lastRunAt: z.string().nullable(),
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
       else pipelineDown++;
     }
 
-    const overallStatus: "healthy" | "degraded" =
+    let overallStatus: "healthy" | "degraded" =
       pipelineDown > 0 || pipelineDegraded > 0 ? "degraded" : "healthy";
 
     if (isAuthenticated) {
@@ -176,6 +177,12 @@ export async function GET(request: NextRequest) {
       const recentCronRuns = cronRuns ?? [];
 
       const cronMode = resolveCronRunnerMode();
+      const schedulerConfigured = isCronSchedulerConfigured(cronMode);
+      const recentFailures24h = recentCronRuns.filter((run) => run.status === "failed")
+        .length;
+      const cronStale = schedulerConfigured && recentCronRuns.length === 0;
+      const cronDegraded = cronStale || recentFailures24h > 0;
+      overallStatus = overallStatus === "degraded" || cronDegraded ? "degraded" : "healthy";
       const body = HealthDetailSchema.parse({
         status: overallStatus,
         version,
@@ -187,10 +194,10 @@ export async function GET(request: NextRequest) {
         },
         cron: {
           mode: cronMode,
-          schedulerConfigured: isCronSchedulerConfigured(cronMode),
+          schedulerConfigured,
+          stale: cronStale,
           runningJobs: recentCronRuns.filter((run) => run.status === "running").length,
-          recentFailures24h: recentCronRuns.filter((run) => run.status === "failed")
-            .length,
+          recentFailures24h,
           lastRunAt: recentCronRuns[0]?.started_at ?? recentCronRuns[0]?.created_at ?? null,
         },
         pipeline: {

@@ -303,6 +303,36 @@ export default function ProfileContent() {
           </CardContent>
         </Card>
 
+        <Card className="border-neon/20 bg-neon/5">
+          <CardHeader>
+            <CardTitle className="text-lg">Getting Started</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Complete the core setup once so your account is ready for marketplace purchases,
+              API access, and seller payouts.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/wallet">1. Create Wallet</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/settings/api-keys">2. Create API Keys</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/marketplace">3. Fund and Purchase</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/sell">4. Enable Seller Flow</Link>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Wallet deposits and withdrawals use USDC. API keys are one-time reveal only, so
+              copy them when you create them.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Watchlists */}
         <Card className="border-border/50 bg-card">
           <CardHeader>

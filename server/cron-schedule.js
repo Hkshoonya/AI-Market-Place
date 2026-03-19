@@ -2,8 +2,8 @@
  * AI Market Cap - Internal Cron Schedule Compatibility Layer
  *
  * These jobs only run when CRON_RUNNER_MODE resolves to "internal".
- * External VPS cron is the deployment default; Railway remains a supported
- * compatibility path for environments that still rely on in-process scheduling.
+ * Railway internal scheduling is the primary production path. External cron
+ * remains a compatibility and recovery path for non-Railway deployments.
  *
  * @type {Array<{ name: string, cron: string, path: string }>}
  */
