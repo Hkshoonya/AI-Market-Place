@@ -195,9 +195,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      window.clearTimeout(timeoutId);
-      await applyUser(session?.user ?? null);
-      setLoading(false);
+      const sessionUser = session?.user ?? null;
+
+      if (!sessionUser) {
+        window.clearTimeout(timeoutId);
+        await applyUser(null);
+        setLoading(false);
+        return;
+      }
+
+      setUser(sessionUser);
+      hasResolvedInitialUser = true;
+
+      window.setTimeout(() => {
+        void applyUser(sessionUser).finally(() => {
+          window.clearTimeout(timeoutId);
+          if (isActive) {
+            setLoading(false);
+          }
+        });
+      }, 0);
     });
 
     return () => {

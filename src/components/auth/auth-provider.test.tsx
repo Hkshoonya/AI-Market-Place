@@ -246,6 +246,59 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("loading").textContent).toBe("false");
   });
 
+  it("does not stay stuck loading when INITIAL_SESSION profile hydration stalls", async () => {
+    authMocks.getSession.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved
+        })
+    );
+    authMocks.onAuthStateChange.mockImplementation((callback) => {
+      void callback("INITIAL_SESSION", {
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      });
+
+      return {
+        data: {
+          subscription: {
+            unsubscribe: authMocks.unsubscribe,
+          },
+        },
+      };
+    });
+    authMocks.from.mockImplementation(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(
+            () =>
+              new Promise(() => {
+                // Intentionally unresolved
+              })
+          ),
+        })),
+      })),
+    }));
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+    expect(screen.getByTestId("user").textContent).toBe("user");
+
+    await act(async () => {
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(screen.getByTestId("loading").textContent).toBe("false");
+    expect(screen.getByTestId("user").textContent).toBe("user");
+  });
+
   it("retries profile hydration when getUser confirms the same refreshed user", async () => {
     authMocks.getSession.mockResolvedValue({
       data: {
