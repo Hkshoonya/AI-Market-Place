@@ -14,6 +14,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import {
+  ensureWalletDepositAddresses,
   getOrCreateWallet,
   getWalletBalance,
   getTransactionHistory,
@@ -129,6 +130,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const wallet = await getOrCreateWallet(user.id);
+    const provisionedWallet = await ensureWalletDepositAddresses(wallet);
+
+    if (
+      !provisionedWallet.deposit_address_solana &&
+      !provisionedWallet.deposit_address_evm
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Wallet address generation is not configured yet. Configure Solana or EVM wallet infrastructure and try again.",
+        },
+        { status: 503 }
+      );
+    }
+
     const balance = await getWalletBalance(wallet.id);
 
     return NextResponse.json(
@@ -137,9 +153,9 @@ export async function POST(request: NextRequest) {
         escrow_balance: balance.held,
         total_earned: balance.totalEarned,
         total_spent: balance.totalSpent,
-        primary_chain: wallet.primary_chain || null,
-        solana_deposit_address: wallet.deposit_address_solana || null,
-        evm_deposit_address: wallet.deposit_address_evm || null,
+        primary_chain: provisionedWallet.primary_chain || null,
+        solana_deposit_address: provisionedWallet.deposit_address_solana || null,
+        evm_deposit_address: provisionedWallet.deposit_address_evm || null,
       },
       { status: 201 }
     );

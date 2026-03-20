@@ -26,6 +26,17 @@ The roadmap is not fully closed, but the majority of the implementation-heavy sl
 
 What remains is mostly verification, operator-facing closure, and a few deeper control-loop/runtime hardening tasks rather than broad net-new feature construction.
 
+Verification update after the initial March 19 audit:
+
+- live Railway health remains healthy
+- live `cron_runs` and `pipeline_health` confirm active operator/runtime state
+- Supabase transfer health is verified directly via service-role and anon reads
+- `public.pipeline_health` RLS was enabled remotely
+- live auth config was corrected to use `https://aimarketcap.tech` instead of localhost
+- browser-verified production auth now supports signup, login, admin access, refresh persistence, and sign-out
+- SMTP-backed confirmation and recovery flows are now working again and the temporary autoconfirm fallback has been removed
+- production wallet creation still reflects the older live release behavior by returning `201` with null deposit addresses
+
 ## Done
 
 ### Core data/ranking/platform foundations
@@ -164,11 +175,12 @@ Status:
 - public `/api/health` has been checked live from production and reports Railway deployment metadata
 - public `/api/pipeline/health` has been checked live and returned healthy
 - public `/api/search` has been checked live and returned working results
+- direct Supabase checks confirm active `cron_runs`, healthy `pipeline_health`, readable `models`/`data_sources`, and working auth admin access
 
 Still open:
 
-- confirm each newly pushed fix has rolled all the way through Railway deploys to production
-- verify authenticated/internal cron evidence in `cron_runs`, not only public health summaries
+- confirm each newer uncommitted local fix has rolled through Railway after release, especially wallet provisioning guardrails
+- maintain an authenticated browser proof set for admin/auth flows as deployment changes continue
 
 ### Legacy commerce edge-case closure
 
@@ -179,6 +191,7 @@ Remaining concerns:
 - guest/auth parity on older non-primary flows
 - broader end-to-end audit across auctions, messages, manifests, and manual seller actions
 - final documentation/proof that the legacy paths are now subordinate to the safer purchase flow
+- wallet provisioning on live still needs the newer guardrail release and/or production chain infrastructure
 
 ### Agent/operator visibility polish
 
@@ -198,7 +211,6 @@ Practical status:
 
 ## Recommended Next Steps
 
-1. Verify Railway is deploying `490c6eb` or newer and not retrying an old build context.
-2. Keep validating that the newest pushed commits are reaching production, not just GitHub.
-3. Finish the last commerce edge-case audit around auctions and legacy/manual flows.
-4. Close public-data-trust and ranking-integrity proof with any remaining explicit verification markers.
+1. Release the current local wallet/auth/chart/model fixes beyond live `3bebb83`, because production is still behind the verified working tree.
+2. Finish the last commerce edge-case audit around auctions and legacy/manual flows.
+3. Close public-data-trust and ranking-integrity proof with any remaining explicit verification markers.

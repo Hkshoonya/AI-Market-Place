@@ -52,8 +52,8 @@ Status legend:
 
 ## Highest-value remaining open work
 
-1. Verify Railway runtime from live deploy state, not only repo state:
-   cron execution cadence, `cron_runs`, homepage freshness movement, and latest deployed SHA.
+1. Release the newer local working-tree fixes beyond live `3bebb83`:
+   production browser verification now proves auth refresh/admin/sign-out behavior, but wallet provisioning on live is still showing the older success-with-null-addresses response.
 2. Continue autonomous maintainability hardening:
    broaden safe playbooks, escalation paths, and unattended repair coverage beyond detection and visibility.
 3. Finish the final commerce edge-case audit across auctions and legacy/manual seller flows.

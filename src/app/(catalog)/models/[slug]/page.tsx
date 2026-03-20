@@ -44,6 +44,17 @@ import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
 export const revalidate = 60;
 
+const MODEL_DETAIL_TABS = new Set([
+  "benchmarks",
+  "pricing",
+  "deploy",
+  "trading",
+  "trends",
+  "news",
+  "details",
+  "changelog",
+]);
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const supabase = createPublicClient();
@@ -63,10 +74,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ModelDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const requestedTab = resolvedSearchParams?.tab;
+  const activeTab = requestedTab && MODEL_DETAIL_TABS.has(requestedTab)
+    ? requestedTab
+    : "benchmarks";
   const supabase = createPublicClient();
 
   const modelResponse = await supabase
@@ -280,7 +298,7 @@ export default async function ModelDetailPage({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="benchmarks" className="mt-6">
+      <Tabs key={activeTab} id="model-tabs" defaultValue={activeTab} className="mt-6">
         <TabsList className="bg-secondary/50 flex-wrap">
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>

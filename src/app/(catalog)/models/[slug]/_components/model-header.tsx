@@ -87,7 +87,7 @@ export function ModelHeader({
           )}
           {hasNews ? (
             <Button variant="outline" size="sm" className="gap-2" asChild>
-              <Link href="#model-news-tab">
+              <Link href={`/models/${slug}?tab=news#model-tabs`}>
                 <Newspaper className="h-4 w-4" />
                 View Updates
               </Link>

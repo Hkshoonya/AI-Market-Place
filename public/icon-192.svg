@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="32" fill="#000000"/>
-  <text x="96" y="120" font-family="system-ui, -apple-system, sans-serif" font-size="80" font-weight="bold" fill="#00d4aa" text-anchor="middle">AI</text>
+  <rect width="192" height="192" rx="32" fill="#050505"/>
+  <rect x="12" y="12" width="168" height="168" rx="24" fill="none" stroke="rgba(0,212,170,0.35)" stroke-width="8"/>
+  <path d="M34 118L64 88L88 102L128 56L154 72" fill="none" stroke="#00d4aa" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="88" r="10" fill="#00d4aa"/>
+  <circle cx="88" cy="102" r="10" fill="#00d4aa"/>
+  <circle cx="128" cy="56" r="10" fill="#00d4aa"/>
+  <path d="M40 144H152" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="10" stroke-linecap="round"/>
 </svg>

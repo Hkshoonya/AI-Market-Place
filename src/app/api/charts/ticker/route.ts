@@ -2,7 +2,7 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-error";
 
-export const revalidate = 300; // 5 min cache
+export const revalidate = 60;
 
 export async function GET() {
   try {

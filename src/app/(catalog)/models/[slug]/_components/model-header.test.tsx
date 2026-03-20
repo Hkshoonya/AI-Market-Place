@@ -1,0 +1,70 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { ModelHeader } from "./model-header";
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock("@/components/ui/button", () => ({
+  Button: ({
+    asChild,
+    children,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) =>
+    asChild ? <>{children}</> : <button {...props}>{children}</button>,
+}));
+
+vi.mock("@/components/ui/badge", () => ({
+  Badge: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/models/model-actions", () => ({
+  ModelActions: () => <div data-testid="model-actions" />,
+}));
+
+vi.mock("@/components/models/share-model", () => ({
+  ShareModel: () => <div data-testid="share-model" />,
+}));
+
+vi.mock("@/components/shared/provider-logo", () => ({
+  ProviderLogo: () => <div data-testid="provider-logo" />,
+}));
+
+vi.mock("lucide-react", () => ({
+  ExternalLink: () => <svg />,
+  Globe: () => <svg />,
+  Newspaper: () => <svg />,
+}));
+
+describe("ModelHeader", () => {
+  it("deep-links View Updates to the news tab", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights={false}
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        hasNews
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /view updates/i })).toHaveAttribute(
+      "href",
+      "/models/test-model?tab=news#model-tabs"
+    );
+  });
+});

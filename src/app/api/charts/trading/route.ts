@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api-error";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

@@ -1,5 +1,14 @@
+import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import {
+  generateEvmDepositAddress,
+  isEvmConfigured,
+} from "@/lib/payments/chains/evm";
+import {
+  generateSolanaDepositAddress,
+  isSolanaConfigured,
+} from "@/lib/payments/chains/solana";
 import type {
   Wallet,
   WalletTransaction,
@@ -38,6 +47,11 @@ export interface WalletBalance {
 
 function adminClient(): TypedSupabaseClient {
   return createAdminClient();
+}
+
+function getWalletDerivationIndex(walletId: string): number {
+  const hash = createHash("sha256").update(walletId).digest();
+  return hash.readUInt32BE(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +119,50 @@ export async function getWalletByOwner(
     .single();
 
   if (error || !data) return null;
+  return data as Wallet;
+}
+
+/**
+ * Populate on-chain deposit addresses for a wallet when chain infrastructure
+ * is configured and the wallet has not been provisioned yet.
+ */
+export async function ensureWalletDepositAddresses(wallet: Wallet): Promise<Wallet> {
+  const needsSolanaAddress =
+    !wallet.deposit_address_solana && isSolanaConfigured();
+  const needsEvmAddress = !wallet.deposit_address_evm && isEvmConfigured();
+
+  if (!needsSolanaAddress && !needsEvmAddress) {
+    return wallet;
+  }
+
+  const derivationIndex = getWalletDerivationIndex(wallet.id);
+  const [solanaDepositAddress, evmDepositAddress] = await Promise.all([
+    needsSolanaAddress
+      ? generateSolanaDepositAddress(derivationIndex)
+      : wallet.deposit_address_solana,
+    needsEvmAddress
+      ? generateEvmDepositAddress(derivationIndex)
+      : wallet.deposit_address_evm,
+  ]);
+
+  const sb = adminClient();
+  const { data, error } = await sb
+    .from("wallets")
+    .update({
+      deposit_address_solana: solanaDepositAddress,
+      deposit_address_evm: evmDepositAddress,
+      primary_chain:
+        wallet.primary_chain ??
+        (solanaDepositAddress ? "solana" : evmDepositAddress ? "base" : null),
+    })
+    .eq("id", wallet.id)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Failed to provision wallet deposit addresses: ${error?.message ?? "unknown error"}`);
+  }
+
   return data as Wallet;
 }
 
