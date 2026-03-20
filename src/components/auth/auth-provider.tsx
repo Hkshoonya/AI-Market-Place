@@ -6,6 +6,7 @@ import posthog from "posthog-js";
 import type { User } from "@supabase/supabase-js";
 
 const AUTH_INIT_TIMEOUT_MS = 4000;
+const AUTH_CACHE_KEY = "ai-market-cap.auth";
 
 interface Profile {
   id: string;
@@ -45,6 +46,46 @@ export function useAuth() {
 // Module-level singleton — safe for browser client (same instance across renders)
 const supabase = createClient();
 
+function readCachedAuthState(): { user: User | null; profile: Profile | null } {
+  if (typeof window === "undefined") {
+    return { user: null, profile: null };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) {
+      return { user: null, profile: null };
+    }
+
+    const parsed = JSON.parse(raw) as { user?: User | null; profile?: Profile | null };
+    return {
+      user: parsed.user ?? null,
+      profile: parsed.profile ?? null,
+    };
+  } catch {
+    return { user: null, profile: null };
+  }
+}
+
+function writeCachedAuthState(user: User | null, profile: Profile | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!user) {
+    window.localStorage.removeItem(AUTH_CACHE_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(
+    AUTH_CACHE_KEY,
+    JSON.stringify({
+      user,
+      profile,
+    })
+  );
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
@@ -61,9 +102,10 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [cachedAuth] = useState(() => readCachedAuthState());
+  const [user, setUser] = useState<User | null>(cachedAuth.user);
+  const [profile, setProfile] = useState<Profile | null>(cachedAuth.profile);
+  const [loading, setLoading] = useState(() => cachedAuth.user == null);
 
   useEffect(() => {
     let isActive = true;
@@ -83,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profileData = await fetchProfile(currentUser.id);
         if (!isActive) return;
         setProfile(profileData);
+        writeCachedAuthState(currentUser, profileData);
         posthog.identify(currentUser.id, { email: currentUser.email });
         hasResolvedInitialUser = true;
         return;
@@ -90,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       posthog.reset();
       setProfile(null);
+      writeCachedAuthState(null, null);
       hasResolvedInitialUser = true;
     };
 
@@ -98,7 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        await applyUser(session?.user ?? null);
+        if (session?.user || !cachedAuth.user) {
+          await applyUser(session?.user ?? null);
+        }
 
         const {
           data: { user: currentUser },

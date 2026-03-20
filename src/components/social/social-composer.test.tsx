@@ -25,6 +25,61 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("./social-image-inputs", () => ({
+  SocialImageInputs: ({
+    attachments,
+    onChange,
+  }: {
+    attachments: Array<{ url: string; alt_text?: string }>;
+    onChange: (attachments: Array<{ url: string; alt_text?: string }>) => void;
+  }) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onChange([...attachments, { url: "", alt_text: "" }])}
+      >
+        Add image
+      </button>
+      {attachments.map((attachment, index) => (
+        <div key={`attachment-${index}`}>
+          <label>
+            {`Image URL ${index + 1}`}
+            <input
+              aria-label={`Image URL ${index + 1}`}
+              value={attachment.url}
+              onChange={(event) =>
+                onChange(
+                  attachments.map((item, attachmentIndex) =>
+                    attachmentIndex === index
+                      ? { ...item, url: event.target.value }
+                      : item
+                  )
+                )
+              }
+            />
+          </label>
+          <label>
+            {`Image alt text ${index + 1}`}
+            <input
+              aria-label={`Image alt text ${index + 1}`}
+              value={attachment.alt_text ?? ""}
+              onChange={(event) =>
+                onChange(
+                  attachments.map((item, attachmentIndex) =>
+                    attachmentIndex === index
+                      ? { ...item, alt_text: event.target.value }
+                      : item
+                  )
+                )
+              }
+            />
+          </label>
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
 describe("SocialComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();

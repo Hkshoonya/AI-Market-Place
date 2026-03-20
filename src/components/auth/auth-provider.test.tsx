@@ -54,6 +54,7 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    localStorage.clear();
     authMocks.getSession.mockResolvedValue({
       data: { session: null },
     });
@@ -101,6 +102,36 @@ describe("AuthProvider", () => {
         },
       },
     });
+    authMocks.getUser.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved
+        })
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(screen.getByTestId("user").textContent).toBe("user");
+  });
+
+  it("restores the signed-in user from cached auth state while refresh auth checks are still pending", async () => {
+    localStorage.setItem(
+      "ai-market-cap.auth",
+      JSON.stringify({
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      })
+    );
     authMocks.getUser.mockImplementation(
       () =>
         new Promise(() => {

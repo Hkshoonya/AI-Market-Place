@@ -46,6 +46,8 @@ next-env.d.ts
 /playwright-report/
 /playwright/.auth/
 /test-results/
+/output/
+/recovery/
 
 # supabase local CLI/runtime artifacts
 /supabase/.temp/
