@@ -4,7 +4,7 @@
       <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
     </linearGradient>
     <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="cardShadow"><feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/></filter>
+    <filter id="cardShadow"><feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/><feOffset in="blur" dx="0" dy="4" result="offsetBlur"/><feFlood flood-color="#000" flood-opacity="0.5" result="color"/><feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <linearGradient id="connectorV" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#00D4AA" stop-opacity="0.2"/>
     </linearGradient>
