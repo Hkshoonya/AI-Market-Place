@@ -110,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isActive = true;
     let hasResolvedInitialUser = false;
+    let hasResolvedInitialProfile = cachedAuth.profile !== null;
     const timeoutId = window.setTimeout(() => {
       if (!isActive) return;
       console.warn("Auth initialization timed out");
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         writeCachedAuthState(currentUser, profileData);
         posthog.identify(currentUser.id, { email: currentUser.email });
         hasResolvedInitialUser = true;
+        hasResolvedInitialProfile = profileData !== null;
         return;
       }
 
@@ -141,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       writeCachedAuthState(null, null);
       hasResolvedInitialUser = true;
+      hasResolvedInitialProfile = true;
     };
 
     const initializeAuth = async () => {
@@ -169,7 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const {
           data: { user: currentUser },
         } = await supabase.auth.getUser();
-        if (!hasResolvedInitialUser || currentUser?.id !== resolvedSessionUser?.id) {
+        const shouldReapplyCurrentUser =
+          !hasResolvedInitialUser ||
+          currentUser?.id !== resolvedSessionUser?.id ||
+          (!!currentUser && !hasResolvedInitialProfile);
+        if (shouldReapplyCurrentUser) {
           await applyUser(currentUser);
         }
       } catch (err) {

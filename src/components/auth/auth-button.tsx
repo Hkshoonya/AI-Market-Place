@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
 import { useAuth } from "./auth-provider";
 
 export function AuthButton() {
+  const router = useRouter();
   const { user, profile, loading, signOut } = useAuth();
 
   if (loading) {
@@ -52,6 +54,12 @@ export function AuthButton() {
     profile?.display_name || user.email?.split("@")[0] || "User";
   const avatarUrl = profile?.avatar_url;
   const initial = displayName.charAt(0).toUpperCase();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <DropdownMenu>
@@ -121,7 +129,7 @@ export function AuthButton() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut()}
+          onClick={() => void handleSignOut()}
           className="text-loss cursor-pointer"
         >
           <LogOut className="mr-2 h-4 w-4" />

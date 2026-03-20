@@ -1,11 +1,21 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthButton } from "./auth-button";
 
 const mockUseAuth = vi.fn();
+const pushMock = vi.fn();
+const refreshMock = vi.fn();
 
 vi.mock("./auth-provider", () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: pushMock,
+    refresh: refreshMock,
+  }),
 }));
 
 describe("AuthButton", () => {
@@ -31,5 +41,26 @@ describe("AuthButton", () => {
       "href",
       "/signup"
     );
+  });
+
+  it("signs out and refreshes the app when the user clicks sign out", async () => {
+    const user = userEvent.setup();
+    const signOutMock = vi.fn().mockResolvedValue(undefined);
+
+    mockUseAuth.mockReturnValue({
+      user: { email: "admin@example.com" },
+      profile: { display_name: "Admin", avatar_url: null },
+      loading: false,
+      signOut: signOutMock,
+    });
+
+    render(<AuthButton />);
+
+    await user.click(screen.getByRole("button", { name: /user menu for admin/i }));
+    await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
+
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith("/");
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });
