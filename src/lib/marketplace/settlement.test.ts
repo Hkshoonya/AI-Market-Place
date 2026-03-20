@@ -16,18 +16,18 @@ describe("marketplace settlement helpers", () => {
     expect(options[0]).toMatchObject({
       key: "direct",
       isDefault: true,
-      feeLabel: "0% platform fee",
+      feeLabel: "No Platform Fee",
     });
     expect(options[1]).toMatchObject({
       key: "assisted_escrow",
-      feeLabel: "0% platform fee for now",
+      feeLabel: "No Platform Fee",
     });
   });
 
   it("keeps assisted escrow messaging simple while preserving future fee configuration", () => {
     expect(ESCROW_PLATFORM_FEE_BPS).toBe(150);
     expect(FIRST_ESCROW_FEE_WAIVER_MONTHS).toBe(6);
-    expect(getMarketplaceFeeHeadline()).toBe("0% platform fee for now");
+    expect(getMarketplaceFeeHeadline()).toBe("No Platform Fee");
   });
 
   it("treats escrow as fee-waived during the initial launch window", () => {

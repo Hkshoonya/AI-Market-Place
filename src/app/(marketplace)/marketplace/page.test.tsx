@@ -6,10 +6,12 @@ vi.mock("next/link", () => ({
   default: ({
     href,
     children,
+    prefetch,
     ...props
   }: {
     href?: string;
     children?: ReactNode;
+    prefetch?: boolean;
     [key: string]: unknown;
   }) => (
     <a href={typeof href === "string" ? href : "#"} {...props}>
@@ -123,7 +125,7 @@ describe("MarketplacePage", () => {
     expect(screen.getByText(/direct wallet deals/i)).toBeInTheDocument();
     expect(screen.getByText(/assisted escrow/i)).toBeInTheDocument();
     expect(screen.getByText(/what we track/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/0% platform fee for now/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/no platform fee/i).length).toBeGreaterThan(0);
     expect(screen.getByTestId("marketplace-hero-scene")).toBeInTheDocument();
   });
 });

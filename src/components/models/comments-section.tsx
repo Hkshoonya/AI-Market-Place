@@ -11,6 +11,7 @@ import { SWR_TIERS } from "@/lib/swr/config";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CommentSchema } from "@/lib/schemas/community";
 import { formatRelativeDate } from "@/lib/format";
+import { clientError } from "@/lib/client-log";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -136,7 +137,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
     });
 
     if (error) {
-      console.error("Comment submit failed:", error);
+      clientError("Comment submit failed:", error);
       setSubmitError("Failed to post comment. Please try again.");
     } else {
       setSubmitError(null);

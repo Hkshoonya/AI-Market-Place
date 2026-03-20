@@ -122,7 +122,7 @@ export function AuthButton() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/sell" className="flex items-center gap-2">
+          <Link href="/sell" prefetch={false} className="flex items-center gap-2">
             <List className="h-4 w-4" />
             List Your Model
           </Link>

@@ -749,7 +749,7 @@ export default async function HomePage() {
               className="mt-6 bg-neon text-background font-semibold hover:bg-neon/90"
               asChild
             >
-              <Link href="/sell">
+              <Link href="/sell" prefetch={false}>
                 Start Selling
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

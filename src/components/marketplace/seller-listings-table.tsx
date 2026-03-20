@@ -30,6 +30,7 @@ import { MarketplaceListingSchema, type MarketplaceListingType } from "@/lib/sch
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { clientError } from "@/lib/client-log";
 import type { ListingStatus } from "@/types/database";
 
 const STATUS_COLORS: Record<ListingStatus, string> = {
@@ -79,7 +80,7 @@ export function SellerListingsTable() {
       );
       setDeleteTarget(null);
     } catch {
-      console.error("Failed to delete listing");
+      clientError("Failed to delete listing");
     } finally {
       setDeleting(false);
     }
@@ -99,7 +100,7 @@ export function SellerListingsTable() {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">You haven&apos;t created any listings yet.</p>
-        <Link href="/sell">
+        <Link href="/sell" prefetch={false}>
           <Button className="mt-4 bg-neon text-background font-semibold hover:bg-neon/90">
             Create Your First Listing
           </Button>

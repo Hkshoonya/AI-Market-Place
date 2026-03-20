@@ -323,7 +323,7 @@ export default function ProfileContent() {
                 <Link href="/marketplace">3. Fund and Purchase</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/sell">4. Enable Seller Flow</Link>
+                <Link href="/sell" prefetch={false}>4. Enable Seller Flow</Link>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -423,7 +423,7 @@ export default function ProfileContent() {
                     <Link href="/dashboard/seller">Seller Dashboard</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href="/sell">Create New Listing</Link>
+                    <Link href="/sell" prefetch={false}>Create New Listing</Link>
                   </Button>
                 </div>
               </div>
@@ -437,7 +437,7 @@ export default function ProfileContent() {
                   className="bg-neon text-background font-semibold hover:bg-neon/90"
                   asChild
                 >
-                  <Link href="/sell">Start Selling</Link>
+                  <Link href="/sell" prefetch={false}>Start Selling</Link>
                 </Button>
               </div>
             )}

@@ -39,12 +39,12 @@ export function ShareComparison({ modelNames, slugs }: ShareComparisonProps) {
     const extra = modelNames.length > 3 ? ` + ${modelNames.length - 3} more` : "";
     const text = `Comparing ${names}${extra} on AI Market Cap`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(twitterUrl, "_blank", "width=550,height=420");
+    window.open(twitterUrl, "_blank", "noopener,noreferrer,width=550,height=420");
   };
 
   const handleLinkedInShare = () => {
     const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-    window.open(linkedInUrl, "_blank", "width=550,height=420");
+    window.open(linkedInUrl, "_blank", "noopener,noreferrer,width=550,height=420");
   };
 
   return (

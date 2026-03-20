@@ -8,7 +8,7 @@ describe("SettlementPolicyCallout", () => {
 
     expect(screen.getByText(/direct wallet settlement/i)).toBeInTheDocument();
     expect(screen.getByText(/assisted escrow via ai market cap/i)).toBeInTheDocument();
-    expect(screen.getByText(/0% platform fee for now/i)).toBeInTheDocument();
+    expect(screen.getByText(/no platform fee/i)).toBeInTheDocument();
     expect(
       screen.getByText(/direct deals keep custody with the parties/i)
     ).toBeInTheDocument();

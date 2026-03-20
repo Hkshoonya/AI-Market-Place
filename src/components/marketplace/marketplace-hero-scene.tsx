@@ -1,118 +1,72 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useSyncExternalStore } from "react";
-import type { Group } from "three";
-
-function HeroTokens() {
-  const leftRef = useRef<Group>(null);
-  const rightRef = useRef<Group>(null);
-  const blocksRef = useRef<Group>(null);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-
-    if (leftRef.current) {
-      leftRef.current.rotation.z = Math.sin(t * 0.8) * 0.08;
-      leftRef.current.position.y = Math.sin(t * 1.2) * 0.08;
-    }
-
-    if (rightRef.current) {
-      rightRef.current.rotation.z = -Math.sin(t * 0.8) * 0.08;
-      rightRef.current.position.y = Math.cos(t * 1.2) * 0.08;
-    }
-
-    if (blocksRef.current) {
-      blocksRef.current.rotation.y = t * 0.25;
-      blocksRef.current.position.y = Math.sin(t * 0.7) * 0.06;
-    }
-  });
-
-  const blockPositions = useMemo(
-    () => [
-      [-0.7, 0.4, 0],
-      [0, 0, 0.1],
-      [0.7, -0.4, 0],
-    ],
-    []
-  );
-
-  return (
-    <>
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[2, 3, 4]} intensity={1.2} />
-
-      <group ref={leftRef} position={[-1.8, 0, 0]}>
-        <mesh position={[0, 0.65, 0]}>
-          <sphereGeometry args={[0.35, 32, 32]} />
-          <meshStandardMaterial color="#00d4aa" emissive="#00d4aa" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, -0.25, 0]}>
-          <capsuleGeometry args={[0.26, 0.9, 8, 16]} />
-          <meshStandardMaterial color="#0f1f1b" emissive="#00d4aa" emissiveIntensity={0.15} />
-        </mesh>
-      </group>
-
-      <group ref={rightRef} position={[1.8, 0, 0]}>
-        <mesh position={[0, 0.65, 0]}>
-          <boxGeometry args={[0.6, 0.6, 0.6]} />
-          <meshStandardMaterial color="#7cf0d8" emissive="#7cf0d8" emissiveIntensity={0.25} />
-        </mesh>
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.72, 1.05, 0.4]} />
-          <meshStandardMaterial color="#091311" emissive="#00d4aa" emissiveIntensity={0.12} />
-        </mesh>
-      </group>
-
-      <mesh position={[0, 0.05, 0]}>
-        <cylinderGeometry args={[0.09, 0.09, 2.3, 24]} />
-        <meshStandardMaterial color="#d7fff6" emissive="#d7fff6" emissiveIntensity={0.45} />
-      </mesh>
-
-      <group ref={blocksRef}>
-        {blockPositions.map((position, index) => (
-          <mesh key={index} position={position as [number, number, number]}>
-            <boxGeometry args={[0.28, 0.28, 0.28]} />
-            <meshStandardMaterial
-              color={index === 1 ? "#7cf0d8" : "#17312b"}
-              emissive="#00d4aa"
-              emissiveIntensity={index === 1 ? 0.3 : 0.12}
-            />
-          </mesh>
-        ))}
-      </group>
-    </>
-  );
-}
-
 export function MarketplaceHeroScene() {
-  const prefersReducedMotion = useSyncExternalStore(
-    (callback) => {
-      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-      mq.addEventListener("change", callback);
-      return () => mq.removeEventListener("change", callback);
-    },
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false
-  );
-
-  if (prefersReducedMotion) {
-    return (
-      <div
-        data-testid="marketplace-hero-scene"
-        className="h-[260px] rounded-[28px] border border-border/50 bg-[radial-gradient(circle_at_center,_rgba(0,212,170,0.20),_rgba(0,0,0,0)_70%)]"
-      />
-    );
-  }
-
   return (
     <div
       data-testid="marketplace-hero-scene"
-      className="h-[260px] overflow-hidden rounded-[28px] border border-border/50 bg-[radial-gradient(circle_at_center,_rgba(0,212,170,0.14),_rgba(0,0,0,0)_72%)]"
+      className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-border/50 bg-[radial-gradient(circle_at_20%_20%,rgba(0,212,170,0.18),transparent_28%),radial-gradient(circle_at_75%_22%,rgba(93,224,255,0.14),transparent_24%),linear-gradient(180deg,rgba(11,18,16,0.96),rgba(5,9,8,0.98))]"
     >
-      <Canvas camera={{ position: [0, 0, 6], fov: 42 }} dpr={[1, 1.5]}>
-        <HeroTokens />
-      </Canvas>
+      <div className="absolute inset-0 opacity-80">
+        <div
+          className="absolute left-[8%] top-[18%] h-20 w-20 rounded-full border border-neon/30 bg-neon/12 blur-[1px]"
+          style={{ animation: "marketplace-float 7s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute right-[10%] top-[16%] h-16 w-16 rounded-2xl border border-cyan-300/30 bg-cyan-300/10"
+          style={{ animation: "marketplace-float 6.2s ease-in-out infinite 0.8s" }}
+        />
+        <div
+          className="absolute left-[26%] top-[28%] h-2 w-[48%] rounded-full bg-[linear-gradient(90deg,rgba(0,212,170,0.15),rgba(215,255,246,0.9),rgba(93,224,255,0.18))]"
+          style={{ animation: "marketplace-pulse-beam 3.2s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute left-[32%] top-[20%] h-4 w-4 rounded-md border border-neon/20 bg-neon/20"
+          style={{ animation: "marketplace-orbit 8s linear infinite" }}
+        />
+        <div
+          className="absolute left-[58%] top-[54%] h-5 w-5 rounded-md border border-cyan-300/20 bg-cyan-300/15"
+          style={{ animation: "marketplace-orbit 9s linear infinite reverse" }}
+        />
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 top-0 flex items-center justify-between px-8 py-6">
+        <div
+          className="relative flex w-[34%] min-w-[120px] max-w-[170px] flex-col items-center"
+          style={{ animation: "marketplace-float 6s ease-in-out infinite" }}
+        >
+          <div className="h-14 w-14 rounded-full border border-neon/35 bg-neon/12 shadow-[0_0_40px_rgba(0,212,170,0.18)]" />
+          <div className="mt-3 h-24 w-16 rounded-[28px] border border-neon/25 bg-[linear-gradient(180deg,rgba(15,31,27,0.95),rgba(6,15,12,1))]" />
+          <div className="mt-4 text-center text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+            Human
+          </div>
+        </div>
+
+        <div className="relative flex w-[18%] items-center justify-center">
+          <div className="h-28 w-4 rounded-full bg-[linear-gradient(180deg,rgba(215,255,246,0.1),rgba(215,255,246,0.95),rgba(215,255,246,0.08))] shadow-[0_0_30px_rgba(215,255,246,0.35)]" />
+          <div
+            className="absolute h-20 w-20 rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(215,255,246,0.26),transparent_68%)]"
+            style={{ animation: "marketplace-handshake-ring 4s ease-in-out infinite" }}
+          />
+        </div>
+
+        <div
+          className="relative flex w-[34%] min-w-[120px] max-w-[170px] flex-col items-center"
+          style={{ animation: "marketplace-float 6.4s ease-in-out infinite 0.6s" }}
+        >
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/35 bg-cyan-300/10 shadow-[0_0_38px_rgba(93,224,255,0.12)]">
+            <div className="grid grid-cols-2 gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-200" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-200/80" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-200/80" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-200" />
+            </div>
+          </div>
+          <div className="mt-3 h-24 w-20 rounded-[24px] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(7,19,24,0.95),rgba(5,11,16,1))]" />
+          <div className="mt-4 text-center text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+            Agent
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

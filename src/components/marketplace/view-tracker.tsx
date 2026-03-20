@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { clientWarn } from "@/lib/client-log";
 import { analytics } from "@/lib/posthog";
 
 export function ViewTracker({ listingId, listingName }: { listingId: string; listingName?: string }) {
@@ -19,7 +20,7 @@ export function ViewTracker({ listingId, listingName }: { listingId: string; lis
         listing_id: listingId,
       });
       if (error) {
-        console.warn("[view-tracker] Failed to record view");
+        clientWarn("[view-tracker] Failed to record view");
       }
     })();
   }, [listingId, listingName]);

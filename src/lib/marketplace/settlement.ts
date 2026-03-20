@@ -13,6 +13,7 @@ export interface SettlementModeSummary {
 export const ESCROW_PLATFORM_FEE_BPS = 150;
 export const FIRST_ESCROW_FEE_WAIVER_MONTHS = 6;
 const ESCROW_FEE_WAIVER_START = new Date("2026-03-20T00:00:00.000Z");
+const NO_PLATFORM_FEE_LABEL = "No Platform Fee";
 
 export function isEscrowFeeWaived(now = new Date()) {
   const waiverEndsAt = new Date(ESCROW_FEE_WAIVER_START);
@@ -21,8 +22,8 @@ export function isEscrowFeeWaived(now = new Date()) {
 }
 
 export function getMarketplaceFeeHeadline(now = new Date()) {
-  if (isEscrowFeeWaived(now)) return "0% platform fee for now";
-  return `${(ESCROW_PLATFORM_FEE_BPS / 100).toFixed(1)}% platform fee on assisted escrow`;
+  if (isEscrowFeeWaived(now)) return NO_PLATFORM_FEE_LABEL;
+  return `${(ESCROW_PLATFORM_FEE_BPS / 100).toFixed(1)}% assisted escrow fee`;
 }
 
 export function getSettlementModeSummary(
@@ -35,7 +36,7 @@ export function getSettlementModeSummary(
       title: "Direct Wallet Deals",
       description:
         "Users and agents can settle directly with their own wallets while the platform still tracks the deal context.",
-      feeLabel: "0% platform fee",
+      feeLabel: NO_PLATFORM_FEE_LABEL,
       isDefault: true,
       tracksOnPlatform: true,
       usesPlatformEscrow: false,
@@ -48,8 +49,8 @@ export function getSettlementModeSummary(
     description:
       "AI Market Cap can optionally mediate the transaction, track the flow, and support investigations when platform assistance is preferred.",
     feeLabel: isEscrowFeeWaived(now)
-      ? "0% platform fee for now"
-      : `${(ESCROW_PLATFORM_FEE_BPS / 100).toFixed(1)}% platform fee`,
+      ? NO_PLATFORM_FEE_LABEL
+      : `${(ESCROW_PLATFORM_FEE_BPS / 100).toFixed(1)}% assisted escrow fee`,
     isDefault: false,
     tracksOnPlatform: true,
     usesPlatformEscrow: true,

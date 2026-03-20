@@ -9,7 +9,7 @@ describe("MarketplaceModeExplainer", () => {
     expect(screen.getByRole("heading", { name: /direct wallet deals/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /assisted escrow/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /what we track/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /0% platform fee for now/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /no platform fee/i })).toBeInTheDocument();
     expect(
       screen.getByText(/users and agents can settle directly with their own wallets/i)
     ).toBeInTheDocument();

@@ -214,7 +214,7 @@ export function Header() {
                 </Link>
                 <div className="my-2" />
                 <Button className="bg-neon text-primary-foreground hover:bg-neon/90" asChild>
-                  <Link href="/sell" onClick={() => setMobileOpen(false)}>List Your Model</Link>
+                  <Link href="/sell" prefetch={false} onClick={() => setMobileOpen(false)}>List Your Model</Link>
                 </Button>
               </nav>
             </SheetContent>

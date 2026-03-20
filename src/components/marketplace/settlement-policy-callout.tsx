@@ -36,7 +36,7 @@ export function SettlementPolicyCallout({
         <div className="rounded-xl border border-neon/20 bg-neon/5 p-3">
           <div className="text-sm font-semibold text-neon">{getMarketplaceFeeHeadline()}</div>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            The public fee message stays simple today. Direct settlement stays free, and assisted escrow is currently waived during the launch window.
+            Direct settlement stays free. Assisted escrow can stay fee-free during the launch window, while the internal fee schedule remains configurable for later.
           </p>
         </div>
       </div>

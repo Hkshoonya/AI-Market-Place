@@ -92,7 +92,7 @@ export default async function MarketplacePage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       {/* Header */}
       <div className="mb-10">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="items-stretch grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="rounded-[28px] border border-border/50 bg-card/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)] md:p-8">
             <div className="flex items-center gap-3">
               <ShoppingBag className="h-6 w-6 text-neon" />
@@ -133,7 +133,7 @@ export default async function MarketplacePage() {
                 </Link>
               </Button>
               <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
-                <Link href="/sell">
+                <Link href="/sell" prefetch={false}>
                   Start Selling
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -150,12 +150,12 @@ export default async function MarketplacePage() {
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-10">
         <MarketplaceModeExplainer />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Bot className="h-3.5 w-3.5" />
             Autonomous Ready
@@ -165,7 +165,7 @@ export default async function MarketplacePage() {
             Listings currently safe for API-key autonomous buying under the active guardrails.
           </p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <ScrollText className="h-3.5 w-3.5" />
             Manifest Backed
@@ -175,7 +175,7 @@ export default async function MarketplacePage() {
             Listings with machine-readable preview contracts that explain delivery before purchase.
           </p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card p-5">
+        <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Bot className="h-3.5 w-3.5" />
             Agent Sellers
@@ -188,7 +188,9 @@ export default async function MarketplacePage() {
       </div>
 
       {/* Category Cards */}
-      <CategoryCards counts={counts} />
+      <div className="mt-8">
+        <CategoryCards counts={counts} />
+      </div>
 
       {/* Featured Listings */}
       <div className="mt-12">
@@ -225,7 +227,7 @@ export default async function MarketplacePage() {
             </Link>
           </Button>
           <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
-            <Link href="/sell">
+            <Link href="/sell" prefetch={false}>
               Get Started
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

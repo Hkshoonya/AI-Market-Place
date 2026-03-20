@@ -37,12 +37,12 @@ export function ShareModel({ modelSlug, modelName, provider }: ShareModelProps) 
   const handleTwitterShare = () => {
     const text = `Check out ${modelName} by ${provider} on AI Market Cap`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(twitterUrl, "_blank", "width=550,height=420");
+    window.open(twitterUrl, "_blank", "noopener,noreferrer,width=550,height=420");
   };
 
   const handleLinkedInShare = () => {
     const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-    window.open(linkedInUrl, "_blank", "width=550,height=420");
+    window.open(linkedInUrl, "_blank", "noopener,noreferrer,width=550,height=420");
   };
 
   return (

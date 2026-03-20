@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { clientWarn } from "@/lib/client-log";
 import posthog from "posthog-js";
 import type { User } from "@supabase/supabase-js";
 
@@ -94,7 +95,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
     .single();
 
   if (error) {
-    console.warn("Profile fetch failed:", error.message);
+    clientWarn("Profile fetch failed:", error.message);
     return null;
   }
 
@@ -113,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let hasResolvedInitialProfile = cachedAuth.profile !== null;
     const timeoutId = window.setTimeout(() => {
       if (!isActive) return;
-      console.warn("Auth initialization timed out");
+      clientWarn("Auth initialization timed out");
       if (!hasResolvedInitialUser) {
         setUser(null);
         setProfile(null);
@@ -159,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             error: refreshError,
           } = await supabase.auth.refreshSession();
           if (refreshError) {
-            console.warn("Auth session refresh failed:", refreshError);
+            clientWarn("Auth session refresh failed:", refreshError);
           } else {
             resolvedSessionUser = refreshData.session?.user ?? null;
           }
@@ -180,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await applyUser(currentUser);
         }
       } catch (err) {
-        console.warn("Auth initialization failed:", err);
+        clientWarn("Auth initialization failed:", err);
       } finally {
         window.clearTimeout(timeoutId);
         if (isActive) {
@@ -228,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      console.warn("Auth sign-out failed:", error);
+      clientWarn("Auth sign-out failed:", error);
     } finally {
       posthog.reset();
       setUser(null);

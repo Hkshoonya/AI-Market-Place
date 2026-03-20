@@ -38,7 +38,7 @@ export function MarketplaceModeExplainer() {
       key: "fee",
       title: getMarketplaceFeeHeadline(),
       description:
-        "Use your own wallet and settle directly, or let AI Market Cap assist with escrow. The public fee message stays simple today while the platform keeps room for future policy changes.",
+        "Use your own wallet and settle directly, or let AI Market Cap assist with escrow. Public pricing stays simple while internal policy can change later without rewiring the buyer flow.",
       eyebrow: "Launch posture",
       icon: ICONS.fee,
     },
