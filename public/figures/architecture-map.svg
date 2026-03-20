@@ -1,83 +1,81 @@
-<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1600" height="980" rx="32" fill="#071512"/>
-  <rect x="32" y="32" width="1536" height="916" rx="28" fill="#091A17" stroke="#173B35"/>
+<svg width="1600" height="1180" viewBox="0 0 1600 1180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1180" rx="32" fill="#000000"/>
+  <rect x="28" y="28" width="1544" height="1124" rx="28" fill="#0A0A0A" stroke="#14342D" stroke-width="2"/>
 
-  <text x="72" y="102" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="48" font-weight="700">
+  <text x="72" y="102" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700">
     How AI Market Cap Is Structured
   </text>
-  <text x="72" y="146" fill="#97D8D0" font-family="Segoe UI, Arial, sans-serif" font-size="24">
-    A public product surface on top of market data, trust systems, marketplace rails, and live operations.
+  <text x="72" y="150" fill="#93DACA" font-family="Segoe UI, Arial, sans-serif" font-size="24">
+    Product surfaces on top of market data, trust systems, operations, and public governance.
   </text>
 
-  <rect x="78" y="214" width="324" height="190" rx="26" fill="#0C211C" stroke="#39FF14"/>
-  <text x="112" y="270" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">Public Product</text>
-  <text x="112" y="322" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="112" dy="0">Model pages, leaderboards,</tspan>
-    <tspan x="112" dy="34">provider views, search, compare,</tspan>
-    <tspan x="112" dy="34">marketplace, commons, and admin.</tspan>
+  <rect x="72" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="112" y="282" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Public Product</text>
+  <text x="112" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="112" dy="0">Model pages, leaderboards, provider views,</tspan>
+    <tspan x="112" dy="40">search, compare, marketplace, commons,</tspan>
+    <tspan x="112" dy="40">and admin surfaces for live operations.</tspan>
   </text>
 
-  <rect x="450" y="214" width="324" height="190" rx="26" fill="#0C211C" stroke="#00D4AA"/>
-  <text x="484" y="270" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">Core Intelligence</text>
-  <text x="484" y="322" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="484" dy="0">Scoring, pricing, trust cues,</tspan>
-    <tspan x="484" dy="34">ranking integrity, marketplace rules,</tspan>
-    <tspan x="484" dy="34">notifications, and policy logic.</tspan>
+  <rect x="840" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="880" y="282" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Core Intelligence</text>
+  <text x="880" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="880" dy="0">Scoring, pricing, trust cues, marketplace policy,</tspan>
+    <tspan x="880" dy="40">ranking integrity, notifications, and platform</tspan>
+    <tspan x="880" dy="40">logic that turns signals into usable product views.</tspan>
   </text>
 
-  <rect x="822" y="214" width="324" height="190" rx="26" fill="#0C211C" stroke="#5DE0FF"/>
-  <text x="856" y="270" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">Data And Identity</text>
-  <text x="856" y="322" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="856" dy="0">Supabase Postgres, auth, profiles,</tspan>
-    <tspan x="856" dy="34">listings, orders, reports,</tspan>
-    <tspan x="856" dy="34">and platform records.</tspan>
+  <rect x="72" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="112" y="518" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Data And Identity</text>
+  <text x="112" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="112" dy="0">Supabase Postgres, auth, profiles, listings,</tspan>
+    <tspan x="112" dy="40">orders, reports, and the records that keep the</tspan>
+    <tspan x="112" dy="40">public market graph coherent over time.</tspan>
   </text>
 
-  <rect x="1194" y="214" width="324" height="190" rx="26" fill="#0C211C" stroke="#8EDFD4"/>
-  <text x="1228" y="270" fill="#8EDFD4" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">Market Signals</text>
-  <text x="1228" y="322" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="1228" dy="0">Benchmarks, provider updates,</tspan>
-    <tspan x="1228" dy="34">launch/news activity, freshness,</tspan>
-    <tspan x="1228" dy="34">and integrity checks.</tspan>
+  <rect x="840" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="880" y="518" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Market Signals</text>
+  <text x="880" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="880" dy="0">Benchmarks, pricing updates, provider changes,</tspan>
+    <tspan x="880" dy="40">launch activity, freshness, and integrity checks</tspan>
+    <tspan x="880" dy="40">that explain what changed and why it matters.</tspan>
   </text>
 
-  <rect x="204" y="560" width="360" height="204" rx="26" fill="#0B2325" stroke="#5DE0FF"/>
-  <text x="240" y="620" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Runtime</text>
-  <text x="240" y="678" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="240" dy="0">Railway runs the live app and</tspan>
-    <tspan x="240" dy="36">custom server paths, while cron and</tspan>
-    <tspan x="240" dy="36">resident maintenance jobs keep</tspan>
-    <tspan x="240" dy="36">market data and operations moving.</tspan>
+  <rect x="72" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="108" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Runtime</text>
+  <text x="108" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="108" dy="0">Railway runs the live app,</tspan>
+    <tspan x="108" dy="38">while cron and resident</tspan>
+    <tspan x="108" dy="38">maintenance keep data and</tspan>
+    <tspan x="108" dy="38">operations moving.</tspan>
   </text>
 
-  <rect x="622" y="560" width="360" height="204" rx="26" fill="#0B2325" stroke="#00D4AA"/>
-  <text x="658" y="620" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Public Governance</text>
-  <text x="658" y="678" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="658" dy="0">Contribution rules, review policy,</tspan>
-    <tspan x="658" dy="36">revenue reporting, collaborator</tspan>
-    <tspan x="658" dy="36">eligibility, and community standards</tspan>
-    <tspan x="658" dy="36">are documented in the repository.</tspan>
+  <rect x="573" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="609" y="804" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Public Governance</text>
+  <text x="609" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="609" dy="0">Review rules, contribution</tspan>
+    <tspan x="609" dy="38">standards, revenue policy,</tspan>
+    <tspan x="609" dy="38">and collaborator roles live</tspan>
+    <tspan x="609" dy="38">in the repository itself.</tspan>
   </text>
 
-  <rect x="1040" y="560" width="360" height="204" rx="26" fill="#0B2325" stroke="#39FF14"/>
-  <text x="1076" y="620" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Distribution</text>
-  <text x="1076" y="678" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="1076" dy="0">Cloudflare, the public website,</tspan>
-    <tspan x="1076" dy="36">GitHub visibility, and open issue</tspan>
-    <tspan x="1076" dy="36">and pull request workflows make</tspan>
-    <tspan x="1076" dy="36">the product inspectable in public.</tspan>
+  <rect x="1074" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="1110" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Distribution</text>
+  <text x="1110" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="1110" dy="0">Cloudflare, the public site,</tspan>
+    <tspan x="1110" dy="38">GitHub visibility, and open</tspan>
+    <tspan x="1110" dy="38">issues and pull requests keep</tspan>
+    <tspan x="1110" dy="38">the product inspectable.</tspan>
   </text>
 
-  <path d="M402 309H450" stroke="#39FF14" stroke-width="4"/>
-  <path d="M774 309H822" stroke="#00D4AA" stroke-width="4"/>
-  <path d="M1146 309H1194" stroke="#5DE0FF" stroke-width="4"/>
+  <path d="M760 315H840" stroke="#00D4AA" stroke-width="4"/>
+  <path d="M760 552H840" stroke="#39FF14" stroke-width="4"/>
+  <path d="M298 646V738" stroke="#00D4AA" stroke-width="4"/>
+  <path d="M800 646V738" stroke="#39FF14" stroke-width="4"/>
+  <path d="M1302 646V738" stroke="#00D4AA" stroke-width="4"/>
 
-  <path d="M240 404C240 490 384 492 384 560" stroke="#39FF14" stroke-width="3.5" opacity="0.9"/>
-  <path d="M612 404C612 496 802 492 802 560" stroke="#00D4AA" stroke-width="3.5" opacity="0.9"/>
-  <path d="M1314 404C1314 496 1220 492 1220 560" stroke="#5DE0FF" stroke-width="3.5" opacity="0.9"/>
-
-  <rect x="78" y="832" width="1440" height="84" rx="24" fill="#081714" stroke="#15352F"/>
-  <text x="116" y="884" fill="#C8FFF6" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">
-    Product first. Public by default. Governed in the open. Built to make the AI model economy legible.
+  <rect x="72" y="1032" width="1456" height="82" rx="20" fill="#050505" stroke="#14342D"/>
+  <text x="114" y="1084" fill="#D8FFF4" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">
+    Product first. Public by default. Built to make the AI model economy easier to understand.
   </text>
 </svg>

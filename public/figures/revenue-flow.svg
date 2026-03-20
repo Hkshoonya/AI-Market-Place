@@ -1,80 +1,78 @@
-<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1600" height="980" rx="32" fill="#071512"/>
-  <rect x="32" y="32" width="1536" height="916" rx="28" fill="#091A17" stroke="#173B35"/>
+<svg width="1600" height="1180" viewBox="0 0 1600 1180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1180" rx="32" fill="#000000"/>
+  <rect x="28" y="28" width="1544" height="1124" rx="28" fill="#0A0A0A" stroke="#14342D" stroke-width="2"/>
 
-  <text x="72" y="102" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="48" font-weight="700">
+  <text x="72" y="102" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700">
     Revenue Transparency Model
   </text>
-  <text x="72" y="146" fill="#97D8D0" font-family="Segoe UI, Arial, sans-serif" font-size="24">
+  <text x="72" y="150" fill="#93DACA" font-family="Segoe UI, Arial, sans-serif" font-size="24">
     Revenue is measured, reduced to net platform revenue, allocated by policy, and reported in public.
   </text>
 
-  <rect x="74" y="220" width="326" height="188" rx="26" fill="#0C211C" stroke="#39FF14"/>
-  <text x="108" y="278" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">1. Gross Revenue</text>
-  <text x="108" y="332" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="108" dy="0">Sponsorships, platform fees,</tspan>
-    <tspan x="108" dy="34">approved support, partnerships,</tspan>
-    <tspan x="108" dy="34">and other recognized revenue.</tspan>
+  <rect x="72" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="112" y="282" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">1. Gross Revenue</text>
+  <text x="112" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="112" dy="0">Sponsorships, platform fees, approved support,</tspan>
+    <tspan x="112" dy="40">partnership income, and other revenue that is</tspan>
+    <tspan x="112" dy="40">recognized for the reporting period.</tspan>
   </text>
 
-  <rect x="442" y="220" width="326" height="188" rx="26" fill="#0C211C" stroke="#00D4AA"/>
-  <text x="476" y="278" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">2. Deductions</text>
-  <text x="476" y="332" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="476" dy="0">Refunds, chargebacks, taxes,</tspan>
-    <tspan x="476" dy="34">processor fees, pass-through payouts,</tspan>
-    <tspan x="476" dy="34">and direct delivery infrastructure.</tspan>
+  <rect x="840" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="880" y="282" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">2. Deductions</text>
+  <text x="880" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="880" dy="0">Refunds, chargebacks, taxes, processor fees,</tspan>
+    <tspan x="880" dy="40">pass-through payouts, and direct delivery costs</tspan>
+    <tspan x="880" dy="40">are removed before allocation.</tspan>
   </text>
 
-  <rect x="810" y="220" width="326" height="188" rx="26" fill="#0C211C" stroke="#5DE0FF"/>
-  <text x="844" y="278" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">3. Net Platform Revenue</text>
-  <text x="844" y="332" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="844" dy="0">The base number used to determine</tspan>
-    <tspan x="844" dy="34">monthly allocation buckets and</tspan>
-    <tspan x="844" dy="34">collaborator distributions.</tspan>
+  <rect x="72" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="112" y="518" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">3. Net Platform Revenue</text>
+  <text x="112" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="112" dy="0">This is the number used for monthly allocation</tspan>
+    <tspan x="112" dy="40">buckets and collaborator distributions under</tspan>
+    <tspan x="112" dy="40">the public formula in the repository.</tspan>
   </text>
 
-  <rect x="1178" y="220" width="348" height="188" rx="26" fill="#0C211C" stroke="#8EDFD4"/>
-  <text x="1212" y="278" fill="#8EDFD4" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700">4. Public Monthly Report</text>
-  <text x="1212" y="332" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="22">
-    <tspan x="1212" dy="0">The numbers are published in the repo</tspan>
-    <tspan x="1212" dy="34">with deductions, allocations, points,</tspan>
-    <tspan x="1212" dy="34">and maintainer sign-off.</tspan>
+  <rect x="840" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="880" y="518" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">4. Public Monthly Report</text>
+  <text x="880" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
+    <tspan x="880" dy="0">The repo records deductions, allocations,</tspan>
+    <tspan x="880" dy="40">contributor points, collaborator distributions,</tspan>
+    <tspan x="880" dy="40">and maintainer sign-off in public.</tspan>
   </text>
 
-  <rect x="176" y="572" width="356" height="224" rx="26" fill="#0B2325" stroke="#39FF14"/>
-  <text x="212" y="636" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">50% Product Treasury</text>
-  <text x="212" y="696" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="212" dy="0">Funds runway, product growth,</tspan>
-    <tspan x="212" dy="36">experimentation, reinvestment,</tspan>
-    <tspan x="212" dy="36">and long-term project capacity.</tspan>
+  <rect x="72" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="108" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">50% Product Treasury</text>
+  <text x="108" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="108" dy="0">Reinvestment, product growth,</tspan>
+    <tspan x="108" dy="38">runway, experimentation,</tspan>
+    <tspan x="108" dy="38">and long-term project capacity.</tspan>
   </text>
 
-  <rect x="622" y="572" width="356" height="224" rx="26" fill="#0B2325" stroke="#00D4AA"/>
-  <text x="658" y="636" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">25% Operations</text>
-  <text x="658" y="696" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="658" dy="0">Supports hosting, maintenance,</tspan>
-    <tspan x="658" dy="36">delivery, release work, moderation,</tspan>
-    <tspan x="658" dy="36">and stewardship overhead.</tspan>
+  <rect x="573" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
+  <text x="609" y="804" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">25% Operations</text>
+  <text x="609" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="609" dy="0">Hosting, maintenance, release</tspan>
+    <tspan x="609" dy="38">work, moderation, and the</tspan>
+    <tspan x="609" dy="38">ongoing cost of stewardship.</tspan>
   </text>
 
-  <rect x="1068" y="572" width="356" height="224" rx="26" fill="#0B2325" stroke="#5DE0FF"/>
-  <text x="1104" y="636" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">25% Collaborators</text>
-  <text x="1104" y="696" fill="#E9FFFB" font-family="Segoe UI, Arial, sans-serif" font-size="23">
-    <tspan x="1104" dy="0">Distributed using the public point</tspan>
-    <tspan x="1104" dy="36">formula documented in the repo</tspan>
-    <tspan x="1104" dy="36">and recorded in monthly reports.</tspan>
+  <rect x="1074" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
+  <text x="1110" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">25% Collaborators</text>
+  <text x="1110" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
+    <tspan x="1110" dy="0">Distributed using the public</tspan>
+    <tspan x="1110" dy="38">point formula and recorded in</tspan>
+    <tspan x="1110" dy="38">the monthly reporting ledger.</tspan>
   </text>
 
-  <path d="M400 314H442" stroke="#39FF14" stroke-width="4"/>
-  <path d="M768 314H810" stroke="#00D4AA" stroke-width="4"/>
-  <path d="M1136 314H1178" stroke="#5DE0FF" stroke-width="4"/>
+  <path d="M760 315H840" stroke="#00D4AA" stroke-width="4"/>
+  <path d="M760 552H840" stroke="#39FF14" stroke-width="4"/>
+  <path d="M298 646V738" stroke="#00D4AA" stroke-width="4"/>
+  <path d="M800 646V738" stroke="#39FF14" stroke-width="4"/>
+  <path d="M1302 646V738" stroke="#00D4AA" stroke-width="4"/>
 
-  <path d="M974 408C974 506 354 500 354 572" stroke="#39FF14" stroke-width="3.5" opacity="0.9"/>
-  <path d="M974 408C974 514 800 500 800 572" stroke="#00D4AA" stroke-width="3.5" opacity="0.9"/>
-  <path d="M974 408C974 514 1246 500 1246 572" stroke="#5DE0FF" stroke-width="3.5" opacity="0.9"/>
-
-  <rect x="74" y="850" width="1452" height="72" rx="22" fill="#081714" stroke="#15352F"/>
-  <text x="110" y="895" fill="#C8FFF6" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">
-    The rule is simple: if revenue is collected, the basis and distribution should be visible in public.
+  <rect x="72" y="1032" width="1456" height="82" rx="20" fill="#050505" stroke="#14342D"/>
+  <text x="114" y="1084" fill="#D8FFF4" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">
+    If revenue exists, the basis and distribution should be visible in public.
   </text>
 </svg>
