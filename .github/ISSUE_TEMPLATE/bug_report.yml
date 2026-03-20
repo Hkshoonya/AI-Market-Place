@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a product, data, or platform issue
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem clearly.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: List exact steps to reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs, or links
+      description: Include screenshots, route URLs, console logs, or related commits if relevant.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Public website
+        - Rankings / model data
+        - Marketplace
+        - Social commons
+        - Admin / operators
+        - Auth / wallet / payments
+        - Deployment / infrastructure
+    validations:
+      required: true

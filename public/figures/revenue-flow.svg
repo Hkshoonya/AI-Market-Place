@@ -1,0 +1,32 @@
+<svg width="1400" height="760" viewBox="0 0 1400 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="760" rx="28" fill="#071512"/>
+  <text x="58" y="84" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">Revenue Transparency Flow</text>
+  <text x="58" y="120" fill="#97D8D0" font-family="Segoe UI, Arial, sans-serif" font-size="20">How revenue is measured, allocated, and reported in public.</text>
+  <rect x="72" y="200" width="268" height="118" rx="22" fill="#0D1F1B" stroke="#39FF14"/>
+  <text x="102" y="244" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Gross Revenue</text>
+  <text x="102" y="282" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="17">Sponsorships, fees, support, partnerships.</text>
+  <rect x="404" y="200" width="268" height="118" rx="22" fill="#0D1F1B" stroke="#00D4AA"/>
+  <text x="434" y="244" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Deductions</text>
+  <text x="434" y="282" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="17">Refunds, taxes, fees, pass-through payouts, direct infra costs.</text>
+  <rect x="736" y="200" width="268" height="118" rx="22" fill="#0D1F1B" stroke="#5DE0FF"/>
+  <text x="766" y="244" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Net Revenue</text>
+  <text x="766" y="282" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="17">The base used for all monthly allocation buckets.</text>
+  <rect x="1068" y="200" width="260" height="118" rx="22" fill="#0D1F1B" stroke="#39FF14"/>
+  <text x="1098" y="244" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Monthly Report</text>
+  <text x="1098" y="282" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="17">Committed in repo under reports/revenue.</text>
+  <rect x="176" y="456" width="280" height="148" rx="22" fill="#0B2225" stroke="#39FF14"/>
+  <text x="208" y="512" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">50% Treasury</text>
+  <text x="208" y="552" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="18">Product growth, runway, reinvestment, long-term project capacity.</text>
+  <rect x="560" y="456" width="280" height="148" rx="22" fill="#0B2225" stroke="#00D4AA"/>
+  <text x="592" y="512" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">25% Operations</text>
+  <text x="592" y="552" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="18">Core maintenance, delivery, hosting, release and stewardship workload.</text>
+  <rect x="944" y="456" width="280" height="148" rx="22" fill="#0B2225" stroke="#5DE0FF"/>
+  <text x="976" y="512" fill="#5DE0FF" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">25% Collaborators</text>
+  <text x="976" y="552" fill="#E6FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="18">Distributed by public point formula and monthly contribution ledger.</text>
+  <path d="M340 258H404" stroke="#39FF14" stroke-width="4"/>
+  <path d="M672 258H736" stroke="#00D4AA" stroke-width="4"/>
+  <path d="M1004 258H1068" stroke="#5DE0FF" stroke-width="4"/>
+  <path d="M870 318C870 398 316 382 316 456" stroke="#39FF14" stroke-width="3"/>
+  <path d="M870 318C870 392 700 392 700 456" stroke="#00D4AA" stroke-width="3"/>
+  <path d="M870 318C870 392 1084 392 1084 456" stroke="#5DE0FF" stroke-width="3"/>
+</svg>

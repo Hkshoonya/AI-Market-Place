@@ -1,0 +1,58 @@
+<svg width="1600" height="720" viewBox="0 0 1600 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="720" rx="32" fill="#071512"/>
+  <rect x="36" y="36" width="1528" height="648" rx="28" fill="url(#bg)" stroke="#163A35"/>
+  <circle cx="320" cy="216" r="122" fill="url(#orb1)" opacity="0.45"/>
+  <circle cx="1290" cy="178" r="154" fill="url(#orb2)" opacity="0.32"/>
+  <circle cx="1192" cy="560" r="128" fill="url(#orb3)" opacity="0.2"/>
+  <path d="M250 252C430 172 595 164 800 248C1004 331 1180 337 1370 243" stroke="url(#line1)" stroke-width="4"/>
+  <path d="M250 470C420 392 602 367 802 444C999 520 1179 529 1365 435" stroke="url(#line2)" stroke-width="3" opacity="0.7"/>
+  <g fill="#39FF14">
+    <circle cx="286" cy="236" r="10"/>
+    <circle cx="486" cy="194" r="8"/>
+    <circle cx="724" cy="210" r="12"/>
+    <circle cx="920" cy="286" r="10"/>
+    <circle cx="1138" cy="298" r="8"/>
+    <circle cx="1330" cy="255" r="11"/>
+  </g>
+  <g fill="#5DE0FF">
+    <circle cx="314" cy="455" r="9"/>
+    <circle cx="544" cy="402" r="11"/>
+    <circle cx="760" cy="428" r="8"/>
+    <circle cx="980" cy="486" r="12"/>
+    <circle cx="1215" cy="501" r="9"/>
+    <circle cx="1360" cy="452" r="8"/>
+  </g>
+  <text x="120" y="338" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="82" font-weight="700">AI Market Cap</text>
+  <text x="122" y="402" fill="#8EDFD4" font-family="Segoe UI, Arial, sans-serif" font-size="28">The public market graph for AI models, agents, benchmarks, pricing, and commerce.</text>
+  <rect x="122" y="452" width="248" height="54" rx="27" fill="#0D2F28" stroke="#00D4AA"/>
+  <text x="156" y="486" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="600">aimarketcap.tech</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1E19"/>
+      <stop offset="0.5" stop-color="#071512"/>
+      <stop offset="1" stop-color="#08101A"/>
+    </linearGradient>
+    <radialGradient id="orb1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(320 216) rotate(90) scale(122)">
+      <stop stop-color="#39FF14"/>
+      <stop offset="1" stop-color="#39FF14" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1290 178) rotate(90) scale(154)">
+      <stop stop-color="#00D4AA"/>
+      <stop offset="1" stop-color="#00D4AA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1192 560) rotate(90) scale(128)">
+      <stop stop-color="#5DE0FF"/>
+      <stop offset="1" stop-color="#5DE0FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line1" x1="250" y1="252" x2="1370" y2="243" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#39FF14" stop-opacity="0.3"/>
+      <stop offset="0.5" stop-color="#00D4AA"/>
+      <stop offset="1" stop-color="#5DE0FF" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="line2" x1="250" y1="470" x2="1365" y2="435" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5DE0FF" stop-opacity="0.2"/>
+      <stop offset="0.5" stop-color="#00D4AA"/>
+      <stop offset="1" stop-color="#39FF14" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+</svg>

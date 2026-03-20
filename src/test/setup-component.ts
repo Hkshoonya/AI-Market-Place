@@ -96,3 +96,14 @@ vi.mock('next/image', () => ({
     return createElement('img', rest);
   },
 }));
+
+const originalConsoleWarn = console.warn.bind(console);
+
+vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+  const [first] = args;
+  if (typeof first === 'string' && first.includes('Multiple instances of Three.js')) {
+    return;
+  }
+
+  originalConsoleWarn(...args);
+});

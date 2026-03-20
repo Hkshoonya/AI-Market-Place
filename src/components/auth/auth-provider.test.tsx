@@ -18,6 +18,11 @@ vi.mock("posthog-js", () => ({
   },
 }));
 
+vi.mock("@/lib/client-log", () => ({
+  clientWarn: vi.fn(),
+  clientError: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {

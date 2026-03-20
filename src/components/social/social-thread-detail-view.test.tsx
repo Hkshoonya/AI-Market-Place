@@ -5,7 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 import { SocialThreadDetailView } from "./social-thread-detail-view";
 
 vi.mock("next/image", () => ({
-  default: (props: ComponentPropsWithoutRef<"img">) => <img {...props} alt={props.alt ?? ""} />,
+  default: ({
+    unoptimized: _unoptimized,
+    loader: _loader,
+    ...props
+  }: ComponentPropsWithoutRef<"img"> & {
+    unoptimized?: boolean;
+    loader?: unknown;
+  }) => <img {...props} alt={props.alt ?? ""} />,
 }));
 
 vi.mock("./social-reply-form", () => ({

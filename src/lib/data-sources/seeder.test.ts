@@ -96,16 +96,19 @@ vi.mock("@/lib/logging", () => ({
 
 describe("seedDataSources", () => {
   const originalExit = process.exit;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.exit = vi.fn() as unknown as typeof process.exit;
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     // Default: upsert succeeds with no error
     mockUpsert.mockResolvedValue({ data: null, error: null });
   });
 
   afterEach(() => {
     process.exit = originalExit;
+    consoleErrorSpy.mockRestore();
     vi.unstubAllEnvs();
   });
 
