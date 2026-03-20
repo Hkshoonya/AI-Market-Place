@@ -1,250 +1,154 @@
-<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="1600" height="900" fill="url(#bg)"/>
-  <g opacity="0.025" stroke="#39FF14" stroke-width="0.5">
-    <line x1="0" y1="180" x2="1600" y2="180"/><line x1="0" y1="360" x2="1600" y2="360"/>
-    <line x1="0" y1="540" x2="1600" y2="540"/><line x1="0" y1="720" x2="1600" y2="720"/>
+<svg width="1600" height="800" viewBox="0 0 1600 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="800" fill="#000000"/>
+  <g opacity="0.04" stroke="#00d4aa" stroke-width="0.5">
+    <line x1="0" y1="160" x2="1600" y2="160"/><line x1="0" y1="320" x2="1600" y2="320"/>
+    <line x1="0" y1="480" x2="1600" y2="480"/><line x1="0" y1="640" x2="1600" y2="640"/>
   </g>
 
-  <!-- Title -->
-  <text x="80" y="60" fill="#F0FDF9" font-family="'Inter', sans-serif" font-size="36" font-weight="700" letter-spacing="-1">AI Marketplace</text>
-  <text x="80" y="92" fill="#64748B" font-family="'Inter', sans-serif" font-size="16">Buy, sell, and discover AI products — models, agents, APIs, datasets, and MCP servers with fiat + crypto settlement</text>
+  <text x="80" y="56" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="36" font-weight="700" letter-spacing="-1">AI Marketplace</text>
+  <text x="80" y="88" fill="#8888a8" font-family="system-ui, sans-serif" font-size="16">Buy, sell, and discover AI products — models, agents, APIs, datasets, and MCP servers with fiat + crypto settlement</text>
 
   <!-- Mode badges -->
-  <g transform="translate(80, 112)">
-    <rect width="140" height="28" rx="14" fill="#39FF14" fill-opacity="0.1" stroke="#39FF14" stroke-width="1"/>
-    <text x="14" y="19" fill="#39FF14" font-family="'Inter', sans-serif" font-size="12" font-weight="600">Humans + Agents</text>
-    <rect x="150" width="120" height="28" rx="14" fill="transparent" stroke="#334155" stroke-width="1"/>
-    <text x="164" y="19" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="12">Stripe + Crypto</text>
-    <rect x="280" width="130" height="28" rx="14" fill="transparent" stroke="#334155" stroke-width="1"/>
-    <text x="294" y="19" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="12">Dutch Auctions</text>
-    <rect x="420" width="140" height="28" rx="14" fill="transparent" stroke="#334155" stroke-width="1"/>
-    <text x="434" y="19" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="12">Escrow Settlement</text>
+  <g transform="translate(80, 108)">
+    <rect width="140" height="28" rx="14" fill="#00d4aa" fill-opacity="0.15" stroke="#00d4aa" stroke-width="1"/>
+    <text x="14" y="19" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="12" font-weight="600">Humans + Agents</text>
+    <rect x="150" width="120" height="28" rx="14" fill="transparent" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+    <text x="164" y="19" fill="#8888a8" font-family="system-ui, sans-serif" font-size="12">Stripe + Crypto</text>
+    <rect x="280" width="130" height="28" rx="14" fill="transparent" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+    <text x="294" y="19" fill="#8888a8" font-family="system-ui, sans-serif" font-size="12">Dutch Auctions</text>
+    <rect x="420" width="140" height="28" rx="14" fill="transparent" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+    <text x="434" y="19" fill="#8888a8" font-family="system-ui, sans-serif" font-size="12">Escrow Settlement</text>
   </g>
 
-  <!-- ═══════════ LISTING CARDS ═══════════ -->
+  <!-- Listing 1: API -->
+  <rect x="60" y="160" width="360" height="310" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="60" y="160" width="360" height="4" rx="2" fill="#00d4aa"/>
+  <rect x="84" y="184" width="72" height="22" rx="4" fill="#00d4aa" fill-opacity="0.15"/>
+  <text x="93" y="199" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="11" font-weight="600">API Access</text>
+  <rect x="164" y="184" width="68" height="22" rx="4" fill="#16c784" fill-opacity="0.1"/>
+  <text x="176" y="199" fill="#16c784" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Featured</text>
+  <rect x="240" y="184" width="64" height="22" rx="4" fill="#f5a623" fill-opacity="0.1"/>
+  <text x="252" y="199" fill="#f5a623" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Verified</text>
+  <text x="84" y="238" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Enterprise GPT-5 API</text>
+  <text x="84" y="260" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">by TechCorp AI</text>
+  <text x="84" y="290" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Dedicated GPT-5 endpoint with 99.9%</text>
+  <text x="84" y="308" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">SLA and custom fine-tuning support.</text>
+  <!-- Rating -->
+  <g transform="translate(84, 326)">
+    <circle cx="6" cy="6" r="5" fill="#f5a623"/><circle cx="20" cy="6" r="5" fill="#f5a623"/><circle cx="34" cy="6" r="5" fill="#f5a623"/><circle cx="48" cy="6" r="5" fill="#f5a623"/><circle cx="62" cy="6" r="5" fill="#f5a623"/>
+    <text x="78" y="11" fill="#8888a8" font-family="system-ui, sans-serif" font-size="12">(24 reviews)</text>
+  </g>
+  <!-- Price -->
+  <rect x="84" y="356" width="312" height="48" rx="12" fill="#00d4aa" fill-opacity="0.05" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.2"/>
+  <text x="108" y="386" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="24" font-weight="800">$299</text>
+  <text x="178" y="386" fill="#8888a8" font-family="system-ui, sans-serif" font-size="14">/month</text>
+  <text x="316" y="386" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Buy Now</text>
+  <rect x="84" y="418" width="130" height="20" rx="4" fill="#00d4aa" fill-opacity="0.08"/>
+  <text x="96" y="432" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="10" font-weight="600">Agent-purchasable</text>
 
-  <!-- Listing 1 -->
-  <g>
-    <rect x="60" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <rect x="60" y="168" width="360" height="4" rx="2" fill="#39FF14"/>
-    <!-- Badges -->
-    <rect x="84" y="192" width="72" height="22" rx="4" fill="#3B82F6" fill-opacity="0.15"/>
-    <text x="96" y="207" fill="#60A5FA" font-family="'Inter', sans-serif" font-size="11" font-weight="600">API Access</text>
-    <rect x="164" y="192" width="68" height="22" rx="4" fill="#39FF14" fill-opacity="0.1"/>
-    <text x="176" y="207" fill="#39FF14" font-family="'Inter', sans-serif" font-size="11" font-weight="600">Featured</text>
-    <rect x="240" y="192" width="72" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/>
-    <text x="252" y="207" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="11" font-weight="600">Verified</text>
+  <!-- Listing 2: Agent -->
+  <rect x="440" y="160" width="360" height="310" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="440" y="160" width="360" height="4" rx="2" fill="#10b981"/>
+  <rect x="464" y="184" width="56" height="22" rx="4" fill="#10b981" fill-opacity="0.15"/>
+  <text x="476" y="199" fill="#10b981" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Agent</text>
+  <rect x="528" y="184" width="80" height="22" rx="4" fill="#3b82f6" fill-opacity="0.1"/>
+  <text x="540" y="199" fill="#3b82f6" font-family="system-ui, sans-serif" font-size="11" font-weight="600">MCP Ready</text>
+  <text x="464" y="238" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Data Pipeline Agent</text>
+  <text x="464" y="260" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">by AgentForge</text>
+  <text x="464" y="290" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Autonomous data extraction and</text>
+  <text x="464" y="308" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">loading with MCP manifest.</text>
+  <g transform="translate(464, 326)">
+    <circle cx="6" cy="6" r="5" fill="#f5a623"/><circle cx="20" cy="6" r="5" fill="#f5a623"/><circle cx="34" cy="6" r="5" fill="#f5a623"/><circle cx="48" cy="6" r="5" fill="#f5a623"/><circle cx="62" cy="6" r="5" fill="none" stroke="#f5a623" stroke-width="1.5"/>
+    <text x="78" y="11" fill="#8888a8" font-family="system-ui, sans-serif" font-size="12">(12 reviews)</text>
+  </g>
+  <rect x="464" y="356" width="312" height="48" rx="12" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-width="1" stroke-opacity="0.2"/>
+  <text x="488" y="386" fill="#10b981" font-family="system-ui, sans-serif" font-size="24" font-weight="800">$49</text>
+  <text x="538" y="386" fill="#8888a8" font-family="system-ui, sans-serif" font-size="14">one-time</text>
+  <text x="696" y="386" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Buy Now</text>
 
-    <text x="84" y="246" fill="#F0FDF9" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Enterprise GPT-5 API</text>
-    <text x="84" y="268" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">by TechCorp AI</text>
-    <text x="84" y="298" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">Dedicated GPT-5 endpoint with 99.9% SLA, custom fine-tuning support, and priority access.</text>
+  <!-- Listing 3: Auction -->
+  <rect x="820" y="160" width="360" height="310" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="820" y="160" width="360" height="4" rx="2" fill="#f59e0b"/>
+  <rect x="844" y="184" width="60" height="22" rx="4" fill="#f59e0b" fill-opacity="0.15"/>
+  <text x="856" y="199" fill="#f59e0b" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Auction</text>
+  <rect x="912" y="184" width="70" height="22" rx="4" fill="#ea3943" fill-opacity="0.1"/>
+  <text x="922" y="199" fill="#ea3943" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Live Now</text>
+  <text x="844" y="238" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Fine-Tuned Llama 4</text>
+  <text x="844" y="260" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">by ModelSmith</text>
+  <text x="844" y="290" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Custom Llama 4 70B for medical Q&amp;A.</text>
+  <text x="844" y="308" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">HIPAA-ready with eval suite.</text>
+  <!-- Auction box -->
+  <rect x="844" y="326" width="312" height="48" rx="10" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.2"/>
+  <text x="864" y="346" fill="#f59e0b" font-family="monospace" font-size="11" font-weight="600">DUTCH AUCTION</text>
+  <text x="864" y="366" fill="#f59e0b" font-family="monospace" font-size="18" font-weight="800">$2,400</text>
+  <text x="972" y="366" fill="#8888a8" font-family="monospace" font-size="12">current</text>
+  <text x="1032" y="366" fill="#ea3943" font-family="monospace" font-size="13">-$50/hr</text>
+  <rect x="844" y="390" width="312" height="44" rx="12" fill="#f59e0b" fill-opacity="0.08" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.2"/>
+  <text x="930" y="418" fill="#f59e0b" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Accept Current Price</text>
 
-    <!-- Trust + reviews -->
-    <g transform="translate(84, 332)">
-      <circle cx="6" cy="6" r="5" fill="#F59E0B"/><circle cx="20" cy="6" r="5" fill="#F59E0B"/><circle cx="34" cy="6" r="5" fill="#F59E0B"/><circle cx="48" cy="6" r="5" fill="#F59E0B"/><circle cx="62" cy="6" r="5" fill="#F59E0B"/>
-      <text x="78" y="11" fill="#64748B" font-family="'Inter', sans-serif" font-size="12">(24 reviews)</text>
-    </g>
-
-    <!-- Manifest badges -->
-    <g transform="translate(84, 366)">
-      <rect width="72" height="20" rx="4" fill="#00D4AA" fill-opacity="0.1"/>
-      <text x="8" y="14" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Manifest</text>
-      <rect x="80" width="82" height="20" rx="4" fill="#8B5CF6" fill-opacity="0.1"/>
-      <text x="88" y="14" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Trust Rails</text>
-    </g>
-
-    <!-- Price -->
-    <rect x="84" y="402" width="312" height="48" rx="12" fill="#39FF14" fill-opacity="0.05" stroke="#39FF14" stroke-width="1" stroke-opacity="0.3"/>
-    <text x="108" y="432" fill="#39FF14" font-family="'Inter', sans-serif" font-size="24" font-weight="800">$299</text>
-    <text x="178" y="432" fill="#64748B" font-family="'Inter', sans-serif" font-size="14">/month</text>
-    <text x="316" y="432" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Buy Now</text>
-
-    <!-- Autonomy mode -->
-    <rect x="84" y="464" width="130" height="20" rx="4" fill="#00D4AA" fill-opacity="0.08"/>
-    <text x="96" y="478" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Agent-purchasable</text>
+  <!-- Settlement Rails -->
+  <rect x="60" y="500" width="560" height="160" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="92" y="536" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Settlement Rails</text>
+  <text x="92" y="558" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Multi-chain crypto + traditional payments with escrow protection</text>
+  <g transform="translate(92, 578)">
+    <rect width="100" height="40" rx="10" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="24" y="26" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Stripe</text>
+    <rect x="112" width="100" height="40" rx="10" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="132" y="26" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Solana</text>
+    <rect x="224" width="82" height="40" rx="10" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="244" y="26" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Base</text>
+    <rect x="318" width="100" height="40" rx="10" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="336" y="26" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Polygon</text>
+  </g>
+  <g transform="translate(92, 636)" font-family="system-ui, sans-serif" font-size="12" fill="#8888a8">
+    <text>Escrow holds</text><text x="88" fill="#ffffff" fill-opacity="0.08">|</text><text x="100">Auto fee deduction</text>
+    <text x="228" fill="#ffffff" fill-opacity="0.08">|</text><text x="240">Seller payout</text><text x="336" fill="#ffffff" fill-opacity="0.08">|</text><text x="348">Guest checkout</text>
   </g>
 
-  <!-- Listing 2 - Agent -->
-  <g>
-    <rect x="440" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <rect x="440" y="168" width="360" height="4" rx="2" fill="#8B5CF6"/>
-    <rect x="464" y="192" width="56" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.15"/>
-    <text x="476" y="207" fill="#A78BFA" font-family="'Inter', sans-serif" font-size="11" font-weight="600">Agent</text>
-    <rect x="528" y="192" width="80" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/>
-    <text x="540" y="207" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="11" font-weight="600">MCP Ready</text>
-
-    <text x="464" y="246" fill="#F0FDF9" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Data Pipeline Agent</text>
-    <text x="464" y="268" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">by AgentForge</text>
-    <text x="464" y="298" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">Autonomous data extraction, transformation, and loading agent with MCP manifest and skill packages.</text>
-
-    <g transform="translate(464, 332)">
-      <circle cx="6" cy="6" r="5" fill="#F59E0B"/><circle cx="20" cy="6" r="5" fill="#F59E0B"/><circle cx="34" cy="6" r="5" fill="#F59E0B"/><circle cx="48" cy="6" r="5" fill="#F59E0B"/><circle cx="62" cy="6" r="5" fill="none" stroke="#F59E0B" stroke-width="1.5"/>
-      <text x="78" y="11" fill="#64748B" font-family="'Inter', sans-serif" font-size="12">(12 reviews)</text>
-    </g>
-
-    <g transform="translate(464, 366)">
-      <rect width="72" height="20" rx="4" fill="#00D4AA" fill-opacity="0.1"/>
-      <text x="8" y="14" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Manifest</text>
-      <rect x="80" width="60" height="20" rx="4" fill="#39FF14" fill-opacity="0.1"/>
-      <text x="88" y="14" fill="#39FF14" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Escrow</text>
-    </g>
-
-    <rect x="464" y="402" width="312" height="48" rx="12" fill="#8B5CF6" fill-opacity="0.05" stroke="#8B5CF6" stroke-width="1" stroke-opacity="0.3"/>
-    <text x="488" y="432" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="24" font-weight="800">$49</text>
-    <text x="538" y="432" fill="#64748B" font-family="'Inter', sans-serif" font-size="14">one-time</text>
-    <text x="696" y="432" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Buy Now</text>
+  <!-- Guardrails -->
+  <rect x="640" y="500" width="540" height="160" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="672" y="536" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Autonomous Commerce Guardrails</text>
+  <text x="672" y="558" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Policy engine protects buyers, sellers, and the platform</text>
+  <g transform="translate(672, 578)" font-family="system-ui, sans-serif" font-size="13">
+    <circle cx="8" cy="8" r="4" fill="#16c784"/><text x="20" y="13" fill="#e8e8f0">Content policy scanning (regex + risk matrix)</text>
+    <circle cx="8" cy="32" r="4" fill="#16c784"/><text x="20" y="37" fill="#e8e8f0">Per-user spend limits ($250/day, $100/order)</text>
+    <circle cx="8" cy="56" r="4" fill="#16c784"/><text x="20" y="61" fill="#e8e8f0">Seller verification before high-value listings</text>
+    <circle cx="8" cy="80" r="4" fill="#16c784"/><text x="20" y="85" fill="#e8e8f0">Manifest snapshots for delivery accountability</text>
   </g>
 
-  <!-- Listing 3 - Auction -->
-  <g>
-    <rect x="820" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <rect x="820" y="168" width="360" height="4" rx="2" fill="#F59E0B"/>
-    <rect x="844" y="192" width="60" height="22" rx="4" fill="#F59E0B" fill-opacity="0.15"/>
-    <text x="856" y="207" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="11" font-weight="600">Auction</text>
-    <rect x="912" y="192" width="70" height="22" rx="4" fill="#EF4444" fill-opacity="0.1"/>
-    <text x="922" y="207" fill="#EF4444" font-family="'Inter', sans-serif" font-size="11" font-weight="600">Live Now</text>
+  <!-- Listing Types -->
+  <rect x="1200" y="160" width="340" height="500" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="1232" y="196" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Listing Types</text>
+  <g transform="translate(1232, 216)" font-family="system-ui, sans-serif">
+    <rect width="280" height="48" rx="10" fill="#00d4aa" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="24" r="12" fill="#00d4aa" fill-opacity="0.15"/><text x="19" y="28" fill="#00d4aa" font-size="11" font-weight="700">A</text>
+    <text x="46" y="22" fill="#e8e8f0" font-size="14" font-weight="600">API Access</text><text x="46" y="38" fill="#8888a8" font-size="11">Authenticated model endpoints</text>
 
-    <text x="844" y="246" fill="#F0FDF9" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Fine-Tuned Llama 4</text>
-    <text x="844" y="268" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">by ModelSmith</text>
-    <text x="844" y="298" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">Custom fine-tuned Llama 4 70B for medical Q&A. HIPAA-ready weights with evaluation suite.</text>
+    <rect y="56" width="280" height="48" rx="10" fill="#3b82f6" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="80" r="12" fill="#3b82f6" fill-opacity="0.15"/><text x="19" y="84" fill="#3b82f6" font-size="11" font-weight="700">M</text>
+    <text x="46" y="78" fill="#e8e8f0" font-size="14" font-weight="600">MCP Servers</text><text x="46" y="94" fill="#8888a8" font-size="11">Model Context Protocol packages</text>
 
-    <!-- Auction countdown -->
-    <rect x="844" y="324" width="312" height="52" rx="10" fill="#F59E0B" fill-opacity="0.05" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.3"/>
-    <text x="864" y="344" fill="#F59E0B" font-family="'SF Mono', monospace" font-size="11" font-weight="600">DUTCH AUCTION</text>
-    <text x="864" y="366" fill="#F59E0B" font-family="'SF Mono', monospace" font-size="18" font-weight="800">$2,400</text>
-    <text x="972" y="366" fill="#64748B" font-family="'SF Mono', monospace" font-size="12">current price</text>
-    <text x="1092" y="366" fill="#EF4444" font-family="'SF Mono', monospace" font-size="13">-$50/hr</text>
+    <rect y="112" width="280" height="48" rx="10" fill="#10b981" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="136" r="12" fill="#10b981" fill-opacity="0.15"/><text x="19" y="140" fill="#10b981" font-size="11" font-weight="700">S</text>
+    <text x="46" y="134" fill="#e8e8f0" font-size="14" font-weight="600">Agents + Skills</text><text x="46" y="150" fill="#8888a8" font-size="11">Executable skill packages</text>
 
-    <g transform="translate(844, 392)">
-      <rect width="60" height="20" rx="4" fill="#00D4AA" fill-opacity="0.1"/>
-      <text x="8" y="14" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Weights</text>
-      <rect x="68" width="72" height="20" rx="4" fill="#EF4444" fill-opacity="0.1"/>
-      <text x="76" y="14" fill="#EF4444" font-family="'Inter', sans-serif" font-size="10" font-weight="600">Restricted</text>
-    </g>
+    <rect y="168" width="280" height="48" rx="10" fill="#8b5cf6" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="192" r="12" fill="#8b5cf6" fill-opacity="0.15"/><text x="19" y="196" fill="#8b5cf6" font-size="11" font-weight="700">D</text>
+    <text x="46" y="190" fill="#e8e8f0" font-size="14" font-weight="600">Datasets</text><text x="46" y="206" fill="#8888a8" font-size="11">Training and evaluation data</text>
 
-    <rect x="844" y="428" width="312" height="48" rx="12" fill="#F59E0B" fill-opacity="0.08" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.3"/>
-    <text x="920" y="458" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="16" font-weight="700">Accept Current Price</text>
+    <rect y="224" width="280" height="48" rx="10" fill="#f59e0b" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="248" r="12" fill="#f59e0b" fill-opacity="0.15"/><text x="19" y="252" fill="#f59e0b" font-size="11" font-weight="700">W</text>
+    <text x="46" y="246" fill="#e8e8f0" font-size="14" font-weight="600">Model Weights</text><text x="46" y="262" fill="#8888a8" font-size="11">Fine-tuned and specialized</text>
+
+    <rect y="280" width="280" height="48" rx="10" fill="#06b6d4" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="304" r="12" fill="#06b6d4" fill-opacity="0.15"/><text x="19" y="308" fill="#06b6d4" font-size="11" font-weight="700">P</text>
+    <text x="46" y="302" fill="#e8e8f0" font-size="14" font-weight="600">Prompt Templates</text><text x="46" y="318" fill="#8888a8" font-size="11">Shareable, tested prompts</text>
+
+    <rect y="336" width="280" height="48" rx="10" fill="#ec4899" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    <circle cx="24" cy="360" r="12" fill="#ec4899" fill-opacity="0.15"/><text x="19" y="364" fill="#ec4899" font-size="11" font-weight="700">G</text>
+    <text x="46" y="358" fill="#e8e8f0" font-size="14" font-weight="600">Generation Services</text><text x="46" y="374" fill="#8888a8" font-size="11">Image, video, audio generation</text>
   </g>
 
-  <!-- ═══════════ BOTTOM: SETTLEMENT + FEATURES ═══════════ -->
-
-  <!-- Payment Rails -->
-  <g>
-    <rect x="60" y="540" width="560" height="190" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <text x="92" y="576" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Settlement Rails</text>
-    <text x="92" y="598" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">Multi-chain crypto + traditional payments with escrow protection</text>
-
-    <g transform="translate(92, 620)">
-      <!-- Stripe -->
-      <rect width="100" height="44" rx="10" fill="#635BFF" fill-opacity="0.1" stroke="#635BFF" stroke-width="1"/>
-      <text x="24" y="28" fill="#635BFF" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Stripe</text>
-
-      <!-- Solana -->
-      <rect x="112" width="100" height="44" rx="10" fill="#9945FF" fill-opacity="0.1" stroke="#9945FF" stroke-width="1"/>
-      <text x="132" y="28" fill="#9945FF" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Solana</text>
-
-      <!-- Base -->
-      <rect x="224" width="82" height="44" rx="10" fill="#0052FF" fill-opacity="0.1" stroke="#0052FF" stroke-width="1"/>
-      <text x="244" y="28" fill="#0052FF" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Base</text>
-
-      <!-- Polygon -->
-      <rect x="318" width="100" height="44" rx="10" fill="#8247E5" fill-opacity="0.1" stroke="#8247E5" stroke-width="1"/>
-      <text x="336" y="28" fill="#8247E5" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Polygon</text>
-    </g>
-
-    <g transform="translate(92, 682)" font-family="'Inter', sans-serif" font-size="12" fill="#94A3B8">
-      <text>Escrow holds</text>
-      <text x="88" fill="#334155">|</text>
-      <text x="100">Auto fee deduction</text>
-      <text x="228" fill="#334155">|</text>
-      <text x="240">Seller payout</text>
-      <text x="336" fill="#334155">|</text>
-      <text x="348">Guest checkout</text>
-    </g>
-  </g>
-
-  <!-- Safety & Trust -->
-  <g>
-    <rect x="640" y="540" width="540" height="190" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <text x="672" y="576" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Autonomous Commerce Guardrails</text>
-    <text x="672" y="598" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">Policy engine protects buyers, sellers, and the platform</text>
-
-    <g transform="translate(672, 618)" font-family="'Inter', sans-serif" font-size="13">
-      <circle cx="8" cy="8" r="4" fill="#4ADE80"/>
-      <text x="20" y="13" fill="#CBD5E1">Content policy scanning (regex + risk matrix)</text>
-      <circle cx="8" cy="34" r="4" fill="#4ADE80"/>
-      <text x="20" y="39" fill="#CBD5E1">Per-user spend limits ($250/day, $100/order)</text>
-      <circle cx="8" cy="60" r="4" fill="#4ADE80"/>
-      <text x="20" y="65" fill="#CBD5E1">Seller verification before high-value listings</text>
-      <circle cx="8" cy="86" r="4" fill="#4ADE80"/>
-      <text x="20" y="91" fill="#CBD5E1">Manifest snapshots for delivery accountability</text>
-    </g>
-  </g>
-
-  <!-- Listing types grid -->
-  <g>
-    <rect x="1200" y="168" width="340" height="562" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <text x="1232" y="204" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Listing Types</text>
-
-    <g transform="translate(1232, 224)" font-family="'Inter', sans-serif">
-      <!-- API -->
-      <rect width="280" height="52" rx="10" fill="#3B82F6" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="26" r="14" fill="#3B82F6" fill-opacity="0.15"/>
-      <text x="22" y="30" fill="#3B82F6" font-size="12" font-weight="700">A</text>
-      <text x="52" y="24" fill="#E2E8F0" font-size="14" font-weight="600">API Access</text>
-      <text x="52" y="42" fill="#64748B" font-size="11">Authenticated model endpoints</text>
-
-      <!-- MCP -->
-      <rect y="60" width="280" height="52" rx="10" fill="#00D4AA" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="86" r="14" fill="#00D4AA" fill-opacity="0.15"/>
-      <text x="22" y="90" fill="#00D4AA" font-size="12" font-weight="700">M</text>
-      <text x="52" y="84" fill="#E2E8F0" font-size="14" font-weight="600">MCP Servers</text>
-      <text x="52" y="102" fill="#64748B" font-size="11">Model Context Protocol packages</text>
-
-      <!-- Agent -->
-      <rect y="120" width="280" height="52" rx="10" fill="#8B5CF6" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="146" r="14" fill="#8B5CF6" fill-opacity="0.15"/>
-      <text x="22" y="150" fill="#8B5CF6" font-size="12" font-weight="700">S</text>
-      <text x="52" y="144" fill="#E2E8F0" font-size="14" font-weight="600">Agents + Skills</text>
-      <text x="52" y="162" fill="#64748B" font-size="11">Executable skill packages</text>
-
-      <!-- Dataset -->
-      <rect y="180" width="280" height="52" rx="10" fill="#F59E0B" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="206" r="14" fill="#F59E0B" fill-opacity="0.15"/>
-      <text x="22" y="210" fill="#F59E0B" font-size="12" font-weight="700">D</text>
-      <text x="52" y="204" fill="#E2E8F0" font-size="14" font-weight="600">Datasets</text>
-      <text x="52" y="222" fill="#64748B" font-size="11">Training and evaluation data</text>
-
-      <!-- Weights -->
-      <rect y="240" width="280" height="52" rx="10" fill="#EF4444" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="266" r="14" fill="#EF4444" fill-opacity="0.15"/>
-      <text x="22" y="270" fill="#EF4444" font-size="12" font-weight="700">W</text>
-      <text x="52" y="264" fill="#E2E8F0" font-size="14" font-weight="600">Model Weights</text>
-      <text x="52" y="282" fill="#64748B" font-size="11">Fine-tuned and specialized</text>
-
-      <!-- Prompts -->
-      <rect y="300" width="280" height="52" rx="10" fill="#06B6D4" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="326" r="14" fill="#06B6D4" fill-opacity="0.15"/>
-      <text x="22" y="330" fill="#06B6D4" font-size="12" font-weight="700">P</text>
-      <text x="52" y="324" fill="#E2E8F0" font-size="14" font-weight="600">Prompt Templates</text>
-      <text x="52" y="342" fill="#64748B" font-size="11">Shareable, tested prompts</text>
-
-      <!-- Media -->
-      <rect y="360" width="280" height="52" rx="10" fill="#EC4899" fill-opacity="0.05" stroke="#1E3A5F" stroke-width="1"/>
-      <circle cx="28" cy="386" r="14" fill="#EC4899" fill-opacity="0.15"/>
-      <text x="22" y="390" fill="#EC4899" font-size="12" font-weight="700">G</text>
-      <text x="52" y="384" fill="#E2E8F0" font-size="14" font-weight="600">Generation Services</text>
-      <text x="52" y="402" fill="#64748B" font-size="11">Image, video, audio generation</text>
-    </g>
-  </g>
-
-  <!-- Footer -->
-  <text x="80" y="780" fill="#334155" font-family="'Inter', sans-serif" font-size="13">Agent-native commerce: autonomous agents can discover, evaluate, and purchase listings within policy guardrails</text>
-  <rect x="1" y="1" width="1598" height="898" rx="12" stroke="#1E293B" stroke-width="1" fill="none"/>
+  <text x="80" y="780" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13" opacity="0.6">Agent-native commerce: autonomous agents can discover, evaluate, and purchase listings within policy guardrails</text>
+  <rect x="1" y="1" width="1598" height="798" rx="12" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" fill="none"/>
 </svg>

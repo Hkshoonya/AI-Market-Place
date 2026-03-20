@@ -1,191 +1,153 @@
 <svg width="1600" height="780" viewBox="0 0 1600 780" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="780" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="1600" height="780" fill="url(#bg)"/>
-  <g opacity="0.025" stroke="#00D4AA" stroke-width="0.5">
+  <rect width="1600" height="780" fill="#000000"/>
+  <g opacity="0.04" stroke="#00d4aa" stroke-width="0.5">
     <line x1="0" y1="156" x2="1600" y2="156"/><line x1="0" y1="312" x2="1600" y2="312"/>
     <line x1="0" y1="468" x2="1600" y2="468"/><line x1="0" y1="624" x2="1600" y2="624"/>
   </g>
 
-  <!-- Title -->
-  <text x="80" y="56" fill="#F0FDF9" font-family="'Inter', sans-serif" font-size="36" font-weight="700" letter-spacing="-1">Data Pipeline + Scoring Engine</text>
-  <text x="80" y="88" fill="#64748B" font-family="'Inter', sans-serif" font-size="16">25+ data source adapters feed into transparent, auditable scoring formulas across 5 independent lenses</text>
+  <text x="80" y="56" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="36" font-weight="700" letter-spacing="-1">Data Pipeline + Scoring Engine</text>
+  <text x="80" y="88" fill="#8888a8" font-family="system-ui, sans-serif" font-size="16">25+ data source adapters feed into transparent, auditable scoring formulas across 5 independent lenses</text>
 
-  <!-- ═══════════ LEFT: DATA SOURCES ═══════════ -->
-  <text x="80" y="134" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="11" font-weight="600" letter-spacing="3">DATA SOURCES (25+ ADAPTERS)</text>
+  <text x="80" y="134" fill="#00d4aa" font-family="monospace" font-size="11" font-weight="600" letter-spacing="3" opacity="0.7">DATA SOURCES (25+ ADAPTERS)</text>
 
-  <!-- Source cards - Column 1 -->
-  <g>
-    <rect x="60" y="152" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="174" r="12" fill="#10B981" fill-opacity="0.2" stroke="#10B981" stroke-width="1"/>
-    <text x="84" y="178" fill="#10B981" font-family="'Inter', sans-serif" font-size="10" font-weight="700">O</text>
-    <text x="108" y="178" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">OpenAI</text>
-  </g>
-  <g>
-    <rect x="60" y="204" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="226" r="12" fill="#D4A574" fill-opacity="0.2" stroke="#D4A574" stroke-width="1"/>
-    <text x="84" y="230" fill="#D4A574" font-family="'Inter', sans-serif" font-size="10" font-weight="700">A</text>
-    <text x="108" y="230" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Anthropic</text>
-  </g>
-  <g>
-    <rect x="60" y="256" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="278" r="12" fill="#4285F4" fill-opacity="0.2" stroke="#4285F4" stroke-width="1"/>
-    <text x="84" y="282" fill="#4285F4" font-family="'Inter', sans-serif" font-size="10" font-weight="700">G</text>
-    <text x="108" y="282" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Google AI</text>
-  </g>
-  <g>
-    <rect x="60" y="308" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="330" r="12" fill="#FFD21E" fill-opacity="0.2" stroke="#FFD21E" stroke-width="1"/>
-    <text x="83" y="334" fill="#FFD21E" font-family="'Inter', sans-serif" font-size="10" font-weight="700">H</text>
-    <text x="108" y="334" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">HuggingFace Hub</text>
-  </g>
-  <g>
-    <rect x="60" y="360" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="382" r="12" fill="#EF4444" fill-opacity="0.2" stroke="#EF4444" stroke-width="1"/>
-    <text x="84" y="386" fill="#EF4444" font-family="'Inter', sans-serif" font-size="10" font-weight="700">R</text>
-    <text x="108" y="386" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Replicate</text>
-  </g>
-  <g>
-    <rect x="60" y="412" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="434" r="12" fill="#3B82F6" fill-opacity="0.2" stroke="#3B82F6" stroke-width="1"/>
-    <text x="84" y="438" fill="#3B82F6" font-family="'Inter', sans-serif" font-size="10" font-weight="700">C</text>
-    <text x="108" y="438" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">CivitAI</text>
-  </g>
-  <g>
-    <rect x="60" y="464" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="486" r="12" fill="#F97316" fill-opacity="0.2" stroke="#F97316" stroke-width="1"/>
-    <text x="83" y="490" fill="#F97316" font-family="'Inter', sans-serif" font-size="10" font-weight="700">O</text>
-    <text x="108" y="490" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">OpenRouter</text>
-  </g>
-  <g>
-    <rect x="60" y="516" width="220" height="44" rx="10" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <circle cx="88" cy="538" r="12" fill="#8B5CF6" fill-opacity="0.2" stroke="#8B5CF6" stroke-width="1"/>
-    <text x="83" y="542" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="10" font-weight="700">+</text>
-    <text x="108" y="542" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="13" font-weight="600">Chatbot Arena, arXiv...</text>
+  <!-- Source cards -->
+  <rect x="60" y="152" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="174" r="12" fill="#10a37f" fill-opacity="0.2" stroke="#10a37f" stroke-width="1"/>
+  <text x="84" y="178" fill="#10a37f" font-family="system-ui, sans-serif" font-size="10" font-weight="700">O</text>
+  <text x="108" y="178" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">OpenAI</text>
+
+  <rect x="60" y="204" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="226" r="12" fill="#D4A27F" fill-opacity="0.2" stroke="#D4A27F" stroke-width="1"/>
+  <text x="84" y="230" fill="#D4A27F" font-family="system-ui, sans-serif" font-size="10" font-weight="700">A</text>
+  <text x="108" y="230" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Anthropic</text>
+
+  <rect x="60" y="256" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="278" r="12" fill="#4285F4" fill-opacity="0.2" stroke="#4285F4" stroke-width="1"/>
+  <text x="84" y="282" fill="#4285F4" font-family="system-ui, sans-serif" font-size="10" font-weight="700">G</text>
+  <text x="108" y="282" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Google AI</text>
+
+  <rect x="60" y="308" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="330" r="12" fill="#FFD21E" fill-opacity="0.2" stroke="#FFD21E" stroke-width="1"/>
+  <text x="83" y="334" fill="#FFD21E" font-family="system-ui, sans-serif" font-size="10" font-weight="700">H</text>
+  <text x="108" y="334" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">HuggingFace Hub</text>
+
+  <rect x="60" y="360" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="382" r="12" fill="#ea3943" fill-opacity="0.2" stroke="#ea3943" stroke-width="1"/>
+  <text x="84" y="386" fill="#ea3943" font-family="system-ui, sans-serif" font-size="10" font-weight="700">R</text>
+  <text x="108" y="386" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Replicate</text>
+
+  <rect x="60" y="412" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="434" r="12" fill="#00BFA5" fill-opacity="0.2" stroke="#00BFA5" stroke-width="1"/>
+  <text x="84" y="438" fill="#00BFA5" font-family="system-ui, sans-serif" font-size="10" font-weight="700">C</text>
+  <text x="108" y="438" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">CivitAI</text>
+
+  <rect x="60" y="464" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="486" r="12" fill="#6366f1" fill-opacity="0.2" stroke="#6366f1" stroke-width="1"/>
+  <text x="83" y="490" fill="#6366f1" font-family="system-ui, sans-serif" font-size="10" font-weight="700">O</text>
+  <text x="108" y="490" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">OpenRouter</text>
+
+  <rect x="60" y="516" width="220" height="44" rx="10" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="88" cy="538" r="12" fill="#8888a8" fill-opacity="0.2" stroke="#8888a8" stroke-width="1"/>
+  <text x="83" y="542" fill="#8888a8" font-family="system-ui, sans-serif" font-size="10" font-weight="700">+</text>
+  <text x="108" y="542" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="13" font-weight="600">Chatbot Arena, arXiv...</text>
+
+  <!-- Arrows -->
+  <g stroke="#00d4aa" stroke-width="1" stroke-dasharray="4 3" opacity="0.25">
+    <line x1="280" y1="174" x2="360" y2="340"/><line x1="280" y1="226" x2="360" y2="340"/>
+    <line x1="280" y1="278" x2="360" y2="340"/><line x1="280" y1="330" x2="360" y2="340"/>
+    <line x1="280" y1="382" x2="360" y2="380"/><line x1="280" y1="434" x2="360" y2="400"/>
+    <line x1="280" y1="486" x2="360" y2="420"/><line x1="280" y1="538" x2="360" y2="440"/>
   </g>
 
-  <!-- Arrows from sources to pipeline -->
-  <g stroke="#00D4AA" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.4">
-    <line x1="280" y1="174" x2="360" y2="340"/>
-    <line x1="280" y1="226" x2="360" y2="340"/>
-    <line x1="280" y1="278" x2="360" y2="340"/>
-    <line x1="280" y1="330" x2="360" y2="340"/>
-    <line x1="280" y1="382" x2="360" y2="380"/>
-    <line x1="280" y1="434" x2="360" y2="400"/>
-    <line x1="280" y1="486" x2="360" y2="420"/>
-    <line x1="280" y1="538" x2="360" y2="440"/>
+  <!-- Pipeline card -->
+  <rect x="360" y="260" width="280" height="240" rx="16" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+  <rect x="360" y="260" width="280" height="4" rx="2" fill="#00d4aa"/>
+  <text x="392" y="296" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Sync Pipeline</text>
+  <g transform="translate(392, 316)" font-family="system-ui, sans-serif" font-size="12">
+    <circle cx="6" cy="6" r="4" fill="#16c784"/><text x="18" y="11" fill="#e8e8f0">Registry-based adapters</text>
+    <circle cx="6" cy="30" r="4" fill="#16c784"/><text x="18" y="35" fill="#e8e8f0">Tier-priority execution</text>
+    <circle cx="6" cy="54" r="4" fill="#16c784"/><text x="18" y="59" fill="#e8e8f0">Graceful degradation</text>
+    <circle cx="6" cy="78" r="4" fill="#16c784"/><text x="18" y="83" fill="#e8e8f0">Idempotent upserts</text>
+    <circle cx="6" cy="102" r="4" fill="#16c784"/><text x="18" y="107" fill="#e8e8f0">Cron-scheduled refresh</text>
+    <circle cx="6" cy="126" r="4" fill="#16c784"/><text x="18" y="131" fill="#e8e8f0">Health monitoring</text>
   </g>
 
-  <!-- ═══════════ CENTER: PIPELINE ═══════════ -->
-  <g>
-    <rect x="360" y="260" width="280" height="240" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1.5"/>
-    <rect x="360" y="260" width="280" height="4" rx="2" fill="#00D4AA"/>
-    <text x="392" y="296" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Sync Pipeline</text>
+  <!-- Arrow to scoring -->
+  <line x1="640" y1="380" x2="720" y2="380" stroke="#00d4aa" stroke-width="2" stroke-dasharray="6 4" opacity="0.3"/>
+  <polygon points="718,376 728,380 718,384" fill="#00d4aa" opacity="0.5"/>
 
-    <g transform="translate(392, 316)" font-family="'Inter', sans-serif" font-size="12">
-      <circle cx="6" cy="6" r="4" fill="#4ADE80"/><text x="18" y="11" fill="#CBD5E1">Registry-based adapters</text>
-      <circle cx="6" cy="30" r="4" fill="#4ADE80"/><text x="18" y="35" fill="#CBD5E1">Tier-priority execution</text>
-      <circle cx="6" cy="54" r="4" fill="#4ADE80"/><text x="18" y="59" fill="#CBD5E1">Graceful degradation</text>
-      <circle cx="6" cy="78" r="4" fill="#4ADE80"/><text x="18" y="83" fill="#CBD5E1">Idempotent upserts</text>
-      <circle cx="6" cy="102" r="4" fill="#4ADE80"/><text x="18" y="107" fill="#CBD5E1">Cron-scheduled refresh</text>
-      <circle cx="6" cy="126" r="4" fill="#4ADE80"/><text x="18" y="131" fill="#CBD5E1">Health monitoring</text>
-    </g>
+  <!-- Scoring Engine -->
+  <rect x="740" y="152" width="800" height="456" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="740" y="152" width="800" height="4" rx="2" fill="#00d4aa"/>
+  <text x="772" y="192" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Transparent Scoring Engine</text>
+  <text x="772" y="216" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13">Every score is a formula you can audit — no black boxes</text>
+  <text x="1280" y="192" fill="#00d4aa" font-family="monospace" font-size="11" font-weight="600" text-anchor="end">AUDITABLE</text>
+
+  <!-- 5 Scoring Lenses -->
+  <g transform="translate(772, 240)">
+    <rect width="240" height="80" rx="10" fill="#00d4aa" fill-opacity="0.04" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="16" y="24" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Quality Score</text>
+    <text x="16" y="42" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">Benchmarks (avg), ELO rating,</text>
+    <text x="16" y="56" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">community signals, category weights</text>
+    <text x="16" y="72" fill="#8888a8" font-family="monospace" font-size="10" opacity="0.5">0-100 normalized</text>
+
+    <rect x="252" width="240" height="80" rx="10" fill="#16c784" fill-opacity="0.04" stroke="#16c784" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="268" y="24" fill="#16c784" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Popularity Score</text>
+    <text x="268" y="42" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">Downloads, likes, stars, news</text>
+    <text x="268" y="56" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">mentions, trending, durability</text>
+    <text x="268" y="72" fill="#8888a8" font-family="monospace" font-size="10" opacity="0.5">log-normalized 0-100</text>
+
+    <rect x="504" width="240" height="80" rx="10" fill="#f59e0b" fill-opacity="0.04" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="520" y="24" fill="#f59e0b" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Capability Score</text>
+    <text x="520" y="42" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">Benchmarks (60%), ELO (30%),</text>
+    <text x="520" y="56" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">release recency (10%)</text>
+    <text x="520" y="72" fill="#8888a8" font-family="monospace" font-size="10" opacity="0.5">weighted composite</text>
   </g>
 
-  <!-- Arrow pipeline to scoring -->
-  <g stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5">
-    <line x1="640" y1="380" x2="720" y2="380"/>
-  </g>
-  <polygon points="718,376 728,380 718,384" fill="#00D4AA" opacity="0.6"/>
+  <g transform="translate(772, 332)">
+    <rect width="240" height="80" rx="10" fill="#6366f1" fill-opacity="0.04" stroke="#6366f1" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="16" y="24" fill="#6366f1" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Agent Score</text>
+    <text x="16" y="42" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">SWE-Bench, HumanEval, Terminal-</text>
+    <text x="16" y="56" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">Bench, OSWorld, GAIA, WebArena</text>
+    <text x="16" y="72" fill="#8888a8" font-family="monospace" font-size="10" opacity="0.5">8 agent benchmarks</text>
 
-  <!-- ═══════════ RIGHT: SCORING ENGINE ═══════════ -->
-  <g>
-    <rect x="740" y="152" width="800" height="456" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <rect x="740" y="152" width="800" height="4" rx="2" fill="#39FF14"/>
-    <text x="772" y="192" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Transparent Scoring Engine</text>
-    <text x="772" y="216" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">Every score is a formula you can audit — no black boxes</text>
-
-    <!-- 5 Scoring Lenses -->
-    <g transform="translate(772, 240)">
-      <!-- Quality -->
-      <rect width="240" height="80" rx="10" fill="#3B82F6" fill-opacity="0.05" stroke="#3B82F6" stroke-width="1" stroke-opacity="0.3"/>
-      <text x="16" y="24" fill="#60A5FA" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Quality Score</text>
-      <text x="16" y="42" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">Benchmarks (avg), ELO rating,</text>
-      <text x="16" y="56" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">community signals, category weights</text>
-      <text x="16" y="72" fill="#64748B" font-family="'SF Mono', monospace" font-size="10">0-100 normalized</text>
-
-      <!-- Popularity -->
-      <rect x="252" width="240" height="80" rx="10" fill="#10B981" fill-opacity="0.05" stroke="#10B981" stroke-width="1" stroke-opacity="0.3"/>
-      <text x="268" y="24" fill="#34D399" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Popularity Score</text>
-      <text x="268" y="42" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">Downloads, likes, stars, news</text>
-      <text x="268" y="56" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">mentions, trending, durability</text>
-      <text x="268" y="72" fill="#64748B" font-family="'SF Mono', monospace" font-size="10">log-normalized 0-100</text>
-
-      <!-- Capability -->
-      <rect x="504" width="240" height="80" rx="10" fill="#F59E0B" fill-opacity="0.05" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.3"/>
-      <text x="520" y="24" fill="#FBBF24" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Capability Score</text>
-      <text x="520" y="42" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">Benchmarks (60%), ELO (30%),</text>
-      <text x="520" y="56" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">release recency (10%)</text>
-      <text x="520" y="72" fill="#64748B" font-family="'SF Mono', monospace" font-size="10">weighted composite</text>
-    </g>
-
-    <g transform="translate(772, 332)">
-      <!-- Agent Score -->
-      <rect width="240" height="80" rx="10" fill="#8B5CF6" fill-opacity="0.05" stroke="#8B5CF6" stroke-width="1" stroke-opacity="0.3"/>
-      <text x="16" y="24" fill="#A78BFA" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Agent Score</text>
-      <text x="16" y="42" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">SWE-Bench, HumanEval, Terminal-</text>
-      <text x="16" y="56" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">Bench, OSWorld, GAIA, WebArena</text>
-      <text x="16" y="72" fill="#64748B" font-family="'SF Mono', monospace" font-size="10">8 agent benchmarks</text>
-
-      <!-- Economic -->
-      <rect x="252" width="240" height="80" rx="10" fill="#EF4444" fill-opacity="0.05" stroke="#EF4444" stroke-width="1" stroke-opacity="0.3"/>
-      <text x="268" y="24" fill="#F87171" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Economic Footprint</text>
-      <text x="268" y="42" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">Monetization, distribution,</text>
-      <text x="268" y="56" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="11">adoption, durability + confidence</text>
-      <text x="268" y="72" fill="#64748B" font-family="'SF Mono', monospace" font-size="10">with coverage multipliers</text>
-    </g>
-
-    <!-- Market Cap Formula -->
-    <g transform="translate(772, 432)">
-      <rect width="736" height="72" rx="10" fill="#00D4AA" fill-opacity="0.04" stroke="#00D4AA" stroke-width="1" stroke-opacity="0.2"/>
-      <text x="16" y="24" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="14" font-weight="700">Market Cap Estimate</text>
-      <text x="16" y="48" fill="#94A3B8" font-family="'SF Mono', monospace" font-size="12">$1.2B x (demand/100)^1.2 x (execution/100)^0.4 x (price/100)^0.9 x confidence</text>
-      <text x="16" y="64" fill="#475569" font-family="'Inter', sans-serif" font-size="11">Coverage penalties: 1 signal = 50%, 2 = 70%, 3 = 85%, 4+ = 100%</text>
-    </g>
-
-    <!-- Signal confidence note -->
-    <text x="1280" y="192" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="11" font-weight="600" text-anchor="end">AUDITABLE</text>
+    <rect x="252" width="240" height="80" rx="10" fill="#ec4899" fill-opacity="0.04" stroke="#ec4899" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="268" y="24" fill="#ec4899" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Economic Footprint</text>
+    <text x="268" y="42" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">Monetization, distribution,</text>
+    <text x="268" y="56" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11">adoption, durability + confidence</text>
+    <text x="268" y="72" fill="#8888a8" font-family="monospace" font-size="10" opacity="0.5">with coverage multipliers</text>
   </g>
 
-  <!-- Benchmarks tracked -->
-  <g>
-    <rect x="60" y="628" width="1480" height="100" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
-    <text x="92" y="660" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="16" font-weight="700">Benchmarks Tracked</text>
-    <g transform="translate(92, 676)" font-family="'SF Mono', monospace" font-size="11">
-      <rect width="52" height="22" rx="4" fill="#3B82F6" fill-opacity="0.1"/><text x="8" y="15" fill="#60A5FA">MMLU</text>
-      <rect x="60" width="78" height="22" rx="4" fill="#3B82F6" fill-opacity="0.1"/><text x="68" y="15" fill="#60A5FA">HumanEval</text>
-      <rect x="146" width="52" height="22" rx="4" fill="#3B82F6" fill-opacity="0.1"/><text x="154" y="15" fill="#60A5FA">MATH</text>
-      <rect x="206" width="52" height="22" rx="4" fill="#3B82F6" fill-opacity="0.1"/><text x="214" y="15" fill="#60A5FA">GPQA</text>
-      <rect x="266" width="42" height="22" rx="4" fill="#3B82F6" fill-opacity="0.1"/><text x="274" y="15" fill="#60A5FA">BBH</text>
-      <rect x="316" width="86" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.1"/><text x="324" y="15" fill="#A78BFA">SWE-Bench</text>
-      <rect x="410" width="106" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.1"/><text x="418" y="15" fill="#A78BFA">Terminal-Bench</text>
-      <rect x="524" width="76" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.1"/><text x="532" y="15" fill="#A78BFA">OSWorld</text>
-      <rect x="608" width="52" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.1"/><text x="616" y="15" fill="#A78BFA">GAIA</text>
-      <rect x="668" width="82" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.1"/><text x="676" y="15" fill="#A78BFA">WebArena</text>
-      <rect x="758" width="88" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/><text x="766" y="15" fill="#FBBF24">Arena ELO</text>
-      <rect x="854" width="110" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/><text x="862" y="15" fill="#FBBF24">Arena-Hard-Auto</text>
-      <rect x="972" width="52" height="22" rx="4" fill="#10B981" fill-opacity="0.1"/><text x="980" y="15" fill="#34D399">MMMU</text>
-      <rect x="1032" width="82" height="22" rx="4" fill="#10B981" fill-opacity="0.1"/><text x="1040" y="15" fill="#34D399">MathVista</text>
-      <rect x="1122" width="92" height="22" rx="4" fill="#10B981" fill-opacity="0.1"/><text x="1130" y="15" fill="#34D399">LiveBench</text>
-      <rect x="1222" width="58" height="22" rx="4" fill="#64748B" fill-opacity="0.1"/><text x="1230" y="15" fill="#94A3B8">+ more</text>
-    </g>
+  <!-- Market Cap Formula -->
+  <g transform="translate(772, 432)">
+    <rect width="736" height="72" rx="10" fill="#00d4aa" fill-opacity="0.04" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.15"/>
+    <text x="16" y="24" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Market Cap Estimate</text>
+    <text x="16" y="48" fill="#8888a8" font-family="monospace" font-size="12">$1.2B x (demand/100)^1.2 x (execution/100)^0.4 x (price/100)^0.9 x confidence</text>
+    <text x="16" y="64" fill="#8888a8" font-family="system-ui, sans-serif" font-size="11" opacity="0.5">Coverage penalties: 1 signal = 50%, 2 = 70%, 3 = 85%, 4+ = 100%</text>
   </g>
 
-  <!-- Footer -->
-  <text x="80" y="766" fill="#334155" font-family="'Inter', sans-serif" font-size="13">Tier-based sync, graceful degradation, idempotent writes — adapters that miss a key degrade, they don't crash</text>
-  <rect x="1" y="1" width="1598" height="778" rx="12" stroke="#1E293B" stroke-width="1" fill="none"/>
+  <!-- Benchmarks -->
+  <rect x="60" y="628" width="1480" height="100" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="92" y="660" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Benchmarks Tracked</text>
+  <g transform="translate(92, 676)" font-family="monospace" font-size="11">
+    <rect width="52" height="22" rx="4" fill="#00d4aa" fill-opacity="0.1"/><text x="8" y="15" fill="#00d4aa">MMLU</text>
+    <rect x="60" width="78" height="22" rx="4" fill="#00d4aa" fill-opacity="0.1"/><text x="68" y="15" fill="#00d4aa">HumanEval</text>
+    <rect x="146" width="52" height="22" rx="4" fill="#00d4aa" fill-opacity="0.1"/><text x="154" y="15" fill="#00d4aa">MATH</text>
+    <rect x="206" width="52" height="22" rx="4" fill="#00d4aa" fill-opacity="0.1"/><text x="214" y="15" fill="#00d4aa">GPQA</text>
+    <rect x="266" width="42" height="22" rx="4" fill="#00d4aa" fill-opacity="0.1"/><text x="274" y="15" fill="#00d4aa">BBH</text>
+    <rect x="316" width="86" height="22" rx="4" fill="#6366f1" fill-opacity="0.1"/><text x="324" y="15" fill="#6366f1">SWE-Bench</text>
+    <rect x="410" width="106" height="22" rx="4" fill="#6366f1" fill-opacity="0.1"/><text x="418" y="15" fill="#6366f1">Terminal-Bench</text>
+    <rect x="524" width="76" height="22" rx="4" fill="#6366f1" fill-opacity="0.1"/><text x="532" y="15" fill="#6366f1">OSWorld</text>
+    <rect x="608" width="52" height="22" rx="4" fill="#6366f1" fill-opacity="0.1"/><text x="616" y="15" fill="#6366f1">GAIA</text>
+    <rect x="668" width="82" height="22" rx="4" fill="#6366f1" fill-opacity="0.1"/><text x="676" y="15" fill="#6366f1">WebArena</text>
+    <rect x="758" width="88" height="22" rx="4" fill="#f59e0b" fill-opacity="0.1"/><text x="766" y="15" fill="#f59e0b">Arena ELO</text>
+    <rect x="854" width="110" height="22" rx="4" fill="#f59e0b" fill-opacity="0.1"/><text x="862" y="15" fill="#f59e0b">Arena-Hard-Auto</text>
+    <rect x="972" width="52" height="22" rx="4" fill="#ec4899" fill-opacity="0.1"/><text x="980" y="15" fill="#ec4899">MMMU</text>
+    <rect x="1032" width="82" height="22" rx="4" fill="#ec4899" fill-opacity="0.1"/><text x="1040" y="15" fill="#ec4899">MathVista</text>
+    <rect x="1122" width="92" height="22" rx="4" fill="#ec4899" fill-opacity="0.1"/><text x="1130" y="15" fill="#ec4899">LiveBench</text>
+    <rect x="1222" width="58" height="22" rx="4" fill="#8888a8" fill-opacity="0.1"/><text x="1230" y="15" fill="#8888a8">+ more</text>
+  </g>
+
+  <text x="80" y="766" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13" opacity="0.6">Tier-based sync, graceful degradation, idempotent writes — adapters that miss a key degrade, they don't crash</text>
+  <rect x="1" y="1" width="1598" height="778" rx="12" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" fill="none"/>
 </svg>

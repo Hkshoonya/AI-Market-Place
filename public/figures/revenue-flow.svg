@@ -1,136 +1,85 @@
 <svg width="1600" height="960" viewBox="0 0 1600 960" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="960" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="1600" height="960" fill="url(#bg)"/>
-
-  <!-- Grid -->
-  <g opacity="0.03" stroke="#00D4AA" stroke-width="0.5">
+  <rect width="1600" height="960" fill="#000000"/>
+  <g opacity="0.04" stroke="#00d4aa" stroke-width="0.5">
     <line x1="0" y1="192" x2="1600" y2="192"/><line x1="0" y1="384" x2="1600" y2="384"/>
     <line x1="0" y1="576" x2="1600" y2="576"/><line x1="0" y1="768" x2="1600" y2="768"/>
   </g>
 
-  <!-- Title -->
-  <text x="80" y="80" fill="#F0FDF9" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="40" font-weight="700" letter-spacing="-1">Revenue Transparency</text>
-  <text x="80" y="116" fill="#64748B" font-family="'Inter', sans-serif" font-size="18">Every dollar is tracked publicly — from gross revenue through deductions to final allocation</text>
+  <text x="80" y="80" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="40" font-weight="700" letter-spacing="-1">Revenue Transparency</text>
+  <text x="80" y="116" fill="#8888a8" font-family="system-ui, sans-serif" font-size="18">Every dollar is tracked publicly — from gross revenue through deductions to final allocation</text>
 
   <!-- STEP 1 -->
-  <g>
-    <rect x="80" y="160" width="680" height="150" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
-    <rect x="80" y="160" width="4" height="150" rx="2" fill="#00D4AA"/>
-    <rect x="112" y="186" width="36" height="36" rx="18" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
-    <text x="130" y="210" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="18" font-weight="700" text-anchor="middle">1</text>
-    <text x="164" y="212" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="22" font-weight="700">Gross Platform Revenue</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
-      <tspan x="112" y="252">Sponsorships, platform fees, marketplace facilitation,</tspan>
-      <tspan x="112" y="274">partnership income, and approved support revenue</tspan>
-    </text>
-  </g>
+  <rect x="80" y="160" width="680" height="150" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="80" y="160" width="4" height="150" rx="2" fill="#00d4aa"/>
+  <rect x="112" y="186" width="36" height="36" rx="18" fill="#00d4aa" fill-opacity="0.15" stroke="#00d4aa" stroke-width="1.5"/>
+  <text x="130" y="210" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="18" font-weight="700" text-anchor="middle">1</text>
+  <text x="164" y="212" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Gross Platform Revenue</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="14"><tspan x="112" y="252">Sponsorships, platform fees, marketplace facilitation,</tspan><tspan x="112" y="274">partnership income, and approved support revenue</tspan></text>
 
-  <!-- Arrow 1-2 -->
-  <g><line x1="420" y1="310" x2="420" y2="360" stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><polygon points="416,358 420,368 424,358" fill="#00D4AA" opacity="0.6"/></g>
+  <g><line x1="420" y1="310" x2="420" y2="360" stroke="#00d4aa" stroke-width="2" stroke-dasharray="6 4" opacity="0.3"/><polygon points="416,358 420,368 424,358" fill="#00d4aa" opacity="0.5"/></g>
 
   <!-- STEP 2 -->
-  <g>
-    <rect x="80" y="370" width="680" height="150" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
-    <rect x="80" y="370" width="4" height="150" rx="2" fill="#EF4444"/>
-    <rect x="112" y="396" width="36" height="36" rx="18" fill="#EF4444" fill-opacity="0.15" stroke="#EF4444" stroke-width="1.5"/>
-    <text x="130" y="420" fill="#EF4444" font-family="'Inter', sans-serif" font-size="18" font-weight="700" text-anchor="middle">2</text>
-    <text x="164" y="422" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="22" font-weight="700">Deductions</text>
-    <text x="308" y="422" fill="#EF4444" font-family="'Inter', sans-serif" font-size="14" font-weight="500">(removed before allocation)</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
-      <tspan x="112" y="462">Refunds, chargebacks, taxes, processor fees,</tspan>
-      <tspan x="112" y="484">pass-through payouts, and direct delivery costs</tspan>
-    </text>
-  </g>
+  <rect x="80" y="370" width="680" height="150" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="80" y="370" width="4" height="150" rx="2" fill="#ea3943"/>
+  <rect x="112" y="396" width="36" height="36" rx="18" fill="#ea3943" fill-opacity="0.15" stroke="#ea3943" stroke-width="1.5"/>
+  <text x="130" y="420" fill="#ea3943" font-family="system-ui, sans-serif" font-size="18" font-weight="700" text-anchor="middle">2</text>
+  <text x="164" y="422" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Deductions</text>
+  <text x="308" y="422" fill="#ea3943" font-family="system-ui, sans-serif" font-size="14" font-weight="500">(removed before allocation)</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="14"><tspan x="112" y="462">Refunds, chargebacks, taxes, processor fees,</tspan><tspan x="112" y="484">pass-through payouts, and direct delivery costs</tspan></text>
 
-  <!-- Arrow 2-3 -->
-  <g><line x1="420" y1="520" x2="420" y2="570" stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><polygon points="416,568 420,578 424,568" fill="#00D4AA" opacity="0.6"/></g>
+  <g><line x1="420" y1="520" x2="420" y2="570" stroke="#00d4aa" stroke-width="2" stroke-dasharray="6 4" opacity="0.3"/><polygon points="416,568 420,578 424,568" fill="#00d4aa" opacity="0.5"/></g>
 
   <!-- STEP 3 -->
-  <g>
-    <rect x="80" y="580" width="680" height="120" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1.5"/>
-    <rect x="80" y="580" width="4" height="120" rx="2" fill="#00D4AA"/>
-    <rect x="112" y="606" width="36" height="36" rx="18" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
-    <text x="130" y="630" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="18" font-weight="700" text-anchor="middle">3</text>
-    <text x="164" y="632" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="22" font-weight="700">Net Platform Revenue</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
-      <tspan x="112" y="672">This is the number used for monthly allocation — the basis for all distribution</tspan>
-    </text>
-  </g>
+  <rect x="80" y="580" width="680" height="120" rx="16" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+  <rect x="80" y="580" width="4" height="120" rx="2" fill="#00d4aa"/>
+  <rect x="112" y="606" width="36" height="36" rx="18" fill="#00d4aa" fill-opacity="0.15" stroke="#00d4aa" stroke-width="1.5"/>
+  <text x="130" y="630" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="18" font-weight="700" text-anchor="middle">3</text>
+  <text x="164" y="632" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Net Platform Revenue</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="14"><tspan x="112" y="672">This is the number used for monthly allocation — the basis for all distribution</tspan></text>
 
   <!-- Branching arrows -->
-  <g stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5">
+  <g stroke="#00d4aa" stroke-width="2" stroke-dasharray="6 4" opacity="0.3">
     <path d="M420 700 L420 740 L260 740 L260 790" fill="none"/>
     <path d="M420 700 L420 740 L800 740 L800 790" fill="none"/>
     <path d="M420 700 L420 740 L1340 740 L1340 790" fill="none"/>
   </g>
-  <g fill="#00D4AA" opacity="0.6">
-    <polygon points="256,788 260,798 264,788"/><polygon points="796,788 800,798 804,788"/><polygon points="1336,788 1340,798 1344,788"/>
-  </g>
+  <g fill="#00d4aa" opacity="0.5"><polygon points="256,788 260,798 264,788"/><polygon points="796,788 800,798 804,788"/><polygon points="1336,788 1340,798 1344,788"/></g>
 
   <!-- 50% Treasury -->
-  <g>
-    <rect x="80" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1.5"/>
-    <text x="112" y="840" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="42" font-weight="800">50%</text>
-    <text x="192" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Product Treasury</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
-      <tspan x="112" y="870">Reinvestment, growth, runway,</tspan>
-      <tspan x="112" y="890">experimentation, long-term capacity</tspan>
-    </text>
-  </g>
+  <rect x="80" y="800" width="360" height="120" rx="16" fill="#0a0a0a" stroke="#00d4aa" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="112" y="840" fill="#00d4aa" font-family="system-ui, sans-serif" font-size="42" font-weight="800">50%</text>
+  <text x="192" y="840" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Product Treasury</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="13"><tspan x="112" y="870">Reinvestment, growth, runway,</tspan><tspan x="112" y="890">experimentation, long-term capacity</tspan></text>
 
   <!-- 25% Operations -->
-  <g>
-    <rect x="620" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#39FF14" stroke-width="1.5"/>
-    <text x="652" y="840" fill="#39FF14" font-family="'Inter', sans-serif" font-size="42" font-weight="800">25%</text>
-    <text x="732" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Operations</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
-      <tspan x="652" y="870">Hosting, maintenance, releases,</tspan>
-      <tspan x="652" y="890">moderation, ongoing stewardship</tspan>
-    </text>
-  </g>
+  <rect x="620" y="800" width="360" height="120" rx="16" fill="#0a0a0a" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="652" y="840" fill="#f59e0b" font-family="system-ui, sans-serif" font-size="42" font-weight="800">25%</text>
+  <text x="732" y="840" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Operations</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="13"><tspan x="652" y="870">Hosting, maintenance, releases,</tspan><tspan x="652" y="890">moderation, ongoing stewardship</tspan></text>
 
   <!-- 25% Collaborators -->
-  <g>
-    <rect x="1160" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#8B5CF6" stroke-width="1.5"/>
-    <text x="1192" y="840" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="42" font-weight="800">25%</text>
-    <text x="1272" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Collaborators</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
-      <tspan x="1192" y="870">Public point formula, monthly</tspan>
-      <tspan x="1192" y="890">reporting, transparent distribution</tspan>
-    </text>
-  </g>
+  <rect x="1160" y="800" width="360" height="120" rx="16" fill="#0a0a0a" stroke="#8b5cf6" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="1192" y="840" fill="#8b5cf6" font-family="system-ui, sans-serif" font-size="42" font-weight="800">25%</text>
+  <text x="1272" y="840" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Collaborators</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="13"><tspan x="1192" y="870">Public point formula, monthly</tspan><tspan x="1192" y="890">reporting, transparent distribution</tspan></text>
 
-  <!-- Right side: Reporting card -->
-  <g>
-    <rect x="840" y="160" width="680" height="360" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
-    <rect x="840" y="160" width="680" height="4" rx="2" fill="#8B5CF6"/>
-    <rect x="872" y="190" width="36" height="36" rx="18" fill="#8B5CF6" fill-opacity="0.15" stroke="#8B5CF6" stroke-width="1.5"/>
-    <text x="890" y="214" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="18" font-weight="700" text-anchor="middle">4</text>
-    <text x="924" y="216" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="22" font-weight="700">Public Monthly Report</text>
-    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14"><tspan x="872" y="260">Every month, the repo records:</tspan></text>
-    <g font-family="'Inter', sans-serif" font-size="15">
-      <rect x="892" y="282" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="296" fill="#CBD5E1">Gross revenue breakdown</text>
-      <rect x="892" y="312" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="326" fill="#CBD5E1">Deductions and net calculation</text>
-      <rect x="892" y="342" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="356" fill="#CBD5E1">Treasury / operations / collaborator split</text>
-      <rect x="892" y="372" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="386" fill="#CBD5E1">Contributor point table</text>
-      <rect x="892" y="402" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="416" fill="#CBD5E1">Distribution amounts per collaborator</text>
-      <rect x="892" y="432" width="16" height="16" rx="3" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-      <text x="920" y="446" fill="#CBD5E1">Maintainer sign-off</text>
-    </g>
-    <text x="872" y="494" fill="#64748B" font-family="'SF Mono', monospace" font-size="13">reports/revenue/ — committed to the repo</text>
+  <!-- Right: Reporting card -->
+  <rect x="840" y="160" width="680" height="360" rx="16" fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+  <rect x="840" y="160" width="680" height="4" rx="2" fill="#8b5cf6"/>
+  <rect x="872" y="190" width="36" height="36" rx="18" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="890" y="214" fill="#8b5cf6" font-family="system-ui, sans-serif" font-size="18" font-weight="700" text-anchor="middle">4</text>
+  <text x="924" y="216" fill="#e8e8f0" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Public Monthly Report</text>
+  <text fill="#8888a8" font-family="system-ui, sans-serif" font-size="14"><tspan x="872" y="260">Every month, the repo records:</tspan></text>
+  <g font-family="system-ui, sans-serif" font-size="15">
+    <circle cx="900" cy="290" r="4" fill="#16c784"/><text x="916" y="296" fill="#e8e8f0">Gross revenue breakdown</text>
+    <circle cx="900" cy="320" r="4" fill="#16c784"/><text x="916" y="326" fill="#e8e8f0">Deductions and net calculation</text>
+    <circle cx="900" cy="350" r="4" fill="#16c784"/><text x="916" y="356" fill="#e8e8f0">Treasury / operations / collaborator split</text>
+    <circle cx="900" cy="380" r="4" fill="#16c784"/><text x="916" y="386" fill="#e8e8f0">Contributor point table</text>
+    <circle cx="900" cy="410" r="4" fill="#16c784"/><text x="916" y="416" fill="#e8e8f0">Distribution amounts per collaborator</text>
+    <circle cx="900" cy="440" r="4" fill="#16c784"/><text x="916" y="446" fill="#e8e8f0">Maintainer sign-off</text>
   </g>
+  <text x="872" y="494" fill="#8888a8" font-family="monospace" font-size="13" opacity="0.5">reports/revenue/ — committed to the repo</text>
 
-  <!-- Footer -->
-  <text x="80" y="950" fill="#334155" font-family="'Inter', sans-serif" font-size="13">If revenue exists, the basis and distribution are visible in public. Missing a report is a governance failure.</text>
-  <rect x="1" y="1" width="1598" height="958" rx="12" stroke="#1E293B" stroke-width="1" fill="none"/>
+  <text x="80" y="950" fill="#8888a8" font-family="system-ui, sans-serif" font-size="13" opacity="0.6">If revenue exists, the basis and distribution are visible in public. Missing a report is a governance failure.</text>
+  <rect x="1" y="1" width="1598" height="958" rx="12" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1" fill="none"/>
 </svg>
