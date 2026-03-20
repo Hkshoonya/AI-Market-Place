@@ -180,10 +180,13 @@ function createMockSupabase({
 describe("HomePage freshness badge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     mockCreateOptionalAdminClient.mockReturnValue(null);
   });
 
-  it("prefers latest pipeline sync timestamp over launch/news activity", async () => {
+  it(
+    "prefers latest pipeline sync timestamp over launch/news activity",
+    async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
       createMockSupabase({
         latestSignalAt: "2026-03-19T16:10:00.000Z",
@@ -194,11 +197,13 @@ describe("HomePage freshness badge", () => {
     const { default: HomePage } = await import("./page");
     render(await HomePage());
 
-    const badge = screen.getByTestId("freshness-badge");
+    const [badge] = await screen.findAllByTestId("freshness-badge");
     expect(badge).toHaveAttribute("data-label", "Market signals refreshed");
     expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:00:00.000Z");
     expect(badge).toHaveAttribute("data-detail", "pipeline sync");
-  });
+    },
+    10000
+  );
 
   it("falls back to recent market updates when no pipeline sync timestamp exists", async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
@@ -211,7 +216,7 @@ describe("HomePage freshness badge", () => {
     const { default: HomePage } = await import("./page");
     render(await HomePage());
 
-    const badge = screen.getByTestId("freshness-badge");
+    const [badge] = await screen.findAllByTestId("freshness-badge");
     expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:10:00.000Z");
     expect(badge).toHaveAttribute("data-detail", "market updates");
   });

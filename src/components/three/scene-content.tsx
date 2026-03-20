@@ -1,64 +1,78 @@
 "use client";
 
-import { useRef, useMemo, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 1000;
 const CONNECTION_DISTANCE = 1.8;
+const CONNECTION_DISTANCE_SQ = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
 const MAX_CONNECTIONS = 200;
 
-// Module-level function: Math.random() calls here are outside any render/hook context
-function generateParticleData() {
-  const positions: number[] = [];
-  const velocities: number[] = [];
-  const phases: number[] = [];
-  const sizes: number[] = [];
+export interface SceneContentProps {
+  connectionBudget: number;
+  connectionRefreshStride: number;
+  simulationStride: number;
+  isScrolling: boolean;
+}
 
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    // Sphere-ish distribution with some randomness
+interface ParticleBuffers {
+  positions: Float32Array;
+  velocities: Float32Array;
+  phases: Float32Array;
+  sizes: Float32Array;
+}
+
+function generateParticleData(): ParticleBuffers {
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const velocities = new Float32Array(PARTICLE_COUNT * 3);
+  const phases = new Float32Array(PARTICLE_COUNT);
+  const sizes = new Float32Array(PARTICLE_COUNT);
+
+  for (let i = 0; i < PARTICLE_COUNT; i += 1) {
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    const r = 4 + Math.random() * 6;
+    const radius = 4 + Math.random() * 6;
+    const i3 = i * 3;
 
-    positions.push(
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.sin(phi) * Math.sin(theta),
-      r * Math.cos(phi) + (Math.random() - 0.5) * 2
-    );
+    positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+    positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+    positions[i3 + 2] = radius * Math.cos(phi) + (Math.random() - 0.5) * 2;
 
-    // Slow drift velocities
-    velocities.push(
-      (Math.random() - 0.5) * 0.001,
-      (Math.random() - 0.5) * 0.001,
-      (Math.random() - 0.5) * 0.001
-    );
+    velocities[i3] = (Math.random() - 0.5) * 0.001;
+    velocities[i3 + 1] = (Math.random() - 0.5) * 0.001;
+    velocities[i3 + 2] = (Math.random() - 0.5) * 0.001;
 
-    // Random phase for pulsing animation
-    phases.push(Math.random() * Math.PI * 2);
-
-    // Smaller, more refined particle sizes
-    sizes.push(0.008 + Math.random() * 0.018);
+    phases[i] = Math.random() * Math.PI * 2;
+    sizes[i] = 0.008 + Math.random() * 0.018;
   }
 
   return { positions, velocities, phases, sizes };
 }
 
-function Particles() {
+function createDynamicAttribute(size: number) {
+  const attribute = new THREE.BufferAttribute(new Float32Array(size), 3);
+  attribute.setUsage(THREE.DynamicDrawUsage);
+  return attribute;
+}
+
+function Particles({
+  connectionBudget,
+  connectionRefreshStride,
+  simulationStride,
+  isScrolling,
+}: SceneContentProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const linesRef = useRef<THREE.LineSegments>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
-
-  // useRef holds mutable particle data; generateParticleData() runs outside render
+  const frameIndexRef = useRef(0);
+  const lastConnectionBudgetRef = useRef(connectionBudget);
   const particlesRef = useRef(generateParticleData());
 
-  // Pre-allocate connection line geometry
   const lineGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(MAX_CONNECTIONS * 6); // 2 points * 3 coords per line
-    const colors = new Float32Array(MAX_CONNECTIONS * 6); // 2 colors * 3 channels per line
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("position", createDynamicAttribute(MAX_CONNECTIONS * 6));
+    geometry.setAttribute("color", createDynamicAttribute(MAX_CONNECTIONS * 6));
     geometry.setDrawRange(0, 0);
     return geometry;
   }, []);
@@ -75,139 +89,125 @@ function Particles() {
     []
   );
 
-  // Dummy object for instanced mesh transforms
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
 
-  // Track mouse position
-  const handlePointerMove = useCallback(
-    (e: { clientX: number; clientY: number }) => {
-      mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseRef.current.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    },
-    []
-  );
+  const handlePointerMove = useCallback((event: MouseEvent) => {
+    mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }, []);
 
-  // Set up mouse listener
   useEffect(() => {
-    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("mousemove", handlePointerMove, { passive: true });
     return () => window.removeEventListener("mousemove", handlePointerMove);
   }, [handlePointerMove]);
 
-  useFrame((state, _delta) => {
+  useFrame((state) => {
     if (!meshRef.current || !linesRef.current) return;
 
-    const time = state.clock.elapsedTime;
-    const particles = particlesRef.current;
-    const posArray = particles.positions;
-    const velArray = particles.velocities;
-    const phaseArray = particles.phases;
-    const sizeArray = particles.sizes;
+    frameIndexRef.current += 1;
+    if (frameIndexRef.current % simulationStride !== 0) return;
 
-    // Mouse parallax — smooth camera offset
-    const targetX = mouseRef.current.x * 0.5;
-    const targetY = mouseRef.current.y * 0.3;
-    state.camera.position.x += (targetX - state.camera.position.x) * 0.02;
-    state.camera.position.y += (targetY - state.camera.position.y) * 0.02;
+    const time = state.clock.elapsedTime;
+    const { positions, velocities, phases, sizes } = particlesRef.current;
+    const targetX = mouseRef.current.x * (isScrolling ? 0.42 : 0.5);
+    const targetY = mouseRef.current.y * (isScrolling ? 0.24 : 0.3);
+    const smoothing = isScrolling ? 0.03 : 0.02;
+
+    state.camera.position.x += (targetX - state.camera.position.x) * smoothing;
+    state.camera.position.y += (targetY - state.camera.position.y) * smoothing;
     state.camera.lookAt(0, 0, 0);
 
-    // Current positions for connection calculation
-    const currentPositions: number[] = [];
-
-    // Update particles
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < PARTICLE_COUNT; i += 1) {
       const i3 = i * 3;
+      positions[i3] += velocities[i3];
+      positions[i3 + 1] += velocities[i3 + 1];
+      positions[i3 + 2] += velocities[i3 + 2];
 
-      // Drift movement
-      posArray[i3] += velArray[i3];
-      posArray[i3 + 1] += velArray[i3 + 1];
-      posArray[i3 + 2] += velArray[i3 + 2];
-
-      // Soft boundary — pull back toward center if too far
-      const dist = Math.sqrt(
-        posArray[i3] ** 2 + posArray[i3 + 1] ** 2 + posArray[i3 + 2] ** 2
+      const distance = Math.sqrt(
+        positions[i3] ** 2 + positions[i3 + 1] ** 2 + positions[i3 + 2] ** 2
       );
-      if (dist > 10) {
+
+      if (distance > 10) {
         const pull = 0.0005;
-        posArray[i3] -= posArray[i3] * pull;
-        posArray[i3 + 1] -= posArray[i3 + 1] * pull;
-        posArray[i3 + 2] -= posArray[i3 + 2] * pull;
+        positions[i3] -= positions[i3] * pull;
+        positions[i3 + 1] -= positions[i3 + 1] * pull;
+        positions[i3 + 2] -= positions[i3 + 2] * pull;
       }
 
-      // Slow global rotation
       const angle = 0.0008;
-      const x = posArray[i3];
-      const z = posArray[i3 + 2];
-      posArray[i3] = x * Math.cos(angle) - z * Math.sin(angle);
-      posArray[i3 + 2] = x * Math.sin(angle) + z * Math.cos(angle);
+      const x = positions[i3];
+      const z = positions[i3 + 2];
+      positions[i3] = x * Math.cos(angle) - z * Math.sin(angle);
+      positions[i3 + 2] = x * Math.sin(angle) + z * Math.cos(angle);
 
-      // Pulsing scale (breathing)
-      const pulse = 0.8 + 0.4 * Math.sin(time * 0.8 + phaseArray[i]);
-      const scale = sizeArray[i] * pulse;
+      const pulse = 0.8 + 0.4 * Math.sin(time * 0.8 + phases[i]);
+      const scale = sizes[i] * pulse;
+      const depthFactor = Math.max(0.15, 1 - distance / 14);
 
-      // Depth-based opacity — farther particles dimmer
-      const depthFactor = Math.max(0.15, 1 - dist / 14);
-
-      dummy.position.set(posArray[i3], posArray[i3 + 1], posArray[i3 + 2]);
+      dummy.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
       dummy.scale.setScalar(scale);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
 
-      // Color with depth-based alpha simulation (via brightness)
       const brightness = depthFactor * pulse;
-      color.setRGB(0 * brightness, 0.83 * brightness, 0.67 * brightness);
+      color.setRGB(0, 0.83 * brightness, 0.67 * brightness);
       meshRef.current.setColorAt(i, color);
-
-      currentPositions.push(posArray[i3], posArray[i3 + 1], posArray[i3 + 2]);
     }
 
     meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor)
+    if (meshRef.current.instanceColor) {
       meshRef.current.instanceColor.needsUpdate = true;
+    }
 
-    // Update connections
-    const linePositions = lineGeometry.attributes.position
-      .array as Float32Array;
+    const shouldRefreshConnections =
+      frameIndexRef.current % connectionRefreshStride === 0 ||
+      lastConnectionBudgetRef.current !== connectionBudget;
+
+    if (!shouldRefreshConnections) {
+      return;
+    }
+
+    lastConnectionBudgetRef.current = connectionBudget;
+
+    const linePositions = lineGeometry.attributes.position.array as Float32Array;
     const lineColors = lineGeometry.attributes.color.array as Float32Array;
     let lineIndex = 0;
+    const targetConnections = Math.min(connectionBudget, MAX_CONNECTIONS);
 
-    for (let i = 0; i < PARTICLE_COUNT && lineIndex < MAX_CONNECTIONS; i++) {
-      for (
-        let j = i + 1;
-        j < PARTICLE_COUNT && lineIndex < MAX_CONNECTIONS;
-        j++
-      ) {
-        const i3 = i * 3;
+    for (let i = 0; i < PARTICLE_COUNT && lineIndex < targetConnections; i += 1) {
+      const i3 = i * 3;
+
+      for (let j = i + 1; j < PARTICLE_COUNT && lineIndex < targetConnections; j += 1) {
         const j3 = j * 3;
-        const dx = currentPositions[i3] - currentPositions[j3];
-        const dy = currentPositions[i3 + 1] - currentPositions[j3 + 1];
-        const dz = currentPositions[i3 + 2] - currentPositions[j3 + 2];
-        const distSq = dx * dx + dy * dy + dz * dz;
+        const dx = positions[i3] - positions[j3];
+        const dy = positions[i3 + 1] - positions[j3 + 1];
+        const dz = positions[i3 + 2] - positions[j3 + 2];
+        const distanceSq = dx * dx + dy * dy + dz * dz;
 
-        if (distSq < CONNECTION_DISTANCE * CONNECTION_DISTANCE) {
-          const dist = Math.sqrt(distSq);
-          const alpha = 1 - dist / CONNECTION_DISTANCE;
-          const li = lineIndex * 6;
-
-          // eslint-disable-next-line react-hooks/immutability -- R3F useFrame runs outside React render cycle; buffer geometry arrays require per-frame mutation for animation
-          linePositions[li] = currentPositions[i3];
-          linePositions[li + 1] = currentPositions[i3 + 1];
-          linePositions[li + 2] = currentPositions[i3 + 2];
-          linePositions[li + 3] = currentPositions[j3];
-          linePositions[li + 4] = currentPositions[j3 + 1];
-          linePositions[li + 5] = currentPositions[j3 + 2];
-
-          // Neon green lines with distance-based fade
-          const a = alpha * 0.3;
-          lineColors[li] = 0;
-          lineColors[li + 1] = 0.83 * a;
-          lineColors[li + 2] = 0.67 * a;
-          lineColors[li + 3] = 0;
-          lineColors[li + 4] = 0.83 * a;
-          lineColors[li + 5] = 0.67 * a;
-
-          lineIndex++;
+        if (distanceSq >= CONNECTION_DISTANCE_SQ) {
+          continue;
         }
+
+        const distance = Math.sqrt(distanceSq);
+        const alpha = (1 - distance / CONNECTION_DISTANCE) * 0.3;
+        const li = lineIndex * 6;
+
+        linePositions[li] = positions[i3];
+        linePositions[li + 1] = positions[i3 + 1];
+        linePositions[li + 2] = positions[i3 + 2];
+        linePositions[li + 3] = positions[j3];
+        linePositions[li + 4] = positions[j3 + 1];
+        linePositions[li + 5] = positions[j3 + 2];
+
+        lineColors[li] = 0;
+        lineColors[li + 1] = 0.83 * alpha;
+        lineColors[li + 2] = 0.67 * alpha;
+        lineColors[li + 3] = 0;
+        lineColors[li + 4] = 0.83 * alpha;
+        lineColors[li + 5] = 0.67 * alpha;
+
+        lineIndex += 1;
       }
     }
 
@@ -241,7 +241,6 @@ function Particles() {
   );
 }
 
-// Central glow orb
 function CentralGlow() {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -266,12 +265,22 @@ function CentralGlow() {
   );
 }
 
-export function SceneContent() {
+export function SceneContent({
+  connectionBudget,
+  connectionRefreshStride,
+  simulationStride,
+  isScrolling,
+}: SceneContentProps) {
   return (
     <>
       <color attach="background" args={["#000000"]} />
       <fog attach="fog" args={["#000000", 8, 18]} />
-      <Particles />
+      <Particles
+        connectionBudget={connectionBudget}
+        connectionRefreshStride={connectionRefreshStride}
+        simulationStride={simulationStride}
+        isScrolling={isScrolling}
+      />
       <CentralGlow />
     </>
   );

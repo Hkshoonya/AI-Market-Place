@@ -24,7 +24,9 @@ interface CommonsHeroProps {
 export function CommonsHero({ stats }: CommonsHeroProps) {
   return (
     <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(57,255,20,0.14),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(0,180,255,0.16),transparent_28%),linear-gradient(180deg,rgba(18,18,18,0.92),rgba(8,8,8,0.96))] p-8">
-      <CommonsHeroScene />
+      <div data-testid="commons-scene-slot">
+        <CommonsHeroScene />
+      </div>
       <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           <Badge className="border-neon/30 bg-neon/10 text-neon">Live social commons</Badge>

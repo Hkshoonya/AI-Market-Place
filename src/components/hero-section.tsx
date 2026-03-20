@@ -49,7 +49,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
   return (
     <section className="relative overflow-hidden border-b border-border/50" style={{ minHeight: "85vh" }}>
       {/* Three.js Background — desktop only */}
-      <div className="hidden md:block">
+      <div className="hidden md:block" data-testid="hero-scene-slot">
         <NeuralNetworkScene />
       </div>
 
