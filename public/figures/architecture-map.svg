@@ -1,81 +1,242 @@
-<svg width="1600" height="1180" viewBox="0 0 1600 1180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1600" height="1180" rx="32" fill="#000000"/>
-  <rect x="28" y="28" width="1544" height="1124" rx="28" fill="#0A0A0A" stroke="#14342D" stroke-width="2"/>
+<svg width="1600" height="1100" viewBox="0 0 1600 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="cardShadow"><feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/></filter>
+    <linearGradient id="connectorV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#00D4AA" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
 
-  <text x="72" y="102" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="700">
-    How AI Market Cap Is Structured
-  </text>
-  <text x="72" y="150" fill="#93DACA" font-family="Segoe UI, Arial, sans-serif" font-size="24">
-    Product surfaces on top of market data, trust systems, operations, and public governance.
-  </text>
+  <rect width="1600" height="1100" fill="url(#bg)"/>
 
-  <rect x="72" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
-  <text x="112" y="282" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Public Product</text>
-  <text x="112" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
-    <tspan x="112" dy="0">Model pages, leaderboards, provider views,</tspan>
-    <tspan x="112" dy="40">search, compare, marketplace, commons,</tspan>
-    <tspan x="112" dy="40">and admin surfaces for live operations.</tspan>
-  </text>
+  <!-- Grid -->
+  <g opacity="0.03" stroke="#00D4AA" stroke-width="0.5">
+    <line x1="0" y1="200" x2="1600" y2="200"/><line x1="0" y1="400" x2="1600" y2="400"/>
+    <line x1="0" y1="600" x2="1600" y2="600"/><line x1="0" y1="800" x2="1600" y2="800"/>
+    <line x1="320" y1="0" x2="320" y2="1100"/><line x1="640" y1="0" x2="640" y2="1100"/>
+    <line x1="960" y1="0" x2="960" y2="1100"/><line x1="1280" y1="0" x2="1280" y2="1100"/>
+  </g>
 
-  <rect x="840" y="220" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
-  <text x="880" y="282" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Core Intelligence</text>
-  <text x="880" y="344" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
-    <tspan x="880" dy="0">Scoring, pricing, trust cues, marketplace policy,</tspan>
-    <tspan x="880" dy="40">ranking integrity, notifications, and platform</tspan>
-    <tspan x="880" dy="40">logic that turns signals into usable product views.</tspan>
-  </text>
+  <!-- Title -->
+  <text x="80" y="80" fill="#F0FDF9" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="40" font-weight="700" letter-spacing="-1">System Architecture</text>
+  <text x="80" y="116" fill="#64748B" font-family="'Inter', sans-serif" font-size="18">How AI Market Cap connects data, intelligence, commerce, and public governance</text>
 
-  <rect x="72" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
-  <text x="112" y="518" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Data And Identity</text>
-  <text x="112" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
-    <tspan x="112" dy="0">Supabase Postgres, auth, profiles, listings,</tspan>
-    <tspan x="112" dy="40">orders, reports, and the records that keep the</tspan>
-    <tspan x="112" dy="40">public market graph coherent over time.</tspan>
-  </text>
+  <!-- ═══════════ LAYER 1: USER-FACING ═══════════ -->
+  <text x="80" y="188" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">PRESENTATION LAYER</text>
 
-  <rect x="840" y="456" width="688" height="190" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
-  <text x="880" y="518" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Market Signals</text>
-  <text x="880" y="580" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="28">
-    <tspan x="880" dy="0">Benchmarks, pricing updates, provider changes,</tspan>
-    <tspan x="880" dy="40">launch activity, freshness, and integrity checks</tspan>
-    <tspan x="880" dy="40">that explain what changed and why it matters.</tspan>
-  </text>
+  <!-- Card: Public Web App -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="80" y="210" width="440" height="4" rx="2" fill="#00D4AA"/>
+    <circle cx="112" cy="248" r="14" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
+    <text x="108" y="253" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="14" font-weight="700" text-anchor="middle">W</text>
+    <text x="140" y="254" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Public Web App</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
+      <tspan x="112" y="290">Model pages, leaderboards, provider views,</tspan>
+      <tspan x="112" y="312">search, compare, and discovery workflows</tspan>
+    </text>
+    <g transform="translate(112, 336)" font-family="'SF Mono', monospace" font-size="11">
+      <rect width="64" height="22" rx="4" fill="#00D4AA" fill-opacity="0.1"/><text x="8" y="15" fill="#00D4AA">Next.js</text>
+      <rect x="72" width="72" height="22" rx="4" fill="#00D4AA" fill-opacity="0.1"/><text x="80" y="15" fill="#00D4AA">React 19</text>
+      <rect x="152" width="72" height="22" rx="4" fill="#00D4AA" fill-opacity="0.1"/><text x="160" y="15" fill="#00D4AA">Three.js</text>
+    </g>
+  </g>
 
-  <rect x="72" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
-  <text x="108" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Runtime</text>
-  <text x="108" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
-    <tspan x="108" dy="0">Railway runs the live app,</tspan>
-    <tspan x="108" dy="38">while cron and resident</tspan>
-    <tspan x="108" dy="38">maintenance keep data and</tspan>
-    <tspan x="108" dy="38">operations moving.</tspan>
-  </text>
+  <!-- Card: Marketplace -->
+  <g filter="url(#cardShadow)">
+    <rect x="580" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="580" y="210" width="440" height="4" rx="2" fill="#39FF14"/>
+    <circle cx="612" cy="248" r="14" fill="#39FF14" fill-opacity="0.15" stroke="#39FF14" stroke-width="1.5"/>
+    <text x="608" y="253" fill="#39FF14" font-family="'Inter', sans-serif" font-size="14" font-weight="700" text-anchor="middle">M</text>
+    <text x="640" y="254" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Marketplace + Commerce</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
+      <tspan x="612" y="290">Listings, auctions, manifests, delivery,</tspan>
+      <tspan x="612" y="312">settlement, and trust-rail commerce</tspan>
+    </text>
+    <g transform="translate(612, 336)" font-family="'SF Mono', monospace" font-size="11">
+      <rect width="56" height="22" rx="4" fill="#39FF14" fill-opacity="0.1"/><text x="8" y="15" fill="#39FF14">Stripe</text>
+      <rect x="64" width="64" height="22" rx="4" fill="#39FF14" fill-opacity="0.1"/><text x="72" y="15" fill="#39FF14">Solana</text>
+      <rect x="136" width="48" height="22" rx="4" fill="#39FF14" fill-opacity="0.1"/><text x="144" y="15" fill="#39FF14">EVM</text>
+    </g>
+  </g>
 
-  <rect x="573" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#39FF14" stroke-width="2"/>
-  <text x="609" y="804" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Public Governance</text>
-  <text x="609" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
-    <tspan x="609" dy="0">Review rules, contribution</tspan>
-    <tspan x="609" dy="38">standards, revenue policy,</tspan>
-    <tspan x="609" dy="38">and collaborator roles live</tspan>
-    <tspan x="609" dy="38">in the repository itself.</tspan>
-  </text>
+  <!-- Card: Admin + Ops -->
+  <g filter="url(#cardShadow)">
+    <rect x="1080" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="1080" y="210" width="440" height="4" rx="2" fill="#F59E0B"/>
+    <circle cx="1112" cy="248" r="14" fill="#F59E0B" fill-opacity="0.15" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="1108" y="253" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="14" font-weight="700" text-anchor="middle">A</text>
+    <text x="1140" y="254" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Admin + Operations</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="14">
+      <tspan x="1112" y="290">Pipeline health, sync controls, moderation,</tspan>
+      <tspan x="1112" y="312">operator dashboards, and system status</tspan>
+    </text>
+    <g transform="translate(1112, 336)" font-family="'SF Mono', monospace" font-size="11">
+      <rect width="48" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/><text x="8" y="15" fill="#F59E0B">RLS</text>
+      <rect x="56" width="48" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/><text x="64" y="15" fill="#F59E0B">Cron</text>
+      <rect x="112" width="64" height="22" rx="4" fill="#F59E0B" fill-opacity="0.1"/><text x="120" y="15" fill="#F59E0B">Sentry</text>
+    </g>
+  </g>
 
-  <rect x="1074" y="738" width="454" height="242" rx="24" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
-  <text x="1110" y="804" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Distribution</text>
-  <text x="1110" y="868" fill="#E8FFF8" font-family="Segoe UI, Arial, sans-serif" font-size="27">
-    <tspan x="1110" dy="0">Cloudflare, the public site,</tspan>
-    <tspan x="1110" dy="38">GitHub visibility, and open</tspan>
-    <tspan x="1110" dy="38">issues and pull requests keep</tspan>
-    <tspan x="1110" dy="38">the product inspectable.</tspan>
-  </text>
+  <!-- ═══════════ CONNECTORS 1→2 ═══════════ -->
+  <g stroke="#1E3A5F" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5">
+    <line x1="300" y1="370" x2="300" y2="430"/>
+    <line x1="800" y1="370" x2="800" y2="430"/>
+    <line x1="1300" y1="370" x2="1300" y2="430"/>
+  </g>
+  <g fill="#00D4AA" opacity="0.6">
+    <polygon points="296,428 300,438 304,428"/>
+    <polygon points="796,428 800,438 804,428"/>
+    <polygon points="1296,428 1300,438 1304,428"/>
+  </g>
 
-  <path d="M760 315H840" stroke="#00D4AA" stroke-width="4"/>
-  <path d="M760 552H840" stroke="#39FF14" stroke-width="4"/>
-  <path d="M298 646V738" stroke="#00D4AA" stroke-width="4"/>
-  <path d="M800 646V738" stroke="#39FF14" stroke-width="4"/>
-  <path d="M1302 646V738" stroke="#00D4AA" stroke-width="4"/>
+  <!-- ═══════════ LAYER 2: INTELLIGENCE ═══════════ -->
+  <text x="80" y="466" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">INTELLIGENCE LAYER</text>
 
-  <rect x="72" y="1032" width="1456" height="82" rx="20" fill="#050505" stroke="#14342D"/>
-  <text x="114" y="1084" fill="#D8FFF4" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">
-    Product first. Public by default. Built to make the AI model economy easier to understand.
-  </text>
+  <!-- Card: Scoring Engine -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="80" y="488" width="340" height="3" rx="1.5" fill="#00D4AA"/>
+    <text x="112" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Scoring Engine</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="112" y="554">Benchmark normalization, composite</tspan>
+      <tspan x="112" y="574">rankings, trust scores, freshness cues</tspan>
+    </text>
+    <text x="112" y="608" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">src/lib/scoring + compute-scores</text>
+  </g>
+
+  <!-- Card: Pricing Intelligence -->
+  <g filter="url(#cardShadow)">
+    <rect x="460" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="460" y="488" width="340" height="3" rx="1.5" fill="#39FF14"/>
+    <text x="492" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Pricing Intelligence</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="492" y="554">Access-offer mapping, provider</tspan>
+      <tspan x="492" y="574">comparison, cost analysis</tspan>
+    </text>
+    <text x="492" y="608" fill="#39FF14" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">src/lib/models + providers</text>
+  </g>
+
+  <!-- Card: News + Launches -->
+  <g filter="url(#cardShadow)">
+    <rect x="840" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="840" y="488" width="340" height="3" rx="1.5" fill="#8B5CF6"/>
+    <text x="872" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">News + Launch Tracker</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="872" y="554">RSS ingestion, social feeds, model</tspan>
+      <tspan x="872" y="574">linking, launch activity timeline</tspan>
+    </text>
+    <text x="872" y="608" fill="#8B5CF6" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">src/lib/news + data-sources</text>
+  </g>
+
+  <!-- Card: Agent Systems -->
+  <g filter="url(#cardShadow)">
+    <rect x="1220" y="488" width="300" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="1220" y="488" width="300" height="3" rx="1.5" fill="#F59E0B"/>
+    <text x="1252" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Agent Systems</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="1252" y="554">LLM-backed analysis, quality</tspan>
+      <tspan x="1252" y="574">monitoring, autonomous ops</tspan>
+    </text>
+    <text x="1252" y="608" fill="#F59E0B" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">src/lib/agents + mcp</text>
+  </g>
+
+  <!-- ═══════════ CONNECTORS 2→3 ═══════════ -->
+  <g stroke="#1E3A5F" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5">
+    <line x1="250" y1="628" x2="250" y2="690"/>
+    <line x1="630" y1="628" x2="630" y2="690"/>
+    <line x1="1010" y1="628" x2="1010" y2="690"/>
+    <line x1="1370" y1="628" x2="1370" y2="690"/>
+  </g>
+  <g fill="#00D4AA" opacity="0.6">
+    <polygon points="246,688 250,698 254,688"/>
+    <polygon points="626,688 630,698 634,688"/>
+    <polygon points="1006,688 1010,698 1014,688"/>
+    <polygon points="1366,688 1370,698 1374,688"/>
+  </g>
+
+  <!-- ═══════════ LAYER 3: DATA + INFRA ═══════════ -->
+  <text x="80" y="726" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">DATA + INFRASTRUCTURE</text>
+
+  <!-- Card: Supabase -->
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="748" width="360" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="80" y="748" width="360" height="3" rx="1.5" fill="#3ECF8E"/>
+    <text x="112" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Supabase</text>
+    <text x="207" y="788" fill="#3ECF8E" font-family="'Inter', sans-serif" font-size="14" font-weight="500">Postgres + Auth + RLS</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="112" y="816">Models, providers, users, listings,</tspan>
+      <tspan x="112" y="836">orders, scores — 50+ migrations</tspan>
+    </text>
+    <text x="112" y="864" fill="#3ECF8E" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">supabase/migrations/*</text>
+  </g>
+
+  <!-- Card: External Data Sources -->
+  <g filter="url(#cardShadow)">
+    <rect x="500" y="748" width="360" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="500" y="748" width="360" height="3" rx="1.5" fill="#8B5CF6"/>
+    <text x="532" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Data Sources</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="532" y="816">OpenAI, Anthropic, Google, HuggingFace,</tspan>
+      <tspan x="532" y="836">Replicate, CivitAI, OpenRouter, + more</tspan>
+    </text>
+    <text x="532" y="864" fill="#8B5CF6" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">src/lib/data-sources/*</text>
+  </g>
+
+  <!-- Card: Railway -->
+  <g filter="url(#cardShadow)">
+    <rect x="920" y="748" width="300" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="920" y="748" width="300" height="3" rx="1.5" fill="#F59E0B"/>
+    <text x="952" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Railway</text>
+    <text x="1022" y="788" fill="#F59E0B" font-family="'Inter', sans-serif" font-size="14" font-weight="500">Container Runtime</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="952" y="816">App hosting, cron scheduler,</tspan>
+      <tspan x="952" y="836">custom server, health checks</tspan>
+    </text>
+    <text x="952" y="864" fill="#F59E0B" font-family="'SF Mono', monospace" font-size="11" opacity="0.6">server/ + Dockerfile</text>
+  </g>
+
+  <!-- Card: Cloudflare -->
+  <g filter="url(#cardShadow)">
+    <rect x="1280" y="748" width="240" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
+    <rect x="1280" y="748" width="240" height="3" rx="1.5" fill="#F97316"/>
+    <text x="1312" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Cloudflare</text>
+    <text fill="#94A3B8" font-family="'Inter', sans-serif" font-size="13">
+      <tspan x="1312" y="816">CDN, edge caching,</tspan>
+      <tspan x="1312" y="836">DDoS protection</tspan>
+    </text>
+  </g>
+
+  <!-- ═══════════ LAYER 4: GOVERNANCE ═══════════ -->
+  <text x="80" y="934" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">PUBLIC GOVERNANCE</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="80" y="952" width="1440" height="72" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1" stroke-opacity="0.3"/>
+    <g font-family="'Inter', sans-serif" font-size="15" font-weight="600">
+      <text x="140" y="994" fill="#00D4AA">CONTRIBUTING</text>
+      <text x="282" y="994" fill="#334155">|</text>
+      <text x="310" y="994" fill="#39FF14">GOVERNANCE</text>
+      <text x="428" y="994" fill="#334155">|</text>
+      <text x="456" y="994" fill="#8B5CF6">REVENUE</text>
+      <text x="546" y="994" fill="#334155">|</text>
+      <text x="574" y="994" fill="#F59E0B">SECURITY</text>
+      <text x="672" y="994" fill="#334155">|</text>
+      <text x="700" y="994" fill="#00D4AA">CODE OF CONDUCT</text>
+      <text x="872" y="994" fill="#334155">|</text>
+      <text x="900" y="994" fill="#39FF14">COLLABORATORS</text>
+      <text x="1050" y="994" fill="#334155">|</text>
+      <text x="1078" y="994" fill="#94A3B8">TRADEMARK</text>
+      <text x="1186" y="994" fill="#334155">|</text>
+      <text x="1214" y="994" fill="#94A3B8">Apache 2.0</text>
+    </g>
+  </g>
+
+  <!-- Footer note -->
+  <text x="80" y="1072" fill="#334155" font-family="'Inter', sans-serif" font-size="13">Product first. Public by default. Built to make the AI model economy legible.</text>
+
+  <!-- Border -->
+  <rect x="1" y="1" width="1598" height="1098" rx="12" stroke="#1E293B" stroke-width="1" fill="none"/>
 </svg>

@@ -1,67 +1,158 @@
-<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1600" height="900" rx="36" fill="#000000"/>
-  <rect x="28" y="28" width="1544" height="844" rx="32" fill="#0A0A0A" stroke="#14342D" stroke-width="2"/>
+<svg width="1600" height="840" viewBox="0 0 1600 840" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1600" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="50%" stop-color="#0C1222"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="glowLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00D4AA" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#00D4AA" stop-opacity="1"/>
+      <stop offset="80%" stop-color="#39FF14" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#39FF14" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="chartGrad" x1="800" y1="600" x2="800" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00D4AA" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#00D4AA" stop-opacity="0.12"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="24" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="orbGlow1" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#00D4AA" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00D4AA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbGlow2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#39FF14" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#39FF14" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
 
-  <circle cx="1318" cy="186" r="132" fill="#00D4AA" fill-opacity="0.08"/>
-  <circle cx="1382" cy="662" r="122" fill="#00D4AA" fill-opacity="0.06"/>
-  <circle cx="1182" cy="436" r="88" fill="#39FF14" fill-opacity="0.05"/>
+  <!-- Background -->
+  <rect width="1600" height="840" fill="url(#bgGrad)"/>
 
-  <path d="M834 224C956 178 1078 184 1198 232C1300 272 1382 330 1456 410" stroke="#00D4AA" stroke-opacity="0.6" stroke-width="4"/>
-  <path d="M808 360C932 330 1054 344 1174 392C1280 434 1368 492 1442 570" stroke="#00D4AA" stroke-opacity="0.52" stroke-width="4"/>
-  <path d="M788 504C924 490 1040 514 1162 566C1270 612 1360 664 1432 736" stroke="#39FF14" stroke-opacity="0.42" stroke-width="3.5"/>
-
-  <g fill="#00D4AA">
-    <circle cx="864" cy="214" r="14"/>
-    <circle cx="998" cy="198" r="11"/>
-    <circle cx="1128" cy="214" r="13"/>
-    <circle cx="1266" cy="258" r="14"/>
-    <circle cx="1394" cy="348" r="11"/>
-    <circle cx="838" cy="352" r="11"/>
-    <circle cx="972" cy="344" r="14"/>
-    <circle cx="1114" cy="368" r="12"/>
-    <circle cx="1252" cy="416" r="14"/>
-    <circle cx="1384" cy="504" r="11"/>
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04" stroke="#00D4AA" stroke-width="0.5">
+    <line x1="0" y1="140" x2="1600" y2="140"/><line x1="0" y1="280" x2="1600" y2="280"/>
+    <line x1="0" y1="420" x2="1600" y2="420"/><line x1="0" y1="560" x2="1600" y2="560"/>
+    <line x1="0" y1="700" x2="1600" y2="700"/>
+    <line x1="200" y1="0" x2="200" y2="840"/><line x1="400" y1="0" x2="400" y2="840"/>
+    <line x1="600" y1="0" x2="600" y2="840"/><line x1="800" y1="0" x2="800" y2="840"/>
+    <line x1="1000" y1="0" x2="1000" y2="840"/><line x1="1200" y1="0" x2="1200" y2="840"/>
+    <line x1="1400" y1="0" x2="1400" y2="840"/>
   </g>
 
-  <g fill="#39FF14">
-    <circle cx="808" cy="498" r="12"/>
-    <circle cx="954" cy="514" r="10"/>
-    <circle cx="1098" cy="548" r="14"/>
-    <circle cx="1244" cy="598" r="11"/>
-    <circle cx="1388" cy="686" r="12"/>
+  <!-- Ambient orbs -->
+  <circle cx="1300" cy="200" r="260" fill="url(#orbGlow1)"/>
+  <circle cx="300" cy="650" r="200" fill="url(#orbGlow2)"/>
+  <circle cx="1100" cy="600" r="180" fill="url(#orbGlow1)"/>
+
+  <!-- Market chart visualization (right side) -->
+  <g opacity="0.85">
+    <!-- Chart area fill -->
+    <path d="M820 580 L880 520 L940 540 L1000 470 L1060 490 L1120 420 L1180 380 L1240 350 L1300 310 L1360 280 L1420 240 L1480 200 L1540 180 L1540 580 Z" fill="url(#chartGrad)"/>
+
+    <!-- Main chart line -->
+    <path d="M820 580 L880 520 L940 540 L1000 470 L1060 490 L1120 420 L1180 380 L1240 350 L1300 310 L1360 280 L1420 240 L1480 200 L1540 180" stroke="#00D4AA" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+
+    <!-- Secondary chart line -->
+    <path d="M820 600 L880 570 L940 580 L1000 540 L1060 550 L1120 510 L1180 480 L1240 460 L1300 430 L1360 410 L1420 370 L1480 340 L1540 310" stroke="#39FF14" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+
+    <!-- Data points on main line -->
+    <g fill="#00D4AA" filter="url(#glow)">
+      <circle cx="1000" cy="470" r="5"/><circle cx="1120" cy="420" r="5"/>
+      <circle cx="1240" cy="350" r="5"/><circle cx="1360" cy="280" r="5"/>
+      <circle cx="1480" cy="200" r="6"/><circle cx="1540" cy="180" r="4"/>
+    </g>
+
+    <!-- Floating data labels -->
+    <g font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="11" fill="#00D4AA" opacity="0.7">
+      <text x="1470" y="190">GPT-5</text>
+      <text x="1350" y="270">Claude 4</text>
+      <text x="1230" y="340">Gemini 2</text>
+      <text x="1110" y="410">Llama 4</text>
+    </g>
+
+    <!-- Axis hints -->
+    <line x1="820" y1="580" x2="1540" y2="580" stroke="#00D4AA" stroke-opacity="0.15" stroke-width="1"/>
+    <g font-family="'SF Mono', monospace" font-size="10" fill="#00D4AA" opacity="0.3">
+      <text x="820" y="596">Jan</text><text x="1000" y="596">Apr</text>
+      <text x="1180" y="596">Jul</text><text x="1360" y="596">Oct</text>
+      <text x="1500" y="596">Now</text>
+    </g>
   </g>
 
-  <rect x="96" y="110" width="612" height="118" rx="20" fill="#050505" stroke="#1A4037"/>
-  <text x="132" y="164" fill="#9BE8D9" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="600">
-    <tspan x="132" dy="0">Public intelligence infrastructure</tspan>
-    <tspan x="132" dy="38">for the AI model economy</tspan>
-  </text>
+  <!-- Floating nodes (model network) -->
+  <g opacity="0.25">
+    <circle cx="900" cy="180" r="3" fill="#00D4AA"/><circle cx="950" cy="220" r="2" fill="#39FF14"/>
+    <circle cx="1050" cy="160" r="2.5" fill="#00D4AA"/><circle cx="1150" cy="200" r="2" fill="#39FF14"/>
+    <circle cx="870" cy="300" r="2" fill="#00D4AA"/><circle cx="980" cy="280" r="3" fill="#39FF14"/>
+    <line x1="900" y1="180" x2="950" y2="220" stroke="#00D4AA" stroke-width="0.5"/>
+    <line x1="950" y1="220" x2="1050" y2="160" stroke="#00D4AA" stroke-width="0.5"/>
+    <line x1="1050" y1="160" x2="1150" y2="200" stroke="#39FF14" stroke-width="0.5"/>
+    <line x1="870" y1="300" x2="980" y2="280" stroke="#00D4AA" stroke-width="0.5"/>
+  </g>
 
-  <text x="96" y="350" fill="#F4FFFC" font-family="Segoe UI, Arial, sans-serif" font-size="98" font-weight="700">
+  <!-- Horizontal accent line -->
+  <rect x="80" y="395" width="680" height="2" fill="url(#glowLine)" rx="1" filter="url(#glow)"/>
+
+  <!-- Main title text -->
+  <text x="80" y="310" fill="#F0FDF9" font-family="'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="82" font-weight="800" letter-spacing="-2">
     AI Market Cap
   </text>
 
-  <text x="96" y="430" fill="#C6FFF2" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="600">
-    The public market graph for AI models
+  <!-- Subtitle -->
+  <text x="80" y="370" fill="#99F6E4" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="32" font-weight="500" letter-spacing="0.5">
+    The Public Market Graph for AI Models
   </text>
 
-  <text x="96" y="520" fill="#9FD7CC" font-family="Segoe UI, Arial, sans-serif" font-size="31">
-    <tspan x="96" dy="0">Track benchmarks, pricing, launches, provider momentum,</tspan>
-    <tspan x="96" dy="42">trust signals, and agent-native commerce in one place.</tspan>
+  <!-- Description -->
+  <text fill="#94A3B8" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="20" font-weight="400">
+    <tspan x="80" dy="456">Track rankings, benchmarks, pricing, launches, provider</tspan>
+    <tspan x="80" dy="30">momentum, and agent-native commerce — all in one place.</tspan>
   </text>
 
-  <rect x="96" y="616" width="258" height="68" rx="18" fill="#050505" stroke="#00D4AA" stroke-width="2"/>
-  <text x="136" y="660" fill="#00D4AA" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">
-    aimarketcap.tech
+  <!-- CTA badges -->
+  <g transform="translate(80, 540)">
+    <!-- Live badge -->
+    <rect width="180" height="48" rx="24" fill="#00D4AA" fill-opacity="0.1" stroke="#00D4AA" stroke-width="1.5"/>
+    <circle cx="24" cy="24" r="5" fill="#00D4AA" filter="url(#glow)"/>
+    <text x="42" y="30" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="16" font-weight="600">aimarketcap.tech</text>
+
+    <!-- Open Source badge -->
+    <rect x="200" y="0" width="160" height="48" rx="24" fill="#39FF14" fill-opacity="0.08" stroke="#39FF14" stroke-width="1.5" stroke-opacity="0.6"/>
+    <text x="232" y="30" fill="#39FF14" font-family="'Inter', sans-serif" font-size="16" font-weight="600">Open Source</text>
+
+    <!-- Apache badge -->
+    <rect x="380" y="0" width="160" height="48" rx="24" fill="transparent" stroke="#475569" stroke-width="1"/>
+    <text x="410" y="30" fill="#94A3B8" font-family="'Inter', sans-serif" font-size="16" font-weight="500">Apache 2.0</text>
+  </g>
+
+  <!-- Tech stack icons row -->
+  <g transform="translate(80, 628)" font-family="'SF Mono', 'Fira Code', monospace" font-size="13" fill="#64748B">
+    <text>Next.js</text>
+    <text x="72" fill="#334155">|</text>
+    <text x="88">React 19</text>
+    <text x="164" fill="#334155">|</text>
+    <text x="180">Supabase</text>
+    <text x="260" fill="#334155">|</text>
+    <text x="276">TypeScript</text>
+    <text x="368" fill="#334155">|</text>
+    <text x="384">Three.js</text>
+    <text x="456" fill="#334155">|</text>
+    <text x="472">Solana</text>
+  </g>
+
+  <!-- Bottom tagline -->
+  <text x="80" y="760" fill="#475569" font-family="'Inter', sans-serif" font-size="14" font-weight="400" letter-spacing="3">
+    RANKINGS  ·  BENCHMARKS  ·  PRICING  ·  LAUNCHES  ·  MARKETPLACE  ·  GOVERNANCE
   </text>
 
-  <rect x="378" y="616" width="234" height="68" rx="18" fill="#050505" stroke="#39FF14" stroke-width="2"/>
-  <text x="420" y="660" fill="#39FF14" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">
-    Built in public
-  </text>
-
-  <rect x="96" y="732" width="556" height="92" rx="20" fill="#050505" stroke="#1A4037"/>
-  <text x="132" y="788" fill="#E7FFFA" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">
-    For users, sponsors, collaborators, and developers
-  </text>
+  <!-- Border frame -->
+  <rect x="1" y="1" width="1598" height="838" rx="12" stroke="#1E293B" stroke-width="1" fill="none"/>
 </svg>
