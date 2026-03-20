@@ -3,8 +3,6 @@
     <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
     </linearGradient>
-    <filter id="cardShadow"><feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/><feOffset in="blur" dx="0" dy="4" result="offsetBlur"/><feFlood flood-color="#000" flood-opacity="0.5" result="color"/><feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="glow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
 
   <rect width="1600" height="900" fill="url(#bg)"/>
@@ -32,7 +30,7 @@
   <!-- ═══════════ LISTING CARDS ═══════════ -->
 
   <!-- Listing 1 -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="60" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <rect x="60" y="168" width="360" height="4" rx="2" fill="#39FF14"/>
     <!-- Badges -->
@@ -73,7 +71,7 @@
   </g>
 
   <!-- Listing 2 - Agent -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="440" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <rect x="440" y="168" width="360" height="4" rx="2" fill="#8B5CF6"/>
     <rect x="464" y="192" width="56" height="22" rx="4" fill="#8B5CF6" fill-opacity="0.15"/>
@@ -104,7 +102,7 @@
   </g>
 
   <!-- Listing 3 - Auction -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="820" y="168" width="360" height="340" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <rect x="820" y="168" width="360" height="4" rx="2" fill="#F59E0B"/>
     <rect x="844" y="192" width="60" height="22" rx="4" fill="#F59E0B" fill-opacity="0.15"/>
@@ -137,7 +135,7 @@
   <!-- ═══════════ BOTTOM: SETTLEMENT + FEATURES ═══════════ -->
 
   <!-- Payment Rails -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="60" y="540" width="560" height="190" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <text x="92" y="576" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Settlement Rails</text>
     <text x="92" y="598" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">Multi-chain crypto + traditional payments with escrow protection</text>
@@ -172,7 +170,7 @@
   </g>
 
   <!-- Safety & Trust -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="640" y="540" width="540" height="190" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <text x="672" y="576" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Autonomous Commerce Guardrails</text>
     <text x="672" y="598" fill="#64748B" font-family="'Inter', sans-serif" font-size="13">Policy engine protects buyers, sellers, and the platform</text>
@@ -190,7 +188,7 @@
   </g>
 
   <!-- Listing types grid -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="1200" y="168" width="340" height="562" rx="16" fill="#0F172A" stroke="#1E293B" stroke-width="1"/>
     <text x="1232" y="204" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Listing Types</text>
 

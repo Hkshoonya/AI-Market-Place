@@ -3,8 +3,6 @@
     <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1100" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
     </linearGradient>
-    <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="cardShadow"><feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/><feOffset in="blur" dx="0" dy="4" result="offsetBlur"/><feFlood flood-color="#000" flood-opacity="0.5" result="color"/><feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <linearGradient id="connectorV" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#00D4AA"/><stop offset="100%" stop-color="#00D4AA" stop-opacity="0.2"/>
     </linearGradient>
@@ -28,7 +26,7 @@
   <text x="80" y="188" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">PRESENTATION LAYER</text>
 
   <!-- Card: Public Web App -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="80" y="210" width="440" height="4" rx="2" fill="#00D4AA"/>
     <circle cx="112" cy="248" r="14" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
@@ -46,7 +44,7 @@
   </g>
 
   <!-- Card: Marketplace -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="580" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="580" y="210" width="440" height="4" rx="2" fill="#39FF14"/>
     <circle cx="612" cy="248" r="14" fill="#39FF14" fill-opacity="0.15" stroke="#39FF14" stroke-width="1.5"/>
@@ -64,7 +62,7 @@
   </g>
 
   <!-- Card: Admin + Ops -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="1080" y="210" width="440" height="160" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="1080" y="210" width="440" height="4" rx="2" fill="#F59E0B"/>
     <circle cx="1112" cy="248" r="14" fill="#F59E0B" fill-opacity="0.15" stroke="#F59E0B" stroke-width="1.5"/>
@@ -97,7 +95,7 @@
   <text x="80" y="466" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">INTELLIGENCE LAYER</text>
 
   <!-- Card: Scoring Engine -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="80" y="488" width="340" height="3" rx="1.5" fill="#00D4AA"/>
     <text x="112" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Scoring Engine</text>
@@ -109,7 +107,7 @@
   </g>
 
   <!-- Card: Pricing Intelligence -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="460" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="460" y="488" width="340" height="3" rx="1.5" fill="#39FF14"/>
     <text x="492" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Pricing Intelligence</text>
@@ -121,7 +119,7 @@
   </g>
 
   <!-- Card: News + Launches -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="840" y="488" width="340" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="840" y="488" width="340" height="3" rx="1.5" fill="#8B5CF6"/>
     <text x="872" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">News + Launch Tracker</text>
@@ -133,7 +131,7 @@
   </g>
 
   <!-- Card: Agent Systems -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="1220" y="488" width="300" height="140" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="1220" y="488" width="300" height="3" rx="1.5" fill="#F59E0B"/>
     <text x="1252" y="526" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Agent Systems</text>
@@ -162,7 +160,7 @@
   <text x="80" y="726" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">DATA + INFRASTRUCTURE</text>
 
   <!-- Card: Supabase -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="748" width="360" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="80" y="748" width="360" height="3" rx="1.5" fill="#3ECF8E"/>
     <text x="112" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Supabase</text>
@@ -175,7 +173,7 @@
   </g>
 
   <!-- Card: External Data Sources -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="500" y="748" width="360" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="500" y="748" width="360" height="3" rx="1.5" fill="#8B5CF6"/>
     <text x="532" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Data Sources</text>
@@ -187,7 +185,7 @@
   </g>
 
   <!-- Card: Railway -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="920" y="748" width="300" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="920" y="748" width="300" height="3" rx="1.5" fill="#F59E0B"/>
     <text x="952" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Railway</text>
@@ -200,7 +198,7 @@
   </g>
 
   <!-- Card: Cloudflare -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="1280" y="748" width="240" height="130" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="1280" y="748" width="240" height="3" rx="1.5" fill="#F97316"/>
     <text x="1312" y="788" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="18" font-weight="700">Cloudflare</text>
@@ -213,7 +211,7 @@
   <!-- ═══════════ LAYER 4: GOVERNANCE ═══════════ -->
   <text x="80" y="934" fill="#00D4AA" font-family="'SF Mono', monospace" font-size="12" font-weight="600" letter-spacing="3" opacity="0.7">PUBLIC GOVERNANCE</text>
 
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="952" width="1440" height="72" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1" stroke-opacity="0.3"/>
     <g font-family="'Inter', sans-serif" font-size="15" font-weight="600">
       <text x="140" y="994" fill="#00D4AA">CONTRIBUTING</text>

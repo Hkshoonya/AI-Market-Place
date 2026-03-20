@@ -15,14 +15,6 @@
       <stop offset="0%" stop-color="#00D4AA" stop-opacity="0"/>
       <stop offset="100%" stop-color="#00D4AA" stop-opacity="0.12"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
-      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="24" result="coloredBlur"/>
-      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
     <radialGradient id="orbGlow1" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#00D4AA" stop-opacity="0.15"/>
       <stop offset="100%" stop-color="#00D4AA" stop-opacity="0"/>
@@ -58,13 +50,13 @@
     <path d="M820 580 L880 520 L940 540 L1000 470 L1060 490 L1120 420 L1180 380 L1240 350 L1300 310 L1360 280 L1420 240 L1480 200 L1540 180 L1540 580 Z" fill="url(#chartGrad)"/>
 
     <!-- Main chart line -->
-    <path d="M820 580 L880 520 L940 540 L1000 470 L1060 490 L1120 420 L1180 380 L1240 350 L1300 310 L1360 280 L1420 240 L1480 200 L1540 180" stroke="#00D4AA" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+    <path d="M820 580 L880 520 L940 540 L1000 470 L1060 490 L1120 420 L1180 380 L1240 350 L1300 310 L1360 280 L1420 240 L1480 200 L1540 180" stroke="#00D4AA" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 
     <!-- Secondary chart line -->
     <path d="M820 600 L880 570 L940 580 L1000 540 L1060 550 L1120 510 L1180 480 L1240 460 L1300 430 L1360 410 L1420 370 L1480 340 L1540 310" stroke="#39FF14" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
 
     <!-- Data points on main line -->
-    <g fill="#00D4AA" filter="url(#glow)">
+    <g fill="#00D4AA">
       <circle cx="1000" cy="470" r="5"/><circle cx="1120" cy="420" r="5"/>
       <circle cx="1240" cy="350" r="5"/><circle cx="1360" cy="280" r="5"/>
       <circle cx="1480" cy="200" r="6"/><circle cx="1540" cy="180" r="4"/>
@@ -99,7 +91,7 @@
   </g>
 
   <!-- Horizontal accent line -->
-  <rect x="80" y="395" width="680" height="2" fill="url(#glowLine)" rx="1" filter="url(#glow)"/>
+  <rect x="80" y="395" width="680" height="2" fill="url(#glowLine)" rx="1"/>
 
   <!-- Main title text -->
   <text x="80" y="310" fill="#F0FDF9" font-family="'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="82" font-weight="800" letter-spacing="-2">
@@ -121,7 +113,7 @@
   <g transform="translate(80, 540)">
     <!-- Live badge -->
     <rect width="180" height="48" rx="24" fill="#00D4AA" fill-opacity="0.1" stroke="#00D4AA" stroke-width="1.5"/>
-    <circle cx="24" cy="24" r="5" fill="#00D4AA" filter="url(#glow)"/>
+    <circle cx="24" cy="24" r="5" fill="#00D4AA"/>
     <text x="42" y="30" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="16" font-weight="600">aimarketcap.tech</text>
 
     <!-- Open Source badge -->

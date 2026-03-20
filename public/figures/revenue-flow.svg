@@ -3,8 +3,6 @@
     <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="960" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0C1222"/>
     </linearGradient>
-    <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="cardShadow"><feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/><feOffset in="blur" dx="0" dy="4" result="offsetBlur"/><feFlood flood-color="#000" flood-opacity="0.5" result="color"/><feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
 
   <rect width="1600" height="960" fill="url(#bg)"/>
@@ -20,7 +18,7 @@
   <text x="80" y="116" fill="#64748B" font-family="'Inter', sans-serif" font-size="18">Every dollar is tracked publicly — from gross revenue through deductions to final allocation</text>
 
   <!-- STEP 1 -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="160" width="680" height="150" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="80" y="160" width="4" height="150" rx="2" fill="#00D4AA"/>
     <rect x="112" y="186" width="36" height="36" rx="18" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
@@ -36,7 +34,7 @@
   <g><line x1="420" y1="310" x2="420" y2="360" stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><polygon points="416,358 420,368 424,358" fill="#00D4AA" opacity="0.6"/></g>
 
   <!-- STEP 2 -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="370" width="680" height="150" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="80" y="370" width="4" height="150" rx="2" fill="#EF4444"/>
     <rect x="112" y="396" width="36" height="36" rx="18" fill="#EF4444" fill-opacity="0.15" stroke="#EF4444" stroke-width="1.5"/>
@@ -53,7 +51,7 @@
   <g><line x1="420" y1="520" x2="420" y2="570" stroke="#00D4AA" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><polygon points="416,568 420,578 424,568" fill="#00D4AA" opacity="0.6"/></g>
 
   <!-- STEP 3 -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="580" width="680" height="120" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1.5"/>
     <rect x="80" y="580" width="4" height="120" rx="2" fill="#00D4AA"/>
     <rect x="112" y="606" width="36" height="36" rx="18" fill="#00D4AA" fill-opacity="0.15" stroke="#00D4AA" stroke-width="1.5"/>
@@ -75,7 +73,7 @@
   </g>
 
   <!-- 50% Treasury -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="80" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#00D4AA" stroke-width="1.5"/>
     <text x="112" y="840" fill="#00D4AA" font-family="'Inter', sans-serif" font-size="42" font-weight="800">50%</text>
     <text x="192" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Product Treasury</text>
@@ -86,7 +84,7 @@
   </g>
 
   <!-- 25% Operations -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="620" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#39FF14" stroke-width="1.5"/>
     <text x="652" y="840" fill="#39FF14" font-family="'Inter', sans-serif" font-size="42" font-weight="800">25%</text>
     <text x="732" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Operations</text>
@@ -97,7 +95,7 @@
   </g>
 
   <!-- 25% Collaborators -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="1160" y="800" width="360" height="120" rx="16" fill="#0F172A" stroke="#8B5CF6" stroke-width="1.5"/>
     <text x="1192" y="840" fill="#8B5CF6" font-family="'Inter', sans-serif" font-size="42" font-weight="800">25%</text>
     <text x="1272" y="840" fill="#E2E8F0" font-family="'Inter', sans-serif" font-size="20" font-weight="700">Collaborators</text>
@@ -108,7 +106,7 @@
   </g>
 
   <!-- Right side: Reporting card -->
-  <g filter="url(#cardShadow)">
+  <g>
     <rect x="840" y="160" width="680" height="360" rx="16" fill="#0F172A" stroke="#1E3A5F" stroke-width="1"/>
     <rect x="840" y="160" width="680" height="4" rx="2" fill="#8B5CF6"/>
     <rect x="872" y="190" width="36" height="36" rx="18" fill="#8B5CF6" fill-opacity="0.15" stroke="#8B5CF6" stroke-width="1.5"/>
