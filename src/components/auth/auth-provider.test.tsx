@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
+  refreshSession: vi.fn(),
   getUser: vi.fn(),
   onAuthStateChange: vi.fn(),
   unsubscribe: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
       getSession: authMocks.getSession,
+      refreshSession: authMocks.refreshSession,
       getUser: authMocks.getUser,
       onAuthStateChange: authMocks.onAuthStateChange,
       signOut: authMocks.signOut,
@@ -41,11 +43,14 @@ vi.mock("@/lib/supabase/client", () => ({
 import { AuthProvider, useAuth } from "./auth-provider";
 
 function AuthProbe() {
-  const { loading, user } = useAuth();
+  const { loading, user, signOut } = useAuth();
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="user">{user ? "user" : "none"}</span>
+      <button type="button" onClick={() => signOut()}>
+        Sign out
+      </button>
     </div>
   );
 }
@@ -57,6 +62,10 @@ describe("AuthProvider", () => {
     localStorage.clear();
     authMocks.getSession.mockResolvedValue({
       data: { session: null },
+    });
+    authMocks.refreshSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
     });
     authMocks.onAuthStateChange.mockReturnValue({
       data: {
@@ -122,7 +131,7 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("user").textContent).toBe("user");
   });
 
-  it("restores the signed-in user from cached auth state while refresh auth checks are still pending", async () => {
+  it("keeps cached auth provisional until Supabase restores a real session", async () => {
     localStorage.setItem(
       "ai-market-cap.auth",
       JSON.stringify({
@@ -145,10 +154,133 @@ describe("AuthProvider", () => {
       </AuthProvider>
     );
 
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+    expect(screen.getByTestId("user").textContent).toBe("user");
+
     await act(async () => {
       vi.runOnlyPendingTimers();
     });
 
+    expect(screen.getByTestId("loading").textContent).toBe("false");
+    expect(screen.getByTestId("user").textContent).toBe("none");
+  });
+
+  it("clears cached auth after timeout when Supabase cannot restore a real session", async () => {
+    localStorage.setItem(
+      "ai-market-cap.auth",
+      JSON.stringify({
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      })
+    );
+    authMocks.getUser.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved
+        })
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
     expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+
+    await act(async () => {
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(screen.getByTestId("user").textContent).toBe("none");
+    expect(screen.getByTestId("loading").textContent).toBe("false");
+    expect(localStorage.getItem("ai-market-cap.auth")).toBeNull();
+  });
+
+  it("recovers a cached user by refreshing the real Supabase session", async () => {
+    localStorage.setItem(
+      "ai-market-cap.auth",
+      JSON.stringify({
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      })
+    );
+    authMocks.refreshSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+          },
+        },
+      },
+      error: null,
+    });
+    authMocks.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(authMocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("loading").textContent).toBe("false");
+  });
+
+  it("clears local auth state even if Supabase sign-out fails", async () => {
+    authMocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+          },
+        },
+      },
+    });
+    authMocks.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "user@example.com",
+        },
+      },
+    });
+    authMocks.signOut.mockRejectedValue(new Error("missing session"));
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    await act(async () => {
+      screen.getByRole("button", { name: /sign out/i }).click();
+    });
+
+    expect(screen.getByTestId("user").textContent).toBe("none");
+    expect(localStorage.getItem("ai-market-cap.auth")).toBeNull();
   });
 });

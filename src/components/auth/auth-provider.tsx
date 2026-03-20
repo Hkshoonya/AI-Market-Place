@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [cachedAuth] = useState(() => readCachedAuthState());
   const [user, setUser] = useState<User | null>(cachedAuth.user);
   const [profile, setProfile] = useState<Profile | null>(cachedAuth.profile);
-  const [loading, setLoading] = useState(() => cachedAuth.user == null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isActive = true;
@@ -113,6 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timeoutId = window.setTimeout(() => {
       if (!isActive) return;
       console.warn("Auth initialization timed out");
+      if (!hasResolvedInitialUser) {
+        setUser(null);
+        setProfile(null);
+        writeCachedAuthState(null, null);
+        posthog.reset();
+      }
       setLoading(false);
     }, AUTH_INIT_TIMEOUT_MS);
 
@@ -142,14 +148,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        if (session?.user || !cachedAuth.user) {
-          await applyUser(session?.user ?? null);
+        let resolvedSessionUser = session?.user ?? null;
+
+        if (!resolvedSessionUser && cachedAuth.user) {
+          const {
+            data: refreshData,
+            error: refreshError,
+          } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.warn("Auth session refresh failed:", refreshError);
+          } else {
+            resolvedSessionUser = refreshData.session?.user ?? null;
+          }
+        }
+
+        if (resolvedSessionUser || !cachedAuth.user) {
+          await applyUser(resolvedSessionUser);
         }
 
         const {
           data: { user: currentUser },
         } = await supabase.auth.getUser();
-        if (!hasResolvedInitialUser || currentUser?.id !== session?.user?.id) {
+        if (!hasResolvedInitialUser || currentUser?.id !== resolvedSessionUser?.id) {
           await applyUser(currentUser);
         }
       } catch (err) {
@@ -181,10 +201,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    posthog.reset();
-    setUser(null);
-    setProfile(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn("Auth sign-out failed:", error);
+    } finally {
+      posthog.reset();
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+      writeCachedAuthState(null, null);
+    }
   };
 
   return (
