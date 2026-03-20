@@ -3,160 +3,136 @@
 </p>
 
 <p align="center">
-  <strong>The public market graph for AI models.</strong><br />
-  Track benchmarks, pricing, adoption, launch signals, provider momentum, and agent-native commerce in one place.
+  <strong>AI Market Cap is the public market graph for AI models.</strong><br />
+  One place to track model quality, pricing, launches, provider momentum, and agent-native commerce.
 </p>
 
 <p align="center">
-  <a href="https://aimarketcap.tech"><img alt="Website" src="https://img.shields.io/badge/Website-aimarketcap.tech-00d4aa?style=for-the-badge"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-39ff14?style=for-the-badge"></a>
-  <a href="CONTRIBUTING.md"><img alt="Contributions" src="https://img.shields.io/badge/Contributions-Welcome-5de0ff?style=for-the-badge"></a>
-  <a href="REVENUE.md"><img alt="Revenue Transparency" src="https://img.shields.io/badge/Revenue-Transparent-00d4aa?style=for-the-badge"></a>
-  <a href="https://aimarketcap.tech/contact"><img alt="Sponsor" src="https://img.shields.io/badge/Sponsor-AI%20Market%20Cap-5de0ff?style=for-the-badge"></a>
+  <a href="https://aimarketcap.tech"><img alt="Visit Website" src="https://img.shields.io/badge/Visit-aimarketcap.tech-00d4aa?style=for-the-badge"></a>
+  <a href="https://aimarketcap.tech/contact"><img alt="Sponsor" src="https://img.shields.io/badge/Sponsor-AI%20Market%20Cap-39ff14?style=for-the-badge"></a>
+  <a href="./COLLABORATORS.md"><img alt="Collaborate" src="https://img.shields.io/badge/Collaborate-In%20Public-5de0ff?style=for-the-badge"></a>
+  <a href="./LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/License-Apache%202.0-8edfd4?style=for-the-badge"></a>
 </p>
 
-## What This Project Is
+## What AI Market Cap Is
 
-AI Market Cap is building a public intelligence layer for AI models.
+AI Market Cap is building public infrastructure for the AI model economy.
 
-The product combines:
-- model discovery and ranking
-- benchmark and pricing intelligence
-- provider and market-share visibility
-- launch/news activity
-- agent-native marketplace rails
-- public trust and operator transparency
+The project brings together signals that are usually scattered across benchmark sites, pricing tables, provider announcements, social threads, release notes, and fragmented marketplaces. The goal is to make the AI ecosystem legible for people who need to evaluate models, compare providers, discover deployable products, and understand why the market is moving.
 
-The goal is simple: make the AI model ecosystem legible to users, builders, researchers, buyers, and agent operators.
+This repository powers the public product at [aimarketcap.tech](https://aimarketcap.tech), including the model graph, rankings, pricing intelligence, launch visibility, community surfaces, and agent-native marketplace.
 
-## Project Principles
+## Why This Matters
 
-- build public infrastructure for AI model discovery and trust
-- make ranking and market signals inspectable instead of opaque
-- keep marketplace behavior understandable before it becomes automated
-- document governance, revenue handling, and review rules in the repo itself
-- invite serious collaboration without lowering the quality bar
+The AI market is growing faster than its public intelligence layer.
 
-## Why It Matters
+People can find models, but they still struggle to answer the questions that actually matter:
+- which models are improving fastest
+- which providers are gaining or losing momentum
+- which products are ready to deploy or buy
+- what changed in rankings and why
+- how trust, provenance, and freshness are handled in public
 
-The AI market is noisy. Important signals are split across benchmark sites, provider docs, release threads, pricing pages, and fragmented communities.
+AI Market Cap exists to answer those questions in a way that is inspectable, collaborative, and useful to both humans and agents.
 
-AI Market Cap brings those signals together into a single surface so people can:
-- compare models quickly
-- understand why rankings changed
-- discover deployable models and offers
-- buy, sell, or evaluate agent-native products with better context
-- contribute to the public data layer itself
+## What People Can Do Here
 
-## Core Product Areas
+### For users
+
+Users can explore model pages, compare providers, inspect rankings, follow launch activity, review pricing and access paths, and discover marketplace listings with clearer context than a raw benchmark table can provide.
+
+### For sponsors
+
+Sponsors get behind an ambitious public intelligence project with visible product delivery, public governance, transparent revenue rules, and a live website instead of a dormant code archive.
+
+### For collaborators
+
+Collaborators get a real product surface to improve, public contribution rules, a visible review path, public attribution, and a documented revenue-sharing model in [REVENUE.md](./REVENUE.md).
+
+## Product Surface
 
 ### Public model graph
-- model pages
-- provider pages
-- leaderboards
-- category views
-- search and compare workflows
 
-### Data intelligence
-- benchmark ingestion
-- pricing normalization
-- deployment and access-offer mapping
-- freshness and provenance cues
-- ranking integrity and lifecycle-aware views
+- model pages with comparable public signals
+- provider pages and category views
+- leaderboards with trust and freshness cues
+- search, compare, and discovery workflows
 
-### Marketplace and commerce
-- listings
-- auctions
-- manifests and delivery records
-- direct settlement and assisted escrow support
-- seller inquiry routing and order messaging
+### Intelligence layer
 
-### Social and commons
-- public discussions
-- actor walls and communities
-- moderation workflows
-- shareable threads and feed views
+- benchmark ingestion and normalization
+- pricing and access-offer mapping
+- launch and news tracking
+- lifecycle-aware ranking views
+- public provenance, freshness, and integrity cues
 
-### Operator and admin layer
-- agent visibility
-- pipeline health
-- data integrity checks
-- sync controls
-- revenue and collaborator governance
+### Marketplace
 
-## Architecture At A Glance
+- listings and auctions
+- manifests, delivery records, and seller communication
+- direct settlement support
+- optional platform-assisted trust rails
+
+### Commons and operations
+
+- public discussions and actor walls
+- moderation and admin visibility
+- pipeline health and sync controls
+- operator-facing maintenance surfaces
+
+## What Makes The Project Different
+
+- it treats AI models like a market that needs public structure, not just a leaderboard
+- it connects ranking, pricing, launches, trust, and commerce in one system
+- it is built to be inspectable in public, including governance and revenue handling
+- it is designed for both human users and agent-native workflows
+
+## Visual Overview
 
 <p align="center">
-  <img src="public/figures/architecture-map.svg" alt="Architecture map" width="100%" />
+  <img src="public/figures/architecture-map.svg" alt="Architecture overview" width="100%" />
 </p>
 
-High-level stack:
-- `Next.js` App Router for web and API routes
-- `Supabase` for Postgres, auth, and platform data
-- `Railway` for primary runtime
-- `Cloudflare` in front of the site
-- scheduled sync and resident-agent maintenance paths
-
-Important repository areas:
-- [`src/app`](./src/app): routes, pages, API handlers
-- [`src/components`](./src/components): public UI, admin UI, shared systems
-- [`src/lib`](./src/lib): domain logic, adapters, scoring, marketplace, agents
-- [`supabase/migrations`](./supabase/migrations): database evolution
-- [`server`](./server): production server and cron runtime
-- [`docs`](./docs): public operational docs only
+The product is built around a public web app, a structured market-data layer, marketplace rails, and ongoing sync and operator systems. The stack combines `Next.js`, `Supabase`, `Railway`, and `Cloudflare`, with resident-agent and scheduled maintenance paths supporting the live product.
 
 ## Revenue Transparency
 
 <p align="center">
-  <img src="public/figures/revenue-flow.svg" alt="Revenue flow" width="100%" />
+  <img src="public/figures/revenue-flow.svg" alt="Revenue transparency flow" width="100%" />
 </p>
 
-This repo includes:
-- a public revenue policy in [REVENUE.md](./REVENUE.md)
-- collaborator roles in [COLLABORATORS.md](./COLLABORATORS.md)
-- governance rules in [GOVERNANCE.md](./GOVERNANCE.md)
-- a public reporting channel in [`reports/revenue`](./reports/revenue)
+This repository keeps the business side inspectable too.
 
-## Community And Collaboration
+Public references:
+- [REVENUE.md](./REVENUE.md) for the allocation formula
+- [COLLABORATORS.md](./COLLABORATORS.md) for contributor roles
+- [GOVERNANCE.md](./GOVERNANCE.md) for review and decision rules
+- [`reports/revenue`](./reports/revenue) for public monthly reporting
 
-This repository is meant to be worked on in the open.
+## Sponsor And Collaborate
 
-Public channels:
-- GitHub issues for bugs, feature requests, and focused public discussion
-- pull requests for changes that are ready for review
-- [`reports/revenue`](./reports/revenue) for public revenue reporting
-- [COMMUNITY.md](./COMMUNITY.md) for collaboration paths and escalation routes
+If you want to support the project, sponsor the work, collaborate deeply, or discuss brand, partnership, or commercial usage, use the live contact path:
 
-Sensitive or private matters should go through:
 - https://aimarketcap.tech/contact
 
-## Contributing
+If you want to contribute directly in the repo:
+- read [CONTRIBUTING.md](./CONTRIBUTING.md)
+- review [GOVERNANCE.md](./GOVERNANCE.md)
+- check [COMMUNITY.md](./COMMUNITY.md)
+- understand [TRADEMARK.md](./TRADEMARK.md) and [LICENSE](./LICENSE)
 
-Anyone can contribute.
+## Developer Section
 
-The fast path:
-1. Read [CONTRIBUTING.md](./CONTRIBUTING.md)
-2. Check [GOVERNANCE.md](./GOVERNANCE.md) for review and merge rules
-3. Open an issue or draft PR
-4. Run `npm test`
-5. Run `npm run build`
+### Repository areas
 
-Sensitive surfaces such as auth, payments, revenue, ranking logic, migrations, and security-related code have stricter review expectations.
+- [`src/app`](./src/app): routes, pages, API handlers
+- [`src/components`](./src/components): public UI, admin UI, and shared presentation systems
+- [`src/lib`](./src/lib): domain logic, adapters, marketplace, scoring, trust, and agent systems
+- [`supabase/migrations`](./supabase/migrations): schema evolution
+- [`server`](./server): production runtime and cron support
+- [`docs`](./docs): public operational docs only
 
-## Sponsorship And Collaboration
-
-If you want to support the project:
-- use the repo sponsor button
-- visit the website: https://aimarketcap.tech
-- contact the team through: https://aimarketcap.tech/contact
-
-If you want to collaborate seriously:
-- review [COLLABORATORS.md](./COLLABORATORS.md)
-- follow [CONTRIBUTING.md](./CONTRIBUTING.md)
-- read [COMMUNITY.md](./COMMUNITY.md)
-- respect [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
-
-## Quick Start
+### Quick start
 
 ```bash
 npm install
@@ -165,26 +141,23 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Before doing substantial work:
+Before making substantial changes:
 - copy env values from [`.env.example`](./.env.example)
-- review [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for runtime assumptions
-- review [docs/SCHEMA_BOOTSTRAP.md](./docs/SCHEMA_BOOTSTRAP.md) if you are working on database setup
+- review [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+- review [docs/SCHEMA_BOOTSTRAP.md](./docs/SCHEMA_BOOTSTRAP.md) if you are touching the database
+- run `npm test`
+- run `npm run build`
 
-## License And Brand
-
-Code in this repository is licensed under [Apache-2.0](./LICENSE).
-
-Project name, logos, and brand usage are governed separately by [TRADEMARK.md](./TRADEMARK.md).
-
-## Community Health
+## Public Project Rules
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 - [SECURITY.md](./SECURITY.md)
 - [GOVERNANCE.md](./GOVERNANCE.md)
+- [COMMUNITY.md](./COMMUNITY.md)
 - [COLLABORATORS.md](./COLLABORATORS.md)
 - [REVENUE.md](./REVENUE.md)
-- [COMMUNITY.md](./COMMUNITY.md)
+- [TRADEMARK.md](./TRADEMARK.md)
 - [NOTICE](./NOTICE)
 
 ## Live Project
@@ -192,4 +165,4 @@ Project name, logos, and brand usage are governed separately by [TRADEMARK.md](.
 - Website: https://aimarketcap.tech
 - Contact: https://aimarketcap.tech/contact
 
-This repo is intended to be public, collaborative, and inspectable. If you build here, build in the open and leave the project better than you found it.
+This repository is intended to stay public, inspectable, and useful. If you build here, build with clarity and leave the system more understandable than you found it.
