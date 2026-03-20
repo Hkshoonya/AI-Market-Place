@@ -11,6 +11,8 @@ const contactSchema = z.object({
   category: z.string().max(100).optional(),
   subject: z.string().min(1, "Subject is required").max(500),
   message: z.string().min(1, "Message is required").max(10000),
+  listing_id: z.string().uuid().optional().or(z.string().min(1).max(200).optional()),
+  seller_id: z.string().uuid().optional().or(z.string().min(1).max(200).optional()),
 });
 
 export const dynamic = "force-dynamic";
@@ -34,10 +36,35 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { name, email, category, subject, message } = parsed.data;
+    const { name, email, category, subject, message, listing_id, seller_id } = parsed.data;
 
     // Persist to contact_submissions table
     const supabase = createAdminClient();
+    let listingContext:
+      | {
+          id: string;
+          seller_id: string;
+          title: string | null;
+          slug: string | null;
+        }
+      | null = null;
+
+    if (listing_id) {
+      const { data: listing } = await supabase
+        .from("marketplace_listings")
+        .select("id, seller_id, title, slug")
+        .eq("id", listing_id)
+        .single();
+
+      if (listing?.seller_id) {
+        listingContext = {
+          id: listing.id,
+          seller_id: listing.seller_id,
+          title: typeof listing.title === "string" ? listing.title : null,
+          slug: typeof listing.slug === "string" ? listing.slug : null,
+        };
+      }
+    }
 
     const { error: insertError } = await supabase
       .from("contact_submissions")
@@ -47,12 +74,37 @@ export async function POST(request: NextRequest) {
         category: category || "general",
         subject,
         message,
-        metadata: { ip, user_agent: request.headers.get("user-agent") || "" },
+        metadata: {
+          ip,
+          user_agent: request.headers.get("user-agent") || "",
+          seller_id: listingContext?.seller_id ?? seller_id ?? null,
+          listing_id: listingContext?.id ?? listing_id ?? null,
+          listing_title: listingContext?.title ?? null,
+          listing_slug: listingContext?.slug ?? null,
+        },
       });
 
     if (insertError) {
       void systemLog.error("api/contact", "DB insert failed", { error: insertError.message });
       // Still return success to user — log the error server-side
+    }
+
+    if (listingContext?.seller_id) {
+      const { error: notifError } = await supabase.from("notifications").insert({
+        user_id: listingContext.seller_id,
+        type: "marketplace",
+        title: "New marketplace inquiry",
+        message: subject,
+        link: listingContext.slug ? `/marketplace/${listingContext.slug}` : "/marketplace",
+      });
+
+      if (notifError) {
+        void systemLog.warn("api/contact", "Seller notification insert failed", {
+          error: notifError.message,
+          listingId: listingContext.id,
+          sellerId: listingContext.seller_id,
+        });
+      }
     }
 
     return NextResponse.json({

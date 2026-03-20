@@ -56,20 +56,33 @@ export function ContactForm({ listing }: ContactFormProps) {
 
     setSubmitting(true);
     try {
-      const body: Record<string, string> = {
-        listing_id: listing.id,
-        message: message.trim(),
-      };
+      const senderEmail =
+        isGuest
+          ? guestEmail.trim()
+          : typeof user?.email === "string"
+            ? user.email
+            : "";
+      const senderName =
+        isGuest
+          ? guestName.trim() || guestEmail.trim()
+          : typeof user?.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : typeof user?.user_metadata?.name === "string"
+              ? user.user_metadata.name
+              : senderEmail || "Marketplace user";
 
-      if (isGuest) {
-        body.guest_email = guestEmail.trim();
-        if (guestName.trim()) body.guest_name = guestName.trim();
-      }
-
-      const res = await fetch("/api/marketplace/orders", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          name: senderName,
+          email: senderEmail,
+          category: "listing",
+          subject: `Marketplace inquiry for ${listing.title}`,
+          message: message.trim(),
+          listing_id: listing.id,
+          seller_id: listing.seller_id,
+        }),
       });
 
       if (!res.ok) {
@@ -111,7 +124,7 @@ export function ContactForm({ listing }: ContactFormProps) {
         <DialogHeader>
           <DialogTitle>{buttonLabel}</DialogTitle>
           <DialogDescription className="break-words">
-            Send a message to the seller about &ldquo;{listing.title}&rdquo;.
+            Send a message to the seller about &ldquo;{listing.title}&rdquo;. The inquiry is stored on-platform so the seller can respond and support can investigate later if needed.
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +135,7 @@ export function ContactForm({ listing }: ContactFormProps) {
             </div>
             <h3 className="text-lg font-semibold">Request Sent!</h3>
             <p className="text-center text-sm text-muted-foreground">
-              The seller has been notified. You&apos;ll receive a response
+              The seller has been notified through the platform. You&apos;ll receive a response
               {isGuest ? ` at ${guestEmail || "your email"}` : " once they review your request"}.
             </p>
             <Button

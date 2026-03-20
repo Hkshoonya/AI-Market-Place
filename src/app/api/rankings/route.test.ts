@@ -169,4 +169,56 @@ describe("GET /api/rankings", () => {
     expect(body.lens).toBe("economic_footprint");
     expect(from).toHaveBeenCalledWith("models");
   });
+
+  it("enforces active-only rankings by default and broadens only when lifecycle=all", async () => {
+    const defaultQuery = createQuery([]);
+    const allQuery = createQuery([]);
+    const select = vi
+      .fn()
+      .mockReturnValueOnce(defaultQuery)
+      .mockReturnValueOnce(allQuery);
+    const from = vi.fn(() => ({ select }));
+
+    vi.mocked(createClient).mockReturnValue({ from } as never);
+
+    const defaultResponse = await GET(
+      new NextRequest("https://aimarketcap.tech/api/rankings?lens=capability&limit=10")
+    );
+    const allResponse = await GET(
+      new NextRequest("https://aimarketcap.tech/api/rankings?lens=capability&lifecycle=all&limit=10")
+    );
+
+    expect(defaultResponse.status).toBe(200);
+    expect(await defaultResponse.json()).toMatchObject({ lifecycle: "active" });
+    expect(defaultQuery.eq).toHaveBeenCalledWith("status", "active");
+    expect(defaultQuery.in).not.toHaveBeenCalledWith("status", expect.anything());
+
+    expect(allResponse.status).toBe(200);
+    expect(await allResponse.json()).toMatchObject({ lifecycle: "all" });
+    expect(allQuery.in).toHaveBeenCalledWith(
+      "status",
+      expect.arrayContaining(["active", "preview", "beta", "deprecated", "archived"])
+    );
+  });
+
+  it("applies category scoping alongside the default active-first ranking filter", async () => {
+    const categoryQuery = createQuery([]);
+    const from = vi.fn(() => ({
+      select: vi.fn(() => categoryQuery),
+    }));
+
+    vi.mocked(createClient).mockReturnValue({ from } as never);
+
+    const response = await GET(
+      new NextRequest(
+        "https://aimarketcap.tech/api/rankings?lens=capability&category=agentic_browser&limit=10"
+      )
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.lifecycle).toBe("active");
+    expect(categoryQuery.eq).toHaveBeenCalledWith("status", "active");
+    expect(categoryQuery.eq).toHaveBeenCalledWith("category", "agentic_browser");
+  });
 });

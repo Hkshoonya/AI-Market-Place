@@ -24,6 +24,7 @@ import type { Metadata } from "next";
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
@@ -69,6 +70,31 @@ export default async function LeaderboardsPage({
   const lifecycleStatuses = getLifecycleStatuses(lifecycleFilter);
   const lensSort = getPublicLensSort(activeLens);
   const activeLensLabel = getPublicLensLabel(activeLens);
+  const [{ data: latestRankingSignalRaw }, { data: latestPipelineSyncRaw }] = await Promise.all([
+    supabase
+      .from("model_news")
+      .select("published_at")
+      .in("source", ["x-twitter", "provider-blog", "artificial-analysis", "open-llm-leaderboard"])
+      .order("published_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("data_sources")
+      .select("last_sync_at")
+      .eq("is_enabled", true)
+      .is("quarantined_at", null)
+      .not("last_sync_at", "is", null)
+      .order("last_sync_at", { ascending: false })
+      .limit(1),
+  ]);
+  const latestRankingSignalAt =
+    typeof latestRankingSignalRaw?.[0]?.published_at === "string"
+      ? latestRankingSignalRaw[0].published_at
+      : null;
+  const latestPipelineSyncAt =
+    typeof latestPipelineSyncRaw?.[0]?.last_sync_at === "string"
+      ? latestPipelineSyncRaw[0].last_sync_at
+      : null;
+  const rankingSignalsRefreshedAt = latestPipelineSyncAt ?? latestRankingSignalAt;
   const getLensSortValue = (model: Record<string, unknown>) => {
     const value = model[lensSort.sortCol];
     if (typeof value === "number") return value;
@@ -314,6 +340,19 @@ export default async function LeaderboardsPage({
             lifecycle={lifecycleFilter}
             buildHref={buildLeaderboardHref}
           />
+        </div>
+        <div className="mt-6 rounded-2xl border border-border/50 bg-card/50 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <DataFreshnessBadge
+              label="Ranking signals refreshed"
+              timestamp={rankingSignalsRefreshedAt}
+              detail={latestPipelineSyncAt ? "pipeline sync" : "benchmark + launch signals"}
+            />
+            <p className="max-w-2xl text-xs text-muted-foreground">
+              Public rankings stay active-first by default, cheapest verified pricing ignores
+              unverified claims, and each estimated value badge exposes its evidence methodology.
+            </p>
+          </div>
         </div>
       </div>
 

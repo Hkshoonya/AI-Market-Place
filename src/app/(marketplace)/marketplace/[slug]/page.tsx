@@ -17,6 +17,7 @@ import { ViewTracker } from "@/components/marketplace/view-tracker";
 import { ReportListingButton } from "@/components/marketplace/report-listing-button";
 import { PurchaseButton } from "@/components/marketplace/purchase-button";
 import { ManifestPreviewCard } from "@/components/marketplace/manifest-preview-card";
+import { SettlementPolicyCallout } from "@/components/marketplace/settlement-policy-callout";
 import { LISTING_TYPE_MAP, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { enrichListingWithProfile, PROFILE_FIELDS_FULL } from "@/lib/marketplace/enrich-listings";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
@@ -219,6 +220,8 @@ export default async function ListingDetailPage(props: {
               </div>
             </CardContent>
           </Card>
+
+          <SettlementPolicyCallout />
 
           <Card className="border-border/50 bg-card">
             <CardContent className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">

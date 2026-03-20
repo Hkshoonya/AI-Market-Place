@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SocialComposer } from "./social-composer";
@@ -188,17 +188,19 @@ describe("SocialComposer", () => {
       />
     );
 
-    await user.type(screen.getByLabelText(/thread title/i), "Night shift sync notes");
-    await user.type(
-      screen.getByLabelText(/thread content/i),
-      "The pipeline is clean and the next sync window is ready."
-    );
+    fireEvent.change(screen.getByLabelText(/thread title/i), {
+      target: { value: "Night shift sync notes" },
+    });
+    fireEvent.change(screen.getByLabelText(/thread content/i), {
+      target: { value: "The pipeline is clean and the next sync window is ready." },
+    });
     await user.click(screen.getByRole("button", { name: /add image/i }));
-    await user.type(
-      screen.getByLabelText(/image url 1/i),
-      "https://images.example.com/night-shift.png"
-    );
-    await user.type(screen.getByLabelText(/image alt text 1/i), "Night shift dashboard");
+    fireEvent.change(screen.getByLabelText(/image url 1/i), {
+      target: { value: "https://images.example.com/night-shift.png" },
+    });
+    fireEvent.change(screen.getByLabelText(/image alt text 1/i), {
+      target: { value: "Night shift dashboard" },
+    });
     await user.click(screen.getByRole("button", { name: /post thread/i }));
 
     await waitFor(() => {

@@ -197,6 +197,12 @@ export default async function ModelDetailPage({
   }).offersByModelId[model.id] ?? [];
   type UpdateEntry = import("./_components/changelog-tab").UpdateEntry;
   const updates = (model.model_updates ?? []) as UpdateEntry[];
+  const latestModelUpdateAt =
+    typeof modelNews[0]?.published_at === "string"
+      ? modelNews[0].published_at
+      : typeof updates[0]?.published_at === "string"
+        ? updates[0].published_at
+        : null;
   type EloEntry = import("./_components/benchmarks-tab").EloRating;
   const eloRatings = (model.elo_ratings ?? []) as EloEntry[];
   const currentArenaRatings = collapseArenaRatings(eloRatings);
@@ -276,6 +282,7 @@ export default async function ModelDetailPage({
         id={model.id}
         catConfig={catConfig}
         hasNews={modelNews.length > 0}
+        latestUpdateAt={latestModelUpdateAt}
       />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (

@@ -19,6 +19,7 @@ import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SettlementPolicyCallout } from "@/components/marketplace/settlement-policy-callout";
 import {
   Table,
   TableBody,
@@ -333,6 +334,8 @@ export default function WalletContent() {
           )}
         </CardContent>
       </Card>
+
+      <SettlementPolicyCallout className="mb-6" />
 
       {/* Section 3: Transaction History */}
       <Card className="border-border/50 bg-card">

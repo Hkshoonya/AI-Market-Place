@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ModelActions } from "@/components/models/model-actions";
 import { ShareModel } from "@/components/models/share-model";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import type { CategoryConfig } from "@/lib/constants/categories";
 
 export interface ModelHeaderProps {
@@ -18,6 +19,7 @@ export interface ModelHeaderProps {
   id: string;
   catConfig: CategoryConfig | undefined;
   hasNews?: boolean;
+  latestUpdateAt?: string | null;
 }
 
 export function ModelHeader({
@@ -31,6 +33,7 @@ export function ModelHeader({
   id,
   catConfig,
   hasNews,
+  latestUpdateAt,
 }: ModelHeaderProps) {
   return (
     <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
@@ -72,6 +75,15 @@ export function ModelHeader({
               {description}
             </p>
           )}
+          {latestUpdateAt ? (
+            <div className="mt-4">
+              <DataFreshnessBadge
+                label="Model updates refreshed"
+                timestamp={latestUpdateAt}
+                detail="news + changelog"
+              />
+            </div>
+          ) : null}
         </div>
 
         {/* Action buttons */}

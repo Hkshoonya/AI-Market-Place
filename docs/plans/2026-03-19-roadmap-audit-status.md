@@ -8,7 +8,7 @@ The strict per-file matrix lives in `docs/plans/2026-03-19-plan-matrix.md`.
 
 Reference head at audit time:
 
-- Local / GitHub `main`: `6b03337f35cfd5d622ca786102831f1b0a174f11`
+- Local / GitHub `main`: `4b0df1305ddc0b54a823c8b025db6c9d19d02845`
 
 Recovery tracking note:
 
@@ -35,7 +35,7 @@ Verification update after the initial March 19 audit:
 - live auth config was corrected to use `https://aimarketcap.tech` instead of localhost
 - browser-verified production auth now supports signup, login, admin access, refresh persistence, and sign-out
 - SMTP-backed confirmation and recovery flows are now working again and the temporary autoconfirm fallback has been removed
-- production wallet creation still reflects the older live release behavior by returning `201` with null deposit addresses
+- live `60e87cb` now returns the safer wallet behavior: `POST /api/marketplace/wallet` responds `503` with an explicit configuration error when chain infrastructure is absent
 
 ## Done
 
@@ -118,16 +118,33 @@ Additional hardening completed after the initial audit snapshot:
 - stale running resident-agent tasks are now auto-failed and escalated before the next run starts
 - legacy seller order completion/rejection paths now keep escrow and status transitions in the safe order
 - auction settlement now reopens the auction if payout release fails instead of leaving it falsely closed
+- leaderboards now surface ranking freshness plus an integrity explainer covering active-first ranks, verified pricing, and value methodology
+- model detail headers now surface update freshness alongside the existing View Updates flow
+- local browser verification on `http://127.0.0.1:3005` confirmed the new trust surfaces render on `/leaderboards` and `/models/google-gemini-2-5-pro`
+- admin agent visibility now surfaces stuck duration, agent slug, verification status/reason, retry count, and escalation timestamps for operator triage, with targeted unit and component coverage in `src/app/(admin)/admin/agents/operator-insights.test.ts` and `src/app/(admin)/admin/agents/agents-content.test.tsx`
+- marketplace now explains direct wallet settlement versus assisted escrow in the public hero, listing detail, and wallet touchpoints using `src/lib/marketplace/settlement.ts`, `src/components/marketplace/marketplace-mode-explainer.tsx`, and `src/components/marketplace/settlement-policy-callout.tsx`
+- seller-facing marketplace inquiries now flow through the connected contact route with persisted listing metadata and seller-only notifications via `src/app/api/contact/route.ts` and `src/components/marketplace/contact-form.tsx`
+- local browser verification on `http://127.0.0.1:3006/marketplace` confirmed the new marketplace fee/explainer surfaces render, and listing detail verification confirmed the settlement explainer renders on `/marketplace/huggingface-hub-models`
 
 ## Partial
 
-### Public data trust and ranking integrity closure
+### Ranking integrity closure
 
-The implementation is broad and real, but closure is partial because the proof layer is uneven:
+This slice is now materially closed:
 
-- code exists across public surfaces
-- some ranking-integrity tests were added late during recovery
-- not every related plan has a clear completion marker or end-to-end verification note
+- canonical public-family collapse is covered in `src/lib/models/public-families.test.ts`
+- lifecycle status parsing and active-vs-all widening are covered in `src/lib/models/lifecycle.test.ts`
+- rankings API tests now explicitly prove canonical family output, active-only default gating, `lifecycle=all` widening, lifecycle echoing, and category scoping in `src/app/api/rankings/route.test.ts`
+- public leaderboard/model trust surfaces already had targeted page/component proof, so the integrity layer now has both helper/API and public-surface evidence
+
+### Public data trust closure
+
+This slice is now materially closed:
+
+- home, providers, and skills already surfaced freshness/trust cues
+- leaderboards now expose ranking freshness and public-integrity guidance directly in the header
+- model detail now exposes update freshness in the header instead of burying recency only inside tabs
+- targeted component tests and local browser verification now exist for the new public-proof affordances
 
 ### Autonomous maintainability control loop
 
@@ -139,6 +156,7 @@ What exists:
 - resident detectors/verifier
 - scheduled cron execution
 - issue resolution / escalation helpers
+- authenticated admin visibility for retry counts, verification reasons, escalation timestamps, and stuck-task duration on the agents dashboard
 
 What still looks partial:
 
@@ -189,16 +207,20 @@ The old order family and auction settlement paths have been materially hardened 
 Remaining concerns:
 
 - guest/auth parity on older non-primary flows
-- broader end-to-end audit across auctions, messages, manifests, and manual seller actions
+- broader end-to-end audit across manifests and manual seller actions
+- order-message access control and counterparty notification coverage now exists in `src/app/api/marketplace/orders/[id]/messages/route.test.ts`
+- direct auction entry-point coverage now exists in `src/app/api/marketplace/auctions/[id]/accept/route.test.ts` and `src/app/api/marketplace/auctions/[id]/bid/route.test.ts`
+- direct-versus-assisted settlement semantics now exist in `src/lib/marketplace/settlement.ts` and are surfaced publicly on marketplace landing/listing/wallet flows
+- listing inquiry routing now notifies the listed seller without notifying admins by default, while preserving listing-linked metadata in `contact_submissions` for future investigation
 - final documentation/proof that the legacy paths are now subordinate to the safer purchase flow
-- wallet provisioning on live still needs the newer guardrail release and/or production chain infrastructure
+- wallet provisioning correctness is now in place on live; actual address minting still requires production chain infrastructure
 
 ### Agent/operator visibility polish
 
 Open task:
 
 - continue expanding unattended repair playbooks beyond stale-task cleanup and auto-disable escalation
-- make authenticated operator review easier for stuck tasks, escalations, and recovery actions
+- extend operator visibility beyond the agents dashboard into deeper recovery/action history where needed
 
 ## Current Position Against The Roadmap
 
@@ -211,6 +233,6 @@ Practical status:
 
 ## Recommended Next Steps
 
-1. Release the current local wallet/auth/chart/model fixes beyond live `3bebb83`, because production is still behind the verified working tree.
-2. Finish the last commerce edge-case audit around auctions and legacy/manual flows.
-3. Close public-data-trust and ranking-integrity proof with any remaining explicit verification markers.
+1. Finish the last commerce edge-case audit around auctions and legacy/manual flows.
+2. Extend maintainability from richer operator visibility into broader safe-playbook coverage and recovery history.
+3. Complete the connected communications follow-through so seller inquiries, user-facing updates, and admin investigation history are fully consistent end to end.

@@ -51,3 +51,6 @@ next-env.d.ts
 
 # supabase local CLI/runtime artifacts
 /supabase/.temp/
+
+# local Claude desktop/tooling artifacts
+/.claude/

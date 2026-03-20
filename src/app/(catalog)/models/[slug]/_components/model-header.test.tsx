@@ -39,6 +39,25 @@ vi.mock("@/components/shared/provider-logo", () => ({
   ProviderLogo: () => <div data-testid="provider-logo" />,
 }));
 
+vi.mock("@/components/shared/data-freshness-badge", () => ({
+  DataFreshnessBadge: ({
+    label,
+    timestamp,
+    detail,
+  }: {
+    label: string;
+    timestamp: string | null | undefined;
+    detail?: string | null;
+  }) => (
+    <div
+      data-testid="freshness-badge"
+      data-label={label}
+      data-timestamp={timestamp ?? ""}
+      data-detail={detail ?? ""}
+    />
+  ),
+}));
+
 vi.mock("lucide-react", () => ({
   ExternalLink: () => <svg />,
   Globe: () => <svg />,
@@ -65,6 +84,36 @@ describe("ModelHeader", () => {
     expect(screen.getByRole("link", { name: /view updates/i })).toHaveAttribute(
       "href",
       "/models/test-model?tab=news#model-tabs"
+    );
+  });
+
+  it("surfaces a freshness badge when updates exist", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights={false}
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        latestUpdateAt="2026-03-20T12:00:00.000Z"
+      />
+    );
+
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-label",
+      "Model updates refreshed"
+    );
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-timestamp",
+      "2026-03-20T12:00:00.000Z"
+    );
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-detail",
+      "news + changelog"
     );
   });
 });

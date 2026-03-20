@@ -58,6 +58,25 @@ vi.mock("@/components/models/market-value-badge", () => ({
   MarketValueBadge: () => <div data-testid="market-value-badge" />,
 }));
 
+vi.mock("@/components/shared/data-freshness-badge", () => ({
+  DataFreshnessBadge: ({
+    label,
+    timestamp,
+    detail,
+  }: {
+    label: string;
+    timestamp: string | null | undefined;
+    detail?: string | null;
+  }) => (
+    <div
+      data-testid="freshness-badge"
+      data-label={label}
+      data-timestamp={timestamp ?? ""}
+      data-detail={detail ?? ""}
+    />
+  ),
+}));
+
 vi.mock("@/components/shared/provider-logo", () => ({
   ProviderLogo: () => <div data-testid="provider-logo" />,
 }));
@@ -71,6 +90,7 @@ function createQuery<T>(data: T) {
     order: vi.fn().mockReturnThis(),
     range: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -175,6 +195,18 @@ describe("LeaderboardsPage", () => {
         };
       }
 
+      if (table === "model_news") {
+        return {
+          select: vi.fn(() => createQuery([{ published_at: "2026-03-20T12:00:00.000Z" }])),
+        };
+      }
+
+      if (table === "data_sources") {
+        return {
+          select: vi.fn(() => createQuery([{ last_sync_at: "2026-03-20T11:00:00.000Z" }])),
+        };
+      }
+
       throw new Error(`Unexpected table ${table}`);
     });
 
@@ -196,5 +228,20 @@ describe("LeaderboardsPage", () => {
     );
     expect(screen.getByRole("heading", { name: /tracked non-active models/i })).toBeInTheDocument();
     expect(screen.getByText("Preview Browser")).toBeInTheDocument();
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-label",
+      "Ranking signals refreshed"
+    );
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-timestamp",
+      "2026-03-20T11:00:00.000Z"
+    );
+    expect(screen.getByTestId("freshness-badge")).toHaveAttribute(
+      "data-detail",
+      "pipeline sync"
+    );
+    expect(
+      screen.getByText(/public rankings stay active-first by default/i)
+    ).toBeInTheDocument();
   });
 });

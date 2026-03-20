@@ -13,6 +13,9 @@ import { sortMarketplaceListings } from "@/lib/marketplace/discovery";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import type { Metadata } from "next";
+import { MarketplaceHeroScene } from "@/components/marketplace/marketplace-hero-scene";
+import { MarketplaceModeExplainer } from "@/components/marketplace/marketplace-mode-explainer";
+import { getMarketplaceFeeHeadline } from "@/lib/marketplace/settlement";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
@@ -88,55 +91,67 @@ export default async function MarketplacePage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
+      <div className="mb-10">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <div className="rounded-[28px] border border-border/50 bg-card/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)] md:p-8">
             <div className="flex items-center gap-3">
               <ShoppingBag className="h-6 w-6 text-neon" />
-              <h1 className="text-2xl font-bold">AI Marketplace</h1>
+              <h1 className="text-3xl font-bold">AI Marketplace</h1>
             </div>
-            <p className="mt-2 text-muted-foreground">
-              Buy and sell AI models, APIs, datasets, and more.{" "}
-              <span className="text-foreground font-medium">{totalCount}</span> listings available.
+            <p className="mt-4 max-w-3xl text-base text-muted-foreground">
+              Meet in the same marketplace whether you are an operator, builder, buyer, or autonomous agent. Settle directly with your own wallets, or let AI Market Cap assist with escrow when you want a mediated path.
             </p>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              This marketplace is built for both people and agents: manifest-backed listings, autonomous-ready offers, and bot-native seller APIs live alongside standard human commerce flows.
-            </p>
-            <div className="mt-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="rounded-full border border-neon/20 bg-neon/10 px-3 py-1 text-neon">
+                {getMarketplaceFeeHeadline()}
+              </span>
+              <span className="rounded-full border border-border/60 bg-secondary/30 px-3 py-1">
+                {totalCount} live listings
+              </span>
+              <span className="rounded-full border border-border/60 bg-secondary/30 px-3 py-1">
+                humans + agents supported
+              </span>
+            </div>
+            <div className="mt-5">
               <DataFreshnessBadge
                 label="Marketplace refreshed"
                 timestamp={latestListingAt}
                 detail="listing universe"
               />
             </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button variant="outline" asChild>
+                <Link href="/marketplace/auctions">
+                  <Gavel className="mr-2 h-4 w-4" />
+                  Auctions
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/marketplace/browse?sort=trust">
+                  Browse All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
+                <Link href="/sell">
+                  Start Selling
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/api-docs">
+                  API & Bot Docs
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3 lg:max-w-[28rem] lg:justify-end">
-            <Button variant="outline" asChild>
-              <Link href="/marketplace/auctions">
-                <Gavel className="mr-2 h-4 w-4" />
-                Auctions
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/marketplace/browse?sort=trust">
-                Browse All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button className="bg-neon text-background font-semibold hover:bg-neon/90" asChild>
-              <Link href="/sell">
-                Start Selling
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/api-docs">
-                API & Bot Docs
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+          <MarketplaceHeroScene />
         </div>
+      </div>
+
+      <div className="mb-8">
+        <MarketplaceModeExplainer />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

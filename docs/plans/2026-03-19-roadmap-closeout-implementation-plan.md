@@ -30,8 +30,30 @@
   - `/admin` loads
   - `/admin` survives refresh
   - sign-out clears session
+- Phase 2 public-data-trust closure progress:
+  - leaderboards now show ranking freshness and integrity guidance in the public header
+  - model detail headers now show update freshness next to the existing update/news affordances
+  - targeted tests passed for those trust surfaces
+  - local browser proof passed on `/leaderboards` and `/models/google-gemini-2-5-pro`
+- Phase 2 maintainability/operator progress:
+  - the admin agents dashboard now surfaces stuck-task duration and agent slug directly in the overview
+  - issue rows now expose retry count, escalation timestamp, and verification reason/status
+  - targeted unit and component coverage now exists for the new operator-facing insight layer
+- Phase 2 ranking-integrity proof status:
+  - helper tests now cover public-family collapse and lifecycle normalization/filtering
+  - rankings API tests now prove lifecycle echoing and category scoping in addition to active-first widening
+- Phase 1 commerce audit progress:
+  - order-message route coverage now proves participant-only access and counterparty notification on send
+  - auction accept/bid route coverage now proves auth enforcement plus conflict/insufficient-funds status mapping
+  - marketplace settlement semantics now exist as explicit helpers with regression coverage in `src/lib/marketplace/settlement.test.ts`
+  - listing contact now routes through the connected contact pipeline with seller-only notifications and stored listing metadata, covered by `src/app/api/contact/route.test.ts` and `src/components/marketplace/contact-form.test.tsx`
+- Phase 2 marketplace/trust UX progress:
+  - the marketplace landing page now acts as a decision surface for direct wallet settlement versus assisted escrow
+  - a Three.js hero scene and aligned explainer cards are implemented in `src/components/marketplace/marketplace-hero-scene.tsx` and `src/components/marketplace/marketplace-mode-explainer.tsx`
+  - settlement policy callouts now render on listing detail and wallet surfaces via `src/components/marketplace/settlement-policy-callout.tsx`
 - Honest remaining Phase 1 blockers:
-  - production wallet provisioning still returns `201` with null deposit addresses, which indicates the live release is behind the current local wallet guardrails and/or production chain infra is still not configured
+  - live wallet provisioning now fails safely with `503` when chain infrastructure is not configured
+  - the remaining wallet gap is operational: configure Solana and/or EVM chain infrastructure if production should actually mint deposit addresses
 
 ---
 
@@ -329,3 +351,9 @@ Run Playwright smoke checks against the key public and authenticated surfaces to
 **Step 3: Close or narrow remaining partial items**
 
 Mark completed items as `done` with evidence. For anything not completed, write the precise blocking reason and residual risk.
+
+Latest verification evidence after the March 20 marketplace/contact batch:
+
+- `npm test` passed: 191 files, 883 tests
+- `npm run build` passed with exit `0`
+- local Playwright smoke against `http://127.0.0.1:3006` confirmed the new marketplace hero/explainer and listing settlement policy copy render on public marketplace surfaces

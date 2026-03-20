@@ -23,6 +23,10 @@ import {
   AGENT_PROVIDER_ORDER,
   type AgentProviderName,
 } from "@/lib/agents/provider-model-constants";
+import {
+  describeRunningDuration,
+  getIssueVerificationSummary,
+} from "./operator-insights";
 
 interface Agent {
   id: string;
@@ -70,6 +74,9 @@ interface AgentIssue {
   status: string;
   playbook: string | null;
   evidence: Record<string, unknown> | null;
+  verification: Record<string, unknown> | null;
+  retry_count: number;
+  escalated_at: string | null;
   updated_at: string;
 }
 
@@ -573,6 +580,14 @@ export default function AgentsContent() {
                         ? new Date(task.started_at).toLocaleString()
                         : new Date(task.created_at).toLocaleString()}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Stuck for {describeRunningDuration(task.started_at, task.created_at)}
+                    </p>
+                    {task.agents?.slug ? (
+                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                        {task.agents.slug}
+                      </p>
+                    ) : null}
                   </div>
                 ))
               ) : (
@@ -700,6 +715,9 @@ export default function AgentsContent() {
             <tbody className="divide-y divide-border">
               {issues.map((issue) => {
                 const proposal = extractAutoPrPolicy(issue.evidence);
+                const verification = getIssueVerificationSummary(
+                  issue.verification
+                );
 
                 return (
                   <tr key={issue.id} className="hover:bg-secondary/30">
@@ -708,6 +726,29 @@ export default function AgentsContent() {
                       <div className="text-xs text-muted-foreground">
                         {issue.issue_type} · {issue.status}
                       </div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                        {issue.retry_count > 0 ? (
+                          <span className="rounded border border-border/60 bg-secondary/20 px-2 py-0.5">
+                            retries {issue.retry_count}
+                          </span>
+                        ) : null}
+                        {issue.escalated_at ? (
+                          <span className="rounded border border-red-500/20 bg-red-500/5 px-2 py-0.5 text-red-200">
+                            escalated{" "}
+                            {new Date(issue.escalated_at).toLocaleString()}
+                          </span>
+                        ) : null}
+                        {verification?.status ? (
+                          <span className="rounded border border-border/60 bg-secondary/20 px-2 py-0.5">
+                            {verification.status.replaceAll("_", " ")}
+                          </span>
+                        ) : null}
+                      </div>
+                      {verification?.reason ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {verification.reason}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <span
