@@ -141,7 +141,7 @@ function legacyAccessState(deliveryData: Record<string, unknown> | null | undefi
       tone: "yellow" as const,
       description:
         parts.length > 0
-          ? parts.join(" — ")
+          ? parts.join(" - ")
           : "The seller will coordinate access and delivery through the order thread.",
     };
   }

@@ -729,7 +729,7 @@ export default function AgentsContent() {
                     <td className="px-4 py-3">
                       <div className="font-medium">{issue.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {issue.issue_type} · {issue.status}
+                        {issue.issue_type} - {issue.status}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                         {issue.retry_count > 0 ? (
@@ -846,7 +846,7 @@ export default function AgentsContent() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{item.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {item.area} · {item.status}
+                      {item.area} - {item.status}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {item.reason}
@@ -860,7 +860,7 @@ export default function AgentsContent() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {item.required_before ?? "later"}
+                    {item.required_before ?? "No blocking milestone"}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {item.owner_hint ?? "unassigned"}

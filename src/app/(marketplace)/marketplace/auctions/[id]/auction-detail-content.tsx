@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import useSWR from "swr";
@@ -23,9 +24,11 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
 import type { Auction } from "@/types/auction";
 import { useAuctionTimer } from "@/hooks/use-auction-timer";
+import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { BidHistoryTable } from "@/components/marketplace/bid-history-table";
 import { EnglishBidPanel } from "@/components/marketplace/english-bid-panel";
 import { DutchBidPanel } from "@/components/marketplace/dutch-bid-panel";
+import { WalletDepositPanel } from "@/components/marketplace/wallet-deposit-panel";
 
 // ────────────────────────────────────────────────────────────
 // Constants
@@ -60,6 +63,7 @@ export default function AuctionDetailContent({
   auctionId: string;
 }) {
   const { user, loading: authLoading } = useAuth();
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const { data: auction, error, isLoading, mutate } = useSWR<Auction>(
     `/api/marketplace/auctions/${auctionId}`,
@@ -67,6 +71,9 @@ export default function AuctionDetailContent({
   );
 
   const { timeRemaining, dutchPrice } = useAuctionTimer({ auction: auction ?? null });
+  const { walletData, loadingWallet } = useWalletBalance({
+    enabled: !!user,
+  });
 
   // Loading state
   if (isLoading || authLoading) {
@@ -95,6 +102,26 @@ export default function AuctionDetailContent({
   }
 
   const TypeIcon = TYPE_ICONS[auction.auction_type] || Gavel;
+  const englishMinimumBid =
+    (auction.current_price ?? auction.start_price) + (auction.bid_increment || 1);
+  const minimumActionAmount =
+    auction.auction_type === "english"
+      ? englishMinimumBid
+      : auction.auction_type === "dutch"
+        ? dutchPrice ?? auction.current_price ?? auction.start_price
+        : auction.current_price ?? auction.start_price;
+  const hasEnoughBalance =
+    walletData != null && walletData.balance >= minimumActionAmount;
+
+  const copyToClipboard = useCallback(async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // ignore clipboard failures in the auction sidebar
+    }
+  }, []);
 
   return (
     <>
@@ -384,17 +411,62 @@ export default function AuctionDetailContent({
               </CardContent>
             </Card>
 
-            {/* Wallet balance placeholder */}
+            {/* Wallet balance */}
             {user && (
               <Card className="mt-4 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Wallet className="h-3.5 w-3.5" />
-                    <span>Your Balance</span>
+                    <span>Your Wallet</span>
                   </div>
-                  <p className="mt-1 text-sm font-semibold">
-                    Connect wallet to view balance
-                  </p>
+                  {loadingWallet ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="h-7 w-28 animate-pulse rounded bg-secondary" />
+                      <div className="h-4 w-full animate-pulse rounded bg-secondary" />
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Available Balance
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">
+                            {formatCurrency(walletData?.balance ?? 0)}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            hasEnoughBalance
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                          )}
+                        >
+                          {hasEnoughBalance ? "Ready" : "Needs Funding"}
+                        </Badge>
+                      </div>
+
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {hasEnoughBalance
+                          ? `You have enough wallet balance for the next ${auction.auction_type === "english" ? "bid" : "action"} at ${formatCurrency(minimumActionAmount)}.`
+                          : `You need ${formatCurrency(minimumActionAmount)} available to ${auction.auction_type === "english" ? "place the next bid" : auction.auction_type === "dutch" ? "accept the current price" : "participate"} from this panel.`}
+                      </p>
+
+                      {!hasEnoughBalance && (
+                        <WalletDepositPanel
+                          walletData={walletData}
+                          price={minimumActionAmount}
+                          copiedField={copiedField}
+                          onCopy={copyToClipboard}
+                        />
+                      )}
+
+                      <Button asChild variant="outline" size="sm" className="w-full">
+                        <Link href="/wallet">Open Wallet</Link>
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

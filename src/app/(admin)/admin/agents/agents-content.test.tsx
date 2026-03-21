@@ -157,4 +157,74 @@ describe("AgentsContent", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/escalated .*8:15:00 am/i)).toBeInTheDocument();
   });
+
+  it("renders deferred items with clean labels instead of mojibake and vague fallbacks", async () => {
+    const user = userEvent.setup();
+    const mutate = vi.fn();
+    const agentsResponse = {
+      agents: [],
+      configuredProviders: ["openrouter"],
+      issues: [],
+      deferredItems: [
+        {
+          id: "deferred-1",
+          title: "Backfill seller verification notes",
+          area: "marketplace",
+          status: "open",
+          reason: "Needs manual review after launch traffic settles.",
+          risk_level: "medium",
+          required_before: null,
+          owner_hint: null,
+          updated_at: "2026-03-20T12:20:00.000Z",
+        },
+      ],
+      recentFailingRuns: [],
+      staleRunningTasks: [],
+      summary: {
+        totalAgents: 0,
+        activeAgents: 0,
+        unhealthyAgents: 0,
+        autoDisabledAgents: 0,
+        staleAgents: 0,
+        openIssues: 0,
+        escalatedIssues: 0,
+        openDeferredItems: 1,
+        recentFailingRuns: 0,
+        staleRunningTasks: 0,
+      },
+    };
+
+    mockUseSWR.mockImplementation((key: string) => {
+      if (key === "/api/admin/agents") {
+        return { data: agentsResponse, isLoading: false, mutate };
+      }
+      if (key === "/api/admin/agents/tasks") {
+        return { data: { tasks: [] }, mutate };
+      }
+      if (key === "/api/admin/agent-models") {
+        return {
+          data: {
+            defaults: { openrouter: "openai/gpt-5.4-mini" },
+            overrides: {},
+            effectiveModels: { openrouter: "openai/gpt-5.4-mini" },
+            suggestions: { openrouter: ["openai/gpt-5.4-mini"] },
+            providerOrder: ["openrouter"],
+          },
+          mutate,
+        };
+      }
+      if (key === "/api/admin/agents/logs") {
+        return { data: { logs: [] } };
+      }
+      return { data: undefined, isLoading: false, mutate: vi.fn() };
+    });
+
+    render(<AgentsContent />);
+
+    await user.click(screen.getByRole("button", { name: "deferred" }));
+
+    expect(screen.getByText("marketplace - open")).toBeInTheDocument();
+    expect(screen.getByText(/no blocking milestone/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Â·/i)).not.toBeInTheDocument();
+  });
 });
