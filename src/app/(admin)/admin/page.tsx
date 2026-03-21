@@ -28,6 +28,21 @@ interface AdminStats {
   recentUsers: { display_name: string | null; email: string | null; joined_at: string | null }[];
 }
 
+interface AdminContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  created_at: string;
+  listingTitle: string | null;
+  listingSlug: string | null;
+  link: string | null;
+}
+
+interface AdminContactSubmissionsResponse {
+  data: AdminContactSubmission[];
+}
+
 export default function AdminOverviewPage() {
   const { data: stats, isLoading, error, mutate } = useSWR<AdminStats>(
     'supabase:admin-overview',
@@ -80,6 +95,20 @@ export default function AdminOverviewPage() {
     },
     { ...SWR_TIERS.SLOW }
   );
+  const { data: inquiryResponse } = useSWR<AdminContactSubmissionsResponse>(
+    "/api/admin/contact-submissions?limit=5",
+    async (key: string) => {
+      const response = await fetch(key);
+      if (!response.ok) {
+        throw new Error("Failed to load contact submissions");
+      }
+
+      return response.json() as Promise<AdminContactSubmissionsResponse>;
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const recentInquiries = inquiryResponse?.data ?? [];
 
   if (isLoading) {
     return (
@@ -164,7 +193,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Recent activity */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Recent models */}
         <Card className="border-border/50 bg-card">
           <CardHeader>
@@ -211,6 +240,53 @@ export default function AdminOverviewPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Activity className="h-5 w-5 text-neon" />
+              Recent Marketplace Inquiries
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentInquiries.length > 0 ? (
+              <div className="space-y-3">
+                {recentInquiries.map((submission) => (
+                  <div key={submission.id} className="rounded-lg border border-border/40 bg-background/30 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {submission.listingTitle ?? submission.subject}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {submission.name} · {submission.email}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {new Date(submission.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                      {submission.subject}
+                    </p>
+                    {submission.link ? (
+                      <a
+                        href={submission.link}
+                        className="mt-3 inline-flex text-xs text-neon hover:underline"
+                      >
+                        Open listing
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No marketplace inquiries have been recorded yet.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

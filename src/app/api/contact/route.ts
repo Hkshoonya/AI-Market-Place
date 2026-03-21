@@ -46,13 +46,14 @@ export async function POST(request: NextRequest) {
           seller_id: string;
           title: string | null;
           slug: string | null;
+          inquiry_count: number;
         }
       | null = null;
 
     if (listing_id) {
       const { data: listing } = await supabase
         .from("marketplace_listings")
-        .select("id, seller_id, title, slug")
+        .select("id, seller_id, title, slug, inquiry_count")
         .eq("id", listing_id)
         .single();
 
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
           seller_id: listing.seller_id,
           title: typeof listing.title === "string" ? listing.title : null,
           slug: typeof listing.slug === "string" ? listing.slug : null,
+          inquiry_count:
+            typeof listing.inquiry_count === "number" ? listing.inquiry_count : 0,
         };
       }
     }
@@ -90,6 +93,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (listingContext?.seller_id) {
+      const { error: inquiryCountError } = await supabase
+        .from("marketplace_listings")
+        .update({ inquiry_count: listingContext.inquiry_count + 1 })
+        .eq("id", listingContext.id);
+
+      if (inquiryCountError) {
+        void systemLog.warn("api/contact", "Listing inquiry count update failed", {
+          error: inquiryCountError.message,
+          listingId: listingContext.id,
+        });
+      }
+
       const { error: notifError } = await supabase.from("notifications").insert({
         user_id: listingContext.seller_id,
         type: "marketplace",

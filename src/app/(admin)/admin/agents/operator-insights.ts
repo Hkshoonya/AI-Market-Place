@@ -37,3 +37,35 @@ export function getIssueVerificationSummary(
     status,
   };
 }
+
+export function describeIssuePlaybook(
+  playbook: string | null | undefined,
+  issueType: string | null | undefined
+) {
+  if (playbook === "cleanup_stale_task" || issueType === "stale_running_task") {
+    return {
+      label: "Stale task recovery",
+      summary:
+        "Cancel the stale run, verify no duplicate work remains, and requeue the agent if needed.",
+      action:
+        "Check runtime evidence, clear the stuck task, then confirm the next scheduled run succeeds.",
+    };
+  }
+
+  if (playbook === "review_failed_run" || issueType === "failing_cron_run") {
+    return {
+      label: "Failed run review",
+      summary:
+        "Review the failed run output, confirm whether the failure is transient, and retry once the dependency is healthy.",
+      action:
+        "Inspect logs, validate the dependency state, and capture the retry decision in the operator ledger.",
+    };
+  }
+
+  return {
+    label: "Manual investigation",
+    summary: "No automatic playbook is attached to this issue yet.",
+    action:
+      "Review the issue evidence, confirm impact, and capture the recovery steps in the operator ledger.",
+  };
+}

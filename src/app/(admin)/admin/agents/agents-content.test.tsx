@@ -148,6 +148,10 @@ describe("AgentsContent", () => {
     expect(screen.getByText(/pipeline engineer task is stuck/i)).toBeInTheDocument();
     expect(screen.getByText(/retries 2/i)).toBeInTheDocument();
     expect(screen.getByText(/auto disabled/i)).toBeInTheDocument();
+    expect(screen.getByText(/stale task recovery/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/clear the stuck task, then confirm the next scheduled run succeeds/i)
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/agent exceeded failure threshold during verification/i)
     ).toBeInTheDocument();

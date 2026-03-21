@@ -16,22 +16,84 @@ function objectValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function firstString(
+  object: Record<string, unknown> | null | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = stringValue(object?.[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 export function OrderManifestCard({
   manifest,
+  deliveryData,
 }: {
   manifest: ManifestValue | null;
+  deliveryData?: Record<string, unknown> | null;
 }) {
   if (!manifest) {
+    const handoffMode = firstString(deliveryData, ["handoff_mode", "delivery_mode"]);
+    const contactChannel = firstString(deliveryData, [
+      "contact_channel",
+      "coordination_channel",
+      "manual_contact",
+    ]);
+    const nextStep = firstString(deliveryData, ["next_step", "handoff_note", "delivery_note"]);
+    const deliveryWindow = firstString(deliveryData, [
+      "delivery_window",
+      "expected_delivery_window",
+    ]);
+
     return (
       <Card className="border-border/50 bg-card mb-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Purchased Contract</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            This order was completed before manifest snapshots were enabled, so a
-            machine-readable fulfillment contract is not available here yet.
+            This order was completed before manifest snapshots were enabled, so the
+            machine-readable contract is represented through the recorded order notes
+            and seller coordination details below.
           </p>
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Legacy Contract Status
+              </p>
+              <p>{handoffMode ? handoffMode.replace(/[_-]+/g, " ") : "manual coordination"}</p>
+            </div>
+            {contactChannel ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Seller Coordination
+                </p>
+                <p>{contactChannel}</p>
+              </div>
+            ) : null}
+            {nextStep ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Next Step
+                </p>
+                <p>{nextStep}</p>
+              </div>
+            ) : null}
+            {deliveryWindow ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Delivery Window
+                </p>
+                <p>{deliveryWindow}</p>
+              </div>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
     );

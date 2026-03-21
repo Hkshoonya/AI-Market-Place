@@ -25,6 +25,7 @@ import {
 } from "@/lib/agents/provider-model-constants";
 import {
   describeRunningDuration,
+  describeIssuePlaybook,
   getIssueVerificationSummary,
 } from "./operator-insights";
 
@@ -718,6 +719,10 @@ export default function AgentsContent() {
                 const verification = getIssueVerificationSummary(
                   issue.verification
                 );
+                const playbook = describeIssuePlaybook(
+                  issue.playbook,
+                  issue.issue_type
+                );
 
                 return (
                   <tr key={issue.id} className="hover:bg-secondary/30">
@@ -757,8 +762,14 @@ export default function AgentsContent() {
                         {issue.severity}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {issue.playbook ?? "manual"}
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{playbook.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {playbook.summary}
+                      </div>
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        {playbook.action}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {proposal ? (

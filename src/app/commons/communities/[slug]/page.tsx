@@ -6,7 +6,7 @@ import { getCommunityBySlug, getCommunityStats, listCommunityDirectory } from "@
 import { listPublicFeed } from "@/lib/social/feed";
 import { createPublicClient } from "@/lib/supabase/public-server";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

@@ -79,6 +79,7 @@ describe("POST /api/contact", () => {
   it("notifies the targeted seller when a listing contact submission includes seller context", async () => {
     const contactInsert = vi.fn().mockResolvedValue({ error: null });
     const notificationsInsert = vi.fn().mockResolvedValue({ error: null });
+    const inquiryCountUpdate = vi.fn().mockResolvedValue({ error: null });
     const listingSingle = vi.fn().mockResolvedValue({
       data: {
         id: "listing-1",
@@ -100,6 +101,9 @@ describe("POST /api/contact", () => {
               eq: vi.fn(() => ({
                 single: listingSingle,
               })),
+            })),
+            update: vi.fn(() => ({
+              eq: inquiryCountUpdate,
             })),
           };
         }
@@ -142,5 +146,6 @@ describe("POST /api/contact", () => {
         link: "/marketplace/agent-protocol-kit",
       })
     );
+    expect(inquiryCountUpdate).toHaveBeenCalledWith("id", "listing-1");
   });
 });

@@ -28,6 +28,17 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
+function firstString(
+  object: Record<string, unknown> | null | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = stringValue(object?.[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
 function titleCase(input: string) {
   return input
     .replace(/[_-]+/g, " ")
@@ -72,9 +83,10 @@ function deliveryState(status: string, deliveryData: Record<string, unknown> | n
 function contractState(manifest: OrderManifest | null) {
   if (!manifest) {
     return {
-      label: "Legacy Order",
+      label: "Legacy Fulfillment",
       tone: "yellow" as const,
-      description: "This purchase predates immutable fulfillment snapshots.",
+      description:
+        "This purchase predates immutable fulfillment snapshots, so the original seller terms stay attached through the order record and message thread.",
     };
   }
 
@@ -108,11 +120,45 @@ function accessState(manifest: OrderManifest | null) {
   };
 }
 
-function supportState(manifest: OrderManifest | null) {
+function legacyAccessState(deliveryData: Record<string, unknown> | null | undefined) {
+  const handoffMode = firstString(deliveryData, ["handoff_mode", "delivery_mode"]);
+  const contactChannel = firstString(deliveryData, [
+    "contact_channel",
+    "coordination_channel",
+    "manual_contact",
+  ]);
+  const nextStep = firstString(deliveryData, ["next_step", "handoff_note", "delivery_note"]);
+
+  if (handoffMode || contactChannel || nextStep) {
+    const label =
+      handoffMode && handoffMode !== "manual_handoff"
+        ? titleCase(handoffMode)
+        : "Seller Coordinated";
+    const parts = [contactChannel, nextStep].filter(Boolean);
+
+    return {
+      label,
+      tone: "yellow" as const,
+      description:
+        parts.length > 0
+          ? parts.join(" — ")
+          : "The seller will coordinate access and delivery through the order thread.",
+    };
+  }
+
+  return accessState(null);
+}
+
+function supportState(
+  manifest: OrderManifest | null,
+  deliveryData: Record<string, unknown> | null | undefined
+) {
   const support = objectValue(manifest?.support);
   const rights = objectValue(manifest?.rights);
-  const supportLevel = stringValue(support?.level);
-  const rightsScope = stringValue(rights?.scope);
+  const supportLevel =
+    stringValue(support?.level) ?? firstString(deliveryData, ["support_level", "support_tier"]);
+  const rightsScope =
+    stringValue(rights?.scope) ?? firstString(deliveryData, ["rights_scope", "license_scope"]);
 
   if (supportLevel || rightsScope) {
     return {
@@ -125,9 +171,11 @@ function supportState(manifest: OrderManifest | null) {
   }
 
   return {
-    label: "Standard Terms",
+    label: manifest ? "Standard Terms" : "Legacy Terms",
     tone: "yellow" as const,
-    description: "No extended support or rights metadata was attached to this order.",
+    description: manifest
+      ? "No extended support or rights metadata was attached to this order."
+      : "Support, access, and rights follow the seller terms captured with the original order.",
   };
 }
 
@@ -147,11 +195,11 @@ export function OrderDeliverySummaryCard({
     },
     {
       title: "Access Path",
-      ...accessState(manifest),
+      ...(manifest ? accessState(manifest) : legacyAccessState(deliveryData)),
     },
     {
       title: "Support & Rights",
-      ...supportState(manifest),
+      ...supportState(manifest, deliveryData),
     },
   ];
 

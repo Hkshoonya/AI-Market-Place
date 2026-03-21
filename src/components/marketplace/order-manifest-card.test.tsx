@@ -37,10 +37,21 @@ describe("OrderManifestCard", () => {
   });
 
   it("renders a compatibility note when the order predates manifest snapshots", () => {
-    render(<OrderManifestCard manifest={null} />);
+    render(
+      <OrderManifestCard
+        manifest={null}
+        deliveryData={{
+          handoff_mode: "seller_coordinated",
+          contact_channel: "seller inbox",
+          next_step: "Manual onboarding after approval",
+          delivery_window: "within 24 hours",
+        }}
+      />
+    );
 
-    expect(
-      screen.getByText(/This order was completed before manifest snapshots were enabled/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText("Legacy Contract Status")).toBeInTheDocument();
+    expect(screen.getByText("seller inbox")).toBeInTheDocument();
+    expect(screen.getByText("Manual onboarding after approval")).toBeInTheDocument();
+    expect(screen.getByText("within 24 hours")).toBeInTheDocument();
   });
 });

@@ -263,7 +263,10 @@ export default function OrderDetailContent({
         manifest={manifestData?.manifest ?? null}
       />
 
-      <OrderManifestCard manifest={manifestData?.manifest ?? null} />
+      <OrderManifestCard
+        manifest={manifestData?.manifest ?? null}
+        deliveryData={order.delivery_data}
+      />
 
       {/* Messages */}
       <Card className="border-border/50 bg-card">

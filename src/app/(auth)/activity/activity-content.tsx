@@ -7,6 +7,7 @@ import { Bell, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ActivityFeed } from "@/components/notifications/activity-feed";
+import { RecentNotificationsCard } from "@/components/notifications/recent-notifications-card";
 
 export default function ActivityContent() {
   const router = useRouter();
@@ -46,7 +47,12 @@ export default function ActivityContent() {
         </Button>
       </div>
 
-      <ActivityFeed maxItems={50} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)]">
+        <div className="min-w-0 rounded-xl border border-border/50 bg-card p-4">
+          <ActivityFeed maxItems={50} />
+        </div>
+        <RecentNotificationsCard />
+      </div>
     </div>
   );
 }
