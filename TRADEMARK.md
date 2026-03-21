@@ -1,6 +1,8 @@
 # Trademark And Brand Policy
 
-`AI Market Cap`, the project name, project identity, website references, and any associated marks or logos are not covered by the Apache-2.0 software license.
+`AI Market Cap` is a project of **WeMakeSense LLC**.
+
+The project name, project identity, website references, and any associated marks or logos are not covered by the Apache-2.0 software license. The code is open source; the brand is not.
 
 ## You may
 
