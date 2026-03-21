@@ -73,7 +73,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-1 overflow-x-auto">
+      <div className="mb-4 flex items-center gap-1 overflow-x-auto" role="group" aria-label="Trending model views">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -84,8 +84,10 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                 ? "bg-neon/10 text-neon"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
+            aria-pressed={activeTab === tab.key}
+            aria-label={`Show ${tab.label} models`}
           >
-            <tab.icon className="h-3.5 w-3.5" />
+            <tab.icon className="h-3.5 w-3.5" aria-hidden="true" />
             {tab.label}
           </button>
         ))}
@@ -147,7 +149,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{model.provider}</span>
-                    <span>· {parameterDisplay.label}</span>
+                    <span>- {parameterDisplay.label}</span>
                   </div>
                   {model.recent_signal ? (
                     <div className="mt-2">

@@ -27,13 +27,18 @@ export function ProviderLogo({
   const initial = provider.charAt(0).toUpperCase();
 
   return (
-    <span className={cn("inline-flex items-center gap-1.5", className)}>
+    <span
+      className={cn("inline-flex items-center gap-1.5", className)}
+      role="img"
+      aria-label={showName ? `${provider} provider` : provider}
+    >
       <span
         className={cn(
           sizeConfig.container,
           "inline-flex items-center justify-center rounded-sm font-bold",
           sizeConfig.text
         )}
+        aria-hidden="true"
         style={{
           backgroundColor: `${brandColor}20`,
           color: brandColor,

@@ -15,9 +15,22 @@ export function DataFreshnessBadge({
 }: DataFreshnessBadgeProps) {
   if (!timestamp) return null;
 
+  const accessibilityLabel = [
+    label,
+    formatRelativeTime(timestamp),
+    formatDate(timestamp),
+    detail,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
-    <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border/50 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground">
-      <Clock3 className="h-3.5 w-3.5 text-neon" />
+    <div
+      className="inline-flex flex-wrap items-center gap-2 rounded-full border border-border/50 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground"
+      role="status"
+      aria-label={accessibilityLabel}
+    >
+      <Clock3 className="h-3.5 w-3.5 text-neon" aria-hidden="true" />
       <span>{label}</span>
       <Badge variant="secondary" className="text-[10px]">
         {formatRelativeTime(timestamp)}

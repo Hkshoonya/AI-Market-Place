@@ -211,6 +211,16 @@ export default function QualityPriceFrontier() {
     }
   };
 
+  const accessibleLeaders = [...data]
+    .sort((left, right) => {
+      if (right.qualityScore !== left.qualityScore) {
+        return right.qualityScore - left.qualityScore;
+      }
+
+      return left.inputPrice - right.inputPrice;
+    })
+    .slice(0, 5);
+
   return (
     <ChartCard
       title="Quality vs Price Frontier"
@@ -218,6 +228,22 @@ export default function QualityPriceFrontier() {
     >
       <div style={{ marginBottom: "16px" }}>
         <ChartControls filters={filters} onChange={setFilters} />
+      </div>
+      <div className="sr-only">
+        <p>
+          Quality versus price summary. This chart compares model quality scores against input price per million tokens.
+        </p>
+        {accessibleLeaders.length > 0 ? (
+          <ol>
+            {accessibleLeaders.map((item) => (
+              <li key={item.slug}>
+                {item.name} by {item.provider}, quality score {item.qualityScore.toFixed(1)}, input price ${item.inputPrice.toFixed(2)} per million tokens, rank {item.rank}.
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>No chart data is available for the selected filters.</p>
+        )}
       </div>
 
       <div
@@ -296,6 +322,7 @@ export default function QualityPriceFrontier() {
       )}
 
       {!isLoading && !error && data.length > 0 && (
+        <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={500}>
           <ScatterChart
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
@@ -388,6 +415,7 @@ export default function QualityPriceFrontier() {
             ))}
           </ScatterChart>
         </ResponsiveContainer>
+        </div>
       )}
     </ChartCard>
   );

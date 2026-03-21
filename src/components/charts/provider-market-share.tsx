@@ -100,9 +100,24 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
   // Dynamic chart height based on number of visible slices
   const chartHeight = Math.max(350, significantSlices.length > 12 ? 420 : 380);
   const legendHeight = significantSlices.length > 10 ? 60 : 36;
+  const accessibleSlices = significantSlices
+    .slice()
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 8);
 
   return (
     <div className="relative w-full" style={{ minHeight: chartHeight }} role="img" aria-label={`Provider market share pie chart showing distribution of ${total} models across ${data.length} providers`}>
+      <div className="sr-only">
+        <p>Provider market share summary.</p>
+        <ol>
+          {accessibleSlices.map((slice) => (
+            <li key={slice.provider}>
+              {slice.provider}: {slice.count} models, {((slice.count / total) * 100).toFixed(1)} percent.
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div aria-hidden="true">
       <ResponsiveContainer width="100%" height={chartHeight}>
         <PieChart>
           <Pie
@@ -145,6 +160,7 @@ export function ProviderMarketShare({ data }: ProviderMarketShareProps) {
           </text>
         </PieChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

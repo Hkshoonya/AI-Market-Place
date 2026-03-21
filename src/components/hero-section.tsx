@@ -47,14 +47,19 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
   ).slice(0, 6);
 
   return (
-    <section className="relative overflow-hidden border-b border-border/50" style={{ minHeight: "85vh" }}>
+    <section
+      className="relative overflow-hidden border-b border-border/50"
+      style={{ minHeight: "85vh" }}
+      aria-labelledby="home-hero-heading"
+      aria-describedby="home-hero-description home-hero-scene-description"
+    >
       {/* Three.js Background — desktop only */}
-      <div className="hidden md:block" data-testid="hero-scene-slot">
+      <div className="hidden md:block" data-testid="hero-scene-slot" aria-hidden="true">
         <NeuralNetworkScene />
       </div>
 
       {/* Mobile fallback gradient */}
-      <div className="absolute inset-0 z-0 md:hidden">
+      <div className="absolute inset-0 z-0 md:hidden" aria-hidden="true">
         <div className="absolute inset-0 bg-gradient-to-b from-neon/5 via-transparent to-transparent" />
         <div className="absolute left-1/2 top-1/4 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-neon/5 blur-[120px]" />
       </div>
@@ -66,11 +71,15 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
             variant="outline"
             className="mb-6 border-neon/30 bg-neon/5 px-3 py-1 text-xs text-neon backdrop-blur-sm"
           >
-            <Rocket className="mr-1.5 h-3 w-3" />
+            <Rocket className="mr-1.5 h-3 w-3" aria-hidden="true" />
             Tracking {stats.modelCount}+ AI Models Worldwide
           </Badge>
 
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl animate-slide-up" style={{ animationDelay: "100ms" }}>
+          <h1
+            id="home-hero-heading"
+            className="text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl animate-slide-up"
+            style={{ animationDelay: "100ms" }}
+          >
             The{" "}
             <span className="text-neon text-glow">Market Cap</span>
             <br />
@@ -78,12 +87,16 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
           </h1>
 
           <p
+            id="home-hero-description"
             className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl animate-slide-up"
             style={{ animationDelay: "200ms" }}
           >
             Track, rank, and compare every AI model in the world. Real-time
             benchmarks, pricing intelligence, and a marketplace — all in one
             place.
+          </p>
+          <p id="home-hero-scene-description" className="sr-only">
+            Animated background showing AI models connecting, sharing signals, and growing across a living network.
           </p>
 
           <div
@@ -107,35 +120,38 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
         </div>
 
         {/* Stats Row */}
-        <div
+        <ul
           className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 stagger-children animate-slide-up"
           style={{ animationDelay: "400ms" }}
+          aria-label="Platform statistics"
         >
           {statEntries.map((stat) => {
             const Icon = stat.icon;
             const value = stats[stat.key as keyof HeroStats] ?? 0;
             return (
-              <Card
-                key={stat.key}
-                className="border-border/50 bg-card/30 backdrop-blur-md hover:bg-card/50 transition-all duration-300 hover:border-neon/20"
-              >
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon/10">
-                    <Icon className="h-5 w-5 text-neon" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl font-bold tabular-nums truncate lg:text-2xl">
-                      {formatStatValue(value)}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {stat.label}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <li key={stat.key} className="list-none">
+                <Card
+                  className="border-border/50 bg-card/30 backdrop-blur-md hover:bg-card/50 transition-all duration-300 hover:border-neon/20"
+                  aria-label={`${stat.label}: ${formatStatValue(value)}`}
+                >
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon/10">
+                      <Icon className="h-5 w-5 text-neon" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xl font-bold tabular-nums truncate lg:text-2xl">
+                        {formatStatValue(value)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {stat.label}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
       {/* Bottom fade */}

@@ -57,6 +57,17 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
 
   return (
     <div className="min-h-[300px] w-full" role="img" aria-label={`Category distribution chart showing model counts across ${sorted.length} categories`}>
+      <div className="sr-only">
+        <p>Model category distribution summary.</p>
+        <ol>
+          {sorted.map((item) => (
+            <li key={item.category}>
+              {item.category}: {item.count} models.
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div aria-hidden="true">
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={sorted}
@@ -86,6 +97,7 @@ export function CategoryDistribution({ data }: CategoryDistributionProps) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

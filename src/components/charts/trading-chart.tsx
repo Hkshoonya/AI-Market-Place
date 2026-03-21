@@ -67,6 +67,10 @@ export function TradingChart({
   });
 
   const chartData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+  const accessiblePoints = useMemo(
+    () => chartData.slice(Math.max(0, chartData.length - 5)),
+    [chartData]
+  );
 
   // Render chart
   useEffect(() => {
@@ -226,6 +230,22 @@ export function TradingChart({
           </div>
         </div>
       )}
+      <div className="sr-only">
+        <p>
+          Trading chart summary for {modelSlug ?? "this model"}, metric {METRICS.find((item) => item.value === metric)?.label ?? metric}, range {RANGES.find((item) => item.value === range)?.label ?? range}, shown as a {chartMode} chart.
+        </p>
+        {accessiblePoints.length > 0 ? (
+          <ol>
+            {accessiblePoints.map((point) => (
+              <li key={`${point.time}-${point.close}`}>
+                {point.time}: open {point.open}, high {point.high}, low {point.low}, close {point.close}.
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>No trading data is available.</p>
+        )}
+      </div>
       <div className="relative" style={{ height }}>
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -242,7 +262,7 @@ export function TradingChart({
             No data available for this range
           </div>
         )}
-        <div ref={chartContainerRef} className="w-full h-full" />
+        <div ref={chartContainerRef} className="w-full h-full" aria-hidden="true" />
       </div>
     </div>
   );
