@@ -12,7 +12,8 @@ docs/
 Dockerfile
 docker-compose.yml
 coolify/
-scripts/
+scripts/*
+!scripts/clean-next.mjs
 .planning/
 .vscode/
 .idea/
