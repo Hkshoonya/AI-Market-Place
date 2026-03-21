@@ -37,9 +37,9 @@ export function getScenePerformanceProfile(
     return {
       shouldAnimate: true,
       targetDpr: 1,
-      connectionBudget: Math.round(80 * qualityBias),
-      simulationStride: 1,
-      connectionRefreshStride: 3,
+      connectionBudget: Math.round(50 * qualityBias),
+      simulationStride: 2,
+      connectionRefreshStride: 4,
     };
   }
 
@@ -47,7 +47,7 @@ export function getScenePerformanceProfile(
     return {
       shouldAnimate: true,
       targetDpr: 1,
-      connectionBudget: Math.round(180 * qualityBias),
+      connectionBudget: Math.round(140 * qualityBias),
       simulationStride: 1,
       connectionRefreshStride: 2,
     };
@@ -56,7 +56,7 @@ export function getScenePerformanceProfile(
   return {
     shouldAnimate: true,
     targetDpr: 1,
-    connectionBudget: 200,
+    connectionBudget: 160,
     simulationStride: 1,
     connectionRefreshStride: 1,
   };

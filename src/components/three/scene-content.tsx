@@ -5,9 +5,9 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 1000;
-const CONNECTION_DISTANCE = 2.4;
+const CONNECTION_DISTANCE = 2.0;
 const CONNECTION_DISTANCE_SQ = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
-const MAX_CONNECTIONS = 300;
+const MAX_CONNECTIONS = 250;
 
 export interface SceneContentProps {
   connectionBudget: number;
@@ -82,7 +82,7 @@ function Particles({
       new THREE.LineBasicMaterial({
         vertexColors: true,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.35,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
@@ -190,7 +190,9 @@ function Particles({
         }
 
         const distance = Math.sqrt(distanceSq);
-        const alpha = (1 - distance / CONNECTION_DISTANCE) * 0.6;
+        const proximity = 1 - distance / CONNECTION_DISTANCE;
+        const shimmer = 0.6 + 0.4 * Math.sin(time * 1.5 + (i * 7 + j * 13) * 0.1);
+        const alpha = proximity * proximity * shimmer * 0.35;
         const li = lineIndex * 6;
 
         linePositions[li] = positions[i3];
