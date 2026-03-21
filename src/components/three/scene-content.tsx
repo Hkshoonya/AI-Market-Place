@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-const PARTICLE_COUNT = 1400;
-const CONNECTION_DISTANCE = 2.0;
+const PARTICLE_COUNT = 1200;
+const CONNECTION_DISTANCE = 1.7;
 const CONNECTION_DISTANCE_SQ = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
-const MAX_CONNECTIONS = 250;
+const MAX_CONNECTIONS = 180;
 
 export interface SceneContentProps {
   connectionBudget: number;
@@ -34,7 +34,7 @@ function generateParticleData(): ParticleBuffers {
   for (let i = 0; i < PARTICLE_COUNT; i += 1) {
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    const radius = 4 + Math.random() * 6;
+    const radius = 4 + Math.random() * 8;
     const i3 = i * 3;
 
     positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
@@ -151,7 +151,7 @@ function Particles({
         positions[i3] ** 2 + positions[i3 + 1] ** 2 + positions[i3 + 2] ** 2
       );
 
-      if (distance > 10) {
+      if (distance > 12) {
         const pull = 0.0008;
         positions[i3] -= positions[i3] * pull;
         positions[i3 + 1] -= positions[i3 + 1] * pull;
@@ -160,7 +160,7 @@ function Particles({
 
       const pulse = 0.75 + 0.45 * Math.sin(time * 1.0 + phases[i]);
       const scale = sizes[i] * pulse;
-      const depthFactor = Math.max(0.15, 1 - distance / 14);
+      const depthFactor = Math.max(0.12, 1 - distance / 18);
 
       dummy.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
       dummy.scale.setScalar(scale);
@@ -293,7 +293,7 @@ export function SceneContent({
   return (
     <>
       <color attach="background" args={["#000000"]} />
-      <fog attach="fog" args={["#000000", 8, 18]} />
+      <fog attach="fog" args={["#000000", 10, 22]} />
       <Particles
         connectionBudget={connectionBudget}
         connectionRefreshStride={connectionRefreshStride}
