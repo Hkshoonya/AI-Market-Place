@@ -12,6 +12,8 @@ Explain the problem or opportunity this PR addresses.
 
 ## Verification
 
+- [ ] `npm run lint`
+- [ ] `npx tsc --noEmit`
 - [ ] `npm test`
 - [ ] `npm run build`
 - [ ] screenshots attached for visible UI changes
