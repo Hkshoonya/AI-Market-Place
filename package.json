@@ -13,7 +13,8 @@
     "test:unit": "vitest run --project unit --no-file-parallelism",
     "test:component": "vitest run --project component --testTimeout 15000",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "supabase:auth-templates": "node scripts/push-supabase-auth-templates.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
