@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-const PARTICLE_COUNT = 1000;
+const PARTICLE_COUNT = 1400;
 const CONNECTION_DISTANCE = 2.0;
 const CONNECTION_DISTANCE_SQ = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
 const MAX_CONNECTIONS = 250;
@@ -21,6 +21,7 @@ interface ParticleBuffers {
   velocities: Float32Array;
   phases: Float32Array;
   sizes: Float32Array;
+  driftSeeds: Float32Array;
 }
 
 function generateParticleData(): ParticleBuffers {
@@ -28,6 +29,7 @@ function generateParticleData(): ParticleBuffers {
   const velocities = new Float32Array(PARTICLE_COUNT * 3);
   const phases = new Float32Array(PARTICLE_COUNT);
   const sizes = new Float32Array(PARTICLE_COUNT);
+  const driftSeeds = new Float32Array(PARTICLE_COUNT * 3);
 
   for (let i = 0; i < PARTICLE_COUNT; i += 1) {
     const theta = Math.random() * Math.PI * 2;
@@ -39,15 +41,19 @@ function generateParticleData(): ParticleBuffers {
     positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
     positions[i3 + 2] = radius * Math.cos(phi) + (Math.random() - 0.5) * 2;
 
-    velocities[i3] = (Math.random() - 0.5) * 0.003;
-    velocities[i3 + 1] = (Math.random() - 0.5) * 0.003;
-    velocities[i3 + 2] = (Math.random() - 0.5) * 0.003;
+    velocities[i3] = (Math.random() - 0.5) * 0.002;
+    velocities[i3 + 1] = (Math.random() - 0.5) * 0.002;
+    velocities[i3 + 2] = (Math.random() - 0.5) * 0.002;
 
     phases[i] = Math.random() * Math.PI * 2;
     sizes[i] = 0.008 + Math.random() * 0.018;
+
+    driftSeeds[i3] = Math.random() * Math.PI * 2;
+    driftSeeds[i3 + 1] = Math.random() * Math.PI * 2;
+    driftSeeds[i3 + 2] = 0.3 + Math.random() * 0.7;
   }
 
-  return { positions, velocities, phases, sizes };
+  return { positions, velocities, phases, sizes, driftSeeds };
 }
 
 function createDynamicAttribute(size: number) {
@@ -109,7 +115,7 @@ function Particles({
     if (frameIndexRef.current % simulationStride !== 0) return;
 
     const time = state.clock.elapsedTime;
-    const { positions, velocities, phases, sizes } = particlesRef.current;
+    const { positions, velocities, phases, sizes, driftSeeds } = particlesRef.current;
     const targetX = mouseRef.current.x * (isScrolling ? 0.42 : 0.5);
     const targetY = mouseRef.current.y * (isScrolling ? 0.24 : 0.3);
     const smoothing = isScrolling ? 0.03 : 0.02;
@@ -120,6 +126,23 @@ function Particles({
 
     for (let i = 0; i < PARTICLE_COUNT; i += 1) {
       const i3 = i * 3;
+      const speed = driftSeeds[i3 + 2];
+      const wanderX = Math.sin(time * 0.4 * speed + driftSeeds[i3]) * 0.0006;
+      const wanderY = Math.sin(time * 0.35 * speed + driftSeeds[i3 + 1]) * 0.0006;
+      const wanderZ = Math.cos(time * 0.45 * speed + driftSeeds[i3] + driftSeeds[i3 + 1]) * 0.0006;
+
+      velocities[i3] += wanderX;
+      velocities[i3 + 1] += wanderY;
+      velocities[i3 + 2] += wanderZ;
+
+      const vMag = Math.sqrt(velocities[i3] ** 2 + velocities[i3 + 1] ** 2 + velocities[i3 + 2] ** 2);
+      if (vMag > 0.004) {
+        const dampen = 0.004 / vMag;
+        velocities[i3] *= dampen;
+        velocities[i3 + 1] *= dampen;
+        velocities[i3 + 2] *= dampen;
+      }
+
       positions[i3] += velocities[i3];
       positions[i3 + 1] += velocities[i3 + 1];
       positions[i3 + 2] += velocities[i3 + 2];
@@ -129,19 +152,13 @@ function Particles({
       );
 
       if (distance > 10) {
-        const pull = 0.001;
+        const pull = 0.0008;
         positions[i3] -= positions[i3] * pull;
         positions[i3 + 1] -= positions[i3 + 1] * pull;
         positions[i3 + 2] -= positions[i3 + 2] * pull;
       }
 
-      const angle = 0.002;
-      const x = positions[i3];
-      const z = positions[i3 + 2];
-      positions[i3] = x * Math.cos(angle) - z * Math.sin(angle);
-      positions[i3 + 2] = x * Math.sin(angle) + z * Math.cos(angle);
-
-      const pulse = 0.7 + 0.5 * Math.sin(time * 1.2 + phases[i]);
+      const pulse = 0.75 + 0.45 * Math.sin(time * 1.0 + phases[i]);
       const scale = sizes[i] * pulse;
       const depthFactor = Math.max(0.15, 1 - distance / 14);
 
@@ -225,7 +242,7 @@ function Particles({
         args={[undefined, undefined, PARTICLE_COUNT]}
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 8, 8]} />
+        <sphereGeometry args={[1, 6, 6]} />
         <meshBasicMaterial
           transparent
           opacity={0.9}
