@@ -34,10 +34,10 @@ interface QualityPriceDataPoint {
   slug: string;
   name: string;
   provider: string;
-  qualityScore: number;
-  inputPrice: number;
-  parameterCount: number;
-  rank: number;
+  qualityScore: number | null;
+  inputPrice: number | null;
+  parameterCount: number | null;
+  rank: number | null;
 }
 
 interface CustomTooltipProps {
@@ -108,7 +108,7 @@ function CustomScatterTooltip({ active, payload }: CustomTooltipProps) {
             Quality Score
           </span>
           <span style={{ color: "#00d4aa", fontSize: "12px", fontWeight: 500 }}>
-            {data.qualityScore.toFixed(1)}
+            {Number(data.qualityScore ?? 0).toFixed(1)}
           </span>
         </div>
         <div
@@ -124,7 +124,7 @@ function CustomScatterTooltip({ active, payload }: CustomTooltipProps) {
           <span
             style={{ color: "#ffffff", fontSize: "12px", fontWeight: 500 }}
           >
-            ${data.inputPrice.toFixed(2)}/M tokens
+            ${Number(data.inputPrice ?? 0).toFixed(2)}/M tokens
           </span>
         </div>
         <div
@@ -152,6 +152,14 @@ function getProviderColor(provider: string): string {
   return PROVIDER_COLORS[provider] || PROVIDER_COLORS.default;
 }
 
+function isFiniteNumber(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatAccessiblePrice(value: number | null): string {
+  return isFiniteNumber(value) ? `$${value.toFixed(2)} per million tokens` : "pricing unavailable";
+}
+
 export default function QualityPriceFrontier() {
   const [logScale, setLogScale] = useState(false);
   const { filters, setFilters } = useChartFilters();
@@ -172,9 +180,15 @@ export default function QualityPriceFrontier() {
   const data: QualityPriceDataPoint[] = Array.isArray(rawData)
     ? rawData
     : (rawData as { data?: QualityPriceDataPoint[] })?.data ?? [];
+  const chartData = data.filter(
+    (point) =>
+      isFiniteNumber(point.qualityScore) &&
+      isFiniteNumber(point.inputPrice) &&
+      point.inputPrice >= 0
+  );
 
   // Group data by provider for color-coded scatter series
-  const groupedByProvider = data.reduce<Record<string, QualityPriceDataPoint[]>>(
+  const groupedByProvider = chartData.reduce<Record<string, QualityPriceDataPoint[]>>(
     (acc, point) => {
       const provider = point.provider || "Unknown";
       if (!acc[provider]) acc[provider] = [];
@@ -185,13 +199,17 @@ export default function QualityPriceFrontier() {
   );
 
   // Determine bubble size range from parameter counts
-  const paramCounts = data.map((d) => d.parameterCount).filter(Boolean);
+  const paramCounts = chartData
+    .map((d) => d.parameterCount)
+    .filter((value): value is number => isFiniteNumber(value) && value > 0);
   const minParam = paramCounts.length > 0 ? Math.min(...paramCounts) : 1;
   const maxParam = paramCounts.length > 0 ? Math.max(...paramCounts) : 1000;
 
   // Compute smart axis domains from data
-  const prices = data.map((d) => d.inputPrice).filter((p) => p > 0);
-  const scores = data.map((d) => d.qualityScore).filter(Boolean);
+  const prices = chartData.map((d) => d.inputPrice).filter((p): p is number => isFiniteNumber(p) && p > 0);
+  const scores = chartData
+    .map((d) => d.qualityScore)
+    .filter((value): value is number => isFiniteNumber(value));
 
   // Use 95th percentile for X-axis to avoid extreme outliers stretching the chart
   const sortedPrices = [...prices].sort((a, b) => a - b);
@@ -212,12 +230,15 @@ export default function QualityPriceFrontier() {
   };
 
   const accessibleLeaders = [...data]
+    .filter((item) => isFiniteNumber(item.qualityScore))
     .sort((left, right) => {
       if (right.qualityScore !== left.qualityScore) {
-        return right.qualityScore - left.qualityScore;
+        return Number(right.qualityScore) - Number(left.qualityScore);
       }
 
-      return left.inputPrice - right.inputPrice;
+      const leftPrice = isFiniteNumber(left.inputPrice) ? left.inputPrice : Number.POSITIVE_INFINITY;
+      const rightPrice = isFiniteNumber(right.inputPrice) ? right.inputPrice : Number.POSITIVE_INFINITY;
+      return leftPrice - rightPrice;
     })
     .slice(0, 5);
 
@@ -237,7 +258,7 @@ export default function QualityPriceFrontier() {
           <ol>
             {accessibleLeaders.map((item) => (
               <li key={item.slug}>
-                {item.name} by {item.provider}, quality score {item.qualityScore.toFixed(1)}, input price ${item.inputPrice.toFixed(2)} per million tokens, rank {item.rank}.
+                {item.name} by {item.provider}, quality score {Number(item.qualityScore).toFixed(1)}, input price {formatAccessiblePrice(item.inputPrice)}, rank {item.rank ?? "unranked"}.
               </li>
             ))}
           </ol>
@@ -306,7 +327,7 @@ export default function QualityPriceFrontier() {
         </div>
       )}
 
-      {!isLoading && !error && data.length === 0 && (
+      {!isLoading && !error && chartData.length === 0 && (
         <div
           style={{
             display: "flex",
@@ -321,7 +342,7 @@ export default function QualityPriceFrontier() {
         </div>
       )}
 
-      {!isLoading && !error && data.length > 0 && (
+      {!isLoading && !error && chartData.length > 0 && (
         <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={500}>
           <ScatterChart
