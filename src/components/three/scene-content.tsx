@@ -5,9 +5,9 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 1000;
-const CONNECTION_DISTANCE = 1.8;
+const CONNECTION_DISTANCE = 2.4;
 const CONNECTION_DISTANCE_SQ = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
-const MAX_CONNECTIONS = 200;
+const MAX_CONNECTIONS = 300;
 
 export interface SceneContentProps {
   connectionBudget: number;
@@ -39,9 +39,9 @@ function generateParticleData(): ParticleBuffers {
     positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
     positions[i3 + 2] = radius * Math.cos(phi) + (Math.random() - 0.5) * 2;
 
-    velocities[i3] = (Math.random() - 0.5) * 0.001;
-    velocities[i3 + 1] = (Math.random() - 0.5) * 0.001;
-    velocities[i3 + 2] = (Math.random() - 0.5) * 0.001;
+    velocities[i3] = (Math.random() - 0.5) * 0.003;
+    velocities[i3 + 1] = (Math.random() - 0.5) * 0.003;
+    velocities[i3 + 2] = (Math.random() - 0.5) * 0.003;
 
     phases[i] = Math.random() * Math.PI * 2;
     sizes[i] = 0.008 + Math.random() * 0.018;
@@ -82,7 +82,7 @@ function Particles({
       new THREE.LineBasicMaterial({
         vertexColors: true,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.7,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
@@ -129,19 +129,19 @@ function Particles({
       );
 
       if (distance > 10) {
-        const pull = 0.0005;
+        const pull = 0.001;
         positions[i3] -= positions[i3] * pull;
         positions[i3 + 1] -= positions[i3 + 1] * pull;
         positions[i3 + 2] -= positions[i3 + 2] * pull;
       }
 
-      const angle = 0.0008;
+      const angle = 0.002;
       const x = positions[i3];
       const z = positions[i3 + 2];
       positions[i3] = x * Math.cos(angle) - z * Math.sin(angle);
       positions[i3 + 2] = x * Math.sin(angle) + z * Math.cos(angle);
 
-      const pulse = 0.8 + 0.4 * Math.sin(time * 0.8 + phases[i]);
+      const pulse = 0.7 + 0.5 * Math.sin(time * 1.2 + phases[i]);
       const scale = sizes[i] * pulse;
       const depthFactor = Math.max(0.15, 1 - distance / 14);
 
@@ -190,7 +190,7 @@ function Particles({
         }
 
         const distance = Math.sqrt(distanceSq);
-        const alpha = (1 - distance / CONNECTION_DISTANCE) * 0.3;
+        const alpha = (1 - distance / CONNECTION_DISTANCE) * 0.6;
         const li = lineIndex * 6;
 
         linePositions[li] = positions[i3];
@@ -247,17 +247,17 @@ function CentralGlow() {
   useFrame((state) => {
     if (!meshRef.current) return;
     const time = state.clock.elapsedTime;
-    const scale = 1 + 0.15 * Math.sin(time * 0.5);
+    const scale = 1 + 0.25 * Math.sin(time * 0.8);
     meshRef.current.scale.setScalar(scale);
   });
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0]}>
-      <sphereGeometry args={[0.8, 32, 32]} />
+      <sphereGeometry args={[1.2, 32, 32]} />
       <meshBasicMaterial
         color="#00d4aa"
         transparent
-        opacity={0.03}
+        opacity={0.08}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />
