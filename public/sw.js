@@ -1,5 +1,5 @@
 // AI Market Cap - Service Worker
-const CACHE_NAME = "aimc-v3";
+const CACHE_NAME = "aimc-v4";
 const STATIC_ASSETS = ["/offline"];
 
 // Install: cache static assets
@@ -40,11 +40,16 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses for static assets
-        if (response.ok && (request.destination === "style" || request.destination === "script" || request.destination === "image")) {
+        // Never cache code bundles across deploys. A stale chunk can cause hydration/runtime
+        // mismatches if the HTML updates before a previously cached script does.
+        const isRuntimeAsset =
+          request.destination === "style" || request.destination === "script";
+
+        if (!isRuntimeAsset && response.ok && request.destination === "image") {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
+
         return response;
       })
       .catch(() => {
