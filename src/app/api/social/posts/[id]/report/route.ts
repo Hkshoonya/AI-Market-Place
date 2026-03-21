@@ -94,7 +94,7 @@ export async function POST(
       isRootPost: post.parent_post_id === null,
     });
 
-    let responseReport = {
+    const responseReport = {
       ...report,
       classifier_label: triage.label,
       classifier_confidence: triage.confidence,

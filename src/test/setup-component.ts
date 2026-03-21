@@ -82,9 +82,11 @@ vi.mock('next/navigation', () => ({
 
 // Mock next/link — use React.createElement to avoid JSX in .ts file
 vi.mock('next/link', () => ({
-  default: ({ children, href, prefetch, ...props }: any) => {
+  default: ({ children, href, ...props }: any) => {
     const { createElement } = require('react');
-    return createElement('a', { href, ...props }, children);
+    const linkProps = { href, ...props };
+    delete linkProps.prefetch;
+    return createElement('a', linkProps, children);
   },
 }));
 
@@ -92,8 +94,7 @@ vi.mock('next/link', () => ({
 vi.mock('next/image', () => ({
   default: (props: any) => {
     const { createElement } = require('react');
-    const { unoptimized, loader, ...rest } = props;
-    return createElement('img', rest);
+    return createElement('img', props);
   },
 }));
 

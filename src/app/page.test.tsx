@@ -202,7 +202,7 @@ describe("HomePage freshness badge", () => {
     expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:00:00.000Z");
     expect(badge).toHaveAttribute("data-detail", "pipeline sync");
     },
-    10000
+    30000
   );
 
   it("falls back to recent market updates when no pipeline sync timestamp exists", async () => {

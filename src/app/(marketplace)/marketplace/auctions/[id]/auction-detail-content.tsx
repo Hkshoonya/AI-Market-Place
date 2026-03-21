@@ -64,6 +64,15 @@ export default function AuctionDetailContent({
 }) {
   const { user, loading: authLoading } = useAuth();
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const copyToClipboard = useCallback(async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // ignore clipboard failures in the auction sidebar
+    }
+  }, []);
 
   const { data: auction, error, isLoading, mutate } = useSWR<Auction>(
     `/api/marketplace/auctions/${auctionId}`,
@@ -112,16 +121,6 @@ export default function AuctionDetailContent({
         : auction.current_price ?? auction.start_price;
   const hasEnoughBalance =
     walletData != null && walletData.balance >= minimumActionAmount;
-
-  const copyToClipboard = useCallback(async (text: string, field: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {
-      // ignore clipboard failures in the auction sidebar
-    }
-  }, []);
 
   return (
     <>

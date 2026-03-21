@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TradingChart } from "@/components/charts/trading-chart";
 import {
   buildMarketValueExplanation,
-  formatMarketValue,
   renderStars,
 } from "@/lib/models/market-value";
 

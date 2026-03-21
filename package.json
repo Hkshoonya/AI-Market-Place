@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "node server/custom-server.js",
     "lint": "eslint --max-warnings 0",
+    "typecheck": "tsc --noEmit -p tsconfig.ci.json",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit --no-file-parallelism",
+    "test:component": "vitest run --project component --testTimeout 15000",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },

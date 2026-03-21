@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactNode } from "react";
+import { createElement, type ImgHTMLAttributes, type ReactNode } from "react";
 import AuctionDetailContent from "./auction-detail-content";
 
 const mockUseSWR = vi.fn();
@@ -24,7 +24,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt="" {...props} />,
+  default: (props: ImgHTMLAttributes<HTMLImageElement>) => createElement("img", props),
 }));
 
 vi.mock("swr", () => ({

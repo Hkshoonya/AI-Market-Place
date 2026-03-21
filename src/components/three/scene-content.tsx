@@ -187,8 +187,9 @@ function Particles({
 
     lastConnectionBudgetRef.current = connectionBudget;
 
-    const linePositions = lineGeometry.attributes.position.array as Float32Array;
-    const lineColors = lineGeometry.attributes.color.array as Float32Array;
+    const linesGeometry = linesRef.current.geometry as THREE.BufferGeometry;
+    const linePositions = linesGeometry.attributes.position.array as Float32Array;
+    const lineColors = linesGeometry.attributes.color.array as Float32Array;
     let lineIndex = 0;
     const targetConnections = Math.min(connectionBudget, MAX_CONNECTIONS);
 
@@ -230,9 +231,9 @@ function Particles({
       }
     }
 
-    lineGeometry.setDrawRange(0, lineIndex * 2);
-    lineGeometry.attributes.position.needsUpdate = true;
-    lineGeometry.attributes.color.needsUpdate = true;
+    linesGeometry.setDrawRange(0, lineIndex * 2);
+    linesGeometry.attributes.position.needsUpdate = true;
+    linesGeometry.attributes.color.needsUpdate = true;
   });
 
   return (

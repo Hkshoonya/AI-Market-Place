@@ -6,18 +6,20 @@ vi.mock("next/link", () => ({
   default: ({
     href,
     children,
-    prefetch,
     ...props
   }: {
     href?: string;
     children?: ReactNode;
-    prefetch?: boolean;
     [key: string]: unknown;
-  }) => (
-    <a href={typeof href === "string" ? href : "#"} {...props}>
-      {children}
-    </a>
-  ),
+  }) => {
+    const linkProps = { ...props };
+    delete linkProps.prefetch;
+    return (
+      <a href={typeof href === "string" ? href : "#"} {...linkProps}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("@/components/marketplace/category-cards", () => ({

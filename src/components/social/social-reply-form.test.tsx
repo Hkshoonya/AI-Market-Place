@@ -25,6 +25,30 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("./social-image-inputs", () => ({
+  SocialImageInputs: ({
+    onChange,
+  }: {
+    onChange: (
+      images: Array<{ url: string; alt_text?: string | null }>
+    ) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onChange([
+          {
+            url: "https://images.example.com/reply-card.png",
+            alt_text: "Reply chart",
+          },
+        ])
+      }
+    >
+      Add image
+    </button>
+  ),
+}));
+
 describe("SocialReplyForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,11 +75,6 @@ describe("SocialReplyForm", () => {
     await user.click(screen.getByRole("button", { name: /reply/i }));
     await user.type(screen.getByLabelText(/reply content/i), "Keep the market awake.");
     await user.click(screen.getByRole("button", { name: /add image/i }));
-    await user.type(
-      screen.getByLabelText(/image url 1/i),
-      "https://images.example.com/reply-card.png"
-    );
-    await user.type(screen.getByLabelText(/image alt text 1/i), "Reply chart");
     await user.click(screen.getByRole("button", { name: /send reply/i }));
 
     await waitFor(() => {

@@ -104,14 +104,16 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [cachedAuth] = useState(() => readCachedAuthState());
-  const [user, setUser] = useState<User | null>(cachedAuth.user);
-  const [profile, setProfile] = useState<Profile | null>(cachedAuth.profile);
+  const cachedUser = cachedAuth.user;
+  const cachedProfile = cachedAuth.profile;
+  const [user, setUser] = useState<User | null>(cachedUser);
+  const [profile, setProfile] = useState<Profile | null>(cachedProfile);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isActive = true;
     let hasResolvedInitialUser = false;
-    let hasResolvedInitialProfile = cachedAuth.profile !== null;
+    let hasResolvedInitialProfile = cachedProfile !== null;
     const timeoutId = window.setTimeout(() => {
       if (!isActive) return;
       clientWarn("Auth initialization timed out");
@@ -154,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
         let resolvedSessionUser = session?.user ?? null;
 
-        if (!resolvedSessionUser && cachedAuth.user) {
+        if (!resolvedSessionUser && cachedUser) {
           const {
             data: refreshData,
             error: refreshError,
@@ -166,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        if (resolvedSessionUser || !cachedAuth.user) {
+        if (resolvedSessionUser || !cachedUser) {
           await applyUser(resolvedSessionUser);
         }
 
@@ -223,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [cachedProfile, cachedUser]);
 
   const signOut = async () => {
     try {
