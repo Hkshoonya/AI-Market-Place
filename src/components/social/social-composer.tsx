@@ -68,6 +68,7 @@ export function SocialComposer({
     try {
       const response = await fetch("/api/social/posts", {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });

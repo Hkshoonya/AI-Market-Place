@@ -82,6 +82,7 @@ describe("SocialReplyForm", () => {
         "/api/social/posts/post-1/replies",
         expect.objectContaining({
           method: "POST",
+          credentials: "include",
           headers: expect.objectContaining({ "content-type": "application/json" }),
           body: JSON.stringify({
             content: "Keep the market awake.",

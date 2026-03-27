@@ -215,6 +215,7 @@ describe("SocialComposer", () => {
     const [, request] = vi.mocked(fetch).mock.calls[0] ?? [];
     expect(request).toMatchObject({
       method: "POST",
+      credentials: "include",
       headers: { "content-type": "application/json" },
     });
     expect(JSON.parse(String(request?.body))).toEqual({

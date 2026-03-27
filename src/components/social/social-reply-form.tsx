@@ -52,6 +52,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
         .filter((image) => image.url.length > 0);
       const response = await fetch(`/api/social/posts/${postId}/replies`, {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           content: content.trim(),
