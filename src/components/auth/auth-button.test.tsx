@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthButton } from "./auth-button";
 
 const mockUseAuth = vi.fn();
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
+const pathnameMock = vi.fn();
 
 vi.mock("./auth-provider", () => ({
   useAuth: () => mockUseAuth(),
@@ -16,14 +17,17 @@ vi.mock("next/navigation", () => ({
     push: pushMock,
     refresh: refreshMock,
   }),
+  usePathname: () => pathnameMock(),
 }));
 
 describe("AuthButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pathnameMock.mockReturnValue("/");
   });
 
-  it("shows both sign-in and sign-up links when unauthenticated", () => {
+  it("preserves the current route in sign-in and sign-up links when unauthenticated", () => {
+    pathnameMock.mockReturnValue("/commons");
     mockUseAuth.mockReturnValue({
       user: null,
       profile: null,
@@ -35,11 +39,11 @@ describe("AuthButton", () => {
 
     expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
       "href",
-      "/login"
+      "/login?redirect=%2Fcommons"
     );
     expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
       "href",
-      "/signup"
+      "/signup?redirect=%2Fcommons"
     );
   });
 

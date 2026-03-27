@@ -161,7 +161,7 @@ describe("AuthProvider", () => {
     );
 
     expect(screen.getByTestId("loading").textContent).toBe("true");
-    expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("user").textContent).toBe("none");
 
     await act(async () => {
       vi.runOnlyPendingTimers();
@@ -194,7 +194,7 @@ describe("AuthProvider", () => {
       </AuthProvider>
     );
 
-    expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("user").textContent).toBe("none");
     expect(screen.getByTestId("loading").textContent).toBe("true");
 
     await act(async () => {
