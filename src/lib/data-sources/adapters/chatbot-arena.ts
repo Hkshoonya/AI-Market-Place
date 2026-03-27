@@ -59,6 +59,16 @@ const adapter: DataSourceAdapter = {
     const sb = ctx.supabase;
     const today = new Date().toISOString().split("T")[0];
 
+    const hfToken =
+      process.env.HUGGINGFACE_API_TOKEN ||
+      ctx.secrets?.HUGGINGFACE_API_TOKEN ||
+      "";
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "User-Agent": "AI-Market-Cap-Bot",
+    };
+    if (hfToken) headers.Authorization = `Bearer ${hfToken}`;
+
     // Fetch all rows from the HuggingFace datasets API with pagination
     const allRows: HFRowContent[] = [];
     let offset = 0;
@@ -75,8 +85,8 @@ const adapter: DataSourceAdapter = {
 
         const res = await fetchWithRetry(
           url.toString(),
-          { signal: ctx.signal },
-          { signal: ctx.signal }
+          { headers, signal: ctx.signal },
+          { signal: ctx.signal, maxRetries: 5, baseDelayMs: 2000 }
         );
 
         if (!res.ok) {

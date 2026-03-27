@@ -163,7 +163,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
 
-  // ── Tier 3 (every 8h): GitHub, news, pricing ────────────────────────────
+  // ── Tier 3 (every 8h): News, pricing, and mid-frequency benchmarks ─────
   {
     slug: "arxiv",
     name: "arXiv Papers",
@@ -275,15 +275,15 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
 
-  // ── Tier 4 (weekly): Leaderboard crawls ──────────────────────────────────
+  // ── Tier 3 (every 8h): Public benchmark leaderboards ────────────────────
   {
     slug: "livebench",
     name: "LiveBench",
     adapter_type: "livebench",
     description:
       "LiveBench contamination-free benchmark scores updated monthly",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 10,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -309,8 +309,8 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     name: "LiveCodeBench",
     adapter_type: "livecodebench",
     description: "LiveCodeBench code-generation benchmark artifact feed",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 15,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -322,8 +322,8 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     name: "SWE-Bench",
     adapter_type: "swe-bench",
     description: "SWE-Bench verified software-engineering benchmark results",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 18,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -336,8 +336,8 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "arena-hard-auto",
     description:
       "Arena-Hard-Auto official Gemini-judged preference leaderboard",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 19,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -354,7 +354,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     priority: 20,
     secret_env_keys: [],
     output_types: ["benchmarks"],
-    is_enabled: true,
+    is_enabled: false,
     config: {},
   },
   {
@@ -362,8 +362,8 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     name: "BigCode Leaderboard",
     adapter_type: "bigcode-leaderboard",
     description: "BigCode code generation benchmark leaderboard",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 30,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -376,8 +376,8 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     adapter_type: "open-vlm-leaderboard",
     description:
       "OpenCompass Visual Language Model leaderboard scores",
-    tier: 4,
-    sync_interval_hours: 24,
+    tier: 3,
+    sync_interval_hours: 8,
     priority: 40,
     secret_env_keys: [],
     output_types: ["benchmarks"],
@@ -385,7 +385,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
 
-  // ── Tier 4 (weekly): Agent benchmark crawls ──────────────────────────────
+  // ── Tier 4 (every 24h): Agent benchmark crawls ───────────────────────────
   {
     slug: "terminal-bench",
     name: "TerminalBench",
