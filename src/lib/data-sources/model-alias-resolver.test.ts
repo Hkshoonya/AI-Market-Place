@@ -75,6 +75,18 @@ describe("model alias resolver", () => {
         name: "Qwen2.5 7B Instruct",
         provider: "Alibaba / Qwen",
       },
+      {
+        id: "qwen-coder",
+        slug: "qwen-qwen-2-5-coder-32b-instruct",
+        name: "qwen-2.5-coder-32b-instruct",
+        provider: "Qwen",
+      },
+      {
+        id: "yi-lightning",
+        slug: "01ai-yi-lightning",
+        name: "Yi-Lightning",
+        provider: "01.AI",
+      },
     ];
 
     const index = buildModelAliasIndex(models);
@@ -91,6 +103,14 @@ describe("model alias resolver", () => {
     expect(
       resolveMatchedAliasFamilyModelIds(index, models, ["Qwen/Qwen2.5-7B-Instruct"])
     ).toEqual(["qwen-hyphenated", "qwen-spaced"]);
+
+    expect(
+      resolveMatchedAliasFamilyModelIds(index, models, ["Qwen2.5-Coder-32B-Instruct"])
+    ).toEqual(["qwen-coder"]);
+
+    expect(
+      resolveMatchedAliasFamilyModelIds(index, models, ["yi-lightning"])
+    ).toEqual(["yi-lightning"]);
 
     expect(
       resolveMatchedAliasFamilyModelIds(index, models, ["Qwen2-VL-7B-Instruct"])
