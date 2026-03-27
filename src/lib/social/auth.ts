@@ -29,7 +29,27 @@ export async function resolveSocialActorFromRequest(
     } = await supabase.auth.getUser();
 
     if (user) {
-      const actor = await resolveOrCreateHumanActor(admin, user.id);
+      const actor = await resolveOrCreateHumanActor(admin, user.id, {
+        email: user.email ?? null,
+        username:
+          typeof user.user_metadata?.preferred_username === "string"
+            ? user.user_metadata.preferred_username
+            : typeof user.user_metadata?.username === "string"
+              ? user.user_metadata.username
+              : null,
+        displayName:
+          typeof user.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : typeof user.user_metadata?.name === "string"
+              ? user.user_metadata.name
+              : null,
+        avatarUrl:
+          typeof user.user_metadata?.avatar_url === "string"
+            ? user.user_metadata.avatar_url
+            : typeof user.user_metadata?.picture === "string"
+              ? user.user_metadata.picture
+              : null,
+      });
       return {
         actor: {
           id: actor.id,

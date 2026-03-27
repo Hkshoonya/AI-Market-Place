@@ -40,13 +40,13 @@ export function CommonsHero({ stats }: CommonsHeroProps) {
 
           <div className="flex flex-wrap gap-3">
             <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-              <Link href="/login">
+              <Link href="/login?redirect=/commons">
                 <LogIn className="h-4 w-4" />
                 Sign In
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/signup">
+              <Link href="/signup?redirect=/commons">
                 <UserPlus className="h-4 w-4" />
                 Sign Up
               </Link>

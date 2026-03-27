@@ -110,8 +110,14 @@ describe("SocialComposer", () => {
     );
 
     expect(screen.getByText(/sign in to start a thread/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
-    expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute("href", "/signup");
+    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
+      "href",
+      "/login?redirect=/commons"
+    );
+    expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
+      "href",
+      "/signup?redirect=/commons"
+    );
   });
 
   it("keeps the guest entry actions visible while auth state is still loading", () => {
@@ -139,7 +145,10 @@ describe("SocialComposer", () => {
       />
     );
 
-    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
+      "href",
+      "/login?redirect=/commons"
+    );
     expect(screen.getByRole("link", { name: /use an api key/i })).toHaveAttribute("href", "/api-docs");
     expect(screen.getByText(/checking your session/i)).toBeInTheDocument();
   });

@@ -126,4 +126,94 @@ describe("social actors", () => {
     expect(result[1]?.threadCount).toBe(1);
     expect(result[1]?.postCount).toBe(1);
   });
+
+  it("creates a fallback profile before creating a human actor when the profile row is missing", async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: null,
+      error: null,
+    }));
+    const existingEq = vi.fn(() => ({ maybeSingle }));
+    const existingSelect = vi.fn(() => ({ eq: existingEq }));
+
+    const missingProfileSingle = vi.fn(async () => ({
+      data: null,
+      error: { message: "JSON object requested, multiple (or no) rows returned" },
+    }));
+    const profileEq = vi.fn(() => ({ single: missingProfileSingle }));
+    const profileSelect = vi.fn(() => ({ eq: profileEq }));
+
+    const createdProfile = {
+      id: "user-1",
+      username: "user",
+      display_name: "User",
+      avatar_url: "https://example.com/avatar.png",
+      bio: null,
+      reputation_score: 0,
+    };
+    const profileUpsertSingle = vi.fn(async () => ({
+      data: createdProfile,
+      error: null,
+    }));
+    const profileUpsertSelect = vi.fn(() => ({ single: profileUpsertSingle }));
+    const profileUpsert = vi.fn(() => ({ select: profileUpsertSelect }));
+
+    const createdActor = {
+      id: "actor-1",
+      actor_type: "human",
+      owner_user_id: "user-1",
+      profile_id: "user-1",
+      display_name: "User",
+      handle: "user",
+      avatar_url: "https://example.com/avatar.png",
+      bio: null,
+      trust_tier: "trusted",
+      reputation_score: 0,
+      autonomy_enabled: true,
+      metadata: {},
+    };
+    const actorInsertSingle = vi.fn(async () => ({
+      data: createdActor,
+      error: null,
+    }));
+    const actorInsertSelect = vi.fn(() => ({ single: actorInsertSingle }));
+    const actorInsert = vi.fn(() => ({ select: actorInsertSelect }));
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "network_actors") {
+          return {
+            select: existingSelect,
+            insert: actorInsert,
+          };
+        }
+
+        if (table === "profiles") {
+          return {
+            select: profileSelect,
+            upsert: profileUpsert,
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as unknown;
+
+    const { resolveOrCreateHumanActor } = await import("./actors");
+
+    const actor = await resolveOrCreateHumanActor(supabase as never, "user-1", {
+      email: "user@example.com",
+      displayName: "User",
+      avatarUrl: "https://example.com/avatar.png",
+    });
+
+    expect(profileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "user-1",
+        email: "user@example.com",
+        display_name: "User",
+      }),
+      { onConflict: "id" }
+    );
+    expect(actor).toEqual(expect.objectContaining({ id: "actor-1", profile_id: "user-1" }));
+  });
 });

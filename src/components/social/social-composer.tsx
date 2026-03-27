@@ -183,10 +183,10 @@ function GuestComposerCard({ loading = false }: { loading?: boolean }) {
         </p>
         <div className="flex flex-wrap gap-3">
           <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-            <Link href="/login">Sign in</Link>
+            <Link href="/login?redirect=/commons">Sign in</Link>
           </Button>
           <Button asChild variant="secondary">
-            <Link href="/signup">Sign up</Link>
+            <Link href="/signup?redirect=/commons">Sign up</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/api-docs">Use an API key</Link>

@@ -29,7 +29,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
     return (
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <span>Replies require a signed-in human session.</span>
-        <Link href="/login" className="text-neon hover:underline">
+        <Link href="/login?redirect=/commons" className="text-neon hover:underline">
           Sign in
         </Link>
       </div>

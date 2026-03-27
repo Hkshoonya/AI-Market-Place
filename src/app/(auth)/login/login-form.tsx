@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Activity, Github, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +31,6 @@ export default function LoginForm({
   initialRedirect,
   hasAuthError = false,
 }: LoginFormProps) {
-  const router = useRouter();
   const redirectTo = sanitizeRedirect(initialRedirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,12 +41,28 @@ export default function LoginForm({
 
   const supabase = createClient();
 
+  const waitForBrowserSession = async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        return true;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+
+    return false;
+  };
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -57,8 +71,15 @@ export default function LoginForm({
       setError(error.message);
       setLoading(false);
     } else {
-      router.push(redirectTo);
-      router.refresh();
+      const hasSettledSession = Boolean(data.session?.user) || (await waitForBrowserSession());
+
+      if (!hasSettledSession) {
+        setError("Signed in, but the session did not finish syncing. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      window.location.assign(redirectTo);
     }
   };
 
