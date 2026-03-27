@@ -12,15 +12,8 @@ export function resolveCronRunnerMode(): CronRunnerMode {
   const rawMode = process.env.CRON_RUNNER_MODE?.trim().toLowerCase();
   const isRailway = isRailwayRuntime();
 
-  if (rawMode === "disabled" || rawMode === "internal") {
+  if (rawMode === "disabled" || rawMode === "internal" || rawMode === "external") {
     return rawMode;
-  }
-
-  // Railway should be self-contained by default. If an old deployment still
-  // carries CRON_RUNNER_MODE=external, coerce back to internal so scheduling
-  // does not silently depend on an out-of-band VPS cron runner.
-  if (rawMode === "external") {
-    return isRailway ? "internal" : "external";
   }
 
   return isRailway ? "internal" : "external";
@@ -29,5 +22,9 @@ export function resolveCronRunnerMode(): CronRunnerMode {
 export function isCronSchedulerConfigured(
   mode = resolveCronRunnerMode()
 ): boolean {
-  return mode !== "disabled";
+  if (mode === "disabled") {
+    return false;
+  }
+
+  return Boolean(process.env.CRON_SECRET?.trim());
 }

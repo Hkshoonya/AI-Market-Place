@@ -98,6 +98,24 @@ async function runDepositScan(
       });
     }
 
+    const [hasSolanaWallets, hasEvmWallets] = await Promise.all([
+      configuredChains.includes("solana")
+        ? hasEligibleWallets(supabase, "solana")
+        : Promise.resolve(false),
+      configuredChains.some((chain) => chain === "base" || chain === "polygon")
+        ? hasEligibleWallets(supabase, "evm")
+        : Promise.resolve(false),
+    ]);
+
+    if (!hasSolanaWallets && !hasEvmWallets) {
+      return tracker.complete({
+        message: "No funded wallet addresses are provisioned for deposit checking",
+        targetChain: targetChain ?? "all",
+        configuredChains,
+        ...summary,
+      });
+    }
+
     // Process each chain
     for (const chain of configuredChains) {
       try {
@@ -279,6 +297,26 @@ async function isTxHashProcessed(
 
 function isDepositChain(value: unknown): value is DepositChain {
   return value === "solana" || value === "base" || value === "polygon";
+}
+
+async function hasEligibleWallets(
+  supabase: TypedSupabaseClient,
+  addressType: "solana" | "evm"
+): Promise<boolean> {
+  const column =
+    addressType === "solana" ? "deposit_address_solana" : "deposit_address_evm";
+  const { data, error } = await supabase
+    .from("wallets")
+    .select("id")
+    .not(column, "is", null)
+    .eq("is_active", true)
+    .limit(1);
+
+  if (error) {
+    throw new Error(`Failed to preflight ${addressType} deposit scan: ${error.message}`);
+  }
+
+  return Boolean(data && data.length > 0);
 }
 
 function parseTargetChainFromSearchParams(

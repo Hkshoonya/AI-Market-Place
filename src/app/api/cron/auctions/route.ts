@@ -108,6 +108,13 @@ export async function GET(request: NextRequest) {
 
     if (expiredError) {
       results.errors.push(`Failed to query expired auctions: ${expiredError.message}`);
+    } else if ((upcomingAuctions?.length ?? 0) === 0 && (expiredAuctions?.length ?? 0) === 0) {
+      return tracker.complete({
+        message: "No auctions required activation or settlement",
+        activated: 0,
+        settled: 0,
+        cancelled: 0,
+      });
     } else if (expiredAuctions && expiredAuctions.length > 0) {
       for (const auction of expiredAuctions) {
         try {

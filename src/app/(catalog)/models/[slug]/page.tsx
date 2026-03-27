@@ -42,7 +42,7 @@ import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 const MODEL_DETAIL_TABS = new Set([
   "benchmarks",
