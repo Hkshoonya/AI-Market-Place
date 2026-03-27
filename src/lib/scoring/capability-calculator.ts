@@ -34,7 +34,7 @@ const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string
     secondary: ["ifeval", "hellaswag", "truthfulqa", "arena-hard-auto"],
   },
   code: {
-    primary: ["humaneval", "swe-bench", "swe_bench", "bigcodebench", "livecodebench"],
+    primary: ["humaneval", "swe-bench", "swe_bench", "bigcodebench", "livecodebench", "aider-polyglot"],
     secondary: ["livebench-coding"],
   },
   multimodal: {

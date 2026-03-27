@@ -65,6 +65,7 @@ const SKILLS: SkillDef[] = [
       "swe_bench",
       "swe-bench",
       "livecodebench",
+      "aider-polyglot",
       "livebench-coding",
       "livebench_coding",
     ],

@@ -60,6 +60,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/seal-leaderboard"),
     import("./adapters/bigcode-leaderboard"),
     import("./adapters/open-vlm-leaderboard"),
+    import("./adapters/aider-polyglot"),
     // Agent benchmark adapters (Phase 6)
     import("./adapters/terminal-bench"),
     import("./adapters/osworld"),

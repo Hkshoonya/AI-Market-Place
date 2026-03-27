@@ -58,6 +58,7 @@ export const BENCHMARK_IMPORTANCE: Record<string, number> = {
   // BigCodeBench
   "bigcodebench": 1.2,
   "livecodebench": 1.2,
+  "aider-polyglot": 1.25,
   "arena-hard-auto": 1.1,
 };
 

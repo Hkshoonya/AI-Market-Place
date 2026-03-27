@@ -109,6 +109,15 @@ export const BENCHMARKS: BenchmarkConfig[] = [
     source: "livecodebench",
   },
   {
+    slug: "aider-polyglot",
+    name: "Aider Polyglot",
+    category: "coding",
+    scoreType: "pass_rate",
+    maxScore: 100,
+    description: "Multi-language code editing benchmark from aider",
+    source: "aider",
+  },
+  {
     slug: "arena-hard-auto",
     name: "Arena-Hard-Auto",
     category: "general",

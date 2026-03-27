@@ -17,6 +17,7 @@ describe("benchmark seed configuration", () => {
       "arena-hard-auto",
       "bigcode-leaderboard",
       "open-vlm-leaderboard",
+      "aider-polyglot",
     ];
 
     for (const slug of fasterBenchmarkSlugs) {

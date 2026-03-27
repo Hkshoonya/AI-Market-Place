@@ -384,6 +384,19 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     is_enabled: true,
     config: {},
   },
+  {
+    slug: "aider-polyglot",
+    name: "Aider Polyglot",
+    adapter_type: "aider-polyglot",
+    description: "Aider polyglot coding leaderboard from the official aider site",
+    tier: 3,
+    sync_interval_hours: 8,
+    priority: 45,
+    secret_env_keys: [],
+    output_types: ["benchmarks"],
+    is_enabled: true,
+    config: {},
+  },
 
   // ── Tier 4 (every 24h): Agent benchmark crawls ───────────────────────────
   {
