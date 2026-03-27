@@ -58,6 +58,7 @@ describe("SocialReportButton", () => {
         "/api/social/posts/post-1/report",
         expect.objectContaining({
           method: "POST",
+          credentials: "include",
           headers: expect.objectContaining({ "content-type": "application/json" }),
           body: JSON.stringify({
             reason: "spam",

@@ -132,12 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
+        hasResolvedInitialUser = true;
         const profileData = await fetchProfile(currentUser.id);
         if (!isActive) return;
         setProfile(profileData);
         writeCachedAuthState(currentUser, profileData);
         posthog.identify(currentUser.id, { email: currentUser.email });
-        hasResolvedInitialUser = true;
         hasResolvedInitialProfile = profileData !== null;
         return;
       }
