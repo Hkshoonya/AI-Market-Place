@@ -178,6 +178,7 @@ export default function ProfileContent() {
   const avatarSeed = buildAvatarSeed(displayName, username, user.email);
   const avatarOptions = buildAvatarOptions(avatarSeed);
   const previewAvatarUrl = avatarUrl.trim() || null;
+  const previewDisplayName = profile?.display_name || profile?.username || user.email || "User";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -188,7 +189,7 @@ export default function ProfileContent() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewAvatarUrl}
-              alt={`${profile.display_name || "User"} profile picture`}
+              alt={`${previewDisplayName} profile picture`}
               className="h-16 w-16 rounded-full object-cover"
             />
           ) : (
