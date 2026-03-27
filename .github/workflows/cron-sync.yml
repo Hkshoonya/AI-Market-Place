@@ -1,18 +1,21 @@
-name: Data Sync Crons
+name: External Cron Triggers
 
-# Optional external scheduler compatibility layer.
-# Scheduled runs only execute when ENABLE_GITHUB_ACTIONS_CRON=true.
-# workflow_dispatch remains available for manual recovery runs.
+# GitHub Actions is used here only for lower-sensitivity scheduled jobs.
+# Critical 5-minute jobs like auctions and chain-deposits should stay on Railway.
+# Endpoint failures are recorded by the app in cron_runs/admin surfaces; this
+# workflow avoids failing on those responses so GitHub does not spam failure emails.
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
-    - cron: "0 */12 * * *"
-    - cron: "0 8 * * *"
-    - cron: "0 0 * * 1"
-    - cron: "*/5 * * * *"
-    - cron: "45 */6 * * *"
-    - cron: "30 */6 * * *"
+    - cron: "0 */2 * * *"
+    - cron: "0 */4 * * *"
+    - cron: "0 */8 * * *"
+    - cron: "0 0 * * *"
+    - cron: "45 */2 * * *"
+    - cron: "55 */2 * * *"
+    - cron: "20 1 * * *"
+    - cron: "30 */2 * * *"
+    - cron: "15 */4 * * *"
     - cron: "0 9 * * *"
     - cron: "0 10 * * 1"
   workflow_dispatch:
@@ -27,9 +30,11 @@ on:
           - sync-tier-2
           - sync-tier-3
           - sync-tier-4
-          - auctions
           - compute-scores
+          - social-publish
+          - marketplace-policy
           - agents-pipeline
+          - agents-verifier
           - agents-code-quality
           - agents-ux-monitor
 
@@ -39,127 +44,199 @@ env:
 
 jobs:
   sync-tier-1:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 */6 * * *') || github.event.inputs.job == 'sync-tier-1' || github.event.inputs.job == 'all'
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 */2 * * *') || github.event.inputs.job == 'sync-tier-1' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Trigger Tier 1 Sync
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/sync?tier=1" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Tier 1 trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Tier 1 endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   sync-tier-2:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 */12 * * *') || github.event.inputs.job == 'sync-tier-2' || github.event.inputs.job == 'all'
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 */4 * * *') || github.event.inputs.job == 'sync-tier-2' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Trigger Tier 2 Sync
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/sync?tier=2" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Tier 2 trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Tier 2 endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   sync-tier-3:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 8 * * *') || github.event.inputs.job == 'sync-tier-3' || github.event.inputs.job == 'all'
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 */8 * * *') || github.event.inputs.job == 'sync-tier-3' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Trigger Tier 3 Sync
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/sync?tier=3" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Tier 3 trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Tier 3 endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   sync-tier-4:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 0 * * 1') || github.event.inputs.job == 'sync-tier-4' || github.event.inputs.job == 'all'
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 0 * * *') || github.event.inputs.job == 'sync-tier-4' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Trigger Tier 4 Sync
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/sync?tier=4" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
-
-  auctions:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '*/5 * * * *') || github.event.inputs.job == 'auctions' || github.event.inputs.job == 'all'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Trigger Auction Settlement
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "$SITE_URL/api/cron/auctions" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Tier 4 trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Tier 4 endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   compute-scores:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '45 */6 * * *') || github.event.inputs.job == 'compute-scores' || github.event.inputs.job == 'all'
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '45 */2 * * *') || github.event.inputs.job == 'compute-scores' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Trigger Compute Scores
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/compute-scores" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Compute Scores trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Compute Scores endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
-  agents-pipeline:
-    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '30 */6 * * *') || github.event.inputs.job == 'agents-pipeline' || github.event.inputs.job == 'all'
+  social-publish:
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '55 */2 * * *') || github.event.inputs.job == 'social-publish' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Trigger Social Signal Publisher
+        run: |
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/social/publish-signals" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Social publish trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Social publish endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
+
+  marketplace-policy:
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '20 1 * * *') || github.event.inputs.job == 'marketplace-policy' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Marketplace Policy Rescan
+        run: |
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/marketplace/policy-rescan?mode=missing&limit=500" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 300 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Marketplace policy trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Marketplace policy endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
+
+  agents-pipeline:
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '30 */2 * * *') || github.event.inputs.job == 'agents-pipeline' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
       - name: Trigger Agent Pipeline
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/agents/pipeline" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 600 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Pipeline agent trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Pipeline agent endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
+
+  agents-verifier:
+    if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '15 */4 * * *') || github.event.inputs.job == 'agents-verifier' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger Verifier Agent
+        run: |
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
+            -X GET "$SITE_URL/api/cron/agents/verifier" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --max-time 600 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Verifier agent trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Verifier agent endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   agents-code-quality:
     if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 9 * * *') || github.event.inputs.job == 'agents-code-quality' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Trigger Code Quality Agent
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/agents/code-quality" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 600 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::Code Quality agent trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::Code Quality agent endpoint returned HTTP $response. Inspect admin cron panel."
+          fi
 
   agents-ux-monitor:
     if: (vars.ENABLE_GITHUB_ACTIONS_CRON == 'true' && github.event.schedule == '0 10 * * 1') || github.event.inputs.job == 'agents-ux-monitor' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Trigger UX Monitor Agent
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          response=$(curl -s -o /tmp/cron-response.txt -w "%{http_code}" \
             -X GET "$SITE_URL/api/cron/agents/ux-monitor" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 300)
-          echo "Response: $response"
-          if [ "$response" -ge 400 ]; then exit 1; fi
+            --max-time 600 || true)
+          echo "Response: ${response:-transport-error}"
+          if [ -z "${response:-}" ]; then
+            echo "::warning::UX Monitor agent trigger failed at transport level. Inspect app health/admin cron panel."
+          elif [ "$response" -ge 400 ]; then
+            echo "::warning::UX Monitor agent endpoint returned HTTP $response. Inspect admin cron panel."
+          fi

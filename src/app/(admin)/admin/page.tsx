@@ -43,6 +43,26 @@ interface AdminContactSubmissionsResponse {
   data: AdminContactSubmission[];
 }
 
+interface AdminCronRun {
+  id: string;
+  job_name: string | null;
+  status: string;
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
+interface AdminCronOverviewResponse {
+  summary: {
+    recentRuns: number;
+    failedRuns24h: number;
+    runningRuns: number;
+    lastRunAt: string | null;
+  };
+  recentFailingRuns: AdminCronRun[];
+}
+
 export default function AdminOverviewPage() {
   const { data: stats, isLoading, error, mutate } = useSWR<AdminStats>(
     'supabase:admin-overview',
@@ -109,6 +129,19 @@ export default function AdminOverviewPage() {
   );
 
   const recentInquiries = inquiryResponse?.data ?? [];
+  const { data: cronOverview } = useSWR<AdminCronOverviewResponse>(
+    "/api/admin/cron",
+    async (key: string) => {
+      const response = await fetch(key, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error("Failed to load cron health");
+      }
+
+      return response.json() as Promise<AdminCronOverviewResponse>;
+    },
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const recentFailingRuns = cronOverview?.recentFailingRuns ?? [];
 
   if (isLoading) {
     return (
@@ -285,6 +318,65 @@ export default function AdminOverviewPage() {
             ) : (
               <p className="text-sm text-muted-foreground">
                 No marketplace inquiries have been recorded yet.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Activity className="h-5 w-5 text-neon" />
+              Cron Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border/40 bg-background/30 p-3">
+                <p className="text-xs text-muted-foreground">Failed 24h</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">
+                  {cronOverview?.summary.failedRuns24h ?? 0}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/40 bg-background/30 p-3">
+                <p className="text-xs text-muted-foreground">Running Now</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">
+                  {cronOverview?.summary.runningRuns ?? 0}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/40 bg-background/30 p-3">
+                <p className="text-xs text-muted-foreground">Last Run</p>
+                <p className="mt-1 text-sm font-medium">
+                  {cronOverview?.summary.lastRunAt
+                    ? new Date(cronOverview.summary.lastRunAt).toLocaleString()
+                    : "No recent runs"}
+                </p>
+              </div>
+            </div>
+
+            {recentFailingRuns.length > 0 ? (
+              <div className="space-y-3">
+                {recentFailingRuns.map((run) => (
+                  <div key={run.id} className="rounded-lg border border-loss/30 bg-loss/5 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {run.job_name ?? "Unnamed cron job"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {run.error_message ?? "Unknown failure"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {new Date(run.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No failing cron runs recorded in the recent window.
               </p>
             )}
           </CardContent>
