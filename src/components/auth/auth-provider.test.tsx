@@ -161,7 +161,7 @@ describe("AuthProvider", () => {
     );
 
     expect(screen.getByTestId("loading").textContent).toBe("true");
-    expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("user").textContent).toBe("none");
 
     await act(async () => {
       vi.runOnlyPendingTimers();
@@ -194,7 +194,7 @@ describe("AuthProvider", () => {
       </AuthProvider>
     );
 
-    expect(screen.getByTestId("user").textContent).toBe("user");
+    expect(screen.getByTestId("user").textContent).toBe("none");
     expect(screen.getByTestId("loading").textContent).toBe("true");
 
     await act(async () => {
@@ -294,6 +294,57 @@ describe("AuthProvider", () => {
     );
 
     expect(screen.getByTestId("loading").textContent).toBe("true");
+    expect(screen.getByTestId("user").textContent).toBe("user");
+
+    await act(async () => {
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(screen.getByTestId("loading").textContent).toBe("false");
+    expect(screen.getByTestId("user").textContent).toBe("user");
+  });
+
+  it("keeps a valid session user signed in even if profile hydration stalls during initialization", async () => {
+    authMocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: "user-1",
+            email: "user@example.com",
+          },
+        },
+      },
+    });
+    authMocks.getUser.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved
+        })
+    );
+    authMocks.from.mockImplementation(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(
+            () =>
+              new Promise(() => {
+                // Intentionally unresolved
+              })
+          ),
+        })),
+      })),
+    }));
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     expect(screen.getByTestId("user").textContent).toBe("user");
 
     await act(async () => {

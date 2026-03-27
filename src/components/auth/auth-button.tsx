@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +16,15 @@ import {
 import { useAuth } from "./auth-provider";
 
 export function AuthButton() {
+  const pathname = usePathname();
   const router = useRouter();
   const { user, profile, loading, signOut } = useAuth();
+
+  const redirectTarget = pathname || "/";
+  const loginHref =
+    redirectTarget && redirectTarget !== "/" ? `/login?redirect=${encodeURIComponent(redirectTarget)}` : "/login";
+  const signupHref =
+    redirectTarget && redirectTarget !== "/" ? `/signup?redirect=${encodeURIComponent(redirectTarget)}` : "/signup";
 
   if (loading) {
     return (
@@ -34,7 +41,7 @@ export function AuthButton() {
           className="gap-2 border-border/50"
           asChild
         >
-          <Link href="/login">
+          <Link href={loginHref}>
             <LogIn className="h-4 w-4" />
             Sign In
           </Link>
@@ -44,7 +51,7 @@ export function AuthButton() {
           className="bg-neon text-primary-foreground hover:bg-neon/90"
           asChild
         >
-          <Link href="/signup">Sign Up</Link>
+          <Link href={signupHref}>Sign Up</Link>
         </Button>
       </div>
     );

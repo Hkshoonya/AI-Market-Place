@@ -32,12 +32,48 @@ interface ProfileData {
   watchlistCount: number;
 }
 
+function buildAvatarSeed(...parts: Array<string | null | undefined>) {
+  const seed = parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join("-");
+
+  return seed.length > 0 ? seed : "aimarketcap-user";
+}
+
+function buildAvatarOptions(seed: string) {
+  return [
+    {
+      id: "bottts",
+      label: "Bottts",
+      url: `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(seed)}`,
+    },
+    {
+      id: "identicon",
+      label: "Identicon",
+      url: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(seed)}`,
+    },
+    {
+      id: "shapes",
+      label: "Shapes",
+      url: `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(seed)}`,
+    },
+    {
+      id: "initials",
+      label: "Initials",
+      url: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}`,
+    },
+  ];
+}
+
 export default function ProfileContent() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
-  const [username, setUsername] = useState(profile?.username ?? "");
-  const [bio, setBio] = useState(profile?.bio ?? "");
+  const [displayNameDraft, setDisplayNameDraft] = useState<string | null>(null);
+  const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
+  const [bioDraft, setBioDraft] = useState<string | null>(null);
+  const [avatarUrlDraft, setAvatarUrlDraft] = useState<string | null>(null);
+  const [customAvatarUrlDraft, setCustomAvatarUrlDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -84,6 +120,12 @@ export default function ProfileContent() {
     }
   }, [user, authLoading, router]);
 
+  const displayName = displayNameDraft ?? profile?.display_name ?? "";
+  const username = usernameDraft ?? profile?.username ?? "";
+  const bio = bioDraft ?? profile?.bio ?? "";
+  const avatarUrl = avatarUrlDraft ?? profile?.avatar_url ?? "";
+  const customAvatarUrl = customAvatarUrlDraft ?? profile?.avatar_url ?? "";
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -96,6 +138,7 @@ export default function ProfileContent() {
         display_name: displayName || null,
         username: username || null,
         bio: bio || null,
+        avatar_url: avatarUrl.trim() || null,
       })
       .eq("id", user.id);
 
@@ -105,6 +148,11 @@ export default function ProfileContent() {
     } else {
       setMessage("Profile updated!");
       toast.success("Profile updated successfully");
+      setDisplayNameDraft(null);
+      setUsernameDraft(null);
+      setBioDraft(null);
+      setAvatarUrlDraft(null);
+      setCustomAvatarUrlDraft(null);
     }
     setSaving(false);
   };
@@ -127,17 +175,21 @@ export default function ProfileContent() {
   )
     .charAt(0)
     .toUpperCase();
+  const avatarSeed = buildAvatarSeed(displayName, username, user.email);
+  const avatarOptions = buildAvatarOptions(avatarSeed);
+  const previewAvatarUrl = avatarUrl.trim() || null;
+  const previewDisplayName = profile?.display_name || profile?.username || user.email || "User";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       {/* Profile header */}
       <div className="flex items-start gap-4 mb-8">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-neon/10 text-neon text-2xl font-bold">
-          {profile?.avatar_url ? (
+          {previewAvatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={profile.avatar_url}
-              alt={`${profile.display_name || "User"} profile picture`}
+              src={previewAvatarUrl}
+              alt={`${previewDisplayName} profile picture`}
               className="h-16 w-16 rounded-full object-cover"
             />
           ) : (
@@ -253,7 +305,7 @@ export default function ProfileContent() {
               <Input
                 id="profile-display-name"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => setDisplayNameDraft(e.target.value)}
                 placeholder="Your name"
                 className="mt-1 bg-secondary"
               />
@@ -265,7 +317,7 @@ export default function ProfileContent() {
               <Input
                 id="profile-username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => setUsernameDraft(e.target.value)}
                 placeholder="unique_username"
                 className="mt-1 bg-secondary"
               />
@@ -277,11 +329,89 @@ export default function ProfileContent() {
               <textarea
                 id="profile-bio"
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                onChange={(e) => setBioDraft(e.target.value)}
                 placeholder="Tell us about yourself..."
                 rows={3}
                 className="mt-1 w-full rounded-md border border-border/50 bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon/30"
               />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Profile Picture
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pick a ready-made avatar or paste any image URL you want to use.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {avatarOptions.map((option) => {
+                  const isSelected = avatarUrl.trim() === option.url;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setAvatarUrlDraft(option.url);
+                        setCustomAvatarUrlDraft(option.url);
+                      }}
+                      className={`rounded-xl border p-3 text-left transition-colors ${
+                        isSelected
+                          ? "border-neon bg-neon/10"
+                          : "border-border/50 bg-secondary/30 hover:border-neon/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={option.url}
+                          alt={`${option.label} avatar option`}
+                          className="h-12 w-12 rounded-full border border-border/50 bg-background object-cover"
+                        />
+                        <div>
+                          <p className="text-sm font-medium">{option.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Ready to use
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div>
+                <label htmlFor="profile-avatar-url" className="text-sm font-medium text-muted-foreground">
+                  Custom Avatar URL
+                </label>
+                <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="profile-avatar-url"
+                    value={customAvatarUrl}
+                    onChange={(e) => setCustomAvatarUrlDraft(e.target.value)}
+                    placeholder="https://example.com/avatar.png"
+                    className="bg-secondary"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAvatarUrlDraft(customAvatarUrl.trim())}
+                    >
+                      Use URL
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setAvatarUrlDraft("");
+                        setCustomAvatarUrlDraft("");
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {message && (

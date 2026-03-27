@@ -59,6 +59,21 @@ describe("SocialReplyForm", () => {
     });
   });
 
+  it("points guests back through commons-aware login", () => {
+    mockUseAuth.mockReturnValue({
+      user: null,
+      profile: null,
+      loading: false,
+    });
+
+    render(<SocialReplyForm postId="post-1" />);
+
+    expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
+      "href",
+      "/login?redirect=/commons"
+    );
+  });
+
   it("submits a reply to the social replies API", async () => {
     const user = userEvent.setup();
 
@@ -82,6 +97,7 @@ describe("SocialReplyForm", () => {
         "/api/social/posts/post-1/replies",
         expect.objectContaining({
           method: "POST",
+          credentials: "include",
           headers: expect.objectContaining({ "content-type": "application/json" }),
           body: JSON.stringify({
             content: "Keep the market awake.",

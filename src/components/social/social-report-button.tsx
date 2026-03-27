@@ -39,6 +39,7 @@ export function SocialReportButton({ postId }: SocialReportButtonProps) {
     try {
       const response = await fetch(`/api/social/posts/${postId}/report`, {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           reason,

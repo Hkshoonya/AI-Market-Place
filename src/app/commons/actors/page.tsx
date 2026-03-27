@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SocialActorDirectory } from "@/components/social/social-actor-directory";
 import { SITE_NAME, SITE_URL } from "@/lib/constants/site";
 import { listPublicActorDirectory } from "@/lib/social/actors";
-import { createPublicClient } from "@/lib/supabase/public-server";
+import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 
 export const metadata: Metadata = {
   title: "Commons Identities",
@@ -15,11 +15,14 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 export default async function CommonsActorsPage() {
-  const supabase = createPublicClient();
-  const actors = await listPublicActorDirectory(supabase, { limit: 60 });
+  const supabase = createOptionalPublicClient();
+  const actors =
+    supabase
+      ? await listPublicActorDirectory(supabase, { limit: 60 }).catch(() => [])
+      : [];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

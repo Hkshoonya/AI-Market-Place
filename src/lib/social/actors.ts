@@ -9,6 +9,13 @@ interface ActorHandleInput {
   fallbackId: string;
 }
 
+interface HumanActorSeed {
+  email?: string | null;
+  username?: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+}
+
 export interface PublicActorDirectoryItem extends NetworkActorRow {
   threadCount: number;
   postCount: number;
@@ -210,7 +217,8 @@ export async function listPublicActorDirectory(
 
 export async function resolveOrCreateHumanActor(
   supabase: TypedSupabaseClient,
-  userId: string
+  userId: string,
+  seed: HumanActorSeed = {}
 ): Promise<NetworkActorRow> {
   const { data: existing, error: existingError } = await supabase
     .from("network_actors")
@@ -229,14 +237,47 @@ export async function resolveOrCreateHumanActor(
     .eq("id", userId)
     .single();
 
+  let resolvedProfile = profile;
+
   if (profileError || !profile) {
+    const fallbackUsername =
+      seed.username ??
+      (seed.email ? seed.email.split("@")[0] : null) ??
+      `user-${userId.slice(0, 8)}`;
+    const fallbackDisplayName = seed.displayName ?? fallbackUsername;
+
+    const { data: insertedProfile, error: insertProfileError } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          email: seed.email ?? null,
+          username: fallbackUsername,
+          display_name: fallbackDisplayName,
+          avatar_url: seed.avatarUrl ?? null,
+        },
+        { onConflict: "id" }
+      )
+      .select("id, username, display_name, avatar_url, bio, reputation_score")
+      .single();
+
+    if (insertProfileError || !insertedProfile) {
+      throw new Error(
+        `Profile not found for actor owner ${userId}: ${insertProfileError?.message ?? "unable to create fallback profile"}`
+      );
+    }
+
+    resolvedProfile = insertedProfile;
+  }
+
+  if (!resolvedProfile) {
     throw new Error(`Profile not found for actor owner ${userId}`);
   }
 
   const handle = buildActorHandle({
     actorType: "human",
-    username: profile.username,
-    displayName: profile.display_name,
+    username: resolvedProfile.username,
+    displayName: resolvedProfile.display_name,
     fallbackId: userId.slice(0, 8),
   });
 
@@ -244,14 +285,17 @@ export async function resolveOrCreateHumanActor(
     .from("network_actors")
     .insert({
       actor_type: "human",
-      owner_user_id: profile.id,
-      profile_id: profile.id,
-      display_name: profile.display_name ?? profile.username ?? `User ${profile.id.slice(0, 8)}`,
+      owner_user_id: resolvedProfile.id,
+      profile_id: resolvedProfile.id,
+      display_name:
+        resolvedProfile.display_name ??
+        resolvedProfile.username ??
+        `User ${resolvedProfile.id.slice(0, 8)}`,
       handle,
-      avatar_url: profile.avatar_url ?? null,
-      bio: profile.bio ?? null,
+      avatar_url: resolvedProfile.avatar_url ?? null,
+      bio: resolvedProfile.bio ?? null,
       trust_tier: "trusted",
-      reputation_score: profile.reputation_score ?? 0,
+      reputation_score: resolvedProfile.reputation_score ?? 0,
       autonomy_enabled: true,
       metadata: {},
     })

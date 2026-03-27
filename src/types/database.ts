@@ -539,6 +539,8 @@ export interface MarketplaceOrder {
   price_at_time: number | null;
   delivery_data: Record<string, unknown> | null;
   fulfillment_manifest_snapshot?: Record<string, unknown> | null;
+  guest_email?: string | null;
+  guest_name?: string | null;
   created_at: string;
   updated_at: string;
   // Joined

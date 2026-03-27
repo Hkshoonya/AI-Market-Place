@@ -103,14 +103,14 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [cachedAuth] = useState(() => readCachedAuthState());
-  const cachedUser = cachedAuth.user;
-  const cachedProfile = cachedAuth.profile;
-  const [user, setUser] = useState<User | null>(cachedUser);
-  const [profile, setProfile] = useState<Profile | null>(cachedProfile);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const cachedAuth = readCachedAuthState();
+    const cachedUser = cachedAuth.user;
+    const cachedProfile = cachedAuth.profile;
     let isActive = true;
     let hasResolvedInitialUser = false;
     let hasResolvedInitialProfile = cachedProfile !== null;
@@ -132,12 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
+        hasResolvedInitialUser = true;
         const profileData = await fetchProfile(currentUser.id);
         if (!isActive) return;
         setProfile(profileData);
         writeCachedAuthState(currentUser, profileData);
         posthog.identify(currentUser.id, { email: currentUser.email });
-        hasResolvedInitialUser = true;
         hasResolvedInitialProfile = profileData !== null;
         return;
       }
@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, [cachedProfile, cachedUser]);
+  }, []);
 
   const signOut = async () => {
     try {

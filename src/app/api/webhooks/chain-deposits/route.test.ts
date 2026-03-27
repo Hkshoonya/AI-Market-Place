@@ -50,6 +50,17 @@ function makeWalletsQuery<T extends Record<string, unknown>>(rows: T[]) {
   return builder;
 }
 
+function makeWalletPreflightQuery<T extends Record<string, unknown>>(rows: T[]) {
+  const builder = {
+    select: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({ data: rows, error: null }),
+  };
+
+  return builder;
+}
+
 function makeTransactionsQuery(processedTxHashes: Set<string>) {
   let currentTxHash = "";
   const builder = {
@@ -76,10 +87,15 @@ function createAdminClient({
   walletRows?: Array<Record<string, unknown>>;
   processedTxHashes?: string[];
 }) {
+  let walletQueryCount = 0;
+
   return {
     from: vi.fn((table: string) => {
       if (table === "wallets") {
-        return makeWalletsQuery(walletRows);
+        walletQueryCount += 1;
+        return walletQueryCount === 1
+          ? makeWalletPreflightQuery(walletRows)
+          : makeWalletsQuery(walletRows);
       }
 
       if (table === "wallet_transactions") {
@@ -184,6 +200,28 @@ describe("chain deposit cron route", () => {
         message: "No chains configured for deposit checking",
         targetChain: "base",
         configuredChains: [],
+        processed: 0,
+        credited: 0,
+      })
+    );
+  });
+
+  it("records a no-op success when no eligible wallet deposit addresses exist", async () => {
+    mockCreateAdminClient.mockReturnValue(createAdminClient({ walletRows: [] }));
+    mockIsEvmConfigured.mockImplementation((chain?: string) => chain === "base");
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      makeGetRequest("https://aimarketcap.tech/api/webhooks/chain-deposits?chain=base")
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockCheckEvmDeposits).not.toHaveBeenCalled();
+    expect(mockTrackerComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "No funded wallet addresses are provisioned for deposit checking",
+        targetChain: "base",
+        configuredChains: ["base"],
         processed: 0,
         credited: 0,
       })

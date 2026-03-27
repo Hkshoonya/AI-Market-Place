@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   description: "Rankings of AI models across benchmarks, categories, and real-world performance.",
 };
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 const TrackedModelSchema = zod.object({
   slug: zod.string(),

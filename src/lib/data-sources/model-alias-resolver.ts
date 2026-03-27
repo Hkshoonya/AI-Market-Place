@@ -63,6 +63,10 @@ function normalizeNameKey(value: string) {
     .trim();
 }
 
+function compactSlugKey(value: string) {
+  return makeSlug(value).replace(/-/g, "");
+}
+
 function expandAliasCandidates(aliases: Array<string | null | undefined>) {
   const expanded = new Set<string>();
 
@@ -87,6 +91,19 @@ function getProviderlessSlug(model: AliasModelRecord): string | null {
   const providerSlug = makeSlug(model.provider);
   if (providerSlug && model.slug.startsWith(providerSlug + "-")) {
     return model.slug.slice(providerSlug.length + 1);
+  }
+
+  const compactProviderSlug = providerSlug.replace(/-/g, "");
+  const compactModelSlug = model.slug.replace(/-/g, "");
+  if (compactProviderSlug && compactModelSlug.startsWith(compactProviderSlug)) {
+    const parts = model.slug.split("-");
+    let consumed = "";
+    for (let i = 0; i < parts.length; i++) {
+      consumed += parts[i];
+      if (consumed === compactProviderSlug) {
+        return i + 1 < parts.length ? parts.slice(i + 1).join("-") : null;
+      }
+    }
   }
   return null;
 }
@@ -119,12 +136,15 @@ export function buildModelAliasIndex(models: AliasModelRecord[]): ModelAliasInde
   for (const model of models) {
     idToModel.set(model.id, model);
     pushUnique(slugToIds, model.slug, model.id);
+    pushUnique(slugToIds, compactSlugKey(model.slug), model.id);
     pushUnique(nameToIds, model.name.toLowerCase(), model.id);
     pushUnique(nameToIds, normalizeNameKey(model.name), model.id);
+    pushUnique(nameToIds, compactSlugKey(model.name), model.id);
 
     const providerlessSlug = getProviderlessSlug(model);
     if (providerlessSlug) {
       pushUnique(slugToIds, providerlessSlug, model.id);
+      pushUnique(slugToIds, compactSlugKey(providerlessSlug), model.id);
     }
 
     const baseSlug = stripDateSuffix(model.slug);
@@ -154,8 +174,14 @@ export function resolveAliasFamilyModelIds(
   options: ResolveAliasFamilyOptions
 ) {
   const slugCandidates = uniqueNormalized(options.slugCandidates ?? [], (value) => makeSlug(value));
+  const compactSlugCandidates = uniqueNormalized(options.slugCandidates ?? [], (value) =>
+    compactSlugKey(value)
+  );
   const nameCandidates = uniqueNormalized(options.nameCandidates ?? [], (value) =>
     normalizeNameKey(value)
+  );
+  const compactNameCandidates = uniqueNormalized(options.nameCandidates ?? [], (value) =>
+    compactSlugKey(value)
   );
   const matched = new Set<string>();
 
@@ -165,7 +191,19 @@ export function resolveAliasFamilyModelIds(
     }
   }
 
+  for (const slug of compactSlugCandidates) {
+    for (const id of index.slugToIds.get(slug) ?? []) {
+      matched.add(id);
+    }
+  }
+
   for (const name of nameCandidates) {
+    for (const id of index.nameToIds.get(name) ?? []) {
+      matched.add(id);
+    }
+  }
+
+  for (const name of compactNameCandidates) {
     for (const id of index.nameToIds.get(name) ?? []) {
       matched.add(id);
     }
@@ -232,8 +270,8 @@ export function resolveAliasFamilyModelIds(
     }
   }
 
-  const slugSet = new Set(slugCandidates);
-  const nameSet = new Set(nameCandidates);
+  const slugSet = new Set([...slugCandidates, ...compactSlugCandidates]);
+  const nameSet = new Set([...nameCandidates, ...compactNameCandidates]);
 
   return [...expanded].sort((left, right) => {
     const leftModel = index.idToModel.get(left);

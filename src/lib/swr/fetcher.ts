@@ -3,7 +3,9 @@
  * Handles non-OK responses by throwing an error with the HTTP status attached.
  */
 export async function jsonFetcher<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    credentials: "include",
+  });
 
   if (!res.ok) {
     const error = new Error(

@@ -280,7 +280,7 @@ describe("social signal publisher", () => {
                         category: "pricing",
                         related_provider: "OpenAI",
                         related_model_ids: ["model-1"],
-                        published_at: "2026-03-16T11:00:00.000Z",
+                        published_at: "2026-03-27T11:00:00.000Z",
                         metadata: {},
                       },
                     ],

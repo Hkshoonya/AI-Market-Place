@@ -29,7 +29,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
     return (
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <span>Replies require a signed-in human session.</span>
-        <Link href="/login" className="text-neon hover:underline">
+        <Link href="/login?redirect=/commons" className="text-neon hover:underline">
           Sign in
         </Link>
       </div>
@@ -52,6 +52,7 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
         .filter((image) => image.url.length > 0);
       const response = await fetch(`/api/social/posts/${postId}/replies`, {
         method: "POST",
+        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           content: content.trim(),

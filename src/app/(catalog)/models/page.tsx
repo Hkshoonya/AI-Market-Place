@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   title: "AI Models Directory",
   description: "Browse, search, and compare AI models from around the world.",
 };
-export const revalidate = 60;
+export const revalidate = 300;
 
 const PAGE_SIZE = 20;
 
