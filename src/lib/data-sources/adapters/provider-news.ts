@@ -118,6 +118,34 @@ interface ProviderHealthResult {
   latencyMs: number;
 }
 
+function parseZaiReleaseNotes(html: string, baseUrl: string): ParsedArticle[] {
+  const articles: ParsedArticle[] = [];
+  const seenUrls = new Set<string>();
+  const entryPattern =
+    /data-component-part="update-label">([^<]+)<\/div>\s*<div[^>]+data-component-part="update-description">\s*([^<]+)<\/div>/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = entryPattern.exec(html)) !== null) {
+    const rawDate = match[1].trim();
+    const rawTitle = match[2].trim();
+    const pos = match.index;
+    const window = html.slice(pos, pos + 1200);
+    const href = window.match(/<a[^>]+href="([^"]+)"/)?.[1] ?? `#${rawDate}`;
+    const url = resolveUrl(href, baseUrl);
+
+    if (!rawTitle || seenUrls.has(url)) continue;
+    seenUrls.add(url);
+
+    articles.push({
+      url,
+      title: rawTitle,
+      date: `${rawDate}T00:00:00.000Z`,
+    });
+  }
+
+  return articles;
+}
+
 /**
  * Extract article candidates from raw HTML using generic regex patterns.
  *
@@ -128,6 +156,11 @@ interface ProviderHealthResult {
  * We scan a window of ~500 chars around each link match for a nearby date.
  */
 function parseArticles(html: string, baseUrl: string): ParsedArticle[] {
+  if (baseUrl.includes("docs.z.ai/release-notes/new-released")) {
+    const releaseNotes = parseZaiReleaseNotes(html, baseUrl);
+    if (releaseNotes.length > 0) return releaseNotes;
+  }
+
   const articles: ParsedArticle[] = [];
   const seenUrls = new Set<string>();
 
@@ -357,6 +390,7 @@ const adapter: DataSourceAdapter = {
 
 export const __testables = {
   isModelRelated,
+  parseZaiReleaseNotes,
   providerBlogs: PROVIDER_BLOGS,
   summarizeHealthChecks,
 };

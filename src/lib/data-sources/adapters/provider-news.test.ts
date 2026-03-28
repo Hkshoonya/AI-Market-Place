@@ -44,4 +44,20 @@ describe("provider-news health aggregation", () => {
       ])
     );
   });
+
+  it("extracts structured Z.ai release-note entries instead of the generic page title", () => {
+    const html = `
+      <div data-component-part="update-label">2026-03-27</div>
+      <div class="px-1" data-component-part="update-description">  GLM-5.1 in Coding Agent</div>
+      <div class="prose-sm"><ul><li><a href="/devpack/claude-code">documentation</a></li></ul></div>
+    `;
+
+    expect(__testables.parseZaiReleaseNotes(html, "https://docs.z.ai/release-notes/new-released")).toEqual([
+      {
+        date: "2026-03-27T00:00:00.000Z",
+        title: "GLM-5.1 in Coding Agent",
+        url: "https://docs.z.ai/devpack/claude-code",
+      },
+    ]);
+  });
 });
