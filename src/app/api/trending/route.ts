@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/api-error";
 import {
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
+  sortByReleaseDate,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
@@ -34,8 +35,6 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
     const category = searchParams.get("category");
 
-    // Get models with the most downloads (as a proxy for trending)
-    // and prefer models with high trending scores or recent releases
     let query = supabase
       .from("models")
       .select(
@@ -47,48 +46,12 @@ export async function GET(request: NextRequest) {
       query = query.eq("category", category as import("@/types/database").ModelCategory);
     }
 
-    query = query.limit(limit * 5);
-
     const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // Also get "newest" models (released in last 90 days with good quality)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    let recentQuery = supabase
-      .from("models")
-      .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, release_date, parameter_count, is_open_weights"
-      )
-      .eq("status", "active")
-      .gte("release_date", ninetyDaysAgo.toISOString().split("T")[0])
-      .order("quality_score", { ascending: false, nullsFirst: false })
-      .limit(6);
-
-    if (category) {
-      recentQuery = recentQuery.eq("category", category as import("@/types/database").ModelCategory);
-    }
-
-    const { data: recentModels } = await recentQuery;
-
-    // Get "most popular" by blended traction instead of raw downloads
-    let popularQuery = supabase
-      .from("models")
-      .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, parameter_count, is_open_weights"
-      )
-      .eq("status", "active")
-      .limit(limit * 5);
-
-    if (category) {
-      popularQuery = popularQuery.eq("category", category as import("@/types/database").ModelCategory);
-    }
-
-    const { data: popularModels } = await popularQuery;
+    const visibleModels = dedupePublicModelFamilies(data ?? []);
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -165,21 +128,23 @@ export async function GET(request: NextRequest) {
         .filter((model): model is NonNullable<typeof model> => Boolean(model));
     }
 
-    const trending = sortByDiscoveryScore(dedupePublicModelFamilies(data ?? []), (model) =>
+    const trending = sortByDiscoveryScore(visibleModels, (model) =>
       computeTrendingDiscoveryScore(model)
     ).slice(0, limit);
 
-    const popular = sortByDiscoveryScore(dedupePublicModelFamilies(popularModels ?? []), (model) =>
+    const popular = sortByDiscoveryScore(visibleModels, (model) =>
       computePopularDiscoveryScore(model)
     ).slice(0, limit);
 
-    const recent = dedupePublicModelFamilies(recentModels ?? [])
-      .sort(
-        (left, right) =>
-          Date.parse(String(right.release_date ?? "1970-01-01")) -
-          Date.parse(String(left.release_date ?? "1970-01-01"))
-      )
-      .slice(0, 6);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const recent = sortByReleaseDate(
+      visibleModels.filter((model) => {
+        const releaseDate = model.release_date;
+        if (!releaseDate) return false;
+        return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
+      })
+    ).slice(0, Math.min(limit, 8));
 
     const discussedUnique = dedupePublicModelFamilies(discussed);
     const combinedModels = dedupePublicModelFamilies([

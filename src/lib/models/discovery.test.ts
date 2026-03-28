@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
+  sortByReleaseDate,
   sortByDiscoveryScore,
 } from "./discovery";
 
@@ -71,5 +72,19 @@ describe("model discovery scoring", () => {
     );
 
     expect(models.map((model) => model.slug)).toEqual(["b", "a"]);
+  });
+
+  it("sorts recent releases by release date first, then quality score", () => {
+    const models = sortByReleaseDate([
+      { slug: "older-better", release_date: "2026-03-20", quality_score: 91 },
+      { slug: "newer-lower", release_date: "2026-03-27", quality_score: 40 },
+      { slug: "newer-higher", release_date: "2026-03-27", quality_score: 75 },
+    ]);
+
+    expect(models.map((model) => model.slug)).toEqual([
+      "newer-higher",
+      "newer-lower",
+      "older-better",
+    ]);
   });
 });

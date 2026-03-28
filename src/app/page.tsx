@@ -39,6 +39,7 @@ import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
+import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -60,6 +61,8 @@ export const revalidate = 300;
 
 export default async function HomePage() {
   const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
+  // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
+  const now = Date.now();
 
   const [
     { count: modelCount },
@@ -68,6 +71,7 @@ export default async function HomePage() {
     { data: deploymentPlatformsRaw },
     { data: modelDeploymentsRaw },
     { data: latestSignalNewsRaw },
+    { data: recentLaunchNewsRaw },
     { data: latestPipelineSyncRaw },
   ] = supabase
     ? await Promise.all([
@@ -94,6 +98,14 @@ export default async function HomePage() {
           .order("published_at", { ascending: false })
           .limit(1),
         supabase
+          .from("model_news")
+          .select("source, published_at, related_provider, related_model_ids, metadata, category")
+          .in("source", ["x-twitter", "provider-blog"])
+          .not("related_model_ids", "is", null)
+          .gte("published_at", new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString())
+          .order("published_at", { ascending: false })
+          .limit(200),
+        supabase
           .from("data_sources")
           .select("last_sync_at")
           .eq("is_enabled", true)
@@ -105,6 +117,7 @@ export default async function HomePage() {
     : [
         { count: 0 },
         { count: 0 },
+        { data: [] },
         { data: [] },
         { data: [] },
         { data: [] },
@@ -176,14 +189,25 @@ export default async function HomePage() {
     .map((id) => topModelsById.get(id))
     .filter((model): model is NonNullable<typeof model> => Boolean(model));
 
-  const newModels = [...activeModels]
-    .filter((model) => model.release_date != null)
-    .sort(
-      (left, right) =>
-        Date.parse(String(right.release_date ?? "1970-01-01")) -
-        Date.parse(String(left.release_date ?? "1970-01-01"))
-    )
-    .slice(0, 4);
+  const newModels = buildHomepageLaunchSelections(
+    activeModels.filter((model) => model.release_date != null),
+    ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      source: typeof item.source === "string" ? item.source : null,
+      published_at: typeof item.published_at === "string" ? item.published_at : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+      category: typeof item.category === "string" ? item.category : null,
+    })),
+    4,
+    now
+  );
 
   // Derive all aggregates from the single query result
   const uniqueProviders = new Set(activeModels.map((m) => m.provider)).size;
@@ -251,9 +275,6 @@ export default async function HomePage() {
       "query-input": "required name=search_term_string",
     },
   };
-
-  // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
-  const now = Date.now();
 
   return (
     <div className="relative">
@@ -545,13 +566,14 @@ export default async function HomePage() {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {newModels?.map((model) => {
+          {newModels?.map(({ model, surfacedAt }) => {
             const catConfig = CATEGORIES.find(
               (c) => c.slug === model.category
             );
             const parameterDisplay = getParameterDisplay(model);
-            const releaseDate = model.release_date
-              ? new Date(model.release_date)
+            const surfaceDateValue = surfacedAt ?? model.release_date;
+            const releaseDate = surfaceDateValue
+              ? new Date(surfaceDateValue)
               : null;
             const daysAgo = releaseDate
               ? Math.floor(

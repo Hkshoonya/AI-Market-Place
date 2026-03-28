@@ -61,6 +61,23 @@ export function computePopularDiscoveryScore(model: DiscoverySignals): number {
   ) / 10;
 }
 
+export function sortByReleaseDate<T extends { release_date?: string | null; quality_score?: number | null }>(
+  models: T[]
+): T[] {
+  return [...models].sort((left, right) => {
+    const releaseDelta =
+      (Number.isFinite(Date.parse(String(right.release_date ?? "")))
+        ? Date.parse(String(right.release_date))
+        : 0) -
+      (Number.isFinite(Date.parse(String(left.release_date ?? "")))
+        ? Date.parse(String(left.release_date))
+        : 0);
+
+    if (releaseDelta !== 0) return releaseDelta;
+    return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+  });
+}
+
 export function sortByDiscoveryScore<T>(
   models: T[],
   scorer: (model: T) => number

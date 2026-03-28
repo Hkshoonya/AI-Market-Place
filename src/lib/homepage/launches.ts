@@ -1,0 +1,136 @@
+import { getNewsSignalType } from "@/lib/news/presentation";
+import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
+
+const RECENT_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const RECENT_MODEL_RELEASE_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
+const SURFACEABLE_SOURCES = new Set(["provider-blog", "x-twitter"]);
+
+export interface HomepageLaunchModel {
+  id: string;
+  provider?: string | null;
+  release_date?: string | null;
+}
+
+export interface HomepageLaunchNewsItem {
+  source?: string | null;
+  published_at?: string | null;
+  related_provider?: string | null;
+  related_model_ids?: string[] | null;
+  metadata?: Record<string, unknown> | null;
+  category?: string | null;
+}
+
+export interface HomepageLaunchSelection<TModel extends HomepageLaunchModel> {
+  model: TModel;
+  surfacedAt: string | null;
+}
+
+function toTimestamp(value: string | null | undefined): number {
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isRecent(timestamp: number, now: number) {
+  return timestamp > 0 && now - timestamp <= RECENT_LAUNCH_WINDOW_MS;
+}
+
+function isRecentModelRelease(releaseDate: string | null | undefined, now: number) {
+  const timestamp = toTimestamp(releaseDate);
+  return timestamp > 0 && now - timestamp <= RECENT_MODEL_RELEASE_WINDOW_MS;
+}
+
+function getSourceBonus(source: string | null | undefined) {
+  if (source === "provider-blog") return 1_000;
+  if (source === "x-twitter") return 500;
+  return 0;
+}
+
+function providersMatch(
+  modelProvider: string | null | undefined,
+  relatedProvider: string | null | undefined
+) {
+  if (!relatedProvider) return true;
+  if (!modelProvider) return false;
+  return getCanonicalProviderName(modelProvider) === getCanonicalProviderName(relatedProvider);
+}
+
+export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel>(
+  models: TModel[],
+  newsItems: HomepageLaunchNewsItem[],
+  limit: number,
+  now = Date.now()
+): HomepageLaunchSelection<TModel>[] {
+  if (limit <= 0) return [];
+
+  const modelsById = new Map(models.map((model) => [model.id, model]));
+  const selectedById = new Map<
+    string,
+    { score: number; model: TModel; surfacedAt: string | null }
+  >();
+
+  for (const item of newsItems) {
+    const source = item.source ?? null;
+    if (!SURFACEABLE_SOURCES.has(source ?? "")) continue;
+
+    const publishedAt = item.published_at ?? null;
+    const publishedTimestamp = toTimestamp(publishedAt);
+    if (!isRecent(publishedTimestamp, now)) continue;
+
+    const signalType = getNewsSignalType(item);
+    const signalScore =
+      signalType === "launch" || signalType === "open_source" || signalType === "api"
+        ? 2_000
+        : 0;
+
+    for (const modelId of item.related_model_ids ?? []) {
+      const model = modelsById.get(modelId);
+      if (!model) continue;
+      if (!isRecentModelRelease(model.release_date, now)) continue;
+      if (!providersMatch(model.provider, item.related_provider)) continue;
+
+      const score = publishedTimestamp + getSourceBonus(source) + signalScore;
+      const existing = selectedById.get(modelId);
+      if (!existing || score > existing.score) {
+        selectedById.set(modelId, {
+          score,
+          model,
+          surfacedAt: publishedAt,
+        });
+      }
+    }
+  }
+
+  const prioritized = [...selectedById.values()]
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return toTimestamp(right.model.release_date) - toTimestamp(left.model.release_date);
+    })
+    .map((entry) => ({
+      model: entry.model,
+      surfacedAt: entry.surfacedAt,
+    }));
+
+  if (prioritized.length >= limit) {
+    return prioritized.slice(0, limit);
+  }
+
+  const usedIds = new Set(prioritized.map((entry) => entry.model.id));
+  const fallback = [...models]
+    .filter((model) => !usedIds.has(model.id))
+    .filter((model) => isRecentModelRelease(model.release_date, now))
+    .sort((left, right) => toTimestamp(right.release_date) - toTimestamp(left.release_date))
+    .sort((left, right) => {
+      const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
+      const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
+      if (rightKnown !== leftKnown) return rightKnown - leftKnown;
+      return toTimestamp(right.release_date) - toTimestamp(left.release_date);
+    })
+    .slice(0, limit - prioritized.length)
+    .map((model) => ({
+      model,
+      surfacedAt: model.release_date ?? null,
+    }));
+
+  return [...prioritized, ...fallback];
+}

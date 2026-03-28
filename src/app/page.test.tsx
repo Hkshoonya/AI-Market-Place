@@ -74,9 +74,11 @@ vi.mock("@/components/shared/data-freshness-badge", () => ({
 function createMockSupabase({
   latestSignalAt,
   latestPipelineSyncAt,
+  recentLaunchNews = [],
 }: {
   latestSignalAt?: string | null;
   latestPipelineSyncAt?: string | null;
+  recentLaunchNews?: Array<Record<string, unknown>>;
 }) {
   return {
     from: (table: string) => {
@@ -136,17 +138,37 @@ function createMockSupabase({
 
       if (table === "model_news") {
         return {
-          select: () => ({
-            in: () => ({
-              order: () => ({
-                limit: () =>
-                  Promise.resolve({
-                    data: latestSignalAt ? [{ published_at: latestSignalAt }] : [],
-                    error: null,
+          select: (query?: string) => {
+            if (query === "published_at") {
+              return {
+                in: () => ({
+                  order: () => ({
+                    limit: () =>
+                      Promise.resolve({
+                        data: latestSignalAt ? [{ published_at: latestSignalAt }] : [],
+                        error: null,
+                      }),
                   }),
+                }),
+              };
+            }
+
+            return {
+              in: () => ({
+                not: () => ({
+                  gte: () => ({
+                    order: () => ({
+                      limit: () =>
+                        Promise.resolve({
+                          data: recentLaunchNews,
+                          error: null,
+                        }),
+                    }),
+                  }),
+                }),
               }),
-            }),
-          }),
+            };
+          },
         };
       }
 
