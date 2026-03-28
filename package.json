@@ -38,6 +38,7 @@
     "next": "16.1.6",
     "node-cron": "^4.2.1",
     "octokit": "^5.0.5",
+    "pdf-parse": "^2.4.5",
     "posthog-js": "^1.358.1",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",

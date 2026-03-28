@@ -53,6 +53,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/github-trending"),
     import("./adapters/civitai"),
     import("./adapters/provider-news"),
+    import("./adapters/provider-benchmarks"),
     import("./adapters/x-announcements"),
     // New benchmark adapters (Phase 2)
     import("./adapters/livebench"),

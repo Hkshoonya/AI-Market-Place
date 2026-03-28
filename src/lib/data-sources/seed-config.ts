@@ -259,6 +259,20 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
   {
+    slug: "provider-benchmarks",
+    name: "Provider Benchmarks",
+    adapter_type: "provider-benchmarks",
+    description:
+      "Official provider benchmark pages and benchmark claims from vendor sites",
+    tier: 2,
+    sync_interval_hours: 4,
+    priority: 8,
+    secret_env_keys: [],
+    output_types: ["news"],
+    is_enabled: true,
+    config: {},
+  },
+  {
     slug: "x-announcements",
     name: "X.com Model Announcements",
     adapter_type: "x-announcements",
