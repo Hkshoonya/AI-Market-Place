@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
+  sortRecentReleaseCandidates,
   sortByReleaseDate,
   sortByDiscoveryScore,
 } from "./discovery";
@@ -85,6 +86,20 @@ describe("model discovery scoring", () => {
       "newer-higher",
       "newer-lower",
       "older-better",
+    ]);
+  });
+
+  it("prefers recognized providers when curating recent release candidates", () => {
+    const models = sortRecentReleaseCandidates([
+      { slug: "community-newer", provider: "randomuser", release_date: "2026-03-27", quality_score: 50 },
+      { slug: "provider-slightly-older", provider: "MiniMax", release_date: "2026-03-26", quality_score: 45 },
+      { slug: "provider-newer", provider: "Google", release_date: "2026-03-27", quality_score: 40 },
+    ]);
+
+    expect(models.map((model) => model.slug)).toEqual([
+      "provider-newer",
+      "provider-slightly-older",
+      "community-newer",
     ]);
   });
 });

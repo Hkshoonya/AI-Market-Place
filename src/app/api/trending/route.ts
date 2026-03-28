@@ -6,7 +6,7 @@ import { handleApiError } from "@/lib/api-error";
 import {
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
-  sortByReleaseDate,
+  sortRecentReleaseCandidates,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const recent = sortByReleaseDate(
+    const recent = sortRecentReleaseCandidates(
       visibleModels.filter((model) => {
         const releaseDate = model.release_date;
         if (!releaseDate) return false;
