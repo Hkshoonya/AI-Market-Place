@@ -41,6 +41,7 @@ import { getModelDisplayDescription, getParameterDisplay } from "@/lib/models/pr
 import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
+import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const revalidate = 300;
 
@@ -205,6 +206,10 @@ export default async function ModelDetailPage({
         : null;
   type EloEntry = import("./_components/benchmarks-tab").EloRating;
   const eloRatings = (model.elo_ratings ?? []) as EloEntry[];
+  const recentBenchmarkEvidence = buildLaunchRadar(
+    modelNews.filter((item) => getNewsSignalType(item) === "benchmark"),
+    6
+  );
   const currentArenaRatings = collapseArenaRatings(eloRatings);
   const bestElo = currentArenaRatings.length > 0
     ? currentArenaRatings.reduce((best, curr) => (curr.elo_score > best.elo_score ? curr : best), currentArenaRatings[0])
@@ -321,7 +326,11 @@ export default async function ModelDetailPage({
         </TabsList>
 
         <TabsContent value="benchmarks" className="mt-6">
-          <BenchmarksTab benchmarkScores={benchmarkScores} eloRatings={eloRatings} />
+          <BenchmarksTab
+            benchmarkScores={benchmarkScores}
+            eloRatings={eloRatings}
+            recentBenchmarkEvidence={recentBenchmarkEvidence}
+          />
         </TabsContent>
 
         <TabsContent value="pricing" className="mt-6">

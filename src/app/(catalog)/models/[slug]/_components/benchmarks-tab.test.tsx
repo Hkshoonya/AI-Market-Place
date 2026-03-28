@@ -32,4 +32,37 @@ describe("BenchmarksTab", () => {
     expect(screen.getByText("2 snapshots")).toBeInTheDocument();
     expect(screen.getByText("1320")).toBeInTheDocument();
   });
+
+  it("shows recent benchmark evidence when structured scores are still empty", () => {
+    render(
+      <BenchmarksTab
+        benchmarkScores={[]}
+        eloRatings={[]}
+        recentBenchmarkEvidence={[
+          {
+            id: "bench-1",
+            title: "MiniMax M2.7 enters new leaderboard",
+            summary: "Aider Polyglot and provider benchmarking both reported new results.",
+            source: "provider-blog",
+            signalType: "benchmark",
+            signalLabel: "Benchmarks",
+            signalImportance: "high",
+            published_at: "2026-03-27T21:00:00.000Z",
+            url: "https://example.com/bench",
+          },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByText("Recent Benchmark Evidence")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("MiniMax M2.7 enters new leaderboard")
+    ).toBeInTheDocument();
+    expect(screen.getByText("View source")).toHaveAttribute(
+      "href",
+      "https://example.com/bench"
+    );
+  });
 });

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
 import { formatNumber } from "@/lib/format";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import type { LaunchRadarItem } from "@/lib/news/presentation";
 
 export interface BenchmarkScore {
   score?: number | null;
@@ -30,14 +31,17 @@ export interface EloRating {
 export interface BenchmarksTabProps {
   benchmarkScores: BenchmarkScore[];
   eloRatings: EloRating[];
+  recentBenchmarkEvidence?: LaunchRadarItem[];
 }
 
 export function BenchmarksTab({
   benchmarkScores,
   eloRatings,
+  recentBenchmarkEvidence = [],
 }: BenchmarksTabProps) {
   const currentArenaRatings = collapseArenaRatings(eloRatings);
   const hasNormalizedBenchmarks = benchmarkScores.length > 0;
+  const hasBenchmarkEvidence = recentBenchmarkEvidence.length > 0;
 
   return (
     <>
@@ -99,7 +103,12 @@ export function BenchmarksTab({
               <p className="text-sm text-muted-foreground">
                 Normalized benchmark suite coverage has not landed for this model yet.
               </p>
-              {currentArenaRatings.length > 0 ? (
+              {hasBenchmarkEvidence ? (
+                <p className="text-xs text-muted-foreground">
+                  Recent benchmark evidence is already available below, so this release
+                  is being tracked even while structured score rows catch up.
+                </p>
+              ) : currentArenaRatings.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   Arena evidence is already available below, so the model still has live
                   competitive signal even while the benchmark table catches up.
@@ -114,6 +123,62 @@ export function BenchmarksTab({
           )}
         </CardContent>
       </Card>
+
+      {hasBenchmarkEvidence && (
+        <Card className="mt-6 border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Benchmark Evidence</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentBenchmarkEvidence.map((item, index) => (
+                <div
+                  key={item.id ?? item.url ?? `${item.title}-${index}`}
+                  className="rounded-lg border border-border/50 p-4"
+                >
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium leading-5">
+                        {item.title ?? "Benchmark update"}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px]">
+                          {item.signalLabel}
+                        </Badge>
+                        {item.source ? <span>{item.source}</span> : null}
+                        {item.published_at ? (
+                          <span>
+                            {new Date(item.published_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  {item.summary ? (
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {item.summary}
+                    </p>
+                  ) : null}
+                  {item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex text-xs font-medium text-neon hover:underline"
+                    >
+                      View source
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {currentArenaRatings.length > 0 && (
         <Card className="mt-6 border-border/50">
