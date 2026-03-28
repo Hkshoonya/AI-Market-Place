@@ -57,6 +57,8 @@ export default defineConfig({
       // MSW intercepts server-side RSC Supabase calls via instrumentation.ts.
       NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
+      SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
+      CRON_SECRET: "test-cron-secret",
       NEXT_PUBLIC_E2E_MSW: "true",
     },
   },
