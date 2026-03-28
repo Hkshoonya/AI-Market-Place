@@ -78,13 +78,25 @@ function expandAliasCandidates(aliases: Array<string | null | undefined>) {
 
     for (const segment of trimmed.split(/[\\/|:]/)) {
       const normalizedSegment = segment.trim();
-      if (normalizedSegment) {
+      if (normalizedSegment && isUsefulLooseCandidate(normalizedSegment)) {
         expanded.add(normalizedSegment);
       }
     }
   }
 
   return [...expanded];
+}
+
+function isUsefulLooseCandidate(value: string) {
+  const normalized = normalizeNameKey(value);
+  if (!normalized) return false;
+
+  const compact = compactSlugKey(normalized);
+  if (compact.length >= 8) return true;
+  if (/\d/.test(compact) && compact.length >= 5) return true;
+
+  const tokens = normalized.split(" ").filter(Boolean);
+  return tokens.length >= 2 && compact.length >= 6;
 }
 
 function getProviderlessSlug(model: AliasModelRecord): string | null {
@@ -212,7 +224,7 @@ export function resolveAliasFamilyModelIds(
   if (matched.size === 0) {
     for (const [dbName, ids] of index.nameToIds) {
       if (
-        nameCandidates.some(
+        nameCandidates.filter(isUsefulLooseCandidate).some(
           (candidate) =>
             dbName.includes(candidate) ||
             candidate.includes(dbName)
@@ -226,7 +238,7 @@ export function resolveAliasFamilyModelIds(
   if (matched.size === 0) {
     for (const [dbSlug, ids] of index.slugToIds) {
       if (
-        slugCandidates.some(
+        slugCandidates.filter(isUsefulLooseCandidate).some(
           (candidate) =>
             dbSlug === candidate ||
             dbSlug.endsWith(`-${candidate}`) ||

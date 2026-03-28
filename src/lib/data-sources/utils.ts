@@ -18,6 +18,11 @@ interface RetryOptions {
   signal?: AbortSignal;
 }
 
+export interface RetryableOperationOptions {
+  maxRetries?: number;
+  baseDelayMs?: number;
+}
+
 /**
  * Fetch with exponential backoff retry.
  * Retries on 429, 500, 502, 503, 504 status codes.
@@ -178,6 +183,39 @@ function sanitizeRecordForJson(
   record: Record<string, unknown>
 ): Record<string, unknown> {
   return sanitizeJsonValue(record);
+}
+
+function isTransientOperationError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message: unknown }).message)
+        : String(error);
+
+  return /\b(502|503|504|bad gateway|gateway timeout|timeout|temporar)/i.test(
+    message
+  );
+}
+
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  options?: RetryableOperationOptions
+): Promise<T> {
+  const { maxRetries = 2, baseDelayMs = 400 } = options ?? {};
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= maxRetries || !isTransientOperationError(error)) {
+        throw error;
+      }
+      await sleep(baseDelayMs * Math.pow(2, attempt));
+    }
+  }
+
+  throw new Error("retryOperation: exhausted retries");
 }
 
 // --------------- String Helpers ---------------

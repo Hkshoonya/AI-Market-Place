@@ -7,7 +7,7 @@ import type {
   SyncResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { fetchWithRetry } from "../utils";
+import { fetchWithRetry, retryOperation } from "../utils";
 import {
   buildModelAliasIndex,
   resolveMatchedAliasFamilyModelIds,
@@ -205,10 +205,38 @@ const adapter: DataSourceAdapter = {
         );
 
         if (error) {
-          errors.push({
-            message: `elo_ratings upsert for ${score.modelName}/${relatedId}: ${error.message}`,
-          });
-          continue;
+          try {
+            await retryOperation(async () => {
+              const { error: retryError } = await ctx.supabase
+                .from("elo_ratings")
+                .upsert(
+                  {
+                    model_id: relatedId,
+                    arena_name: ARENA_NAME,
+                    elo_score: score.eloScore,
+                    confidence_interval_low: score.confidenceIntervalLow,
+                    confidence_interval_high: score.confidenceIntervalHigh,
+                    num_battles: score.votes,
+                    rank: score.rank,
+                    snapshot_date: today,
+                  },
+                  { onConflict: "model_id,arena_name,snapshot_date" }
+                );
+
+              if (retryError) {
+                throw new Error(retryError.message);
+              }
+            });
+          } catch (retryError) {
+            errors.push({
+              message: `elo_ratings upsert for ${score.modelName}/${relatedId}: ${
+                retryError instanceof Error
+                  ? retryError.message
+                  : String(retryError)
+              }`,
+            });
+            continue;
+          }
         }
 
         recordsCreated++;

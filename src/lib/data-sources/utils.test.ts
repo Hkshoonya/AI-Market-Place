@@ -12,6 +12,7 @@ import {
   fetchWithRetry,
   hasPermanentSyncError,
   isPermanentHttpFailure,
+  retryOperation,
   upsertBatch,
 } from "./utils";
 
@@ -141,6 +142,35 @@ describe("fetchWithRetry", () => {
     });
     expect(res.status).toBe(500);
     expect(mockFetch).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
+  });
+});
+
+describe("retryOperation", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("retries transient failures and eventually succeeds", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("502 Bad Gateway"))
+      .mockResolvedValueOnce("ok");
+
+    await expect(
+      retryOperation(operation, { maxRetries: 2, baseDelayMs: 0 })
+    ).resolves.toBe("ok");
+    expect(operation).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry non-transient failures", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValue(new Error("violates foreign key constraint"));
+
+    await expect(
+      retryOperation(operation, { maxRetries: 2, baseDelayMs: 0 })
+    ).rejects.toThrow("violates foreign key constraint");
+    expect(operation).toHaveBeenCalledTimes(1);
   });
 });
 

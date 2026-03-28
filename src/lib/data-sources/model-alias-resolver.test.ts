@@ -173,4 +173,32 @@ describe("model alias resolver", () => {
       resolveMatchedAliasFamilyModelIds(index, models, ["Claude 3.7 Sonnet"])
     ).toEqual(["claude-base"]);
   });
+
+  it("does not use generic provider fragments to fuzzy match unrelated models", () => {
+    const models = [
+      {
+        id: "qwen-coder",
+        slug: "qwen-qwen-2-5-coder-32b-instruct",
+        name: "Qwen2.5-Coder-32B-Instruct",
+        provider: "Qwen",
+      },
+      {
+        id: "qwen-image-community",
+        slug: "civitai-2497547-qwenimage2512-badmilk",
+        name: "qwenImage2512 badmilk",
+        provider: "badmilk1968",
+      },
+    ];
+
+    const index = buildModelAliasIndex(models);
+
+    expect(resolveMatchedAliasFamilyModelIds(index, models, ["Qwen"])).toEqual(
+      []
+    );
+    expect(
+      resolveMatchedAliasFamilyModelIds(index, models, [
+        "openai/Qwen/Qwen2.5-Coder-32B-Instruct",
+      ])
+    ).toEqual(["qwen-coder"]);
+  });
 });
