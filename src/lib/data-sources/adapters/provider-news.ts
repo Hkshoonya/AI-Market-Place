@@ -32,13 +32,16 @@ const PROVIDER_BLOGS = [
   { name: "xAI", url: "https://x.ai/blog", provider: "xAI" },
   { name: "Cohere", url: "https://cohere.com/blog", provider: "Cohere" },
   { name: "Stability AI", url: "https://stability.ai/news", provider: "Stability AI" },
+  { name: "Z.ai", url: "https://docs.z.ai/release-notes/new-released", provider: "Z.ai" },
+  { name: "MiniMax", url: "https://www.minimax.io/news", provider: "MiniMax" },
 ];
 
 const MODEL_KEYWORDS = [
   "model", "launch", "release", "introducing", "announce", "available",
   "benchmark", "performance", "upgrade", "new version", "llm", "gpt",
   "claude", "gemini", "llama", "mistral", "flux", "stable diffusion",
-  "parameter", "context window", "training",
+  "parameter", "context window", "training", "glm", "minimax", "hailuo",
+  "m2.7", "m2.5", "m2.1", "m1", "z.ai", "zhipu",
 ];
 
 const MONTH_MAP: Record<string, string> = {
@@ -353,6 +356,8 @@ const adapter: DataSourceAdapter = {
 };
 
 export const __testables = {
+  isModelRelated,
+  providerBlogs: PROVIDER_BLOGS,
   summarizeHealthChecks,
 };
 

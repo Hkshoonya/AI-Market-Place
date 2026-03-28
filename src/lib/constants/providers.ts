@@ -25,6 +25,8 @@ const PROVIDER_ALIASES: Record<string, string> = {
   metaai: "Meta",
   mistral: "Mistral AI",
   mistralai: "Mistral AI",
+  minimax: "MiniMax",
+  minimaxai: "MiniMax",
   nvidia: "NVIDIA",
   openai: "OpenAI",
   qwen: "Qwen",
@@ -32,6 +34,11 @@ const PROVIDER_ALIASES: Record<string, string> = {
   togetherai: "Together AI",
   writer: "Writer",
   xai: "xAI",
+  zai: "Z.ai",
+  zaiorg: "Z.ai",
+  zaiorgcn: "Z.ai",
+  zaiai: "Z.ai",
+  zhipu: "Z.ai",
   zhipuai: "Zhipu AI",
 };
 
@@ -43,6 +50,7 @@ export const PROVIDER_BRANDS: Record<string, ProviderBrand> = {
   "DeepSeek": { color: "#4D6CFA", domain: "deepseek.com" },
   "Stability AI": { color: "#7B61FF", domain: "stability.ai" },
   "Mistral AI": { color: "#F54E42", domain: "mistral.ai" },
+  "MiniMax": { color: "#2563EB", domain: "minimax.io" },
   "Alibaba Cloud": { color: "#FF6A00", domain: "alibabacloud.com" },
   "Black Forest Labs": { color: "#FFFFFF", domain: "blackforestlabs.ai" },
   "Cohere": { color: "#39594D", domain: "cohere.com" },
@@ -61,6 +69,7 @@ export const PROVIDER_BRANDS: Record<string, ProviderBrand> = {
   "Inflection AI": { color: "#5856D6", domain: "inflection.ai" },
   "Reka AI": { color: "#FF6B6B", domain: "reka.ai" },
   "Writer": { color: "#7C3AED", domain: "writer.com" },
+  "Z.ai": { color: "#0F172A", domain: "z.ai" },
 };
 
 export function normalizeProviderKey(providerName: string | null | undefined): string {

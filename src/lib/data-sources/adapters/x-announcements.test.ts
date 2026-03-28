@@ -94,4 +94,18 @@ describe("x-announcements parser", () => {
     );
     expect(tweets[0].text).toContain("GPT-5.4");
   });
+
+  it("treats GLM and MiniMax launch posts as model-related", () => {
+    expect(__testables.isModelRelated("GLM-5.1 is live for coding agents today")).toBe(true);
+    expect(__testables.isModelRelated("MiniMax M2.7 is now available in the API")).toBe(true);
+  });
+
+  it("monitors the MiniMax official account", () => {
+    expect(__testables.monitoredAccounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ handle: "MiniMax__AI", provider: "MiniMax" }),
+        expect.objectContaining({ handle: "Zai_org", provider: "Z.ai" }),
+      ])
+    );
+  });
 });

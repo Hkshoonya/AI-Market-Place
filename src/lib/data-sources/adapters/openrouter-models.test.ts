@@ -32,4 +32,18 @@ describe("openrouter model record mapping", () => {
 
     expect(record.provider).toBe("OpenAI");
   });
+
+  it("canonicalizes Z.ai router prefixes", () => {
+    const record = __testables.buildModelRecord({
+      id: "z-ai/glm-5",
+      name: "Z.ai: GLM-5",
+      description: "Frontier reasoning model",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.provider).toBe("Z.ai");
+  });
 });

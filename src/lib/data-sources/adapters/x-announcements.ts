@@ -49,6 +49,8 @@ const MONITORED_ACCOUNTS = [
   { handle: "MicrosoftAI", provider: "Microsoft" },
   { handle: "huggingface", provider: "Hugging Face" },
   { handle: "StabilityAI", provider: "Stability AI" },
+  { handle: "Zai_org", provider: "Z.ai" },
+  { handle: "MiniMax__AI", provider: "MiniMax" },
 ];
 
 const SYNDICATION_TIMELINE_URL =
@@ -59,7 +61,7 @@ const MODEL_KEYWORDS = [
   "benchmark", "performance", "upgrade", "new version", "llm", "gpt",
   "claude", "gemini", "llama", "mistral", "flux", "stable diffusion",
   "parameter", "context window", "training", "fine-tun", "open source",
-  "api", "developer", "safety",
+  "api", "developer", "safety", "glm", "minimax", "hailuo", "m2.7", "m2.5", "m2.1",
 ];
 
 /**
@@ -567,4 +569,6 @@ export const __testables = {
   extractSyndicationTimelineData,
   parseSyndicationTimeline,
   isUsableRssFeed,
+  isModelRelated,
+  monitoredAccounts: MONITORED_ACCOUNTS,
 };

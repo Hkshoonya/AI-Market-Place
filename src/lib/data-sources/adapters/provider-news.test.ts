@@ -30,4 +30,18 @@ describe("provider-news health aggregation", () => {
       })
     );
   });
+
+  it("treats GLM and MiniMax launch headlines as model-related", () => {
+    expect(__testables.isModelRelated("GLM-5.1 in Coding Agent is now available")).toBe(true);
+    expect(__testables.isModelRelated("MiniMax M2.7 launch for coding agents")).toBe(true);
+  });
+
+  it("tracks Z.ai and MiniMax provider blogs", () => {
+    expect(__testables.providerBlogs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: "Z.ai" }),
+        expect.objectContaining({ provider: "MiniMax" }),
+      ])
+    );
+  });
 });
