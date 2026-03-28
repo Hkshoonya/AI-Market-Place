@@ -1,5 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT ?? "3000";
+const PLAYWRIGHT_BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
+const PLAYWRIGHT_WEB_SERVER_COMMAND =
+  process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??
+  `npm run dev -- --hostname 127.0.0.1 --port ${PLAYWRIGHT_PORT}`;
+
 /**
  * Playwright configuration for AI Market Cap E2E tests.
  *
@@ -16,7 +23,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: PLAYWRIGHT_BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -46,8 +53,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
+    command: PLAYWRIGHT_WEB_SERVER_COMMAND,
+    url: PLAYWRIGHT_BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
