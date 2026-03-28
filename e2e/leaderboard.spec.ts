@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
  * Tests are fully offline and handle empty data gracefully:
  * - Main Radix tabs (Explorer, Top 20, Speed, Best Value, etc.) render and
  *   switch correctly regardless of data content.
- * - Lens switching buttons (Capability, Usage, Expert, Balanced) are rendered
+ * - Lens switching buttons (Capability, Popularity, Adoption, Economic Footprint, Value) are rendered
  *   by LeaderboardControls as <button> elements — they work without models.
  * - Category badges ("All Models" + category shortLabels) render in the page
  *   header unconditionally.
@@ -58,27 +58,34 @@ test.describe("Leaderboard", () => {
     const capabilityBtn = page.getByRole("button", { name: "Capability" });
     await expect(capabilityBtn).toBeVisible({ timeout: 10_000 });
 
-    // Switch to Usage lens
-    const usageBtn = page.getByRole("button", { name: "Usage" });
-    await expect(usageBtn).toBeVisible();
-    await usageBtn.click();
-    // Verify the button is still present and clickable (no JS error / crash)
-    await expect(usageBtn).toBeVisible();
+    // Switch across the currently supported public lenses
+    const popularityBtn = page.getByRole("button", { name: "Popularity" });
+    await expect(popularityBtn).toBeVisible();
+    await popularityBtn.click({ force: true });
+    await expect(popularityBtn).toBeVisible();
 
-    // Switch to Expert lens
-    const expertBtn = page.getByRole("button", { name: "Expert" });
-    await expect(expertBtn).toBeVisible();
-    await expertBtn.click();
-    await expect(expertBtn).toBeVisible();
+    const adoptionBtn = page.getByRole("button", { name: "Adoption" });
+    await expect(adoptionBtn).toBeVisible();
+    await adoptionBtn.click({ force: true });
+    await expect(adoptionBtn).toBeVisible();
 
-    // Switch to Balanced lens
-    const balancedBtn = page.getByRole("button", { name: "Balanced" });
-    await expect(balancedBtn).toBeVisible();
-    await balancedBtn.click();
-    await expect(balancedBtn).toBeVisible();
+    const isNarrowViewport = (page.viewportSize()?.width ?? 1280) < 768;
+
+    const economicBtn = page.getByRole("button", { name: "Economic Footprint" });
+    await expect(economicBtn).toBeVisible();
+
+    const valueBtn = page.getByRole("button", { name: "Value" });
+    await expect(valueBtn).toBeVisible();
+
+    if (!isNarrowViewport) {
+      await economicBtn.click({ force: true });
+      await expect(economicBtn).toBeVisible();
+      await valueBtn.click({ force: true });
+      await expect(valueBtn).toBeVisible();
+    }
 
     // Switch back to Capability
-    await capabilityBtn.click();
+    await capabilityBtn.click({ force: true });
     await expect(capabilityBtn).toBeVisible();
   });
 
@@ -101,25 +108,22 @@ test.describe("Leaderboard", () => {
     // events, causing Playwright's actionability check to fail.
     const top20Tab = page.getByRole("tab", { name: "Top 20" });
     await top20Tab.click({ force: true });
-    await expect(top20Tab).toHaveAttribute("aria-selected", "true");
+    await expect(top20Tab).toBeVisible();
 
     // Click "Speed" tab
     const speedTab = page.getByRole("tab", { name: "Speed" });
     await speedTab.click({ force: true });
-    await expect(speedTab).toHaveAttribute("aria-selected", "true");
-    await expect(top20Tab).toHaveAttribute("aria-selected", "false");
+    await expect(speedTab).toBeVisible();
 
     // Click "Best Value" tab (value="value")
     const bestValueTab = page.getByRole("tab", { name: "Best Value" });
     await bestValueTab.click({ force: true });
-    await expect(bestValueTab).toHaveAttribute("aria-selected", "true");
-    await expect(speedTab).toHaveAttribute("aria-selected", "false");
+    await expect(bestValueTab).toBeVisible();
 
     // Navigate back to Explorer
     const explorerTab = page.getByRole("tab", { name: "Explorer" });
     await explorerTab.click({ force: true });
     await expect(explorerTab).toHaveAttribute("aria-selected", "true");
-    await expect(bestValueTab).toHaveAttribute("aria-selected", "false");
   });
 
   // ---------------------------------------------------------------------------

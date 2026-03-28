@@ -69,8 +69,12 @@ jobs:
       - run: npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium firefox
+      - name: Build app for E2E
+        run: npm run build
       - name: Run E2E tests
         run: npx playwright test
+        env:
+          PLAYWRIGHT_WEB_SERVER_COMMAND: PORT=3000 HOSTNAME=127.0.0.1 npm run start
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
