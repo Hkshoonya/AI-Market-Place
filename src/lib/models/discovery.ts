@@ -9,6 +9,8 @@ interface DiscoverySignals {
   hf_likes?: number | null;
   hf_trending_score?: number | null;
   release_date?: string | null;
+  created_at?: string | null;
+  provider?: string | null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -28,6 +30,22 @@ function computeRecencyBoost(releaseDate: string | null | undefined, now = new D
   if (!Number.isFinite(release)) return 0;
   const ageDays = (now.getTime() - release) / (1000 * 60 * 60 * 24);
   return clamp(100 - ageDays * 1.2, 0, 100);
+}
+
+function toTimestamp(value: string | null | undefined): number {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function getDiscoveryReleaseTimestamp<
+  T extends { release_date?: string | null; created_at?: string | null; provider?: string | null }
+>(model: T): number {
+  const releaseTimestamp = toTimestamp(model.release_date);
+  if (releaseTimestamp > 0) return releaseTimestamp;
+
+  if (!getProviderBrand(model.provider ?? "")) return 0;
+  return toTimestamp(model.created_at);
 }
 
 export function computeTrendingDiscoveryScore(model: DiscoverySignals, now = new Date()): number {
@@ -68,12 +86,8 @@ export function sortByReleaseDate<T extends { release_date?: string | null; qual
 ): T[] {
   return [...models].sort((left, right) => {
     const releaseDelta =
-      (Number.isFinite(Date.parse(String(right.release_date ?? "")))
-        ? Date.parse(String(right.release_date))
-        : 0) -
-      (Number.isFinite(Date.parse(String(left.release_date ?? "")))
-        ? Date.parse(String(left.release_date))
-        : 0);
+      getDiscoveryReleaseTimestamp(right as T & DiscoverySignals) -
+      getDiscoveryReleaseTimestamp(left as T & DiscoverySignals);
 
     if (releaseDelta !== 0) return releaseDelta;
     return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
@@ -81,20 +95,19 @@ export function sortByReleaseDate<T extends { release_date?: string | null; qual
 }
 
 export function sortRecentReleaseCandidates<
-  T extends { release_date?: string | null; quality_score?: number | null; provider?: string | null }
+  T extends {
+    release_date?: string | null;
+    created_at?: string | null;
+    quality_score?: number | null;
+    provider?: string | null;
+  }
 >(models: T[]): T[] {
   return [...models].sort((left, right) => {
     const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
     const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
     if (rightKnown !== leftKnown) return rightKnown - leftKnown;
 
-    const releaseDelta =
-      (Number.isFinite(Date.parse(String(right.release_date ?? "")))
-        ? Date.parse(String(right.release_date))
-        : 0) -
-      (Number.isFinite(Date.parse(String(left.release_date ?? "")))
-        ? Date.parse(String(left.release_date))
-        : 0);
+    const releaseDelta = getDiscoveryReleaseTimestamp(right) - getDiscoveryReleaseTimestamp(left);
     if (releaseDelta !== 0) return releaseDelta;
 
     return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);

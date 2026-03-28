@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, created_at, parameter_count, is_open_weights"
       )
       .eq("status", "active");
 
@@ -140,7 +140,9 @@ export async function GET(request: NextRequest) {
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const recent = sortRecentReleaseCandidates(
       visibleModels.filter((model) => {
-        const releaseDate = model.release_date;
+        const releaseDate =
+          model.release_date ??
+          (typeof model.created_at === "string" && model.provider ? model.created_at : null);
         if (!releaseDate) return false;
         return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
       })

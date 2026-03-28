@@ -242,4 +242,18 @@ describe("HomePage freshness badge", () => {
     expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:10:00.000Z");
     expect(badge).toHaveAttribute("data-detail", "market updates");
   });
+
+  it("renders the updated top-models heading", async () => {
+    mockCreateOptionalPublicClient.mockReturnValue(
+      createMockSupabase({
+        latestSignalAt: "2026-03-19T16:10:00.000Z",
+        latestPipelineSyncAt: "2026-03-19T16:00:00.000Z",
+      })
+    );
+
+    const { default: HomePage } = await import("./page");
+    render(await HomePage());
+
+    expect(screen.getByText("Top AI Models")).toBeInTheDocument();
+  });
 });

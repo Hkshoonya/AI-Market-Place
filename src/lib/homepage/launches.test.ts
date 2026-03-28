@@ -76,4 +76,30 @@ describe("buildHomepageLaunchSelections", () => {
       expect.objectContaining({ model: expect.objectContaining({ id: "two" }) }),
     ]);
   });
+
+  it("uses recent created_at for recognized providers when release_date is missing", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "minimax-new",
+          provider: "MiniMax",
+          release_date: null,
+          created_at: "2026-03-28T00:48:03.917541+00:00",
+        },
+        {
+          id: "older-official",
+          provider: "Google",
+          release_date: "2026-03-25",
+        },
+      ],
+      [],
+      1,
+      Date.parse("2026-03-28T03:00:00.000Z")
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ model: expect.objectContaining({ id: "minimax-new" }) }),
+    ]);
+    expect(result[0]?.surfacedAt).toBe("2026-03-28T00:48:03.917541+00:00");
+  });
 });

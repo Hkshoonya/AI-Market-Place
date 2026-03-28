@@ -134,4 +134,27 @@ describe("lookupProviderPrice", () => {
       pricePerCall: 0.05,
     });
   });
+
+  it("uses the refreshed official OpenAI pricing source for current flagship models", () => {
+    expect(lookupProviderPrice("openai-gpt-4-1")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 2,
+      outputPricePerMillion: 8,
+      source: "platform.openai.com/docs/pricing",
+    });
+
+    expect(lookupProviderPrice("openai-o3")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 2,
+      outputPricePerMillion: 8,
+      source: "platform.openai.com/docs/pricing",
+    });
+
+    expect(lookupProviderPrice("openai-o4-mini")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 1.1,
+      outputPricePerMillion: 4.4,
+      source: "platform.openai.com/docs/pricing",
+    });
+  });
 });

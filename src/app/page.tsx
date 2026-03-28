@@ -40,6 +40,7 @@ import { TopSubscriptionProviders } from "@/components/home/top-subscription-pro
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
+import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -80,7 +81,7 @@ export default async function HomePage() {
         supabase
           .from("models")
           .select(
-            "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, parameter_count, short_description, description, context_window, is_open_weights"
+            "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, created_at, parameter_count, short_description, description, context_window, is_open_weights"
           )
           .eq("status", "active"),
         supabase
@@ -161,15 +162,7 @@ export default async function HomePage() {
       : null;
   const marketSignalsRefreshedAt = latestPipelineSyncAt ?? latestLaunchSignalAt;
 
-  const topModelIds = [...activeModels]
-    .filter((model) => model.economic_footprint_rank != null)
-    .sort(
-      (left, right) =>
-        Number(left.economic_footprint_rank ?? Number.MAX_SAFE_INTEGER) -
-        Number(right.economic_footprint_rank ?? Number.MAX_SAFE_INTEGER)
-    )
-    .slice(0, 10)
-    .map((model) => model.id);
+  const topModelIds = selectHomepageTopModelIds(activeModels, 10);
 
   const topModelsResponse =
     supabase && topModelIds.length > 0
@@ -190,7 +183,7 @@ export default async function HomePage() {
     .filter((model): model is NonNullable<typeof model> => Boolean(model));
 
   const newModels = buildHomepageLaunchSelections(
-    activeModels.filter((model) => model.release_date != null),
+    activeModels,
     ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
       source: typeof item.source === "string" ? item.source : null,
       published_at: typeof item.published_at === "string" ? item.published_at : null,
@@ -321,7 +314,7 @@ export default async function HomePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-neon" />
-            <h2 className="text-xl font-bold">Market Leaders</h2>
+            <h2 className="text-xl font-bold">Top AI Models</h2>
           </div>
           <Button variant="ghost" size="sm" className="text-neon" asChild>
             <Link href="/leaderboards">
@@ -329,6 +322,10 @@ export default async function HomePage() {
             </Link>
           </Button>
         </div>
+
+        <p className="mt-3 text-sm text-muted-foreground">
+          Ranked for enterprise traction, real-world adoption, economic footprint, and model quality.
+        </p>
 
         <div className="mt-6 overflow-x-auto rounded-xl border border-border/50">
           <table className="w-full">

@@ -9,6 +9,7 @@ export interface HomepageLaunchModel {
   id: string;
   provider?: string | null;
   release_date?: string | null;
+  created_at?: string | null;
 }
 
 export interface HomepageLaunchNewsItem {
@@ -35,8 +36,16 @@ function isRecent(timestamp: number, now: number) {
   return timestamp > 0 && now - timestamp <= RECENT_LAUNCH_WINDOW_MS;
 }
 
-function isRecentModelRelease(releaseDate: string | null | undefined, now: number) {
-  const timestamp = toTimestamp(releaseDate);
+function getLaunchTimestamp<TModel extends HomepageLaunchModel>(model: TModel): number {
+  const releaseTimestamp = toTimestamp(model.release_date);
+  if (releaseTimestamp > 0) return releaseTimestamp;
+
+  if (!getProviderBrand(model.provider ?? "")) return 0;
+  return toTimestamp(model.created_at);
+}
+
+function isSurfaceableRecentModel<TModel extends HomepageLaunchModel>(model: TModel, now: number) {
+  const timestamp = getLaunchTimestamp(model);
   return timestamp > 0 && now - timestamp <= RECENT_MODEL_RELEASE_WINDOW_MS;
 }
 
@@ -86,7 +95,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     for (const modelId of item.related_model_ids ?? []) {
       const model = modelsById.get(modelId);
       if (!model) continue;
-      if (!isRecentModelRelease(model.release_date, now)) continue;
+      if (!isSurfaceableRecentModel(model, now)) continue;
       if (!providersMatch(model.provider, item.related_provider)) continue;
 
       const score = publishedTimestamp + getSourceBonus(source) + signalScore;
@@ -104,7 +113,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
   const prioritized = [...selectedById.values()]
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
-      return toTimestamp(right.model.release_date) - toTimestamp(left.model.release_date);
+      return getLaunchTimestamp(right.model) - getLaunchTimestamp(left.model);
     })
     .map((entry) => ({
       model: entry.model,
@@ -118,18 +127,18 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
   const usedIds = new Set(prioritized.map((entry) => entry.model.id));
   const fallback = [...models]
     .filter((model) => !usedIds.has(model.id))
-    .filter((model) => isRecentModelRelease(model.release_date, now))
-    .sort((left, right) => toTimestamp(right.release_date) - toTimestamp(left.release_date))
+    .filter((model) => isSurfaceableRecentModel(model, now))
+    .sort((left, right) => getLaunchTimestamp(right) - getLaunchTimestamp(left))
     .sort((left, right) => {
       const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
       const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
       if (rightKnown !== leftKnown) return rightKnown - leftKnown;
-      return toTimestamp(right.release_date) - toTimestamp(left.release_date);
+      return getLaunchTimestamp(right) - getLaunchTimestamp(left);
     })
     .slice(0, limit - prioritized.length)
     .map((model) => ({
       model,
-      surfacedAt: model.release_date ?? null,
+      surfacedAt: model.release_date ?? model.created_at ?? null,
     }));
 
   return [...prioritized, ...fallback];

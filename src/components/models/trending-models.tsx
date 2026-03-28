@@ -30,6 +30,7 @@ interface TrendingModel {
   hf_likes?: number;
   hf_trending_score?: number | null;
   release_date: string | null;
+  created_at?: string | null;
   parameter_count: number | null;
   is_open_weights: boolean;
   coverage_score?: number;
