@@ -140,4 +140,81 @@ describe("buildDeploymentCatalog", () => {
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("chatgpt-plus");
     expect(result.relatedPlatforms.every((item) => item.confidence === "open_weight_runtime")).toBe(true);
   });
+
+  it("maps provider-family subscription plans for MiniMax, Kimi, and GLM providers", () => {
+    const platforms = [
+      {
+        id: "platform-minimax",
+        slug: "minimax-coding-plan",
+        name: "MiniMax Coding Plan",
+        type: "subscription",
+        base_url: "https://www.minimax.io/pricing",
+        has_affiliate: false,
+        affiliate_url: null,
+        affiliate_tag: null,
+      },
+      {
+        id: "platform-kimi",
+        slug: "kimi-code-membership",
+        name: "Kimi Code Membership",
+        type: "subscription",
+        base_url: "https://www.kimi.com/code/docs/en/benefits.html",
+        has_affiliate: false,
+        affiliate_url: null,
+        affiliate_tag: null,
+      },
+      {
+        id: "platform-glm",
+        slug: "glm-coding-plan",
+        name: "GLM Coding Plan",
+        type: "subscription",
+        base_url: "https://docs.z.ai/devpack/overview",
+        has_affiliate: false,
+        affiliate_url: null,
+        affiliate_tag: null,
+      },
+    ];
+
+    const result = buildDeploymentCatalog({
+      model: {
+        slug: "z-ai-glm-5",
+        name: "GLM-5",
+        provider: "Z.ai",
+        is_open_weights: false,
+      },
+      deployments: [],
+      platforms,
+      pricingProviderNames: [],
+    });
+
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).toContain("glm-coding-plan");
+
+    const minimax = buildDeploymentCatalog({
+      model: {
+        slug: "minimax-minimax-m2-7",
+        name: "MiniMax M2.7",
+        provider: "MiniMax",
+        is_open_weights: false,
+      },
+      deployments: [],
+      platforms,
+      pricingProviderNames: [],
+    });
+
+    expect(minimax.relatedPlatforms.map((item) => item.platform.slug)).toContain("minimax-coding-plan");
+
+    const kimi = buildDeploymentCatalog({
+      model: {
+        slug: "moonshotai-kimi-k2",
+        name: "Kimi K2",
+        provider: "Moonshotai",
+        is_open_weights: false,
+      },
+      deployments: [],
+      platforms,
+      pricingProviderNames: [],
+    });
+
+    expect(kimi.relatedPlatforms.map((item) => item.platform.slug)).toContain("kimi-code-membership");
+  });
 });

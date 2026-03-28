@@ -15,9 +15,11 @@ import { registerAdapter } from "../registry";
 
 interface PricingEntry {
   platformSlug: string;
-  modelPattern: string;
+  modelPatterns: string[];
+  providerPatterns?: string[];
+  excludePatterns?: string[];
   pricingModel: import("@/types/database").DeploymentPricingModel;
-  pricePerUnit: number;
+  pricePerUnit: number | null;
   unitDescription: string;
   freeTier: string | null;
 }
@@ -25,33 +27,61 @@ interface PricingEntry {
 // Curated pricing for major platforms (updated periodically)
 const CURATED_PRICING: PricingEntry[] = [
   // OpenAI API
-  { platformSlug: "openai-api", modelPattern: "gpt-4.1", pricingModel: "per-token", pricePerUnit: 2.0, unitDescription: "M input tokens", freeTier: null },
-  { platformSlug: "openai-api", modelPattern: "gpt-4o", pricingModel: "per-token", pricePerUnit: 2.5, unitDescription: "M input tokens", freeTier: null },
-  { platformSlug: "openai-api", modelPattern: "o3", pricingModel: "per-token", pricePerUnit: 10.0, unitDescription: "M input tokens", freeTier: null },
-  { platformSlug: "openai-api", modelPattern: "o4-mini", pricingModel: "per-token", pricePerUnit: 1.1, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "openai-api", modelPatterns: ["gpt-4.1"], pricingModel: "per-token", pricePerUnit: 2.0, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "openai-api", modelPatterns: ["gpt-4o"], pricingModel: "per-token", pricePerUnit: 2.5, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "openai-api", modelPatterns: ["o3"], pricingModel: "per-token", pricePerUnit: 10.0, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "openai-api", modelPatterns: ["o4-mini"], pricingModel: "per-token", pricePerUnit: 1.1, unitDescription: "M input tokens", freeTier: null },
   // Anthropic API
-  { platformSlug: "anthropic-api", modelPattern: "claude-4-opus", pricingModel: "per-token", pricePerUnit: 15.0, unitDescription: "M input tokens", freeTier: null },
-  { platformSlug: "anthropic-api", modelPattern: "claude-opus-4.6", pricingModel: "per-token", pricePerUnit: 15.0, unitDescription: "M input tokens", freeTier: null },
-  { platformSlug: "anthropic-api", modelPattern: "claude-4-sonnet", pricingModel: "per-token", pricePerUnit: 3.0, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "anthropic-api", modelPatterns: ["claude-4-opus"], pricingModel: "per-token", pricePerUnit: 15.0, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "anthropic-api", modelPatterns: ["claude-opus-4.6"], pricingModel: "per-token", pricePerUnit: 15.0, unitDescription: "M input tokens", freeTier: null },
+  { platformSlug: "anthropic-api", modelPatterns: ["claude-4-sonnet"], pricingModel: "per-token", pricePerUnit: 3.0, unitDescription: "M input tokens", freeTier: null },
   // Google AI Studio (free tier)
-  { platformSlug: "google-ai-studio", modelPattern: "gemini", pricingModel: "per-token", pricePerUnit: 0, unitDescription: "M input tokens", freeTier: "Free tier available" },
+  { platformSlug: "google-ai-studio", modelPatterns: ["gemini"], pricingModel: "per-token", pricePerUnit: 0, unitDescription: "M input tokens", freeTier: "Free tier available" },
   // Groq (fast inference)
-  { platformSlug: "groq", modelPattern: "llama", pricingModel: "per-token", pricePerUnit: 0.05, unitDescription: "M input tokens", freeTier: "Free tier: 30 RPM" },
-  { platformSlug: "groq", modelPattern: "gemma", pricingModel: "per-token", pricePerUnit: 0.05, unitDescription: "M input tokens", freeTier: "Free tier: 30 RPM" },
+  { platformSlug: "groq", modelPatterns: ["llama"], pricingModel: "per-token", pricePerUnit: 0.05, unitDescription: "M input tokens", freeTier: "Free tier: 30 RPM" },
+  { platformSlug: "groq", modelPatterns: ["gemma"], pricingModel: "per-token", pricePerUnit: 0.05, unitDescription: "M input tokens", freeTier: "Free tier: 30 RPM" },
   // Subscriptions
-  { platformSlug: "chatgpt-plus", modelPattern: "gpt", pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
-  { platformSlug: "chatgpt-pro", modelPattern: "gpt", pricingModel: "monthly", pricePerUnit: 200, unitDescription: "month", freeTier: null },
-  { platformSlug: "claude-pro", modelPattern: "claude", pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
-  { platformSlug: "gemini-advanced", modelPattern: "gemini", pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
-  { platformSlug: "perplexity-pro", modelPattern: "perplexity", pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
+  { platformSlug: "chatgpt-plus", modelPatterns: ["gpt"], pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
+  { platformSlug: "chatgpt-pro", modelPatterns: ["gpt"], pricingModel: "monthly", pricePerUnit: 200, unitDescription: "month", freeTier: null },
+  { platformSlug: "claude-pro", modelPatterns: ["claude"], pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
+  { platformSlug: "gemini-advanced", modelPatterns: ["gemini"], pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
+  { platformSlug: "perplexity-pro", modelPatterns: ["sonar", "perplexity"], providerPatterns: ["perplexity"], pricingModel: "monthly", pricePerUnit: 20, unitDescription: "month", freeTier: null },
+  { platformSlug: "grok-premium", modelPatterns: ["grok"], providerPatterns: ["xai", "grok"], pricingModel: "monthly", pricePerUnit: 8, unitDescription: "month", freeTier: null },
+  { platformSlug: "minimax-coding-plan", modelPatterns: ["minimax-m2", "minimax m2"], providerPatterns: ["minimax"], excludePatterns: ["speech", "music", "video", "hailuo"], pricingModel: "monthly", pricePerUnit: 29, unitDescription: "month", freeTier: null },
+  { platformSlug: "kimi-code-membership", modelPatterns: ["kimi"], providerPatterns: ["moonshot", "kimi"], pricingModel: "monthly", pricePerUnit: null, unitDescription: "month", freeTier: null },
+  { platformSlug: "glm-coding-plan", modelPatterns: ["glm-5", "glm-4.7", "glm-4.6", "glm-4.5", "glm-4.5-air"], providerPatterns: ["z.ai", "zai", "glm"], excludePatterns: ["image", "ocr", "asr", "cogview"], pricingModel: "monthly", pricePerUnit: 10, unitDescription: "month", freeTier: null },
   // Self-hosted
-  { platformSlug: "runpod", modelPattern: "llama", pricingModel: "per-second", pricePerUnit: 0.00031, unitDescription: "GPU-sec (A100)", freeTier: null },
-  { platformSlug: "vast-ai", modelPattern: "llama", pricingModel: "per-second", pricePerUnit: 0.0002, unitDescription: "GPU-sec", freeTier: null },
+  { platformSlug: "runpod", modelPatterns: ["llama"], pricingModel: "per-second", pricePerUnit: 0.00031, unitDescription: "GPU-sec (A100)", freeTier: null },
+  { platformSlug: "vast-ai", modelPatterns: ["llama"], pricingModel: "per-second", pricePerUnit: 0.0002, unitDescription: "GPU-sec", freeTier: null },
   // Local (free)
-  { platformSlug: "ollama", modelPattern: "llama", pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
-  { platformSlug: "lm-studio", modelPattern: "llama", pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
-  { platformSlug: "llamacpp", modelPattern: "llama", pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
+  { platformSlug: "ollama", modelPatterns: ["llama"], pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
+  { platformSlug: "lm-studio", modelPatterns: ["llama"], pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
+  { platformSlug: "llamacpp", modelPatterns: ["llama"], pricingModel: "free", pricePerUnit: 0, unitDescription: "", freeTier: "Free (local)" },
 ];
+
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? "").toLowerCase();
+}
+
+function matchesPricingEntry(
+  entry: PricingEntry,
+  model: { name: string; slug: string; provider: string }
+): boolean {
+  const haystack = `${normalizeText(model.name)} ${normalizeText(model.slug)} ${normalizeText(model.provider)}`;
+
+  const matchesModelPattern = entry.modelPatterns.some((pattern) => haystack.includes(normalizeText(pattern)));
+  if (!matchesModelPattern) return false;
+
+  if (entry.providerPatterns && !entry.providerPatterns.some((pattern) => normalizeText(model.provider).includes(normalizeText(pattern)))) {
+    return false;
+  }
+
+  if (entry.excludePatterns?.some((pattern) => haystack.includes(normalizeText(pattern)))) {
+    return false;
+  }
+
+  return true;
+}
 
 const adapter: DataSourceAdapter = {
   id: "deployment-pricing",
@@ -107,9 +137,7 @@ const adapter: DataSourceAdapter = {
 
       // Find matching models
       const matchingModels = models.filter(
-        (m: { name: string; slug: string }) =>
-          m.name.toLowerCase().includes(entry.modelPattern) ||
-          m.slug.includes(entry.modelPattern)
+        (m: { name: string; slug: string; provider: string }) => matchesPricingEntry(entry, m)
       );
 
       for (const model of matchingModels) {

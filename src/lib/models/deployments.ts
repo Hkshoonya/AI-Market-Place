@@ -51,6 +51,16 @@ const PROVIDER_FAMILY_PLATFORMS: Record<string, string[]> = {
   google: ["gemini-advanced", "gcp-vertex"],
   anthropic: ["claude-pro", "aws-bedrock"],
   xai: ["grok-premium"],
+  "x.ai": ["grok-premium"],
+  grok: ["grok-premium"],
+  minimax: ["minimax-coding-plan"],
+  minimaxai: ["minimax-coding-plan"],
+  moonshotai: ["kimi-code-membership"],
+  moonshot: ["kimi-code-membership"],
+  kimi: ["kimi-code-membership"],
+  "z.ai": ["glm-coding-plan"],
+  "zai-org": ["glm-coding-plan"],
+  glm: ["glm-coding-plan"],
 };
 
 const OPEN_WEIGHT_PLATFORMS = [

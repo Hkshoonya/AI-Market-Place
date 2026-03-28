@@ -213,6 +213,51 @@ describe("buildAccessOffersCatalog", () => {
     expect(bySlug.get("minimax-api")?.label).toBe("Verified");
   });
 
+  it("surfaces verified subscription plans even when public monthly pricing is unknown", () => {
+    const result = buildAccessOffersCatalog({
+      platforms: [
+        {
+          id: "kimi-code-membership",
+          slug: "kimi-code-membership",
+          name: "Kimi Code Membership",
+          type: "subscription",
+          base_url: "https://www.kimi.com/code/docs/en/benefits.html",
+          has_affiliate: false,
+        },
+      ],
+      deployments: [
+        {
+          id: "dep-1",
+          model_id: "m1",
+          platform_id: "kimi-code-membership",
+          pricing_model: "monthly",
+          price_per_unit: null,
+          unit_description: "month",
+          free_tier: null,
+          one_click: false,
+          status: "available",
+        },
+      ],
+      models: [
+        {
+          id: "m1",
+          slug: "moonshotai-kimi-k2",
+          name: "Kimi K2",
+          provider: "Moonshotai",
+          category: "coding",
+          capability_score: 81,
+          economic_footprint_score: 69,
+        },
+      ],
+    });
+
+    expect(result.subscriptionOffers).toHaveLength(1);
+    expect(result.subscriptionOffers[0]?.platform.slug).toBe("kimi-code-membership");
+    expect(result.subscriptionOffers[0]?.monthlyPrice).toBeNull();
+    expect(result.subscriptionOffers[0]?.monthlyPriceLabel).toBe("Custom");
+    expect(result.subscriptionOffers[0]?.actionLabel).toBe("Subscribe");
+  });
+
   it("exposes best access offers per model across subscription and deployment routes", () => {
     const result = buildAccessOffersCatalog({
       platforms: [
