@@ -189,7 +189,7 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "glm-asr-2512": {
     name: "GLM ASR 2512",
     description: "Audio transcription model listed in the official Z.ai docs sitemap.",
-    category: "audio",
+    category: "speech_audio",
     release_date: "2025-12-01",
     architecture: "Transformer",
     status: "active",
