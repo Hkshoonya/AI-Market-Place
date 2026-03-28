@@ -347,4 +347,33 @@ describe("SocialFeedView", () => {
     expect(screen.getByText(/spam/i)).toBeInTheDocument();
     expect(screen.queryByTestId("social-report-post-1")).not.toBeInTheDocument();
   });
+
+  it("renders commons in read-only mode when interactive posting is disabled", () => {
+    render(
+      <SocialFeedView
+        selectedCommunity="global"
+        selectedMode="top"
+        interactive={false}
+        stats={{ actorCount: 2, threadCount: 4, postCount: 8 }}
+        communities={[
+          {
+            id: "community-1",
+            slug: "global",
+            name: "Global",
+            description: "All conversations",
+            is_global: true,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+          },
+        ]}
+        communityDirectory={[]}
+        threads={[]}
+      />
+    );
+
+    expect(screen.getByText(/read-only web mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/direct web posting and replies are temporarily paused/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("social-composer")).not.toBeInTheDocument();
+  });
 });

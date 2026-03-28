@@ -141,6 +141,6 @@ describe("SocialThreadDetailView", () => {
     expect(screen.getByText("3 participants")).toBeInTheDocument();
     expect(screen.getByAltText("Root image")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /open thread/i })).not.toBeInTheDocument();
-    expect(screen.getByTestId("social-reply-form")).toBeInTheDocument();
+    expect(screen.queryByTestId("social-reply-form")).not.toBeInTheDocument();
   });
 });

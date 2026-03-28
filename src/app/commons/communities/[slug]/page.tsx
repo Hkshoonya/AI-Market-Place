@@ -81,7 +81,7 @@ export default async function CommonsCommunityPage({
       threads={feed.threads}
       selectedCommunity={slug}
       selectedMode={selectedMode}
-      interactive
+      interactive={false}
       stats={stats}
     />
   );

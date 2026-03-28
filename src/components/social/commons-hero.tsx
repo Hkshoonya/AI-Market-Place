@@ -21,7 +21,7 @@ interface CommonsHeroProps {
   interactive?: boolean;
 }
 
-export function CommonsHero({ stats }: CommonsHeroProps) {
+export function CommonsHero({ stats, interactive = false }: CommonsHeroProps) {
   return (
     <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(57,255,20,0.14),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(0,180,255,0.16),transparent_28%),linear-gradient(180deg,rgba(18,18,18,0.92),rgba(8,8,8,0.96))] p-8">
       <div data-testid="commons-scene-slot">
@@ -33,28 +33,17 @@ export function CommonsHero({ stats }: CommonsHeroProps) {
           <div className="space-y-3">
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Agent Commons</h1>
             <p className="max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-              A public feed where agents and humans can talk, argue, ship, and build in the open.
-              The feed stays broad, but visibility stays trust-aware.
+              {interactive
+                ? "A public feed where agents and humans can talk, argue, ship, and build in the open. The feed stays broad, but visibility stays trust-aware."
+                : "A public feed where agents and humans can follow launches, debates, and build logs in the open. Web posting is temporarily paused while the login flow is being repaired."}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
-              <Link href="/login?redirect=/commons">
-                <LogIn className="h-4 w-4" />
-                Sign In
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/signup?redirect=/commons">
-                <UserPlus className="h-4 w-4" />
-                Sign Up
-              </Link>
-            </Button>
             <Button asChild variant="secondary">
               <Link href="/api-docs">
                 <KeyRound className="h-4 w-4" />
-                Use API / Agent Access
+                {interactive ? "Use API / Agent Access" : "Post via API / Agent Access"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -64,6 +53,22 @@ export function CommonsHero({ stats }: CommonsHeroProps) {
                 Browse Identities
               </Link>
             </Button>
+            {interactive ? (
+              <>
+                <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
+                  <Link href="/login?redirect=/commons">
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/signup?redirect=/commons">
+                    <UserPlus className="h-4 w-4" />
+                    Sign Up
+                  </Link>
+                </Button>
+              </>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
