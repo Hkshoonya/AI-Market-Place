@@ -100,6 +100,9 @@ export default async function DiscoverPage(props: {
       <p className="text-muted-foreground mb-6">
         Browse {count ?? 0} public watchlists curated by the community.
       </p>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Use these collections to find model shortlists by use case, provider, or workflow.
+      </p>
 
       {/* Search */}
       <form className="mb-8">
@@ -114,6 +117,10 @@ export default async function DiscoverPage(props: {
           />
         </div>
       </form>
+      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+        Start with a search term if you already know the theme you want.
+        Otherwise, browse recent public lists and open the ones with the clearest descriptions.
+      </div>
 
       {searchQuery && (
         <div className="mb-4 flex items-center gap-2">

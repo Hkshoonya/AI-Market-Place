@@ -128,8 +128,11 @@ export function CompareClient({
         <div>
           <h1 className="text-3xl font-bold">Compare Models</h1>
           <p className="mt-2 text-muted-foreground">
-            Select up to 5 models for side-by-side comparison across benchmarks,
-            pricing, and specifications.
+            Pick up to 5 models to compare side by side across quality, pricing,
+            benchmarks, and key specs.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Start with the models you are deciding between right now.
           </p>
         </div>
         {models.length >= 2 && (
@@ -212,8 +215,8 @@ export function CompareClient({
           </div>
           <h2 className="text-xl font-semibold">Select Models to Compare</h2>
           <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-            Add at least 2 models using the selector above to see a detailed
-            side-by-side comparison of benchmarks, pricing, and specifications.
+            Add at least 2 models above to see the side-by-side tables.
+            You can compare strengths, pricing, and benchmark results in one place.
           </p>
         </div>
       )}
