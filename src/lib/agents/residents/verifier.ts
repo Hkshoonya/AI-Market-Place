@@ -183,7 +183,7 @@ const verifier: ResidentAgent = {
       const { data: issues, error: issueError } = await sb
         .from("agent_issues")
         .select("slug, title, issue_type, source, status, evidence")
-        .in("status", ["open", "investigating"])
+        .in("status", ["open", "investigating", "escalated"])
         .order("updated_at", { ascending: false })
         .limit(maxIssues);
 
