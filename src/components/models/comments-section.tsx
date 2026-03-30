@@ -8,8 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
-import { parseQueryResult } from "@/lib/schemas/parse";
-import { CommentSchema } from "@/lib/schemas/community";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatRelativeDate } from "@/lib/format";
 import { clientError } from "@/lib/client-log";
 import Image from "next/image";
@@ -44,79 +43,13 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [visibleCount, setVisibleCount] = useState(20);
+  const commentsKey = `/api/model-comments?modelId=${encodeURIComponent(modelId)}&limit=${visibleCount}`;
 
   const { data: comments = [], isLoading: loading, mutate } = useSWR<Comment[]>(
-    `supabase:comments:${modelId}:${visibleCount}`,
-    async () => {
-      const supabase = createClient();
-      // Two-query approach: comments table may not have FK to profiles
-      const response = await supabase
-        .from("comments")
-        .select("*")
-        .eq("model_id", modelId)
-        .is("parent_id", null)
-        .order("created_at", { ascending: false })
-        .limit(visibleCount);
-
-      const validatedComments = parseQueryResult(response, CommentSchema, "Comment");
-      // Enrich with profiles
-      let enriched: Comment[] = validatedComments.map((c) => ({ ...c, profiles: null }));
-      const userIds = [...new Set(enriched.map((c) => c.user_id).filter(Boolean))];
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, display_name, avatar_url, username")
-          .in("id", userIds);
-        const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-        enriched = enriched.map((c) => ({
-          ...c,
-          profiles: c.user_id ? (profileMap.get(c.user_id) ?? null) : null,
-        }));
-      } else {
-        enriched = enriched.map((c) => ({ ...c, profiles: null }));
-      }
-
-      // Top-level comments already filtered by the query
-      const topLevel = enriched;
-      const topLevelIds = topLevel.map((c) => c.id);
-
-      // Fetch replies for visible top-level comments
-      if (topLevelIds.length > 0) {
-        const replyResponse = await supabase
-          .from("comments")
-          .select("*")
-          .in("parent_id", topLevelIds)
-          .order("created_at", { ascending: true });
-
-        const validatedReplies = parseQueryResult(replyResponse, CommentSchema, "CommentReply");
-        if (validatedReplies.length > 0) {
-          let replies: Comment[] = validatedReplies.map((c) => ({ ...c, profiles: null }));
-          const replyUserIds = [...new Set(replies.map((c) => c.user_id).filter(Boolean))];
-          if (replyUserIds.length > 0) {
-            const { data: replyProfiles } = await supabase
-              .from("profiles")
-              .select("id, display_name, avatar_url, username")
-              .in("id", replyUserIds);
-            const rpMap = new Map((replyProfiles ?? []).map((p) => [p.id, p]));
-            replies = replies.map((c) => ({
-              ...c,
-              profiles: c.user_id ? (rpMap.get(c.user_id) ?? null) : null,
-            }));
-          }
-
-          const replyMap = new Map<string, Comment[]>();
-          for (const r of replies) {
-            const existing = replyMap.get(r.parent_id!) ?? [];
-            existing.push(r);
-            replyMap.set(r.parent_id!, existing);
-          }
-          for (const c of topLevel) {
-            c.replies = replyMap.get(c.id) ?? [];
-          }
-        }
-      }
-
-      return topLevel;
+    commentsKey,
+    async (url: string) => {
+      const response = await jsonFetcher<{ comments: Comment[] }>(url);
+      return response.comments;
     },
     { ...SWR_TIERS.MEDIUM }
   );
@@ -127,52 +60,52 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
     if (!content.trim()) return;
 
     setSubmitting(true);
+    try {
+      const response = await fetch("/api/model-comments", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          modelId,
+          content: content.trim(),
+          parentId,
+        }),
+      });
 
-    const supabase = createClient();
-    const { error } = await supabase.from("comments").insert({
-      model_id: modelId,
-      user_id: user.id,
-      content: content.trim(),
-      parent_id: parentId,
-    });
+      const payload = (await response.json()) as { error?: string; comment?: Comment };
+      if (!response.ok || !payload.comment) {
+        throw new Error(payload.error ?? "Failed to post comment");
+      }
 
-    if (error) {
-      clientError("Comment submit failed:", error);
-      setSubmitError("Failed to post comment. Please try again.");
-    } else {
       setSubmitError(null);
-      // Build optimistic comment for immediate UI display
-      const optimisticComment: Comment = {
-        id: `temp-${Date.now()}`,
-        content: content.trim(),
-        upvotes: 0,
-        created_at: new Date().toISOString(),
-        parent_id: parentId,
-        user_id: user.id,
-        profiles: { display_name: user.user_metadata?.display_name ?? user.email ?? null, avatar_url: user.user_metadata?.avatar_url ?? null, username: user.user_metadata?.username ?? null },
-        replies: [],
-      };
+      const insertedComment = payload.comment;
       if (parentId) {
         setReplyText("");
         setReplyingTo(null);
-        // Optimistic: append reply to parent
         await mutate(
           (current) => (current ?? []).map((c) =>
-            c.id === parentId ? { ...c, replies: [...(c.replies ?? []), optimisticComment] } : c
+            c.id === parentId ? { ...c, replies: [...(c.replies ?? []), insertedComment] } : c
           ),
-          { revalidate: true }
+          { revalidate: false }
         );
       } else {
         setNewComment("");
-        // Optimistic: prepend new top-level comment
         await mutate(
-          (current) => [optimisticComment, ...(current ?? [])],
-          { revalidate: true }
+          (current) => [insertedComment, ...(current ?? [])],
+          { revalidate: false }
         );
       }
+      void mutate();
+    } catch (error) {
+      clientError("Comment submit failed:", error);
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to post comment. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   };
 
   const handleUpvote = async (commentId: string) => {
@@ -381,24 +314,26 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
         {/* New comment form */}
         {user ? (
           <div className="mb-6 flex gap-3">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Share your thoughts on this model..."
-              rows={3}
-              className="flex-1 rounded-md border border-border/50 bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon/30"
-            />
+            <div className="flex-1">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Share your thoughts on this model..."
+                rows={3}
+                className="w-full rounded-md border border-border/50 bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon/30"
+              />
+              {submitError && (
+                <p className="mt-2 text-sm text-destructive">{submitError}</p>
+              )}
+            </div>
             <Button
               className="bg-neon text-background font-semibold hover:bg-neon/90 self-end"
               onClick={() => submitComment(null)}
               disabled={submitting || !newComment.trim()}
             >
-              <Send className="h-4 w-4 mr-1" />
+              <Send className="mr-1 h-4 w-4" />
               Post
             </Button>
-          {submitError && (
-            <p className="text-sm text-destructive mt-1">{submitError}</p>
-          )}
           </div>
         ) : (
           <div className="mb-6 rounded-lg border border-border/30 bg-secondary/20 p-4 text-center">

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import { CommentsSection } from './comments-section';
 
@@ -8,9 +8,10 @@ import { CommentsSection } from './comments-section';
 // Mocks — use vi.hoisted() so variables are available in hoisted vi.mock factories
 // ---------------------------------------------------------------------------
 
-const { mockUseAuth, mockSupabaseFrom } = vi.hoisted(() => ({
+const { mockUseAuth, mockSupabaseFrom, mockFetch } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockSupabaseFrom: vi.fn(),
+  mockFetch: vi.fn(),
 }));
 
 // Chainable Supabase query builder mock
@@ -36,6 +37,8 @@ vi.mock('@/lib/supabase/client', () => ({
     rpc: vi.fn(),
   }),
 }));
+
+vi.stubGlobal('fetch', mockFetch);
 
 // Mock parseQueryResult to pass data through
 vi.mock('@/lib/schemas/parse', () => ({
@@ -125,6 +128,50 @@ function setupSupabaseMock(comments: typeof mockComments, profiles: typeof mockP
     }
     return createChainMock({ data: [], error: null });
   });
+
+  mockFetch.mockImplementation((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.startsWith('/api/model-comments?')) {
+      const topLevel = comments.filter((comment) => comment.parent_id === null);
+      const topLevelIds = new Set(topLevel.map((comment) => comment.id));
+      const replies = comments.filter(
+        (comment) => comment.parent_id && topLevelIds.has(comment.parent_id)
+      );
+      const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+      const replyMap = new Map<string, any[]>();
+
+      for (const reply of replies) {
+        const existing = replyMap.get(reply.parent_id!) ?? [];
+        existing.push({
+          ...reply,
+          profiles: profileMap.get(reply.user_id) ?? null,
+          replies: [],
+        });
+        replyMap.set(reply.parent_id!, existing);
+      }
+
+      return Promise.resolve(
+        makeJsonResponse({
+          comments: topLevel.map((comment) => ({
+            ...comment,
+            profiles: profileMap.get(comment.user_id) ?? null,
+            replies: replyMap.get(comment.id) ?? [],
+          })),
+        })
+      );
+    }
+
+    return Promise.resolve(makeJsonResponse({ comments: [] }));
+  });
+}
+
+function makeJsonResponse(body: unknown, ok = true, status = 200) {
+  return {
+    ok,
+    status,
+    statusText: ok ? 'OK' : 'Error',
+    json: async () => body,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +181,7 @@ function setupSupabaseMock(comments: typeof mockComments, profiles: typeof mockP
 describe('CommentsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetch.mockReset();
   });
 
   it('shows loading state initially, then renders comments after fetch', async () => {
@@ -245,5 +293,78 @@ describe('CommentsSection', () => {
         screen.getByText('No comments yet. Be the first to share your thoughts!')
       ).toBeInTheDocument();
     });
+  });
+
+  it('posts a new comment and updates the list immediately', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'user-1', email: 'alice@test.com', user_metadata: {} },
+      profile: { display_name: 'Alice', avatar_url: null, username: 'alice' },
+      loading: false,
+      signOut: vi.fn(),
+    });
+
+    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith('/api/model-comments?')) {
+        return Promise.resolve(makeJsonResponse({ comments: [] }));
+      }
+      if (url === '/api/model-comments' && init?.method === 'POST') {
+        return Promise.resolve(
+          makeJsonResponse(
+            {
+              comment: {
+                id: 'comment-new',
+                model_id: 'test-model-id',
+                user_id: 'user-1',
+                parent_id: null,
+                content: 'Fresh discussion post',
+                upvotes: 0,
+                is_edited: false,
+                created_at: '2026-03-30T12:00:00Z',
+                updated_at: '2026-03-30T12:00:00Z',
+                profiles: {
+                  display_name: 'Alice',
+                  avatar_url: null,
+                  username: 'alice',
+                },
+                replies: [],
+              },
+            },
+            true,
+            201
+          )
+        );
+      }
+      return Promise.resolve(makeJsonResponse({ comments: [] }));
+    });
+
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <CommentsSection modelId="test-model-id" />
+      </SWRConfig>
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No comments yet. Be the first to share your thoughts!')
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Share your thoughts on this model...'), {
+      target: { value: 'Fresh discussion post' },
+    });
+    fireEvent.click(screen.getByText('Post'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh discussion post')).toBeInTheDocument();
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/model-comments',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      })
+    );
   });
 });
