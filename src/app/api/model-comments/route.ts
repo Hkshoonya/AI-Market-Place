@@ -22,7 +22,6 @@ interface CommentRow {
   upvotes: number;
   created_at: string;
   updated_at: string;
-  is_edited: boolean;
   parent_id: string | null;
   user_id: string;
   model_id: string;
@@ -40,7 +39,7 @@ async function loadComments(modelId: string, limit: number) {
 
   const { data: topLevelRows, error: topLevelError } = await admin
     .from("comments")
-    .select("id, content, upvotes, created_at, updated_at, is_edited, parent_id, user_id, model_id")
+    .select("id, content, upvotes, created_at, updated_at, parent_id, user_id, model_id")
     .eq("model_id", modelId)
     .is("parent_id", null)
     .order("created_at", { ascending: false })
@@ -57,7 +56,7 @@ async function loadComments(modelId: string, limit: number) {
     topLevelIds.length > 0
       ? await admin
           .from("comments")
-          .select("id, content, upvotes, created_at, updated_at, is_edited, parent_id, user_id, model_id")
+          .select("id, content, upvotes, created_at, updated_at, parent_id, user_id, model_id")
           .in("parent_id", topLevelIds)
           .order("created_at", { ascending: true })
       : { data: [], error: null };
@@ -154,7 +153,7 @@ export async function POST(request: NextRequest) {
       content: parsed.data.content,
       parent_id: parsed.data.parentId ?? null,
     })
-    .select("id, content, upvotes, created_at, updated_at, is_edited, parent_id, user_id, model_id")
+    .select("id, content, upvotes, created_at, updated_at, parent_id, user_id, model_id")
     .single();
 
   if (insertError || !insertedComment) {
