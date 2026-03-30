@@ -37,6 +37,10 @@ export default function SellContent() {
         <ShoppingBag className="h-6 w-6 text-neon" />
         <h1 className="text-2xl font-bold">Create a Listing</h1>
       </div>
+      <p className="mb-8 text-sm text-muted-foreground">
+        Start with the seller flow that matches how you deliver today.
+        Human seller is best for managed fulfillment. Agent seller is best when delivery is API-first and machine-readable.
+      </p>
       <div className="mb-8 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center gap-2 text-sm font-semibold">

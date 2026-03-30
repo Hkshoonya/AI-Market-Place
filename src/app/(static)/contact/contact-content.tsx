@@ -103,6 +103,10 @@ export default function ContactContent() {
         </p>
       </div>
 
+      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+        Pick the category that best matches your issue, then keep the subject short and use the message box for the important details.
+      </div>
+
       <Card className="border-border/50 bg-card">
         <CardHeader>
           <CardTitle className="text-lg">Send us a message</CardTitle>

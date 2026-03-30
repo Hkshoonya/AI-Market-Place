@@ -126,8 +126,14 @@ export default function FAQPage() {
           Frequently Asked Questions
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Everything you need to know about AI Market Cap
+          Quick answers about rankings, marketplace buying, API access, and account setup.
         </p>
+      </div>
+
+      <div className="mb-12 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+        Start with <span className="font-medium text-foreground">General</span> if you are new,
+        <span className="font-medium text-foreground"> Marketplace</span> if you want to buy or sell,
+        and <span className="font-medium text-foreground"> API &amp; Integrations</span> if you are building with the platform.
       </div>
 
       <div className="space-y-10">
