@@ -428,10 +428,18 @@ export default async function SearchPage({
       {!query ? (
         <div className="py-16 text-center">
           <Search className="mx-auto h-12 w-12 text-muted-foreground/20" />
-          <p className="mt-3 text-muted-foreground">Enter a search term to find AI models and marketplace listings</p>
+          <p className="mt-3 text-muted-foreground">
+            Enter a name, provider, or keyword to find models and marketplace listings.
+          </p>
         </div>
       ) : (
         <>
+          <div className="mb-6 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+            Start with the tab that matches your goal:
+            models if you want to compare AI systems, marketplace if you want something you can buy,
+            deploy, or use right away.
+          </div>
+
           {/* Tabs */}
           <div className="flex gap-1 mb-6">
             <Link
@@ -463,7 +471,7 @@ export default async function SearchPage({
             <div className="space-y-2">
               {models.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">
-                  No models found for &ldquo;{query}&rdquo;
+                  No models matched &ldquo;{query}&rdquo;.
                 </div>
               ) : (
                 models.map((model) => (
@@ -537,7 +545,7 @@ export default async function SearchPage({
             <div className="space-y-2">
               {marketplace.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">
-                  No listings found for &ldquo;{query}&rdquo;
+                  No marketplace listings matched &ldquo;{query}&rdquo;.
                 </div>
               ) : (
                 marketplace.map((item) => (

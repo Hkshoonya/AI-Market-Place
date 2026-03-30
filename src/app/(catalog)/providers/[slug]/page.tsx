@@ -235,7 +235,8 @@ export default async function ProviderDetailPage({
           <div>
             <h1 className="text-3xl font-bold">{providerName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Company footprint view: strongest categories, official pricing posture, and highest-value active models.
+              Plain-language provider view: what this company is strongest at, how many active models it has,
+              what pricing we can verify, and which current models matter most.
             </p>
             <div className="mt-3">
               <DataFreshnessBadge
@@ -323,7 +324,7 @@ export default async function ProviderDetailPage({
               {officialPricedModels} / {models.length} models have official company pricing
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Compact public tables show the cheapest verified route, while deeper pricing views keep official first-party pricing separate.
+              This tells you how often we can verify direct first-party pricing instead of only broker or router pricing.
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
@@ -334,7 +335,7 @@ export default async function ProviderDetailPage({
               {verifiedPriceFloor != null ? `${formatTokenPrice(verifiedPriceFloor)}/M` : "Unavailable"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Best verified public entry point across this provider&apos;s active lineup.
+              The lowest reliable public price we could verify across this provider&apos;s active lineup.
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
@@ -347,7 +348,7 @@ export default async function ProviderDetailPage({
             <p className="mt-1 text-xs text-muted-foreground">
               {topValueModel
                 ? `${topValueModel.name} leads current estimated value at ${formatMarketValue(topValueModel.market_cap_estimate)}.`
-                : "No estimated market value available yet."}
+                : "Estimated value data is not available yet."}
             </p>
           </div>
         </CardContent>
@@ -362,7 +363,7 @@ export default async function ProviderDetailPage({
           <LaunchRadar
             items={providerRadar}
             title="Recent Provider Signals"
-            description="Recent launch, pricing, benchmark, API, and research signals linked to this provider."
+            description="Recent launches, pricing moves, benchmark updates, API changes, and research signals linked to this provider."
             ctaHref="/news"
             ctaLabel="View all signals"
           />
@@ -416,6 +417,11 @@ export default async function ProviderDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+        Start with the summary cards above if you only want the quick answer.
+        The tables below are for deeper comparison across categories, rankings, and individual models.
+      </div>
 
       {categoryBreakdown.size > 1 && (
         <Card className="mb-8 border-border/50 bg-card">
