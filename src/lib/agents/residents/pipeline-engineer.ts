@@ -50,6 +50,7 @@ const pipelineEngineer: ResidentAgent = {
       }
 
       const dataSources = (sources ?? []) as DataSourceRecord[];
+      const enabledSourceSlugs = new Set(dataSources.map((source) => source.slug));
       await log.info(`Found ${dataSources.length} enabled data sources`);
 
       // Step 3: Health check all adapters
@@ -101,6 +102,7 @@ const pipelineEngineer: ResidentAgent = {
 
       const failedSources = new Set<string>();
       for (const job of failedJobs ?? []) {
+        if (!enabledSourceSlugs.has(job.source)) continue;
         failedSources.add(job.source);
       }
       output.failedSources = Array.from(failedSources);
