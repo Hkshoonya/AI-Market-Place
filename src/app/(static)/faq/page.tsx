@@ -1,10 +1,20 @@
 import { HelpCircle, ChevronDown } from "lucide-react";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "FAQ",
   description:
     "Frequently asked questions about AI Market Cap — how we rank models, data sources, marketplace, API, agents, and more.",
+  openGraph: {
+    title: "FAQ",
+    description:
+      "Frequently asked questions about AI Market Cap — how we rank models, data sources, marketplace, API, agents, and more.",
+    url: `${SITE_URL}/faq`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/faq`,
+  },
 };
 
 const FAQ_SECTIONS = [

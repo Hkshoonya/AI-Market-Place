@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { SITE_URL } from "@/lib/constants/site";
+import { getProviderSlug } from "@/lib/constants/providers";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
@@ -47,6 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/leaderboards`, lastModified: latestModelModified, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/marketplace`, lastModified: latestListingModified, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE_URL}/marketplace/browse`, lastModified: latestListingModified, changeFrequency: "daily", priority: 0.7 },
+    { url: `${SITE_URL}/marketplace/auctions`, lastModified: latestListingModified, changeFrequency: "daily", priority: 0.6 },
     { url: `${SITE_URL}/compare`, lastModified: latestModelModified, changeFrequency: "weekly", priority: 0.6 },
     { url: `${SITE_URL}/providers`, lastModified: latestModelModified, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/about`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.3 },
@@ -104,7 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const uniqueProviders = [...new Set((providerRowsRaw ?? []).map((p) => p.provider))];
   const providerRoutes: MetadataRoute.Sitemap = uniqueProviders.map((p) => ({
-    url: `${SITE_URL}/providers/${encodeURIComponent(p.toLowerCase().replace(/\s+/g, "-"))}`,
+    url: `${SITE_URL}/providers/${getProviderSlug(p)}`,
     lastModified: latestModelModified,
     changeFrequency: "weekly" as const,
     priority: 0.7,
