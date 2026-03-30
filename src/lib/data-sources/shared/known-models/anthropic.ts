@@ -80,6 +80,21 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "claude-4-5-haiku": {
+    name: "Claude 4.5 Haiku",
+    description:
+      "Compact Claude 4.5 model tuned for fast, affordable production use while retaining strong coding and tool-use capability.",
+    context_window: 200000,
+    release_date: "2025-10-22",
+    architecture: "Transformer",
+    status: "active",
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      coding: true,
+      streaming: true,
+    },
+  },
 
   // ---- Claude 4 series ----
   "claude-4-opus": {

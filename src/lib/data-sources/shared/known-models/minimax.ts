@@ -21,6 +21,26 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "MiniMax-M2.5": {
+    name: "MiniMax M2.5",
+    description:
+      "MiniMax reasoning and coding model family tuned for agentic software workflows and long-context production runs.",
+    category: "llm",
+    context_window: 1000000,
+    release_date: "2026-03-12",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
   "MiniMax-M1": {
     name: "MiniMax M1",
     description:
