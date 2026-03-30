@@ -549,6 +549,51 @@ describe("GET /api/health", () => {
       process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
     });
 
+    it("does not stay degraded when a job has a newer successful rerun", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      const originalMode = process.env.CRON_RUNNER_MODE;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.CRON_RUNNER_MODE = "external";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: { data: makeDataSources([{ slug: "a1" }]), error: null },
+          pipeline_health: {
+            data: makePipelineHealth([
+              { source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) },
+            ]),
+            error: null,
+          },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "completed",
+                started_at: "2026-03-12T00:30:00.000Z",
+                created_at: "2026-03-12T00:30:00.000Z",
+              },
+              {
+                job_name: "sync-tier-1",
+                status: "failed",
+                started_at: "2026-03-11T10:00:00.000Z",
+                created_at: "2026-03-11T10:00:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        }) as unknown as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(body.cron.recentFailures24h).toBe(1);
+      expect(body.status).toBe("healthy");
+
+      process.env.CRON_SECRET = originalSecret;
+      process.env.CRON_RUNNER_MODE = originalMode;
+    });
+
     it("returns 503 with status 'unhealthy' when authenticated but DB fails", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";

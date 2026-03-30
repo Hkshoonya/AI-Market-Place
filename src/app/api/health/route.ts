@@ -81,6 +81,30 @@ const HealthUnhealthySchema = z.object({
   error: z.string(),
 });
 
+type CronRunSnapshot = {
+  job_name?: string | null;
+  status?: string | null;
+  started_at?: string | null;
+  created_at?: string | null;
+};
+
+function countLatestFailedJobs(cronRuns: CronRunSnapshot[]) {
+  const latestByJob = new Map<string, CronRunSnapshot>();
+
+  for (const run of cronRuns) {
+    const jobName = run.job_name?.trim();
+    if (!jobName || latestByJob.has(jobName)) continue;
+    latestByJob.set(jobName, run);
+  }
+
+  let failedJobs = 0;
+  for (const run of latestByJob.values()) {
+    if (run.status === "failed") failedJobs++;
+  }
+
+  return failedJobs;
+}
+
 function resolveReleaseMetadata() {
   const normalizeEnvValue = (value: string | undefined) => {
     const trimmed = value?.trim();
@@ -219,7 +243,7 @@ export async function GET(request: NextRequest) {
       ).toISOString();
       const { data: cronRuns = [] } = await supabase
         .from("cron_runs")
-        .select("status, started_at, created_at")
+        .select("job_name, status, started_at, created_at")
         .gte("created_at", cronCutoff)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -229,8 +253,9 @@ export async function GET(request: NextRequest) {
       const schedulerConfigured = isCronSchedulerConfigured(cronMode);
       const recentFailures24h = recentCronRuns.filter((run) => run.status === "failed")
         .length;
+      const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
       const cronStale = schedulerConfigured && recentCronRuns.length === 0;
-      const cronDegraded = cronStale || recentFailures24h > 0;
+      const cronDegraded = cronStale || latestFailedJobs24h > 0;
       overallStatus = overallStatus === "degraded" || cronDegraded ? "degraded" : "healthy";
       const body = HealthDetailSchema.parse({
         status: overallStatus,
