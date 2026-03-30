@@ -24,6 +24,33 @@ describe("model presentation helpers", () => {
     expect(result.source).toBe("official_catalog");
   });
 
+  it("uses existing MiniMax and Z.ai official catalogs for display descriptions", () => {
+    const minimax = getModelDisplayDescription({
+      slug: "minimax-minimax-m2-7",
+      name: "MiniMax M2.7",
+      provider: "MiniMax",
+      category: "llm",
+      description: null,
+      short_description: null,
+      is_open_weights: false,
+    });
+
+    const zai = getModelDisplayDescription({
+      slug: "z-ai-glm-5",
+      name: "GLM-5",
+      provider: "Z.ai",
+      category: "llm",
+      description: null,
+      short_description: null,
+      is_open_weights: false,
+    });
+
+    expect(minimax.source).toBe("official_catalog");
+    expect(minimax.text).toMatch(/reasoning and coding model/i);
+    expect(zai.source).toBe("official_catalog");
+    expect(zai.text).toMatch(/flagship reasoning and coding model family/i);
+  });
+
   it("infers parameter labels from model identity when the database field is empty", () => {
     const result = getParameterDisplay({
       slug: "google-gemma-3-27b",

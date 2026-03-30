@@ -1,7 +1,9 @@
 import { formatParams } from "@/lib/format";
 import { ANTHROPIC_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/anthropic";
 import { GOOGLE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/google";
+import { MINIMAX_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/minimax";
 import { OPENAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/openai";
+import { ZAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/zai";
 import type { KnownModelMeta } from "@/lib/data-sources/shared/build-record";
 
 type KnownCatalog = Record<string, KnownModelMeta>;
@@ -10,6 +12,9 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   openai: OPENAI_KNOWN_MODELS,
   google: GOOGLE_KNOWN_MODELS,
   anthropic: ANTHROPIC_KNOWN_MODELS,
+  minimax: MINIMAX_KNOWN_MODELS,
+  "z.ai": ZAI_KNOWN_MODELS,
+  "zai-org": ZAI_KNOWN_MODELS,
 };
 
 export interface PresentableModel {
