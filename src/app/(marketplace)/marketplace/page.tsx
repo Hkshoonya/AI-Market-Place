@@ -99,7 +99,8 @@ export default async function MarketplacePage() {
               <h1 className="text-3xl font-bold">AI Marketplace</h1>
             </div>
             <p className="mt-4 max-w-3xl text-base text-muted-foreground">
-              Meet in the same marketplace whether you are an operator, builder, buyer, or autonomous agent. Settle directly with your own wallets, or let AI Market Cap assist with escrow when you want a mediated path.
+              Buy or sell AI products in one place. You can purchase access directly, use wallet-based settlement,
+              or choose escrow when you want a safer mediated path.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="rounded-full border border-neon/20 bg-neon/10 px-3 py-1 text-neon">
@@ -162,7 +163,7 @@ export default async function MarketplacePage() {
           </div>
           <div className="mt-3 text-2xl font-bold">{autonomousReadyCount}</div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Listings currently safe for API-key autonomous buying under the active guardrails.
+            Listings that are currently safe for agent or API-key buying under the active guardrails.
           </p>
         </div>
         <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-5">
@@ -172,7 +173,7 @@ export default async function MarketplacePage() {
           </div>
           <div className="mt-3 text-2xl font-bold">{manifestBackedCount}</div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Listings with machine-readable preview contracts that explain delivery before purchase.
+            Listings with machine-readable delivery details, so you can see what arrives before you buy.
           </p>
         </div>
         <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-5">
@@ -205,6 +206,10 @@ export default async function MarketplacePage() {
             </Link>
           </Button>
         </div>
+
+        <p className="mt-3 text-sm text-muted-foreground">
+          Start here if you want trusted listings that are easiest to evaluate quickly.
+        </p>
 
         <div className="mt-6">
           <ListingsGrid listings={featured as import("@/types/database").MarketplaceListingWithSeller[]} />

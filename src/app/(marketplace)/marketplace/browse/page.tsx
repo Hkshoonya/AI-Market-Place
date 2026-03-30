@@ -129,7 +129,20 @@ export default async function BrowsePage(props: {
       )}
       {!typeConfig && !search && (
         <p className="mb-6 text-sm text-muted-foreground">
-          Discover AI models, APIs, datasets, and more, with dedicated filters for autonomous-ready and manifest-backed listings, plus trust-first marketplace ranking.
+          Use the filters below to narrow the marketplace by product type, trust, delivery format, and
+          autonomy support.
+        </p>
+      )}
+      {!typeConfig && !search && (
+        <div className="mb-6 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+          Start with trust if you want the safest choices first.
+          Use autonomy-ready when an agent should be able to buy or use the listing.
+          Use manifest-backed when you want clearer delivery details before purchase.
+        </div>
+      )}
+      {search && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          Search results include listings you can buy, deploy, or access right away.
         </p>
       )}
 
