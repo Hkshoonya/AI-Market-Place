@@ -6,6 +6,7 @@ import {
   buildContentQualityMetrics,
   countStaleSellerListings,
   collectPaginatedRows,
+  filterBenchmarkEvidenceModelIds,
   filterCoveredActiveModelIds,
   filterUserVisiblePricedModelIds,
   countModelsMissingUserVisibleDescriptions,
@@ -33,6 +34,10 @@ interface DataSourceHealthRow {
 
 interface ModelCoverageRow {
   model_id: string | null;
+}
+
+interface BenchmarkEvidenceRow {
+  related_model_ids: string[] | null;
 }
 
 interface DeploymentCoverageRow {
@@ -117,21 +122,35 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
   const activeModelIds = new Set(activeModels.map((model) => model.id));
   const missingDescription = countModelsMissingUserVisibleDescriptions(activeModels);
 
-  const benchmarkRows = await collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
-    const { data, error } = await sb
-      .from("benchmark_scores")
-      .select("model_id")
-      .order("model_id", { ascending: true })
-      .range(from, to);
+  const [benchmarkRows, benchmarkEvidenceRows, pricingRows, deploymentRows, platformRows] =
+    await Promise.all([
+      collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
+        const { data, error } = await sb
+          .from("benchmark_scores")
+          .select("model_id")
+          .order("model_id", { ascending: true })
+          .range(from, to);
 
-    if (error) {
-      throw new Error(`Failed to fetch benchmark coverage: ${error.message}`);
-    }
+        if (error) {
+          throw new Error(`Failed to fetch benchmark coverage: ${error.message}`);
+        }
 
-    return (data ?? []) as ModelCoverageRow[];
-  });
+        return (data ?? []) as ModelCoverageRow[];
+      }),
+      collectPaginatedRows<BenchmarkEvidenceRow>(async (from, to) => {
+        const { data, error } = await sb
+          .from("model_news")
+          .select("related_model_ids")
+          .eq("category", "benchmark")
+          .order("published_at", { ascending: false })
+          .range(from, to);
 
-  const [pricingRows, deploymentRows, platformRows] = await Promise.all([
+        if (error) {
+          throw new Error(`Failed to fetch benchmark evidence coverage: ${error.message}`);
+        }
+
+        return (data ?? []) as BenchmarkEvidenceRow[];
+      }),
     collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
       const { data, error } = await sb
         .from("model_pricing")
@@ -176,7 +195,10 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
   const contentQuality = buildContentQualityMetrics({
     activeModels,
     missingDescriptionCount: missingDescription,
-    benchmarkedModelIds: filterCoveredActiveModelIds(benchmarkRows, activeModelIds),
+    benchmarkedModelIds: new Set([
+      ...filterCoveredActiveModelIds(benchmarkRows, activeModelIds),
+      ...filterBenchmarkEvidenceModelIds(benchmarkEvidenceRows, activeModelIds),
+    ]),
     pricedModelIds: filterUserVisiblePricedModelIds({
       activeModels,
       pricedModelIds: filterCoveredActiveModelIds(pricingRows, activeModelIds),

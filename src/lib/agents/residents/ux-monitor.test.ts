@@ -5,6 +5,7 @@ import {
   countStaleSellerListings,
   collectPaginatedRows,
   countModelsMissingUserVisibleDescriptions,
+  filterBenchmarkEvidenceModelIds,
   filterCoveredActiveModelIds,
   filterUserVisiblePricedModelIds,
   getDescriptionCoverageThreshold,
@@ -36,6 +37,23 @@ describe("filterCoveredActiveModelIds", () => {
         { model_id: "model-c" },
         { model_id: "inactive-model" },
         { model_id: null },
+      ],
+      activeModelIds
+    );
+
+    expect(Array.from(covered).sort()).toEqual(["model-a", "model-c"]);
+  });
+});
+
+describe("filterBenchmarkEvidenceModelIds", () => {
+  it("flattens related_model_ids arrays and keeps only active model ids", () => {
+    const activeModelIds = new Set(["model-a", "model-b", "model-c"]);
+
+    const covered = filterBenchmarkEvidenceModelIds(
+      [
+        { related_model_ids: ["model-a", "model-a", "inactive-model"] },
+        { related_model_ids: ["model-c"] },
+        { related_model_ids: null },
       ],
       activeModelIds
     );

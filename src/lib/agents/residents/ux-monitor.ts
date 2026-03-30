@@ -32,6 +32,10 @@ interface ModelCoverageRow {
   model_id: string | null;
 }
 
+interface BenchmarkEvidenceRow {
+  related_model_ids: string[] | null;
+}
+
 interface DeploymentCoverageRow {
   model_id: string | null;
   status: string | null;
@@ -88,6 +92,23 @@ export function filterCoveredActiveModelIds(
   for (const row of rows) {
     if (row.model_id && activeModelIds.has(row.model_id)) {
       coveredModelIds.add(row.model_id);
+    }
+  }
+
+  return coveredModelIds;
+}
+
+export function filterBenchmarkEvidenceModelIds(
+  rows: BenchmarkEvidenceRow[],
+  activeModelIds: Set<string>
+): Set<string> {
+  const coveredModelIds = new Set<string>();
+
+  for (const row of rows) {
+    for (const modelId of row.related_model_ids ?? []) {
+      if (activeModelIds.has(modelId)) {
+        coveredModelIds.add(modelId);
+      }
     }
   }
 
@@ -229,28 +250,35 @@ const uxMonitor: ResidentAgent = {
       const modelIds = activeModels.map((model) => model.id);
       const activeModelIdSet = new Set(modelIds);
 
-      const benchmarkRows = await collectPaginatedRows<ModelCoverageRow>(
-        async (from, to) => {
-          const { data, error } = await sb
-            .from("benchmark_scores")
-            .select("model_id")
-            .order("model_id", { ascending: true })
-            .range(from, to);
+      const [benchmarkRows, benchmarkEvidenceRows, pricingRows, deploymentRows, platformRows] =
+        await Promise.all([
+          collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
+            const { data, error } = await sb
+              .from("benchmark_scores")
+              .select("model_id")
+              .order("model_id", { ascending: true })
+              .range(from, to);
 
-          if (error) {
-            throw new Error(`Failed to fetch benchmark coverage: ${error.message}`);
-          }
+            if (error) {
+              throw new Error(`Failed to fetch benchmark coverage: ${error.message}`);
+            }
 
-          return (data ?? []) as ModelCoverageRow[];
-        }
-      );
+            return (data ?? []) as ModelCoverageRow[];
+          }),
+          collectPaginatedRows<BenchmarkEvidenceRow>(async (from, to) => {
+            const { data, error } = await sb
+              .from("model_news")
+              .select("related_model_ids")
+              .eq("category", "benchmark")
+              .order("published_at", { ascending: false })
+              .range(from, to);
 
-      const benchmarkedSet = filterCoveredActiveModelIds(
-        benchmarkRows,
-        activeModelIdSet
-      );
+            if (error) {
+              throw new Error(`Failed to fetch benchmark evidence coverage: ${error.message}`);
+            }
 
-      const [pricingRows, deploymentRows, platformRows] = await Promise.all([
+            return (data ?? []) as BenchmarkEvidenceRow[];
+          }),
         collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
           const { data, error } = await sb
             .from("model_pricing")
@@ -290,6 +318,11 @@ const uxMonitor: ResidentAgent = {
 
           return (data ?? []) as DeploymentPlatformCoverageRow[];
         }),
+      ]);
+
+      const benchmarkedSet = new Set<string>([
+        ...filterCoveredActiveModelIds(benchmarkRows, activeModelIdSet),
+        ...filterBenchmarkEvidenceModelIds(benchmarkEvidenceRows, activeModelIdSet),
       ]);
 
       const rawPricedSet = filterCoveredActiveModelIds(pricingRows, activeModelIdSet);
