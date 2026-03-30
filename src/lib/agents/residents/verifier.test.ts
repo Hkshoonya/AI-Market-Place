@@ -11,6 +11,8 @@ describe("isSourceIssueResolved", () => {
   it("resolves when the source is successful and has no recent failed sync jobs", () => {
     expect(
       isSourceIssueResolved({
+        isEnabled: true,
+        quarantinedAt: null,
         lastSyncStatus: "success",
         lastSuccessAt: "2026-03-16T12:00:00.000Z",
         lastSyncAt: "2026-03-16T12:00:00.000Z",
@@ -22,12 +24,38 @@ describe("isSourceIssueResolved", () => {
   it("does not resolve when failures are still present", () => {
     expect(
       isSourceIssueResolved({
+        isEnabled: true,
+        quarantinedAt: null,
         lastSyncStatus: "success",
         lastSuccessAt: "2026-03-16T12:00:00.000Z",
         lastSyncAt: "2026-03-16T12:00:00.000Z",
         failedSyncJobs24h: 2,
       })
     ).toBe(false);
+  });
+
+  it("resolves disabled or quarantined sources even if old failures remain", () => {
+    expect(
+      isSourceIssueResolved({
+        isEnabled: false,
+        quarantinedAt: null,
+        lastSyncStatus: "failed",
+        lastSuccessAt: null,
+        lastSyncAt: null,
+        failedSyncJobs24h: 4,
+      })
+    ).toBe(true);
+
+    expect(
+      isSourceIssueResolved({
+        isEnabled: true,
+        quarantinedAt: "2026-03-30T00:00:00.000Z",
+        lastSyncStatus: "failed",
+        lastSuccessAt: null,
+        lastSyncAt: null,
+        failedSyncJobs24h: 4,
+      })
+    ).toBe(true);
   });
 });
 

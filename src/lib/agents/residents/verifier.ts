@@ -20,6 +20,8 @@ interface AgentIssueRow {
 
 interface DataSourceHealthRow {
   slug: string;
+  is_enabled?: boolean | null;
+  quarantined_at?: string | null;
   last_sync_status: string | null;
   last_success_at: string | null;
   last_sync_at: string | null;
@@ -39,11 +41,16 @@ export interface UxIssueSnapshot {
 }
 
 export function isSourceIssueResolved(input: {
+  isEnabled?: boolean;
+  quarantinedAt?: string | null;
   lastSyncStatus: string | null;
   lastSuccessAt: string | null;
   lastSyncAt: string | null;
   failedSyncJobs24h: number;
 }): boolean {
+  if (input.isEnabled === false || input.quarantinedAt) {
+    return true;
+  }
   const hasSuccessfulSync = Boolean(input.lastSuccessAt ?? input.lastSyncAt);
   return input.lastSyncStatus === "success" && hasSuccessfulSync && input.failedSyncJobs24h === 0;
 }
@@ -204,7 +211,9 @@ const verifier: ResidentAgent = {
             const [{ data: source }, { count: failedSyncJobs }] = await Promise.all([
               sb
                 .from("data_sources")
-                .select("slug, last_sync_status, last_success_at, last_sync_at")
+                .select(
+                  "slug, is_enabled, quarantined_at, last_sync_status, last_success_at, last_sync_at"
+                )
                 .eq("slug", issue.source)
                 .maybeSingle(),
               sb
@@ -219,6 +228,8 @@ const verifier: ResidentAgent = {
             const resolved =
               sourceRow != null &&
               isSourceIssueResolved({
+                isEnabled: sourceRow.is_enabled ?? true,
+                quarantinedAt: sourceRow.quarantined_at ?? null,
                 lastSyncStatus: sourceRow.last_sync_status,
                 lastSuccessAt: sourceRow.last_success_at,
                 lastSyncAt: sourceRow.last_sync_at,
