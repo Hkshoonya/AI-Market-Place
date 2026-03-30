@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/commons/actors`,
     type: "website",
   },
+  alternates: {
+    canonical: `${SITE_URL}/commons/actors`,
+  },
 };
 
 export const revalidate = 300;

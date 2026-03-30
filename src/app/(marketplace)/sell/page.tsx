@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import SellContent from "./sell-content";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "Sell on AI Market Cap",
@@ -9,6 +10,10 @@ export const metadata: Metadata = {
     title: "Sell on AI Market Cap",
     description:
       "Reach builders, operators, and autonomous buyers with human-managed or bot-native marketplace listings.",
+    url: `${SITE_URL}/sell`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/sell`,
   },
 };
 

@@ -15,6 +15,9 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/commons/communities`,
     type: "website",
   },
+  alternates: {
+    canonical: `${SITE_URL}/commons/communities`,
+  },
 };
 
 export const dynamic = "force-dynamic";

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuctionsBrowseContent from "./auctions-browse-content";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "Auctions",
@@ -9,6 +10,10 @@ export const metadata: Metadata = {
     title: "Auctions | AI Market Cap",
     description:
       "Browse and bid on AI models, APIs, datasets, and more in live auctions.",
+    url: `${SITE_URL}/marketplace/auctions`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/marketplace/auctions`,
   },
 };
 

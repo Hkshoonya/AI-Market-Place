@@ -10,10 +10,19 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { listPublishedRevenueReports } from "@/lib/revenue/reporting";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "About",
   description: "About AI Market Cap, the definitive platform for tracking AI models.",
+  openGraph: {
+    title: "About",
+    description: "About AI Market Cap, the definitive platform for tracking AI models.",
+    url: `${SITE_URL}/about`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/about`,
+  },
 };
 
 const VALUE_CARDS = [
