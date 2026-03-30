@@ -4,7 +4,6 @@ import type {
   SyncContext,
   SyncResult,
 } from "../types";
-import { PDFParse } from "pdf-parse";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, upsertBatch, makeSlug } from "../utils";
 import {
@@ -26,6 +25,18 @@ interface ProviderBenchmarkSource {
   modelHints: string[];
   publishedAtHint?: string;
   contentType?: "html" | "pdf";
+}
+
+type PdfParseModule = typeof import("pdf-parse");
+
+let pdfParseModulePromise: Promise<PdfParseModule> | null = null;
+
+async function loadPdfParse() {
+  if (!pdfParseModulePromise) {
+    pdfParseModulePromise = import("pdf-parse");
+  }
+
+  return pdfParseModulePromise;
 }
 
 const PROVIDER_PAGE_HEADERS = {
@@ -334,6 +345,7 @@ async function parseProviderSourceContent(
     source.url.toLowerCase().endsWith(".pdf");
 
   if (isPdf) {
+    const { PDFParse } = await loadPdfParse();
     const pdfBytes = new Uint8Array(await response.arrayBuffer());
     const parser = new PDFParse({ data: pdfBytes });
     try {

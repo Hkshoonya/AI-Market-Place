@@ -33,4 +33,10 @@ describe("benchmark seed configuration", () => {
     expect(seed.is_enabled).toBe(false);
     expect(seed.sync_interval_hours).toBe(24);
   });
+
+  it("disables arxiv until the upstream API rate limiting is repaired", () => {
+    const seed = getSeed("arxiv");
+    expect(seed.is_enabled).toBe(false);
+    expect(seed.sync_interval_hours).toBe(8);
+  });
 });

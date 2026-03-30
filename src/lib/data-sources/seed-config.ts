@@ -195,13 +195,13 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     name: "arXiv Papers",
     adapter_type: "arxiv",
     description:
-      "Recent AI/ML papers from arXiv for model announcement tracking",
+      "Recent AI/ML papers from arXiv for model announcement tracking (temporarily disabled due to upstream rate limiting)",
     tier: 3,
     sync_interval_hours: 8,
     priority: 10,
     secret_env_keys: [],
     output_types: ["news"],
-    is_enabled: true,
+    is_enabled: false,
     config: {},
   },
   {
