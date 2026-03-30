@@ -82,6 +82,34 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["GPT-5.1", "GPT-5.1 mini", "GPT-5.1 nano"],
   },
   {
+    id: "openai-gpt-5",
+    provider: "OpenAI",
+    url: "https://openai.com/index/introducing-gpt-5-for-developers/",
+    titleHint: "GPT-5 benchmark update",
+    modelHints: ["GPT-5", "GPT-5 mini", "GPT-5 nano", "gpt-5-chat-latest"],
+  },
+  {
+    id: "openai-gpt-5-2",
+    provider: "OpenAI",
+    url: "https://openai.com/index/introducing-gpt-5-2",
+    titleHint: "GPT-5.2 benchmark update",
+    modelHints: ["GPT-5.2", "GPT-5.2 Pro"],
+  },
+  {
+    id: "openai-gpt-5-2-codex",
+    provider: "OpenAI",
+    url: "https://openai.com/index/introducing-gpt-5-2-codex/",
+    titleHint: "GPT-5.2-Codex benchmark update",
+    modelHints: ["GPT-5.2-Codex", "GPT-5.2 Codex"],
+  },
+  {
+    id: "openai-gpt-5-3-codex",
+    provider: "OpenAI",
+    url: "https://openai.com/index/introducing-gpt-5-3-codex/",
+    titleHint: "GPT-5.3-Codex benchmark update",
+    modelHints: ["GPT-5.3-Codex", "GPT-5.3 Codex"],
+  },
+  {
     id: "openai-gpt-5-4",
     provider: "OpenAI",
     url: "https://openai.com/index/introducing-gpt-5-4/",
@@ -108,6 +136,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://www.anthropic.com/news/claude-sonnet-4-6",
     titleHint: "Claude Sonnet 4.6 benchmark update",
     modelHints: ["Claude Sonnet 4.6"],
+  },
+  {
+    id: "anthropic-claude-opus-4-6",
+    provider: "Anthropic",
+    url: "https://www.anthropic.com/news/claude-opus-4-6",
+    titleHint: "Claude Opus 4.6 benchmark update",
+    modelHints: ["Claude Opus 4.6"],
   },
   {
     id: "anthropic-claude-3-7-sonnet",
@@ -180,6 +215,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://www.minimaxi.com/news/minimax-m2",
     titleHint: "MiniMax M2 benchmark update",
     modelHints: ["MiniMax M2", "MiniMax M2.1", "MiniMax M2.7"],
+  },
+  {
+    id: "minimax-vibe-bench",
+    provider: "MiniMax",
+    url: "https://www.minimaxi.com/news/why-we-built-vibe-bench-rethinking-evaluation-for-real-work",
+    titleHint: "MiniMax VIBE Bench benchmark update",
+    modelHints: ["MiniMax M2", "MiniMax M2.1", "MiniMax M2.7", "MiniMax M1"],
   },
   {
     id: "minimax-m2-1-generalization",
