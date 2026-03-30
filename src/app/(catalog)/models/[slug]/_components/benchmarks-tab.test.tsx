@@ -27,6 +27,7 @@ describe("BenchmarksTab", () => {
       />
     );
 
+    expect(screen.getByText("Benchmarks and Competitive Signal")).toBeInTheDocument();
     expect(screen.getByText("Arena ELO Ratings")).toBeInTheDocument();
     expect(screen.getAllByText("Chatbot Arena")).toHaveLength(1);
     expect(screen.getByText("2 snapshots")).toBeInTheDocument();
@@ -55,7 +56,7 @@ describe("BenchmarksTab", () => {
     );
 
     expect(
-      screen.getByText("Recent Benchmark Evidence")
+      screen.getByText("Official Benchmark Evidence")
     ).toBeInTheDocument();
     expect(
       screen.getByText("MiniMax M2.7 enters new leaderboard")

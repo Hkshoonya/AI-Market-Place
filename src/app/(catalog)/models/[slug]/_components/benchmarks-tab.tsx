@@ -47,9 +47,14 @@ export function BenchmarksTab({
     <>
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-lg">Benchmark Scores</CardTitle>
+          <CardTitle className="text-lg">Benchmarks and Competitive Signal</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Use this section to answer one simple question first: how much outside evidence do we have
+            that this model performs well? Structured benchmark scores appear first, then official provider
+            evidence, then live arena signal.
+          </p>
           {hasNormalizedBenchmarks ? (
             <>
               <div className="mb-8">
@@ -101,22 +106,22 @@ export function BenchmarksTab({
           ) : (
             <div className="space-y-3 py-6 text-center">
               <p className="text-sm text-muted-foreground">
-                Normalized benchmark suite coverage has not landed for this model yet.
+                A full normalized benchmark row is not available for this model yet.
               </p>
               {hasBenchmarkEvidence ? (
                 <p className="text-xs text-muted-foreground">
-                  Recent benchmark evidence is already available below, so this release
-                  is being tracked even while structured score rows catch up.
+                  Official benchmark evidence is already available below, so this release
+                  is still being tracked while the normalized table catches up.
                 </p>
               ) : currentArenaRatings.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Arena evidence is already available below, so the model still has live
-                  competitive signal even while the benchmark table catches up.
+                  Live arena evidence is already available below, so there is still a competitive
+                  signal even without a full benchmark table yet.
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  This usually means upstream benchmark datasets have not published a
-                  stable row for this release yet.
+                  This usually means public benchmark sources have not published stable data for
+                  this release yet.
                 </p>
               )}
             </div>
@@ -127,9 +132,14 @@ export function BenchmarksTab({
       {hasBenchmarkEvidence && (
         <Card className="mt-6 border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Recent Benchmark Evidence</CardTitle>
+            <CardTitle className="text-lg">Official Benchmark Evidence</CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="mb-4 text-sm text-muted-foreground">
+              These are recent benchmark or leaderboard claims from official provider sources. They are
+              useful for freshness and context, but they are not treated the same as normalized independent
+              benchmark rows.
+            </p>
             <div className="space-y-3">
               {recentBenchmarkEvidence.map((item, index) => (
                 <div

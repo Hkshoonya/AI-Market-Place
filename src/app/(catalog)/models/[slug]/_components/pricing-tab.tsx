@@ -105,11 +105,16 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
   );
 
   return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="text-lg">Verified Pricing & Access Routes</CardTitle>
-      </CardHeader>
+      <Card className="border-border/50">
+        <CardHeader>
+        <CardTitle className="text-lg">Pricing and Ways to Use It</CardTitle>
+        </CardHeader>
       <CardContent>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Start with the simple view: the cheapest reliable option, the official provider price,
+          and the best places to try or deploy this model. The detailed table stays below if you
+          want the full pricing breakdown.
+        </p>
         {tokenPricingRows.length > 1 && (
           <div className="mb-6">
             <PriceComparison
@@ -125,7 +130,7 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
           <>
             <div className="mb-6 grid gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Verified Route</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cheapest Trusted Option</div>
                 <div className="mt-2 text-sm font-semibold">
                   {cheapestPricing
                     ? `${cheapestPricing.provider_name} · ${formatVerifiedPricingEntry(cheapestPricing) ?? "---"}`
@@ -133,7 +138,7 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
                 </div>
               </div>
               <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Official First-Party</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Official Provider Price</div>
                 <div className="mt-2 text-sm font-semibold">
                   {officialPricing
                     ? `${officialPricing.provider_name} · ${formatVerifiedPricingEntry(officialPricing) ?? "---"}`
@@ -141,10 +146,11 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
                 </div>
               </div>
               <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Verified Routes</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Fresh Price Checks</div>
                 <div className="mt-2 text-sm font-semibold">{freshPricing.length}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Public tables only use fresh verified pricing. Older tracked prices stay visible here with refresh warnings instead of being treated as current truth.
+                  We only count recently verified prices here. Older tracked prices stay visible below,
+                  but they are marked as older context instead of current truth.
                 </div>
               </div>
             </div>
@@ -191,14 +197,14 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
               </div>
             ) : null}
             <p className="mb-4 text-xs text-muted-foreground">
-              Direct first-party access is shown first. Brokers and routers are kept visible separately so
-              the cheapest path does not get confused with the official one.
+              Official provider access is separated from brokers and routers, so the lowest price does not
+              get confused with the first-party route.
             </p>
             {staleTrackedPricing.length > 0 ? (
               <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
                 {staleTrackedPricing.length} tracked price
                 {staleTrackedPricing.length === 1 ? "" : "s"} need refresh. They are shown below for context,
-                but are excluded from verified pricing summaries and value calculations until re-verified.
+                but they are excluded from the summary cards until re-verified.
               </div>
             ) : null}
             <div className="overflow-hidden rounded-lg border border-border/50">

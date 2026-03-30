@@ -37,10 +37,14 @@ export function DetailsTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Code className="h-5 w-5 text-neon" />
-            Technical Specs
+            At a Glance
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This section gives the plain-English basics first: what the model is, how large it is,
+            how much context it can handle, and whether it is still actively supported.
+          </p>
           {[
             { label: "Architecture", value: architecture ?? "---" },
             { label: "Parameters", value: parameter_label },
@@ -72,10 +76,14 @@ export function DetailsTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Shield className="h-5 w-5 text-neon" />
-            License & Access
+            Access and License
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This tells you how you can use the model in practice: whether weights are open,
+            whether an API exists, and what kinds of input or output it supports.
+          </p>
           {[
             { label: "License", value: license_name ?? license ?? "---" },
             { label: "Open Weights", value: is_open_weights ? "Yes" : "No" },
