@@ -41,6 +41,16 @@ interface DeploymentPlatformCoverageRow {
   slug: string;
 }
 
+interface StaleListingCandidateRow {
+  seller_id: string | null;
+}
+
+interface SellerProfileHealthRow {
+  id: string;
+  is_seller: boolean | null;
+  seller_verified: boolean | null;
+}
+
 interface ContentQualityMetrics {
   totalActiveModels: number;
   missingDescription: number;
@@ -115,6 +125,23 @@ export function filterUserVisiblePricedModelIds(input: {
   }
 
   return covered;
+}
+
+export function countStaleSellerListings(input: {
+  listings: StaleListingCandidateRow[];
+  sellerProfiles: SellerProfileHealthRow[];
+}): number {
+  const sellerMap = new Map(
+    input.sellerProfiles.map((profile) => [
+      profile.id,
+      Boolean(profile.is_seller) || Boolean(profile.seller_verified),
+    ])
+  );
+
+  return input.listings.filter((listing) => {
+    if (!listing.seller_id) return false;
+    return sellerMap.get(listing.seller_id) === true;
+  }).length;
 }
 
 export function buildContentQualityMetrics({
@@ -342,12 +369,45 @@ const uxMonitor: ResidentAgent = {
       const weekAgo = new Date(
         Date.now() - 7 * 24 * 60 * 60 * 1000
       ).toISOString();
-      const { count: staleListings } = await sb
+      const { data: staleListingCandidates, error: staleListingError } = await sb
         .from("marketplace_listings")
-        .select("*", { count: "exact", head: true })
+        .select("seller_id")
         .eq("status", "active")
         .eq("view_count", 0)
         .lt("created_at", weekAgo);
+
+      if (staleListingError) {
+        throw new Error(`Failed to fetch stale listings: ${staleListingError.message}`);
+      }
+
+      const staleSellerIds = Array.from(
+        new Set(
+          (staleListingCandidates ?? [])
+            .map((listing) => listing.seller_id)
+            .filter((sellerId): sellerId is string => Boolean(sellerId))
+        )
+      );
+
+      const sellerProfiles =
+        staleSellerIds.length > 0
+          ? await (async () => {
+              const { data, error } = await sb
+                .from("profiles")
+                .select("id, is_seller, seller_verified")
+                .in("id", staleSellerIds);
+
+              if (error) {
+                throw new Error(`Failed to fetch seller profiles: ${error.message}`);
+              }
+
+              return (data ?? []) as SellerProfileHealthRow[];
+            })()
+          : [];
+
+      const staleListings = countStaleSellerListings({
+        listings: (staleListingCandidates ?? []) as StaleListingCandidateRow[],
+        sellerProfiles,
+      });
 
       // Listings with no reviews
       const { count: noReviewListings } = await sb
@@ -374,7 +434,7 @@ const uxMonitor: ResidentAgent = {
 
       output.marketplaceHealth = {
         totalActiveListings: totalListings ?? 0,
-        staleListings: staleListings ?? 0,
+        staleListings,
         listingsWithoutReviews: noReviewListings ?? 0,
         averageRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
       };
@@ -406,7 +466,7 @@ const uxMonitor: ResidentAgent = {
           `${contentQuality.missingPricing} models lack pricing data. Check pricing adapters.`
         );
       }
-      if ((staleListings ?? 0) > 0) {
+      if (staleListings > 0) {
         recommendations.push(
           `${staleListings} marketplace listings have 0 views after 7+ days. Consider featuring or notifying sellers.`
         );
@@ -469,12 +529,12 @@ const uxMonitor: ResidentAgent = {
           },
         },
         {
-          active: (staleListings ?? 0) > 0,
+          active: staleListings > 0,
           slug: "ux-stale-marketplace-listings",
           title: "Marketplace listings are stale",
           severity: "medium" as const,
           evidence: {
-            staleListings: staleListings ?? 0,
+            staleListings,
             totalListings: totalListings ?? 0,
           },
         },
@@ -515,7 +575,7 @@ const uxMonitor: ResidentAgent = {
             (missingDescCount > getDescriptionCoverageThreshold(modelIds.length) ? 15 : 0) -
             (contentQuality.missingBenchmarks > modelIds.length * 0.5 ? 15 : 0) -
             (contentQuality.missingPricing > modelIds.length * 0.3 ? 10 : 0) -
-            ((staleListings ?? 0) > 5 ? 10 : 0) -
+            (staleListings > 5 ? 10 : 0) -
             recommendations.length * 5
         ),
       };

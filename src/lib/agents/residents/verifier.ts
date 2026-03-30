@@ -4,6 +4,7 @@ import { recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { matchesAgentErrorPattern } from "../error-patterns";
 import {
   buildContentQualityMetrics,
+  countStaleSellerListings,
   collectPaginatedRows,
   filterCoveredActiveModelIds,
   filterUserVisiblePricedModelIds,
@@ -41,6 +42,16 @@ interface DeploymentCoverageRow {
 
 interface DeploymentPlatformCoverageRow {
   slug: string;
+}
+
+interface StaleListingCandidateRow {
+  seller_id: string | null;
+}
+
+interface SellerProfileHealthRow {
+  id: string;
+  is_seller: boolean | null;
+  seller_verified: boolean | null;
 }
 
 export interface UxIssueSnapshot {
@@ -183,12 +194,45 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
     .eq("status", "active");
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { count: staleListings } = await sb
+  const { data: staleListingCandidates, error: staleListingError } = await sb
     .from("marketplace_listings")
-    .select("*", { count: "exact", head: true })
+    .select("seller_id")
     .eq("status", "active")
     .eq("view_count", 0)
     .lte("created_at", weekAgo);
+
+  if (staleListingError) {
+    throw new Error(`Failed to fetch stale listings: ${staleListingError.message}`);
+  }
+
+  const staleSellerIds = Array.from(
+    new Set(
+      (staleListingCandidates ?? [])
+        .map((listing) => listing.seller_id)
+        .filter((sellerId): sellerId is string => Boolean(sellerId))
+    )
+  );
+
+  const sellerProfiles =
+    staleSellerIds.length > 0
+      ? await (async () => {
+          const { data, error } = await sb
+            .from("profiles")
+            .select("id, is_seller, seller_verified")
+            .in("id", staleSellerIds);
+
+          if (error) {
+            throw new Error(`Failed to fetch seller profiles: ${error.message}`);
+          }
+
+          return (data ?? []) as SellerProfileHealthRow[];
+        })()
+      : [];
+
+  const staleListings = countStaleSellerListings({
+    listings: (staleListingCandidates ?? []) as StaleListingCandidateRow[],
+    sellerProfiles,
+  });
 
   return {
     totalModels: contentQuality.totalActiveModels,
@@ -196,7 +240,7 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
     missingBenchmarks: contentQuality.missingBenchmarks,
     missingPricing: contentQuality.missingPricing,
     totalListings: totalListings ?? 0,
-    staleListings: staleListings ?? 0,
+    staleListings,
   };
 }
 

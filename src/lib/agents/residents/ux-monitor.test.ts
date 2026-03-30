@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildContentQualityMetrics,
+  countStaleSellerListings,
   collectPaginatedRows,
   countModelsMissingUserVisibleDescriptions,
   filterCoveredActiveModelIds,
@@ -137,5 +138,23 @@ describe("getDescriptionCoverageThreshold", () => {
   it("uses a floor for small catalogs and a ratio for larger ones", () => {
     expect(getDescriptionCoverageThreshold(50)).toBe(25);
     expect(getDescriptionCoverageThreshold(200)).toBe(40);
+  });
+});
+
+describe("countStaleSellerListings", () => {
+  it("ignores seeded inventory that does not belong to a seller account", () => {
+    expect(
+      countStaleSellerListings({
+        listings: [
+          { seller_id: "admin-seed" },
+          { seller_id: "verified-seller" },
+          { seller_id: null },
+        ],
+        sellerProfiles: [
+          { id: "admin-seed", is_seller: false, seller_verified: false },
+          { id: "verified-seller", is_seller: true, seller_verified: true },
+        ],
+      })
+    ).toBe(1);
   });
 });
