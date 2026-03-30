@@ -308,6 +308,9 @@ export default async function LeaderboardsPage({
         <p className="mt-2 text-muted-foreground">
           Rankings across capability, popularity, adoption, economic footprint, speed, and value. Updated every 6 hours.
         </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Use this page when you want the best models for a specific goal, not just the biggest names.
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link href={`/leaderboards?lens=${activeLens}`} scroll={false}>
             <UiBadge
@@ -349,8 +352,7 @@ export default async function LeaderboardsPage({
               detail={latestPipelineSyncAt ? "pipeline sync" : "benchmark + launch signals"}
             />
             <p className="max-w-2xl text-xs text-muted-foreground">
-              Public rankings stay active-first by default, cheapest verified pricing ignores
-              unverified claims, and each estimated value badge exposes its evidence methodology.
+              Start with a lens above, keep Active Only on for the cleanest public view, and open deeper tables only when you want the supporting details.
             </p>
           </div>
         </div>
@@ -385,7 +387,7 @@ export default async function LeaderboardsPage({
             <div>
               <h2 className="text-sm font-semibold">Tracked Non-Active Models</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Preview, beta, deprecated, and archived models stay visible here without affecting default public ranks.
+                Preview, beta, deprecated, and archived models stay visible here without changing the default public leaderboard.
               </p>
             </div>
             <Link href={`/leaderboards?lens=${activeLens}&lifecycle=all`} className="text-xs text-neon hover:underline">
