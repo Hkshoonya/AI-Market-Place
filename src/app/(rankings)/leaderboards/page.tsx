@@ -25,6 +25,7 @@ import { Badge as UiBadge } from "@/components/ui/badge";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
+import { SITE_URL } from "@/lib/constants/site";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
@@ -40,7 +41,17 @@ import { z as zod } from "zod";
 
 export const metadata: Metadata = {
   title: "AI Model Leaderboards",
-  description: "Rankings of AI models across benchmarks, categories, and real-world performance.",
+  description:
+    "Rankings of AI models across benchmarks, categories, and real-world performance.",
+  openGraph: {
+    title: "AI Model Leaderboards",
+    description:
+      "Rankings of AI models across benchmarks, categories, and real-world performance.",
+    url: `${SITE_URL}/leaderboards`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/leaderboards`,
+  },
 };
 
 export const revalidate = 300;

@@ -3,6 +3,7 @@ import { CompareClient } from "./compare-client";
 
 import type { ModelWithDetails } from "@/types/database";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 3600;
 
@@ -16,6 +17,15 @@ export async function generateMetadata(props: {
       title: "Compare AI Models",
       description:
         "Side-by-side comparison of AI models across benchmarks, pricing, speed, and capabilities.",
+      openGraph: {
+        title: "Compare AI Models",
+        description:
+          "Side-by-side comparison of AI models across benchmarks, pricing, speed, and capabilities.",
+        url: `${SITE_URL}/compare`,
+      },
+      alternates: {
+        canonical: `${SITE_URL}/compare`,
+      },
     };
   }
 
@@ -39,6 +49,13 @@ export async function generateMetadata(props: {
     openGraph: {
       title,
       description: `Compare ${names.join(", ")} side by side.`,
+    },
+    alternates: {
+      canonical: `${SITE_URL}/compare`,
+    },
+    robots: {
+      index: false,
+      follow: true,
     },
   };
 }

@@ -17,6 +17,7 @@ import {
 } from "@/lib/marketplace/discovery";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export async function generateMetadata(props: {
   const searchParams = await props.searchParams;
   const type = searchParams.type || "";
   const search = searchParams.q || "";
+  const hasFilters = Object.values(searchParams).some(Boolean);
 
   const typeConfig = type
     ? LISTING_TYPE_MAP[type as keyof typeof LISTING_TYPE_MAP]
@@ -37,6 +39,13 @@ export async function generateMetadata(props: {
     return {
       title: `Search: "${search}" - Marketplace`,
       description: `Search results for "${search}" on the AI Market Cap marketplace.`,
+      alternates: {
+        canonical: `${SITE_URL}/marketplace/browse`,
+      },
+      robots: {
+        index: false,
+        follow: true,
+      },
     };
   }
 
@@ -48,6 +57,13 @@ export async function generateMetadata(props: {
         title: `${typeConfig.label} - AI Marketplace`,
         description: `Browse ${typeConfig.label.toLowerCase()} on the AI Market Cap marketplace.`,
       },
+      alternates: {
+        canonical: `${SITE_URL}/marketplace/browse`,
+      },
+      robots: {
+        index: false,
+        follow: true,
+      },
     };
   }
 
@@ -55,6 +71,21 @@ export async function generateMetadata(props: {
     title: "Browse Marketplace",
     description:
       "Browse AI models, APIs, datasets, and more on the AI Marketplace.",
+    openGraph: {
+      title: "Browse Marketplace",
+      description:
+        "Browse AI models, APIs, datasets, and more on the AI Marketplace.",
+      url: `${SITE_URL}/marketplace/browse`,
+    },
+    alternates: {
+      canonical: `${SITE_URL}/marketplace/browse`,
+    },
+    robots: hasFilters
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
   };
 }
 

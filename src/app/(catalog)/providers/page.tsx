@@ -18,11 +18,21 @@ import {
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "AI Providers Directory",
   description:
     "Explore AI model providers and organizations building the future of artificial intelligence.",
+  openGraph: {
+    title: "AI Providers Directory",
+    description:
+      "Explore AI model providers and organizations building the future of artificial intelligence.",
+    url: `${SITE_URL}/providers`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/providers`,
+  },
 };
 
 export const revalidate = 300;

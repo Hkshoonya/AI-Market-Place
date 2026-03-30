@@ -16,11 +16,21 @@ import {
   summarizeNewsSignals,
 } from "@/lib/news/presentation";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "News & Updates",
   description:
     "Latest AI model updates, research papers, benchmarks, and industry news.",
+  openGraph: {
+    title: "News & Updates",
+    description:
+      "Latest AI model updates, research papers, benchmarks, and industry news.",
+    url: `${SITE_URL}/news`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/news`,
+  },
 };
 
 export const revalidate = 300;

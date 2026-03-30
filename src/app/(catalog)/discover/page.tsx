@@ -10,6 +10,7 @@ import { formatRelativeDate } from "@/lib/format";
 import { sortWatchlistsForDiscovery } from "@/lib/discover/watchlists";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 import type { Watchlist, Profile } from "@/types/database";
 
 type EnrichedWatchlist = Watchlist & {
@@ -21,6 +22,15 @@ export const metadata: Metadata = {
   title: "Discover Watchlists",
   description:
     "Browse public AI model watchlists curated by the community. Find collections of models organized by use case, provider, or category.",
+  openGraph: {
+    title: "Discover Watchlists",
+    description:
+      "Browse public AI model watchlists curated by the community. Find collections of models organized by use case, provider, or category.",
+    url: `${SITE_URL}/discover`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/discover`,
+  },
 };
 
 export const revalidate = 1800;

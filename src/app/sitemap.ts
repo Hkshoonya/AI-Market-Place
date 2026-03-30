@@ -6,38 +6,65 @@ import { SITE_URL } from "@/lib/constants/site";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
+  const [
+    { data: latestModelRaw },
+    { data: latestListingRaw },
+    { data: latestNewsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("models")
+      .select("updated_at")
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("marketplace_listings")
+      .select("updated_at")
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("model_news")
+      .select("published_at")
+      .order("published_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  const latestModelModified = latestModelRaw?.[0]?.updated_at
+    ? new Date(latestModelRaw[0].updated_at)
+    : new Date();
+  const latestListingModified = latestListingRaw?.[0]?.updated_at
+    ? new Date(latestListingRaw[0].updated_at)
+    : latestModelModified;
+  const latestNewsModified = latestNewsRaw?.[0]?.published_at
+    ? new Date(latestNewsRaw[0].published_at)
+    : latestModelModified;
+
   // Static pages
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: SITE_URL, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
-    { url: `${SITE_URL}/models`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
-    { url: `${SITE_URL}/leaderboards`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: `${SITE_URL}/marketplace`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: `${SITE_URL}/marketplace/browse`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
-    { url: `${SITE_URL}/compare`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
-    { url: `${SITE_URL}/providers`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
-    { url: `${SITE_URL}/about`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.3 },
-    { url: `${SITE_URL}/terms`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.2 },
-    { url: `${SITE_URL}/privacy`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.2 },
-    { url: `${SITE_URL}/news`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
-    { url: `${SITE_URL}/commons`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
-    { url: `${SITE_URL}/faq`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE_URL}/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE_URL}/api-docs`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
-    { url: `${SITE_URL}/discover`, lastModified: new Date(), changeFrequency: "daily", priority: 0.6 },
+    { url: SITE_URL, lastModified: latestModelModified, changeFrequency: "daily", priority: 1 },
+    { url: `${SITE_URL}/models`, lastModified: latestModelModified, changeFrequency: "daily", priority: 0.9 },
+    { url: `${SITE_URL}/leaderboards`, lastModified: latestModelModified, changeFrequency: "daily", priority: 0.8 },
+    { url: `${SITE_URL}/marketplace`, lastModified: latestListingModified, changeFrequency: "daily", priority: 0.8 },
+    { url: `${SITE_URL}/marketplace/browse`, lastModified: latestListingModified, changeFrequency: "daily", priority: 0.7 },
+    { url: `${SITE_URL}/compare`, lastModified: latestModelModified, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${SITE_URL}/providers`, lastModified: latestModelModified, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/about`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${SITE_URL}/terms`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.2 },
+    { url: `${SITE_URL}/privacy`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.2 },
+    { url: `${SITE_URL}/news`, lastModified: latestNewsModified, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${SITE_URL}/commons`, lastModified: latestNewsModified, changeFrequency: "daily", priority: 0.7 },
+    { url: `${SITE_URL}/faq`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/contact`, lastModified: latestModelModified, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/api-docs`, lastModified: latestModelModified, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${SITE_URL}/discover`, lastModified: latestModelModified, changeFrequency: "daily", priority: 0.6 },
+    { url: `${SITE_URL}/skills`, lastModified: latestModelModified, changeFrequency: "daily", priority: 0.6 },
   ];
-
-  // Category pages
-  const categoryRoutes: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
-    url: `${SITE_URL}/models?category=${cat.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "daily" as const,
-    priority: 0.7,
-  }));
 
   // Leaderboard category pages
   const leaderboardRoutes: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
     url: `${SITE_URL}/leaderboards/${cat.slug}`,
-    lastModified: new Date(),
+    lastModified: latestModelModified,
     changeFrequency: "daily" as const,
     priority: 0.7,
   }));
@@ -78,14 +105,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const uniqueProviders = [...new Set((providerRowsRaw ?? []).map((p) => p.provider))];
   const providerRoutes: MetadataRoute.Sitemap = uniqueProviders.map((p) => ({
     url: `${SITE_URL}/providers/${encodeURIComponent(p.toLowerCase().replace(/\s+/g, "-"))}`,
-    lastModified: new Date(),
+    lastModified: latestModelModified,
     changeFrequency: "weekly" as const,
     priority: 0.7,
   }));
 
   return [
     ...staticRoutes,
-    ...categoryRoutes,
     ...leaderboardRoutes,
     ...modelRoutes,
     ...listingRoutes,

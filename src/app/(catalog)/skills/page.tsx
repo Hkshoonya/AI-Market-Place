@@ -30,11 +30,21 @@ import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "AI Skills & Capabilities",
   description:
     "Discover which AI models excel at coding, reasoning, math, browser automation, and more.",
+  openGraph: {
+    title: "AI Skills & Capabilities",
+    description:
+      "Discover which AI models excel at coding, reasoning, math, browser automation, and more.",
+    url: `${SITE_URL}/skills`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/skills`,
+  },
 };
 
 export const revalidate = 300;

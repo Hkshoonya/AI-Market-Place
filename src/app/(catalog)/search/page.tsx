@@ -32,6 +32,7 @@ import {
   getListingPillClasses,
 } from "@/lib/marketplace/presentation";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 0;
 
@@ -129,6 +130,13 @@ export async function generateMetadata({
     description: q
       ? `Search results for "${q}" on AI Market Cap`
       : "Search AI models and marketplace listings",
+    alternates: {
+      canonical: `${SITE_URL}/search`,
+    },
+    robots: {
+      index: false,
+      follow: true,
+    },
   };
 }
 

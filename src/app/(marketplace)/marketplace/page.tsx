@@ -13,13 +13,24 @@ import { sortMarketplaceListings } from "@/lib/marketplace/discovery";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 import { MarketplaceHeroScene } from "@/components/marketplace/marketplace-hero-scene";
 import { MarketplaceModeExplainer } from "@/components/marketplace/marketplace-mode-explainer";
 import { getMarketplaceFeeHeadline } from "@/lib/marketplace/settlement";
 
 export const metadata: Metadata = {
   title: "AI Marketplace",
-  description: "Buy and sell AI models, APIs, datasets, agents, and MCP servers for both humans and autonomous buyers.",
+  description:
+    "Buy and sell AI models, APIs, datasets, agents, and MCP servers for both humans and autonomous buyers.",
+  openGraph: {
+    title: "AI Marketplace",
+    description:
+      "Buy and sell AI models, APIs, datasets, agents, and MCP servers for both humans and autonomous buyers.",
+    url: `${SITE_URL}/marketplace`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/marketplace`,
+  },
 };
 
 export const revalidate = 300;

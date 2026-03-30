@@ -29,12 +29,21 @@ import { ModelsGrid } from "@/components/models/models-grid";
 import { Pagination } from "@/components/models/pagination";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/constants/site";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
   description: "Browse, search, and compare AI models from around the world.",
+  openGraph: {
+    title: "AI Models Directory",
+    description: "Browse, search, and compare AI models from around the world.",
+    url: `${SITE_URL}/models`,
+  },
+  alternates: {
+    canonical: `${SITE_URL}/models`,
+  },
 };
 export const revalidate = 300;
 
