@@ -6,6 +6,9 @@ import {
   buildContentQualityMetrics,
   collectPaginatedRows,
   filterCoveredActiveModelIds,
+  filterUserVisiblePricedModelIds,
+  countModelsMissingUserVisibleDescriptions,
+  getDescriptionCoverageThreshold,
   type ActiveModelSummary,
 } from "./ux-monitor";
 
@@ -29,6 +32,15 @@ interface DataSourceHealthRow {
 
 interface ModelCoverageRow {
   model_id: string | null;
+}
+
+interface DeploymentCoverageRow {
+  model_id: string | null;
+  status: string | null;
+}
+
+interface DeploymentPlatformCoverageRow {
+  slug: string;
 }
 
 export interface UxIssueSnapshot {
@@ -57,7 +69,8 @@ export function isSourceIssueResolved(input: {
 
 export function buildUxIssueStateMap(snapshot: UxIssueSnapshot): Record<string, boolean> {
   return {
-    "ux-missing-model-descriptions": snapshot.missingDescription > 5,
+    "ux-missing-model-descriptions":
+      snapshot.missingDescription > getDescriptionCoverageThreshold(snapshot.totalModels),
     "ux-missing-benchmark-coverage": snapshot.missingBenchmarks > snapshot.totalModels * 0.5,
     "ux-missing-pricing-coverage": snapshot.missingPricing > snapshot.totalModels * 0.3,
     "ux-stale-marketplace-listings": snapshot.staleListings > 0,
@@ -73,16 +86,12 @@ export function isRuntimeIssueResolved(
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
   const sb = ctx.supabase;
-  const { count: missingDescription } = await sb
-    .from("models")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active")
-    .is("description", null);
-
   const activeModels = await collectPaginatedRows<ActiveModelSummary>(async (from, to) => {
     const { data, error } = await sb
       .from("models")
-      .select("id, category")
+      .select(
+        "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities"
+      )
       .eq("status", "active")
       .order("id", { ascending: true })
       .range(from, to);
@@ -95,6 +104,7 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
   });
 
   const activeModelIds = new Set(activeModels.map((model) => model.id));
+  const missingDescription = countModelsMissingUserVisibleDescriptions(activeModels);
 
   const benchmarkRows = await collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
     const { data, error } = await sb
@@ -110,25 +120,61 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
     return (data ?? []) as ModelCoverageRow[];
   });
 
-  const pricingRows = await collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
-    const { data, error } = await sb
-      .from("model_pricing")
-      .select("model_id")
-      .order("model_id", { ascending: true })
-      .range(from, to);
+  const [pricingRows, deploymentRows, platformRows] = await Promise.all([
+    collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
+      const { data, error } = await sb
+        .from("model_pricing")
+        .select("model_id")
+        .order("model_id", { ascending: true })
+        .range(from, to);
 
-    if (error) {
-      throw new Error(`Failed to fetch pricing coverage: ${error.message}`);
-    }
+      if (error) {
+        throw new Error(`Failed to fetch pricing coverage: ${error.message}`);
+      }
 
-    return (data ?? []) as ModelCoverageRow[];
-  });
+      return (data ?? []) as ModelCoverageRow[];
+    }),
+    collectPaginatedRows<DeploymentCoverageRow>(async (from, to) => {
+      const { data, error } = await sb
+        .from("model_deployments")
+        .select("model_id, status")
+        .order("model_id", { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        throw new Error(`Failed to fetch deployment coverage: ${error.message}`);
+      }
+
+      return (data ?? []) as DeploymentCoverageRow[];
+    }),
+    collectPaginatedRows<DeploymentPlatformCoverageRow>(async (from, to) => {
+      const { data, error } = await sb
+        .from("deployment_platforms")
+        .select("slug")
+        .order("slug", { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        throw new Error(`Failed to fetch deployment platforms: ${error.message}`);
+      }
+
+      return (data ?? []) as DeploymentPlatformCoverageRow[];
+    }),
+  ]);
 
   const contentQuality = buildContentQualityMetrics({
     activeModels,
-    missingDescriptionCount: missingDescription ?? 0,
+    missingDescriptionCount: missingDescription,
     benchmarkedModelIds: filterCoveredActiveModelIds(benchmarkRows, activeModelIds),
-    pricedModelIds: filterCoveredActiveModelIds(pricingRows, activeModelIds),
+    pricedModelIds: filterUserVisiblePricedModelIds({
+      activeModels,
+      pricedModelIds: filterCoveredActiveModelIds(pricingRows, activeModelIds),
+      directDeploymentModelIds: filterCoveredActiveModelIds(
+        deploymentRows.filter((row) => !row.status || row.status === "available"),
+        activeModelIds
+      ),
+      availablePlatformSlugs: new Set(platformRows.map((row) => row.slug)),
+    }),
   });
 
   const { count: totalListings } = await sb

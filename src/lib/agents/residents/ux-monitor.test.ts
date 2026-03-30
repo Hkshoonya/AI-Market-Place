@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildContentQualityMetrics,
   collectPaginatedRows,
+  countModelsMissingUserVisibleDescriptions,
   filterCoveredActiveModelIds,
+  filterUserVisiblePricedModelIds,
+  getDescriptionCoverageThreshold,
   type ActiveModelSummary,
 } from "./ux-monitor";
 
@@ -60,5 +63,79 @@ describe("buildContentQualityMetrics", () => {
     expect(metrics.missingBenchmarks).toBe(1);
     expect(metrics.missingPricing).toBe(2);
     expect(metrics.completenessScore).toBe(56);
+  });
+});
+
+describe("countModelsMissingUserVisibleDescriptions", () => {
+  it("counts only models that fall back to synthetic descriptions", () => {
+    const models: ActiveModelSummary[] = [
+      {
+        id: "model-a",
+        slug: "openai-gpt-4-1",
+        name: "GPT-4.1",
+        provider: "OpenAI",
+        category: "llm",
+        description: null,
+        short_description: null,
+      },
+      {
+        id: "model-b",
+        slug: "community-placeholder",
+        name: "Placeholder",
+        provider: "Community",
+        category: "llm",
+        description: null,
+        short_description: null,
+      },
+    ];
+
+    expect(countModelsMissingUserVisibleDescriptions(models)).toBe(1);
+  });
+});
+
+describe("filterUserVisiblePricedModelIds", () => {
+  it("counts provider-family and open-weight access paths as user-visible pricing coverage", () => {
+    const activeModels: ActiveModelSummary[] = [
+      {
+        id: "model-a",
+        slug: "minimax-m2-7",
+        name: "MiniMax M2.7",
+        provider: "MiniMax",
+        category: "llm",
+        is_open_weights: false,
+      },
+      {
+        id: "model-b",
+        slug: "gemma-3-27b",
+        name: "Gemma 3 27B",
+        provider: "Google",
+        category: "llm",
+        is_open_weights: true,
+      },
+      {
+        id: "model-c",
+        slug: "community-model",
+        name: "Community Model",
+        provider: "Community",
+        category: "llm",
+        is_open_weights: false,
+      },
+    ];
+
+    const covered = filterUserVisiblePricedModelIds({
+      activeModels,
+      pricedModelIds: new Set<string>(),
+      directDeploymentModelIds: new Set<string>(),
+      availablePlatformSlugs: ["minimax-coding-plan", "ollama"],
+    });
+
+    expect(Array.from(covered).sort()).toEqual(["model-a", "model-b"]);
+  });
+});
+
+describe("getDescriptionCoverageThreshold", () => {
+  it("uses a floor for small catalogs and a ratio for larger ones", () => {
+    expect(getDescriptionCoverageThreshold(50)).toBe(25);
+    expect(getDescriptionCoverageThreshold(200)).toBe(40);
   });
 });

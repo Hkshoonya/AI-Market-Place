@@ -11,14 +11,34 @@
 import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { recordAgentIssue, resolveAgentIssue } from "../ledger";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
+import { hasUserVisibleDeploymentAccess } from "@/lib/models/deployments";
 
 export interface ActiveModelSummary {
   id: string;
+  slug: string;
+  name: string;
+  provider: string;
   category: string | null;
+  description?: string | null;
+  short_description?: string | null;
+  is_open_weights?: boolean | null;
+  parameter_count?: number | null;
+  context_window?: number | null;
+  capabilities?: Record<string, boolean> | null;
 }
 
 interface ModelCoverageRow {
   model_id: string | null;
+}
+
+interface DeploymentCoverageRow {
+  model_id: string | null;
+  status: string | null;
+}
+
+interface DeploymentPlatformCoverageRow {
+  slug: string;
 }
 
 interface ContentQualityMetrics {
@@ -27,6 +47,10 @@ interface ContentQualityMetrics {
   missingBenchmarks: number;
   missingPricing: number;
   completenessScore: number;
+}
+
+export function getDescriptionCoverageThreshold(totalActiveModels: number): number {
+  return Math.max(25, Math.round(totalActiveModels * 0.2));
 }
 
 export async function collectPaginatedRows<T>(
@@ -58,6 +82,39 @@ export function filterCoveredActiveModelIds(
   }
 
   return coveredModelIds;
+}
+
+export function countModelsMissingUserVisibleDescriptions(
+  activeModels: ActiveModelSummary[]
+): number {
+  return activeModels.filter(
+    (model) => getModelDisplayDescription(model).source === "synthetic"
+  ).length;
+}
+
+export function filterUserVisiblePricedModelIds(input: {
+  activeModels: ActiveModelSummary[];
+  pricedModelIds: Set<string>;
+  directDeploymentModelIds: Set<string>;
+  availablePlatformSlugs: Iterable<string>;
+}): Set<string> {
+  const covered = new Set<string>();
+
+  for (const model of input.activeModels) {
+    if (
+      input.pricedModelIds.has(model.id) ||
+      hasUserVisibleDeploymentAccess({
+        provider: model.provider,
+        is_open_weights: model.is_open_weights,
+        availablePlatformSlugs: input.availablePlatformSlugs,
+        hasDirectDeployment: input.directDeploymentModelIds.has(model.id),
+      })
+    ) {
+      covered.add(model.id);
+    }
+  }
+
+  return covered;
 }
 
 export function buildContentQualityMetrics({
@@ -122,18 +179,13 @@ const uxMonitor: ResidentAgent = {
       await log.info("Starting content quality audit...");
 
       // Models missing descriptions
-      const { count: missingDescCount } = await sb
-        .from("models")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active")
-        .is("description", null);
-
-      // Models missing benchmark scores
       const activeModels = await collectPaginatedRows<ActiveModelSummary>(
         async (from, to) => {
           const { data, error } = await sb
             .from("models")
-            .select("id, category")
+            .select(
+              "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities"
+            )
             .eq("status", "active")
             .order("id", { ascending: true })
             .range(from, to);
@@ -146,6 +198,7 @@ const uxMonitor: ResidentAgent = {
         }
       );
 
+      const missingDescCount = countModelsMissingUserVisibleDescriptions(activeModels);
       const modelIds = activeModels.map((model) => model.id);
       const activeModelIdSet = new Set(modelIds);
 
@@ -170,9 +223,8 @@ const uxMonitor: ResidentAgent = {
         activeModelIdSet
       );
 
-      // Models missing pricing
-      const pricingRows = await collectPaginatedRows<ModelCoverageRow>(
-        async (from, to) => {
+      const [pricingRows, deploymentRows, platformRows] = await Promise.all([
+        collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
           const { data, error } = await sb
             .from("model_pricing")
             .select("model_id")
@@ -184,14 +236,50 @@ const uxMonitor: ResidentAgent = {
           }
 
           return (data ?? []) as ModelCoverageRow[];
-        }
-      );
+        }),
+        collectPaginatedRows<DeploymentCoverageRow>(async (from, to) => {
+          const { data, error } = await sb
+            .from("model_deployments")
+            .select("model_id, status")
+            .order("model_id", { ascending: true })
+            .range(from, to);
 
-      const pricedSet = filterCoveredActiveModelIds(pricingRows, activeModelIdSet);
+          if (error) {
+            throw new Error(`Failed to fetch deployment coverage: ${error.message}`);
+          }
+
+          return (data ?? []) as DeploymentCoverageRow[];
+        }),
+        collectPaginatedRows<DeploymentPlatformCoverageRow>(async (from, to) => {
+          const { data, error } = await sb
+            .from("deployment_platforms")
+            .select("slug")
+            .order("slug", { ascending: true })
+            .range(from, to);
+
+          if (error) {
+            throw new Error(`Failed to fetch deployment platforms: ${error.message}`);
+          }
+
+          return (data ?? []) as DeploymentPlatformCoverageRow[];
+        }),
+      ]);
+
+      const rawPricedSet = filterCoveredActiveModelIds(pricingRows, activeModelIdSet);
+      const directDeploymentModelIds = filterCoveredActiveModelIds(
+        deploymentRows.filter((row) => !row.status || row.status === "available"),
+        activeModelIdSet
+      );
+      const pricedSet = filterUserVisiblePricedModelIds({
+        activeModels,
+        pricedModelIds: rawPricedSet,
+        directDeploymentModelIds,
+        availablePlatformSlugs: new Set(platformRows.map((row) => row.slug)),
+      });
 
       const contentQuality = buildContentQualityMetrics({
         activeModels,
-        missingDescriptionCount: missingDescCount ?? 0,
+        missingDescriptionCount: missingDescCount,
         benchmarkedModelIds: benchmarkedSet,
         pricedModelIds: pricedSet,
       });
@@ -299,7 +387,7 @@ const uxMonitor: ResidentAgent = {
       // ── 4. Generate Recommendations ───────────────────────────
       const recommendations: string[] = [];
 
-      if ((missingDescCount ?? 0) > 5) {
+      if (missingDescCount > getDescriptionCoverageThreshold(modelIds.length)) {
         recommendations.push(
           `${missingDescCount} models are missing descriptions. Consider enriching via adapter pipelines.`
         );
@@ -351,12 +439,12 @@ const uxMonitor: ResidentAgent = {
       // ── 5. Summary ────────────────────────────────────────────
       const uxIssues = [
         {
-          active: (missingDescCount ?? 0) > 5,
+          active: missingDescCount > getDescriptionCoverageThreshold(modelIds.length),
           slug: "ux-missing-model-descriptions",
           title: "Model description coverage is degraded",
           severity: "medium" as const,
           evidence: {
-            missingDescription: missingDescCount ?? 0,
+            missingDescription: missingDescCount,
             totalModels: modelIds.length,
           },
         },
@@ -424,9 +512,9 @@ const uxMonitor: ResidentAgent = {
         overallHealthScore: Math.max(
           0,
           100 -
-            ((missingDescCount ?? 0) > 10 ? 15 : 0) -
-            (contentQuality.missingBenchmarks > 20 ? 15 : 0) -
-            (contentQuality.missingPricing > 20 ? 10 : 0) -
+            (missingDescCount > getDescriptionCoverageThreshold(modelIds.length) ? 15 : 0) -
+            (contentQuality.missingBenchmarks > modelIds.length * 0.5 ? 15 : 0) -
+            (contentQuality.missingPricing > modelIds.length * 0.3 ? 10 : 0) -
             ((staleListings ?? 0) > 5 ? 10 : 0) -
             recommendations.length * 5
         ),

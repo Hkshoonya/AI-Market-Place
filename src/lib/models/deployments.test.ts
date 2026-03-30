@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDeploymentCatalog } from "./deployments";
+import { buildDeploymentCatalog, hasUserVisibleDeploymentAccess } from "./deployments";
 
 describe("buildDeploymentCatalog", () => {
   it("returns direct deployments plus clearly related pricing/provider options", () => {
@@ -216,5 +216,37 @@ describe("buildDeploymentCatalog", () => {
     });
 
     expect(kimi.relatedPlatforms.map((item) => item.platform.slug)).toContain("kimi-code-membership");
+  });
+});
+
+describe("hasUserVisibleDeploymentAccess", () => {
+  it("treats provider-family subscriptions as user-visible access coverage", () => {
+    expect(
+      hasUserVisibleDeploymentAccess({
+        provider: "MiniMax",
+        is_open_weights: false,
+        availablePlatformSlugs: ["minimax-coding-plan"],
+      })
+    ).toBe(true);
+  });
+
+  it("treats open-weight runtime platforms as user-visible access coverage", () => {
+    expect(
+      hasUserVisibleDeploymentAccess({
+        provider: "Google",
+        is_open_weights: true,
+        availablePlatformSlugs: ["ollama"],
+      })
+    ).toBe(true);
+  });
+
+  it("requires a real path when neither provider-family nor open-weight access exists", () => {
+    expect(
+      hasUserVisibleDeploymentAccess({
+        provider: "OpenRouter",
+        is_open_weights: false,
+        availablePlatformSlugs: ["anthropic-api"],
+      })
+    ).toBe(false);
   });
 });

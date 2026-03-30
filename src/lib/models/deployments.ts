@@ -79,6 +79,22 @@ function normalizeKey(value: string): string {
   return value.toLowerCase().trim();
 }
 
+function hasProviderFamilyAccessPath(
+  provider: string,
+  availablePlatformSlugs: Set<string>
+): boolean {
+  const providerFamily = PROVIDER_FAMILY_PLATFORMS[normalizeKey(provider)] ?? [];
+  return providerFamily.some((slug) => availablePlatformSlugs.has(slug));
+}
+
+function hasOpenWeightAccessPath(
+  isOpenWeights: boolean | null | undefined,
+  availablePlatformSlugs: Set<string>
+): boolean {
+  if (!isOpenWeights) return false;
+  return OPEN_WEIGHT_PLATFORMS.some((slug) => availablePlatformSlugs.has(slug));
+}
+
 function pushRelatedPlatform(
   list: DeploymentCatalogItem[],
   seenIds: Set<string>,
@@ -89,6 +105,25 @@ function pushRelatedPlatform(
   if (!platform || seenIds.has(platform.id)) return;
   seenIds.add(platform.id);
   list.push({ platform, reason, confidence });
+}
+
+export function hasUserVisibleDeploymentAccess(input: {
+  provider: string;
+  is_open_weights: boolean | null | undefined;
+  availablePlatformSlugs: Iterable<string>;
+  hasDirectDeployment?: boolean;
+}): boolean {
+  if (input.hasDirectDeployment) return true;
+
+  const platformSlugs =
+    input.availablePlatformSlugs instanceof Set
+      ? input.availablePlatformSlugs
+      : new Set(input.availablePlatformSlugs);
+
+  return (
+    hasProviderFamilyAccessPath(input.provider, platformSlugs) ||
+    hasOpenWeightAccessPath(input.is_open_weights, platformSlugs)
+  );
 }
 
 export function buildDeploymentCatalog(input: {
