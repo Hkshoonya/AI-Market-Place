@@ -217,13 +217,6 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["MiniMax M2", "MiniMax M2.1", "MiniMax M2.7"],
   },
   {
-    id: "minimax-vibe-bench",
-    provider: "MiniMax",
-    url: "https://www.minimaxi.com/news/why-we-built-vibe-bench-rethinking-evaluation-for-real-work",
-    titleHint: "MiniMax VIBE Bench benchmark update",
-    modelHints: ["MiniMax M2", "MiniMax M2.1", "MiniMax M2.7", "MiniMax M1"],
-  },
-  {
     id: "minimax-m2-1-generalization",
     provider: "MiniMax",
     url: "https://www.minimaxi.com/news/minimax-m21",
