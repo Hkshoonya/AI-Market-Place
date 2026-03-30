@@ -326,6 +326,9 @@ export default async function HomePage() {
         <p className="mt-3 text-sm text-muted-foreground">
           Ranked for enterprise traction, real-world adoption, economic footprint, and model quality.
         </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Start here if you want the short list of models that matter most right now.
+        </p>
 
         <div className="mt-6 overflow-x-auto rounded-xl border border-border/50">
           <table className="w-full">
@@ -562,6 +565,10 @@ export default async function HomePage() {
           </Button>
         </div>
 
+        <p className="mt-3 text-sm text-muted-foreground">
+          Recently launched or newly surfaced models from tracked providers and official release signals.
+        </p>
+
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {newModels?.map(({ model, surfacedAt }) => {
             const catConfig = CATEGORIES.find(
@@ -650,6 +657,9 @@ export default async function HomePage() {
               <Shuffle className="h-5 w-5 text-neon" />
               <h2 className="text-xl font-bold">Top Movers</h2>
             </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Models with the biggest recent ranking changes.
+            </p>
             <TopMovers />
           </div>
 
@@ -661,6 +671,9 @@ export default async function HomePage() {
                 <h2 className="text-xl font-bold">Trending Models</h2>
               </div>
             </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              The models people are actively searching for and opening now.
+            </p>
             <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
                 <TrendingModels limit={8} />
@@ -683,12 +696,18 @@ export default async function HomePage() {
             </Link>
           </Button>
         </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Use this chart to find models that give strong results without overspending.
+        </p>
         <QualityPriceFrontier />
       </section>
 
       {/* Market Analytics: Provider + Category Distribution */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <h2 className="text-xl font-bold mb-6">Market Analytics</h2>
+        <p className="mb-6 text-sm text-muted-foreground">
+          These charts show where model supply is concentrated by provider and by category.
+        </p>
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="border-border/50 bg-card">
             <CardHeader>
@@ -711,6 +730,12 @@ export default async function HomePage() {
 
       {/* Subscription Access Leaders */}
       <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold">Best Subscription Access</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            If you want a paid plan instead of raw API billing, start here.
+          </p>
+        </div>
         <TopSubscriptionProviders offers={accessOffers.subscriptionOffers.slice(0, 6)} />
       </section>
 
