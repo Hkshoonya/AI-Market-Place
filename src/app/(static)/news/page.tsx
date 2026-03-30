@@ -186,6 +186,10 @@ export default async function NewsPage() {
         </Badge>
       </div>
 
+      <p className="mb-4 text-sm text-muted-foreground">
+        Start here for launches, pricing moves, benchmark updates, research, and provider posts in one stream.
+      </p>
+
       <div className="mb-6">
         <DataFreshnessBadge
           label="News stream refreshed"
@@ -201,6 +205,13 @@ export default async function NewsPage() {
           title="Signal Radar"
           description="The highest-impact launch, pricing, benchmark, and API updates from official sources and synced research streams."
         />
+      </div>
+
+      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
+        Use <span className="font-medium text-foreground">Signals</span> for the quickest summary,
+        <span className="font-medium text-foreground"> Social</span> for provider posts,
+        <span className="font-medium text-foreground"> Research</span> for papers,
+        and <span className="font-medium text-foreground"> Benchmarks</span> for leaderboard-related updates.
       </div>
 
       <Tabs defaultValue="all" className="w-full">

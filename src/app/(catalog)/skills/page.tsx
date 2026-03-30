@@ -504,9 +504,11 @@ export default async function SkillsPage() {
           <h1 className="text-2xl font-bold">Skills &amp; Capabilities</h1>
         </div>
         <p className="mt-2 text-muted-foreground">
-          Discover which AI models excel at specific skills. Rankings blend
-          benchmark performance with practical buying context and estimated
-          market footing.
+          Discover which AI models are strongest at specific tasks.
+          Rankings combine benchmark performance with pricing, access, and market context.
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Start with the skill cards below if you want the short answer.
         </p>
         <div className="mt-4">
           <DataFreshnessBadge
@@ -589,7 +591,7 @@ export default async function SkillsPage() {
                     color: skill.color,
                   }}
                 >
-                  Weight: {(skill.weight * 100).toFixed(0)}%
+                  Weight {(skill.weight * 100).toFixed(0)}%
                 </Badge>
                 <span className="text-[11px] text-muted-foreground">
                   {ranked.length} model{ranked.length !== 1 ? "s" : ""}
@@ -626,8 +628,7 @@ export default async function SkillsPage() {
                 <div>
                   <h2 className="text-lg font-bold">{skill.name}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {skill.description} &middot; Top models ranked by average
-                    benchmark score
+                    {skill.description} &middot; ranked by average benchmark score
                   </p>
                 </div>
               </div>
