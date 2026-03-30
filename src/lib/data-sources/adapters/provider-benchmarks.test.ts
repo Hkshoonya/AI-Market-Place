@@ -79,4 +79,22 @@ describe("provider-benchmarks helpers", () => {
       )
     ).toContain("leaderboard-style reasoning tasks");
   });
+
+  it("falls back to source hints when PDF parsing is unavailable", () => {
+    expect(
+      __testables.buildPdfFallbackRecord({
+        id: "xai-grok-4-fast",
+        provider: "xAI",
+        url: "https://data.x.ai/2025-09-19-grok-4-fast-model-card.pdf",
+        titleHint: "Grok 4 Fast benchmark update",
+        modelHints: ["Grok 4 Fast"],
+        contentType: "pdf",
+      })
+    ).toEqual({
+      title: "Grok 4 Fast benchmark update",
+      summary:
+        "xAI published official provider-reported benchmark evidence for Grok 4 Fast.",
+      publishedAt: "2025-09-19T00:00:00.000Z",
+    });
+  });
 });

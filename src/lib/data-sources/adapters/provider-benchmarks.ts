@@ -376,6 +376,14 @@ function extractPdfSummary(source: ProviderBenchmarkSource, text: string) {
   return `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`;
 }
 
+function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
+  return {
+    title: source.titleHint,
+    summary: `${source.provider} published official provider-reported benchmark evidence for ${source.modelHints.join(", ")}.`,
+    publishedAt: source.publishedAtHint ?? extractPdfPublishedAt(source, source.url) ?? new Date().toISOString(),
+  };
+}
+
 async function parseProviderSourceContent(
   source: ProviderBenchmarkSource,
   response: Response
@@ -387,23 +395,27 @@ async function parseProviderSourceContent(
     source.url.toLowerCase().endsWith(".pdf");
 
   if (isPdf) {
-    const { PDFParse } = await loadPdfParse();
-    const pdfBytes = new Uint8Array(await response.arrayBuffer());
-    const parser = new PDFParse({ data: pdfBytes });
     try {
-      const textResult = await parser.getText({ first: 3 });
-      const text = textResult.text.replace(/\s+/g, " ").trim();
-      const title = extractPdfTitle(text) ?? source.titleHint;
-      return {
-        title,
-        summary: extractPdfSummary(source, text),
-        publishedAt:
-          extractPdfPublishedAt(source, text) ??
-          source.publishedAtHint ??
-          new Date().toISOString(),
-      };
-    } finally {
-      await parser.destroy();
+      const { PDFParse } = await loadPdfParse();
+      const pdfBytes = new Uint8Array(await response.arrayBuffer());
+      const parser = new PDFParse({ data: pdfBytes });
+      try {
+        const textResult = await parser.getText({ first: 3 });
+        const text = textResult.text.replace(/\s+/g, " ").trim();
+        const title = extractPdfTitle(text) ?? source.titleHint;
+        return {
+          title,
+          summary: extractPdfSummary(source, text),
+          publishedAt:
+            extractPdfPublishedAt(source, text) ??
+            source.publishedAtHint ??
+            new Date().toISOString(),
+        };
+      } finally {
+        await parser.destroy();
+      }
+    } catch {
+      return buildPdfFallbackRecord(source);
     }
   }
 
@@ -640,5 +652,6 @@ export const __testables = {
   extractPdfTitle,
   extractPdfPublishedAt,
   extractPdfSummary,
+  buildPdfFallbackRecord,
   PROVIDER_PAGE_HEADERS,
 };
