@@ -16,6 +16,22 @@ const CreateCommentSchema = z.object({
   parentId: z.string().trim().min(1).nullable().optional(),
 });
 
+const UpdateCommentSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("upvote"),
+    commentId: z.string().trim().min(1),
+  }),
+  z.object({
+    action: z.literal("edit"),
+    commentId: z.string().trim().min(1),
+    content: z.string().trim().min(1).max(5000),
+  }),
+]);
+
+const DeleteCommentSchema = z.object({
+  commentId: z.string().trim().min(1),
+});
+
 interface CommentRow {
   id: string;
   content: string;
@@ -185,4 +201,100 @@ export async function POST(request: NextRequest) {
     },
     { status: 201 }
   );
+}
+
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = UpdateCommentSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
+  }
+
+  const admin = createAdminClient();
+
+  if (parsed.data.action === "upvote") {
+    // Supabase generated RPC typings lag this deployed function.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (admin.rpc as any)("increment_comment_upvote", {
+      comment_id: parsed.data.commentId,
+    });
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message ?? "Failed to upvote comment" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  const { data: updatedComment, error: updateError } = await admin
+    .from("comments")
+    .update({ content: parsed.data.content })
+    .eq("id", parsed.data.commentId)
+    .eq("user_id", user.id)
+    .select("id, content, upvotes, created_at, updated_at, parent_id, user_id, model_id")
+    .maybeSingle();
+
+  if (updateError) {
+    return NextResponse.json(
+      { error: updateError.message ?? "Failed to update comment" },
+      { status: 500 }
+    );
+  }
+
+  if (!updatedComment) {
+    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ comment: updatedComment });
+}
+
+export async function DELETE(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = DeleteCommentSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("comments")
+    .delete()
+    .eq("id", parsed.data.commentId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message ?? "Failed to delete comment" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true });
 }

@@ -11,24 +11,51 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { GET, POST } from "./route";
+import { DELETE, GET, PATCH, POST } from "./route";
 
 function makeAdminClient(options?: {
   topLevelComments?: unknown[];
   replies?: unknown[];
   profiles?: unknown[];
   insertedComment?: unknown;
+  updatedComment?: unknown;
+  deleteError?: { message?: string } | null;
+  rpcError?: { message?: string } | null;
 }) {
   const {
     topLevelComments = [],
     replies = [],
     profiles = [],
     insertedComment = null,
+    updatedComment = null,
+    deleteError = null,
+    rpcError = null,
   } = options ?? {};
 
   return {
     from: vi.fn((table: string) => {
       if (table === "comments") {
+        const updateSelectChain = {
+          maybeSingle: vi.fn(async () => ({
+            data: updatedComment,
+            error: null,
+          })),
+        };
+        const updateSecondEqChain = {
+          select: vi.fn(() => updateSelectChain),
+        };
+        const updateEqChain = {
+          eq: vi.fn(() => updateSecondEqChain),
+        };
+
+        const deleteEqChain = {
+          eq: vi.fn(() => ({
+            eq: vi.fn(async () => ({
+              error: deleteError,
+            })),
+          })),
+        };
+
         return {
           select: vi.fn((columns?: string) => {
             if (String(columns).includes("model_id")) {
@@ -67,6 +94,10 @@ function makeAdminClient(options?: {
               })),
             })),
           })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => updateEqChain),
+          })),
+          delete: vi.fn(() => deleteEqChain),
         };
       }
 
@@ -86,6 +117,7 @@ function makeAdminClient(options?: {
 
       throw new Error(`Unexpected table ${table}`);
     }),
+    rpc: vi.fn(async () => ({ error: rpcError })),
   };
 }
 
@@ -223,5 +255,101 @@ describe("/api/model-comments", () => {
     expect(body.comment.content).toBe("Hello world");
     expect(body.comment.profiles.display_name).toBe("Alice");
     expect(body.comment.replies).toEqual([]);
+  });
+
+  it("upvotes a comment on PATCH", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: { user: { id: "user-1" } },
+          error: null,
+        })),
+      },
+    } as never);
+    const adminClient = makeAdminClient();
+    vi.mocked(createAdminClient).mockReturnValue(adminClient as never);
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/model-comments", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "upvote",
+          commentId: "comment-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminClient.rpc).toHaveBeenCalledWith("increment_comment_upvote", {
+      comment_id: "comment-1",
+    });
+  });
+
+  it("edits a comment on PATCH", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: { user: { id: "user-1" } },
+          error: null,
+        })),
+      },
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminClient({
+        updatedComment: {
+          id: "comment-1",
+          model_id: "model-1",
+          user_id: "user-1",
+          parent_id: null,
+          content: "Edited comment",
+          upvotes: 0,
+          created_at: "2026-03-30T12:00:00Z",
+          updated_at: "2026-03-30T12:05:00Z",
+        },
+      }) as never
+    );
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/model-comments", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "edit",
+          commentId: "comment-1",
+          content: "Edited comment",
+        }),
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.comment.content).toBe("Edited comment");
+  });
+
+  it("deletes a comment on DELETE", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: { user: { id: "user-1" } },
+          error: null,
+        })),
+      },
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue(makeAdminClient() as never);
+
+    const response = await DELETE(
+      new NextRequest("https://aimarketcap.tech/api/model-comments", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          commentId: "comment-1",
+        }),
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
   });
 });

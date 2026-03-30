@@ -6,7 +6,6 @@ import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatRelativeDate } from "@/lib/format";
@@ -19,6 +18,7 @@ interface Comment {
   content: string;
   upvotes: number;
   created_at: string;
+  updated_at: string;
   parent_id: string | null;
   user_id: string;
   profiles: {
@@ -42,6 +42,7 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(20);
   const commentsKey = `/api/model-comments?modelId=${encodeURIComponent(modelId)}&limit=${visibleCount}`;
 
@@ -97,7 +98,6 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
           { revalidate: false }
         );
       }
-      void mutate();
     } catch (error) {
       clientError("Comment submit failed:", error);
       setSubmitError(
@@ -110,8 +110,8 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
 
   const handleUpvote = async (commentId: string) => {
     if (!user) return;
+    setActionError(null);
 
-    // Optimistic update via SWR
     const optimisticData = comments.map((c) => {
       if (c.id === commentId) return { ...c, upvotes: c.upvotes + 1 };
       if (c.replies) {
@@ -125,41 +125,118 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       return c;
     });
 
-    const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.rpc as any)("increment_comment_upvote", { comment_id: commentId });
+    await mutate(optimisticData, { revalidate: false });
 
-    if (error) {
-      // Revert by revalidating from server
-      mutate();
-    } else {
-      mutate(optimisticData, false);
+    try {
+      const response = await fetch("/api/model-comments", {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ action: "upvote", commentId }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to upvote comment");
+      }
+    } catch (error) {
+      clientError("Comment upvote failed:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to upvote comment. Please try again."
+      );
+      await mutate();
     }
   };
 
   const handleEdit = async (commentId: string) => {
     if (!user || !editText.trim()) return;
-    const supabase = createClient();
-    await supabase
-      .from("comments")
-      .update({ content: editText.trim() })
-      .eq("id", commentId)
-      .eq("user_id", user.id);
-    setEditingId(null);
-    setEditText("");
-    await mutate();
+    setActionError(null);
+
+    try {
+      const response = await fetch("/api/model-comments", {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ action: "edit", commentId, content: editText.trim() }),
+      });
+
+      const payload = (await response.json()) as { error?: string; comment?: Comment };
+      if (!response.ok || !payload.comment) {
+        throw new Error(payload.error ?? "Failed to update comment");
+      }
+
+      await mutate(
+        (current) =>
+          (current ?? []).map((c) => {
+            if (c.id === commentId) {
+              return { ...c, content: payload.comment!.content, updated_at: payload.comment!.updated_at };
+            }
+
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === commentId
+                    ? { ...r, content: payload.comment!.content, updated_at: payload.comment!.updated_at }
+                    : r
+                ),
+              };
+            }
+
+            return c;
+          }),
+        { revalidate: false }
+      );
+      setEditingId(null);
+      setEditText("");
+    } catch (error) {
+      clientError("Comment edit failed:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to edit comment. Please try again."
+      );
+    }
   };
 
   const handleDelete = async (commentId: string) => {
     if (!user) return;
     if (!confirm("Delete this comment?")) return;
-    const supabase = createClient();
-    await supabase
-      .from("comments")
-      .delete()
-      .eq("id", commentId)
-      .eq("user_id", user.id);
-    await mutate();
+    setActionError(null);
+
+    try {
+      const response = await fetch("/api/model-comments", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ commentId }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to delete comment");
+      }
+
+      await mutate(
+        (current) =>
+          (current ?? [])
+            .filter((c) => c.id !== commentId)
+            .map((c) => ({
+              ...c,
+              replies: (c.replies ?? []).filter((r) => r.id !== commentId),
+            })),
+        { revalidate: false }
+      );
+    } catch (error) {
+      clientError("Comment delete failed:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to delete comment. Please try again."
+      );
+    }
   };
 
   const renderComment = (comment: Comment, isReply = false) => {
@@ -324,6 +401,9 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
               />
               {submitError && (
                 <p className="mt-2 text-sm text-destructive">{submitError}</p>
+              )}
+              {actionError && (
+                <p className="mt-2 text-sm text-destructive">{actionError}</p>
               )}
             </div>
             <Button
