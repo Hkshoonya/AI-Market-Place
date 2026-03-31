@@ -84,4 +84,35 @@ describe("ollama-library adapter", () => {
       })
     );
   });
+
+  it("prefers exact model matches over broad family derivative matches", () => {
+    const page = {
+      slug: "qwen3.5",
+      title: "Qwen3.5",
+      description: "Base Qwen3.5 model in the Ollama library",
+      contextWindow: "256K",
+      localCommands: ["qwen3.5"],
+      cloudCommands: [],
+    };
+
+    const selected = __testables.selectPrimaryMatchedModels(
+      [
+        {
+          id: "base",
+          slug: "alibaba-qwen3-5",
+          name: "Qwen3.5",
+          provider: "Alibaba",
+        },
+        {
+          id: "derivative",
+          slug: "jackrong-qwen3-5-4b-claude-4-6-opus-reasoning-distilled-gguf",
+          name: "Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-GGUF",
+          provider: "Jackrong",
+        },
+      ],
+      page
+    );
+
+    expect(selected.map((model) => model.id)).toEqual(["base"]);
+  });
 });

@@ -61,6 +61,26 @@ function humanizeLibrarySlug(slug: string) {
     .replace(/\b([a-z])/g, (value) => value.toUpperCase());
 }
 
+function normalizeNameKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-_.:/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactKey(value: string) {
+  return normalizeNameKey(value).replace(/\s+/g, "");
+}
+
+function getProviderlessSlug(model: ModelRecord) {
+  const providerSlug = makeSlug(model.provider);
+  return model.slug.startsWith(`${providerSlug}-`)
+    ? model.slug.slice(providerSlug.length + 1)
+    : model.slug;
+}
+
 function extractLibrarySlugs(html: string): string[] {
   const found = new Set<string>();
   const matches = html.matchAll(/href="\/library\/([^"#?]+)"/gi);
@@ -135,6 +155,53 @@ function buildAliasCandidates(page: ParsedOllamaModelPage) {
       ...cloudFamilies.map(humanizeLibrarySlug),
     ],
   };
+}
+
+function scoreModelMatch(model: ModelRecord, page: ParsedOllamaModelPage) {
+  const providerlessSlug = getProviderlessSlug(model);
+  const pageFamilies = new Set([
+    page.slug,
+    page.slug.replace(/:cloud$/i, ""),
+    ...page.localCommands.map((command) => command.split(":")[0]),
+    ...page.cloudCommands.map((command) => command.replace(/:cloud$/i, "").split(":")[0]),
+  ]);
+  const compactPageFamilies = new Set([...pageFamilies].map((value) => compactKey(value)));
+  const compactModelSlug = compactKey(providerlessSlug);
+  const compactModelName = compactKey(model.name);
+  const compactPageTitle = compactKey(page.title);
+  const compactHumanizedSlug = compactKey(humanizeLibrarySlug(page.slug));
+
+  let score = 0;
+
+  if (pageFamilies.has(providerlessSlug)) score += 100;
+  if (compactPageFamilies.has(compactModelSlug)) score += 90;
+  if (compactModelName === compactPageTitle) score += 80;
+  if (compactModelName === compactHumanizedSlug) score += 70;
+  if (compactModelSlug === compactPageTitle) score += 65;
+  if (
+    page.description &&
+    normalizeNameKey(page.description).includes(normalizeNameKey(model.name))
+  ) {
+    score += 25;
+  }
+
+  return score;
+}
+
+function selectPrimaryMatchedModels(models: ModelRecord[], page: ParsedOllamaModelPage) {
+  const scored = models
+    .map((model) => ({
+      model,
+      score: scoreModelMatch(model, page),
+    }))
+    .filter((entry) => entry.score >= 65)
+    .sort((left, right) => right.score - left.score || left.model.slug.localeCompare(right.model.slug));
+
+  if (scored.length > 0) {
+    return scored.map((entry) => entry.model);
+  }
+
+  return models;
 }
 
 async function fetchLibrarySlugs(signal?: AbortSignal) {
@@ -332,12 +399,16 @@ const adapter: DataSourceAdapter = {
         const page = await fetchOllamaModelPage(slug, ctx.signal);
         const matchedIds = resolveAliasFamilyModelIds(aliasIndex, buildAliasCandidates(page));
         if (matchedIds.length === 0) continue;
-        const matchedModels = typedModels.filter((model) => matchedIds.includes(model.id));
+        const matchedModels = selectPrimaryMatchedModels(
+          typedModels.filter((model) => matchedIds.includes(model.id)),
+          page
+        );
+        const matchedModelIds = matchedModels.map((model) => model.id);
 
         deploymentRecords.push(
           ...buildDeploymentRecords({
             page,
-            modelIds: matchedIds,
+            modelIds: matchedModelIds,
             platformIds: {
               ollama: ollamaPlatformId,
               ollamaCloud: ollamaCloudPlatformId,
@@ -422,4 +493,6 @@ export const __testables = {
   parseOllamaModelPage,
   buildAliasCandidates,
   buildNewsRecords,
+  scoreModelMatch,
+  selectPrimaryMatchedModels,
 };
