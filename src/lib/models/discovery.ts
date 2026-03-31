@@ -5,12 +5,14 @@ interface DiscoverySignals {
   adoption_score?: number | null;
   economic_footprint_score?: number | null;
   quality_score?: number | null;
+  capability_score?: number | null;
   hf_downloads?: number | null;
   hf_likes?: number | null;
   hf_trending_score?: number | null;
   release_date?: string | null;
   created_at?: string | null;
   provider?: string | null;
+  recent_signal_score?: number | null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -81,6 +83,36 @@ export function computePopularDiscoveryScore(model: DiscoverySignals): number {
   ) / 10;
 }
 
+export function isHighSignalRecentCandidate(model: DiscoverySignals): boolean {
+  const hasOfficialReleaseDate = Boolean(model.release_date);
+  const hasRecentSignal = Number(model.recent_signal_score ?? 0) > 0;
+  const hasMeaningfulScores =
+    Number(model.quality_score ?? 0) > 0 ||
+    Number(model.capability_score ?? 0) > 0 ||
+    Number(model.adoption_score ?? 0) >= 45 ||
+    Number(model.economic_footprint_score ?? 0) >= 20;
+
+  return hasOfficialReleaseDate || hasRecentSignal || hasMeaningfulScores;
+}
+
+export function computeRecentReleaseDiscoveryScore(
+  model: DiscoverySignals,
+  now = new Date()
+): number {
+  const recentTimestamp = getDiscoveryReleaseTimestamp(model);
+  const recency = recentTimestamp
+    ? computeRecencyBoost(new Date(recentTimestamp).toISOString(), now)
+    : 0;
+  const providerBonus = getProviderBrand(model.provider ?? "") ? 18 : 0;
+  const signalBonus = clamp(Number(model.recent_signal_score ?? 0) * 12, 0, 36);
+  const capability = clamp(Number(model.capability_score ?? 0), 0, 100) * 0.18;
+  const quality = clamp(Number(model.quality_score ?? 0), 0, 100) * 0.16;
+  const adoption = clamp(Number(model.adoption_score ?? 0), 0, 100) * 0.12;
+  const penalty = !model.release_date && !Number(model.recent_signal_score ?? 0) ? 20 : 0;
+
+  return recency + providerBonus + signalBonus + capability + quality + adoption - penalty;
+}
+
 export function sortByReleaseDate<T extends { release_date?: string | null; quality_score?: number | null }>(
   models: T[]
 ): T[] {
@@ -99,13 +131,17 @@ export function sortRecentReleaseCandidates<
     release_date?: string | null;
     created_at?: string | null;
     quality_score?: number | null;
+    capability_score?: number | null;
+    adoption_score?: number | null;
+    economic_footprint_score?: number | null;
     provider?: string | null;
+    recent_signal_score?: number | null;
   }
 >(models: T[]): T[] {
   return [...models].sort((left, right) => {
-    const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
-    const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
-    if (rightKnown !== leftKnown) return rightKnown - leftKnown;
+    const scoreDelta =
+      computeRecentReleaseDiscoveryScore(right) - computeRecentReleaseDiscoveryScore(left);
+    if (scoreDelta !== 0) return scoreDelta;
 
     const releaseDelta = getDiscoveryReleaseTimestamp(right) - getDiscoveryReleaseTimestamp(left);
     if (releaseDelta !== 0) return releaseDelta;

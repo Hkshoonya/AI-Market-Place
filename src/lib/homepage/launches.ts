@@ -10,6 +10,10 @@ export interface HomepageLaunchModel {
   provider?: string | null;
   release_date?: string | null;
   created_at?: string | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  adoption_score?: number | null;
+  economic_footprint_score?: number | null;
 }
 
 export interface HomepageLaunchNewsItem {
@@ -47,6 +51,15 @@ function getLaunchTimestamp<TModel extends HomepageLaunchModel>(model: TModel): 
 function isSurfaceableRecentModel<TModel extends HomepageLaunchModel>(model: TModel, now: number) {
   const timestamp = getLaunchTimestamp(model);
   return timestamp > 0 && now - timestamp <= RECENT_MODEL_RELEASE_WINDOW_MS;
+}
+
+function hasMeaningfulModelSignals<TModel extends HomepageLaunchModel>(model: TModel) {
+  return (
+    Number(model.quality_score ?? 0) > 0 ||
+    Number(model.capability_score ?? 0) > 0 ||
+    Number(model.adoption_score ?? 0) >= 45 ||
+    Number(model.economic_footprint_score ?? 0) >= 20
+  );
 }
 
 function getSourceBonus(source: string | null | undefined) {
@@ -128,6 +141,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
   const fallback = [...models]
     .filter((model) => !usedIds.has(model.id))
     .filter((model) => isSurfaceableRecentModel(model, now))
+    .filter((model) => Boolean(model.release_date) || hasMeaningfulModelSignals(model))
     .sort((left, right) => getLaunchTimestamp(right) - getLaunchTimestamp(left))
     .sort((left, right) => {
       const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   computePopularDiscoveryScore,
+  computeRecentReleaseDiscoveryScore,
   computeTrendingDiscoveryScore,
+  isHighSignalRecentCandidate,
   sortRecentReleaseCandidates,
   sortByReleaseDate,
   sortByDiscoveryScore,
@@ -101,5 +103,65 @@ describe("model discovery scoring", () => {
       "provider-slightly-older",
       "community-newer",
     ]);
+  });
+
+  it("filters low-context created-at-only recent candidates", () => {
+    expect(
+      isHighSignalRecentCandidate({
+        provider: "OpenAI",
+        created_at: "2026-03-30T04:56:23.444611+00:00",
+        release_date: null,
+        quality_score: 0,
+        capability_score: null,
+        adoption_score: 20,
+        economic_footprint_score: 10,
+        recent_signal_score: 0,
+      })
+    ).toBe(false);
+
+    expect(
+      isHighSignalRecentCandidate({
+        provider: "OpenAI",
+        created_at: "2026-03-30T04:56:23.444611+00:00",
+        release_date: null,
+        quality_score: 0,
+        capability_score: null,
+        adoption_score: 53,
+        economic_footprint_score: 16,
+        recent_signal_score: 2,
+      })
+    ).toBe(true);
+  });
+
+  it("prefers recent candidates with launch evidence over generic created-at rows", () => {
+    const now = new Date("2026-03-31T00:00:00.000Z");
+    const generic = computeRecentReleaseDiscoveryScore(
+      {
+        provider: "OpenAI",
+        created_at: "2026-03-30T04:56:23.444611+00:00",
+        release_date: null,
+        quality_score: 0,
+        capability_score: null,
+        adoption_score: 53.3,
+        economic_footprint_score: 15.7,
+        recent_signal_score: 0,
+      },
+      now
+    );
+    const evidenced = computeRecentReleaseDiscoveryScore(
+      {
+        provider: "Z.ai",
+        created_at: "2026-03-28T00:48:04.531839+00:00",
+        release_date: null,
+        quality_score: 0,
+        capability_score: null,
+        adoption_score: 40.3,
+        economic_footprint_score: 13.1,
+        recent_signal_score: 3,
+      },
+      now
+    );
+
+    expect(evidenced).toBeGreaterThan(generic);
   });
 });

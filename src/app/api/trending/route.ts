@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/api-error";
 import {
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
+  isHighSignalRecentCandidate,
   sortRecentReleaseCandidates,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
@@ -139,13 +140,19 @@ export async function GET(request: NextRequest) {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const recent = sortRecentReleaseCandidates(
-      visibleModels.filter((model) => {
+      visibleModels
+        .filter((model) => {
         const releaseDate =
           model.release_date ??
           (typeof model.created_at === "string" && model.provider ? model.created_at : null);
         if (!releaseDate) return false;
         return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
-      })
+        })
+        .map((model) => ({
+          ...model,
+          recent_signal_score: discussedEvidence.get(model.id) ?? 0,
+        }))
+        .filter((model) => isHighSignalRecentCandidate(model))
     ).slice(0, Math.min(limit, 8));
 
     const discussedUnique = dedupePublicModelFamilies(discussed);

@@ -85,6 +85,7 @@ describe("buildHomepageLaunchSelections", () => {
           provider: "MiniMax",
           release_date: null,
           created_at: "2026-03-28T00:48:03.917541+00:00",
+          adoption_score: 55,
         },
         {
           id: "older-official",
@@ -101,5 +102,33 @@ describe("buildHomepageLaunchSelections", () => {
       expect.objectContaining({ model: expect.objectContaining({ id: "minimax-new" }) }),
     ]);
     expect(result[0]?.surfacedAt).toBe("2026-03-28T00:48:03.917541+00:00");
+  });
+
+  it("skips low-signal created-at fallback rows when no release evidence exists", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "generic-new-row",
+          provider: "OpenAI",
+          release_date: null,
+          created_at: "2026-03-30T04:56:23.444611+00:00",
+          quality_score: 0,
+          capability_score: null,
+          adoption_score: 20,
+          economic_footprint_score: 10,
+        },
+        {
+          id: "real-launch",
+          provider: "Microsoft",
+          release_date: "2026-03-30",
+          created_at: "2026-03-30T16:58:51.385568+00:00",
+        },
+      ],
+      [],
+      2,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["real-launch"]);
   });
 });
