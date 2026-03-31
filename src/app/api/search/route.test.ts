@@ -24,6 +24,12 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock("@/lib/api-error", () => ({
+  handleApiError: vi.fn((error: unknown) => {
+    throw error;
+  }),
+}));
+
 vi.mock("@/lib/middleware/api-paywall", () => ({
   checkPaywall: vi.fn().mockResolvedValue({ allowed: true }),
   paywallErrorResponse: vi.fn(),
@@ -139,6 +145,52 @@ function createMockSupabase(options?: {
         };
       }
 
+      if (table === "deployment_platforms") {
+        return {
+          select: () => ({
+            order: async () => ({
+              data: [
+                {
+                  id: "platform-1",
+                  slug: "ollama-cloud",
+                  name: "Ollama Cloud",
+                  type: "hosting",
+                  base_url: "https://ollama.com",
+                  has_affiliate: false,
+                  affiliate_url_template: null,
+                },
+              ],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === "model_deployments") {
+        return {
+          select: () => ({
+            in: () => ({
+              eq: async () => ({
+                data: [
+                  {
+                    id: "deployment-1",
+                    model_id: "model-1",
+                    platform_id: "platform-1",
+                    pricing_model: null,
+                    price_per_unit: null,
+                    unit_description: null,
+                    free_tier: null,
+                    one_click: true,
+                    status: "available",
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
       if (table === "marketplace_listings") {
         return {
           select: () => ({
@@ -193,6 +245,7 @@ describe("GET /api/search", () => {
       expect.objectContaining({
         slug: "google-deepmind-sonnet",
         display_description: expect.stringMatching(/Google llm model/i),
+        deployability_label: "Deployable",
       })
     );
     expect(body.data[0].display_description).not.toMatch(

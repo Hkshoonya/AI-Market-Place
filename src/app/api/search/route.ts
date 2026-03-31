@@ -5,9 +5,13 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
-import { pickBestModelSignals } from "@/lib/news/model-signals";
+import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
@@ -18,6 +22,16 @@ const SEARCH_MODEL_SELECT =
   "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
+
+function getDeployabilityLabel(input: {
+  recentSignal: ModelSignalSummary | null;
+  accessOffer: { actionLabel?: string | null } | null;
+}) {
+  if (input.recentSignal?.signalType === "open_source") return "Self-Host";
+  if (input.recentSignal?.signalType === "api") return "Deployable";
+  if (input.accessOffer?.actionLabel === "Deploy") return "Deployable";
+  return null;
+}
 
 async function searchModelsWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
@@ -122,7 +136,12 @@ export async function GET(request: NextRequest) {
       dedupePublicModelFamilies(models ?? []),
       safeQuery
     ).slice(0, limit);
-    const [{ data: pricingRows }, { data: newsRaw }] = await Promise.all([
+    const [
+      { data: pricingRows },
+      { data: newsRaw },
+      { data: deploymentPlatformsRaw },
+      { data: modelDeploymentsRaw },
+    ] = await Promise.all([
       uniqueModels.length > 0
         ? supabase
             .from("model_pricing")
@@ -137,6 +156,18 @@ export async function GET(request: NextRequest) {
             .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
             .order("published_at", { ascending: false })
             .limit(120)
+        : Promise.resolve({ data: [], error: null }),
+      uniqueModels.length > 0
+        ? supabase.from("deployment_platforms").select("*").order("name")
+        : Promise.resolve({ data: [], error: null }),
+      uniqueModels.length > 0
+        ? supabase
+            .from("model_deployments")
+            .select(
+              "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+            )
+            .in("model_id", uniqueModels.map((model) => model.id))
+            .eq("status", "available")
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -198,11 +229,48 @@ export async function GET(request: NextRequest) {
       }))
     );
 
+    const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+      const platformRecord = platform as Record<string, unknown>;
+      return {
+        id: platform.id,
+        slug: platform.slug,
+        name: platform.name,
+        type: platform.type,
+        base_url: platform.base_url,
+        has_affiliate: platform.has_affiliate,
+        affiliate_url:
+          typeof platformRecord.affiliate_url === "string"
+            ? platformRecord.affiliate_url
+            : platform.affiliate_url_template,
+        affiliate_tag:
+          typeof platformRecord.affiliate_tag === "string"
+            ? platformRecord.affiliate_tag
+            : null,
+      };
+    });
+
+    const accessCatalog = buildAccessOffersCatalog({
+      platforms: deploymentPlatforms,
+      deployments: modelDeploymentsRaw ?? [],
+      models: uniqueModels.map((model) => ({
+        id: model.id,
+        slug: model.slug,
+        name: model.name,
+        provider: model.provider,
+        category: model.category,
+        quality_score: model.quality_score,
+        capability_score: model.capability_score,
+        economic_footprint_score: null,
+      })),
+    });
+
     const enrichedModels = uniqueModels.map((model) => {
       const pricingSummary = getPublicPricingSummary({
         ...model,
         model_pricing: pricingByModelId.get(model.id) ?? [],
       });
+      const recentSignal = modelSignals.get(model.id) ?? null;
+      const accessOffer = getBestAccessOfferForModel(accessCatalog, model.id);
 
       return {
         ...model,
@@ -210,7 +278,11 @@ export async function GET(request: NextRequest) {
         compact_price: pricingSummary.compactPrice,
         compact_price_label: pricingSummary.compactLabel,
         compact_price_display: pricingSummary.compactDisplay,
-        recent_signal: modelSignals.get(model.id) ?? null,
+        recent_signal: recentSignal,
+        deployability_label: getDeployabilityLabel({
+          recentSignal,
+          accessOffer,
+        }),
       };
     });
 

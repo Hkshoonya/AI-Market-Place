@@ -26,6 +26,7 @@ export interface SearchResult {
   compact_price?: number | null;
   compact_price_label?: string;
   compact_price_display?: string | null;
+  deployability_label?: string | null;
   market_cap_estimate?: number | null;
   recent_signal?: ModelSignalSummary | null;
 }
@@ -106,6 +107,8 @@ export function SearchDialogResults({
                     {r.provider}
                     {capabilityValue != null &&
                       ` \u00b7 Cap: ${Number(capabilityValue).toFixed(1)}`}
+                    {r.deployability_label &&
+                      ` \u00b7 ${r.deployability_label}`}
                     {r.compact_price_display &&
                       ` \u00b7 ${r.compact_price_display}`}
                   </p>

@@ -36,6 +36,16 @@ import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 0;
 
+function getDeployabilityLabel(input: {
+  recentSignal: ModelSignalSummary | null;
+  accessOffer: ReturnType<typeof getBestAccessOfferForModel>;
+}) {
+  if (input.recentSignal?.signalType === "open_source") return "Self-Host";
+  if (input.recentSignal?.signalType === "api") return "Deployable";
+  if (input.accessOffer?.actionLabel === "Deploy") return "Deployable";
+  return null;
+}
+
 const SEARCH_MODEL_SELECT =
   "id, slug, name, provider, category, overall_rank, quality_score, capability_score, economic_footprint_score, popularity_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
@@ -488,6 +498,10 @@ export default async function SearchPage({
                     const pricingSummary = getPublicPricingSummary(model);
                     const accessOffer = getBestAccessOfferForModel(modelAccessCatalog, model.id);
                     const displayDescription = getModelDisplayDescription(model).text;
+                    const deployabilityLabel = getDeployabilityLabel({
+                      recentSignal: model.recent_signal ?? null,
+                      accessOffer,
+                    });
 
                     return (
                       <Link
@@ -502,6 +516,11 @@ export default async function SearchPage({
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{model.name}</span>
                             <span className="text-xs text-muted-foreground">{model.provider}</span>
+                            {deployabilityLabel && (
+                              <Badge variant="outline" className="text-[10px] border-cyan-500/20 text-cyan-200">
+                                {deployabilityLabel}
+                              </Badge>
+                            )}
                             {model.is_open_weights && (
                               <Badge variant="outline" className="text-[10px] border-gain/30 text-gain">
                                 Open
