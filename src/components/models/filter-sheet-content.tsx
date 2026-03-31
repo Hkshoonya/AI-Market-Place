@@ -30,6 +30,7 @@ interface FilterSheetContentProps {
   currentParams: string;
   currentLicense: string;
   currentOpenOnly: boolean;
+  currentDeployableOnly: boolean;
   currentHasApi: boolean;
   updateParams: (updates: Record<string, string | null>) => void;
   onClearAll: () => void;
@@ -40,6 +41,7 @@ export function FilterSheetContent({
   currentParams,
   currentLicense,
   currentOpenOnly,
+  currentDeployableOnly,
   currentHasApi,
   updateParams,
   onClearAll,
@@ -65,6 +67,26 @@ export function FilterSheetContent({
             onClick={() => updateParams({ open: "true" })}
           >
             Open Weights Only
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <label className="text-sm font-medium text-muted-foreground">Deployment</label>
+        <div className="flex gap-2">
+          <Button
+            variant={!currentDeployableOnly ? "default" : "outline"} size="sm"
+            className={!currentDeployableOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
+            onClick={() => updateParams({ deployable: null })}
+          >
+            All
+          </Button>
+          <Button
+            variant={currentDeployableOnly ? "default" : "outline"} size="sm"
+            className={currentDeployableOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
+            onClick={() => updateParams({ deployable: "true" })}
+          >
+            Deployable Now
           </Button>
         </div>
       </div>

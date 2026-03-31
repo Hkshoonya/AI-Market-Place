@@ -62,6 +62,7 @@ export default async function ModelsPage({
     provider?: string;
     params?: string;
     api?: string;
+    deployable?: string;
     license?: string;
     lifecycle?: string;
   }>;
@@ -73,6 +74,7 @@ export default async function ModelsPage({
   const view = p.view ?? "list";
   const page = parseInt(p.page ?? "1", 10);
   const openOnly = p.open === "true";
+  const deployableOnly = p.deployable === "true";
   const providerFilter = p.provider ?? "";
   const paramsFilter = p.params ?? "";
   const apiFilter = p.api === "true";
@@ -196,7 +198,7 @@ export default async function ModelsPage({
   );
 
   const uniqueModels = dedupePublicModelFamilies(parsedModels);
-  const sortedUniqueModels = [...uniqueModels].sort((left, right) => {
+  let sortedUniqueModels = [...uniqueModels].sort((left, right) => {
     switch (sort) {
       case "downloads":
         return Number(right.hf_downloads ?? 0) - Number(left.hf_downloads ?? 0);
@@ -212,45 +214,44 @@ export default async function ModelsPage({
       case "rank":
       default:
         return Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) - Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
-    }
+      }
   });
 
-  const totalCount =
-    sortedUniqueModels.length > 0
-      ? sortedUniqueModels.length
-      : (count ?? parsedModels.length);
-  const models = sortedUniqueModels.slice(from, to + 1);
-  const visibleModelIds = models.map((model) => model.id);
-
+  let deployableModelIds = new Set<string>();
   let modelSignals = new Map<string, ModelSignalSummary>();
   let accessCatalog = buildAccessOffersCatalog({
     platforms: [],
     deployments: [],
     models: [],
   });
-  if (visibleModelIds.length > 0) {
+
+  if (sortedUniqueModels.length > 0) {
+    const candidateModelIds = sortedUniqueModels.map((model) => model.id);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    const [{ data: recentNewsRaw }, { data: deploymentPlatformsRaw }, { data: modelDeploymentsRaw }] =
-      await Promise.all([
-        supabase
-          .from("model_news")
-          .select(
-            "id, title, source, related_provider, related_model_ids, published_at, metadata"
-          )
-          .gte("published_at", fourteenDaysAgo.toISOString())
-          .order("published_at", { ascending: false })
-          .limit(250),
-        supabase.from("deployment_platforms").select("*").order("name"),
-        supabase
-          .from("model_deployments")
-          .select(
-            "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
-          )
-          .in("model_id", visibleModelIds)
-          .eq("status", "available"),
-      ]);
+    const [
+      { data: recentNewsRaw },
+      { data: deploymentPlatformsRaw },
+      { data: modelDeploymentsRaw },
+    ] = await Promise.all([
+      supabase
+        .from("model_news")
+        .select(
+          "id, title, source, related_provider, related_model_ids, published_at, metadata"
+        )
+        .gte("published_at", fourteenDaysAgo.toISOString())
+        .order("published_at", { ascending: false })
+        .limit(400),
+      supabase.from("deployment_platforms").select("*").order("name"),
+      supabase
+        .from("model_deployments")
+        .select(
+          "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+        )
+        .in("model_id", candidateModelIds)
+        .eq("status", "available"),
+    ]);
 
     const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
       const platformRecord = platform as Record<string, unknown>;
@@ -275,7 +276,7 @@ export default async function ModelsPage({
     accessCatalog = buildAccessOffersCatalog({
       platforms: deploymentPlatforms,
       deployments: modelDeploymentsRaw ?? [],
-      models: models.map((model) => ({
+      models: sortedUniqueModels.map((model) => ({
         id: model.id,
         slug: model.slug,
         name: model.name,
@@ -287,26 +288,41 @@ export default async function ModelsPage({
       })),
     });
 
-    modelSignals = pickBestModelSignals(
-      models,
-      ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
-        id: typeof item.id === "string" ? item.id : null,
-        title: typeof item.title === "string" ? item.title : null,
-        source: typeof item.source === "string" ? item.source : null,
-        related_provider:
-          typeof item.related_provider === "string" ? item.related_provider : null,
-        related_model_ids: Array.isArray(item.related_model_ids)
-          ? (item.related_model_ids as string[])
+    const recentNewsItems = ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
           : null,
-        published_at:
-          typeof item.published_at === "string" ? item.published_at : null,
-        metadata:
-          item.metadata && typeof item.metadata === "object"
-            ? (item.metadata as Record<string, unknown>)
-            : null,
-      }))
-    );
+    }));
+
+    modelSignals = pickBestModelSignals(sortedUniqueModels, recentNewsItems);
+    deployableModelIds = new Set((modelDeploymentsRaw ?? []).map((deployment) => deployment.model_id));
+    for (const [modelId, signal] of modelSignals.entries()) {
+      if (signal.signalType === "api" || signal.signalType === "open_source") {
+        deployableModelIds.add(modelId);
+      }
+    }
   }
+
+  if (deployableOnly) {
+    sortedUniqueModels = sortedUniqueModels.filter((model) => deployableModelIds.has(model.id));
+  }
+
+  const totalCount =
+    sortedUniqueModels.length > 0
+      ? sortedUniqueModels.length
+      : (count ?? parsedModels.length);
+  const models = sortedUniqueModels.slice(from, to + 1);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -318,6 +334,12 @@ export default async function ModelsPage({
         <p className="mt-2 text-muted-foreground">
           Browse, search, and compare AI models from providers worldwide.
         </p>
+        {deployableOnly && (
+          <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
+            Showing models with a verified deploy path, Ollama/runtime availability, or a recent
+            official self-host signal.
+          </div>
+        )}
         {lifecycleFilter === "active" && (
           <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
             Default view ranks active models only. Preview, beta, deprecated, and archived
@@ -426,12 +448,16 @@ export default async function ModelsPage({
                             </span>
                             {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                               <Badge variant="outline" className="ml-2 text-[10px]">
-                                {lifecycleBadge.label}
+                            {lifecycleBadge.label}
                               </Badge>
                             )}
                             {recentSignal && (
                               <Badge variant="outline" className="ml-2 text-[10px]">
-                                {recentSignal.signalLabel}
+                                {recentSignal.signalType === "open_source"
+                                  ? "Self-Host"
+                                  : recentSignal.signalType === "api"
+                                    ? "Deployable"
+                                    : recentSignal.signalLabel}
                               </Badge>
                             )}
                           </div>

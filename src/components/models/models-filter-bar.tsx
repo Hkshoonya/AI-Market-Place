@@ -35,6 +35,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentView = searchParams.get("view") ?? "list";
   const currentQuery = searchParams.get("q") ?? "";
   const currentOpenOnly = searchParams.get("open") === "true";
+  const currentDeployableOnly = searchParams.get("deployable") === "true";
   const currentProvider = searchParams.get("provider") ?? "";
   const currentParams = searchParams.get("params") ?? "";
   const currentHasApi = searchParams.get("api") === "true";
@@ -42,7 +43,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentLifecycle = searchParams.get("lifecycle") === "all" ? "all" : "active";
 
   const activeFilterCount = [
-    currentOpenOnly, currentProvider, currentParams, currentHasApi, currentLicense,
+    currentOpenOnly, currentDeployableOnly, currentProvider, currentParams, currentHasApi, currentLicense,
   ].filter(Boolean).length;
 
   const [searchValue, setSearchValue] = useState(currentQuery);
@@ -151,6 +152,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 currentParams={currentParams}
                 currentLicense={currentLicense}
                 currentOpenOnly={currentOpenOnly}
+                currentDeployableOnly={currentDeployableOnly}
                 currentHasApi={currentHasApi}
                 updateParams={updateParams}
                 onClearAll={handleClearAll}
