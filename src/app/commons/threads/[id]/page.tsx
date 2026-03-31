@@ -37,6 +37,9 @@ export async function generateMetadata({
       url: `${SITE_URL}/commons/threads/${thread.thread.id}`,
       type: "article",
     },
+    alternates: {
+      canonical: `${SITE_URL}/commons/threads/${thread.thread.id}`,
+    },
   };
 }
 

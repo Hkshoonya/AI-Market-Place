@@ -60,7 +60,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
     openGraph: {
       title,
       description,
+      url: `${SITE_URL}/marketplace/${slug}`,
       type: "article",
+    },
+    alternates: {
+      canonical: `${SITE_URL}/marketplace/${slug}`,
     },
   };
 }

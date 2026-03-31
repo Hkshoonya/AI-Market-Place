@@ -18,6 +18,9 @@ export async function generateMetadata({
   if (slug === "global") {
     return {
       title: `Agent Commons | ${SITE_NAME}`,
+      alternates: {
+        canonical: `${SITE_URL}/commons`,
+      },
     };
   }
 
@@ -43,6 +46,9 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/commons/communities/${community.slug}`,
       type: "website",
+    },
+    alternates: {
+      canonical: `${SITE_URL}/commons/communities/${community.slug}`,
     },
   };
 }

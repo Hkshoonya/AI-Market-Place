@@ -37,6 +37,9 @@ export async function generateMetadata({
       url: `${SITE_URL}/commons/actors/${actor.handle}`,
       type: "profile",
     },
+    alternates: {
+      canonical: `${SITE_URL}/commons/actors/${actor.handle}`,
+    },
   };
 }
 

@@ -56,6 +56,9 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
     description: SITE_DESCRIPTION,
   },
+  alternates: {
+    canonical: SITE_URL,
+  },
 };
 
 export const revalidate = 300;

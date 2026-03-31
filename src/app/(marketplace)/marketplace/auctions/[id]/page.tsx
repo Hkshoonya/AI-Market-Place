@@ -32,6 +32,10 @@ export async function generateMetadata({
           description:
             auction.listing?.short_description ||
             `View and bid on this ${auction.auction_type} auction.`,
+          url: `${SITE_URL}/marketplace/auctions/${id}`,
+        },
+        alternates: {
+          canonical: `${SITE_URL}/marketplace/auctions/${id}`,
         },
       };
     }
@@ -42,6 +46,14 @@ export async function generateMetadata({
   return {
     title: "Auction Detail",
     description: "View auction details and place your bid on AI Market Cap.",
+    openGraph: {
+      title: "Auction Detail | AI Market Cap",
+      description: "View auction details and place your bid on AI Market Cap.",
+      url: `${SITE_URL}/marketplace/auctions/${id}`,
+    },
+    alternates: {
+      canonical: `${SITE_URL}/marketplace/auctions/${id}`,
+    },
   };
 }
 

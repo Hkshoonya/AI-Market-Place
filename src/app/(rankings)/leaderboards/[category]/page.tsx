@@ -19,6 +19,7 @@ import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 3600;
 
@@ -38,6 +39,14 @@ export async function generateMetadata({
   return {
     title: `${categoryConfig.label} Leaderboard`,
     description: `Rankings of the best ${categoryConfig.label.toLowerCase()} AI models by capability, speed, and value.`,
+    openGraph: {
+      title: `${categoryConfig.label} Leaderboard`,
+      description: `Rankings of the best ${categoryConfig.label.toLowerCase()} AI models by capability, speed, and value.`,
+      url: `${SITE_URL}/leaderboards/${category}`,
+    },
+    alternates: {
+      canonical: `${SITE_URL}/leaderboards/${category}`,
+    },
   };
 }
 
