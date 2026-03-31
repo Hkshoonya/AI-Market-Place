@@ -40,6 +40,7 @@ import { LaunchRadar } from "@/components/news/launch-radar";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
+import { getNewsSignalType } from "@/lib/news/presentation";
 
 export const revalidate = 300;
 
@@ -165,6 +166,9 @@ export default async function ProviderDetailPage({
     models,
   });
   const providerAccessOffers = providerAccessCatalog.subscriptionOffers;
+  const deploymentPlatformById = new Map(
+    deploymentPlatforms.map((platform) => [platform.id, platform])
+  );
 
   const brand = getProviderBrand(providerName);
   const providerNews = filterProviderSignals(
@@ -191,6 +195,11 @@ export default async function ProviderDetailPage({
   );
   const providerSignalSummary = summarizeNewsSignals(providerNews);
   const providerRadar = buildLaunchRadar(providerNews, 6);
+  const providerDeploymentNews = providerNews.filter((item) => {
+    const signalType = getNewsSignalType(item);
+    return signalType === "api" || signalType === "open_source";
+  });
+  const providerDeploymentRadar = buildLaunchRadar(providerDeploymentNews, 4);
   const latestSignalAt = providerRadar[0]?.published_at ?? null;
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
   const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
@@ -204,6 +213,25 @@ export default async function ProviderDetailPage({
   const officialPricedModels = models.filter(
     (model) => getPublicPricingSummary(model).official != null
   ).length;
+  const verifiedDeploymentModelIds = new Set(
+    (deploymentsResponse.data ?? []).map((deployment) => deployment.model_id)
+  );
+  const localDeployModelIds = new Set<string>();
+  const managedDeployModelIds = new Set<string>();
+
+  for (const deployment of deploymentsResponse.data ?? []) {
+    const platform = deploymentPlatformById.get(deployment.platform_id);
+    if (!platform) continue;
+
+    const isLocal =
+      platform.slug === "ollama" || platform.type === "local" || platform.type === "self-hosted";
+    if (isLocal) {
+      localDeployModelIds.add(deployment.model_id);
+    } else {
+      managedDeployModelIds.add(deployment.model_id);
+    }
+  }
+
   const verifiedPriceFloor =
     [...models]
       .map((model) => getPublicPricingSummary(model).compactPrice)
@@ -315,7 +343,7 @@ export default async function ProviderDetailPage({
         <CardHeader>
           <CardTitle className="text-lg">Provider Footprint</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
             <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Pricing Posture
@@ -351,6 +379,17 @@ export default async function ProviderDetailPage({
                 : "Estimated value data is not available yet."}
             </p>
           </div>
+          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Deployment Reach
+            </p>
+            <p className="mt-2 text-sm font-semibold">
+              {verifiedDeploymentModelIds.size} / {models.length} models have verified deploy or runtime access
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {localDeployModelIds.size} local or private paths · {managedDeployModelIds.size} managed runtime paths
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -366,6 +405,18 @@ export default async function ProviderDetailPage({
             description="Recent launches, pricing moves, benchmark updates, API changes, and research signals linked to this provider."
             ctaHref="/news"
             ctaLabel="View all signals"
+          />
+        </div>
+      )}
+
+      {providerDeploymentRadar.length > 0 && (
+        <div className="mb-8">
+          <LaunchRadar
+            items={providerDeploymentRadar}
+            title="Recent Deployment Signals"
+            description="Recent self-host, Ollama, and official runtime updates linked to this provider."
+            ctaHref="/news"
+            ctaLabel="View deployment updates"
           />
         </div>
       )}
