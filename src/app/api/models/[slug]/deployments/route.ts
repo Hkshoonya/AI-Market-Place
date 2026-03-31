@@ -6,6 +6,7 @@ import {
   type DeploymentPlatform,
   type ModelDeployment,
 } from "@/lib/models/deployments";
+import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const revalidate = 300;
 
@@ -47,10 +48,41 @@ export async function GET(
       .from("model_pricing")
       .select("provider_name")
       .eq("model_id", modelRaw.id);
+    const newsFields =
+      "id, title, summary, url, source, category, related_provider, related_model_ids, tags, metadata, published_at";
+    const { data: modelNewsRaw } = await supabase
+      .from("model_news")
+      .select(newsFields)
+      .contains("related_model_ids", [modelRaw.id])
+      .order("published_at", { ascending: false })
+      .limit(12);
+    const { data: providerNewsRaw } = modelRaw.provider
+      ? await supabase
+          .from("model_news")
+          .select(newsFields)
+          .eq("related_provider", modelRaw.provider)
+          .or("related_model_ids.is.null,related_model_ids.eq.{}")
+          .order("published_at", { ascending: false })
+          .limit(8)
+      : { data: [] as typeof modelNewsRaw };
 
     const pricingProviderNames = Array.from(
       new Set((pricingRows ?? []).map((row) => row.provider_name).filter(Boolean))
     ) as string[];
+    const seenNewsIds = new Set<string>();
+    const deploymentEvidence = buildLaunchRadar(
+      [...(modelNewsRaw ?? []), ...(providerNewsRaw ?? [])]
+        .filter((item) => {
+          if (!item.id || seenNewsIds.has(item.id)) return false;
+          seenNewsIds.add(item.id);
+          return true;
+        })
+        .filter((item) => {
+          const signalType = getNewsSignalType(item);
+          return signalType === "open_source" || signalType === "api";
+        }),
+      6
+    );
 
     const typedDeployments: ModelDeployment[] = [];
     for (const deployment of deployments ?? []) {
@@ -111,6 +143,7 @@ export async function GET(
       },
       deployments: deploymentCatalog.directDeployments,
       relatedPlatforms: deploymentCatalog.relatedPlatforms,
+      deploymentEvidence,
     });
   } catch (err) {
     return handleApiError(err, "api/models/deployments");

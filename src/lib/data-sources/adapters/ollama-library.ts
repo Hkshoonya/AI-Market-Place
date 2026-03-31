@@ -5,7 +5,7 @@ import type {
   SyncResult,
 } from "../types";
 import { registerAdapter } from "../registry";
-import { fetchWithRetry, upsertBatch } from "../utils";
+import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import {
   buildModelAliasIndex,
   resolveAliasFamilyModelIds,
@@ -35,6 +35,13 @@ interface ParsedOllamaModelPage {
   contextWindow: string | null;
   localCommands: string[];
   cloudCommands: string[];
+}
+
+interface ModelRecord {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
 }
 
 function decodeLibrarySlug(rawSlug: string) {
@@ -198,10 +205,76 @@ function buildDeploymentRecords(input: {
   return records;
 }
 
+function buildAvailabilitySummary(page: ParsedOllamaModelPage, model: ModelRecord) {
+  const supportParts: string[] = [];
+
+  if (page.localCommands.length > 0) {
+    supportParts.push("local Ollama runtime");
+  }
+
+  if (page.cloudCommands.length > 0) {
+    supportParts.push("Ollama Cloud");
+  }
+
+  if (supportParts.length === 0) {
+    supportParts.push("Ollama");
+  }
+
+  const contextPart = page.contextWindow ? ` ${page.contextWindow} context window listed.` : "";
+  const descriptionPart = page.description ? ` ${page.description}` : "";
+  return `${model.name} is now available through ${supportParts.join(" and ")}.${contextPart}${descriptionPart}`.trim();
+}
+
+function buildNewsRecords(input: {
+  page: ParsedOllamaModelPage;
+  models: ModelRecord[];
+}) {
+  const pageUrl = `${LIBRARY_URL}/${input.page.slug}`;
+
+  return input.models.map((model) => {
+    const hasLocalRuntime = input.page.localCommands.length > 0;
+    const hasCloudRuntime = input.page.cloudCommands.length > 0;
+    const signalType = hasLocalRuntime ? "open_source" : "api";
+    const title = hasLocalRuntime
+      ? `${model.name} is now available on Ollama`
+      : `${model.name} is now available on Ollama Cloud`;
+
+    return {
+      source: "ollama-library",
+      source_id: `ollama-library-${model.slug}`,
+      title,
+      summary: buildAvailabilitySummary(input.page, model),
+      url: pageUrl,
+      published_at: new Date().toISOString(),
+      category: signalType,
+      related_provider: model.provider,
+      related_model_ids: [model.id],
+      tags: [
+        "deployability",
+        "ollama",
+        makeSlug(model.provider),
+        hasLocalRuntime ? "local-runtime" : "cloud-runtime",
+        hasCloudRuntime ? "managed-cloud" : "self-serve",
+      ],
+      metadata: {
+        signal_type: signalType,
+        signal_importance: hasLocalRuntime ? "high" : "medium",
+        source_type: "deployment_catalog",
+        deployment_provider: "ollama",
+        local_runtime: hasLocalRuntime,
+        cloud_runtime: hasCloudRuntime,
+        context_window: input.page.contextWindow,
+        local_commands: input.page.localCommands,
+        cloud_commands: input.page.cloudCommands,
+      },
+    };
+  });
+}
+
 const adapter: DataSourceAdapter = {
   id: "ollama-library",
   name: "Ollama Library",
-  outputTypes: ["pricing"],
+  outputTypes: ["pricing", "news"],
   defaultConfig: {},
   requiredSecrets: [],
 
@@ -240,7 +313,8 @@ const adapter: DataSourceAdapter = {
     const ollamaCloudPlatformId =
       platformRows.find((platform) => platform.slug === "ollama-cloud")?.id ?? null;
 
-    const aliasIndex = buildModelAliasIndex(models as AliasModelRecord[]);
+    const typedModels = models as ModelRecord[];
+    const aliasIndex = buildModelAliasIndex(typedModels as AliasModelRecord[]);
     const librarySlugs = await fetchLibrarySlugs(ctx.signal);
     const relevantSlugs = librarySlugs.filter((slug) => {
       const matchedIds = resolveAliasFamilyModelIds(aliasIndex, {
@@ -251,12 +325,14 @@ const adapter: DataSourceAdapter = {
     });
 
     const deploymentRecords: Record<string, unknown>[] = [];
+    const newsRecords: Record<string, unknown>[] = [];
 
     for (const slug of relevantSlugs) {
       try {
         const page = await fetchOllamaModelPage(slug, ctx.signal);
         const matchedIds = resolveAliasFamilyModelIds(aliasIndex, buildAliasCandidates(page));
         if (matchedIds.length === 0) continue;
+        const matchedModels = typedModels.filter((model) => matchedIds.includes(model.id));
 
         deploymentRecords.push(
           ...buildDeploymentRecords({
@@ -266,6 +342,12 @@ const adapter: DataSourceAdapter = {
               ollama: ollamaPlatformId,
               ollamaCloud: ollamaCloudPlatformId,
             },
+          })
+        );
+        newsRecords.push(
+          ...buildNewsRecords({
+            page,
+            models: matchedModels,
           })
         );
       } catch (error) {
@@ -282,16 +364,27 @@ const adapter: DataSourceAdapter = {
       deploymentRecords,
       "model_id,platform_id"
     );
+    const { created: newsCreated, errors: newsUpsertErrors } = await upsertBatch(
+      supabase,
+      "model_news",
+      newsRecords,
+      "source,source_id"
+    );
 
     return {
-      success: errors.length === 0 && upsertErrors.length === 0,
+      success:
+        errors.length === 0 &&
+        upsertErrors.length === 0 &&
+        newsUpsertErrors.length === 0,
       recordsProcessed: relevantSlugs.length,
-      recordsCreated: created,
-      recordsUpdated: Math.max(0, deploymentRecords.length - created),
-      errors: [...errors, ...upsertErrors],
+      recordsCreated: created + newsCreated,
+      recordsUpdated: Math.max(0, deploymentRecords.length + newsRecords.length - (created + newsCreated)),
+      errors: [...errors, ...upsertErrors, ...newsUpsertErrors],
       metadata: {
         librarySlugs: librarySlugs.length,
         relevantSlugs: relevantSlugs.length,
+        deploymentRecords: deploymentRecords.length,
+        newsRecords: newsRecords.length,
       },
     };
   },
@@ -328,4 +421,5 @@ export const __testables = {
   extractLibrarySlugs,
   parseOllamaModelPage,
   buildAliasCandidates,
+  buildNewsRecords,
 };

@@ -107,6 +107,32 @@ function pushRelatedPlatform(
   list.push({ platform, reason, confidence });
 }
 
+function getDirectDeploymentReason(deployment: ModelDeployment) {
+  const { deployment_platforms: platform } = deployment;
+
+  if (platform.slug === "ollama") {
+    return "Verified local Ollama runtime for this exact model.";
+  }
+
+  if (platform.slug === "ollama-cloud") {
+    return "Verified managed Ollama Cloud runtime for this exact model.";
+  }
+
+  if (platform.type === "subscription") {
+    return "Verified first-party subscription or plan access for this exact model.";
+  }
+
+  if (platform.type === "api") {
+    return "Verified API access is available for this exact model.";
+  }
+
+  if (deployment.one_click) {
+    return "Verified one-click deployment or hosted runtime for this exact model.";
+  }
+
+  return "Model-specific deployment or pricing has been confirmed for this platform.";
+}
+
 export function hasUserVisibleDeploymentAccess(input: {
   provider: string;
   is_open_weights: boolean | null | undefined;
@@ -140,7 +166,7 @@ export function buildDeploymentCatalog(input: {
     return {
       platform: deployment.deployment_platforms,
       deployment,
-      reason: "Model-specific deployment or pricing has been confirmed for this platform.",
+      reason: getDirectDeploymentReason(deployment),
       confidence: "direct" as const,
     };
   });

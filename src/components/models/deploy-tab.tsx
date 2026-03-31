@@ -4,12 +4,13 @@ import { useState } from "react";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Copy, Check, Zap, DollarSign, Server, Monitor } from "lucide-react";
+import { ExternalLink, Copy, Check, Zap, DollarSign, Server, Monitor, Cloud, ShieldCheck } from "lucide-react";
 import {
   getAccessOfferActionLabel,
   getPartnerDisclosure,
   inferAccessOfferKind,
 } from "@/lib/models/access-offers";
+import type { LaunchRadarItem } from "@/lib/news/presentation";
 
 interface Platform {
   id: string;
@@ -83,6 +84,18 @@ const CONFIDENCE_LABELS: Record<Deployment["confidence"], string> = {
   open_weight_runtime: "Runtime Compatible",
 };
 
+function getDeploymentModeLabel(item: Deployment, isOpenWeights: boolean) {
+  if (item.platform.slug === "ollama") return "Local runtime";
+  if (item.platform.slug === "ollama-cloud") return "Managed cloud";
+  if (item.platform.type === "subscription") return "Plan access";
+  if (item.platform.type === "api") return "Provider API";
+  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "Private/self-host";
+  if (item.deployment?.one_click) return "One-click deploy";
+  if (item.platform.type === "hosting") return "Hosted runtime";
+  if (item.platform.type === "local") return "Local tool";
+  return "Deployment path";
+}
+
 // Ollama/llama.cpp commands for open-weight models
 function getLocalCommand(platformSlug: string, modelName: string): string | null {
   const sanitized = modelName.toLowerCase().replace(/\s+/g, "-");
@@ -93,12 +106,17 @@ function getLocalCommand(platformSlug: string, modelName: string): string | null
 }
 
 export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProps) {
-  const { data, error, isLoading } = useSWR<{ deployments: Deployment[]; relatedPlatforms: Deployment[] }>(
+  const { data, error, isLoading } = useSWR<{
+    deployments: Deployment[];
+    relatedPlatforms: Deployment[];
+    deploymentEvidence?: LaunchRadarItem[];
+  }>(
     `/api/models/${modelSlug}/deployments`,
     { ...SWR_TIERS.SLOW }
   );
   const deployments = data?.deployments ?? [];
   const relatedPlatforms = data?.relatedPlatforms ?? [];
+  const deploymentEvidence = data?.deploymentEvidence ?? [];
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
@@ -129,19 +147,27 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border border-border/50 bg-card/20 p-4">
+        <h3 className="mb-2 text-sm font-semibold text-white">Where you can use this model right now</h3>
+        <p className="text-sm text-muted-foreground">
+          Start with the verified rows first. They are direct places where this model is already usable.
+          Related options below are still useful, but they are broader ecosystem paths rather than model-specific confirmations.
+        </p>
+      </div>
+
       {/* Pricing Comparison Table */}
       {deployments.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-[#00d4aa]" />
-            Pricing Comparison
+            Verified access and deployment
           </h3>
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/30 bg-card/50">
                   <th className="text-left px-4 py-2 text-muted-foreground font-medium">Platform</th>
-                  <th className="text-left px-4 py-2 text-muted-foreground font-medium">Type</th>
+                  <th className="text-left px-4 py-2 text-muted-foreground font-medium">Use it as</th>
                   <th className="text-right px-4 py-2 text-muted-foreground font-medium">Price</th>
                   <th className="text-center px-4 py-2 text-muted-foreground font-medium">Free Tier</th>
                   <th className="text-right px-4 py-2 text-muted-foreground font-medium">Action</th>
@@ -165,9 +191,12 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
                             {CONFIDENCE_LABELS[d.confidence]}
                           </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00d4aa]/10 text-[#00d4aa]">
+                            {getDeploymentModeLabel(d, isOpenWeights)}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground capitalize">{platform.type.replace("-", " ")}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{getDeploymentModeLabel(d, isOpenWeights)}</td>
                       <td className="px-4 py-3 text-right font-mono text-white">
                         {deployment?.pricing_model === "free" ? (
                           <span className="text-green-400">Free</span>
@@ -208,6 +237,50 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         </div>
       )}
 
+      {deploymentEvidence.length > 0 && (
+        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+            <ShieldCheck className="h-4 w-4 text-[#00d4aa]" />
+            Official deployment evidence
+          </h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            These are official provider or runtime pages confirming that this model is now self-hostable,
+            available in local tools, or usable through a managed deployment path.
+          </p>
+          <div className="space-y-3">
+            {deploymentEvidence.map((item, index) => (
+              <div
+                key={item.id ?? item.url ?? `${item.title}-${index}`}
+                className="rounded-lg border border-border/40 p-3"
+              >
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-white">{item.title ?? "Deployment update"}</span>
+                  <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/70">
+                    {item.signalLabel}
+                  </span>
+                  {item.source ? (
+                    <span className="text-[11px] text-muted-foreground">{item.source}</span>
+                  ) : null}
+                </div>
+                {item.summary ? (
+                  <p className="text-xs leading-5 text-muted-foreground">{item.summary}</p>
+                ) : null}
+                {item.url ? (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-[#00d4aa] hover:text-[#00d4aa]/80"
+                  >
+                    Read source <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {relatedPlatforms.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Related options below are ecosystem or self-hosting paths that fit this model family.
@@ -237,6 +310,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70">
                         {CONFIDENCE_LABELS[item.confidence]}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00d4aa]/10 text-[#00d4aa]">
+                        {getDeploymentModeLabel(item, isOpenWeights)}
                       </span>
                     </div>
                   </div>
@@ -294,6 +370,10 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
             Self-Hosting Guide
           </h3>
           <div className="space-y-3 text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
+              This model has open weights. That usually means you can run it privately if you have the right hardware
+              and artifact format. Use the official deployment evidence above when available, then use the commands below as a starting point.
+            </p>
             <div>
               <p className="font-medium text-white mb-1">Docker + vLLM</p>
               <div className="flex items-center gap-1">
@@ -321,6 +401,21 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                   {copiedId === "ollama-cmd" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deployments.length === 0 && relatedPlatforms.length === 0 && deploymentEvidence.length === 0 && (
+        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <div className="flex items-start gap-3">
+            <Cloud className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium text-white">No verified deployment path yet</p>
+              <p className="text-sm text-muted-foreground">
+                This usually means we have not confirmed a direct API, subscription, local runtime, or official self-host
+                path for this model yet. The page will update as new provider and runtime sources sync.
+              </p>
             </div>
           </div>
         </div>

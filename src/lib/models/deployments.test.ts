@@ -89,6 +89,44 @@ describe("buildDeploymentCatalog", () => {
     expect(result.relatedPlatforms[0]?.confidence).toMatch(/pricing_inferred|provider_family/);
   });
 
+  it("uses clearer direct-deployment reasons for Ollama cloud entries", () => {
+    const result = buildDeploymentCatalog({
+      model: {
+        slug: "minimax-minimax-m2-7",
+        name: "MiniMax M2.7",
+        provider: "MiniMax",
+        is_open_weights: false,
+      },
+      deployments: [
+        {
+          id: "dep-1",
+          deploy_url: "https://ollama.com/library/minimax-m2.7",
+          pricing_model: null,
+          price_per_unit: null,
+          unit_description: "Cloud runtime",
+          free_tier: null,
+          one_click: true,
+          deployment_platforms: {
+            id: "platform-ollama-cloud",
+            slug: "ollama-cloud",
+            name: "Ollama Cloud",
+            type: "hosting",
+            base_url: "https://ollama.com/library",
+            has_affiliate: false,
+            affiliate_url: null,
+            affiliate_tag: null,
+          },
+        },
+      ],
+      platforms: [],
+      pricingProviderNames: [],
+    });
+
+    expect(result.directDeployments[0]?.reason).toBe(
+      "Verified managed Ollama Cloud runtime for this exact model."
+    );
+  });
+
   it("adds self-hosting options for open-weight models even without direct deployments", () => {
     const result = buildDeploymentCatalog({
       model: {

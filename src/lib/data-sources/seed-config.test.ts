@@ -45,5 +45,13 @@ describe("benchmark seed configuration", () => {
     expect(seed.tier).toBe(2);
     expect(seed.sync_interval_hours).toBe(4);
     expect(seed.is_enabled).toBe(true);
+    expect(seed.output_types).toEqual(["pricing", "news"]);
+  });
+
+  it("keeps provider deployment signals on the 4h freshness tier", () => {
+    const seed = getSeed("provider-deployment-signals");
+    expect(seed.tier).toBe(2);
+    expect(seed.sync_interval_hours).toBe(4);
+    expect(seed.is_enabled).toBe(true);
   });
 });

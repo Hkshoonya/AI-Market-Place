@@ -46,4 +46,42 @@ describe("ollama-library adapter", () => {
     expect(candidates.slugCandidates).toContain("minimax-m2.7");
     expect(candidates.nameCandidates).toContain("Minimax M2.7");
   });
+
+  it("builds deployment news records for local and cloud availability", () => {
+    const records = __testables.buildNewsRecords({
+      page: {
+        slug: "minimax-m2.5",
+        title: "MiniMax M2.5",
+        description: "Open-weight reasoning model",
+        contextWindow: "1M",
+        localCommands: ["minimax-m2.5:latest"],
+        cloudCommands: ["minimax-m2.5:cloud"],
+      },
+      models: [
+        {
+          id: "model-1",
+          slug: "minimax-minimax-m2-5",
+          name: "MiniMax M2.5",
+          provider: "MiniMax",
+        },
+      ],
+    });
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toEqual(
+      expect.objectContaining({
+        source: "ollama-library",
+        category: "open_source",
+        title: "MiniMax M2.5 is now available on Ollama",
+        related_model_ids: ["model-1"],
+      })
+    );
+    expect(records[0]?.metadata).toEqual(
+      expect.objectContaining({
+        signal_type: "open_source",
+        local_runtime: true,
+        cloud_runtime: true,
+      })
+    );
+  });
 });
