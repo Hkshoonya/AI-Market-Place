@@ -8,6 +8,7 @@ import {
   Layers,
   Rocket,
   Scale,
+  Server,
   Shuffle,
   TrendingUp,
   Zap,
@@ -40,6 +41,7 @@ import { TopSubscriptionProviders } from "@/components/home/top-subscription-pro
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
+import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
 
 export const metadata: Metadata = {
@@ -63,6 +65,30 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
+function getRelativeDateLabel(value: string | null, now: number) {
+  if (!value) return "";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "";
+
+  const daysAgo = Math.floor((now - timestamp) / (1000 * 60 * 60 * 24));
+  if (daysAgo <= 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  if (daysAgo < 7) return `${daysAgo} days ago`;
+  if (daysAgo < 30) {
+    const weeksAgo = Math.floor(daysAgo / 7);
+    return `${weeksAgo} week${weeksAgo > 1 ? "s" : ""} ago`;
+  }
+
+  const monthsAgo = Math.floor(daysAgo / 30);
+  return `${monthsAgo} month${monthsAgo > 1 ? "s" : ""} ago`;
+}
+
+function getDeploymentUpdateBadgeLabel(source: string | null, signalType: "api" | "open_source") {
+  if (source === "ollama-library") return "Ollama";
+  if (signalType === "open_source") return "Self-Host";
+  return "Deploy";
+}
+
 export default async function HomePage() {
   const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
   // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
@@ -76,6 +102,7 @@ export default async function HomePage() {
     { data: modelDeploymentsRaw },
     { data: latestSignalNewsRaw },
     { data: recentLaunchNewsRaw },
+    { data: recentDeploymentNewsRaw },
     { data: latestPipelineSyncRaw },
   ] = supabase
     ? await Promise.all([
@@ -110,6 +137,16 @@ export default async function HomePage() {
           .order("published_at", { ascending: false })
           .limit(200),
         supabase
+          .from("model_news")
+          .select(
+            "title, summary, source, published_at, related_provider, related_model_ids, metadata, category"
+          )
+          .in("source", ["provider-deployment-signals", "ollama-library"])
+          .not("related_model_ids", "is", null)
+          .gte("published_at", new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString())
+          .order("published_at", { ascending: false })
+          .limit(200),
+        supabase
           .from("data_sources")
           .select("last_sync_at")
           .eq("is_enabled", true)
@@ -121,6 +158,7 @@ export default async function HomePage() {
     : [
         { count: 0 },
         { count: 0 },
+        { data: [] },
         { data: [] },
         { data: [] },
         { data: [] },
@@ -188,6 +226,27 @@ export default async function HomePage() {
   const newModels = buildHomepageLaunchSelections(
     activeModels,
     ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      source: typeof item.source === "string" ? item.source : null,
+      published_at: typeof item.published_at === "string" ? item.published_at : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+      category: typeof item.category === "string" ? item.category : null,
+    })),
+    4,
+    now
+  );
+  const newDeploymentPaths = buildHomepageDeploymentSelections(
+    activeModels,
+    ((recentDeploymentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      title: typeof item.title === "string" ? item.title : null,
+      summary: typeof item.summary === "string" ? item.summary : null,
       source: typeof item.source === "string" ? item.source : null,
       published_at: typeof item.published_at === "string" ? item.published_at : null,
       related_provider:
@@ -579,26 +638,7 @@ export default async function HomePage() {
             );
             const parameterDisplay = getParameterDisplay(model);
             const surfaceDateValue = surfacedAt ?? model.release_date;
-            const releaseDate = surfaceDateValue
-              ? new Date(surfaceDateValue)
-              : null;
-            const daysAgo = releaseDate
-              ? Math.floor(
-                  (now - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
-                )
-              : null;
-            const dateLabel =
-              daysAgo !== null
-                ? daysAgo === 0
-                  ? "Today"
-                  : daysAgo === 1
-                    ? "Yesterday"
-                    : daysAgo < 7
-                      ? `${daysAgo} days ago`
-                      : daysAgo < 30
-                        ? `${Math.floor(daysAgo / 7)} week${Math.floor(daysAgo / 7) > 1 ? "s" : ""} ago`
-                        : `${Math.floor(daysAgo / 30)} month${Math.floor(daysAgo / 30) > 1 ? "s" : ""} ago`
-                : "";
+            const dateLabel = getRelativeDateLabel(surfaceDateValue, now);
 
             return (
               <Link key={model.id} href={`/models/${model.slug}`}>
@@ -650,6 +690,85 @@ export default async function HomePage() {
           })}
         </div>
       </section>
+
+      {newDeploymentPaths.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-12">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Server className="h-5 w-5 text-neon" />
+              <h2 className="text-xl font-bold">New Deployment Paths</h2>
+            </div>
+            <Button variant="ghost" size="sm" className="text-neon" asChild>
+              <Link href="/news">
+                View All <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+
+          <p className="mt-3 text-sm text-muted-foreground">
+            When a model lands on Ollama, becomes self-hostable, or gets a new official deploy path,
+            it shows up here.
+          </p>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {newDeploymentPaths.map(({ model, surfacedAt, title, summary, source, signalType }) => {
+              const catConfig = CATEGORIES.find((c) => c.slug === model.category);
+              const parameterDisplay = getParameterDisplay(model);
+              const dateLabel = getRelativeDateLabel(surfacedAt, now);
+
+              return (
+                <Link key={`${model.id}-${source ?? "deployment"}`} href={`/models/${model.slug}`}>
+                  <Card className="group border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          className="border-neon/30 bg-neon/10 text-[11px] text-neon"
+                        >
+                          {getDeploymentUpdateBadgeLabel(source, signalType)}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">{dateLabel}</span>
+                      </div>
+                      <h3 className="mt-3 text-sm font-semibold group-hover:text-neon transition-colors">
+                        {model.name}
+                      </h3>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <ProviderLogo provider={model.provider} size="sm" />
+                        <p className="text-xs text-muted-foreground">{model.provider}</p>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm text-foreground/90">{title}</p>
+                      <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                        {summary ?? "New verified deployment path available for this model."}
+                      </p>
+                      <div className="mt-3 flex items-center justify-between">
+                        {catConfig ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-transparent text-[11px]"
+                            style={{
+                              backgroundColor: `${catConfig.color}15`,
+                              color: catConfig.color,
+                            }}
+                          >
+                            <catConfig.icon className="h-3 w-3" />
+                            {catConfig.shortLabel}
+                          </Badge>
+                        ) : (
+                          <span />
+                        )}
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Zap className="h-3 w-3 text-neon" />
+                          {parameterDisplay.label}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* Dashboard Row: Top Movers + Trending */}
       <section className="mx-auto max-w-7xl px-4 py-12">

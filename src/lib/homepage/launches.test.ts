@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { buildHomepageDeploymentSelections } from "./deployments";
 import { buildHomepageLaunchSelections } from "./launches";
 
 describe("buildHomepageLaunchSelections", () => {
@@ -130,5 +131,73 @@ describe("buildHomepageLaunchSelections", () => {
     );
 
     expect(result.map((entry) => entry.model.id)).toEqual(["real-launch"]);
+  });
+});
+
+describe("buildHomepageDeploymentSelections", () => {
+  it("prefers recent direct Ollama and self-host deployment signals", () => {
+    const result = buildHomepageDeploymentSelections(
+      [
+        { id: "glm-5", provider: "Z.ai" },
+        { id: "minimax-m2-7", provider: "MiniMax" },
+      ],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "GLM coding plan deployment guide",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+        {
+          source: "ollama-library",
+          title: "MiniMax M2.7 is now available on Ollama Cloud",
+          published_at: "2026-03-30T11:00:00.000Z",
+          related_provider: "MiniMax",
+          related_model_ids: ["minimax-m2-7"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+      ],
+      2,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["minimax-m2-7", "glm-5"]);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        title: "MiniMax M2.7 is now available on Ollama Cloud",
+        source: "ollama-library",
+        signalType: "api",
+      })
+    );
+  });
+
+  it("ignores provider mismatches and stale deployment news", () => {
+    const result = buildHomepageDeploymentSelections(
+      [{ id: "kimi-k2", provider: "Moonshot AI" }],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "Kimi agent setup",
+          published_at: "2026-02-01T00:00:00.000Z",
+          related_provider: "Moonshot AI",
+          related_model_ids: ["kimi-k2"],
+          metadata: { signal_type: "api" },
+        },
+        {
+          source: "provider-deployment-signals",
+          title: "Wrong provider match",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["kimi-k2"],
+          metadata: { signal_type: "open_source" },
+        },
+      ],
+      2,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result).toEqual([]);
   });
 });

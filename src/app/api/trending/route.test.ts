@@ -86,17 +86,29 @@ function createMockSupabase() {
       is_open_weights: true,
     },
   ];
+  const modelNews = [
+    {
+      id: "deploy-harrier",
+      title: "Harrier OSS now has an official self-host path",
+      source: "provider-deployment-signals",
+      related_provider: "Microsoft",
+      related_model_ids: ["microsoft-release"],
+      published_at: "2026-03-30T20:00:00.000Z",
+      category: "open_source",
+      metadata: { signal_type: "open_source", signal_importance: "high" },
+    },
+  ];
 
   return {
     from: (table: string) => {
       if (table === "models") {
+        const result = { data: activeModels, error: null };
+        const chain = Object.assign({}, result, {
+          eq: () => chain,
+          in: () => result,
+        });
         return {
-          select: () => ({
-            eq: () => ({
-              data: activeModels,
-              error: null,
-            }),
-          }),
+          select: () => chain,
         };
       }
 
@@ -107,14 +119,14 @@ function createMockSupabase() {
               not: () => ({
                 order: () => ({
                   limit: async () => ({
-                    data: [],
+                    data: modelNews,
                     error: null,
                   }),
                 }),
               }),
               order: () => ({
                 limit: async () => ({
-                  data: [],
+                  data: modelNews,
                   error: null,
                 }),
               }),
@@ -148,6 +160,15 @@ describe("GET /api/trending", () => {
       "llama-3-1-8b-instruct",
     ]);
     expect(body.recent.find((model: { slug: string }) => model.slug === "gpt-image")).toBeFalsy();
+    expect(body.deployable[0]).toEqual(
+      expect.objectContaining({
+        slug: "harrier-oss-v1-27b",
+        recent_signal: expect.objectContaining({
+          signalType: "open_source",
+          signalLabel: "Open Source",
+        }),
+      })
+    );
     expect(body.popular[0]).toEqual(
       expect.objectContaining({
         slug: "llama-3-1-8b-instruct",

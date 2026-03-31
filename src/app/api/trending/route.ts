@@ -13,9 +13,16 @@ import {
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
+import { getNewsSignalType } from "@/lib/news/presentation";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export const dynamic = "force-dynamic";
+
+function toTimestamp(value: string | null | undefined) {
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
 
 // GET /api/trending — get trending models based on recent activity
 export async function GET(request: NextRequest) {
@@ -175,39 +182,71 @@ export async function GET(request: NextRequest) {
       .order("published_at", { ascending: false })
       .limit(250);
 
-    const modelSignals = pickBestModelSignals(
-      combinedModels,
-      ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
-        id: typeof item.id === "string" ? item.id : null,
-        title: typeof item.title === "string" ? item.title : null,
-        source: typeof item.source === "string" ? item.source : null,
-        related_provider:
-          typeof item.related_provider === "string" ? item.related_provider : null,
-        related_model_ids: Array.isArray(item.related_model_ids)
-          ? (item.related_model_ids as string[])
+    const recentNewsItems = ((recentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? (item.related_model_ids as string[])
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
           : null,
-        published_at:
-          typeof item.published_at === "string" ? item.published_at : null,
-        metadata:
-          item.metadata && typeof item.metadata === "object"
-            ? (item.metadata as Record<string, unknown>)
-            : null,
-      }))
-    );
+    }));
 
-    const attachSignal = <T extends { id: string; provider?: string | null }>(modelsWithScores: T[]) =>
+    const modelSignals = pickBestModelSignals(combinedModels, recentNewsItems);
+    const deployableSignals = pickBestModelSignals(
+      visibleModels,
+      recentNewsItems.filter((item) => {
+        const signalType = getNewsSignalType(item);
+        return (
+          (signalType === "api" || signalType === "open_source") &&
+          (item.source === "provider-deployment-signals" || item.source === "ollama-library")
+        );
+      })
+    );
+    const deployable = visibleModels
+      .filter((model) => deployableSignals.has(model.id))
+      .sort((left, right) => {
+        const leftSignal = deployableSignals.get(left.id);
+        const rightSignal = deployableSignals.get(right.id);
+        const publishedDelta =
+          toTimestamp(rightSignal?.publishedAt) - toTimestamp(leftSignal?.publishedAt);
+        if (publishedDelta !== 0) return publishedDelta;
+
+        const rightOpenSource = rightSignal?.signalType === "open_source" ? 1 : 0;
+        const leftOpenSource = leftSignal?.signalType === "open_source" ? 1 : 0;
+        if (rightOpenSource !== leftOpenSource) return rightOpenSource - leftOpenSource;
+
+        const qualityDelta = Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+        if (qualityDelta !== 0) return qualityDelta;
+
+        return Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
+      })
+      .slice(0, limit);
+
+    const attachSignal = <T extends { id: string; provider?: string | null }>(
+      modelsWithScores: T[],
+      signals = modelSignals
+    ) =>
       modelsWithScores.map((model) => ({
         ...model,
         provider:
           typeof model.provider === "string"
             ? getCanonicalProviderName(model.provider)
             : model.provider ?? null,
-        recent_signal: modelSignals.get(model.id) ?? null,
+        recent_signal: signals.get(model.id) ?? null,
       }));
 
     return NextResponse.json({
       trending: attachSignal(trending),
       recent: attachSignal(recent),
+      deployable: attachSignal(deployable, deployableSignals),
       popular: attachSignal(popular),
       discussed: attachSignal(discussedUnique.slice(0, limit)),
     });

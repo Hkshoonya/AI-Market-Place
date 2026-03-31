@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
 import type { LucideIcon } from "lucide-react";
-import { Flame, Rocket, Crown, Newspaper } from "lucide-react";
+import { Flame, Rocket, Crown, Newspaper, Server } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber } from "@/lib/format";
 import { getParameterDisplay } from "@/lib/models/presentation";
@@ -37,11 +37,12 @@ interface TrendingModel {
   recent_signal?: ModelSignalSummary | null;
 }
 
-type TabKey = "trending" | "recent" | "popular" | "discussed";
+type TabKey = "trending" | "recent" | "deployable" | "popular" | "discussed";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "trending", label: "Trending", icon: Flame },
   { key: "recent", label: "New Releases", icon: Rocket },
+  { key: "deployable", label: "Deployable", icon: Server },
   { key: "popular", label: "Most Popular", icon: Crown },
   { key: "discussed", label: "Coverage", icon: Newspaper },
 ];
@@ -66,6 +67,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
   const data: Record<TabKey, TrendingModel[]> = {
     trending: rawData?.trending ?? [],
     recent: rawData?.recent ?? [],
+    deployable: rawData?.deployable ?? [],
     popular: rawData?.popular ?? [],
     discussed: rawData?.discussed ?? [],
   };
@@ -114,6 +116,8 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                 ? model.coverage_score != null
                   ? `Coverage ${Number(model.coverage_score).toFixed(1)}`
                   : "Coverage 0.0"
+                : activeTab === "deployable"
+                  ? model.recent_signal?.signalLabel ?? "Deployable"
                 : activeTab === "popular"
                   ? model.popularity_score != null
                     ? `Pop ${Number(model.popularity_score).toFixed(0)}`
