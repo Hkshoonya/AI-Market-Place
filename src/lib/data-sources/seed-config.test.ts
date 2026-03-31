@@ -39,4 +39,11 @@ describe("benchmark seed configuration", () => {
     expect(seed.is_enabled).toBe(false);
     expect(seed.sync_interval_hours).toBe(8);
   });
+
+  it("keeps ollama library deployment tracking on the 4h freshness tier", () => {
+    const seed = getSeed("ollama-library");
+    expect(seed.tier).toBe(2);
+    expect(seed.sync_interval_hours).toBe(4);
+    expect(seed.is_enabled).toBe(true);
+  });
 });

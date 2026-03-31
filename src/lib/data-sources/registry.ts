@@ -43,6 +43,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/google-models"),
     import("./adapters/z-ai-models"),
     import("./adapters/minimax-models"),
+    import("./adapters/ollama-library"),
     import("./adapters/openrouter-models"),
     import("./adapters/artificial-analysis"),
     import("./adapters/open-llm-leaderboard"),

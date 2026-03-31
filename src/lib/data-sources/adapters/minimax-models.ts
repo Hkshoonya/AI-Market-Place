@@ -15,9 +15,6 @@ const MODEL_PATTERN = /\b(MiniMax-[A-Za-z0-9.-]+)\b/g;
 const PROVIDER_DEFAULTS: ProviderDefaults = {
   provider: "MiniMax",
   slugPrefix: "minimax",
-  is_open_weights: false,
-  license: "commercial",
-  license_name: null,
 };
 
 function buildModelRecord(modelId: string): Record<string, unknown> {

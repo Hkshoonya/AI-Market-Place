@@ -116,6 +116,20 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     is_enabled: true,
     config: {},
   },
+  {
+    slug: "ollama-library",
+    name: "Ollama Library",
+    adapter_type: "ollama-library",
+    description:
+      "Tracks which models are available through Ollama Cloud or local Ollama runtime",
+    tier: 2,
+    sync_interval_hours: 4,
+    priority: 49,
+    secret_env_keys: [],
+    output_types: ["pricing"],
+    is_enabled: true,
+    config: {},
+  },
 
   // ── Tier 2 (every 4h): HF stats, benchmarks, ELO ────────────────────────
   {

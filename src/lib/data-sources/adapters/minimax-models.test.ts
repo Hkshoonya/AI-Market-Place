@@ -31,4 +31,17 @@ describe("minimax-models adapter", () => {
       })
     );
   });
+
+  it("marks officially open-weight MiniMax models as open source", () => {
+    const record = __testables.buildModelRecord("MiniMax-M2.5");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Open weights",
+      })
+    );
+  });
 });
