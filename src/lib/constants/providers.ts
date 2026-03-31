@@ -23,6 +23,7 @@ const PROVIDER_ALIASES: Record<string, string> = {
   inflectionai: "Inflection AI",
   meta: "Meta",
   metaai: "Meta",
+  metallama: "Meta",
   mistral: "Mistral AI",
   mistralai: "Mistral AI",
   minimax: "MiniMax",
