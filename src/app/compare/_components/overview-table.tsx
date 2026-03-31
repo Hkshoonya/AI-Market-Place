@@ -10,13 +10,20 @@ import {
   formatNumber,
 } from "@/lib/format";
 import { ComparisonRow } from "./comparison-row";
+import {
+  getCompareDeploymentLabel,
+  type CompareAccessOffer,
+} from "./compare-helpers";
 import type { ModelWithDetails } from "@/types/database";
+import type { ModelSignalSummary } from "@/lib/news/model-signals";
 
 interface OverviewTableProps {
   models: ModelWithDetails[];
+  modelSignals: Record<string, ModelSignalSummary | null>;
+  accessOffers: Record<string, CompareAccessOffer | null>;
 }
 
-export function OverviewTable({ models }: OverviewTableProps) {
+export function OverviewTable({ models, modelSignals, accessOffers }: OverviewTableProps) {
   const providerValues = useMemo(
     () => models.map((m) => m.provider),
     [models]
@@ -60,6 +67,18 @@ export function OverviewTable({ models }: OverviewTableProps) {
   const openWeightsValues = useMemo(
     () => models.map((m) => (m.is_open_weights ? "Yes" : "No")),
     [models]
+  );
+
+  const deploymentValues = useMemo(
+    () =>
+      models.map((m) =>
+        getCompareDeploymentLabel({
+          model: m,
+          signal: modelSignals[m.slug] ?? null,
+          accessOffer: accessOffers[m.slug] ?? null,
+        })
+      ),
+    [accessOffers, modelSignals, models]
   );
 
   const downloadValues = useMemo(
@@ -119,6 +138,7 @@ export function OverviewTable({ models }: OverviewTableProps) {
               <ComparisonRow label="Overall Rank" values={rankValues} />
               <ComparisonRow label="Parameters" values={paramValues} />
               <ComparisonRow label="Context Window" values={contextValues} />
+              <ComparisonRow label="Deployment" values={deploymentValues} />
               <ComparisonRow label="Open Weights" values={openWeightsValues} />
               <ComparisonRow
                 label="Downloads"

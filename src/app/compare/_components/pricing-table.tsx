@@ -3,14 +3,20 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComparisonRow } from "./comparison-row";
-import { getCheapestPrice, getSpeed } from "./compare-helpers";
+import {
+  getCheapestPrice,
+  getCompareAccessLabel,
+  getSpeed,
+  type CompareAccessOffer,
+} from "./compare-helpers";
 import type { ModelWithDetails, ModelPricing } from "@/types/database";
 
 interface PricingTableProps {
   models: ModelWithDetails[];
+  accessOffers: Record<string, CompareAccessOffer | null>;
 }
 
-export function PricingTable({ models }: PricingTableProps) {
+export function PricingTable({ models, accessOffers }: PricingTableProps) {
   const inputPriceValues = useMemo(
     () =>
       models.map((m) => {
@@ -49,6 +55,11 @@ export function PricingTable({ models }: PricingTableProps) {
         return pricing.some((p: ModelPricing) => p.is_free_tier) ? "Yes" : "No";
       }),
     [models]
+  );
+
+  const accessValues = useMemo(
+    () => models.map((m) => getCompareAccessLabel(accessOffers[m.slug] ?? null)),
+    [accessOffers, models]
   );
 
   return (
@@ -90,6 +101,7 @@ export function PricingTable({ models }: PricingTableProps) {
                 values={speedValues}
                 highlight="max"
               />
+              <ComparisonRow label="Best Access" values={accessValues} />
               <ComparisonRow label="Free Tier" values={freeTierValues} />
             </tbody>
           </table>

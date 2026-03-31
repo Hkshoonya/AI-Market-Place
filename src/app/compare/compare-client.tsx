@@ -13,6 +13,11 @@ import { ProviderLogo } from "@/components/shared/provider-logo";
 import { ShareComparison } from "@/components/compare/share-comparison";
 import { analytics } from "@/lib/posthog";
 import type { ModelWithDetails } from "@/types/database";
+import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
 import { ModelSelector } from "./_components/model-selector";
 import type { ModelOption } from "./_components/model-selector";
 import { OverviewTable } from "./_components/overview-table";
@@ -20,11 +25,14 @@ import { BenchmarksTable } from "./_components/benchmarks-table";
 import { PricingTable } from "./_components/pricing-table";
 import { VisualComparison } from "./_components/visual-comparison";
 import type { BenchmarkScoreWithBenchmarks } from "./_components/compare-helpers";
+import type { CompareAccessOffer } from "./_components/compare-helpers";
 
 interface CompareClientProps {
   allModels: ModelOption[];
   initialModels: ModelWithDetails[];
   initialSlugs: string[];
+  initialModelSignals: Record<string, ModelSignalSummary | null>;
+  initialAccessOffers: Record<string, CompareAccessOffer | null>;
 }
 
 export type { ModelOption };
@@ -33,11 +41,17 @@ export function CompareClient({
   allModels,
   initialModels,
   initialSlugs,
+  initialModelSignals,
+  initialAccessOffers,
 }: CompareClientProps) {
   const router = useRouter();
   const { mutate: mutateGlobal } = useSWRConfig();
   const [models, setModels] = useState<ModelWithDetails[]>(initialModels);
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>(initialSlugs);
+  const [modelSignals, setModelSignals] =
+    useState<Record<string, ModelSignalSummary | null>>(initialModelSignals);
+  const [accessOffers, setAccessOffers] =
+    useState<Record<string, CompareAccessOffer | null>>(initialAccessOffers);
   const [loading, setLoading] = useState(false);
   const comparedRef = useRef(false);
 
@@ -70,11 +84,110 @@ export function CompareClient({
       return;
     }
     if (data) {
+      const [{ data: newsRaw }, { data: deploymentPlatformsRaw }, { data: modelDeploymentsRaw }] =
+        await Promise.all([
+          supabase
+            .from("model_news")
+            .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+            .order("published_at", { ascending: false })
+            .limit(200),
+          supabase.from("deployment_platforms").select("*").order("name"),
+          supabase
+            .from("model_deployments")
+            .select(
+              "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+            )
+            .eq("model_id", data.id)
+            .eq("status", "available"),
+        ]);
+
+      const modelSignalMap = pickBestModelSignals(
+        [data as unknown as ModelWithDetails],
+        (newsRaw ?? []).map((item) => ({
+          id: typeof item.id === "string" ? item.id : null,
+          title: typeof item.title === "string" ? item.title : null,
+          source: typeof item.source === "string" ? item.source : null,
+          related_provider:
+            typeof item.related_provider === "string" ? item.related_provider : null,
+          related_model_ids: Array.isArray(item.related_model_ids)
+            ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+            : null,
+          published_at:
+            typeof item.published_at === "string" ? item.published_at : null,
+          metadata:
+            item.metadata && typeof item.metadata === "object"
+              ? (item.metadata as Record<string, unknown>)
+              : null,
+        }))
+      );
+
+      const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+        const platformRecord = platform as Record<string, unknown>;
+        return {
+          id: platform.id,
+          slug: platform.slug,
+          name: platform.name,
+          type: platform.type,
+          base_url: platform.base_url,
+          has_affiliate: platform.has_affiliate,
+          affiliate_url:
+            typeof platformRecord.affiliate_url === "string"
+              ? platformRecord.affiliate_url
+              : platform.affiliate_url_template,
+          affiliate_tag:
+            typeof platformRecord.affiliate_tag === "string"
+              ? platformRecord.affiliate_tag
+              : null,
+        };
+      });
+
+      const accessCatalog = buildAccessOffersCatalog({
+        platforms: deploymentPlatforms,
+        deployments: (modelDeploymentsRaw ?? []) as Array<{
+          id: string;
+          model_id: string;
+          platform_id: string;
+          pricing_model: string | null;
+          price_per_unit: number | null;
+          unit_description: string | null;
+          free_tier: string | null;
+          one_click: boolean;
+          status?: string | null;
+        }>,
+        models: [
+          {
+            id: data.id,
+            slug: data.slug,
+            name: data.name,
+            provider: data.provider,
+            category: data.category,
+            quality_score: data.quality_score,
+            capability_score: data.capability_score,
+            adoption_score: data.adoption_score,
+            economic_footprint_score: data.economic_footprint_score,
+          },
+        ],
+      });
+      const accessOffer = getBestAccessOfferForModel(accessCatalog, data.id);
+
       // Populate SWR cache for this slug
       mutateGlobal(`supabase:model:${slug}`, data, false);
       const newSlugs = [...selectedSlugs, slug];
       setSelectedSlugs(newSlugs);
       setModels((prev) => [...prev, data as unknown as ModelWithDetails]);
+      setModelSignals((prev) => ({
+        ...prev,
+        [slug]: modelSignalMap.get(data.id) ?? null,
+      }));
+      setAccessOffers((prev) => ({
+        ...prev,
+        [slug]: accessOffer
+          ? {
+              monthlyPriceLabel: accessOffer.monthlyPriceLabel,
+              actionLabel: accessOffer.actionLabel,
+            }
+          : null,
+      }));
       router.replace(`/compare?models=${newSlugs.join(",")}`, {
         scroll: false,
       });
@@ -86,6 +199,16 @@ export function CompareClient({
     const newSlugs = selectedSlugs.filter((s) => s !== slug);
     setSelectedSlugs(newSlugs);
     setModels((prev) => prev.filter((m) => m.slug !== slug));
+    setModelSignals((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
+    setAccessOffers((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
     if (newSlugs.length > 0) {
       router.replace(`/compare?models=${newSlugs.join(",")}`, {
         scroll: false,
@@ -201,9 +324,13 @@ export function CompareClient({
       {/* Comparison tables */}
       {models.length >= 2 && (
         <div className="mt-8 space-y-6">
-          <OverviewTable models={models} />
+          <OverviewTable
+            models={models}
+            modelSignals={modelSignals}
+            accessOffers={accessOffers}
+          />
           <BenchmarksTable models={models} allBenchmarks={allBenchmarks} />
-          <PricingTable models={models} />
+          <PricingTable models={models} accessOffers={accessOffers} />
           <VisualComparison models={models} />
         </div>
       )}
