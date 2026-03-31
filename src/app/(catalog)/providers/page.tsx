@@ -10,6 +10,7 @@ import { ProviderLogo } from "@/components/shared/provider-logo";
 import { getCanonicalProviderName, getProviderBrand, getProviderSlug } from "@/lib/constants/providers";
 import { ProviderCharts } from "@/components/charts/provider-charts";
 import { pickBestProviderSignals } from "@/lib/news/provider-signals";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
@@ -17,6 +18,7 @@ import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 
@@ -50,11 +52,16 @@ interface ProviderStats {
   categories: string[];
 }
 
+interface ProviderDeployabilityStats {
+  deployableCount: number;
+  selfHostCount: number;
+}
+
 export default async function ProvidersPage() {
   const supabase = createPublicClient();
 
   // Fetch active provider footprints and recent provider-linked signals.
-  const [{ data: models }, { data: newsRaw }] = await Promise.all([
+  const [{ data: models }, { data: newsRaw }, { data: deploymentNewsRaw }] = await Promise.all([
     supabase
     .from("models")
     .select(
@@ -67,6 +74,11 @@ export default async function ProvidersPage() {
       .not("related_provider", "is", null)
       .order("published_at", { ascending: false })
       .limit(180),
+    supabase
+      .from("model_news")
+      .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+      .order("published_at", { ascending: false })
+      .limit(200),
   ]);
 
   const uniqueModels = dedupePublicModelFamilies(models ?? []);
@@ -165,6 +177,25 @@ export default async function ProvidersPage() {
       economic_footprint_score: model.economic_footprint_score,
     })),
   });
+  const modelSignals = pickBestModelSignals(
+    uniqueModels,
+    (deploymentNewsRaw ?? []).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
+  );
   const providerSignals = pickBestProviderSignals(
     providers.map((provider) => provider.provider),
     (newsRaw ?? []).map((item) => ({
@@ -185,6 +216,31 @@ export default async function ProvidersPage() {
     Array.from(providerSignals.values())
       .map((signal) => signal.publishedAt)
       .find((value) => Boolean(value)) ?? null;
+  const providerDeployability = new Map<string, ProviderDeployabilityStats>();
+
+  for (const model of uniqueModels) {
+    const canonicalProvider = getCanonicalProviderName(model.provider);
+    const deploymentLabel = getDeployabilityLabel({
+      isOpenWeights: model.is_open_weights,
+      signal: modelSignals.get(model.id) ?? null,
+      accessOffer: getBestAccessOfferForModel(accessCatalog, model.id),
+    });
+    if (!deploymentLabel) continue;
+
+    const existing = providerDeployability.get(canonicalProvider) ?? {
+      deployableCount: 0,
+      selfHostCount: 0,
+    };
+    existing.deployableCount += 1;
+    if (deploymentLabel === "Self-Host" || deploymentLabel === "Open Weights") {
+      existing.selfHostCount += 1;
+    }
+    providerDeployability.set(canonicalProvider, existing);
+  }
+  const deployableProviderModelCount = Array.from(providerDeployability.values()).reduce(
+    (sum, entry) => sum + entry.deployableCount,
+    0
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -208,7 +264,7 @@ export default async function ProvidersPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-5">
         {[
           { label: "Providers", value: totalProviderCount },
           {
@@ -224,6 +280,10 @@ export default async function ProvidersPage() {
             value: formatNumber(
               providers.reduce((s, p) => s + p.totalDownloads, 0)
             ),
+          },
+          {
+            label: "Deployable Models",
+            value: deployableProviderModelCount,
           },
         ].map((stat) => (
           <Card key={stat.label} className="border-border/50 bg-card">
@@ -251,6 +311,7 @@ export default async function ProvidersPage() {
           const brand = getProviderBrand(prov.provider);
           const slug = getProviderSlug(prov.provider);
           const bestAccessOffer = getBestAccessOfferForModel(accessCatalog, prov.topModelId);
+          const deployability = providerDeployability.get(prov.provider);
 
           return (
             <Link key={prov.provider} href={`/providers/${slug}`}>
@@ -312,6 +373,22 @@ export default async function ProvidersPage() {
                         {prov.openWeightsCount} open
                       </Badge>
                     )}
+                    {deployability?.deployableCount ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                      >
+                        {deployability.deployableCount} deployable
+                      </Badge>
+                    ) : null}
+                    {deployability?.selfHostCount ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                      >
+                        {deployability.selfHostCount} self-host
+                      </Badge>
+                    ) : null}
                     {bestAccessOffer && (
                       <Badge
                         variant="outline"
