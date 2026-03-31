@@ -1,5 +1,6 @@
 import type { ModelWithDetails, BenchmarkScore, ModelPricing, Benchmark } from "@/types/database";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 
 /** Supabase joins benchmark_scores with benchmarks table using plural name */
 export type BenchmarkScoreWithBenchmarks = BenchmarkScore & {
@@ -50,14 +51,13 @@ export function getCompareDeploymentLabel(input: {
   signal: ModelSignalSummary | null;
   accessOffer: CompareAccessOffer | null;
 }): string {
-  if (input.signal?.signalType === "open_source") return "Self-Host";
-  if (input.signal?.signalType === "api") return "Deployable";
-  if (input.accessOffer?.actionLabel === "Deploy") return "Deployable";
-  if (input.accessOffer?.actionLabel === "Get API Access") return "API Access";
-  if (input.accessOffer?.actionLabel === "Subscribe") return "Subscription";
-  if (input.accessOffer?.actionLabel === "Start Free Trial") return "Free Trial";
-  if (input.model.is_open_weights) return "Open Weights";
-  return "Not Verified";
+  return (
+    getDeployabilityLabel({
+      isOpenWeights: input.model.is_open_weights,
+      signal: input.signal,
+      accessOffer: input.accessOffer,
+    }) ?? "Not Verified"
+  );
 }
 
 export function getCompareAccessLabel(accessOffer: CompareAccessOffer | null): string | null {

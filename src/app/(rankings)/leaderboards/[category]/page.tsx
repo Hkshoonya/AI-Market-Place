@@ -12,6 +12,12 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { CategoryModelSchema } from "@/lib/schemas/rankings";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 import type { z } from "zod";
@@ -134,6 +140,108 @@ export default async function CategoryLeaderboardPage({
     }
   }
   const benchmarks = Array.from(benchmarkMap.values());
+  const leaderboardModelIds = sortedModels.map((model) => model.id);
+
+  const [{ data: newsRaw }, { data: deploymentPlatformsRaw }, { data: modelDeploymentsRaw }] =
+    leaderboardModelIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("model_news")
+            .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+            .order("published_at", { ascending: false })
+            .limit(200),
+          supabase.from("deployment_platforms").select("*").order("name"),
+          supabase
+            .from("model_deployments")
+            .select(
+              "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+            )
+            .in("model_id", leaderboardModelIds)
+            .eq("status", "available"),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const recentNewsItems = (newsRaw ?? []).map((item) => ({
+    id: typeof item.id === "string" ? item.id : null,
+    title: typeof item.title === "string" ? item.title : null,
+    source: typeof item.source === "string" ? item.source : null,
+    related_provider:
+      typeof item.related_provider === "string" ? item.related_provider : null,
+    related_model_ids: Array.isArray(item.related_model_ids)
+      ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+      : null,
+    published_at:
+      typeof item.published_at === "string" ? item.published_at : null,
+    metadata:
+      item.metadata && typeof item.metadata === "object"
+        ? (item.metadata as Record<string, unknown>)
+        : null,
+  }));
+  const modelSignals = pickBestModelSignals(sortedModels, recentNewsItems);
+
+  const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+
+  const accessCatalog = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: (modelDeploymentsRaw ?? []) as Array<{
+      id: string;
+      model_id: string;
+      platform_id: string;
+      pricing_model: string | null;
+      price_per_unit: number | null;
+      unit_description: string | null;
+      free_tier: string | null;
+      one_click: boolean;
+      status?: string | null;
+    }>,
+    models: sortedModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      name: model.name,
+      provider: model.provider,
+      category: model.category,
+      quality_score: model.quality_score,
+      capability_score: model.capability_score,
+      adoption_score: model.adoption_score,
+      economic_footprint_score: model.economic_footprint_score,
+    })),
+  });
+
+  const deploymentLabelsByModelId = new Map(
+    sortedModels.map((model) => [
+      model.id,
+      getDeployabilityLabel({
+        isOpenWeights: model.is_open_weights,
+        signal: modelSignals.get(model.id) ?? null,
+        accessOffer: getBestAccessOfferForModel(accessCatalog, model.id),
+      }),
+    ])
+  );
+  const deployableModelsCount = sortedModels.filter((model) =>
+    Boolean(deploymentLabelsByModelId.get(model.id))
+  ).length;
+  const selfHostModelsCount = sortedModels.filter((model) => {
+    const label = deploymentLabelsByModelId.get(model.id);
+    return label === "Self-Host" || label === "Open Weights";
+  }).length;
 
   function getBenchmarkScore(
     model: CategoryModel,
@@ -246,7 +354,7 @@ export default async function CategoryLeaderboardPage({
         </Link>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card className="border-border/50">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">{sortedModels.length}</p>
@@ -273,6 +381,15 @@ export default async function CategoryLeaderboardPage({
               {sortedModels.filter((model) => model.is_open_weights).length}
             </p>
             <p className="text-xs text-muted-foreground">Open Weight</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold">{deployableModelsCount}</p>
+            <p className="text-xs text-muted-foreground">Deployable Now</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80">
+              {selfHostModelsCount} self-host
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -359,6 +476,7 @@ export default async function CategoryLeaderboardPage({
                     const parameterDisplay = getParameterDisplay(model);
                     const primaryMetric = getPrimaryMetric(model, activeLens, isBrowserCategory) ?? model.quality_score;
                     const lifecycleBadge = getLifecycleBadge(model.status);
+                    const deployabilityLabel = deploymentLabelsByModelId.get(model.id);
 
                     return (
                       <tr
@@ -397,6 +515,14 @@ export default async function CategoryLeaderboardPage({
                                 <p className="text-xs text-muted-foreground">
                                   {model.provider}
                                 </p>
+                                {deployabilityLabel && (
+                                  <Badge
+                                    variant="outline"
+                                    className="mt-1 mr-1 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                                  >
+                                    {deployabilityLabel}
+                                  </Badge>
+                                )}
                                 {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                                   <Badge variant="outline" className="mt-1 text-[10px]">
                                     {lifecycleBadge.label}
