@@ -34,6 +34,16 @@ const PROVIDER_PAGE_HEADERS = {
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 };
 
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+
 const PROVIDER_DEPLOYMENT_SOURCES: ProviderDeploymentSource[] = [
   {
     id: "minimax-m2-open-source",
@@ -118,19 +128,19 @@ const PROVIDER_DEPLOYMENT_SOURCES: ProviderDeploymentSource[] = [
 ];
 
 function extractTitle(html: string) {
-  return (
+  const raw =
     html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)?.[1]?.trim() ??
     html.match(/<title>([^<]+)<\/title>/i)?.[1]?.trim() ??
-    null
-  );
+    null;
+  return raw ? decodeHtmlEntities(raw) : null;
 }
 
 function extractDescription(html: string) {
-  return (
+  const raw =
     html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i)?.[1]?.trim() ??
     html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i)?.[1]?.trim() ??
-    null
-  );
+    null;
+  return raw ? decodeHtmlEntities(raw) : null;
 }
 
 function extractPublishedAt(html: string) {
@@ -142,6 +152,36 @@ function extractPublishedAt(html: string) {
 
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function isGenericTitle(title: string | null, source: ProviderDeploymentSource) {
+  if (!title) return true;
+
+  const normalized = title.trim().toLowerCase();
+  if (!normalized) return true;
+
+  if (normalized === "overview" || normalized === "guide") return true;
+  if (normalized.includes("overview - z.ai developer document")) return true;
+  if (normalized.includes("developer document") && normalized.includes("overview")) return true;
+  if (normalized.startsWith("factory droid - overview")) return true;
+  if (normalized.startsWith("cline - overview")) return true;
+  if (normalized === source.provider.toLowerCase()) return true;
+
+  return false;
+}
+
+function isGenericSummary(summary: string | null, source: ProviderDeploymentSource) {
+  if (!summary) return true;
+
+  const normalized = summary.trim().toLowerCase();
+  if (!normalized) return true;
+
+  if (normalized.includes("open platform provides")) return true;
+  if (normalized.includes("methods for using the glm coding plan")) return true;
+  if (normalized.includes("methods for using the glm coding plan in")) return true;
+  if (normalized === source.provider.toLowerCase()) return true;
+
+  return false;
 }
 
 function buildRelationText(source: ProviderDeploymentSource, title: string, summary: string) {
@@ -239,8 +279,14 @@ const adapter: DataSourceAdapter = {
       }
 
       const html = await response.text();
-      const title = extractTitle(html) ?? source.titleHint;
-      const summary = extractDescription(html) ?? source.summaryHint;
+      const extractedTitle = extractTitle(html);
+      const extractedSummary = extractDescription(html);
+      const title = isGenericTitle(extractedTitle, source)
+        ? source.titleHint
+        : extractedTitle ?? source.titleHint;
+      const summary = isGenericSummary(extractedSummary, source)
+        ? source.summaryHint
+        : extractedSummary ?? source.summaryHint;
       const publishedAt = extractPublishedAt(html) ?? new Date().toISOString();
       const relatedModelIds = buildModelRelations(source, title, summary, lookup, aliasIndex);
 
@@ -340,4 +386,6 @@ export const __testables = {
   extractTitle,
   extractDescription,
   extractPublishedAt,
+  isGenericTitle,
+  isGenericSummary,
 };

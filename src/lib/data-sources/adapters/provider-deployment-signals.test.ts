@@ -23,4 +23,37 @@ describe("provider-deployment-signals adapter", () => {
     );
     expect(__testables.extractPublishedAt(html)).toBe("2026-03-28T12:00:00.000Z");
   });
+
+  it("decodes HTML entities in extracted titles and descriptions", () => {
+    const html = `
+      <html>
+        <head>
+          <meta property="og:title" content="Coding with Kimi K2: Top 6 Agents &amp; Setup Guides" />
+          <meta
+            property="og:description"
+            content="Moonshot AI&#x27;s official guide for local coding tools."
+          />
+        </head>
+      </html>
+    `;
+
+    expect(__testables.extractTitle(html)).toBe("Coding with Kimi K2: Top 6 Agents & Setup Guides");
+    expect(__testables.extractDescription(html)).toBe(
+      "Moonshot AI's official guide for local coding tools."
+    );
+  });
+
+  it("treats generic Z.ai doc chrome as a fallback case", () => {
+    expect(
+      __testables.isGenericTitle("Overview - Overview - Z.AI DEVELOPER DOCUMENT", {
+        id: "zai-devpack-overview",
+        provider: "Z.ai",
+        url: "https://docs.z.ai/devpack/overview",
+        titleHint: "GLM coding plan deployment guide",
+        modelHints: ["GLM-5"],
+        signalType: "api",
+        summaryHint: "Z.ai documents GLM deployment through its coding plan.",
+      })
+    ).toBe(true);
+  });
 });
