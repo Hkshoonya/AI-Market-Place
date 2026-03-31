@@ -13,6 +13,7 @@ import {
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, created_at, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, created_at, parameter_count, is_open_weights"
       )
       .eq("status", "active");
 
@@ -194,9 +195,13 @@ export async function GET(request: NextRequest) {
       }))
     );
 
-    const attachSignal = <T extends { id: string }>(modelsWithScores: T[]) =>
+    const attachSignal = <T extends { id: string; provider?: string | null }>(modelsWithScores: T[]) =>
       modelsWithScores.map((model) => ({
         ...model,
+        provider:
+          typeof model.provider === "string"
+            ? getCanonicalProviderName(model.provider)
+            : model.provider ?? null,
         recent_signal: modelSignals.get(model.id) ?? null,
       }));
 

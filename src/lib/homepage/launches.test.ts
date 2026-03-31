@@ -85,7 +85,7 @@ describe("buildHomepageLaunchSelections", () => {
           provider: "MiniMax",
           release_date: null,
           created_at: "2026-03-28T00:48:03.917541+00:00",
-          adoption_score: 55,
+          quality_score: 61,
         },
         {
           id: "older-official",
@@ -114,8 +114,8 @@ describe("buildHomepageLaunchSelections", () => {
           created_at: "2026-03-30T04:56:23.444611+00:00",
           quality_score: 0,
           capability_score: null,
-          adoption_score: 20,
-          economic_footprint_score: 10,
+          adoption_score: 52,
+          economic_footprint_score: 22,
         },
         {
           id: "real-launch",

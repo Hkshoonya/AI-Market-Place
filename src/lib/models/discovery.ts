@@ -87,10 +87,7 @@ export function isHighSignalRecentCandidate(model: DiscoverySignals): boolean {
   const hasOfficialReleaseDate = Boolean(model.release_date);
   const hasRecentSignal = Number(model.recent_signal_score ?? 0) > 0;
   const hasMeaningfulScores =
-    Number(model.quality_score ?? 0) > 0 ||
-    Number(model.capability_score ?? 0) > 0 ||
-    Number(model.adoption_score ?? 0) >= 45 ||
-    Number(model.economic_footprint_score ?? 0) >= 20;
+    Number(model.quality_score ?? 0) > 0 || Number(model.capability_score ?? 0) > 0;
 
   return hasOfficialReleaseDate || hasRecentSignal || hasMeaningfulScores;
 }

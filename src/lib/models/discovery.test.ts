@@ -126,11 +126,22 @@ describe("model discovery scoring", () => {
         release_date: null,
         quality_score: 0,
         capability_score: null,
-        adoption_score: 53,
-        economic_footprint_score: 16,
         recent_signal_score: 2,
       })
     ).toBe(true);
+
+    expect(
+      isHighSignalRecentCandidate({
+        provider: "OpenAI",
+        created_at: "2026-03-30T04:56:23.444611+00:00",
+        release_date: null,
+        quality_score: 0,
+        capability_score: null,
+        adoption_score: 53,
+        economic_footprint_score: 16,
+        recent_signal_score: 0,
+      })
+    ).toBe(false);
   });
 
   it("prefers recent candidates with launch evidence over generic created-at rows", () => {

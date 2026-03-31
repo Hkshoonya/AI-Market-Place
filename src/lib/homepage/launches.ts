@@ -54,12 +54,7 @@ function isSurfaceableRecentModel<TModel extends HomepageLaunchModel>(model: TMo
 }
 
 function hasMeaningfulModelSignals<TModel extends HomepageLaunchModel>(model: TModel) {
-  return (
-    Number(model.quality_score ?? 0) > 0 ||
-    Number(model.capability_score ?? 0) > 0 ||
-    Number(model.adoption_score ?? 0) >= 45 ||
-    Number(model.economic_footprint_score ?? 0) >= 20
-  );
+  return Number(model.quality_score ?? 0) > 0 || Number(model.capability_score ?? 0) > 0;
 }
 
 function getSourceBonus(source: string | null | undefined) {
