@@ -48,6 +48,7 @@ export default async function NewsPage() {
     updatesRes,
     twitterRes,
     blogsRes,
+    deploymentsRes,
     papersRes,
     benchmarksRes,
     totalRes,
@@ -74,6 +75,13 @@ export default async function NewsPage() {
       .eq("source", "provider-blog")
       .order("published_at", { ascending: false })
       .limit(15),
+    // Deployment/self-host signals
+    supabase
+      .from("model_news")
+      .select(NEWS_FIELDS)
+      .in("source", ["provider-deployment-signals", "ollama-library"])
+      .order("published_at", { ascending: false })
+      .limit(25),
     // Research papers
     supabase
       .from("model_news")
@@ -115,11 +123,12 @@ export default async function NewsPage() {
       new Date(b.published_at as string).getTime() -
       new Date(a.published_at as string).getTime()
   );
+  const deployments = (deploymentsRes.data ?? []) as Record<string, unknown>[];
   const papers = (papersRes.data ?? []) as Record<string, unknown>[];
   const benchmarks = (benchmarksRes.data ?? []) as Record<string, unknown>[];
   const totalNewsCount = (totalRes.count as number) ?? 0;
   const totalItems = updates.length + totalNewsCount;
-  const signalNews = [...social, ...papers, ...benchmarks];
+  const signalNews = [...social, ...deployments, ...papers, ...benchmarks];
   const signalSummary = summarizeNewsSignals(signalNews);
   const radarItems = buildLaunchRadar(signalNews, 8);
   const latestPublishedAt =
@@ -197,7 +206,7 @@ export default async function NewsPage() {
       </div>
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Start here for launches, pricing moves, benchmark updates, research, and provider posts in one stream.
+        Start here for launches, deployability updates, pricing moves, benchmark updates, research, and provider posts in one stream.
       </p>
 
       <div className="mb-6">
@@ -219,6 +228,7 @@ export default async function NewsPage() {
 
       <div className="mb-8 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
         Use <span className="font-medium text-foreground">Signals</span> for the quickest summary,
+        <span className="font-medium text-foreground"> Deployments</span> for new self-host and runtime paths,
         <span className="font-medium text-foreground"> Social</span> for provider posts,
         <span className="font-medium text-foreground"> Research</span> for papers,
         and <span className="font-medium text-foreground"> Benchmarks</span> for leaderboard-related updates.
@@ -230,6 +240,9 @@ export default async function NewsPage() {
           <TabsTrigger value="signals">Signals</TabsTrigger>
           <TabsTrigger value="social">
             Social{social.length > 0 ? ` (${social.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="deployments">
+            Deployments{deployments.length > 0 ? ` (${deployments.length})` : ""}
           </TabsTrigger>
           <TabsTrigger value="updates">
             Model Updates
@@ -258,6 +271,7 @@ export default async function NewsPage() {
             updates={updates}
             news={[
               ...social,
+              ...deployments,
               ...papers,
               ...benchmarks
                 .filter((b) => {
@@ -308,6 +322,18 @@ export default async function NewsPage() {
             </div>
           ) : (
             <EmptyState message="No social posts yet. Twitter feeds sync daily via RSSHub." />
+          )}
+        </TabsContent>
+
+        <TabsContent value="deployments">
+          {deployments.length > 0 ? (
+            <div className="space-y-4">
+              {deployments.map((item) => (
+                <NewsCard key={item.id as string} item={item} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No deployment updates yet. New self-host, Ollama, and official runtime paths will appear here as they sync." />
           )}
         </TabsContent>
 

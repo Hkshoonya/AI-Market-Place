@@ -28,7 +28,7 @@ const TONE_BY_SIGNAL: Record<string, string> = {
 export function LaunchRadar({
   items,
   title = "Launch Radar",
-  description = "Structured signals from provider blogs and X announcements, prioritized by launch, pricing, benchmark, and API impact.",
+  description = "Structured signals from provider blogs, official deployment pages, synced leaderboards, and X announcements, prioritized by launch, deployability, pricing, benchmark, and API impact.",
   ctaHref,
   ctaLabel,
 }: LaunchRadarProps) {
