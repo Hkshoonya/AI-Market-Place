@@ -26,6 +26,12 @@ import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { SITE_URL } from "@/lib/constants/site";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
@@ -277,6 +283,112 @@ export default async function LeaderboardsPage({
     )
     .slice(0, 10);
 
+  const leaderboardModelRegistry = new Map<
+    string,
+    {
+      id: string;
+      slug: string;
+      name: string;
+      provider: string;
+      category: string;
+      is_open_weights: boolean | null;
+      quality_score: number | null;
+      capability_score: number | null;
+      adoption_score: number | null;
+      economic_footprint_score: number | null;
+    }
+  >();
+
+  for (const model of explorerModels) {
+    leaderboardModelRegistry.set(model.id, {
+      id: model.id,
+      slug: model.slug,
+      name: model.name,
+      provider: model.provider,
+      category: model.category,
+      is_open_weights: model.is_open_weights,
+      quality_score: model.quality_score,
+      capability_score: model.capability_score,
+      adoption_score: model.adoption_score,
+      economic_footprint_score: model.economic_footprint_score,
+    });
+  }
+
+  const leaderboardModels = Array.from(leaderboardModelRegistry.values());
+  const leaderboardModelIds = leaderboardModels.map((model) => model.id);
+  const [{ data: newsRaw }, { data: deploymentPlatformsRaw }, { data: modelDeploymentsRaw }] =
+    leaderboardModelIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("model_news")
+            .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+            .order("published_at", { ascending: false })
+            .limit(200),
+          supabase.from("deployment_platforms").select("*").order("name"),
+          supabase
+            .from("model_deployments")
+            .select(
+              "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+            )
+            .in("model_id", leaderboardModelIds)
+            .eq("status", "available"),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const recentNewsItems = (newsRaw ?? []).map((item) => ({
+    id: typeof item.id === "string" ? item.id : null,
+    title: typeof item.title === "string" ? item.title : null,
+    source: typeof item.source === "string" ? item.source : null,
+    related_provider:
+      typeof item.related_provider === "string" ? item.related_provider : null,
+    related_model_ids: Array.isArray(item.related_model_ids)
+      ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+      : null,
+    published_at:
+      typeof item.published_at === "string" ? item.published_at : null,
+    metadata:
+      item.metadata && typeof item.metadata === "object"
+        ? (item.metadata as Record<string, unknown>)
+        : null,
+  }));
+  const modelSignals = pickBestModelSignals(leaderboardModels, recentNewsItems);
+
+  const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+
+  const accessCatalog = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: (modelDeploymentsRaw ?? []) as Array<{
+      id: string;
+      model_id: string;
+      platform_id: string;
+      pricing_model: string | null;
+      price_per_unit: number | null;
+      unit_description: string | null;
+      free_tier: string | null;
+      one_click: boolean;
+      status?: string | null;
+    }>,
+    models: leaderboardModels,
+  });
+
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
     const scores = model.benchmark_scores;
     const found = scores?.find((bs) => bs.benchmarks?.slug === benchmarkSlug);
@@ -306,6 +418,17 @@ export default async function LeaderboardsPage({
       search.set("lifecycle", "all");
     }
     return `/leaderboards?${search.toString()}`;
+  }
+
+  function getDeploymentLabelForModel(input: {
+    id: string;
+    is_open_weights?: boolean | null;
+  }) {
+    return getDeployabilityLabel({
+      isOpenWeights: input.is_open_weights,
+      signal: modelSignals.get(input.id) ?? null,
+      accessOffer: getBestAccessOfferForModel(accessCatalog, input.id),
+    });
   }
 
   return (
@@ -517,42 +640,53 @@ export default async function LeaderboardsPage({
                   .filter((m) => m.agent_score != null)
                   .sort((a, b) => (a.agent_rank ?? 999) - (b.agent_rank ?? 999))
                   .slice(0, 50)
-                  .map((model, i) => (
-                  <tr key={model.slug} className="border-b border-border/30 table-row-hover">
-                    <td className="px-4 py-3.5">
-                      <span className={`text-sm font-bold tabular-nums ${i < 3 ? "text-neon" : "text-muted-foreground"}`}>
-                        {model.agent_rank ?? i + 1}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Link href={`/models/${model.slug}`}>
-                        <div className="flex items-center gap-2">
-                          <ProviderLogo provider={model.provider} size="sm" />
-                          <div>
-                            <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{model.provider}</span>
-                          </div>
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="text-sm font-bold tabular-nums text-neon">
-                        {model.agent_score?.toFixed(1) ?? "---"}
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums sm:table-cell">
-                      {model.quality_score?.toFixed(1) ?? "---"}
-                    </td>
-                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
-                      {model.popularity_rank ? `#${model.popularity_rank}` : "---"}
-                    </td>
-                    <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
-                      {model.economic_footprint_score != null
-                        ? model.economic_footprint_score.toFixed(1)
-                        : "---"}
-                    </td>
-                  </tr>
-                ))}
+                  .map((model, i) => {
+                    const deploymentLabel = getDeploymentLabelForModel(model);
+                    return (
+                      <tr key={model.slug} className="border-b border-border/30 table-row-hover">
+                        <td className="px-4 py-3.5">
+                          <span className={`text-sm font-bold tabular-nums ${i < 3 ? "text-neon" : "text-muted-foreground"}`}>
+                            {model.agent_rank ?? i + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <Link href={`/models/${model.slug}`}>
+                            <div className="flex items-center gap-2">
+                              <ProviderLogo provider={model.provider} size="sm" />
+                              <div>
+                                <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">{model.provider}</span>
+                                {deploymentLabel && (
+                                  <UiBadge
+                                    variant="outline"
+                                    className="ml-2 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                                  >
+                                    {deploymentLabel}
+                                  </UiBadge>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <span className="text-sm font-bold tabular-nums text-neon">
+                            {model.agent_score?.toFixed(1) ?? "---"}
+                          </span>
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums sm:table-cell">
+                          {model.quality_score?.toFixed(1) ?? "---"}
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums md:table-cell">
+                          {model.popularity_rank ? `#${model.popularity_rank}` : "---"}
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-right text-sm tabular-nums lg:table-cell">
+                          {model.economic_footprint_score != null
+                            ? model.economic_footprint_score.toFixed(1)
+                            : "---"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 {explorerModels.filter((m) => m.agent_score != null).length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
@@ -606,6 +740,7 @@ export default async function LeaderboardsPage({
                   const humanEval = getBenchmarkScore(model, "humaneval") ?? getBenchmarkScore(model, "humaneval-plus");
                   const math = getBenchmarkScore(model, "math-benchmark") ?? getBenchmarkScore(model, "math");
                   const lifecycleBadge = getLifecycleBadge(model.status);
+                  const deploymentLabel = getDeploymentLabelForModel(model);
                   const pricingSummary = getPublicPricingSummary({
                     id: model.id,
                     name: model.name,
@@ -642,6 +777,14 @@ export default async function LeaderboardsPage({
                             <div>
                               <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
                               <span className="ml-2 text-xs text-muted-foreground">{model.provider}</span>
+                              {deploymentLabel && (
+                                <UiBadge
+                                  variant="outline"
+                                  className="ml-2 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                                >
+                                  {deploymentLabel}
+                                </UiBadge>
+                              )}
                               {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                                 <UiBadge variant="outline" className="ml-2 text-[10px]">
                                   {lifecycleBadge.label}
@@ -774,6 +917,7 @@ export default async function LeaderboardsPage({
               <tbody>
                 {speedModels.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string };
+                  const deploymentLabel = getDeploymentLabelForModel(model);
                   return (
                     <tr key={pricing.id} className="border-b border-border/30 table-row-hover">
                       <td className="px-4 py-3.5">
@@ -783,7 +927,17 @@ export default async function LeaderboardsPage({
                       </td>
                       <td className="px-4 py-3.5">
                         <Link href={`/models/${model.slug}`}>
-                          <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                          <div>
+                            <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                            {deploymentLabel && (
+                              <UiBadge
+                                variant="outline"
+                                className="ml-2 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                              >
+                                {deploymentLabel}
+                              </UiBadge>
+                            )}
+                          </div>
                         </Link>
                       </td>
                       <td className="px-4 py-3.5 text-sm text-muted-foreground">{pricing.provider_name}</td>
@@ -826,6 +980,7 @@ export default async function LeaderboardsPage({
               <tbody>
                 {valueModels.map((pricing, i) => {
                   const model = pricing.models as { id: string; slug: string; name: string; provider: string; quality_score: number | null };
+                  const deploymentLabel = getDeploymentLabelForModel(model);
                   return (
                     <tr key={pricing.id} className="border-b border-border/30 table-row-hover">
                       <td className="px-4 py-3.5">
@@ -835,7 +990,17 @@ export default async function LeaderboardsPage({
                       </td>
                       <td className="px-4 py-3.5">
                         <Link href={`/models/${model.slug}`}>
-                          <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                          <div>
+                            <span className="text-sm font-semibold hover:text-neon transition-colors">{model.name}</span>
+                            {deploymentLabel && (
+                              <UiBadge
+                                variant="outline"
+                                className="ml-2 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                              >
+                                {deploymentLabel}
+                              </UiBadge>
+                            )}
+                          </div>
                         </Link>
                       </td>
                       <td className="px-4 py-3.5 text-sm text-muted-foreground">{pricing.provider_name}</td>
