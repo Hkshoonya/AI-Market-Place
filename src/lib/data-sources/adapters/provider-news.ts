@@ -48,6 +48,9 @@ const MONTH_MAP: Record<string, string> = {
   january: "01", february: "02", march: "03", april: "04",
   may: "05", june: "06", july: "07", august: "08",
   september: "09", october: "10", november: "11", december: "12",
+  jan: "01", feb: "02", mar: "03", apr: "04",
+  jun: "06", jul: "07", aug: "08", sep: "09",
+  sept: "09", oct: "10", nov: "11", dec: "12",
 };
 
 /** Resolve a potentially relative href to an absolute URL using the blog's origin. */
@@ -66,7 +69,7 @@ function resolveUrl(href: string, baseUrl: string): string {
 /** Parse "January 15, 2025" or "January 15 2025" style dates to ISO string. */
 function parseMonthNameDate(raw: string): string | null {
   const m = raw.match(
-    /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(\d{4})/i
+    /(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2}),?\s+(\d{4})/i
   );
   if (!m) return null;
   const month = MONTH_MAP[m[1].toLowerCase()];
@@ -87,7 +90,7 @@ function extractDate(html: string): string | null {
 
   // Month-name pattern: "January 15, 2025"
   const monthNameMatch = html.match(
-    /(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4}/gi
+    /(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+\d{1,2},?\s+\d{4}/gi
   );
   if (monthNameMatch) return parseMonthNameDate(monthNameMatch[0]);
 
@@ -103,6 +106,11 @@ function stripHtml(raw: string): string {
 function isModelRelated(title: string): boolean {
   const lower = title.toLowerCase();
   return MODEL_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+function inferPublishedAt(article: ParsedArticle): string | null {
+  if (article.date) return article.date;
+  return extractDate(article.title);
 }
 
 interface ParsedArticle {
@@ -299,6 +307,7 @@ const adapter: DataSourceAdapter = {
         for (const article of relevant) {
           recordsProcessed++;
           const signal = classifyNewsSignal(article.title);
+          const publishedAt = inferPublishedAt(article);
           const metadata: Record<string, unknown> = {
             provider: blog.provider,
             blog_url: blog.url,
@@ -323,7 +332,7 @@ const adapter: DataSourceAdapter = {
             title: article.title.slice(0, 500),
             summary: null,
             url: article.url,
-            published_at: article.date ?? new Date().toISOString(),
+            published_at: publishedAt ?? new Date().toISOString(),
             category: signal.category,
             related_provider: blog.provider,
             related_model_ids: relatedModelIds,
@@ -389,6 +398,7 @@ const adapter: DataSourceAdapter = {
 };
 
 export const __testables = {
+  inferPublishedAt,
   isModelRelated,
   parseZaiReleaseNotes,
   providerBlogs: PROVIDER_BLOGS,

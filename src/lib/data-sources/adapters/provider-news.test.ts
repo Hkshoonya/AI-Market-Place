@@ -60,4 +60,15 @@ describe("provider-news health aggregation", () => {
       },
     ]);
   });
+
+  it("falls back to a date embedded in the article title when listing metadata omits it", () => {
+    expect(
+      __testables.inferPublishedAt({
+        url: "https://www.anthropic.com/news/claude-opus-4-6",
+        title:
+          "Announcements Feb 5, 2026 Introducing Claude Opus 4.6 We’re upgrading our smartest model.",
+        date: null,
+      })
+    ).toBe("2026-02-05T00:00:00.000Z");
+  });
 });

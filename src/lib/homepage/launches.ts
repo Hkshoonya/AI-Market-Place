@@ -2,7 +2,7 @@ import { getNewsSignalType } from "@/lib/news/presentation";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 
 const RECENT_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-const RECENT_MODEL_RELEASE_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
+const RECENT_MODEL_RELEASE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const SURFACEABLE_SOURCES = new Set(["provider-blog", "x-twitter"]);
 
 export interface HomepageLaunchModel {

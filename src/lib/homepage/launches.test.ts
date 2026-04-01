@@ -105,6 +105,40 @@ describe("buildHomepageLaunchSelections", () => {
     expect(result[0]?.surfacedAt).toBe("2026-03-28T00:48:03.917541+00:00");
   });
 
+  it("does not resurface older launches just because the provider post was re-synced recently", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "anthropic-claude-opus-4-6",
+          provider: "Anthropic",
+          release_date: "2026-02-04",
+          created_at: "2026-02-28T19:34:00.044125+00:00",
+          quality_score: 72.9,
+          capability_score: 81.7,
+        },
+        {
+          id: "real-new-launch",
+          provider: "MiniMax",
+          release_date: "2026-03-30",
+          quality_score: 64,
+        },
+      ],
+      [
+        {
+          source: "provider-blog",
+          published_at: "2026-02-05T00:00:00.000Z",
+          related_provider: "Anthropic",
+          related_model_ids: ["anthropic-claude-opus-4-6"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+      ],
+      2,
+      Date.parse("2026-04-01T15:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["real-new-launch"]);
+  });
+
   it("skips low-signal created-at fallback rows when no release evidence exists", () => {
     const result = buildHomepageLaunchSelections(
       [
