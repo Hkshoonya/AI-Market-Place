@@ -31,6 +31,10 @@ import {
 import { useAuth } from "@/components/auth/auth-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  formatWalletTopUpList,
+  SUGGESTED_WALLET_TOP_UP_LABELS,
+} from "@/lib/constants/wallet";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -253,7 +257,8 @@ export default function WalletContent() {
               subscriptions, and future pay-as-you-go usage.
             </p>
             <p className="mt-3 text-xs text-muted-foreground">
-              The simplest top-up packs are $20, $40, $60, and $100. After that, spending draws down from the same balance.
+              The simplest top-up packs are {formatWalletTopUpList()}. After that, spending draws
+              down from the same balance.
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-card/30 p-4">
@@ -261,7 +266,7 @@ export default function WalletContent() {
               Suggested top-up packs
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {["$20", "$40", "$60", "$100"].map((amount) => (
+              {SUGGESTED_WALLET_TOP_UP_LABELS.map((amount) => (
                 <Badge key={amount} variant="outline" className="border-neon/20 bg-neon/5 text-neon">
                   {amount}
                 </Badge>

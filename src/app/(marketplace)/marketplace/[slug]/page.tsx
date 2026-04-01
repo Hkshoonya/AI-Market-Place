@@ -27,6 +27,7 @@ import {
   getListingPillClasses,
 } from "@/lib/marketplace/presentation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
+import { formatWalletTopUpList } from "@/lib/constants/wallet";
 import { SITE_URL } from "@/lib/constants/site";
 import type { Metadata } from "next";
 import type { MarketplacePricingType } from "@/types/database";
@@ -65,7 +66,7 @@ function getCheckoutSummary(pricingType: MarketplacePricingType | string) {
     description:
       "Paid listings use your AI Market Cap wallet balance. Top up credits once, then purchase directly from the listing page and receive delivery in the purchase flow.",
     steps: [
-      "Top up wallet credits in $20, $40, $60, or $100 packs",
+      `Top up wallet credits in ${formatWalletTopUpList()} packs`,
       "Confirm the purchase from your balance",
       "Receive API keys, files, links, or seller instructions",
     ],

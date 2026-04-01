@@ -4,6 +4,10 @@ import Link from "next/link";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WalletBalance } from "@/hooks/use-wallet-balance";
+import {
+  formatWalletTopUpList,
+  SUGGESTED_WALLET_TOP_UP_LABELS,
+} from "@/lib/constants/wallet";
 
 interface WalletDepositPanelProps {
   walletData: WalletBalance | null;
@@ -22,11 +26,12 @@ export function WalletDepositPanel({
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <p className="text-sm font-medium text-amber-400">Insufficient balance</p>
       <p className="text-xs text-muted-foreground">
-        Deposit USDC to top up your wallet. Common top-up packs are $20, $40, $60, and $100.
+        Deposit USDC to top up your wallet. Common top-up packs are{" "}
+        {formatWalletTopUpList()}.
       </p>
 
       <div className="flex flex-wrap gap-2">
-        {["$20", "$40", "$60", "$100"].map((amount) => (
+        {SUGGESTED_WALLET_TOP_UP_LABELS.map((amount) => (
           <span
             key={amount}
             className="rounded-full border border-amber-500/20 bg-background/60 px-2.5 py-1 text-[11px] text-amber-200"
