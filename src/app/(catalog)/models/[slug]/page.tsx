@@ -196,6 +196,7 @@ export default async function ModelDetailPage({
       },
     ],
   }).offersByModelId[model.id] ?? [];
+  const bestAccessOffer = modelAccessOffers[0] ?? null;
   type UpdateEntry = import("./_components/changelog-tab").UpdateEntry;
   const updates = (model.model_updates ?? []) as UpdateEntry[];
   const latestModelUpdateAt =
@@ -288,6 +289,9 @@ export default async function ModelDetailPage({
         catConfig={catConfig}
         hasNews={modelNews.length > 0}
         latestUpdateAt={latestModelUpdateAt}
+        deployActionLabel={
+          bestAccessOffer?.actionLabel ?? (model.is_open_weights ? "Self-Host" : null)
+        }
       />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (

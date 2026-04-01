@@ -20,6 +20,7 @@ export interface ModelHeaderProps {
   catConfig: CategoryConfig | undefined;
   hasNews?: boolean;
   latestUpdateAt?: string | null;
+  deployActionLabel?: string | null;
 }
 
 export function ModelHeader({
@@ -34,6 +35,7 @@ export function ModelHeader({
   catConfig,
   hasNews,
   latestUpdateAt,
+  deployActionLabel,
 }: ModelHeaderProps) {
   return (
     <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
@@ -102,6 +104,14 @@ export function ModelHeader({
               <Link href={`/models/${slug}?tab=news#model-tabs`}>
                 <Newspaper className="h-4 w-4" />
                 View Updates
+              </Link>
+            </Button>
+          ) : null}
+          {deployActionLabel ? (
+            <Button size="sm" className="gap-2" asChild>
+              <Link href={`/models/${slug}?tab=deploy#model-tabs`}>
+                <Globe className="h-4 w-4" />
+                {deployActionLabel}
               </Link>
             </Button>
           ) : null}
