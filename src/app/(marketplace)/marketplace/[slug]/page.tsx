@@ -33,6 +33,45 @@ import type { MarketplacePricingType } from "@/types/database";
 
 export const revalidate = 3600;
 
+function getCheckoutSummary(pricingType: MarketplacePricingType | string) {
+  if (pricingType === "free") {
+    return {
+      title: "Get access instantly",
+      description:
+        "Free listings can be claimed right away. If the seller attached delivery data, you will receive it immediately after confirming.",
+      steps: [
+        "Open the access dialog",
+        "Confirm free access",
+        "Receive delivery details right away",
+      ],
+    };
+  }
+
+  if (pricingType === "contact") {
+    return {
+      title: "Request a quote first",
+      description:
+        "This listing is not priced for instant checkout yet. Use the contact form to request pricing, scope, or enterprise terms from the seller.",
+      steps: [
+        "Send your requirements",
+        "Agree on pricing and scope",
+        "Complete the deal with the seller",
+      ],
+    };
+  }
+
+  return {
+    title: "Buy with wallet credits",
+    description:
+      "Paid listings use your AI Market Cap wallet balance. Top up credits once, then purchase directly from the listing page and receive delivery in the purchase flow.",
+    steps: [
+      "Top up wallet credits in $20, $40, $60, or $100 packs",
+      "Confirm the purchase from your balance",
+      "Receive API keys, files, links, or seller instructions",
+    ],
+  };
+}
+
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = createPublicClient();
@@ -111,6 +150,7 @@ export default async function ListingDetailPage(props: {
     preview_manifest: listing.preview_manifest ?? null,
   });
   const commerceSignals = getListingCommerceSignals(listing);
+  const checkoutSummary = getCheckoutSummary(listing.pricing_type);
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
@@ -221,6 +261,48 @@ export default async function ListingDetailPage(props: {
                     price: listing.price,
                   }}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-card">
+            <CardContent className="grid gap-4 p-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <div>
+                <h2 className="text-base font-semibold">{checkoutSummary.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {checkoutSummary.description}
+                </p>
+                {listing.pricing_type !== "contact" ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Credits live in your wallet and are reused across marketplace purchases. The default top-up packs are
+                    designed for simple checkout, then usage continues pay-as-you-go from that balance.
+                  </p>
+                ) : null}
+              </div>
+              <div className="rounded-xl border border-border/50 bg-card/30 p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  What happens next
+                </p>
+                <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {checkoutSummary.steps.map((step, index) => (
+                    <li key={step} className="flex gap-3">
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neon/10 text-[11px] font-semibold text-neon">
+                        {index + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {listing.pricing_type !== "contact" ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/wallet">Open Wallet</Link>
+                    </Button>
+                  ) : null}
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/orders">View Orders</Link>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
