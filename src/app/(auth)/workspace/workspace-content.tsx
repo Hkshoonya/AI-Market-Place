@@ -46,6 +46,22 @@ interface WorkspaceChatSnapshot {
   messages: WorkspaceChatMessage[];
 }
 
+interface WorkspaceRuntimeSnapshot {
+  runtime: {
+    id: string;
+    modelSlug: string;
+    modelName: string;
+    providerName: string | null;
+    status: "draft" | "ready" | "paused";
+    endpointSlug: string;
+    endpointPath: string;
+    totalRequests: number;
+    totalTokens: number;
+    lastUsedAt: string | null;
+    updatedAt: string;
+  } | null;
+}
+
 export default function WorkspaceContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,6 +71,8 @@ export default function WorkspaceContent() {
   const [assistantDraft, setAssistantDraft] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [runtimeLoading, setRuntimeLoading] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -73,6 +91,12 @@ export default function WorkspaceContent() {
   const { data: chatSnapshot, mutate: mutateChatSnapshot } = useSWR<WorkspaceChatSnapshot>(
     user && workspace.session?.conversationId
       ? `/api/workspace/chat?conversation_id=${encodeURIComponent(workspace.session.conversationId)}`
+      : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: runtimeSnapshot, mutate: mutateRuntimeSnapshot } = useSWR<WorkspaceRuntimeSnapshot>(
+    user && workspace.session?.modelSlug
+      ? `/api/workspace/runtime?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}`
       : null,
     { ...SWR_TIERS.MEDIUM }
   );
@@ -137,6 +161,7 @@ export default function WorkspaceContent() {
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
+  const runtime = runtimeSnapshot?.runtime ?? null;
   const assistantUsage = chatMessages.reduce(
     (acc, message) => {
       const usage = message.metadata?.usage;
@@ -158,6 +183,11 @@ export default function WorkspaceContent() {
       label: "Prepare API access",
       done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
       detail: "Create account-side API keys and keep them attached to the same workspace.",
+    },
+    {
+      label: "Activate runtime record",
+      done: runtime?.status === "ready",
+      detail: "Prepare one stable in-site runtime record so chat, API keys, and future usage logs attach to the same model session.",
     },
     {
       label: "Continue to runtime",
@@ -221,6 +251,44 @@ export default function WorkspaceContent() {
       );
     } finally {
       setAssistantLoading(false);
+    }
+  };
+
+  const activateRuntime = async () => {
+    if (!session.modelSlug || !session.model) return;
+    setRuntimeLoading(true);
+    setRuntimeError(null);
+
+    try {
+      const response = await fetch("/api/workspace/runtime", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug: session.modelSlug,
+          modelName: session.model,
+          providerName: session.provider,
+          conversationId: session.conversationId,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to prepare runtime");
+      }
+
+      workspace.addWorkspaceEvent(
+        "Runtime prepared",
+        session.model
+          ? `Prepared a stable in-site runtime record for ${session.model}.`
+          : "Prepared a stable in-site runtime record."
+      );
+      await mutateRuntimeSnapshot();
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : "Failed to prepare runtime");
+    } finally {
+      setRuntimeLoading(false);
     }
   };
 
@@ -321,13 +389,15 @@ export default function WorkspaceContent() {
         <Card className="border-border/50 bg-card/60">
           <CardContent className="p-4">
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Tracked Tokens</p>
-            <p className="mt-1 text-xl font-semibold text-white">{assistantUsage.totalTokens}</p>
+            <p className="mt-1 text-xl font-semibold text-white">
+              {runtime?.totalTokens ?? assistantUsage.totalTokens}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-card/60">
           <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Session Events</p>
-            <p className="mt-1 text-xl font-semibold text-white">{session.events.length}</p>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Runtime Requests</p>
+            <p className="mt-1 text-xl font-semibold text-white">{runtime?.totalRequests ?? 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -389,6 +459,52 @@ export default function WorkspaceContent() {
                   {session.provider ? (
                     <p className="text-sm text-muted-foreground">via {session.provider}</p>
                   ) : null}
+                </div>
+
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Runtime record
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-white">
+                        {runtime ? "Prepared inside AI Market Cap" : "Not prepared yet"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {runtime
+                          ? "This stable runtime record is where future chat, API, and usage layers will attach for this model."
+                          : "Prepare one stable runtime record before deeper chat/API usage starts here."}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        runtime
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                          : "border-border/50 bg-card/40"
+                      )}
+                    >
+                      {runtime?.status ?? "draft"}
+                    </Badge>
+                  </div>
+                  {runtime ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Reserved endpoint
+                      </p>
+                      <code className="mt-1 block text-xs text-foreground">{runtime.endpointPath}</code>
+                    </div>
+                  ) : null}
+                  {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
+                  <div className="mt-3">
+                    <Button variant="outline" onClick={activateRuntime} disabled={runtimeLoading}>
+                      {runtimeLoading
+                        ? "Preparing..."
+                        : runtime
+                          ? "Refresh Runtime Setup"
+                          : "Activate Runtime"}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -538,6 +654,29 @@ export default function WorkspaceContent() {
               <div className="mb-4 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-neon" />
                 <h2 className="text-lg font-semibold text-white">Session history</h2>
+              </div>
+              <div className="mb-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Runtime status</p>
+                  <p className="mt-1 text-sm font-medium text-white">{runtime?.status ?? "draft"}</p>
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Updated</p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {runtime?.updatedAt
+                      ? new Date(runtime.updatedAt).toLocaleString([], {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })
+                      : "Not prepared"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Session events</p>
+                  <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
+                </div>
               </div>
               <div className="space-y-3">
                 {session.events.map((event) => (

@@ -802,6 +802,22 @@ export interface WorkspaceSessionRecord {
   updated_at: string;
 }
 
+export interface WorkspaceRuntimeRecord {
+  id: string;
+  user_id: string;
+  model_slug: string;
+  model_name: string;
+  provider_name: string | null;
+  workspace_conversation_id: string | null;
+  status: "draft" | "ready" | "paused";
+  endpoint_slug: string;
+  total_requests: number;
+  total_tokens: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Wallet & Payment types
 export type WalletOwnerType = 'user' | 'agent';
 export type WalletTxType = 'deposit' | 'withdrawal' | 'purchase' | 'sale' | 'escrow_hold' | 'escrow_release' | 'bid_hold' | 'bid_release' | 'refund' | 'platform_fee' | 'api_charge';
@@ -1364,6 +1380,12 @@ export interface Database {
         Row: AsRow<WorkspaceSessionRecord>;
         Insert: Partial<WorkspaceSessionRecord> & Pick<WorkspaceSessionRecord, "user_id" | "workspace_state">;
         Update: Partial<WorkspaceSessionRecord>;
+        Relationships: [];
+      };
+      workspace_runtimes: {
+        Row: AsRow<WorkspaceRuntimeRecord>;
+        Insert: Partial<WorkspaceRuntimeRecord> & Pick<WorkspaceRuntimeRecord, "user_id" | "model_slug" | "model_name" | "endpoint_slug">;
+        Update: Partial<WorkspaceRuntimeRecord>;
         Relationships: [];
       };
       wallets: {
