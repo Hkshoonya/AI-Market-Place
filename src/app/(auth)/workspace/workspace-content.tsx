@@ -1,0 +1,572 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  KeyRound,
+  MessageSquare,
+  Wallet,
+} from "lucide-react";
+import useSWR from "swr";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SWR_TIERS } from "@/lib/swr/config";
+import { cn } from "@/lib/utils";
+
+interface WorkspaceWalletSnapshot {
+  balance: number;
+}
+
+interface WorkspaceApiKeysSnapshot {
+  keys: Array<{ id: string; is_active: boolean }>;
+}
+
+interface WorkspaceChatMessage {
+  id: string;
+  sender_type: "agent" | "user";
+  content: string;
+  metadata?: {
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    } | null;
+  } | null;
+  created_at: string;
+}
+
+interface WorkspaceChatSnapshot {
+  messages: WorkspaceChatMessage[];
+}
+
+export default function WorkspaceContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, loading } = useAuth();
+  const workspace = useWorkspace();
+  const [noteDraft, setNoteDraft] = useState("");
+  const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, pathname, router, user]);
+
+  const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
+    user && workspace.session ? "/api/marketplace/wallet?limit=1" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: apiKeysSnapshot } = useSWR<WorkspaceApiKeysSnapshot>(
+    user && workspace.session ? "/api/api-keys" : null,
+    { ...SWR_TIERS.SLOW }
+  );
+  const { data: chatSnapshot, mutate: mutateChatSnapshot } = useSWR<WorkspaceChatSnapshot>(
+    user && workspace.session?.conversationId
+      ? `/api/workspace/chat?conversation_id=${encodeURIComponent(workspace.session.conversationId)}`
+      : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-56 rounded bg-secondary" />
+          <div className="h-48 rounded-2xl bg-secondary" />
+          <div className="h-80 rounded-2xl bg-secondary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  if (!workspace.session) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10">
+        <Card className="border-border/50 bg-card">
+          <CardContent className="space-y-4 p-8 text-center">
+            <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+              Workspace
+            </Badge>
+            <h1 className="text-2xl font-semibold text-white">No active workspace yet</h1>
+            <p className="text-sm text-muted-foreground">
+              Start from any model page and choose the verified deploy or access path. Your
+              in-site workspace will appear here and stay attached to your account.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                <Link href="/models">Browse Models</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/marketplace">Open Marketplace</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { session } = workspace;
+  const params = new URLSearchParams({
+    intent: "deploy",
+    model: session.model ?? "",
+    modelSlug: session.modelSlug ?? "",
+    action: session.action ?? "",
+    next: session.nextUrl ?? "",
+  });
+  if (session.provider) params.set("provider", session.provider);
+  if (session.suggestedAmount) params.set("amount", String(session.suggestedAmount));
+  if (session.suggestedPackSlug) params.set("pack", session.suggestedPackSlug);
+  if (session.suggestedPack) params.set("packLabel", session.suggestedPack);
+  if (session.sponsored) params.set("sponsored", "1");
+
+  const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
+  const apiHref = `/settings/api-keys?${params.toString()}`;
+  const events = session.events;
+  const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
+  const chatMessages = chatSnapshot?.messages ?? [];
+  const assistantUsage = chatMessages.reduce(
+    (acc, message) => {
+      const usage = message.metadata?.usage;
+      if (message.sender_type === "agent") acc.turns += 1;
+      acc.totalTokens += usage?.totalTokens ?? 0;
+      return acc;
+    },
+    { turns: 0, totalTokens: 0 }
+  );
+  const stepItems = [
+    {
+      label: "Fund credits",
+      done: events.some((event) => /wallet|deposit/i.test(`${event.title} ${event.detail}`)),
+      detail: session.suggestedPack
+        ? `Use ${session.suggestedPack} if this path still needs balance.`
+        : "Top up the wallet only if this access path is paid.",
+    },
+    {
+      label: "Prepare API access",
+      done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
+      detail: "Create account-side API keys and keep them attached to the same workspace.",
+    },
+    {
+      label: "Continue to runtime",
+      done: events.some((event) => /provider/i.test(`${event.title} ${event.detail}`)),
+      detail: "Open the verified provider/runtime path only after setup is ready.",
+    },
+  ];
+
+  const saveNote = () => {
+    const trimmed = noteDraft.trim();
+    if (!trimmed) return;
+    workspace.addWorkspaceEvent("Session note", trimmed, "user");
+    setNoteDraft("");
+  };
+
+  const askAssistant = async () => {
+    const trimmed = assistantDraft.trim();
+    if (!trimmed || assistantLoading) return;
+
+    workspace.addWorkspaceEvent("Workspace question", trimmed, "user");
+    setAssistantLoading(true);
+    setAssistantError(null);
+    setAssistantDraft("");
+
+    try {
+      const response = await fetch("/api/workspace/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          conversation_id: session.conversationId ?? undefined,
+          topic: session.model ? `Deploy workspace for ${session.model}` : "Deploy workspace",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to contact workspace assistant");
+      }
+
+      if (payload.conversation_id) {
+        workspace.updateWorkspaceSession({
+          conversationId: payload.conversation_id,
+        });
+      }
+
+      if (payload.response?.content) {
+        workspace.addWorkspaceEvent("Assistant reply", payload.response.content, "system");
+      }
+
+      await mutateChatSnapshot();
+    } catch (error) {
+      setAssistantError(
+        error instanceof Error ? error.message : "Failed to contact workspace assistant"
+      );
+      workspace.addWorkspaceEvent(
+        "Assistant unavailable",
+        "The in-site workspace assistant could not answer right now."
+      );
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+              In-site Workspace
+            </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                "border-border/50 bg-card/40",
+                workspace.persistenceStatus === "saved" &&
+                  "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+                workspace.persistenceStatus === "saving" &&
+                  "border-amber-500/20 bg-amber-500/10 text-amber-200",
+                workspace.persistenceStatus === "error" &&
+                  "border-red-500/20 bg-red-500/10 text-red-300"
+              )}
+            >
+              {workspace.persistenceStatus === "saved"
+                ? "Saved to account"
+                : workspace.persistenceStatus === "saving"
+                  ? "Saving"
+                  : workspace.persistenceStatus === "loading"
+                    ? "Loading saved session"
+                    : "Browser only"}
+            </Badge>
+            {session.suggestedPack ? (
+              <Badge variant="outline" className="border-border/50 bg-card/40">
+                {session.suggestedPack}
+              </Badge>
+            ) : null}
+          </div>
+          <div>
+            <h1 className="text-3xl font-semibold text-white">
+              {session.model ? `${session.model} workspace` : "Model workspace"}
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Stay inside AI Market Cap while you fund, prepare access, chat through the setup,
+              and keep a usable history of what happened for this model.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {["Chat UI", "API access", "Usage tracking"].map((item) => (
+              <Badge key={item} variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={workspace.minimizeWorkspace}>
+            Minimize Panel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              workspace.maximizeWorkspace();
+              workspace.setActivePanel("setup");
+            }}
+          >
+            Open Floating Console
+          </Button>
+          {session.modelSlug ? (
+            <Button variant="outline" asChild>
+              <Link href={`/models/${session.modelSlug}?tab=deploy#model-tabs`}>Back to Model</Link>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <Card className="border-border/50 bg-card/60">
+          <CardContent className="p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Wallet</p>
+            <p className="mt-1 text-xl font-semibold text-white">
+              {typeof walletSnapshot?.balance === "number" ? `$${walletSnapshot.balance.toFixed(2)}` : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/60">
+          <CardContent className="p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">API Keys</p>
+            <p className="mt-1 text-xl font-semibold text-white">{activeApiKeys}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/60">
+          <CardContent className="p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Assistant Turns</p>
+            <p className="mt-1 text-xl font-semibold text-white">{assistantUsage.turns}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/60">
+          <CardContent className="p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Tracked Tokens</p>
+            <p className="mt-1 text-xl font-semibold text-white">{assistantUsage.totalTokens}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/60">
+          <CardContent className="p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Session Events</p>
+            <p className="mt-1 text-xl font-semibold text-white">{session.events.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="runtime" className="mt-8">
+        <TabsList variant="line" className="w-full">
+          <TabsTrigger value="runtime">Runtime</TabsTrigger>
+          <TabsTrigger value="assistant">Assistant</TabsTrigger>
+          <TabsTrigger value="usage">Usage</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="runtime" className="mt-6 space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <Card className="border-border/50 bg-card/60">
+              <CardContent className="p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-white">Setup progress</h2>
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
+                    {stepItems.filter((item) => item.done).length}/{stepItems.length} complete
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {stepItems.map((item) => (
+                    <div
+                      key={item.label}
+                      className={cn(
+                        "rounded-lg border px-4 py-3",
+                        item.done
+                          ? "border-emerald-500/20 bg-emerald-500/10"
+                          : "border-border/40 bg-card/30"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-white">{item.label}</p>
+                        {item.done ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                        ) : (
+                          <Badge variant="outline" className="border-border/50 bg-card/40">
+                            Next
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 bg-card/60">
+              <CardContent className="space-y-4 p-5">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Best path right now
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    {session.action ?? "Continue setup"}
+                  </p>
+                  {session.provider ? (
+                    <p className="text-sm text-muted-foreground">via {session.provider}</p>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                    <Link href={walletHref}>
+                      <Wallet className="h-4 w-4" />
+                      Wallet
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={apiHref}>
+                      <KeyRound className="h-4 w-4" />
+                      API Keys
+                    </Link>
+                  </Button>
+                  {session.nextUrl ? (
+                    <Button asChild variant="outline" className="sm:col-span-2">
+                      <a
+                        href={session.nextUrl}
+                        target="_blank"
+                        rel={session.sponsored ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                        Continue to Provider
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-neon" />
+                <h2 className="text-lg font-semibold text-white">Session note</h2>
+              </div>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Keep brief context here. It stays attached to this saved workspace session and
+                remains visible in the full history.
+              </p>
+              <textarea
+                value={noteDraft}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                rows={4}
+                placeholder="Add a note about what you want to do with this model or what happened during setup."
+                className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
+              />
+              <div className="mt-3 flex justify-end">
+                <Button variant="outline" disabled={noteDraft.trim().length === 0} onClick={saveNote}>
+                  Save Note
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="assistant" className="mt-6 space-y-6">
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-neon" />
+                <h2 className="text-lg font-semibold text-white">Workspace assistant</h2>
+              </div>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Ask what to do next for this model. The assistant stays tied to the same workspace
+                conversation and transcript.
+              </p>
+              <textarea
+                value={assistantDraft}
+                onChange={(event) => setAssistantDraft(event.target.value)}
+                rows={4}
+                placeholder="Example: What should I do next to start using this model here?"
+                className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  "What should I do first?",
+                  "Do I need credits for this path?",
+                  "How do I prepare API access?",
+                ].map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setAssistantDraft(prompt)}
+                    className="rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-neon/30 hover:text-foreground"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              {assistantError ? <p className="mt-3 text-xs text-red-400">{assistantError}</p> : null}
+              <div className="mt-3 flex justify-end">
+                <Button variant="outline" disabled={assistantDraft.trim().length === 0 || assistantLoading} onClick={askAssistant}>
+                  {assistantLoading ? "Sending..." : "Ask Assistant"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-neon" />
+                <h2 className="text-lg font-semibold text-white">Transcript</h2>
+              </div>
+              <div className="space-y-3">
+                {chatMessages.length > 0 ? (
+                  chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        "rounded-lg border px-4 py-3 text-sm",
+                        message.sender_type === "agent"
+                          ? "border-border/40 bg-card/30 text-muted-foreground"
+                          : "border-neon/20 bg-neon/10 text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-white">
+                          {message.sender_type === "agent" ? "Assistant" : "You"}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wide opacity-70">
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+                    No assistant transcript yet. Ask a question to start the workspace conversation.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usage" className="mt-6">
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-neon" />
+                <h2 className="text-lg font-semibold text-white">Session history</h2>
+              </div>
+              <div className="space-y-3">
+                {session.events.map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "rounded-lg border px-4 py-3 text-sm",
+                      event.type === "system"
+                        ? "border-border/40 bg-card/30 text-muted-foreground"
+                        : "border-neon/20 bg-neon/10 text-foreground"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-white">{event.title}</span>
+                      <span className="text-[10px] uppercase tracking-wide opacity-70">
+                        {new Date(event.createdAt).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="mt-1">{event.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
