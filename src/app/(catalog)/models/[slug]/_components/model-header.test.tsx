@@ -116,4 +116,53 @@ describe("ModelHeader", () => {
       "news + changelog"
     );
   });
+
+  it("uses the verified external deploy path when one exists", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights={false}
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        deployActionLabel="Get API Access"
+        deployActionHref="https://platform.example.com/test-model"
+        deployActionExternal
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /get api access/i })).toHaveAttribute(
+      "href",
+      "https://platform.example.com/test-model"
+    );
+  });
+
+  it("marks sponsored deploy links with SEO-safe rel values", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights={false}
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        deployActionLabel="Deploy"
+        deployActionHref="https://partner.example.com/deploy"
+        deployActionExternal
+        deployActionSponsored
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /deploy/i })).toHaveAttribute(
+      "rel",
+      "noopener noreferrer sponsored nofollow"
+    );
+  });
 });

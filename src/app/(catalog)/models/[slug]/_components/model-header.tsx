@@ -21,6 +21,9 @@ export interface ModelHeaderProps {
   hasNews?: boolean;
   latestUpdateAt?: string | null;
   deployActionLabel?: string | null;
+  deployActionHref?: string | null;
+  deployActionExternal?: boolean;
+  deployActionSponsored?: boolean;
 }
 
 export function ModelHeader({
@@ -36,6 +39,9 @@ export function ModelHeader({
   hasNews,
   latestUpdateAt,
   deployActionLabel,
+  deployActionHref,
+  deployActionExternal,
+  deployActionSponsored,
 }: ModelHeaderProps) {
   return (
     <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
@@ -107,12 +113,28 @@ export function ModelHeader({
               </Link>
             </Button>
           ) : null}
-          {deployActionLabel ? (
+          {deployActionLabel && deployActionHref ? (
             <Button size="sm" className="gap-2" asChild>
-              <Link href={`/models/${slug}?tab=deploy#model-tabs`}>
-                <Globe className="h-4 w-4" />
-                {deployActionLabel}
-              </Link>
+              {deployActionExternal ? (
+                <a
+                  href={deployActionHref}
+                  target="_blank"
+                  rel={
+                    deployActionSponsored
+                      ? "noopener noreferrer sponsored nofollow"
+                      : "noopener noreferrer"
+                  }
+                >
+                  <Globe className="h-4 w-4" />
+                  {deployActionLabel}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <Link href={deployActionHref}>
+                  <Globe className="h-4 w-4" />
+                  {deployActionLabel}
+                </Link>
+              )}
             </Button>
           ) : null}
           <ModelActions modelSlug={slug} modelName={name} modelId={id} />

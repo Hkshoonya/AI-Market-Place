@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Wallet,
@@ -72,6 +72,8 @@ interface Transaction {
 
 export default function WalletContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<TxTypeFilter>("all");
@@ -104,9 +106,11 @@ export default function WalletContent() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login?redirect=/wallet");
+      const queryString = searchParams.toString();
+      const redirectTarget = queryString ? `${pathname}?${queryString}` : pathname;
+      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [user, authLoading, router]);
+  }, [authLoading, pathname, router, searchParams, user]);
 
   const handleGenerateAddress = async () => {
     setGenerating(true);

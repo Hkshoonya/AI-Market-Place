@@ -54,7 +54,9 @@ function getPlatformUrl(platform: Platform, deployUrl?: string | null): string {
 
 /** Returns proper rel attribute: sponsored for affiliate links */
 function getLinkRel(platform: Platform): string {
-  return platform.affiliate_url ? "noopener sponsored" : "noopener noreferrer";
+  return platform.affiliate_url
+    ? "noopener noreferrer sponsored nofollow"
+    : "noopener noreferrer";
 }
 
 function getActionLabel(platform: Platform, freeTier: string | null): string {
