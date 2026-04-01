@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -23,12 +24,7 @@ import { HomeTopModelSchema } from "@/lib/schemas/models";
 import { formatNumber } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
-import { ProviderMarketShare } from "@/components/charts/provider-market-share";
-import { CategoryDistribution } from "@/components/charts/category-distribution";
-import TopMovers from "@/components/charts/top-movers";
-import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
-import { TrendingModels } from "@/components/models/trending-models";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
@@ -36,13 +32,50 @@ import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
-import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
+import {
+  buildAccessOffersCatalog,
+  getBestAccessOfferForModel,
+} from "@/lib/models/access-offers";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
+
+const TopMovers = dynamic(() => import("@/components/charts/top-movers"), {
+  loading: () => <div className="h-[400px] animate-pulse rounded-xl bg-card" />,
+});
+
+const QualityPriceFrontier = dynamic(
+  () => import("@/components/charts/quality-price-frontier"),
+  { loading: () => <div className="h-[500px] animate-pulse rounded-xl bg-card" /> }
+);
+
+const ProviderMarketShare = dynamic(
+  () =>
+    import("@/components/charts/provider-market-share").then((module) => ({
+      default: module.ProviderMarketShare,
+    })),
+  { loading: () => <div className="h-[350px] animate-pulse rounded-xl bg-card" /> }
+);
+
+const CategoryDistribution = dynamic(
+  () =>
+    import("@/components/charts/category-distribution").then((module) => ({
+      default: module.CategoryDistribution,
+    })),
+  { loading: () => <div className="h-[350px] animate-pulse rounded-xl bg-card" /> }
+);
+
+const TrendingModels = dynamic(
+  () =>
+    import("@/components/models/trending-models").then((module) => ({
+      default: module.TrendingModels,
+    })),
+  { loading: () => <div className="h-[400px] animate-pulse rounded-xl bg-card" /> }
+);
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} - Track, Compare & Discover AI Models`,
@@ -444,6 +477,10 @@ export default async function HomePage() {
                   eloRatings: model.elo_ratings,
                   pricingEntries: model.model_pricing,
                 });
+                const deploymentLabel = getDeployabilityLabel({
+                  isOpenWeights: model.is_open_weights,
+                  accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
+                });
 
                 return (
                   <tr
@@ -472,6 +509,14 @@ export default async function HomePage() {
                             <p className="text-xs text-muted-foreground line-clamp-1">
                               {model.provider}
                             </p>
+                            {deploymentLabel ? (
+                              <Badge
+                                variant="outline"
+                                className="mt-1 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                              >
+                                {deploymentLabel}
+                              </Badge>
+                            ) : null}
                           </div>
                         </div>
                       </Link>
@@ -639,6 +684,10 @@ export default async function HomePage() {
             const parameterDisplay = getParameterDisplay(model);
             const surfaceDateValue = surfacedAt ?? model.release_date;
             const dateLabel = getRelativeDateLabel(surfaceDateValue, now);
+            const deploymentLabel = getDeployabilityLabel({
+              isOpenWeights: model.is_open_weights,
+              accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
+            });
 
             return (
               <Link key={model.id} href={`/models/${model.slug}`}>
@@ -678,10 +727,20 @@ export default async function HomePage() {
                           {catConfig.shortLabel}
                         </Badge>
                       )}
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Zap className="h-3 w-3 text-neon" />
-                        {parameterDisplay.label}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {deploymentLabel ? (
+                          <Badge
+                            variant="outline"
+                            className="border-cyan-500/30 bg-cyan-500/10 text-[11px] text-cyan-200"
+                          >
+                            {deploymentLabel}
+                          </Badge>
+                        ) : null}
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Zap className="h-3 w-3 text-neon" />
+                          {parameterDisplay.label}
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
