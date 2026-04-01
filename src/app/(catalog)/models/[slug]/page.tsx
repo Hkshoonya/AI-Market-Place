@@ -43,6 +43,7 @@ import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 export const revalidate = 300;
 
@@ -198,10 +199,12 @@ export default async function ModelDetailPage({
     ],
   }).offersByModelId[model.id] ?? [];
   const bestAccessOffer = modelAccessOffers[0] ?? null;
+  const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
   const deployStartPlan = getDeployStartPlan({
     modelSlug: slug,
     modelName: model.name,
     isOpenWeights: model.is_open_weights,
+    allowInSiteWorkspace: runtimeExecution.available,
     offer: bestAccessOffer
       ? {
           actionLabel: bestAccessOffer.actionLabel,

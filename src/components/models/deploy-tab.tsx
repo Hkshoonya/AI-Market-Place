@@ -12,6 +12,7 @@ import {
 } from "@/lib/models/access-offers";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import type { LaunchRadarItem } from "@/lib/news/presentation";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 
 interface Platform {
@@ -177,6 +178,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
     grouped.get(item.platform.type)!.push(item);
   }
   const primaryDeployment = deployments[0] ?? null;
+  const runtimeExecution = resolveWorkspaceRuntimeExecution(modelSlug);
   const quickStart = primaryDeployment
     ? getQuickStartSummary(primaryDeployment, isOpenWeights)
     : null;
@@ -185,6 +187,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         modelSlug,
         modelName,
         isOpenWeights,
+        allowInSiteWorkspace: runtimeExecution.available,
         offer: {
           actionLabel: quickStart?.actionLabel,
           actionUrl: getPlatformUrl(
@@ -202,6 +205,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         },
       })
     : null;
+  const primaryPlatformType = primaryDeployment?.platform.type ?? null;
+  const showApiCostWarning = primaryPlatformType === "api";
+  const showSubscriptionCostHint = primaryPlatformType === "subscription";
 
   return (
     <div className="space-y-6">
@@ -228,6 +234,12 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               </p>
               {startPlan?.recommendedPackReason ? (
                 <p className="text-xs text-muted-foreground">{startPlan.recommendedPackReason}</p>
+              ) : null}
+              {!runtimeExecution.available ? (
+                <p className="text-xs text-amber-300">
+                  AI Market Cap cannot host this model directly yet. Use the verified provider path
+                  below instead of expecting an in-site deployment here.
+                </p>
               ) : null}
             </div>
             {startPlan ? (
@@ -288,6 +300,18 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               AI Market Cap will first guide the user to{" "}
               {startPlan.recommendedPack ? startPlan.recommendedPack.label : "a wallet top-up"}{" "}
               for about ${startPlan.recommendedAmount}, then continue to the verified provider path.
+            </p>
+          ) : null}
+          {showApiCostWarning ? (
+            <p className="mt-3 text-xs text-amber-300">
+              This is metered API access. Heavy usage can cost more than a flat subscription, so
+              check the provider rate before using it as the default path.
+            </p>
+          ) : null}
+          {showSubscriptionCostHint ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Subscription pricing is usually easier to predict than metered API usage. Use API
+              access only when you need programmatic requests.
             </p>
           ) : null}
           {startPlan ? (
@@ -388,6 +412,11 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                             {getPartnerDisclosure(platform)}
                           </div>
                         )}
+                        {platform.type === "api" ? (
+                          <div className="mt-1 text-[10px] text-amber-300">
+                            Metered usage can cost more than subscriptions.
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   );

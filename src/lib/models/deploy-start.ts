@@ -160,8 +160,10 @@ export function getDeployStartPlan(input: {
   modelName: string;
   isOpenWeights?: boolean | null;
   offer?: DeployStartOfferInput | null;
+  allowInSiteWorkspace?: boolean;
 }): DeployStartPlan | null {
   const offer = input.offer ?? null;
+  const allowInSiteWorkspace = input.allowInSiteWorkspace ?? true;
   const actionLabel = offer?.actionLabel ?? (input.isOpenWeights ? "Self-Host" : null);
 
   if (!actionLabel) return null;
@@ -200,7 +202,7 @@ export function getDeployStartPlan(input: {
   const platformType = offer.platform?.type ?? (offer.platform?.slug === "ollama-cloud" ? "hosting" : null);
   const sponsored = Boolean(offer.partnerDisclosure);
 
-  if (recommendedAmount) {
+  if (recommendedAmount && allowInSiteWorkspace) {
     return {
       href: buildWalletStartHref({
         modelSlug: input.modelSlug,
@@ -250,11 +252,24 @@ export function getDeployStartPlan(input: {
 
   return {
     href: offer.actionUrl,
-    label: actionLabel,
+    label:
+      !allowInSiteWorkspace && platformType === "api"
+        ? "Get API Access"
+        : !allowInSiteWorkspace && platformType === "subscription"
+          ? "Subscribe"
+          : actionLabel,
     external: true,
-    recommendedAmount: null,
-    recommendedPack: null,
-    recommendedPackReason: null,
+    recommendedAmount: recommendedAmount ?? null,
+    recommendedPack: recommendedPack ?? null,
+    recommendedPackReason:
+      recommendedAmount != null
+        ? getRecommendedPackReason({
+            actionLabel,
+            monthlyPrice,
+            platformName,
+            platformType,
+          })
+        : null,
     platformName,
     needsWallet: false,
     sponsored,

@@ -17,6 +17,53 @@ vi.mock("@/components/workspace/workspace-provider", () => ({
 }));
 
 describe("DeployTab", () => {
+  it("keeps unsupported models on direct provider access with API cost guidance", () => {
+    mockUseSWR.mockReturnValue({
+      data: {
+        deployments: [
+          {
+            platform: {
+              id: "platform-api",
+              slug: "moonshot-api",
+              name: "Moonshot API",
+              type: "api",
+              base_url: "https://platform.moonshot.ai",
+              has_affiliate: false,
+              affiliate_url: null,
+              affiliate_tag: null,
+            },
+            reason: "Model-specific access has been confirmed for this API.",
+            confidence: "direct",
+            deployment: {
+              id: "dep-api",
+              deploy_url: "https://platform.moonshot.ai/kimi-k2",
+              pricing_model: "monthly",
+              price_per_unit: 20,
+              unit_description: "month",
+              free_tier: null,
+              one_click: false,
+            },
+          },
+        ],
+        relatedPlatforms: [],
+        deploymentEvidence: [],
+      },
+      error: null,
+      isLoading: false,
+    });
+
+    render(<DeployTab modelSlug="kimi-k2" modelName="Kimi K2" isOpenWeights={false} />);
+
+    expect(
+      screen.getByText(/AI Market Cap cannot host this model directly yet/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get api access on moonshot api/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /start with starter pack/i })).not.toBeInTheDocument();
+  });
+
   it("shows official deployment evidence when the API returns it", () => {
     mockUseSWR.mockReturnValue({
       data: {

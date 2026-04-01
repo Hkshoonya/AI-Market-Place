@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 interface WorkspaceWalletSnapshot {
   balance: number;
@@ -156,6 +157,11 @@ export default function WorkspaceContent() {
   const session = workspace.session;
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
+  const deploymentExecution = workspace.session?.modelSlug
+    ? resolveWorkspaceRuntimeExecution(workspace.session.modelSlug)
+    : null;
+  const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
+  const hasManagedDeployment = Boolean(deployment?.execution.available);
 
   useEffect(() => {
     if (!session || !runtime?.id) return;
@@ -274,6 +280,14 @@ export default function WorkspaceContent() {
       detail: "Open the verified provider/runtime path only after setup is ready.",
     },
   ];
+  if (!canCreateManagedDeployment) {
+    stepItems[2] = {
+      label: "Managed deployment",
+      done: false,
+      detail:
+        "AI Market Cap cannot host this model directly yet, so use the verified provider path for actual model access.",
+    };
+  }
 
   const saveNote = () => {
     const trimmed = noteDraft.trim();
@@ -380,6 +394,12 @@ export default function WorkspaceContent() {
 
   const createDeployment = async () => {
     if (!session.modelSlug || !session.model) return;
+    if (!canCreateManagedDeployment) {
+      setRuntimeError(
+        "Direct in-site deployment is not available for this model yet. Use the verified provider path instead."
+      );
+      return;
+    }
     setRuntimeLoading(true);
     setRuntimeError(null);
 
@@ -407,8 +427,8 @@ export default function WorkspaceContent() {
       workspace.addWorkspaceEvent(
         "Deployment created",
         session.model
-          ? `Created a managed in-site deployment record for ${session.model}.`
-          : "Created a managed in-site deployment record."
+          ? `Created a managed in-site deployment for ${session.model}.`
+          : "Created a managed in-site deployment."
       );
 
       workspace.updateWorkspaceSession({
@@ -643,45 +663,61 @@ export default function WorkspaceContent() {
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Runtime record
                       </p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {deployment ? "Deployment created inside AI Market Cap" : "Not deployed yet"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {deployment
-                      ? "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
-                      : "Create the in-site deployment before deeper chat and API usage starts here."}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    deployment
-                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                      : "border-border/50 bg-card/40"
-                  )}
-                >
-                  {deployment?.status ?? "draft"}
-                </Badge>
-              </div>
-                  {deployment ? (
+                      <p className="mt-1 text-sm font-medium text-white">
+                        {hasManagedDeployment
+                          ? "Deployment created inside AI Market Cap"
+                          : canCreateManagedDeployment
+                            ? "Not deployed yet"
+                            : "Direct deployment not available"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {hasManagedDeployment
+                          ? "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
+                          : canCreateManagedDeployment
+                            ? "Create the in-site deployment before deeper chat and API usage starts here."
+                            : "This model does not have a mapped in-site runtime yet, so keep using the verified provider path for real usage."}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        hasManagedDeployment
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                          : "border-border/50 bg-card/40"
+                      )}
+                    >
+                      {hasManagedDeployment ? deployment?.status : canCreateManagedDeployment ? "draft" : "external"}
+                    </Badge>
+                  </div>
+                  {hasManagedDeployment ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Deployment mode
                       </p>
                       <p className="mt-1 text-sm font-medium text-white">
-                        {deployment.execution.label}
+                        {deployment?.execution.label}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {deployment.execution.summary}
+                        {deployment?.execution.summary}
                       </p>
                     </div>
                   ) : null}
-                  {deployment ? (
+                  {!canCreateManagedDeployment && deploymentExecution ? (
+                    <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">
+                        Why deployment is hidden
+                      </p>
+                      <p className="mt-1 text-xs text-amber-100/80">
+                        {deploymentExecution.summary}
+                      </p>
+                    </div>
+                  ) : null}
+                  {hasManagedDeployment ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Deployment status endpoint
                       </p>
-                      <code className="mt-1 block text-xs text-foreground">{deployment.endpointPath}</code>
+                      <code className="mt-1 block text-xs text-foreground">{deployment?.endpointPath}</code>
                     </div>
                   ) : null}
                   {runtime ? (
@@ -700,13 +736,13 @@ export default function WorkspaceContent() {
                       <code className="mt-1 block text-xs text-foreground">{runtime.assistantPath}</code>
                     </div>
                   ) : null}
-                  {deployment ? (
+                  {hasManagedDeployment ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Example request
                       </p>
                       <pre className="mt-2 overflow-x-auto text-[11px] leading-relaxed text-foreground">
-{`curl -X POST ${deployment.endpointPath} \\
+{`curl -X POST ${deployment?.endpointPath} \\
   -H "Authorization: Bearer aimk_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"message":"Say hello from AI Market Cap"}'`}
@@ -722,13 +758,15 @@ export default function WorkspaceContent() {
                           ? "Refresh Runtime Setup"
                           : "Activate Runtime"}
                     </Button>
-                    <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
-                      {runtimeLoading
-                        ? "Creating..."
-                        : deployment
-                          ? "Refresh Deployment"
-                          : "Create Deployment"}
-                    </Button>
+                    {canCreateManagedDeployment ? (
+                      <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
+                        {runtimeLoading
+                          ? "Creating..."
+                          : hasManagedDeployment
+                            ? "Refresh Deployment"
+                            : "Create Deployment"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -764,7 +802,7 @@ export default function WorkspaceContent() {
 
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
-              {deployment?.execution.available ? (
+              {hasManagedDeployment ? (
                 <>
                   <div className="mb-3 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-neon" />
@@ -810,11 +848,19 @@ export default function WorkspaceContent() {
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-neon" />
-                    <h2 className="text-lg font-semibold text-white">Model runtime not mapped yet</h2>
+                    <h2 className="text-lg font-semibold text-white">
+                      {canCreateManagedDeployment
+                        ? "Create a deployment to run this model here"
+                        : "Model runtime not mapped yet"}
+                    </h2>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {deployment?.execution.summary ??
-                      "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
+                    {hasManagedDeployment
+                      ? deployment?.execution.summary
+                      : canCreateManagedDeployment
+                        ? "This model supports a managed in-site runtime, but you need to create the deployment first."
+                        : deploymentExecution?.summary ??
+                          "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
                   </p>
                 </div>
               )}

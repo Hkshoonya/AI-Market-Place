@@ -163,6 +163,16 @@ export async function POST(request: Request) {
     }
 
     const execution = resolveWorkspaceRuntimeExecution(parsed.data.modelSlug);
+    if (!execution.available) {
+      return NextResponse.json(
+        {
+          error:
+            "Direct in-site deployment is not available for this model yet. Use the verified provider path instead.",
+          execution,
+        },
+        { status: 422 }
+      );
+    }
 
     const { data: existingRuntime, error: existingRuntimeError } = await auth.supabase
       .from("workspace_runtimes")
@@ -210,11 +220,11 @@ export async function POST(request: Request) {
       model_slug: parsed.data.modelSlug,
       model_name: parsed.data.modelName,
       provider_name: parsed.data.providerName ?? null,
-      status: execution.available ? ("ready" as const) : ("provisioning" as const),
+      status: "ready" as const,
       endpoint_slug:
         existingDeployment?.endpoint_slug ??
         buildWorkspaceDeploymentEndpointSlug(parsed.data.modelSlug),
-      deployment_kind: execution.available ? ("managed_api" as const) : ("assistant_only" as const),
+      deployment_kind: "managed_api" as const,
       deployment_label: execution.label,
       credits_budget: parsed.data.creditsBudget ?? null,
       monthly_price_estimate: parsed.data.monthlyPriceEstimate ?? null,
@@ -233,9 +243,8 @@ export async function POST(request: Request) {
       deployment: toDeploymentResponse(deploymentData),
       runtime: toRuntimeResponse(runtimeData),
       activation: {
-        message: execution.available
-          ? "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace."
-          : "Deployment record created. This model still falls back to the assistant/setup path until a direct managed route is mapped.",
+        message:
+          "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
     });
   } catch (error) {

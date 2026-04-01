@@ -97,4 +97,31 @@ describe("workspace deployment API", () => {
     const body = await response.json();
     expect(body.deployment.endpointPath).toBe("/api/deployments/openai-gpt-4-1-abc12345");
   });
+
+  it("rejects models without a mapped in-site runtime", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelSlug: "kimi-k2",
+          modelName: "Kimi K2",
+          providerName: "Moonshot API",
+          creditsBudget: 20,
+          monthlyPriceEstimate: 20,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(422);
+    expect(upsert).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.error).toMatch(/Direct in-site deployment is not available/i);
+  });
 });

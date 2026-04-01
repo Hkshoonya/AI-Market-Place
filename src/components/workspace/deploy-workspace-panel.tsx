@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { useOptionalWorkspace } from "./workspace-provider";
 
 interface WorkspaceWalletSnapshot {
@@ -132,6 +133,11 @@ export function DeployWorkspacePanel() {
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
   const deployment = deploymentSnapshot?.deployment ?? null;
+  const deploymentExecution = session.modelSlug
+    ? resolveWorkspaceRuntimeExecution(session.modelSlug)
+    : null;
+  const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
+  const hasManagedDeployment = Boolean(deployment?.execution.available);
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
@@ -160,10 +166,12 @@ export function DeployWorkspacePanel() {
     },
     {
       label: "Deployment",
-      done: deployment?.status === "ready",
-      detail: deployment
+      done: hasManagedDeployment,
+      detail: hasManagedDeployment
         ? "Use the managed in-site deployment endpoint for chat and API requests."
-        : "Create the managed in-site deployment after funding and API setup are ready.",
+        : canCreateManagedDeployment
+          ? "Create the managed in-site deployment after funding and API setup are ready."
+          : "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
     },
   ];
 
@@ -231,6 +239,12 @@ export function DeployWorkspacePanel() {
 
   const createDeployment = async () => {
     if (!session.modelSlug || !session.model || deploymentLoading) return;
+    if (!canCreateManagedDeployment) {
+      setDeploymentError(
+        "Direct in-site deployment is not available for this model yet. Use the verified provider path instead."
+      );
+      return;
+    }
 
     setDeploymentLoading(true);
     setDeploymentError(null);
@@ -484,19 +498,21 @@ export function DeployWorkspacePanel() {
                       API Keys
                     </Link>
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="sm:col-span-2"
-                    onClick={createDeployment}
-                    disabled={deploymentLoading}
-                  >
-                    {deploymentLoading
-                      ? "Creating..."
-                      : deployment
-                        ? "Refresh Deployment"
-                        : "Create Deployment"}
-                  </Button>
+                  {canCreateManagedDeployment ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sm:col-span-2"
+                      onClick={createDeployment}
+                      disabled={deploymentLoading}
+                    >
+                      {deploymentLoading
+                        ? "Creating..."
+                        : hasManagedDeployment
+                          ? "Refresh Deployment"
+                          : "Create Deployment"}
+                    </Button>
+                  ) : null}
                   {session.nextUrl ? (
                     <Button asChild variant="outline" className="sm:col-span-2">
                       <a
@@ -517,13 +533,21 @@ export function DeployWorkspacePanel() {
                       Deployment
                     </p>
                     <p className="mt-1 text-sm font-medium text-white">
-                      {deployment ? deployment.deploymentLabel ?? "Managed deployment" : "Not created yet"}
+                      {hasManagedDeployment
+                        ? deployment?.deploymentLabel ?? "Managed deployment"
+                        : canCreateManagedDeployment
+                          ? "Not created yet"
+                          : "Direct deployment not available"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {deployment?.execution.summary ??
-                        "Create the managed in-site deployment to get a stable endpoint and tracked usage."}
+                      {hasManagedDeployment
+                        ? deployment?.execution.summary
+                        : canCreateManagedDeployment
+                          ? "Create the managed in-site deployment to get a stable endpoint and tracked usage."
+                          : deploymentExecution?.summary ??
+                            "Use the verified provider path until a direct in-site runtime is mapped."}
                     </p>
-                    {deployment?.endpointPath ? (
+                    {hasManagedDeployment && deployment?.endpointPath ? (
                       <code className="mt-2 block text-[11px] text-foreground">
                         {deployment.endpointPath}
                       </code>
@@ -558,7 +582,7 @@ export function DeployWorkspacePanel() {
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  {deployment?.execution.available ? (
+                  {hasManagedDeployment ? (
                     <div className="mb-3 rounded-md border border-border/40 bg-background/40 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Run deployment
@@ -588,6 +612,16 @@ export function DeployWorkspacePanel() {
                           <p className="mt-1 whitespace-pre-wrap">{runtimeResponse.content}</p>
                         </div>
                       ) : null}
+                    </div>
+                  ) : null}
+                  {!canCreateManagedDeployment ? (
+                    <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">
+                        Direct deployment is unavailable
+                      </p>
+                      <p className="mt-1 text-xs text-amber-100/80">
+                        {deploymentExecution?.summary}
+                      </p>
                     </div>
                   ) : null}
                   <div className="mb-2 flex items-center gap-2">

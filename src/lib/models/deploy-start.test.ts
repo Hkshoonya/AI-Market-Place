@@ -69,6 +69,39 @@ describe("getDeployStartPlan", () => {
     );
   });
 
+  it("falls back to direct provider access when in-site deployment is not available", () => {
+    const plan = getDeployStartPlan({
+      modelSlug: "kimi-k2",
+      modelName: "Kimi K2",
+      allowInSiteWorkspace: false,
+      offer: {
+        actionLabel: "Start API",
+        actionUrl: "https://provider.example.com/kimi-k2",
+        monthlyPrice: 20,
+        platform: {
+          name: "Kimi Code Membership",
+          type: "api",
+        },
+      },
+    });
+
+    expect(plan).toEqual(
+      expect.objectContaining({
+        label: "Get API Access",
+        external: true,
+        recommendedAmount: 20,
+        recommendedPack: expect.objectContaining({
+          slug: "starter",
+          label: "Starter Pack",
+        }),
+        needsWallet: false,
+        experience: expect.objectContaining({
+          destinationLabel: "Deployed runtime workspace",
+        }),
+      })
+    );
+  });
+
   it("falls back to the internal deploy tab when only self-host guidance exists", () => {
     const plan = getDeployStartPlan({
       modelSlug: "qwen-open",
