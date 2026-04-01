@@ -242,23 +242,68 @@ export default async function ModelDetailPage({
     is_open_weights: model.is_open_weights,
     model_pricing: pricingData,
   });
-  const jsonLd = {
-    "@context": "https://schema.org", "@type": "SoftwareApplication",
-    name: model.name, description: displayDescription.text ?? undefined,
-    applicationCategory: "Artificial Intelligence", operatingSystem: "Cloud",
+  const modelUrl = `${SITE_URL}/models/${model.slug}`;
+  const bestOfferPrice =
+    bestAccessOffer?.monthlyPrice != null
+      ? bestAccessOffer.monthlyPrice
+      : lowestPrice?.input_price_per_million ?? null;
+  const modelJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: model.name,
+    description: displayDescription.text ?? undefined,
+    applicationCategory: "Artificial Intelligence",
+    operatingSystem: "Cloud",
     author: { "@type": "Organization", name: model.provider },
+    publisher: { "@type": "Organization", name: SITE_NAME },
+    mainEntityOfPage: modelUrl,
+    url: modelUrl,
+    keywords: [
+      model.provider,
+      model.category,
+      ...(modalities ?? []),
+      model.is_open_weights ? "open weights" : "closed weights",
+    ]
+      .filter(Boolean)
+      .join(", "),
     ...(model.release_date && { datePublished: model.release_date }),
-    ...(model.quality_score && { aggregateRating: {
-      "@type": "AggregateRating", ratingValue: Number(model.quality_score).toFixed(1),
-      bestRating: "100", worstRating: "0", ratingCount: model.hf_likes || 1,
-    }}),
-    ...(lowestPrice?.input_price_per_million != null && { offers: {
-      "@type": "Offer", price: lowestPrice.input_price_per_million,
-      priceCurrency: "USD", availability: "https://schema.org/InStock",
-    }}),
-    ...(model.is_open_weights && { license: model.license_name ?? "Open Source", isAccessibleForFree: true }),
-    url: `${SITE_URL}/models/${model.slug}`,
+    ...(model.quality_score && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: Number(model.quality_score).toFixed(1),
+        bestRating: "100",
+        worstRating: "0",
+        ratingCount: model.hf_likes || 1,
+      },
+    }),
+    ...(bestOfferPrice != null && {
+      offers: {
+        "@type": "Offer",
+        url: bestAccessOffer?.actionUrl ?? modelUrl,
+        price: bestOfferPrice,
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        seller: {
+          "@type": "Organization",
+          name: bestAccessOffer?.platform.name ?? model.provider,
+        },
+      },
+    }),
+    ...((model.is_open_weights || !!bestAccessOffer?.freeTier) && {
+      license: model.license_name ?? "Open Source",
+      isAccessibleForFree: true,
+    }),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Models", item: `${SITE_URL}/models` },
+      { "@type": "ListItem", position: 3, name: model.name, item: modelUrl },
+    ],
+  };
+  const jsonLd = [modelJsonLd, breadcrumbJsonLd];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

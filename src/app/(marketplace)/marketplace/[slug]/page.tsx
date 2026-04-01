@@ -156,32 +156,34 @@ export default async function ListingDetailPage(props: {
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
   // Build JSON-LD Product structured data
-  const jsonLd: Record<string, unknown> = {
+  const listingUrl = `${SITE_URL}/marketplace/${slug}`;
+  const productJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: listing.title,
     description: listing.short_description || listing.description?.slice(0, 200) || "",
-    url: `${SITE_URL}/marketplace/${slug}`,
+    url: listingUrl,
     category: typeConfig?.label || listing.listing_type?.replace(/_/g, " ") || "AI Product",
+    brand: listing.profiles?.display_name
+      ? {
+          "@type": "Organization",
+          name: listing.profiles.display_name,
+        }
+      : undefined,
   };
 
-  if (listing.profiles?.display_name) {
-    jsonLd.brand = {
-      "@type": "Organization",
-      name: listing.profiles.display_name,
-    };
-  }
-
   if (listing.pricing_type === "free") {
-    jsonLd.offers = {
+    productJsonLd.offers = {
       "@type": "Offer",
+      url: listingUrl,
       price: "0",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
     };
   } else if (listing.price && listing.pricing_type !== "contact") {
-    jsonLd.offers = {
+    productJsonLd.offers = {
       "@type": "Offer",
+      url: listingUrl,
       price: String(listing.price),
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -189,13 +191,23 @@ export default async function ListingDetailPage(props: {
   }
 
   if (listing.avg_rating && listing.review_count > 0) {
-    jsonLd.aggregateRating = {
+    productJsonLd.aggregateRating = {
       "@type": "AggregateRating",
       ratingValue: String(Number(listing.avg_rating).toFixed(1)),
       bestRating: "5",
       reviewCount: String(listing.review_count),
     };
   }
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Marketplace", item: `${SITE_URL}/marketplace` },
+      { "@type": "ListItem", position: 3, name: listing.title, item: listingUrl },
+    ],
+  };
+  const jsonLd = [productJsonLd, breadcrumbJsonLd];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
