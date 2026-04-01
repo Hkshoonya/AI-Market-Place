@@ -266,8 +266,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           </div>
           {startPlan?.needsWallet && startPlan.recommendedAmount ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              AI Market Cap will first guide the user to wallet top-up for about $
-              {startPlan.recommendedAmount}, then continue to the verified provider path.
+              AI Market Cap will first guide the user to{" "}
+              {startPlan.recommendedPack ? startPlan.recommendedPack.label : "a wallet top-up"}{" "}
+              for about ${startPlan.recommendedAmount}, then continue to the verified provider path.
             </p>
           ) : null}
         </div>

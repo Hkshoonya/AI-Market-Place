@@ -34,7 +34,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   formatWalletTopUpList,
+  getWalletTopUpPackForAmount,
   SUGGESTED_WALLET_TOP_UP_LABELS,
+  WALLET_TOP_UP_PACKS,
 } from "@/lib/constants/wallet";
 
 const ITEMS_PER_PAGE = 10;
@@ -89,11 +91,16 @@ export default function WalletContent() {
   const starterNext = searchParams.get("next");
   const starterSponsored = searchParams.get("sponsored") === "1";
   const starterAmountRaw = searchParams.get("amount");
+  const starterPackSlug = searchParams.get("pack");
+  const starterPackLabel = searchParams.get("packLabel");
   const starterAmount =
     starterAmountRaw && Number.isFinite(Number(starterAmountRaw))
       ? Number(starterAmountRaw)
       : null;
   const starterAmountLabel = starterAmount ? formatCurrency(starterAmount) : null;
+  const starterPack =
+    WALLET_TOP_UP_PACKS.find((pack) => pack.slug === starterPackSlug) ??
+    getWalletTopUpPackForAmount(starterAmount);
 
   const { data: wallet, isLoading: loading, error: swrError, mutate } = useSWR<WalletData | null>(
     user ? `supabase:wallet:${filter}:${page}` : null,
@@ -232,10 +239,20 @@ export default function WalletContent() {
                   : "This is the best verified next step for this model."}{" "}
                 Fund your wallet here first if needed, then continue without losing context.
               </p>
-              {starterAmount ? (
-                <p className="text-xs text-muted-foreground">
-                  Recommended balance for this path: {starterAmountLabel}.
-                </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {starterPack || starterPackLabel ? (
+                  <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                    {starterPack?.label ?? starterPackLabel}
+                  </Badge>
+                ) : null}
+                {starterAmount ? (
+                  <span className="text-xs text-muted-foreground">
+                    Recommended balance for this path: {starterAmountLabel}.
+                  </span>
+                ) : null}
+              </div>
+              {starterPack?.description ? (
+                <p className="text-xs text-muted-foreground">{starterPack.description}</p>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -353,17 +370,18 @@ export default function WalletContent() {
               Suggested top-up packs
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {SUGGESTED_WALLET_TOP_UP_LABELS.map((amount) => (
+              {WALLET_TOP_UP_PACKS.map((pack, index) => (
                 <Badge
-                  key={amount}
+                  key={pack.slug}
                   variant="outline"
                   className={cn(
                     "border-neon/20 bg-neon/5 text-neon",
-                    starterAmountLabel === amount &&
+                    starterAmountLabel === SUGGESTED_WALLET_TOP_UP_LABELS[index] &&
                       "border-amber-500/30 bg-amber-500/10 text-amber-200"
                   )}
                 >
-                  {amount}
+                  {pack.label} {" "}
+                  {SUGGESTED_WALLET_TOP_UP_LABELS[index]}
                 </Badge>
               ))}
             </div>

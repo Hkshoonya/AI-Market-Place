@@ -70,9 +70,10 @@ describe("DeployTab", () => {
     expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
     expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByRole("link", { name: /start with credits/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /start with starter pack/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/wallet?")
     );
+    expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
   });
 });

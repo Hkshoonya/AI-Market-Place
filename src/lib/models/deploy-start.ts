@@ -1,4 +1,8 @@
-import { getRecommendedWalletTopUpAmount } from "@/lib/constants/wallet";
+import {
+  getRecommendedWalletTopUpAmount,
+  getWalletTopUpPackForAmount,
+  type WalletTopUpPack,
+} from "@/lib/constants/wallet";
 
 export interface DeployStartOfferInput {
   actionLabel?: string | null;
@@ -17,6 +21,7 @@ export interface DeployStartPlan {
   label: string;
   external: boolean;
   recommendedAmount: number | null;
+  recommendedPack: WalletTopUpPack | null;
   platformName: string | null;
   needsWallet: boolean;
   sponsored: boolean;
@@ -26,9 +31,8 @@ function buildWalletStartHref(input: {
   modelSlug: string;
   modelName: string;
   actionLabel: string;
-  offer: Required<Pick<DeployStartPlan, "recommendedAmount" | "platformName" | "sponsored">> & {
-    actionUrl: string;
-  };
+  offer: Required<Pick<DeployStartPlan, "recommendedAmount" | "platformName" | "sponsored">> &
+    { actionUrl: string; recommendedPack?: WalletTopUpPack | null };
 }) {
   const params = new URLSearchParams({
     intent: "deploy",
@@ -43,6 +47,10 @@ function buildWalletStartHref(input: {
   }
   if (input.offer.recommendedAmount) {
     params.set("amount", String(input.offer.recommendedAmount));
+  }
+  if (input.offer.recommendedPack) {
+    params.set("pack", input.offer.recommendedPack.slug);
+    params.set("packLabel", input.offer.recommendedPack.label);
   }
   if (input.offer.sponsored) {
     params.set("sponsored", "1");
@@ -68,6 +76,7 @@ export function getDeployStartPlan(input: {
       label: actionLabel,
       external: false,
       recommendedAmount: null,
+      recommendedPack: null,
       platformName: null,
       needsWallet: false,
       sponsored: false,
@@ -80,6 +89,8 @@ export function getDeployStartPlan(input: {
       : null;
   const recommendedAmount =
     monthlyPrice != null && !offer.freeTier ? getRecommendedWalletTopUpAmount(monthlyPrice) : null;
+  const recommendedPack =
+    monthlyPrice != null && !offer.freeTier ? getWalletTopUpPackForAmount(monthlyPrice) : null;
   const platformName = offer.platform?.name ?? null;
   const sponsored = Boolean(offer.partnerDisclosure);
 
@@ -92,13 +103,15 @@ export function getDeployStartPlan(input: {
         offer: {
           actionUrl: offer.actionUrl,
           recommendedAmount,
+          recommendedPack,
           platformName,
           sponsored,
         },
       }),
-      label: `Start with Credits`,
+      label: recommendedPack ? `Start with ${recommendedPack.label}` : `Start with Credits`,
       external: false,
       recommendedAmount,
+      recommendedPack,
       platformName,
       needsWallet: true,
       sponsored,
@@ -110,6 +123,7 @@ export function getDeployStartPlan(input: {
     label: actionLabel,
     external: true,
     recommendedAmount: null,
+    recommendedPack: null,
     platformName,
     needsWallet: false,
     sponsored,

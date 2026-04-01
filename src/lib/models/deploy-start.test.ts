@@ -17,15 +17,21 @@ describe("getDeployStartPlan", () => {
 
     expect(plan).toEqual(
       expect.objectContaining({
-        label: "Start with Credits",
+        label: "Start with Builder Pack",
         external: false,
         recommendedAmount: 40,
+        recommendedPack: expect.objectContaining({
+          slug: "builder",
+          label: "Builder Pack",
+        }),
         needsWallet: true,
       })
     );
     expect(plan?.href).toContain("/wallet?");
     expect(plan?.href).toContain("modelSlug=glm-5");
     expect(plan?.href).toContain("amount=40");
+    expect(plan?.href).toContain("pack=builder");
+    expect(plan?.href).toContain("packLabel=Builder+Pack");
   });
 
   it("keeps free-tier access as a direct external path", () => {
@@ -45,6 +51,7 @@ describe("getDeployStartPlan", () => {
         label: "Start Free Trial",
         external: true,
         recommendedAmount: null,
+        recommendedPack: null,
         needsWallet: false,
       })
     );
