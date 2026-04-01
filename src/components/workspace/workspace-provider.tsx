@@ -15,6 +15,7 @@ import {
   createWorkspaceSession,
   parseWorkspaceState,
   WORKSPACE_STORAGE_KEY,
+  type WorkspaceSession,
   type WorkspaceState,
 } from "@/lib/workspace/session";
 
@@ -24,6 +25,7 @@ interface OpenWorkspaceInput {
   provider?: string | null;
   action?: string | null;
   nextUrl?: string | null;
+  conversationId?: string | null;
   sponsored?: boolean | null;
   suggestedPackSlug?: string | null;
   suggestedPack?: string | null;
@@ -37,7 +39,8 @@ interface WorkspaceContextValue extends WorkspaceState {
   maximizeWorkspace: () => void;
   restoreWorkspace: () => void;
   closeWorkspace: () => void;
-  addWorkspaceEvent: (title: string, detail: string) => void;
+  addWorkspaceEvent: (title: string, detail: string, type?: "system" | "user") => void;
+  updateWorkspaceSession: (patch: Partial<WorkspaceSession>) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -89,6 +92,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               provider: input.provider,
               action: input.action,
               nextUrl: input.nextUrl,
+              conversationId: input.conversationId,
               sponsored: input.sponsored,
               suggestedPackSlug: input.suggestedPackSlug,
               suggestedPack: input.suggestedPack,
@@ -124,12 +128,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setState((current) => ({ ...current, open: false, minimized: false, maximized: false }));
   }, []);
 
-  const addWorkspaceEvent = useCallback((title: string, detail: string) => {
+  const addWorkspaceEvent = useCallback((title: string, detail: string, type: "system" | "user" = "system") => {
     setState((current) => {
       if (!current.session) return current;
       return {
         ...current,
-        session: appendWorkspaceEvent(current.session, createWorkspaceEvent(title, detail)),
+        session: appendWorkspaceEvent(current.session, createWorkspaceEvent(title, detail, type)),
+      };
+    });
+  }, []);
+
+  const updateWorkspaceSession = useCallback((patch: Partial<WorkspaceSession>) => {
+    setState((current) => {
+      if (!current.session) return current;
+      return {
+        ...current,
+        session: {
+          ...current.session,
+          ...patch,
+        },
       };
     });
   }, []);
@@ -144,6 +161,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       restoreWorkspace,
       closeWorkspace,
       addWorkspaceEvent,
+      updateWorkspaceSession,
     }),
     [
       state,
@@ -154,6 +172,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       restoreWorkspace,
       closeWorkspace,
       addWorkspaceEvent,
+      updateWorkspaceSession,
     ]
   );
 

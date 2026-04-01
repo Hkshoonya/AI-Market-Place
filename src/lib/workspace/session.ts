@@ -12,6 +12,7 @@ export interface WorkspaceSession {
   provider: string | null;
   action: string | null;
   nextUrl: string | null;
+  conversationId: string | null;
   sponsored: boolean;
   suggestedPackSlug: string | null;
   suggestedPack: string | null;
@@ -53,6 +54,7 @@ export function createWorkspaceSession(input: {
   provider?: string | null;
   action?: string | null;
   nextUrl?: string | null;
+  conversationId?: string | null;
   sponsored?: boolean | null;
   suggestedPackSlug?: string | null;
   suggestedPack?: string | null;
@@ -64,6 +66,7 @@ export function createWorkspaceSession(input: {
     provider: input.provider ?? null,
     action: input.action ?? null,
     nextUrl: input.nextUrl ?? null,
+    conversationId: input.conversationId ?? null,
     sponsored: Boolean(input.sponsored),
     suggestedPackSlug: input.suggestedPackSlug ?? null,
     suggestedPack: input.suggestedPack ?? null,
@@ -102,6 +105,10 @@ export function parseWorkspaceState(raw: string | null | undefined): WorkspaceSt
       session: parsed.session
         ? {
             ...parsed.session,
+            conversationId:
+              typeof parsed.session.conversationId === "string"
+                ? parsed.session.conversationId
+                : null,
             sponsored: Boolean(parsed.session.sponsored),
             suggestedPackSlug:
               typeof parsed.session.suggestedPackSlug === "string"

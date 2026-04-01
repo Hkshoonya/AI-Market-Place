@@ -1,15 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowUpRight, Maximize2, Minimize2, Wallet, KeyRound, MessageSquare, X } from "lucide-react";
+import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/components/auth/auth-provider";
+import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { useOptionalWorkspace } from "./workspace-provider";
 
+interface WorkspaceWalletSnapshot {
+  balance: number;
+}
+
+interface WorkspaceApiKeysSnapshot {
+  keys: Array<{ id: string; is_active: boolean }>;
+}
+
 export function DeployWorkspacePanel() {
+  const [noteDraft, setNoteDraft] = useState("");
+  const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const { user } = useAuth();
   const workspace = useOptionalWorkspace();
+  const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
+    user && workspace?.session ? "/api/marketplace/wallet?limit=1" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
+  const { data: apiKeysSnapshot } = useSWR<WorkspaceApiKeysSnapshot>(
+    user && workspace?.session ? "/api/api-keys" : null,
+    { ...SWR_TIERS.SLOW }
+  );
+
   if (!workspace?.session) return null;
 
   const { session, open, minimized, maximized } = workspace;
@@ -37,6 +63,7 @@ export function DeployWorkspacePanel() {
   const hasProviderProgress = events.some((event) =>
     /provider/i.test(`${event.title} ${event.detail}`)
   );
+  const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const stepItems = [
     {
       label: "Funding",
@@ -56,6 +83,8 @@ export function DeployWorkspacePanel() {
       detail: "Continue only after funding and API setup are ready.",
     },
   ];
+  const canAddNote = noteDraft.trim().length > 0;
+  const canSendAssistant = assistantDraft.trim().length > 0 && !assistantLoading;
 
   if (!open || minimized) {
     return (
@@ -131,6 +160,29 @@ export function DeployWorkspacePanel() {
                 </div>
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Wallet
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {typeof walletSnapshot?.balance === "number" ? `$${walletSnapshot.balance.toFixed(2)}` : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    API Keys
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">{activeApiKeys}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Session Events
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
+                </div>
+              </div>
+
               <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <p className="text-sm font-medium text-white">Progress</p>
@@ -193,6 +245,125 @@ export function DeployWorkspacePanel() {
                     </a>
                   </Button>
                 ) : null}
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <p className="text-sm font-medium text-white">Session note</p>
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Keep short context here. It stays in the persistent workspace history for this session.
+                </p>
+                <div className="space-y-2">
+                  <textarea
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                    rows={maximized ? 4 : 3}
+                    placeholder="Add a note about what you want to do with this model or what happened in setup."
+                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!canAddNote}
+                      onClick={() => {
+                        const trimmed = noteDraft.trim();
+                        if (!trimmed) return;
+                        workspace.addWorkspaceEvent("Session note", trimmed, "user");
+                        setNoteDraft("");
+                      }}
+                    >
+                      Save Note
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <p className="text-sm font-medium text-white">Workspace assistant</p>
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Ask the in-site assistant what to do next for this model. It stays attached to the same workspace session.
+                </p>
+                <div className="space-y-2">
+                  <textarea
+                    value={assistantDraft}
+                    onChange={(event) => setAssistantDraft(event.target.value)}
+                    rows={maximized ? 4 : 3}
+                    placeholder="Example: What should I do first to start using this model here?"
+                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
+                  />
+                  {assistantError ? (
+                    <p className="text-xs text-red-400">{assistantError}</p>
+                  ) : null}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!canSendAssistant}
+                      onClick={async () => {
+                        const trimmed = assistantDraft.trim();
+                        if (!trimmed || assistantLoading) return;
+                        workspace.addWorkspaceEvent("Workspace question", trimmed, "user");
+                        setAssistantLoading(true);
+                        setAssistantError(null);
+                        setAssistantDraft("");
+                        try {
+                          const response = await fetch("/api/workspace/chat", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              message: trimmed,
+                              conversation_id: session.conversationId ?? undefined,
+                              topic: session.model
+                                ? `Deploy workspace for ${session.model}`
+                                : "Deploy workspace",
+                            }),
+                          });
+
+                          const payload = await response.json();
+                          if (!response.ok) {
+                            throw new Error(payload.error ?? "Failed to contact workspace assistant");
+                          }
+
+                          if (payload.conversation_id) {
+                            workspace.updateWorkspaceSession({
+                              conversationId: payload.conversation_id,
+                            });
+                          }
+
+                          if (payload.response?.content) {
+                            workspace.addWorkspaceEvent(
+                              "Assistant reply",
+                              payload.response.content,
+                              "system"
+                            );
+                          }
+                        } catch (error) {
+                          setAssistantError(
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to contact workspace assistant"
+                          );
+                          workspace.addWorkspaceEvent(
+                            "Assistant unavailable",
+                            "The in-site workspace assistant could not answer right now."
+                          );
+                        } finally {
+                          setAssistantLoading(false);
+                        }
+                      }}
+                    >
+                      {assistantLoading ? "Sending..." : "Ask Assistant"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
