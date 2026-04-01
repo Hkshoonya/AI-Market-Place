@@ -27,6 +27,11 @@ export interface DeployStartPlan {
   platformName: string | null;
   needsWallet: boolean;
   sponsored: boolean;
+  experience: {
+    destinationLabel: string;
+    destinationSummary: string;
+    unlocks: string[];
+  };
 }
 
 function getRecommendedPackReason(input: {
@@ -86,6 +91,57 @@ function buildWalletStartHref(input: {
   return `/wallet?${params.toString()}`;
 }
 
+function buildDeployExperience(input: {
+  platformName: string | null;
+  platformType: string | null;
+  needsWallet: boolean;
+  external: boolean;
+  isOpenWeights?: boolean | null;
+}) {
+  if (input.isOpenWeights && !input.platformType) {
+    return {
+      destinationLabel: "Self-host setup",
+      destinationSummary:
+        "You will continue into self-host instructions and runtime setup instead of a managed deployed workspace.",
+      unlocks: ["Self-host guide", "Runtime setup steps", "Bring-your-own usage tracking"],
+    };
+  }
+
+  if (input.platformType === "subscription") {
+    return {
+      destinationLabel: "Managed model workspace",
+      destinationSummary:
+        "Start from this model page, fund once if needed, then continue into a paid workspace where the model is ready for chat and API-style usage.",
+      unlocks: ["Hosted chat UI", "Plan-based access", "Usage visibility"],
+    };
+  }
+
+  if (input.platformType === "api" || input.platformType === "hosting") {
+    return {
+      destinationLabel: "Deployed runtime workspace",
+      destinationSummary:
+        "This path is intended to turn the model page into a live deployed experience with a usable runtime, chat access, API access, and metered usage.",
+      unlocks: ["Chat UI", "API access", "Usage tracking"],
+    };
+  }
+
+  if (input.needsWallet || input.external) {
+    return {
+      destinationLabel: "Guided deploy start",
+      destinationSummary:
+        "You will continue through a guided start flow from this page into the best verified access path for the model.",
+      unlocks: ["Verified start path", "Access continuation", "Wallet context"],
+    };
+  }
+
+  return {
+    destinationLabel: "Deploy guidance",
+    destinationSummary:
+      "You will stay inside the model page flow and use the deployment guidance available here.",
+    unlocks: ["Deploy guidance", "Access options", "Next-step context"],
+  };
+}
+
 export function getDeployStartPlan(input: {
   modelSlug: string;
   modelName: string;
@@ -108,6 +164,13 @@ export function getDeployStartPlan(input: {
       platformName: null,
       needsWallet: false,
       sponsored: false,
+      experience: buildDeployExperience({
+        platformName: null,
+        platformType: null,
+        needsWallet: false,
+        external: false,
+        isOpenWeights: input.isOpenWeights,
+      }),
     };
   }
 
@@ -150,6 +213,13 @@ export function getDeployStartPlan(input: {
       platformName,
       needsWallet: true,
       sponsored,
+      experience: buildDeployExperience({
+        platformName,
+        platformType,
+        needsWallet: true,
+        external: false,
+        isOpenWeights: input.isOpenWeights,
+      }),
     };
   }
 
@@ -163,5 +233,12 @@ export function getDeployStartPlan(input: {
     platformName,
     needsWallet: false,
     sponsored,
+    experience: buildDeployExperience({
+      platformName,
+      platformType,
+      needsWallet: false,
+      external: true,
+      isOpenWeights: input.isOpenWeights,
+    }),
   };
 }

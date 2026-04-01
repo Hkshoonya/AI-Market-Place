@@ -26,6 +26,10 @@ describe("getDeployStartPlan", () => {
         }),
         recommendedPackReason: "Best when you want paid plan access through GLM Coding Plan.",
         needsWallet: true,
+        experience: expect.objectContaining({
+          destinationLabel: "Managed model workspace",
+          unlocks: ["Hosted chat UI", "Plan-based access", "Usage visibility"],
+        }),
       })
     );
     expect(plan?.href).toContain("/wallet?");
@@ -44,6 +48,10 @@ describe("getDeployStartPlan", () => {
         actionUrl: "https://provider.example.com/minimax",
         monthlyPrice: 20,
         freeTier: "Free trial",
+        platform: {
+          name: "MiniMax Coding Plan",
+          type: "subscription",
+        },
       },
     });
 
@@ -54,6 +62,9 @@ describe("getDeployStartPlan", () => {
         recommendedAmount: null,
         recommendedPack: null,
         needsWallet: false,
+        experience: expect.objectContaining({
+          destinationLabel: "Managed model workspace",
+        }),
       })
     );
   });
@@ -70,6 +81,10 @@ describe("getDeployStartPlan", () => {
         label: "Self-Host",
         href: "/models/qwen-open?tab=deploy#model-tabs",
         external: false,
+        experience: expect.objectContaining({
+          destinationLabel: "Self-host setup",
+          unlocks: ["Self-host guide", "Runtime setup steps", "Bring-your-own usage tracking"],
+        }),
       })
     );
   });

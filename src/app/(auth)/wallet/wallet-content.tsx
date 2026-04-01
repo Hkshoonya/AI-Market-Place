@@ -254,6 +254,21 @@ export default function WalletContent() {
               {starterPack?.description ? (
                 <p className="text-xs text-muted-foreground">{starterPack.description}</p>
               ) : null}
+              <div className="rounded-md border border-border/40 bg-card/30 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Intended outcome
+                </p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  Deployed workspace with chat, API, and usage visibility
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {["Chat UI", "API access", "Usage tracking"].map((item) => (
+                    <Badge key={item} variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {!hasStarterBalance ? (

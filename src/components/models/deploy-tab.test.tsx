@@ -69,6 +69,11 @@ describe("DeployTab", () => {
     expect(
       screen.getByText(/Best when you want to start a managed deployment path without extra setup/i)
     ).toBeInTheDocument();
+    expect(screen.getByText(/What this path should unlock/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deployed runtime workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chat UI/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/API access/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Usage tracking/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Managed cloud/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();

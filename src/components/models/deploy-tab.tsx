@@ -275,6 +275,29 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               for about ${startPlan.recommendedAmount}, then continue to the verified provider path.
             </p>
           ) : null}
+          {startPlan ? (
+            <div className="mt-4 rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                What this path should unlock
+              </p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {startPlan.experience.destinationLabel}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {startPlan.experience.destinationSummary}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {startPlan.experience.unlocks.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-border/40 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 
