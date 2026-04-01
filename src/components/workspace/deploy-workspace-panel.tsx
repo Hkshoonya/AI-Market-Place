@@ -648,6 +648,18 @@ export function DeployWorkspacePanel() {
                         {deployment?.billing.budgetStatus ?? "untracked"}
                       </Badge>
                     ) : null}
+                    {hasManagedDeployment ? (
+                      <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Next actions
+                        </p>
+                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          <li>Create a runtime-ready API key.</li>
+                          <li>Send one short test request first.</li>
+                          <li>Pause the deployment when idle.</li>
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="mb-2 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-neon" />

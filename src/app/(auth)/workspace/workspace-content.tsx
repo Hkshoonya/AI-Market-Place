@@ -926,6 +926,34 @@ export default function WorkspaceContent() {
                   </div>
                 ) : null}
 
+                {hasManagedDeployment ? (
+                  <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Next actions
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-sm font-medium text-white">1. Create a scoped API key</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Use a runtime-ready key before sharing or scripting against this deployment.
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-sm font-medium text-white">2. Send a low-cost test prompt</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Start with one short request to confirm output, latency, and per-request cost.
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-sm font-medium text-white">3. Watch budget and status</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Pause the deployment if you are not using it or the budget falls low.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Button asChild className="bg-neon text-background hover:bg-neon/90">
                     <Link href={walletHref}>
