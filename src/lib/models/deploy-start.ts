@@ -88,7 +88,7 @@ function buildWalletStartHref(input: {
     params.set("sponsored", "1");
   }
 
-  return `/wallet?${params.toString()}`;
+  return `/start?${params.toString()}`;
 }
 
 function buildDeployExperience(input: {

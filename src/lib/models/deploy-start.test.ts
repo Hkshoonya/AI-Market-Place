@@ -32,7 +32,7 @@ describe("getDeployStartPlan", () => {
         }),
       })
     );
-    expect(plan?.href).toContain("/wallet?");
+    expect(plan?.href).toContain("/start?");
     expect(plan?.href).toContain("modelSlug=glm-5");
     expect(plan?.href).toContain("amount=40");
     expect(plan?.href).toContain("pack=builder");

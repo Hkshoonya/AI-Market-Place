@@ -80,7 +80,7 @@ describe("DeployTab", () => {
     expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("link", { name: /start with starter pack/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/wallet?")
+      expect.stringContaining("/start?")
     );
     expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
   });
