@@ -100,6 +100,19 @@ export default function WorkspaceContent() {
       : null,
     { ...SWR_TIERS.MEDIUM }
   );
+  const session = workspace.session;
+  const runtime = runtimeSnapshot?.runtime ?? null;
+
+  useEffect(() => {
+    if (!session || !runtime?.id) return;
+    if (session.runtimeId === runtime.id && session.runtimeEndpointPath === runtime.endpointPath) {
+      return;
+    }
+    workspace.updateWorkspaceSession({
+      runtimeId: runtime.id,
+      runtimeEndpointPath: runtime.endpointPath,
+    });
+  }, [runtime?.endpointPath, runtime?.id, session, workspace]);
 
   if (loading) {
     return (
@@ -115,7 +128,7 @@ export default function WorkspaceContent() {
 
   if (!user) return null;
 
-  if (!workspace.session) {
+  if (!session) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
         <Card className="border-border/50 bg-card">
@@ -142,7 +155,6 @@ export default function WorkspaceContent() {
     );
   }
 
-  const { session } = workspace;
   const params = new URLSearchParams({
     intent: "deploy",
     model: session.model ?? "",
@@ -161,7 +173,6 @@ export default function WorkspaceContent() {
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
-  const runtime = runtimeSnapshot?.runtime ?? null;
   const assistantUsage = chatMessages.reduce(
     (acc, message) => {
       const usage = message.metadata?.usage;
@@ -221,6 +232,7 @@ export default function WorkspaceContent() {
         body: JSON.stringify({
           message: trimmed,
           conversation_id: session.conversationId ?? undefined,
+          runtime_id: session.runtimeId ?? undefined,
           topic: session.model ? `Deploy workspace for ${session.model}` : "Deploy workspace",
         }),
       });
@@ -284,6 +296,12 @@ export default function WorkspaceContent() {
           ? `Prepared a stable in-site runtime record for ${session.model}.`
           : "Prepared a stable in-site runtime record."
       );
+      if (payload.runtime?.id) {
+        workspace.updateWorkspaceSession({
+          runtimeId: payload.runtime.id,
+          runtimeEndpointPath: payload.runtime.endpointPath ?? null,
+        });
+      }
       await mutateRuntimeSnapshot();
     } catch (error) {
       setRuntimeError(error instanceof Error ? error.message : "Failed to prepare runtime");

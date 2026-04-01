@@ -148,6 +148,7 @@ export function DeployWorkspacePanel() {
         body: JSON.stringify({
           message: trimmed,
           conversation_id: session.conversationId ?? undefined,
+          runtime_id: session.runtimeId ?? undefined,
           topic: session.model ? `Deploy workspace for ${session.model}` : "Deploy workspace",
         }),
       });

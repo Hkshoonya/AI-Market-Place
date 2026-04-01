@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 const RequestSchema = z.object({
   message: z.string().trim().min(1).max(4000),
   conversation_id: z.string().trim().min(1).optional(),
+  runtime_id: z.string().trim().min(1).optional(),
   agent_slug: z.string().trim().min(1).default("pipeline-engineer"),
   topic: z.string().trim().max(200).optional(),
 });
@@ -49,6 +50,21 @@ async function loadWorkspaceConversation(input: {
 
   const messages = await getMessages(admin, input.conversationId, 100);
   return { conversation, messages };
+}
+
+async function loadWorkspaceRuntime(input: { runtimeId: string; userId: string }) {
+  const admin = createAdminClient();
+  const { data: runtime, error } = await admin
+    .from("workspace_runtimes")
+    .select("id, user_id, total_requests, total_tokens")
+    .eq("id", input.runtimeId)
+    .single();
+
+  if (error || !runtime || runtime.user_id !== input.userId) {
+    return { error: "Runtime not found", status: 404 as const };
+  }
+
+  return { runtime };
 }
 
 export async function GET(request: Request) {
@@ -155,6 +171,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const runtimeResult = parsed.data.runtime_id
+      ? await loadWorkspaceRuntime({
+          runtimeId: parsed.data.runtime_id,
+          userId: user.id,
+        })
+      : null;
+
+    if (runtimeResult && "error" in runtimeResult) {
+      return NextResponse.json(
+        { error: runtimeResult.error },
+        { status: runtimeResult.status }
+      );
+    }
+
     const conversationId = conversationResult.conversation.id;
 
     const sentMessage = await sendMessage(
@@ -181,6 +211,30 @@ export async function POST(request: Request) {
     }
 
     await admin.from("agents").update(agentUpdates).eq("id", targetAgent.id);
+
+    if (parsed.data.runtime_id && runtimeResult && "runtime" in runtimeResult) {
+      const usageMetadata =
+        response &&
+        typeof response === "object" &&
+        response.metadata &&
+        typeof response.metadata === "object" &&
+        "usage" in response.metadata &&
+        response.metadata.usage &&
+        typeof response.metadata.usage === "object"
+          ? (response.metadata.usage as { totalTokens?: unknown })
+          : null;
+      const totalTokens =
+        typeof usageMetadata?.totalTokens === "number" ? usageMetadata.totalTokens : 0;
+
+      await admin
+        .from("workspace_runtimes")
+        .update({
+          total_requests: (runtimeResult.runtime.total_requests ?? 0) + 1,
+          total_tokens: Number(runtimeResult.runtime.total_tokens ?? 0) + totalTokens,
+          last_used_at: new Date().toISOString(),
+        })
+        .eq("id", parsed.data.runtime_id);
+    }
 
     return NextResponse.json({
       conversation_id: conversationId,

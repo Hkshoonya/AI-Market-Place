@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const getUser = vi.fn();
 const single = vi.fn();
+const runtimeSingle = vi.fn();
 const eq = vi.fn();
 const updateEq = vi.fn();
 const update = vi.fn();
@@ -71,6 +72,16 @@ describe("POST /api/workspace/chat", () => {
               single,
             }),
           }),
+        };
+      }
+      if (table === "workspace_runtimes") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: runtimeSingle,
+            }),
+          }),
+          update,
         };
       }
       throw new Error(`Unexpected table ${table}`);
@@ -181,5 +192,58 @@ describe("POST /api/workspace/chat", () => {
     const body = await response.json();
     expect(body.messages).toHaveLength(2);
     expect(getMessages).toHaveBeenCalledWith(expect.anything(), "conversation-1", 100);
+  });
+
+  it("tracks usage against an attached workspace runtime", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    findOrCreateConversation.mockResolvedValue({
+      conversation: { id: "conversation-1" },
+      created: false,
+    });
+    runtimeSingle.mockResolvedValue({
+      data: {
+        id: "runtime-1",
+        user_id: "user-1",
+        total_requests: 4,
+        total_tokens: 100,
+      },
+      error: null,
+    });
+    sendMessage.mockResolvedValue({
+      id: "msg-1",
+      content: "How do I start?",
+    });
+    generateAgentResponse.mockResolvedValue({
+      id: "msg-2",
+      content: "Open wallet first, then create API keys.",
+      metadata: {
+        usage: {
+          totalTokens: 30,
+        },
+      },
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "How do I start?",
+          runtime_id: "runtime-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_requests: 5,
+        total_tokens: 130,
+      })
+    );
   });
 });
