@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ShoppingCart,
   Loader2,
@@ -48,6 +49,7 @@ export function PurchaseButton({
   sellerName,
 }: PurchaseButtonProps) {
   const { user } = useAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState("");
@@ -151,7 +153,10 @@ export function PurchaseButton({
         ? "Sign in to Purchase"
         : isFree
           ? "Confirm Free Access"
-          : "Confirm Purchase";
+        : "Confirm Purchase";
+  const redirectPath = pathname || "/marketplace";
+  const loginHref = `/login?redirect=${encodeURIComponent(redirectPath)}`;
+  const signupHref = `/signup?redirect=${encodeURIComponent(redirectPath)}`;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -223,13 +228,13 @@ export function PurchaseButton({
                 Cancel
               </Button>
               <Button asChild className="flex-1 bg-neon text-background hover:bg-neon/90">
-                <Link href="/login?redirect=/marketplace">Sign In</Link>
+                <Link href={loginHref}>Sign In</Link>
               </Button>
             </div>
 
             <p className="text-center text-[11px] text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/signup?redirect=/marketplace" className="text-neon hover:underline">
+              <Link href={signupHref} className="text-neon hover:underline">
                 Sign up free
               </Link>
             </p>
