@@ -7,6 +7,7 @@ const updateEq = vi.fn();
 const update = vi.fn();
 const from = vi.fn();
 const findOrCreateConversation = vi.fn();
+const getMessages = vi.fn();
 const sendMessage = vi.fn();
 const generateAgentResponse = vi.fn();
 
@@ -26,6 +27,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 vi.mock("@/lib/agents/chat", () => ({
   findOrCreateConversation: (...args: unknown[]) => findOrCreateConversation(...args),
+  getMessages: (...args: unknown[]) => getMessages(...args),
   sendMessage: (...args: unknown[]) => sendMessage(...args),
   generateAgentResponse: (...args: unknown[]) => generateAgentResponse(...args),
 }));
@@ -60,6 +62,15 @@ describe("POST /api/workspace/chat", () => {
             eq,
           }),
           update,
+        };
+      }
+      if (table === "agent_conversations") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single,
+            }),
+          }),
         };
       }
       throw new Error(`Unexpected table ${table}`);
@@ -123,5 +134,52 @@ describe("POST /api/workspace/chat", () => {
       "conversation-1",
       "How do I start?"
     );
+  });
+
+  it("returns the transcript for a user-owned workspace conversation", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    single.mockResolvedValueOnce({
+      data: {
+        id: "conversation-1",
+        participant_a: "user-1",
+        participant_b: "agent-1",
+      },
+      error: null,
+    });
+    getMessages.mockResolvedValue([
+      {
+        id: "msg-1",
+        sender_type: "user",
+        content: "How do I start?",
+        metadata: null,
+        created_at: "2026-04-01T10:00:00.000Z",
+      },
+      {
+        id: "msg-2",
+        sender_type: "agent",
+        content: "Open wallet first.",
+        metadata: {
+          usage: {
+            inputTokens: 20,
+            outputTokens: 10,
+            totalTokens: 30,
+          },
+        },
+        created_at: "2026-04-01T10:00:05.000Z",
+      },
+    ]);
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new Request("https://aimarketcap.tech/api/workspace/chat?conversation_id=conversation-1")
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.messages).toHaveLength(2);
+    expect(getMessages).toHaveBeenCalledWith(expect.anything(), "conversation-1", 100);
   });
 });

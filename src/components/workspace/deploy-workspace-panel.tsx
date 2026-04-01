@@ -20,6 +20,24 @@ interface WorkspaceApiKeysSnapshot {
   keys: Array<{ id: string; is_active: boolean }>;
 }
 
+interface WorkspaceChatMessage {
+  id: string;
+  sender_type: "agent" | "user";
+  content: string;
+  metadata?: {
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    } | null;
+  } | null;
+  created_at: string;
+}
+
+interface WorkspaceChatSnapshot {
+  messages: WorkspaceChatMessage[];
+}
+
 export function DeployWorkspacePanel() {
   const [noteDraft, setNoteDraft] = useState("");
   const [assistantDraft, setAssistantDraft] = useState("");
@@ -34,6 +52,12 @@ export function DeployWorkspacePanel() {
   const { data: apiKeysSnapshot } = useSWR<WorkspaceApiKeysSnapshot>(
     user && workspace?.session ? "/api/api-keys" : null,
     { ...SWR_TIERS.SLOW }
+  );
+  const { data: chatSnapshot, mutate: mutateChatSnapshot } = useSWR<WorkspaceChatSnapshot>(
+    user && workspace?.session?.conversationId
+      ? `/api/workspace/chat?conversation_id=${encodeURIComponent(workspace.session.conversationId)}`
+      : null,
+    { ...SWR_TIERS.MEDIUM }
   );
 
   if (!workspace?.session) return null;
@@ -64,6 +88,16 @@ export function DeployWorkspacePanel() {
     /provider/i.test(`${event.title} ${event.detail}`)
   );
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
+  const chatMessages = chatSnapshot?.messages ?? [];
+  const assistantUsage = chatMessages.reduce(
+    (acc, message) => {
+      const usage = message.metadata?.usage;
+      acc.turns += message.sender_type === "agent" ? 1 : 0;
+      acc.totalTokens += usage?.totalTokens ?? 0;
+      return acc;
+    },
+    { turns: 0, totalTokens: 0 }
+  );
   const stepItems = [
     {
       label: "Funding",
@@ -180,6 +214,18 @@ export function DeployWorkspacePanel() {
                     Session Events
                   </p>
                   <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Assistant Turns
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">{assistantUsage.turns}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Tracked Tokens
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">{assistantUsage.totalTokens}</p>
                 </div>
               </div>
 
@@ -345,6 +391,7 @@ export function DeployWorkspacePanel() {
                               "system"
                             );
                           }
+                          await mutateChatSnapshot();
                         } catch (error) {
                           setAssistantError(
                             error instanceof Error
@@ -367,34 +414,75 @@ export function DeployWorkspacePanel() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-neon" />
-                <p className="text-sm font-medium text-white">Session history</p>
-              </div>
-              <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[22rem]" : "max-h-56")}>
-                {session.events.map((event) => (
-                  <div
-                    key={event.id}
-                    className={cn(
-                      "rounded-md border px-3 py-2 text-xs",
-                      event.type === "system"
-                        ? "border-border/40 bg-card/30 text-muted-foreground"
-                        : "border-neon/20 bg-neon/10 text-foreground"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-white">{event.title}</span>
-                      <span className="text-[10px] uppercase tracking-wide opacity-70">
-                        {new Date(event.createdAt).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <p className="text-sm font-medium text-white">Assistant transcript</p>
+                </div>
+                <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[18rem]" : "max-h-48")}>
+                  {chatMessages.length > 0 ? (
+                    chatMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "rounded-md border px-3 py-2 text-xs",
+                          message.sender_type === "agent"
+                            ? "border-border/40 bg-card/30 text-muted-foreground"
+                            : "border-neon/20 bg-neon/10 text-foreground"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-white">
+                            {message.sender_type === "agent" ? "Assistant" : "You"}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-wide opacity-70">
+                            {new Date(message.created_at).toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-md border border-dashed border-border/40 px-3 py-4 text-xs text-muted-foreground">
+                      No assistant transcript yet. Ask the workspace assistant to start one.
                     </div>
-                    <p className="mt-1">{event.detail}</p>
-                  </div>
-                ))}
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <p className="text-sm font-medium text-white">Session history</p>
+                </div>
+                <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[18rem]" : "max-h-48")}>
+                  {session.events.map((event) => (
+                    <div
+                      key={event.id}
+                      className={cn(
+                        "rounded-md border px-3 py-2 text-xs",
+                        event.type === "system"
+                          ? "border-border/40 bg-card/30 text-muted-foreground"
+                          : "border-neon/20 bg-neon/10 text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-white">{event.title}</span>
+                        <span className="text-[10px] uppercase tracking-wide opacity-70">
+                          {new Date(event.createdAt).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p className="mt-1">{event.detail}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

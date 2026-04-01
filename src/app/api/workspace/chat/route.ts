@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   findOrCreateConversation,
+  getMessages,
   sendMessage,
   generateAgentResponse,
 } from "@/lib/agents/chat";
@@ -17,6 +18,80 @@ const RequestSchema = z.object({
   agent_slug: z.string().trim().min(1).default("pipeline-engineer"),
   topic: z.string().trim().max(200).optional(),
 });
+
+const QuerySchema = z.object({
+  conversation_id: z.string().trim().min(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+async function loadWorkspaceConversation(input: {
+  conversationId: string;
+  userId: string;
+}) {
+  const admin = createAdminClient();
+
+  const { data: conversation, error: conversationError } = await admin
+    .from("agent_conversations")
+    .select("id, participant_a, participant_b")
+    .eq("id", input.conversationId)
+    .single();
+
+  if (conversationError || !conversation) {
+    return { error: "Conversation not found", status: 404 as const };
+  }
+
+  if (
+    conversation.participant_a !== input.userId &&
+    conversation.participant_b !== input.userId
+  ) {
+    return { error: "Conversation not found", status: 404 as const };
+  }
+
+  const messages = await getMessages(admin, input.conversationId, 100);
+  return { conversation, messages };
+}
+
+export async function GET(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const parsed = QuerySchema.safeParse({
+      conversation_id: url.searchParams.get("conversation_id"),
+      limit: url.searchParams.get("limit") ?? undefined,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 }
+      );
+    }
+
+    const result = await loadWorkspaceConversation({
+      conversationId: parsed.data.conversation_id,
+      userId: user.id,
+    });
+
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    return NextResponse.json({
+      messages: result.messages.slice(-parsed.data.limit),
+    });
+  } catch (error) {
+    return handleApiError(error, "api/workspace/chat");
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -60,12 +135,10 @@ export async function POST(request: Request) {
     }
 
     const conversationResult = parsed.data.conversation_id
-      ? {
-          conversation: {
-            id: parsed.data.conversation_id,
-          },
-          created: false,
-        }
+      ? await loadWorkspaceConversation({
+          conversationId: parsed.data.conversation_id,
+          userId: user.id,
+        })
       : await findOrCreateConversation(
           admin,
           user.id,
@@ -74,6 +147,13 @@ export async function POST(request: Request) {
           "agent",
           parsed.data.topic
         );
+
+    if ("error" in conversationResult) {
+      return NextResponse.json(
+        { error: conversationResult.error },
+        { status: conversationResult.status }
+      );
+    }
 
     const conversationId = conversationResult.conversation.id;
 
@@ -96,7 +176,7 @@ export async function POST(request: Request) {
     const agentUpdates: Record<string, unknown> = {
       last_active_at: new Date().toISOString(),
     };
-    if (conversationResult.created) {
+    if ("created" in conversationResult && conversationResult.created) {
       agentUpdates.total_conversations = (targetAgent.total_conversations ?? 0) + 1;
     }
 
