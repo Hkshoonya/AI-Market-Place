@@ -4,9 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import { DeployTab } from "./deploy-tab";
 
 const mockUseSWR = vi.fn();
+const mockOpenWorkspace = vi.fn();
 
 vi.mock("swr", () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
+}));
+
+vi.mock("@/components/workspace/workspace-provider", () => ({
+  useWorkspace: () => ({
+    openWorkspace: mockOpenWorkspace,
+  }),
 }));
 
 describe("DeployTab", () => {
@@ -78,10 +85,7 @@ describe("DeployTab", () => {
     expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
     expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByRole("link", { name: /start with starter pack/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/start?")
-    );
+    expect(screen.getByRole("button", { name: /start with starter pack/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
   });
 });

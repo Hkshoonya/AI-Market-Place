@@ -27,6 +27,19 @@ export interface DeployStartPlan {
   platformName: string | null;
   needsWallet: boolean;
   sponsored: boolean;
+  workspace:
+    | {
+        model: string;
+        modelSlug: string;
+        provider: string | null;
+        action: string;
+        nextUrl: string;
+        sponsored: boolean;
+        suggestedPackSlug: string | null;
+        suggestedPack: string | null;
+        suggestedAmount: number | null;
+      }
+    | null;
   experience: {
     destinationLabel: string;
     destinationSummary: string;
@@ -164,6 +177,7 @@ export function getDeployStartPlan(input: {
       platformName: null,
       needsWallet: false,
       sponsored: false,
+      workspace: null,
       experience: buildDeployExperience({
         platformName: null,
         platformType: null,
@@ -213,6 +227,17 @@ export function getDeployStartPlan(input: {
       platformName,
       needsWallet: true,
       sponsored,
+      workspace: {
+        model: input.modelName,
+        modelSlug: input.modelSlug,
+        provider: platformName,
+        action: actionLabel,
+        nextUrl: offer.actionUrl,
+        sponsored,
+        suggestedPackSlug: recommendedPack?.slug ?? null,
+        suggestedPack: recommendedPack?.label ?? null,
+        suggestedAmount: recommendedAmount,
+      },
       experience: buildDeployExperience({
         platformName,
         platformType,
@@ -233,6 +258,7 @@ export function getDeployStartPlan(input: {
     platformName,
     needsWallet: false,
     sponsored,
+    workspace: null,
     experience: buildDeployExperience({
       platformName,
       platformType,

@@ -358,6 +358,7 @@ export default async function ModelDetailPage({
         deployActionHref={deployStartPlan?.href ?? null}
         deployActionExternal={deployStartPlan?.external ?? false}
         deployActionSponsored={deployStartPlan?.sponsored ?? false}
+        deployActionWorkspace={deployStartPlan?.workspace ?? null}
       />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (

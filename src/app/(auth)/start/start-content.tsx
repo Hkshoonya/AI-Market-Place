@@ -32,6 +32,7 @@ export default function StartContent() {
   const starterNext = searchParams.get("next");
   const starterAmount = searchParams.get("amount");
   const starterPackLabel = searchParams.get("packLabel");
+  const starterPackSlug = searchParams.get("pack");
   const starterSponsored = searchParams.get("sponsored") === "1";
 
   useEffect(() => {
@@ -53,8 +54,10 @@ export default function StartContent() {
       action: starterAction,
       nextUrl: starterNext,
       suggestedPack: starterPackLabel,
+      suggestedPackSlug: starterPackSlug,
       suggestedAmount:
         starterAmount && Number.isFinite(Number(starterAmount)) ? Number(starterAmount) : null,
+      sponsored: starterSponsored,
     });
   }, [
     user,
@@ -65,7 +68,9 @@ export default function StartContent() {
     starterModelSlug,
     starterNext,
     starterPackLabel,
+    starterPackSlug,
     starterProvider,
+    starterSponsored,
   ]);
 
   if (loading || !user) return null;

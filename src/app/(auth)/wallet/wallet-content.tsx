@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ export default function WalletContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const { openWorkspace, addWorkspaceEvent } = useWorkspace();
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<TxTypeFilter>("all");
   const [page, setPage] = useState(1);
@@ -134,6 +136,42 @@ export default function WalletContent() {
       router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
     }
   }, [authLoading, pathname, router, searchParams, user]);
+
+  useEffect(() => {
+    if (!user || deployIntent !== "deploy") return;
+    openWorkspace({
+      model: starterModel,
+      modelSlug: starterModelSlug,
+      provider: starterProvider,
+      action: starterAction,
+      nextUrl: starterNext,
+      sponsored: starterSponsored,
+      suggestedPackSlug: starterPackSlug,
+      suggestedPack: starterPack?.label ?? starterPackLabel,
+      suggestedAmount: starterAmount,
+    });
+    addWorkspaceEvent(
+      "Wallet step opened",
+      starterModel
+        ? `Opened wallet funding for ${starterModel} without losing the active deploy session.`
+        : "Opened wallet funding without losing the active deploy session."
+    );
+  }, [
+    addWorkspaceEvent,
+    deployIntent,
+    openWorkspace,
+    starterAction,
+    starterAmount,
+    starterModel,
+    starterModelSlug,
+    starterNext,
+    starterPack,
+    starterPackLabel,
+    starterPackSlug,
+    starterProvider,
+    starterSponsored,
+    user,
+  ]);
 
   const handleGenerateAddress = async () => {
     setGenerating(true);
@@ -273,7 +311,17 @@ export default function WalletContent() {
             <div className="flex flex-wrap gap-2">
               {!hasStarterBalance ? (
                 <Button variant="outline" asChild>
-                  <a href="#deposit-addresses">Go to Deposit Step</a>
+                  <a
+                    href="#deposit-addresses"
+                    onClick={() =>
+                      addWorkspaceEvent(
+                        "Deposit step focused",
+                        "Moved to the wallet funding step inside the active deploy workspace."
+                      )
+                    }
+                  >
+                    Go to Deposit Step
+                  </a>
                 </Button>
               ) : null}
               {starterModelSlug ? (
@@ -291,6 +339,12 @@ export default function WalletContent() {
                     starterSponsored
                       ? "noopener noreferrer sponsored nofollow"
                       : "noopener noreferrer"
+                  }
+                  onClick={() =>
+                    addWorkspaceEvent(
+                      "Provider continuation opened",
+                      "Continued from wallet funding into the verified provider path."
+                    )
                   }
                 >
                   {hasStarterBalance ? "Continue to Provider" : "Continue After Top-Up"}

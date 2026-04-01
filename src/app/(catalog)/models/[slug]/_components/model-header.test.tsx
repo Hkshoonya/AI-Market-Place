@@ -58,6 +58,14 @@ vi.mock("@/components/shared/data-freshness-badge", () => ({
   ),
 }));
 
+vi.mock("@/components/workspace/workspace-start-button", () => ({
+  WorkspaceStartButton: ({
+    label,
+  }: {
+    label: string;
+  }) => <button type="button">{label}</button>,
+}));
+
 vi.mock("lucide-react", () => ({
   ExternalLink: () => <svg />,
   Globe: () => <svg />,
@@ -164,5 +172,38 @@ describe("ModelHeader", () => {
       "rel",
       "noopener noreferrer sponsored nofollow"
     );
+  });
+
+  it("uses the in-site workspace trigger for wallet-guided deploy paths", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights={false}
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        deployActionLabel="Start with Starter Pack"
+        deployActionHref="/start?intent=deploy"
+        deployActionWorkspace={{
+          model: "Test Model",
+          modelSlug: "test-model",
+          provider: "ChatGPT Plus",
+          action: "Subscribe",
+          nextUrl: "https://platform.example.com/test-model",
+          sponsored: false,
+          suggestedPackSlug: "starter-pack",
+          suggestedPack: "Starter Pack",
+          suggestedAmount: 20,
+        }}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /start with starter pack/i })
+    ).toBeInTheDocument();
   });
 });

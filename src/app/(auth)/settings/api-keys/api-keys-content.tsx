@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import {
   Key,
@@ -12,9 +13,14 @@ import {
   Clock,
   Check,
   AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
 interface ApiKeyRecord {
@@ -69,6 +75,9 @@ const AVAILABLE_SCOPES = [
 export default function ApiKeysContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { openWorkspace, addWorkspaceEvent } = useWorkspace();
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read"]);
@@ -76,6 +85,20 @@ export default function ApiKeysContent() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const deployIntent = searchParams.get("intent");
+  const starterModel = searchParams.get("model");
+  const starterModelSlug = searchParams.get("modelSlug");
+  const starterProvider = searchParams.get("provider");
+  const starterAction = searchParams.get("action");
+  const starterNext = searchParams.get("next");
+  const starterSponsored = searchParams.get("sponsored") === "1";
+  const starterPackSlug = searchParams.get("pack");
+  const starterPackLabel = searchParams.get("packLabel");
+  const starterAmountRaw = searchParams.get("amount");
+  const starterAmount =
+    starterAmountRaw && Number.isFinite(Number(starterAmountRaw))
+      ? Number(starterAmountRaw)
+      : null;
 
   const { data, isLoading, mutate } = useSWR<ApiKeysResponse>(
     user ? "/api/api-keys" : null,
@@ -86,9 +109,46 @@ export default function ApiKeysContent() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login");
+      const queryString = searchParams.toString();
+      const redirectTarget = queryString ? `${pathname}?${queryString}` : pathname;
+      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [user, loading, router]);
+  }, [loading, pathname, router, searchParams, user]);
+
+  useEffect(() => {
+    if (!user || deployIntent !== "deploy") return;
+    openWorkspace({
+      model: starterModel,
+      modelSlug: starterModelSlug,
+      provider: starterProvider,
+      action: starterAction,
+      nextUrl: starterNext,
+      sponsored: starterSponsored,
+      suggestedPackSlug: starterPackSlug,
+      suggestedPack: starterPackLabel,
+      suggestedAmount: starterAmount,
+    });
+    addWorkspaceEvent(
+      "API keys step opened",
+      starterModel
+        ? `Opened API access setup for ${starterModel} without losing the active deploy session.`
+        : "Opened API access setup without losing the active deploy session."
+    );
+  }, [
+    addWorkspaceEvent,
+    deployIntent,
+    openWorkspace,
+    starterAction,
+    starterAmount,
+    starterModel,
+    starterModelSlug,
+    starterNext,
+    starterPackLabel,
+    starterPackSlug,
+    starterProvider,
+    starterSponsored,
+    user,
+  ]);
 
   const createKey = async () => {
     setError(null);
@@ -115,6 +175,12 @@ export default function ApiKeysContent() {
       setNewKeyScopes(["read"]);
       setNewKeyExpiry("");
       toast.success("API key created");
+      addWorkspaceEvent(
+        "API key created",
+        newKeyName
+          ? `Created API key "${newKeyName}" while continuing the deploy workspace.`
+          : "Created an API key while continuing the deploy workspace."
+      );
       mutate();
     } catch {
       setError("Failed to create API key");
@@ -162,6 +228,38 @@ export default function ApiKeysContent() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
+      {deployIntent === "deploy" && starterModel ? (
+        <Card className="mb-6 border-neon/20 bg-neon/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                  Deploy Workspace
+                </Badge>
+                {starterPackLabel ? (
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
+                    {starterPackLabel}
+                  </Badge>
+                ) : null}
+              </div>
+              <h2 className="text-base font-semibold">Keep API setup tied to {starterModel}</h2>
+              <p className="text-sm text-muted-foreground">
+                Create the account-side API key here, then continue the same in-site deploy session
+                without losing history or wallet context.
+              </p>
+            </div>
+            {starterModelSlug ? (
+              <Button variant="outline" asChild>
+                <Link href={`/models/${starterModelSlug}?tab=deploy#model-tabs`}>
+                  Back to Model
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neon/10">

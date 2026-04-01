@@ -12,6 +12,8 @@ export interface WorkspaceSession {
   provider: string | null;
   action: string | null;
   nextUrl: string | null;
+  sponsored: boolean;
+  suggestedPackSlug: string | null;
   suggestedPack: string | null;
   suggestedAmount: number | null;
   startedAt: string;
@@ -21,6 +23,7 @@ export interface WorkspaceSession {
 export interface WorkspaceState {
   open: boolean;
   minimized: boolean;
+  maximized: boolean;
   session: WorkspaceSession | null;
 }
 
@@ -50,6 +53,8 @@ export function createWorkspaceSession(input: {
   provider?: string | null;
   action?: string | null;
   nextUrl?: string | null;
+  sponsored?: boolean | null;
+  suggestedPackSlug?: string | null;
   suggestedPack?: string | null;
   suggestedAmount?: number | null;
 }): WorkspaceSession {
@@ -59,6 +64,8 @@ export function createWorkspaceSession(input: {
     provider: input.provider ?? null,
     action: input.action ?? null,
     nextUrl: input.nextUrl ?? null,
+    sponsored: Boolean(input.sponsored),
+    suggestedPackSlug: input.suggestedPackSlug ?? null,
     suggestedPack: input.suggestedPack ?? null,
     suggestedAmount: input.suggestedAmount ?? null,
     startedAt: new Date().toISOString(),
@@ -91,7 +98,17 @@ export function parseWorkspaceState(raw: string | null | undefined): WorkspaceSt
     return {
       open: Boolean(parsed.open),
       minimized: Boolean(parsed.minimized),
-      session: parsed.session ?? null,
+      maximized: Boolean(parsed.maximized),
+      session: parsed.session
+        ? {
+            ...parsed.session,
+            sponsored: Boolean(parsed.session.sponsored),
+            suggestedPackSlug:
+              typeof parsed.session.suggestedPackSlug === "string"
+                ? parsed.session.suggestedPackSlug
+                : null,
+          }
+        : null,
     };
   } catch {
     return null;

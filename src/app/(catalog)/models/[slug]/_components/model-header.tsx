@@ -6,6 +6,7 @@ import { ModelActions } from "@/components/models/model-actions";
 import { ShareModel } from "@/components/models/share-model";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
+import { WorkspaceStartButton } from "@/components/workspace/workspace-start-button";
 import type { CategoryConfig } from "@/lib/constants/categories";
 
 export interface ModelHeaderProps {
@@ -24,6 +25,17 @@ export interface ModelHeaderProps {
   deployActionHref?: string | null;
   deployActionExternal?: boolean;
   deployActionSponsored?: boolean;
+  deployActionWorkspace?: {
+    model: string;
+    modelSlug: string;
+    provider: string | null;
+    action: string;
+    nextUrl: string;
+    sponsored: boolean;
+    suggestedPackSlug: string | null;
+    suggestedPack: string | null;
+    suggestedAmount: number | null;
+  } | null;
 }
 
 export function ModelHeader({
@@ -42,6 +54,7 @@ export function ModelHeader({
   deployActionHref,
   deployActionExternal,
   deployActionSponsored,
+  deployActionWorkspace,
 }: ModelHeaderProps) {
   return (
     <div className="relative -mx-4 px-4 py-6 mb-2 rounded-2xl gradient-mesh">
@@ -114,28 +127,45 @@ export function ModelHeader({
             </Button>
           ) : null}
           {deployActionLabel && deployActionHref ? (
-            <Button size="sm" className="gap-2" asChild>
-              {deployActionExternal ? (
-                <a
-                  href={deployActionHref}
-                  target="_blank"
-                  rel={
-                    deployActionSponsored
-                      ? "noopener noreferrer sponsored nofollow"
-                      : "noopener noreferrer"
-                  }
-                >
-                  <Globe className="h-4 w-4" />
-                  {deployActionLabel}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                <Link href={deployActionHref}>
-                  <Globe className="h-4 w-4" />
-                  {deployActionLabel}
-                </Link>
-              )}
-            </Button>
+            deployActionWorkspace ? (
+              <WorkspaceStartButton
+                size="sm"
+                className="gap-2"
+                label={deployActionLabel}
+                model={deployActionWorkspace.model}
+                modelSlug={deployActionWorkspace.modelSlug}
+                provider={deployActionWorkspace.provider}
+                action={deployActionWorkspace.action}
+                nextUrl={deployActionWorkspace.nextUrl}
+                sponsored={deployActionWorkspace.sponsored}
+                suggestedPackSlug={deployActionWorkspace.suggestedPackSlug}
+                suggestedPack={deployActionWorkspace.suggestedPack}
+                suggestedAmount={deployActionWorkspace.suggestedAmount}
+              />
+            ) : (
+              <Button size="sm" className="gap-2" asChild>
+                {deployActionExternal ? (
+                  <a
+                    href={deployActionHref}
+                    target="_blank"
+                    rel={
+                      deployActionSponsored
+                        ? "noopener noreferrer sponsored nofollow"
+                        : "noopener noreferrer"
+                    }
+                  >
+                    <Globe className="h-4 w-4" />
+                    {deployActionLabel}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <Link href={deployActionHref}>
+                    <Globe className="h-4 w-4" />
+                    {deployActionLabel}
+                  </Link>
+                )}
+              </Button>
+            )
           ) : null}
           <ModelActions modelSlug={slug} modelName={name} modelId={id} />
           <ShareModel modelSlug={slug} modelName={name} provider={provider} />

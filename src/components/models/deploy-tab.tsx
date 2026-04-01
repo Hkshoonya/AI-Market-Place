@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/models/access-offers";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import type { LaunchRadarItem } from "@/lib/news/presentation";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 
 interface Platform {
   id: string;
@@ -137,6 +137,7 @@ function getLocalCommand(platformSlug: string, modelName: string): string | null
 }
 
 export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProps) {
+  const { openWorkspace } = useWorkspace();
   const { data, error, isLoading } = useSWR<{
     deployments: Deployment[];
     relatedPlatforms: Deployment[];
@@ -245,12 +246,26 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               ) : (
-                <Link
-                  href={startPlan.href}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!startPlan.workspace) return;
+                    openWorkspace({
+                      model: startPlan.workspace.model,
+                      modelSlug: startPlan.workspace.modelSlug,
+                      provider: startPlan.workspace.provider,
+                      action: startPlan.workspace.action,
+                      nextUrl: startPlan.workspace.nextUrl,
+                      sponsored: startPlan.workspace.sponsored,
+                      suggestedPackSlug: startPlan.workspace.suggestedPackSlug,
+                      suggestedPack: startPlan.workspace.suggestedPack,
+                      suggestedAmount: startPlan.workspace.suggestedAmount,
+                    });
+                  }}
                   className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
                 >
                   {startPlan.label}
-                </Link>
+                </button>
               )
             ) : null}
           </div>
