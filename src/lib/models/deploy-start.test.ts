@@ -11,7 +11,7 @@ describe("getDeployStartPlan", () => {
         actionLabel: "Subscribe",
         actionUrl: "https://provider.example.com/glm-5",
         monthlyPrice: 40,
-        platform: { name: "GLM Coding Plan" },
+        platform: { name: "GLM Coding Plan", type: "subscription" },
       },
     });
 
@@ -24,6 +24,7 @@ describe("getDeployStartPlan", () => {
           slug: "builder",
           label: "Builder Pack",
         }),
+        recommendedPackReason: "Best when you want paid plan access through GLM Coding Plan.",
         needsWallet: true,
       })
     );

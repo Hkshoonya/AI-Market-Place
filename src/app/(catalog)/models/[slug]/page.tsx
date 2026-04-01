@@ -212,6 +212,7 @@ export default async function ModelDetailPage({
           platform: {
             slug: bestAccessOffer.platform.slug,
             name: bestAccessOffer.platform.name,
+            type: bestAccessOffer.platform.type,
           },
         }
       : null,

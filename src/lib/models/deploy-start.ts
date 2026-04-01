@@ -13,6 +13,7 @@ export interface DeployStartOfferInput {
   platform?: {
     slug?: string | null;
     name?: string | null;
+    type?: string | null;
   } | null;
 }
 
@@ -22,9 +23,35 @@ export interface DeployStartPlan {
   external: boolean;
   recommendedAmount: number | null;
   recommendedPack: WalletTopUpPack | null;
+  recommendedPackReason: string | null;
   platformName: string | null;
   needsWallet: boolean;
   sponsored: boolean;
+}
+
+function getRecommendedPackReason(input: {
+  actionLabel: string;
+  monthlyPrice: number | null;
+  platformName: string | null;
+  platformType: string | null;
+}) {
+  if (input.platformType === "subscription") {
+    return `Best when you want paid plan access through ${input.platformName ?? "the provider"}.`;
+  }
+
+  if (input.platformType === "api") {
+    return `Best when you want credits ready for API usage through ${input.platformName ?? "the provider"}.`;
+  }
+
+  if (input.platformType === "hosting") {
+    return `Best when you want to start a managed deployment path without extra setup.`;
+  }
+
+  if (input.monthlyPrice && input.monthlyPrice <= 20) {
+    return `Best for trying one paid path without overfunding the wallet.`;
+  }
+
+  return `Best for getting through the first paid setup step without stopping to top up again.`;
 }
 
 function buildWalletStartHref(input: {
@@ -77,6 +104,7 @@ export function getDeployStartPlan(input: {
       external: false,
       recommendedAmount: null,
       recommendedPack: null,
+      recommendedPackReason: null,
       platformName: null,
       needsWallet: false,
       sponsored: false,
@@ -92,6 +120,7 @@ export function getDeployStartPlan(input: {
   const recommendedPack =
     monthlyPrice != null && !offer.freeTier ? getWalletTopUpPackForAmount(monthlyPrice) : null;
   const platformName = offer.platform?.name ?? null;
+  const platformType = offer.platform?.type ?? (offer.platform?.slug === "ollama-cloud" ? "hosting" : null);
   const sponsored = Boolean(offer.partnerDisclosure);
 
   if (recommendedAmount) {
@@ -112,6 +141,12 @@ export function getDeployStartPlan(input: {
       external: false,
       recommendedAmount,
       recommendedPack,
+      recommendedPackReason: getRecommendedPackReason({
+        actionLabel,
+        monthlyPrice,
+        platformName,
+        platformType,
+      }),
       platformName,
       needsWallet: true,
       sponsored,
@@ -124,6 +159,7 @@ export function getDeployStartPlan(input: {
     external: true,
     recommendedAmount: null,
     recommendedPack: null,
+    recommendedPackReason: null,
     platformName,
     needsWallet: false,
     sponsored,

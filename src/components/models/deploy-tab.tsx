@@ -196,6 +196,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           platform: {
             slug: primaryDeployment.platform.slug,
             name: primaryDeployment.platform.name,
+            type: primaryDeployment.platform.type,
           },
         },
       })
@@ -224,6 +225,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                 <span className="font-medium text-white">{primaryDeployment.platform.name}</span>.
                 This is best for {quickStart.bestFor}.
               </p>
+              {startPlan?.recommendedPackReason ? (
+                <p className="text-xs text-muted-foreground">{startPlan.recommendedPackReason}</p>
+              ) : null}
             </div>
             {startPlan ? (
               startPlan.external ? (
