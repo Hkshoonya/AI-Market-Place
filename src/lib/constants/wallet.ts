@@ -11,3 +11,13 @@ export function formatWalletTopUpList(labels = SUGGESTED_WALLET_TOP_UP_LABELS) {
 
   return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
 }
+
+export function getRecommendedWalletTopUpAmount(price: number | null | undefined) {
+  if (price == null || !Number.isFinite(price) || price <= 0) return null;
+
+  return (
+    SUGGESTED_WALLET_TOP_UP_AMOUNTS.find((amount) => amount >= price) ??
+    SUGGESTED_WALLET_TOP_UP_AMOUNTS.at(-1) ??
+    null
+  );
+}

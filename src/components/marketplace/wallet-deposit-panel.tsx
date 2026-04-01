@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { WalletBalance } from "@/hooks/use-wallet-balance";
 import {
   formatWalletTopUpList,
+  getRecommendedWalletTopUpAmount,
   SUGGESTED_WALLET_TOP_UP_LABELS,
 } from "@/lib/constants/wallet";
 
@@ -18,10 +19,12 @@ interface WalletDepositPanelProps {
 
 export function WalletDepositPanel({
   walletData,
-  price: _price,
+  price,
   copiedField,
   onCopy,
 }: WalletDepositPanelProps) {
+  const recommendedAmount = getRecommendedWalletTopUpAmount(price);
+
   return (
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <p className="text-sm font-medium text-amber-400">Insufficient balance</p>
@@ -29,6 +32,11 @@ export function WalletDepositPanel({
         Deposit USDC to top up your wallet. Common top-up packs are{" "}
         {formatWalletTopUpList()}.
       </p>
+      {recommendedAmount ? (
+        <p className="text-xs text-amber-200">
+          Best next step for this purchase: top up at least ${recommendedAmount}.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {SUGGESTED_WALLET_TOP_UP_LABELS.map((amount) => (
