@@ -77,10 +77,10 @@ export default function ApiKeysContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { openWorkspace, addWorkspaceEvent } = useWorkspace();
+  const { openWorkspace, addWorkspaceEvent, session: activeWorkspace } = useWorkspace();
+  const recommendedRuntimeScopes = ["read", "agent"] as const;
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read"]);
   const [newKeyExpiry, setNewKeyExpiry] = useState<string>("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -99,6 +99,13 @@ export default function ApiKeysContent() {
     starterAmountRaw && Number.isFinite(Number(starterAmountRaw))
       ? Number(starterAmountRaw)
       : null;
+  const hasRuntimeContext = deployIntent === "deploy" || Boolean(activeWorkspace?.runtimeId);
+  const runtimeAssistantPath = activeWorkspace?.runtimeEndpointPath
+    ? `${activeWorkspace.runtimeEndpointPath}/assistant`
+    : null;
+  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(() =>
+    hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]
+  );
 
   const { data, isLoading, mutate } = useSWR<ApiKeysResponse>(
     user ? "/api/api-keys" : null,
@@ -172,7 +179,7 @@ export default function ApiKeysContent() {
       setCreatedKey(respData.plaintext_key);
       setShowCreate(false);
       setNewKeyName("");
-      setNewKeyScopes(["read"]);
+      setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
       setNewKeyExpiry("");
       toast.success("API key created");
       addWorkspaceEvent(
@@ -247,6 +254,14 @@ export default function ApiKeysContent() {
                 Create the account-side API key here, then continue the same in-site deploy session
                 without losing history or wallet context.
               </p>
+              {runtimeAssistantPath ? (
+                <div className="rounded-lg border border-border/40 bg-card/30 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Runtime assistant endpoint
+                  </p>
+                  <code className="mt-1 block text-xs text-foreground">{runtimeAssistantPath}</code>
+                </div>
+              ) : null}
             </div>
             {starterModelSlug ? (
               <Button variant="outline" asChild>
@@ -273,7 +288,10 @@ export default function ApiKeysContent() {
           </div>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
+            setShowCreate(true);
+          }}
           className="flex items-center gap-2 rounded-lg bg-neon px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-neon/90"
         >
           <Plus className="h-4 w-4" />
@@ -323,6 +341,16 @@ export default function ApiKeysContent() {
           <h2 className="mb-4 text-lg font-semibold">Create New API Key</h2>
           {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
           <div className="space-y-4">
+            {hasRuntimeContext ? (
+              <div className="rounded-lg border border-neon/20 bg-neon/5 px-4 py-3">
+                <p className="text-sm font-medium text-white">Recommended for runtime access</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Start with <span className="text-foreground">Read</span> +{" "}
+                  <span className="text-foreground">Agent</span>. That combination works with the
+                  runtime assistant endpoint while keeping the key narrow.
+                </p>
+              </div>
+            ) : null}
             <div>
               <label htmlFor="api-key-name" className="mb-1 block text-sm font-medium text-muted-foreground">
                 Key Name
@@ -395,6 +423,7 @@ export default function ApiKeysContent() {
               <button
                 onClick={() => {
                   setShowCreate(false);
+                  setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
                   setError(null);
                 }}
                 className="rounded-lg bg-secondary px-4 py-2 text-sm transition-colors hover:bg-secondary/80"
