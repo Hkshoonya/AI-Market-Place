@@ -3,6 +3,7 @@ import { z } from "zod";
 import { handleApiError } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/server";
 import {
+  buildWorkspaceRuntimeAssistantPath,
   buildWorkspaceRuntimeEndpointPath,
   buildWorkspaceRuntimeEndpointSlug,
 } from "@/lib/workspace/runtime";
@@ -50,6 +51,7 @@ function toRuntimeResponse(runtime: {
     status: runtime.status,
     endpointSlug: runtime.endpoint_slug,
     endpointPath: buildWorkspaceRuntimeEndpointPath(runtime.endpoint_slug),
+    assistantPath: buildWorkspaceRuntimeAssistantPath(runtime.endpoint_slug),
     totalRequests: runtime.total_requests,
     totalTokens: runtime.total_tokens,
     lastUsedAt: runtime.last_used_at,

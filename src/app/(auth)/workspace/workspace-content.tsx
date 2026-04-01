@@ -55,6 +55,7 @@ interface WorkspaceRuntimeSnapshot {
     status: "draft" | "ready" | "paused";
     endpointSlug: string;
     endpointPath: string;
+    assistantPath: string;
     totalRequests: number;
     totalTokens: number;
     lastUsedAt: string | null;
@@ -508,9 +509,30 @@ export default function WorkspaceContent() {
                   {runtime ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Reserved endpoint
+                        Runtime status endpoint
                       </p>
                       <code className="mt-1 block text-xs text-foreground">{runtime.endpointPath}</code>
+                    </div>
+                  ) : null}
+                  {runtime ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Assistant API endpoint
+                      </p>
+                      <code className="mt-1 block text-xs text-foreground">{runtime.assistantPath}</code>
+                    </div>
+                  ) : null}
+                  {runtime ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Example request
+                      </p>
+                      <pre className="mt-2 overflow-x-auto text-[11px] leading-relaxed text-foreground">
+{`curl -X POST ${runtime.assistantPath} \\
+  -H "Authorization: Bearer aimk_your_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message":"Help me start using ${session.model ?? "this model"}"}'`}
+                      </pre>
                     </div>
                   ) : null}
                   {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}

@@ -18,3 +18,7 @@ export function buildWorkspaceRuntimeEndpointSlug(modelSlug: string) {
 export function buildWorkspaceRuntimeEndpointPath(endpointSlug: string) {
   return `/api/runtime/${endpointSlug}`;
 }
+
+export function buildWorkspaceRuntimeAssistantPath(endpointSlug: string) {
+  return `${buildWorkspaceRuntimeEndpointPath(endpointSlug)}/assistant`;
+}
