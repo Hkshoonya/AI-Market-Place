@@ -96,6 +96,33 @@ function getDeploymentModeLabel(item: Deployment, isOpenWeights: boolean) {
   return "Deployment path";
 }
 
+function getQuickStartSummary(item: Deployment, isOpenWeights: boolean) {
+  const actionLabel = getActionLabel(item.platform, item.deployment?.free_tier ?? null);
+  const modeLabel = getDeploymentModeLabel(item, isOpenWeights);
+  const hasFreeTier = Boolean(item.deployment?.free_tier);
+
+  let bestFor = "getting started quickly";
+  if (item.platform.slug === "ollama-cloud") bestFor = "using the model without setting up your own stack";
+  else if (item.platform.type === "subscription") bestFor = "using the model inside a paid plan";
+  else if (item.platform.type === "api") bestFor = "building with the model through an API";
+  else if (modeLabel === "Private/self-host" || modeLabel === "Local runtime") {
+    bestFor = "running the model with more control";
+  }
+
+  return {
+    actionLabel,
+    modeLabel,
+    bestFor,
+    priceLabel:
+      item.deployment?.pricing_model === "free"
+        ? "Free"
+        : item.deployment?.price_per_unit
+          ? `$${item.deployment.price_per_unit}/${item.deployment.unit_description || "unit"}`
+          : null,
+    hasFreeTier,
+  };
+}
+
 // Ollama/llama.cpp commands for open-weight models
 function getLocalCommand(platformSlug: string, modelName: string): string | null {
   const sanitized = modelName.toLowerCase().replace(/\s+/g, "-");
@@ -144,6 +171,10 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
     if (!grouped.has(item.platform.type)) grouped.set(item.platform.type, []);
     grouped.get(item.platform.type)!.push(item);
   }
+  const primaryDeployment = deployments[0] ?? null;
+  const quickStart = primaryDeployment
+    ? getQuickStartSummary(primaryDeployment, isOpenWeights)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -154,6 +185,47 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           Related options below are still useful, but they are broader ecosystem paths rather than model-specific confirmations.
         </p>
       </div>
+
+      {primaryDeployment && quickStart && (
+        <div className="rounded-lg border border-[#00d4aa]/20 bg-[#00d4aa]/5 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[#00d4aa]" />
+                <h3 className="text-sm font-semibold text-white">Best way to start</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                If you just want the fastest verified path, start with{" "}
+                <span className="font-medium text-white">{primaryDeployment.platform.name}</span>.
+                This is best for {quickStart.bestFor}.
+              </p>
+            </div>
+            <a
+              href={getPlatformUrl(primaryDeployment.platform, primaryDeployment.deployment?.deploy_url)}
+              target="_blank"
+              rel={getLinkRel(primaryDeployment.platform)}
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
+            >
+              {quickStart.actionLabel} on {primaryDeployment.platform.name}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Use it as</p>
+              <p className="mt-1 text-sm font-medium text-white">{quickStart.modeLabel}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Price</p>
+              <p className="mt-1 text-sm font-medium text-white">{quickStart.priceLabel ?? "Check platform"}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Free Tier</p>
+              <p className="mt-1 text-sm font-medium text-white">{quickStart.hasFreeTier ? "Available" : "Not listed"}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pricing Comparison Table */}
       {deployments.length > 0 && (

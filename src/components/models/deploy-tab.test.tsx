@@ -64,8 +64,11 @@ describe("DeployTab", () => {
       />
     );
 
+    expect(screen.getByText(/best way to start/i)).toBeInTheDocument();
+    expect(screen.getByText(/If you just want the fastest verified path/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Managed cloud/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/managed cloud/i)).toHaveLength(2);
+    expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
   });
 });
