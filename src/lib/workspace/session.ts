@@ -25,13 +25,20 @@ export interface WorkspaceState {
   open: boolean;
   minimized: boolean;
   maximized: boolean;
+  activePanel: "setup" | "assistant" | "usage";
   session: WorkspaceSession | null;
+  updatedAt: string;
 }
 
 export const WORKSPACE_STORAGE_KEY = "aimc-deploy-workspace";
+const MAX_WORKSPACE_EVENTS = 200;
 
 function makeEventId() {
   return `ws_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function makeTimestamp() {
+  return new Date().toISOString();
 }
 
 export function createWorkspaceEvent(
@@ -71,7 +78,7 @@ export function createWorkspaceSession(input: {
     suggestedPackSlug: input.suggestedPackSlug ?? null,
     suggestedPack: input.suggestedPack ?? null,
     suggestedAmount: input.suggestedAmount ?? null,
-    startedAt: new Date().toISOString(),
+    startedAt: makeTimestamp(),
     events: [
       createWorkspaceEvent(
         "Workspace started",
@@ -89,35 +96,121 @@ export function appendWorkspaceEvent(
 ): WorkspaceSession {
   return {
     ...session,
-    events: [...session.events, event],
+    events: [...session.events, event].slice(-MAX_WORKSPACE_EVENTS),
+  };
+}
+
+export function createEmptyWorkspaceState(): WorkspaceState {
+  return {
+    open: false,
+    minimized: false,
+    maximized: false,
+    activePanel: "setup",
+    session: null,
+    updatedAt: makeTimestamp(),
+  };
+}
+
+export function touchWorkspaceState(
+  state: Omit<WorkspaceState, "updatedAt"> & { updatedAt?: string }
+): WorkspaceState {
+  return {
+    ...state,
+    updatedAt: makeTimestamp(),
+  };
+}
+
+function normalizeWorkspaceSession(
+  value: unknown
+): WorkspaceSession | null {
+  if (!value || typeof value !== "object") return null;
+
+  const session = value as Partial<WorkspaceSession>;
+  const rawEvents = Array.isArray(session.events) ? session.events : [];
+
+  return {
+    model: typeof session.model === "string" ? session.model : null,
+    modelSlug: typeof session.modelSlug === "string" ? session.modelSlug : null,
+    provider: typeof session.provider === "string" ? session.provider : null,
+    action: typeof session.action === "string" ? session.action : null,
+    nextUrl: typeof session.nextUrl === "string" ? session.nextUrl : null,
+    conversationId:
+      typeof session.conversationId === "string" ? session.conversationId : null,
+    sponsored: Boolean(session.sponsored),
+    suggestedPackSlug:
+      typeof session.suggestedPackSlug === "string" ? session.suggestedPackSlug : null,
+    suggestedPack: typeof session.suggestedPack === "string" ? session.suggestedPack : null,
+    suggestedAmount:
+      typeof session.suggestedAmount === "number" && Number.isFinite(session.suggestedAmount)
+        ? session.suggestedAmount
+        : null,
+    startedAt:
+      typeof session.startedAt === "string" && session.startedAt.length > 0
+        ? session.startedAt
+        : makeTimestamp(),
+    events: rawEvents
+      .map((event): WorkspaceEvent | null => {
+        if (!event || typeof event !== "object") return null;
+        const candidate = event as Partial<WorkspaceEvent>;
+        return {
+          id:
+            typeof candidate.id === "string" && candidate.id.length > 0
+              ? candidate.id
+              : makeEventId(),
+          type: candidate.type === "user" ? "user" : "system",
+          title: typeof candidate.title === "string" ? candidate.title : "Workspace event",
+          detail: typeof candidate.detail === "string" ? candidate.detail : "",
+          createdAt:
+            typeof candidate.createdAt === "string" && candidate.createdAt.length > 0
+              ? candidate.createdAt
+              : makeTimestamp(),
+        };
+      })
+      .filter((event): event is WorkspaceEvent => event !== null)
+      .slice(-MAX_WORKSPACE_EVENTS),
+  };
+}
+
+export function normalizeWorkspaceState(value: unknown): WorkspaceState | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<WorkspaceState>;
+
+  return {
+    open: Boolean(parsed.open),
+    minimized: Boolean(parsed.minimized),
+    maximized: Boolean(parsed.maximized),
+    activePanel:
+      parsed.activePanel === "assistant" || parsed.activePanel === "usage"
+        ? parsed.activePanel
+        : "setup",
+    session: normalizeWorkspaceSession(parsed.session),
+    updatedAt:
+      typeof parsed.updatedAt === "string" && parsed.updatedAt.length > 0
+        ? parsed.updatedAt
+        : makeTimestamp(),
   };
 }
 
 export function parseWorkspaceState(raw: string | null | undefined): WorkspaceState | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as WorkspaceState;
-    if (!parsed || typeof parsed !== "object") return null;
-    return {
-      open: Boolean(parsed.open),
-      minimized: Boolean(parsed.minimized),
-      maximized: Boolean(parsed.maximized),
-      session: parsed.session
-        ? {
-            ...parsed.session,
-            conversationId:
-              typeof parsed.session.conversationId === "string"
-                ? parsed.session.conversationId
-                : null,
-            sponsored: Boolean(parsed.session.sponsored),
-            suggestedPackSlug:
-              typeof parsed.session.suggestedPackSlug === "string"
-                ? parsed.session.suggestedPackSlug
-                : null,
-          }
-        : null,
-    };
+    return normalizeWorkspaceState(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+export function pickNewerWorkspaceState(
+  current: WorkspaceState | null,
+  incoming: WorkspaceState | null
+): WorkspaceState | null {
+  if (!current) return incoming;
+  if (!incoming) return current;
+
+  const currentTime = Date.parse(current.updatedAt);
+  const incomingTime = Date.parse(incoming.updatedAt);
+
+  if (!Number.isFinite(currentTime)) return incoming;
+  if (!Number.isFinite(incomingTime)) return current;
+  return incomingTime > currentTime ? incoming : current;
 }

@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, Maximize2, Minimize2, Wallet, KeyRound, MessageSquare, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  KeyRound,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  Wallet,
+  X,
+} from "lucide-react";
 import useSWR from "swr";
+import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/components/auth/auth-provider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { useOptionalWorkspace } from "./workspace-provider";
@@ -62,7 +71,7 @@ export function DeployWorkspacePanel() {
 
   if (!workspace?.session) return null;
 
-  const { session, open, minimized, maximized } = workspace;
+  const { session, open, minimized, maximized, activePanel, persistenceStatus } = workspace;
   const params = new URLSearchParams({
     intent: "deploy",
     model: session.model ?? "",
@@ -75,50 +84,102 @@ export function DeployWorkspacePanel() {
   if (session.suggestedPackSlug) params.set("pack", session.suggestedPackSlug);
   if (session.suggestedPack) params.set("packLabel", session.suggestedPack);
   if (session.sponsored) params.set("sponsored", "1");
+
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
   const events = session.events;
-  const hasWalletProgress = events.some((event) =>
-    /wallet|deposit/i.test(`${event.title} ${event.detail}`)
-  );
-  const hasApiProgress = events.some((event) =>
-    /api/i.test(`${event.title} ${event.detail}`)
-  );
-  const hasProviderProgress = events.some((event) =>
-    /provider/i.test(`${event.title} ${event.detail}`)
-  );
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
   const assistantUsage = chatMessages.reduce(
     (acc, message) => {
       const usage = message.metadata?.usage;
-      acc.turns += message.sender_type === "agent" ? 1 : 0;
+      if (message.sender_type === "agent") acc.turns += 1;
       acc.totalTokens += usage?.totalTokens ?? 0;
       return acc;
     },
     { turns: 0, totalTokens: 0 }
   );
+
   const stepItems = [
     {
       label: "Funding",
-      done: hasWalletProgress,
+      done: events.some((event) => /wallet|deposit/i.test(`${event.title} ${event.detail}`)),
       detail: session.suggestedPack
         ? `Use ${session.suggestedPack} if you still need balance.`
         : "Open wallet funding only if this path still needs credits.",
     },
     {
       label: "API Access",
-      done: hasApiProgress,
+      done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
       detail: "Create account-side API keys without losing the workspace session.",
     },
     {
       label: "Provider Path",
-      done: hasProviderProgress,
+      done: events.some((event) => /provider/i.test(`${event.title} ${event.detail}`)),
       detail: "Continue only after funding and API setup are ready.",
     },
   ];
+
   const canAddNote = noteDraft.trim().length > 0;
   const canSendAssistant = assistantDraft.trim().length > 0 && !assistantLoading;
+
+  const saveNote = () => {
+    const trimmed = noteDraft.trim();
+    if (!trimmed) return;
+    workspace.addWorkspaceEvent("Session note", trimmed, "user");
+    setNoteDraft("");
+  };
+
+  const askAssistant = async () => {
+    const trimmed = assistantDraft.trim();
+    if (!trimmed || assistantLoading) return;
+
+    workspace.addWorkspaceEvent("Workspace question", trimmed, "user");
+    setAssistantLoading(true);
+    setAssistantError(null);
+    setAssistantDraft("");
+
+    try {
+      const response = await fetch("/api/workspace/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          conversation_id: session.conversationId ?? undefined,
+          topic: session.model ? `Deploy workspace for ${session.model}` : "Deploy workspace",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to contact workspace assistant");
+      }
+
+      if (payload.conversation_id) {
+        workspace.updateWorkspaceSession({
+          conversationId: payload.conversation_id,
+        });
+      }
+
+      if (payload.response?.content) {
+        workspace.addWorkspaceEvent("Assistant reply", payload.response.content, "system");
+      }
+
+      await mutateChatSnapshot();
+    } catch (error) {
+      setAssistantError(
+        error instanceof Error ? error.message : "Failed to contact workspace assistant"
+      );
+      workspace.addWorkspaceEvent(
+        "Assistant unavailable",
+        "The in-site workspace assistant could not answer right now."
+      );
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
 
   if (!open || minimized) {
     return (
@@ -150,6 +211,25 @@ export function DeployWorkspacePanel() {
                 <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
                   In-site Workspace
                 </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "border-border/50 bg-card/40",
+                    persistenceStatus === "saved" && "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+                    persistenceStatus === "saving" && "border-amber-500/20 bg-amber-500/10 text-amber-200",
+                    persistenceStatus === "error" && "border-red-500/20 bg-red-500/10 text-red-300"
+                  )}
+                >
+                  {persistenceStatus === "saved"
+                    ? "Saved to account"
+                    : persistenceStatus === "saving"
+                      ? "Saving"
+                      : persistenceStatus === "loading"
+                        ? "Loading saved session"
+                        : persistenceStatus === "error"
+                          ? "Browser only"
+                          : "Browser only"}
+                </Badge>
                 {session.suggestedPack ? (
                   <Badge variant="outline" className="border-border/50 bg-card/40">
                     {session.suggestedPack}
@@ -160,7 +240,7 @@ export function DeployWorkspacePanel() {
                 {session.model ? session.model : "Deploy workspace"}
               </h3>
               <p className="text-xs text-muted-foreground">
-                Persistent across pages. Minimize it any time and continue later without losing session history.
+                Persistent across pages. Minimize or maximize any time without losing session history.
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -179,312 +259,285 @@ export function DeployWorkspacePanel() {
               </Button>
             </div>
           </div>
-          <div className={cn("space-y-4 p-4", maximized ? "grid flex-1 gap-4 overflow-hidden lg:grid-cols-[0.95fr_1.05fr]" : "")}>
-            <div className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}>
-              <div className="rounded-lg border border-border/50 bg-card/30 p-3">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Target outcome
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {["Chat UI", "API access", "Usage tracking"].map((item) => (
-                    <Badge key={item} variant="outline" className="border-neon/20 bg-neon/10 text-neon">
-                      {item}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Wallet
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {typeof walletSnapshot?.balance === "number" ? `$${walletSnapshot.balance.toFixed(2)}` : "—"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    API Keys
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">{activeApiKeys}</p>
-                </div>
-                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Session Events
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
-                </div>
-                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Assistant Turns
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">{assistantUsage.turns}</p>
-                </div>
-                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Tracked Tokens
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">{assistantUsage.totalTokens}</p>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-white">Progress</p>
-                  <Badge variant="outline" className="border-border/50 bg-card/40">
-                    {stepItems.filter((item) => item.done).length}/{stepItems.length} complete
+          <div className="space-y-4 p-4">
+            <div className="rounded-lg border border-border/50 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Target outcome
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {["Chat UI", "API access", "Usage tracking"].map((item) => (
+                  <Badge key={item} variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                    {item}
                   </Badge>
-                </div>
-                <div className="space-y-2">
-                  {stepItems.map((item) => (
-                    <div
-                      key={item.label}
-                      className={cn(
-                        "rounded-md border px-3 py-3",
-                        item.done
-                          ? "border-emerald-500/20 bg-emerald-500/10"
-                          : "border-border/40 bg-card/30"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-white">{item.label}</p>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            item.done
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                              : "border-border/50 bg-card/40 text-muted-foreground"
-                          )}
-                        >
-                          {item.done ? "Done" : "Next"}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                  <Link href={walletHref}>
-                    <Wallet className="h-4 w-4" />
-                    Wallet
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href={apiHref}>
-                    <KeyRound className="h-4 w-4" />
-                    API Keys
-                  </Link>
-                </Button>
-                {session.nextUrl ? (
-                  <Button asChild variant="outline" className="sm:col-span-2">
-                    <a
-                      href={session.nextUrl}
-                      target="_blank"
-                      rel={session.sponsored ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                      Continue to Provider
-                    </a>
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-neon" />
-                  <p className="text-sm font-medium text-white">Session note</p>
-                </div>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Keep short context here. It stays in the persistent workspace history for this session.
-                </p>
-                <div className="space-y-2">
-                  <textarea
-                    value={noteDraft}
-                    onChange={(event) => setNoteDraft(event.target.value)}
-                    rows={maximized ? 4 : 3}
-                    placeholder="Add a note about what you want to do with this model or what happened in setup."
-                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!canAddNote}
-                      onClick={() => {
-                        const trimmed = noteDraft.trim();
-                        if (!trimmed) return;
-                        workspace.addWorkspaceEvent("Session note", trimmed, "user");
-                        setNoteDraft("");
-                      }}
-                    >
-                      Save Note
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-neon" />
-                  <p className="text-sm font-medium text-white">Workspace assistant</p>
-                </div>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Ask the in-site assistant what to do next for this model. It stays attached to the same workspace session.
-                </p>
-                <div className="space-y-2">
-                  <textarea
-                    value={assistantDraft}
-                    onChange={(event) => setAssistantDraft(event.target.value)}
-                    rows={maximized ? 4 : 3}
-                    placeholder="Example: What should I do first to start using this model here?"
-                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
-                  />
-                  {assistantError ? (
-                    <p className="text-xs text-red-400">{assistantError}</p>
-                  ) : null}
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!canSendAssistant}
-                      onClick={async () => {
-                        const trimmed = assistantDraft.trim();
-                        if (!trimmed || assistantLoading) return;
-                        workspace.addWorkspaceEvent("Workspace question", trimmed, "user");
-                        setAssistantLoading(true);
-                        setAssistantError(null);
-                        setAssistantDraft("");
-                        try {
-                          const response = await fetch("/api/workspace/chat", {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                              message: trimmed,
-                              conversation_id: session.conversationId ?? undefined,
-                              topic: session.model
-                                ? `Deploy workspace for ${session.model}`
-                                : "Deploy workspace",
-                            }),
-                          });
-
-                          const payload = await response.json();
-                          if (!response.ok) {
-                            throw new Error(payload.error ?? "Failed to contact workspace assistant");
-                          }
-
-                          if (payload.conversation_id) {
-                            workspace.updateWorkspaceSession({
-                              conversationId: payload.conversation_id,
-                            });
-                          }
-
-                          if (payload.response?.content) {
-                            workspace.addWorkspaceEvent(
-                              "Assistant reply",
-                              payload.response.content,
-                              "system"
-                            );
-                          }
-                          await mutateChatSnapshot();
-                        } catch (error) {
-                          setAssistantError(
-                            error instanceof Error
-                              ? error.message
-                              : "Failed to contact workspace assistant"
-                          );
-                          workspace.addWorkspaceEvent(
-                            "Assistant unavailable",
-                            "The in-site workspace assistant could not answer right now."
-                          );
-                        } finally {
-                          setAssistantLoading(false);
-                        }
-                      }}
-                    >
-                      {assistantLoading ? "Sending..." : "Ask Assistant"}
-                    </Button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                <div className="mb-3 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-neon" />
-                  <p className="text-sm font-medium text-white">Assistant transcript</p>
-                </div>
-                <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[18rem]" : "max-h-48")}>
-                  {chatMessages.length > 0 ? (
-                    chatMessages.map((message) => (
+            <Tabs
+              value={activePanel}
+              onValueChange={(value) =>
+                workspace.setActivePanel(value as "setup" | "assistant" | "usage")
+              }
+              className={cn(maximized ? "min-h-0 flex-1" : "")}
+            >
+              <TabsList variant="line" className="w-full">
+                <TabsTrigger value="setup">Setup</TabsTrigger>
+                <TabsTrigger value="assistant">Assistant</TabsTrigger>
+                <TabsTrigger value="usage">Usage</TabsTrigger>
+              </TabsList>
+
+              <TabsContent
+                value="setup"
+                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+              >
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-white">Progress</p>
+                    <Badge variant="outline" className="border-border/50 bg-card/40">
+                      {stepItems.filter((item) => item.done).length}/{stepItems.length} complete
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {stepItems.map((item) => (
                       <div
-                        key={message.id}
+                        key={item.label}
+                        className={cn(
+                          "rounded-md border px-3 py-3",
+                          item.done
+                            ? "border-emerald-500/20 bg-emerald-500/10"
+                            : "border-border/40 bg-card/30"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-white">{item.label}</p>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              item.done
+                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                                : "border-border/50 bg-card/40 text-muted-foreground"
+                            )}
+                          >
+                            {item.done ? "Done" : "Next"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                    <Link href={walletHref}>
+                      <Wallet className="h-4 w-4" />
+                      Wallet
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={apiHref}>
+                      <KeyRound className="h-4 w-4" />
+                      API Keys
+                    </Link>
+                  </Button>
+                  {session.nextUrl ? (
+                    <Button asChild variant="outline" className="sm:col-span-2">
+                      <a
+                        href={session.nextUrl}
+                        target="_blank"
+                        rel={session.sponsored ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                        Continue to Provider
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <p className="text-sm font-medium text-white">Session note</p>
+                  </div>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Keep short context here. It stays in the persistent workspace history for this session.
+                  </p>
+                  <div className="space-y-2">
+                    <textarea
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                      rows={maximized ? 4 : 3}
+                      placeholder="Add a note about what you want to do with this model or what happened in setup."
+                      className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
+                    />
+                    <div className="flex justify-end">
+                      <Button type="button" variant="outline" disabled={!canAddNote} onClick={saveNote}>
+                        Save Note
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent
+                value="assistant"
+                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+              >
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <p className="text-sm font-medium text-white">Workspace assistant</p>
+                  </div>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Ask what to do next for this model. The assistant stays attached to the same workspace session.
+                  </p>
+                  <div className="space-y-2">
+                    <textarea
+                      value={assistantDraft}
+                      onChange={(event) => setAssistantDraft(event.target.value)}
+                      rows={maximized ? 4 : 3}
+                      placeholder="Example: What should I do first to start using this model here?"
+                      className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        "What should I do first?",
+                        "Do I need credits for this path?",
+                        "How do I prepare API access?",
+                      ].map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => setAssistantDraft(prompt)}
+                          className="rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-neon/30 hover:text-foreground"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                    {assistantError ? <p className="text-xs text-red-400">{assistantError}</p> : null}
+                    <div className="flex justify-end">
+                      <Button type="button" variant="outline" disabled={!canSendAssistant} onClick={askAssistant}>
+                        {assistantLoading ? "Sending..." : "Ask Assistant"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <p className="text-sm font-medium text-white">Assistant transcript</p>
+                  </div>
+                  <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[20rem]" : "max-h-56")}>
+                    {chatMessages.length > 0 ? (
+                      chatMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "rounded-md border px-3 py-2 text-xs",
+                            message.sender_type === "agent"
+                              ? "border-border/40 bg-card/30 text-muted-foreground"
+                              : "border-neon/20 bg-neon/10 text-foreground"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-white">
+                              {message.sender_type === "agent" ? "Assistant" : "You"}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wide opacity-70">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-md border border-dashed border-border/40 px-3 py-4 text-xs text-muted-foreground">
+                        No assistant transcript yet. Ask the workspace assistant to start one.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent
+                value="usage"
+                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+              >
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Wallet
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">
+                      {typeof walletSnapshot?.balance === "number"
+                        ? `$${walletSnapshot.balance.toFixed(2)}`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      API Keys
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{activeApiKeys}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Session Events
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Assistant Turns
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{assistantUsage.turns}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Tracked Tokens
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{assistantUsage.totalTokens}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <p className="text-sm font-medium text-white">Session history</p>
+                  </div>
+                  <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[20rem]" : "max-h-56")}>
+                    {session.events.map((event) => (
+                      <div
+                        key={event.id}
                         className={cn(
                           "rounded-md border px-3 py-2 text-xs",
-                          message.sender_type === "agent"
+                          event.type === "system"
                             ? "border-border/40 bg-card/30 text-muted-foreground"
                             : "border-neon/20 bg-neon/10 text-foreground"
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-white">
-                            {message.sender_type === "agent" ? "Assistant" : "You"}
-                          </span>
+                          <span className="font-medium text-white">{event.title}</span>
                           <span className="text-[10px] uppercase tracking-wide opacity-70">
-                            {new Date(message.created_at).toLocaleTimeString([], {
+                            {new Date(event.createdAt).toLocaleTimeString([], {
                               hour: "numeric",
                               minute: "2-digit",
                             })}
                           </span>
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+                        <p className="mt-1">{event.detail}</p>
                       </div>
-                    ))
-                  ) : (
-                    <div className="rounded-md border border-dashed border-border/40 px-3 py-4 text-xs text-muted-foreground">
-                      No assistant transcript yet. Ask the workspace assistant to start one.
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                <div className="mb-3 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-neon" />
-                  <p className="text-sm font-medium text-white">Session history</p>
-                </div>
-                <div className={cn("space-y-2 overflow-y-auto pr-1", maximized ? "h-[18rem]" : "max-h-48")}>
-                  {session.events.map((event) => (
-                    <div
-                      key={event.id}
-                      className={cn(
-                        "rounded-md border px-3 py-2 text-xs",
-                        event.type === "system"
-                          ? "border-border/40 bg-card/30 text-muted-foreground"
-                          : "border-neon/20 bg-neon/10 text-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-white">{event.title}</span>
-                        <span className="text-[10px] uppercase tracking-wide opacity-70">
-                          {new Date(event.createdAt).toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <p className="mt-1">{event.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </CardContent>
       </Card>

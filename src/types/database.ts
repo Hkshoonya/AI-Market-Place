@@ -795,6 +795,13 @@ export interface AgentMessage {
   created_at: string;
 }
 
+export interface WorkspaceSessionRecord {
+  user_id: string;
+  workspace_state: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // Wallet & Payment types
 export type WalletOwnerType = 'user' | 'agent';
 export type WalletTxType = 'deposit' | 'withdrawal' | 'purchase' | 'sale' | 'escrow_hold' | 'escrow_release' | 'bid_hold' | 'bid_release' | 'refund' | 'platform_fee' | 'api_charge';
@@ -1351,6 +1358,12 @@ export interface Database {
         Row: AsRow<AgentMessage>;
         Insert: Partial<AgentMessage> & Pick<AgentMessage, "conversation_id" | "sender_id" | "sender_type" | "content">;
         Update: Partial<AgentMessage>;
+        Relationships: [];
+      };
+      workspace_sessions: {
+        Row: AsRow<WorkspaceSessionRecord>;
+        Insert: Partial<WorkspaceSessionRecord> & Pick<WorkspaceSessionRecord, "user_id" | "workspace_state">;
+        Update: Partial<WorkspaceSessionRecord>;
         Relationships: [];
       };
       wallets: {

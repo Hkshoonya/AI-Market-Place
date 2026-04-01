@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   appendWorkspaceEvent,
+  createEmptyWorkspaceState,
   createWorkspaceEvent,
   createWorkspaceSession,
+  normalizeWorkspaceState,
+  pickNewerWorkspaceState,
   parseWorkspaceState,
+  touchWorkspaceState,
 } from "./session";
 
 describe("workspace session helpers", () => {
@@ -42,6 +46,7 @@ describe("workspace session helpers", () => {
         JSON.stringify({
           open: true,
           minimized: false,
+          updatedAt: "2026-04-01T10:00:00.000Z",
           session: createWorkspaceSession({ model: "Claude Sonnet 4.6" }),
         })
       )
@@ -49,9 +54,39 @@ describe("workspace session helpers", () => {
       expect.objectContaining({
         open: true,
         minimized: false,
+        updatedAt: "2026-04-01T10:00:00.000Z",
       })
     );
 
     expect(parseWorkspaceState("not-json")).toBeNull();
+  });
+
+  it("normalizes object payloads from server persistence", () => {
+    const state = normalizeWorkspaceState({
+      open: true,
+      minimized: false,
+      maximized: false,
+      activePanel: "usage",
+      updatedAt: "2026-04-01T10:00:00.000Z",
+      session: createWorkspaceSession({ model: "GLM-5" }),
+    });
+
+    expect(state?.activePanel).toBe("usage");
+    expect(state?.session?.model).toBe("GLM-5");
+  });
+
+  it("prefers the newest saved workspace state", () => {
+    const older = touchWorkspaceState({
+      ...createEmptyWorkspaceState(),
+      session: createWorkspaceSession({ model: "Older" }),
+    });
+    const newer = {
+      ...older,
+      updatedAt: "2099-01-01T00:00:00.000Z",
+      session: createWorkspaceSession({ model: "Newer" }),
+    };
+
+    expect(pickNewerWorkspaceState(older, newer)?.session?.model).toBe("Newer");
+    expect(pickNewerWorkspaceState(null, newer)?.session?.model).toBe("Newer");
   });
 });
