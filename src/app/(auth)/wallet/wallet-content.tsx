@@ -31,6 +31,7 @@ import {
 import { useAuth } from "@/components/auth/auth-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   formatWalletTopUpList,
   SUGGESTED_WALLET_TOP_UP_LABELS,
@@ -92,6 +93,7 @@ export default function WalletContent() {
     starterAmountRaw && Number.isFinite(Number(starterAmountRaw))
       ? Number(starterAmountRaw)
       : null;
+  const starterAmountLabel = starterAmount ? formatCurrency(starterAmount) : null;
 
   const { data: wallet, isLoading: loading, error: swrError, mutate } = useSWR<WalletData | null>(
     user ? `supabase:wallet:${filter}:${page}` : null,
@@ -208,6 +210,17 @@ export default function WalletContent() {
                 <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
                   Deploy Starter
                 </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    hasStarterBalance
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "border-amber-500/20 bg-amber-500/10 text-amber-200"
+                  )}
+                >
+                  {hasStarterBalance ? "Balance Ready" : "Top-Up Needed"}
+                </Badge>
                 {starterProvider ? (
                   <span className="text-sm text-muted-foreground">via {starterProvider}</span>
                 ) : null}
@@ -221,11 +234,16 @@ export default function WalletContent() {
               </p>
               {starterAmount ? (
                 <p className="text-xs text-muted-foreground">
-                  Recommended balance for this path: {formatCurrency(starterAmount)}.
+                  Recommended balance for this path: {starterAmountLabel}.
                 </p>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
+              {!hasStarterBalance ? (
+                <Button variant="outline" asChild>
+                  <a href="#deposit-addresses">Go to Deposit Step</a>
+                </Button>
+              ) : null}
               {starterModelSlug ? (
                 <Button variant="outline" asChild>
                   <Link href={`/models/${starterModelSlug}?tab=deploy#model-tabs`}>
@@ -336,7 +354,15 @@ export default function WalletContent() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {SUGGESTED_WALLET_TOP_UP_LABELS.map((amount) => (
-                <Badge key={amount} variant="outline" className="border-neon/20 bg-neon/5 text-neon">
+                <Badge
+                  key={amount}
+                  variant="outline"
+                  className={cn(
+                    "border-neon/20 bg-neon/5 text-neon",
+                    starterAmountLabel === amount &&
+                      "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                  )}
+                >
                   {amount}
                 </Badge>
               ))}
@@ -352,7 +378,7 @@ export default function WalletContent() {
 
       {/* Section 2: Deposit Addresses */}
       <Card className="border-border/50 bg-card mb-6">
-        <CardContent className="p-6">
+        <CardContent id="deposit-addresses" className="p-6">
           <h2 className="text-lg font-semibold mb-1">Deposit Addresses</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Send USDC to these addresses to fund your wallet
