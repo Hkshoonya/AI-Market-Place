@@ -1,0 +1,117 @@
+import { getRecommendedWalletTopUpAmount } from "@/lib/constants/wallet";
+
+export interface DeployStartOfferInput {
+  actionLabel?: string | null;
+  actionUrl?: string | null;
+  monthlyPrice?: number | null;
+  freeTier?: string | null;
+  partnerDisclosure?: string | null;
+  platform?: {
+    slug?: string | null;
+    name?: string | null;
+  } | null;
+}
+
+export interface DeployStartPlan {
+  href: string;
+  label: string;
+  external: boolean;
+  recommendedAmount: number | null;
+  platformName: string | null;
+  needsWallet: boolean;
+  sponsored: boolean;
+}
+
+function buildWalletStartHref(input: {
+  modelSlug: string;
+  modelName: string;
+  actionLabel: string;
+  offer: Required<Pick<DeployStartPlan, "recommendedAmount" | "platformName" | "sponsored">> & {
+    actionUrl: string;
+  };
+}) {
+  const params = new URLSearchParams({
+    intent: "deploy",
+    model: input.modelName,
+    modelSlug: input.modelSlug,
+    action: input.actionLabel,
+    next: input.offer.actionUrl,
+  });
+
+  if (input.offer.platformName) {
+    params.set("provider", input.offer.platformName);
+  }
+  if (input.offer.recommendedAmount) {
+    params.set("amount", String(input.offer.recommendedAmount));
+  }
+  if (input.offer.sponsored) {
+    params.set("sponsored", "1");
+  }
+
+  return `/wallet?${params.toString()}`;
+}
+
+export function getDeployStartPlan(input: {
+  modelSlug: string;
+  modelName: string;
+  isOpenWeights?: boolean | null;
+  offer?: DeployStartOfferInput | null;
+}): DeployStartPlan | null {
+  const offer = input.offer ?? null;
+  const actionLabel = offer?.actionLabel ?? (input.isOpenWeights ? "Self-Host" : null);
+
+  if (!actionLabel) return null;
+
+  if (!offer?.actionUrl) {
+    return {
+      href: `/models/${input.modelSlug}?tab=deploy#model-tabs`,
+      label: actionLabel,
+      external: false,
+      recommendedAmount: null,
+      platformName: null,
+      needsWallet: false,
+      sponsored: false,
+    };
+  }
+
+  const monthlyPrice =
+    offer.monthlyPrice != null && Number.isFinite(offer.monthlyPrice)
+      ? Number(offer.monthlyPrice)
+      : null;
+  const recommendedAmount =
+    monthlyPrice != null && !offer.freeTier ? getRecommendedWalletTopUpAmount(monthlyPrice) : null;
+  const platformName = offer.platform?.name ?? null;
+  const sponsored = Boolean(offer.partnerDisclosure);
+
+  if (recommendedAmount) {
+    return {
+      href: buildWalletStartHref({
+        modelSlug: input.modelSlug,
+        modelName: input.modelName,
+        actionLabel,
+        offer: {
+          actionUrl: offer.actionUrl,
+          recommendedAmount,
+          platformName,
+          sponsored,
+        },
+      }),
+      label: `Start with Credits`,
+      external: false,
+      recommendedAmount,
+      platformName,
+      needsWallet: true,
+      sponsored,
+    };
+  }
+
+  return {
+    href: offer.actionUrl,
+    label: actionLabel,
+    external: true,
+    recommendedAmount: null,
+    platformName,
+    needsWallet: false,
+    sponsored,
+  };
+}

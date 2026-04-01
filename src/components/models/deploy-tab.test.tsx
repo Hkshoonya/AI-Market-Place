@@ -30,9 +30,9 @@ describe("DeployTab", () => {
             deployment: {
               id: "dep-1",
               deploy_url: "https://ollama.com/library/minimax-m2.7",
-              pricing_model: null,
-              price_per_unit: null,
-              unit_description: "Cloud runtime",
+              pricing_model: "monthly",
+              price_per_unit: 20,
+              unit_description: "month",
               free_tier: null,
               one_click: true,
             },
@@ -70,5 +70,9 @@ describe("DeployTab", () => {
     expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
     expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("link", { name: /start with credits/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/wallet?")
+    );
   });
 });

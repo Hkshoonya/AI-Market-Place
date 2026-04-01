@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
@@ -10,6 +11,7 @@ import {
   getPartnerDisclosure,
   inferAccessOfferKind,
 } from "@/lib/models/access-offers";
+import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import type { LaunchRadarItem } from "@/lib/news/presentation";
 
 interface Platform {
@@ -177,6 +179,27 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
   const quickStart = primaryDeployment
     ? getQuickStartSummary(primaryDeployment, isOpenWeights)
     : null;
+  const startPlan = primaryDeployment
+    ? getDeployStartPlan({
+        modelSlug,
+        modelName,
+        isOpenWeights,
+        offer: {
+          actionLabel: quickStart?.actionLabel,
+          actionUrl: getPlatformUrl(
+            primaryDeployment.platform,
+            primaryDeployment.deployment?.deploy_url
+          ),
+          monthlyPrice: primaryDeployment.deployment?.price_per_unit ?? null,
+          freeTier: primaryDeployment.deployment?.free_tier ?? null,
+          partnerDisclosure: getPartnerDisclosure(primaryDeployment.platform),
+          platform: {
+            slug: primaryDeployment.platform.slug,
+            name: primaryDeployment.platform.name,
+          },
+        },
+      })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -202,15 +225,30 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
                 This is best for {quickStart.bestFor}.
               </p>
             </div>
-            <a
-              href={getPlatformUrl(primaryDeployment.platform, primaryDeployment.deployment?.deploy_url)}
-              target="_blank"
-              rel={getLinkRel(primaryDeployment.platform)}
-              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
-            >
-              {quickStart.actionLabel} on {primaryDeployment.platform.name}
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            {startPlan ? (
+              startPlan.external ? (
+                <a
+                  href={startPlan.href}
+                  target="_blank"
+                  rel={
+                    startPlan.sponsored
+                      ? "noopener noreferrer sponsored nofollow"
+                      : getLinkRel(primaryDeployment.platform)
+                  }
+                  className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
+                >
+                  {startPlan.label} on {primaryDeployment.platform.name}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <Link
+                  href={startPlan.href}
+                  className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
+                >
+                  {startPlan.label}
+                </Link>
+              )
+            ) : null}
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-md border border-border/40 bg-card/30 p-3">
@@ -226,6 +264,12 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               <p className="mt-1 text-sm font-medium text-white">{quickStart.hasFreeTier ? "Available" : "Not listed"}</p>
             </div>
           </div>
+          {startPlan?.needsWallet && startPlan.recommendedAmount ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              AI Market Cap will first guide the user to wallet top-up for about $
+              {startPlan.recommendedAmount}, then continue to the verified provider path.
+            </p>
+          ) : null}
         </div>
       )}
 

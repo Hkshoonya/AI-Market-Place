@@ -42,6 +42,7 @@ import { getLifecycleBadge } from "@/lib/models/lifecycle";
 import { getCheapestVerifiedPricing } from "@/lib/models/pricing";
 import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
+import { getDeployStartPlan } from "@/lib/models/deploy-start";
 
 export const revalidate = 300;
 
@@ -197,10 +198,24 @@ export default async function ModelDetailPage({
     ],
   }).offersByModelId[model.id] ?? [];
   const bestAccessOffer = modelAccessOffers[0] ?? null;
-  const deployActionLabel = bestAccessOffer?.actionLabel ?? (model.is_open_weights ? "Self-Host" : null);
-  const deployActionHref = bestAccessOffer?.actionUrl ?? (deployActionLabel ? `/models/${slug}?tab=deploy#model-tabs` : null);
-  const deployActionExternal = Boolean(bestAccessOffer?.actionUrl);
-  const deployActionSponsored = Boolean(bestAccessOffer?.partnerDisclosure);
+  const deployStartPlan = getDeployStartPlan({
+    modelSlug: slug,
+    modelName: model.name,
+    isOpenWeights: model.is_open_weights,
+    offer: bestAccessOffer
+      ? {
+          actionLabel: bestAccessOffer.actionLabel,
+          actionUrl: bestAccessOffer.actionUrl,
+          monthlyPrice: bestAccessOffer.monthlyPrice,
+          freeTier: bestAccessOffer.freeTier,
+          partnerDisclosure: bestAccessOffer.partnerDisclosure,
+          platform: {
+            slug: bestAccessOffer.platform.slug,
+            name: bestAccessOffer.platform.name,
+          },
+        }
+      : null,
+  });
   type UpdateEntry = import("./_components/changelog-tab").UpdateEntry;
   const updates = (model.model_updates ?? []) as UpdateEntry[];
   const latestModelUpdateAt =
@@ -338,10 +353,10 @@ export default async function ModelDetailPage({
         catConfig={catConfig}
         hasNews={modelNews.length > 0}
         latestUpdateAt={latestModelUpdateAt}
-        deployActionLabel={deployActionLabel}
-        deployActionHref={deployActionHref}
-        deployActionExternal={deployActionExternal}
-        deployActionSponsored={deployActionSponsored}
+        deployActionLabel={deployStartPlan?.label ?? null}
+        deployActionHref={deployStartPlan?.href ?? null}
+        deployActionExternal={deployStartPlan?.external ?? false}
+        deployActionSponsored={deployStartPlan?.sponsored ?? false}
       />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (

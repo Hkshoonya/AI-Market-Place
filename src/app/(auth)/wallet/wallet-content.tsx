@@ -80,6 +80,18 @@ export default function WalletContent() {
   const [page, setPage] = useState(1);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState("");
+  const deployIntent = searchParams.get("intent");
+  const starterModel = searchParams.get("model");
+  const starterModelSlug = searchParams.get("modelSlug");
+  const starterProvider = searchParams.get("provider");
+  const starterAction = searchParams.get("action");
+  const starterNext = searchParams.get("next");
+  const starterSponsored = searchParams.get("sponsored") === "1";
+  const starterAmountRaw = searchParams.get("amount");
+  const starterAmount =
+    starterAmountRaw && Number.isFinite(Number(starterAmountRaw))
+      ? Number(starterAmountRaw)
+      : null;
 
   const { data: wallet, isLoading: loading, error: swrError, mutate } = useSWR<WalletData | null>(
     user ? `supabase:wallet:${filter}:${page}` : null,
@@ -101,6 +113,8 @@ export default function WalletContent() {
     },
     { ...SWR_TIERS.MEDIUM }
   );
+  const hasStarterBalance =
+    starterAmount != null ? (wallet?.balance ?? 0) >= starterAmount : false;
 
   const error = generateError || (swrError ? (swrError instanceof Error ? swrError.message : "Something went wrong") : "");
 
@@ -185,6 +199,57 @@ export default function WalletContent() {
           {error}
         </div>
       )}
+
+      {deployIntent === "deploy" && starterModel && starterNext ? (
+        <Card className="mb-6 border-neon/20 bg-neon/5">
+          <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
+                  Deploy Starter
+                </Badge>
+                {starterProvider ? (
+                  <span className="text-sm text-muted-foreground">via {starterProvider}</span>
+                ) : null}
+              </div>
+              <h2 className="text-lg font-semibold">Continue setup for {starterModel}</h2>
+              <p className="text-sm text-muted-foreground">
+                {starterAction
+                  ? `${starterAction} is the best verified next step for this model.`
+                  : "This is the best verified next step for this model."}{" "}
+                Fund your wallet here first if needed, then continue without losing context.
+              </p>
+              {starterAmount ? (
+                <p className="text-xs text-muted-foreground">
+                  Recommended balance for this path: {formatCurrency(starterAmount)}.
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {starterModelSlug ? (
+                <Button variant="outline" asChild>
+                  <Link href={`/models/${starterModelSlug}?tab=deploy#model-tabs`}>
+                    Back to Model
+                  </Link>
+                </Button>
+              ) : null}
+              <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                <a
+                  href={starterNext}
+                  target="_blank"
+                  rel={
+                    starterSponsored
+                      ? "noopener noreferrer sponsored nofollow"
+                      : "noopener noreferrer"
+                  }
+                >
+                  {hasStarterBalance ? "Continue to Provider" : "Continue After Top-Up"}
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Section 1: Balance Card */}
       <Card className="border-neon/20 bg-neon/5 mb-6">
