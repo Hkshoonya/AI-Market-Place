@@ -110,9 +110,30 @@ export async function POST(
     }
 
     const execution = resolveWorkspaceRuntimeExecution(deployment.model_slug);
+    const billing = getWorkspaceDeploymentBudgetSummary({
+      deploymentKind: deployment.deployment_kind,
+      monthlyPriceEstimate: deployment.monthly_price_estimate,
+      creditsBudget: deployment.credits_budget,
+      totalRequests: deployment.total_requests,
+    });
+
+    if (deployment.status === "paused") {
+      return NextResponse.json(
+        {
+          error: "This deployment is paused. Resume it before sending more model requests.",
+          deployment: {
+            status: deployment.status,
+            execution,
+            billing,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     if (deployment.status !== "ready" || !execution.available || !execution.provider || !execution.model) {
       return NextResponse.json(
-        { error: execution.summary, deployment: { status: deployment.status, execution } },
+        { error: execution.summary, deployment: { status: deployment.status, execution, billing } },
         { status: 400 }
       );
     }
@@ -121,6 +142,24 @@ export async function POST(
       deploymentKind: deployment.deployment_kind,
       monthlyPriceEstimate: deployment.monthly_price_estimate,
     });
+
+    if (
+      billing.budgetRemaining != null &&
+      requestCharge > 0 &&
+      billing.budgetRemaining < requestCharge
+    ) {
+      return NextResponse.json(
+        {
+          error: `Deployment budget exhausted. Required: $${requestCharge.toFixed(2)}, Remaining: $${billing.budgetRemaining.toFixed(2)}`,
+          deployment: {
+            status: deployment.status,
+            execution,
+            billing,
+          },
+        },
+        { status: 402 }
+      );
+    }
 
     let chargeTxId: string | null = null;
     if (requestCharge > 0) {
