@@ -11,6 +11,7 @@ import {
   buildWorkspaceDeploymentEndpointPath,
   buildWorkspaceDeploymentEndpointSlug,
 } from "@/lib/workspace/deployment";
+import { getWorkspaceDeploymentBudgetSummary } from "@/lib/workspace/deployment-billing";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,12 @@ const RequestSchema = z.object({
   conversationId: z.string().trim().min(1).nullable().optional(),
   creditsBudget: z.number().finite().nonnegative().nullable().optional(),
   monthlyPriceEstimate: z.number().finite().nonnegative().nullable().optional(),
+});
+
+const UpdateSchema = z.object({
+  modelSlug: z.string().trim().min(1).max(160),
+  action: z.enum(["pause", "resume", "set_budget"]),
+  creditsBudget: z.number().finite().nonnegative().nullable().optional(),
 });
 
 async function requireUser() {
@@ -102,6 +109,12 @@ function toDeploymentResponse(deployment: {
     lastUsedAt: deployment.last_used_at,
     updatedAt: deployment.updated_at,
     execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
+    billing: getWorkspaceDeploymentBudgetSummary({
+      deploymentKind: deployment.deployment_kind,
+      monthlyPriceEstimate: deployment.monthly_price_estimate,
+      creditsBudget: deployment.credits_budget,
+      totalRequests: deployment.total_requests,
+    }),
   };
 }
 
@@ -245,6 +258,87 @@ export async function POST(request: Request) {
       activation: {
         message:
           "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
+      },
+    });
+  } catch (error) {
+    return handleApiError(error, "api/workspace/deployment");
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const auth = await requireUser();
+    if ("error" in auth) return auth.error;
+
+    const parsed = UpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 }
+      );
+    }
+
+    const { data: deployment, error: deploymentError } = await auth.supabase
+      .from("workspace_deployments")
+      .select(
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+      )
+      .eq("user_id", auth.user.id)
+      .eq("model_slug", parsed.data.modelSlug)
+      .single();
+
+    if (deploymentError || !deployment) {
+      return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+    }
+
+    const execution = resolveWorkspaceRuntimeExecution(deployment.model_slug);
+    const updatePayload: {
+      status?: "ready" | "paused";
+      credits_budget?: number | null;
+    } = {};
+
+    if (parsed.data.action === "pause") {
+      updatePayload.status = "paused";
+    }
+
+    if (parsed.data.action === "resume") {
+      if (!execution.available) {
+        return NextResponse.json(
+          {
+            error:
+              "This deployment cannot be resumed because the model no longer has a mapped in-site runtime.",
+          },
+          { status: 422 }
+        );
+      }
+      updatePayload.status = "ready";
+    }
+
+    if (parsed.data.action === "set_budget") {
+      updatePayload.credits_budget = parsed.data.creditsBudget ?? null;
+    }
+
+    const { data: updatedDeployment, error: updateError } = await auth.supabase
+      .from("workspace_deployments")
+      .update(updatePayload)
+      .eq("id", deployment.id)
+      .select(
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+      )
+      .single();
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({
+      deployment: toDeploymentResponse(updatedDeployment),
+      update: {
+        action: parsed.data.action,
+        message:
+          parsed.data.action === "pause"
+            ? "Deployment paused."
+            : parsed.data.action === "resume"
+              ? "Deployment resumed."
+              : "Deployment budget updated.",
       },
     });
   } catch (error) {

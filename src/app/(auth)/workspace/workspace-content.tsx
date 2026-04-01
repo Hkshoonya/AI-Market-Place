@@ -98,6 +98,12 @@ interface WorkspaceDeploymentSnapshot {
       label: string;
       summary: string;
     };
+    billing: {
+      requestCharge: number;
+      estimatedSpend: number;
+      budgetRemaining: number | null;
+      budgetStatus: "untracked" | "healthy" | "low" | "exhausted";
+    };
   } | null;
   runtime: WorkspaceRuntimeSnapshot["runtime"];
 }
@@ -114,6 +120,7 @@ export default function WorkspaceContent() {
   const [runtimeDraft, setRuntimeDraft] = useState("");
   const [runtimeLoading, setRuntimeLoading] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [budgetDraft, setBudgetDraft] = useState("");
   const [runtimeResponse, setRuntimeResponse] = useState<{
     content: string;
     provider: string;
@@ -162,6 +169,17 @@ export default function WorkspaceContent() {
     : null;
   const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
   const hasManagedDeployment = Boolean(deployment?.execution.available);
+  const deploymentId = deployment?.id ?? null;
+  const deploymentCreditsBudget = deployment?.creditsBudget ?? null;
+  const isDeploymentPaused = deployment?.status === "paused";
+  const budgetStatusTone =
+    deployment?.billing.budgetStatus === "healthy"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+      : deployment?.billing.budgetStatus === "low"
+        ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+        : deployment?.billing.budgetStatus === "exhausted"
+          ? "border-red-500/20 bg-red-500/10 text-red-300"
+          : "border-border/50 bg-card/40";
 
   useEffect(() => {
     if (!session || !runtime?.id) return;
@@ -187,6 +205,14 @@ export default function WorkspaceContent() {
       deploymentEndpointPath: deployment.endpointPath,
     });
   }, [deployment?.endpointPath, deployment?.id, session, workspace]);
+
+  useEffect(() => {
+    if (!deploymentId) {
+      setBudgetDraft("");
+      return;
+    }
+    setBudgetDraft(deploymentCreditsBudget != null ? String(deploymentCreditsBudget) : "");
+  }, [deploymentCreditsBudget, deploymentId]);
 
   if (loading) {
     return (
@@ -441,6 +467,41 @@ export default function WorkspaceContent() {
       await Promise.all([mutateRuntimeSnapshot(), mutateDeploymentSnapshot()]);
     } catch (error) {
       setRuntimeError(error instanceof Error ? error.message : "Failed to create deployment");
+    } finally {
+      setRuntimeLoading(false);
+    }
+  };
+
+  const updateDeployment = async (input: {
+    action: "pause" | "resume" | "set_budget";
+    creditsBudget?: number | null;
+  }) => {
+    if (!session.modelSlug || runtimeLoading) return;
+    setRuntimeLoading(true);
+    setRuntimeError(null);
+
+    try {
+      const response = await fetch("/api/workspace/deployment", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug: session.modelSlug,
+          action: input.action,
+          creditsBudget: input.creditsBudget,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to update deployment");
+      }
+
+      workspace.addWorkspaceEvent("Deployment updated", payload.update?.message ?? "Deployment updated.");
+      await mutateDeploymentSnapshot();
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : "Failed to update deployment");
     } finally {
       setRuntimeLoading(false);
     }
@@ -767,8 +828,103 @@ export default function WorkspaceContent() {
                             : "Create Deployment"}
                       </Button>
                     ) : null}
+                    {hasManagedDeployment ? (
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          updateDeployment({ action: isDeploymentPaused ? "resume" : "pause" })
+                        }
+                        disabled={runtimeLoading}
+                      >
+                        {runtimeLoading
+                          ? "Updating..."
+                          : isDeploymentPaused
+                            ? "Resume Deployment"
+                            : "Pause Deployment"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
+
+                {hasManagedDeployment ? (
+                  <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Budget and billing
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {deployment?.billing.budgetRemaining != null
+                            ? `$${deployment.billing.budgetRemaining.toFixed(2)} left`
+                            : "No budget cap set"}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={budgetStatusTone}>
+                        {deployment?.billing.budgetStatus ?? "untracked"}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Per request
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Estimated spend
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          ${deployment?.billing.estimatedSpend.toFixed(2) ?? "0.00"}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Budget cap
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {deployment?.creditsBudget != null
+                            ? `$${deployment.creditsBudget.toFixed(2)}`
+                            : "Not set"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-end gap-3">
+                      <label className="min-w-[12rem] flex-1">
+                        <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Update budget cap
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={budgetDraft}
+                          onChange={(event) => setBudgetDraft(event.target.value)}
+                          className="mt-1 w-full rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none focus:border-neon/30"
+                        />
+                      </label>
+                      <Button
+                        variant="outline"
+                        disabled={runtimeLoading}
+                        onClick={() =>
+                          updateDeployment({
+                            action: "set_budget",
+                            creditsBudget:
+                              budgetDraft.trim().length > 0 ? Number(budgetDraft) : null,
+                          })
+                        }
+                      >
+                        Save Budget
+                      </Button>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      API requests are metered. Heavy usage can outgrow flat subscription pricing,
+                      so keep an explicit budget on managed deployments.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Button asChild className="bg-neon text-background hover:bg-neon/90">
@@ -811,6 +967,11 @@ export default function WorkspaceContent() {
                   <p className="mb-3 text-sm text-muted-foreground">
                     Send a real prompt through the prepared in-site runtime for this selected model.
                   </p>
+                  {isDeploymentPaused ? (
+                    <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/80">
+                      This deployment is paused. Resume it before sending more model requests.
+                    </div>
+                  ) : null}
                   <textarea
                     value={runtimeDraft}
                     onChange={(event) => setRuntimeDraft(event.target.value)}
@@ -822,10 +983,10 @@ export default function WorkspaceContent() {
                   <div className="mt-3 flex justify-end">
                     <Button
                       variant="outline"
-                      disabled={runtimeDraft.trim().length === 0 || runtimeLoading}
+                      disabled={runtimeDraft.trim().length === 0 || runtimeLoading || isDeploymentPaused}
                       onClick={runSelectedModel}
                     >
-                      {runtimeLoading ? "Running..." : "Run Model"}
+                      {runtimeLoading ? "Running..." : isDeploymentPaused ? "Deployment Paused" : "Run Model"}
                     </Button>
                   </div>
                   {runtimeResponse ? (
@@ -989,6 +1150,26 @@ export default function WorkspaceContent() {
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deployment status</p>
                   <p className="mt-1 text-sm font-medium text-white">{deployment?.status ?? runtime?.status ?? "draft"}</p>
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Per request</p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Budget left</p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {deployment?.billing.budgetRemaining != null
+                      ? `$${deployment.billing.budgetRemaining.toFixed(2)}`
+                      : "Not tracked"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Estimated spend</p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    ${deployment?.billing.estimatedSpend.toFixed(2) ?? "0.00"}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Updated</p>

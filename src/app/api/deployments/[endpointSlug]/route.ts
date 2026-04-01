@@ -6,7 +6,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callAgentModel } from "@/lib/agents/provider-router";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
-import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
+import {
+  getWorkspaceDeploymentBudgetSummary,
+  getWorkspaceDeploymentRequestCharge,
+} from "@/lib/workspace/deployment-billing";
 import { creditWallet, debitWallet, getWalletByOwner } from "@/lib/payments/wallet";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +63,12 @@ export async function GET(
         lastUsedAt: deployment.last_used_at,
         updatedAt: deployment.updated_at,
         execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
+        billing: getWorkspaceDeploymentBudgetSummary({
+          deploymentKind: deployment.deployment_kind,
+          monthlyPriceEstimate: deployment.monthly_price_estimate,
+          creditsBudget: deployment.credits_budget,
+          totalRequests: deployment.total_requests,
+        }),
       },
     });
   } catch (error) {
@@ -215,6 +224,12 @@ export async function POST(
         totalTokens: Number(deployment.total_tokens ?? 0) + totalTokens,
         lastUsedAt: nowIso,
         execution,
+        billing: getWorkspaceDeploymentBudgetSummary({
+          deploymentKind: deployment.deployment_kind,
+          monthlyPriceEstimate: deployment.monthly_price_estimate,
+          creditsBudget: deployment.credits_budget,
+          totalRequests: (deployment.total_requests ?? 0) + 1,
+        }),
       },
     });
   } catch (error) {

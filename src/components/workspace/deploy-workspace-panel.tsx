@@ -74,6 +74,12 @@ interface WorkspaceDeploymentSnapshot {
       label: string;
       summary: string;
     };
+    billing: {
+      requestCharge: number;
+      estimatedSpend: number;
+      budgetRemaining: number | null;
+      budgetStatus: "untracked" | "healthy" | "low" | "exhausted";
+    };
   } | null;
 }
 
@@ -138,6 +144,15 @@ export function DeployWorkspacePanel() {
     : null;
   const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
   const hasManagedDeployment = Boolean(deployment?.execution.available);
+  const isDeploymentPaused = deployment?.status === "paused";
+  const budgetStatusTone =
+    deployment?.billing.budgetStatus === "healthy"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+      : deployment?.billing.budgetStatus === "low"
+        ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+        : deployment?.billing.budgetStatus === "exhausted"
+          ? "border-red-500/20 bg-red-500/10 text-red-300"
+          : "border-border/50 bg-card/40";
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
@@ -287,6 +302,37 @@ export function DeployWorkspacePanel() {
       await mutateDeploymentSnapshot();
     } catch (error) {
       setDeploymentError(error instanceof Error ? error.message : "Failed to create deployment");
+    } finally {
+      setDeploymentLoading(false);
+    }
+  };
+
+  const updateDeployment = async (action: "pause" | "resume") => {
+    if (!session.modelSlug || deploymentLoading) return;
+    setDeploymentLoading(true);
+    setDeploymentError(null);
+
+    try {
+      const response = await fetch("/api/workspace/deployment", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug: session.modelSlug,
+          action,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to update deployment");
+      }
+
+      workspace.addWorkspaceEvent("Deployment updated", payload.update?.message ?? "Deployment updated.");
+      await mutateDeploymentSnapshot();
+    } catch (error) {
+      setDeploymentError(error instanceof Error ? error.message : "Failed to update deployment");
     } finally {
       setDeploymentLoading(false);
     }
@@ -513,6 +559,21 @@ export function DeployWorkspacePanel() {
                           : "Create Deployment"}
                     </Button>
                   ) : null}
+                  {hasManagedDeployment ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sm:col-span-2"
+                      onClick={() => updateDeployment(isDeploymentPaused ? "resume" : "pause")}
+                      disabled={deploymentLoading}
+                    >
+                      {deploymentLoading
+                        ? "Updating..."
+                        : isDeploymentPaused
+                          ? "Resume Deployment"
+                          : "Pause Deployment"}
+                    </Button>
+                  ) : null}
                   {session.nextUrl ? (
                     <Button asChild variant="outline" className="sm:col-span-2">
                       <a
@@ -551,6 +612,41 @@ export function DeployWorkspacePanel() {
                       <code className="mt-2 block text-[11px] text-foreground">
                         {deployment.endpointPath}
                       </code>
+                    ) : null}
+                    {hasManagedDeployment ? (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Per request
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-white">
+                            ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Spend
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-white">
+                            ${deployment?.billing.estimatedSpend.toFixed(2) ?? "0.00"}
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Budget left
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-white">
+                            {deployment?.billing.budgetRemaining != null
+                              ? `$${deployment.billing.budgetRemaining.toFixed(2)}`
+                              : "Not tracked"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+                    {hasManagedDeployment ? (
+                      <Badge variant="outline" className={cn("mt-3", budgetStatusTone)}>
+                        {deployment?.billing.budgetStatus ?? "untracked"}
+                      </Badge>
                     ) : null}
                   </div>
                   <div className="mb-2 flex items-center gap-2">
@@ -598,12 +694,25 @@ export function DeployWorkspacePanel() {
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={runtimeDraft.trim().length === 0 || deploymentLoading}
+                          disabled={
+                            runtimeDraft.trim().length === 0 ||
+                            deploymentLoading ||
+                            isDeploymentPaused
+                          }
                           onClick={runDeployment}
                         >
-                          {deploymentLoading ? "Running..." : "Run Model"}
+                          {deploymentLoading
+                            ? "Running..."
+                            : isDeploymentPaused
+                              ? "Deployment Paused"
+                              : "Run Model"}
                         </Button>
                       </div>
+                      {isDeploymentPaused ? (
+                        <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/80">
+                          This deployment is paused. Resume it before sending more model requests.
+                        </div>
+                      ) : null}
                       {runtimeResponse ? (
                         <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
                           <p className="font-medium text-white">

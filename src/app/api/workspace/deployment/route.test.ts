@@ -6,6 +6,8 @@ const selectSingle = vi.fn();
 const eq = vi.fn();
 const upsert = vi.fn();
 const upsertSelect = vi.fn();
+const update = vi.fn();
+const updateSelect = vi.fn();
 const from = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -54,6 +56,14 @@ describe("workspace deployment API", () => {
     upsert.mockImplementation(() => ({
       select: upsertSelect,
     }));
+    updateSelect.mockImplementation(() => ({
+      single: selectSingle,
+    }));
+    update.mockImplementation(() => ({
+      eq: vi.fn(() => ({
+        select: updateSelect,
+      })),
+    }));
 
     from.mockImplementation((table: string) => {
       if (table === "workspace_runtimes" || table === "workspace_deployments") {
@@ -63,6 +73,7 @@ describe("workspace deployment API", () => {
             maybeSingle,
           }),
           upsert,
+          update,
         };
       }
 
@@ -123,5 +134,49 @@ describe("workspace deployment API", () => {
     expect(upsert).not.toHaveBeenCalled();
     const body = await response.json();
     expect(body.error).toMatch(/Direct in-site deployment is not available/i);
+  });
+
+  it("pauses an existing deployment", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    maybeSingle.mockResolvedValue({
+      data: {
+        id: "entity-1",
+        runtime_id: "runtime-1",
+        model_slug: "openai-gpt-4-1",
+        model_name: "GPT-4.1",
+        provider_name: "ChatGPT Plus",
+        status: "ready",
+        endpoint_slug: "openai-gpt-4-1-abc12345",
+        deployment_kind: "managed_api",
+        deployment_label: "OpenRouter-backed runtime",
+        credits_budget: 20,
+        monthly_price_estimate: 20,
+        total_requests: 2,
+        total_tokens: 500,
+        last_used_at: null,
+        updated_at: "2026-04-01T13:30:00.000Z",
+      },
+      error: null,
+    });
+
+    const { PATCH } = await import("./route");
+    const response = await PATCH(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelSlug: "openai-gpt-4-1",
+          action: "pause",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith({ status: "paused" });
+    const body = await response.json();
+    expect(body.update.message).toMatch(/Deployment paused/i);
   });
 });
