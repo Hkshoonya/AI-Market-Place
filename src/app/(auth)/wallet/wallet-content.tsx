@@ -244,6 +244,38 @@ export default function WalletContent() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6 border-border/50 bg-card">
+        <CardContent className="grid gap-4 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div>
+            <h2 className="text-lg font-semibold">Top up credits once, then buy directly</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your wallet powers marketplace purchases. Add USDC here, then reuse that balance across paid listings,
+              subscriptions, and future pay-as-you-go usage.
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              The simplest top-up packs are $20, $40, $60, and $100. After that, spending draws down from the same balance.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card/30 p-4">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Suggested top-up packs
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["$20", "$40", "$60", "$100"].map((amount) => (
+                <Badge key={amount} variant="outline" className="border-neon/20 bg-neon/5 text-neon">
+                  {amount}
+                </Badge>
+              ))}
+            </div>
+            <ol className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>1. Copy a deposit address below.</li>
+              <li>2. Send USDC on Solana, Base, or Polygon.</li>
+              <li>3. Wait for the balance to appear, then buy from any listing.</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Section 2: Deposit Addresses */}
       <Card className="border-border/50 bg-card mb-6">
         <CardContent className="p-6">

@@ -21,7 +21,20 @@ export function WalletDepositPanel({
   return (
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <p className="text-sm font-medium text-amber-400">Insufficient balance</p>
-      <p className="text-xs text-muted-foreground">Deposit USDC to fund your wallet:</p>
+      <p className="text-xs text-muted-foreground">
+        Deposit USDC to top up your wallet. Common top-up packs are $20, $40, $60, and $100.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        {["$20", "$40", "$60", "$100"].map((amount) => (
+          <span
+            key={amount}
+            className="rounded-full border border-amber-500/20 bg-background/60 px-2.5 py-1 text-[11px] text-amber-200"
+          >
+            {amount}
+          </span>
+        ))}
+      </div>
 
       {walletData?.solana_deposit_address && (
         <div className="space-y-1 min-w-0">
