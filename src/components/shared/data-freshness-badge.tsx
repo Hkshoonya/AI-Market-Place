@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatRelativeTime } from "@/lib/format";
@@ -13,14 +16,22 @@ export function DataFreshnessBadge({
   timestamp,
   detail,
 }: DataFreshnessBadgeProps) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!timestamp) return;
+    const interval = setInterval(() => {
+      setTick((current) => current + 1);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [timestamp]);
+
   if (!timestamp) return null;
 
-  const accessibilityLabel = [
-    label,
-    formatRelativeTime(timestamp),
-    formatDate(timestamp),
-    detail,
-  ]
+  const formattedDate = formatDate(timestamp);
+  const displayRelative = tick >= 0 ? formatRelativeTime(timestamp) : formattedDate;
+
+  const accessibilityLabel = [label, displayRelative, formattedDate, detail]
     .filter(Boolean)
     .join(", ");
 
@@ -32,10 +43,10 @@ export function DataFreshnessBadge({
     >
       <Clock3 className="h-3.5 w-3.5 text-neon" aria-hidden="true" />
       <span>{label}</span>
-      <Badge variant="secondary" className="text-[10px]">
-        {formatRelativeTime(timestamp)}
+      <Badge variant="secondary" className="text-[10px]" suppressHydrationWarning>
+        {displayRelative}
       </Badge>
-      <span>{formatDate(timestamp)}</span>
+      <span>{formattedDate}</span>
       {detail ? (
         <span className="text-[10px] uppercase tracking-[0.14em]">{detail}</span>
       ) : null}

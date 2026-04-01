@@ -1,49 +1,53 @@
 "use client";
 
-import posthog from "posthog-js";
-import { PostHogProvider, usePostHog } from "posthog-js/react";
+import { PostHogProvider } from "posthog-js/react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { SWRConfig } from "swr";
 import { jsonFetcher } from "@/lib/swr/fetcher";
-
-if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-    api_host: "https://us.i.posthog.com",
-    ui_host: "https://us.posthog.com",
-    capture_pageview: false,
-    capture_pageleave: true,
-    person_profiles: "always",
-    persistence: "localStorage+cookie",
-  });
-}
+import type { PostHog } from "posthog-js";
 
 function PostHogPageView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const ph = usePostHog();
 
   useEffect(() => {
-    if (pathname && ph) {
+    if (!pathname) return;
+
+    import("posthog-js").then(({ default: posthog }) => {
       let url = window.origin + pathname;
       const search = searchParams.toString();
-      if (search) {
-        url += "?" + search;
-      }
-      ph.capture("$pageview", { $current_url: url });
-    }
-  }, [pathname, searchParams, ph]);
+      if (search) url += "?" + search;
+      posthog.capture("$pageview", { $current_url: url });
+    });
+  }, [pathname, searchParams]);
 
   return null;
 }
 
 export function PHProvider({ children }: { children: React.ReactNode }) {
-  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-    return <>{children}</>;
-  }
+  const [client, setClient] = useState<PostHog | null>(null);
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+
+    import("posthog-js").then(({ default: posthog }) => {
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+        api_host: "https://us.i.posthog.com",
+        ui_host: "https://us.posthog.com",
+        capture_pageview: false,
+        capture_pageleave: true,
+        person_profiles: "always",
+        persistence: "localStorage+cookie",
+      });
+      setClient(posthog);
+    });
+  }, []);
+
+  if (!client) return <>{children}</>;
 
   return (
-    <PostHogProvider client={posthog}>
+    <PostHogProvider client={client}>
       <Suspense fallback={null}>
         <PostHogPageView />
       </Suspense>

@@ -4,6 +4,9 @@ import { buildContentSecurityPolicy } from "./src/lib/csp";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    optimizePackageImports: ["recharts", "posthog-js", "lucide-react"],
+  },
   allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
   images: {
     remotePatterns: [
