@@ -47,11 +47,48 @@ interface WorkspaceChatSnapshot {
   messages: WorkspaceChatMessage[];
 }
 
+interface WorkspaceDeploymentSnapshot {
+  deployment: {
+    id: string;
+    runtimeId: string | null;
+    modelSlug: string;
+    modelName: string;
+    providerName: string | null;
+    status: "provisioning" | "ready" | "paused" | "failed";
+    endpointSlug: string;
+    endpointPath: string;
+    deploymentKind: "managed_api" | "assistant_only";
+    deploymentLabel: string | null;
+    creditsBudget: number | null;
+    monthlyPriceEstimate: number | null;
+    totalRequests: number;
+    totalTokens: number;
+    lastUsedAt: string | null;
+    updatedAt: string;
+    execution: {
+      available: boolean;
+      mode: "native_model" | "assistant_only";
+      provider: string | null;
+      model: string | null;
+      label: string;
+      summary: string;
+    };
+  } | null;
+}
+
 export function DeployWorkspacePanel() {
   const [noteDraft, setNoteDraft] = useState("");
   const [assistantDraft, setAssistantDraft] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [deploymentLoading, setDeploymentLoading] = useState(false);
+  const [deploymentError, setDeploymentError] = useState<string | null>(null);
+  const [runtimeDraft, setRuntimeDraft] = useState("");
+  const [runtimeResponse, setRuntimeResponse] = useState<{
+    content: string;
+    provider: string;
+    model: string;
+  } | null>(null);
   const { user } = useAuth();
   const workspace = useOptionalWorkspace();
   const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
@@ -68,6 +105,13 @@ export function DeployWorkspacePanel() {
       : null,
     { ...SWR_TIERS.MEDIUM }
   );
+  const { data: deploymentSnapshot, mutate: mutateDeploymentSnapshot } =
+    useSWR<WorkspaceDeploymentSnapshot>(
+      user && workspace?.session?.modelSlug
+        ? `/api/workspace/deployment?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}`
+        : null,
+      { ...SWR_TIERS.MEDIUM }
+    );
 
   if (!workspace?.session) return null;
 
@@ -87,6 +131,7 @@ export function DeployWorkspacePanel() {
 
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
+  const deployment = deploymentSnapshot?.deployment ?? null;
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
@@ -114,9 +159,11 @@ export function DeployWorkspacePanel() {
       detail: "Create account-side API keys without losing the workspace session.",
     },
     {
-      label: "Provider Path",
-      done: events.some((event) => /provider/i.test(`${event.title} ${event.detail}`)),
-      detail: "Continue only after funding and API setup are ready.",
+      label: "Deployment",
+      done: deployment?.status === "ready",
+      detail: deployment
+        ? "Use the managed in-site deployment endpoint for chat and API requests."
+        : "Create the managed in-site deployment after funding and API setup are ready.",
     },
   ];
 
@@ -179,6 +226,95 @@ export function DeployWorkspacePanel() {
       );
     } finally {
       setAssistantLoading(false);
+    }
+  };
+
+  const createDeployment = async () => {
+    if (!session.modelSlug || !session.model || deploymentLoading) return;
+
+    setDeploymentLoading(true);
+    setDeploymentError(null);
+
+    try {
+      const response = await fetch("/api/workspace/deployment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug: session.modelSlug,
+          modelName: session.model,
+          providerName: session.provider,
+          conversationId: session.conversationId,
+          creditsBudget: session.suggestedAmount,
+          monthlyPriceEstimate: session.suggestedAmount,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to create deployment");
+      }
+
+      workspace.addWorkspaceEvent(
+        "Deployment created",
+        session.model
+          ? `Created a managed in-site deployment for ${session.model}.`
+          : "Created a managed in-site deployment."
+      );
+
+      workspace.updateWorkspaceSession({
+        runtimeId: payload.runtime?.id ?? null,
+        runtimeEndpointPath: payload.runtime?.endpointPath ?? null,
+        deploymentId: payload.deployment?.id ?? null,
+        deploymentEndpointPath: payload.deployment?.endpointPath ?? null,
+      });
+
+      await mutateDeploymentSnapshot();
+    } catch (error) {
+      setDeploymentError(error instanceof Error ? error.message : "Failed to create deployment");
+    } finally {
+      setDeploymentLoading(false);
+    }
+  };
+
+  const runDeployment = async () => {
+    const trimmed = runtimeDraft.trim();
+    if (!deployment?.endpointPath || !trimmed || deploymentLoading) return;
+
+    workspace.addWorkspaceEvent("Deployment prompt", trimmed, "user");
+    setDeploymentLoading(true);
+    setDeploymentError(null);
+    setRuntimeDraft("");
+
+    try {
+      const response = await fetch(deployment.endpointPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: trimmed }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to run deployment");
+      }
+
+      if (payload.response?.content) {
+        workspace.addWorkspaceEvent(
+          session.model ? `${session.model} response` : "Model response",
+          payload.response.content,
+          "system"
+        );
+      }
+
+      setRuntimeResponse(payload.response ?? null);
+      await mutateDeploymentSnapshot();
+    } catch (error) {
+      setDeploymentError(error instanceof Error ? error.message : "Failed to run deployment");
+    } finally {
+      setDeploymentLoading(false);
     }
   };
 
@@ -348,6 +484,19 @@ export function DeployWorkspacePanel() {
                       API Keys
                     </Link>
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sm:col-span-2"
+                    onClick={createDeployment}
+                    disabled={deploymentLoading}
+                  >
+                    {deploymentLoading
+                      ? "Creating..."
+                      : deployment
+                        ? "Refresh Deployment"
+                        : "Create Deployment"}
+                  </Button>
                   {session.nextUrl ? (
                     <Button asChild variant="outline" className="sm:col-span-2">
                       <a
@@ -363,6 +512,23 @@ export function DeployWorkspacePanel() {
                 </div>
 
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="mb-3 rounded-md border border-border/40 bg-background/40 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Deployment
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">
+                      {deployment ? deployment.deploymentLabel ?? "Managed deployment" : "Not created yet"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {deployment?.execution.summary ??
+                        "Create the managed in-site deployment to get a stable endpoint and tracked usage."}
+                    </p>
+                    {deployment?.endpointPath ? (
+                      <code className="mt-2 block text-[11px] text-foreground">
+                        {deployment.endpointPath}
+                      </code>
+                    ) : null}
+                  </div>
                   <div className="mb-2 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-neon" />
                     <p className="text-sm font-medium text-white">Session note</p>
@@ -392,6 +558,38 @@ export function DeployWorkspacePanel() {
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  {deployment?.execution.available ? (
+                    <div className="mb-3 rounded-md border border-border/40 bg-background/40 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Run deployment
+                      </p>
+                      <textarea
+                        value={runtimeDraft}
+                        onChange={(event) => setRuntimeDraft(event.target.value)}
+                        rows={maximized ? 3 : 2}
+                        placeholder={`Example: Give me a short overview of ${session.model ?? "this model"}.`}
+                        className="mt-2 w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"
+                      />
+                      <div className="mt-2 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={runtimeDraft.trim().length === 0 || deploymentLoading}
+                          onClick={runDeployment}
+                        >
+                          {deploymentLoading ? "Running..." : "Run Model"}
+                        </Button>
+                      </div>
+                      {runtimeResponse ? (
+                        <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                          <p className="font-medium text-white">
+                            {runtimeResponse.provider} · {runtimeResponse.model}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap">{runtimeResponse.content}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mb-2 flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-neon" />
                     <p className="text-sm font-medium text-white">Workspace assistant</p>
@@ -424,6 +622,7 @@ export function DeployWorkspacePanel() {
                       ))}
                     </div>
                     {assistantError ? <p className="text-xs text-red-400">{assistantError}</p> : null}
+                    {deploymentError ? <p className="text-xs text-red-400">{deploymentError}</p> : null}
                     <div className="flex justify-end">
                       <Button type="button" variant="outline" disabled={!canSendAssistant} onClick={askAssistant}>
                         {assistantLoading ? "Sending..." : "Ask Assistant"}
@@ -495,6 +694,26 @@ export function DeployWorkspacePanel() {
                   </div>
                   <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                     <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Deployment Status
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{deployment?.status ?? "draft"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Deployment Requests
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">{deployment?.totalRequests ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Tracked Tokens
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-white">
+                      {deployment?.totalTokens ?? assistantUsage.totalTokens}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                       Session Events
                     </p>
                     <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
@@ -504,12 +723,6 @@ export function DeployWorkspacePanel() {
                       Assistant Turns
                     </p>
                     <p className="mt-1 text-sm font-medium text-white">{assistantUsage.turns}</p>
-                  </div>
-                  <div className="rounded-lg border border-border/50 bg-card/20 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                      Tracked Tokens
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-white">{assistantUsage.totalTokens}</p>
                   </div>
                 </div>
 

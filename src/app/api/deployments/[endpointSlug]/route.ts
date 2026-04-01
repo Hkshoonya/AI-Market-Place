@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callAgentModel } from "@/lib/agents/provider-router";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
+import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
+import { creditWallet, debitWallet, getWalletByOwner } from "@/lib/payments/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -106,18 +108,64 @@ export async function POST(
       );
     }
 
-    const response = await callAgentModel({
-      preferredProviders: [execution.provider],
-      providerModels: {
-        [execution.provider]: execution.model,
-      },
-      messages: [
-        ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
-        { role: "user", content: parsed.data.message },
-      ],
-      temperature: 0.2,
-      maxTokens: 2048,
+    const requestCharge = getWorkspaceDeploymentRequestCharge({
+      deploymentKind: deployment.deployment_kind,
+      monthlyPriceEstimate: deployment.monthly_price_estimate,
     });
+
+    let chargeTxId: string | null = null;
+    if (requestCharge > 0) {
+      const wallet = await getWalletByOwner(auth.userId);
+      if (!wallet) {
+        return NextResponse.json(
+          { error: "No wallet found. Create and fund a wallet before using this deployment." },
+          { status: 402 }
+        );
+      }
+
+      if (Number(wallet.balance) < requestCharge) {
+        return NextResponse.json(
+          {
+            error: `Insufficient balance. Required: $${requestCharge.toFixed(2)}, Available: $${Number(wallet.balance).toFixed(2)}`,
+          },
+          { status: 402 }
+        );
+      }
+
+      chargeTxId = await debitWallet(wallet.id, requestCharge, "api_charge", {
+        referenceType: "workspace_deployment_request",
+        referenceId: deployment.id,
+        description: `Workspace deployment request for ${deployment.model_name}`,
+      });
+    }
+
+    let response;
+    try {
+      response = await callAgentModel({
+        preferredProviders: [execution.provider],
+        providerModels: {
+          [execution.provider]: execution.model,
+        },
+        messages: [
+          ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
+          { role: "user", content: parsed.data.message },
+        ],
+        temperature: 0.2,
+        maxTokens: 2048,
+      });
+    } catch (error) {
+      if (chargeTxId && requestCharge > 0) {
+        const wallet = await getWalletByOwner(auth.userId);
+        if (wallet) {
+          await creditWallet(wallet.id, requestCharge, "refund", {
+            referenceType: "workspace_deployment_refund",
+            referenceId: deployment.id,
+            description: `Refund for failed workspace deployment request on ${deployment.model_name}`,
+          });
+        }
+      }
+      throw error;
+    }
 
     const totalTokens = response.usage?.totalTokens ?? 0;
     const nowIso = new Date().toISOString();
@@ -162,6 +210,7 @@ export async function POST(
         endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
         status: deployment.status,
         deploymentLabel: deployment.deployment_label,
+        requestCharge,
         totalRequests: (deployment.total_requests ?? 0) + 1,
         totalTokens: Number(deployment.total_tokens ?? 0) + totalTokens,
         lastUsedAt: nowIso,
