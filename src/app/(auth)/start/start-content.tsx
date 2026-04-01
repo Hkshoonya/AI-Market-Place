@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 
 function buildWalletHref(params: URLSearchParams) {
   return `/wallet?${params.toString()}#deposit-addresses`;
@@ -22,6 +23,7 @@ export default function StartContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
+  const { openWorkspace, addWorkspaceEvent } = useWorkspace();
 
   const starterModel = searchParams.get("model");
   const starterModelSlug = searchParams.get("modelSlug");
@@ -41,6 +43,30 @@ export default function StartContent() {
   }, [loading, pathname, router, searchParams, user]);
 
   const preservedParams = useMemo(() => new URLSearchParams(searchParams.toString()), [searchParams]);
+
+  useEffect(() => {
+    if (!user) return;
+    openWorkspace({
+      model: starterModel,
+      modelSlug: starterModelSlug,
+      provider: starterProvider,
+      action: starterAction,
+      nextUrl: starterNext,
+      suggestedPack: starterPackLabel,
+      suggestedAmount:
+        starterAmount && Number.isFinite(Number(starterAmount)) ? Number(starterAmount) : null,
+    });
+  }, [
+    user,
+    openWorkspace,
+    starterAction,
+    starterAmount,
+    starterModel,
+    starterModelSlug,
+    starterNext,
+    starterPackLabel,
+    starterProvider,
+  ]);
 
   if (loading || !user) return null;
 
@@ -105,7 +131,15 @@ export default function StartContent() {
                   </p>
                 ) : null}
                 <Button asChild className="mt-4 w-full bg-neon text-background hover:bg-neon/90">
-                  <Link href={buildWalletHref(preservedParams)}>
+                  <Link
+                    href={buildWalletHref(preservedParams)}
+                    onClick={() =>
+                      addWorkspaceEvent(
+                        "Wallet opened",
+                        "Moved into the wallet funding step from the in-site workspace."
+                      )
+                    }
+                  >
                     Open Wallet
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -123,7 +157,15 @@ export default function StartContent() {
                   Create API keys for the account-side access layer while the runtime path is being prepared.
                 </p>
                 <Button asChild variant="outline" className="mt-4 w-full">
-                  <Link href={buildApiKeysHref(preservedParams)}>
+                  <Link
+                    href={buildApiKeysHref(preservedParams)}
+                    onClick={() =>
+                      addWorkspaceEvent(
+                        "API access prepared",
+                        "Opened API key setup from the in-site workspace."
+                      )
+                    }
+                  >
                     API Keys
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -149,6 +191,12 @@ export default function StartContent() {
                         starterSponsored
                           ? "noopener noreferrer sponsored nofollow"
                           : "noopener noreferrer"
+                      }
+                      onClick={() =>
+                        addWorkspaceEvent(
+                          "Provider path opened",
+                          "Continued from the in-site workspace into the verified provider destination."
+                        )
                       }
                     >
                       {starterAction ?? "Continue"}

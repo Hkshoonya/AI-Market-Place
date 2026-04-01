@@ -6,6 +6,8 @@ import { Footer } from "@/components/layout/footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { PWARegister } from "@/components/pwa-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
+import { DeployWorkspacePanel } from "@/components/workspace/deploy-workspace-panel";
 import { Toaster } from "sonner";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { LazyAmbientScene } from "@/components/three/lazy-ambient-scene";
@@ -92,20 +94,23 @@ export default function RootLayout({
         <SWRProvider>
           <PHProvider>
             <AuthProvider>
-              <TooltipProvider>
-                <a
-                  href="#main-content"
-                  className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-neon focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-background focus:outline-none"
-                >
-                  Skip to main content
-                </a>
-                <LazyAmbientScene />
-                <Header />
-                <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
-                <Footer />
-                <ScrollToTop />
-                <PWARegister />
-              </TooltipProvider>
+              <WorkspaceProvider>
+                <TooltipProvider>
+                  <a
+                    href="#main-content"
+                    className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-neon focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-background focus:outline-none"
+                  >
+                    Skip to main content
+                  </a>
+                  <LazyAmbientScene />
+                  <Header />
+                  <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
+                  <Footer />
+                  <DeployWorkspacePanel />
+                  <ScrollToTop />
+                  <PWARegister />
+                </TooltipProvider>
+              </WorkspaceProvider>
             </AuthProvider>
           </PHProvider>
         </SWRProvider>
