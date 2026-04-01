@@ -60,7 +60,45 @@ interface WorkspaceRuntimeSnapshot {
     totalTokens: number;
     lastUsedAt: string | null;
     updatedAt: string;
+    execution: {
+      available: boolean;
+      mode: "native_model" | "assistant_only";
+      provider: string | null;
+      model: string | null;
+      label: string;
+      summary: string;
+    };
   } | null;
+}
+
+interface WorkspaceDeploymentSnapshot {
+  deployment: {
+    id: string;
+    runtimeId: string | null;
+    modelSlug: string;
+    modelName: string;
+    providerName: string | null;
+    status: "provisioning" | "ready" | "paused" | "failed";
+    endpointSlug: string;
+    endpointPath: string;
+    deploymentKind: "managed_api" | "assistant_only";
+    deploymentLabel: string | null;
+    creditsBudget: number | null;
+    monthlyPriceEstimate: number | null;
+    totalRequests: number;
+    totalTokens: number;
+    lastUsedAt: string | null;
+    updatedAt: string;
+    execution: {
+      available: boolean;
+      mode: "native_model" | "assistant_only";
+      provider: string | null;
+      model: string | null;
+      label: string;
+      summary: string;
+    };
+  } | null;
+  runtime: WorkspaceRuntimeSnapshot["runtime"];
 }
 
 export default function WorkspaceContent() {
@@ -72,8 +110,15 @@ export default function WorkspaceContent() {
   const [assistantDraft, setAssistantDraft] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [runtimeDraft, setRuntimeDraft] = useState("");
   const [runtimeLoading, setRuntimeLoading] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [runtimeResponse, setRuntimeResponse] = useState<{
+    content: string;
+    provider: string;
+    model: string;
+    usage: { totalTokens: number | null } | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -101,8 +146,16 @@ export default function WorkspaceContent() {
       : null,
     { ...SWR_TIERS.MEDIUM }
   );
+  const { data: deploymentSnapshot, mutate: mutateDeploymentSnapshot } =
+    useSWR<WorkspaceDeploymentSnapshot>(
+      user && workspace.session?.modelSlug
+        ? `/api/workspace/deployment?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}`
+        : null,
+      { ...SWR_TIERS.MEDIUM }
+    );
   const session = workspace.session;
-  const runtime = runtimeSnapshot?.runtime ?? null;
+  const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
+  const deployment = deploymentSnapshot?.deployment ?? null;
 
   useEffect(() => {
     if (!session || !runtime?.id) return;
@@ -114,6 +167,20 @@ export default function WorkspaceContent() {
       runtimeEndpointPath: runtime.endpointPath,
     });
   }, [runtime?.endpointPath, runtime?.id, session, workspace]);
+
+  useEffect(() => {
+    if (!session || !deployment?.id) return;
+    if (
+      session.deploymentId === deployment.id &&
+      session.deploymentEndpointPath === deployment.endpointPath
+    ) {
+      return;
+    }
+    workspace.updateWorkspaceSession({
+      deploymentId: deployment.id,
+      deploymentEndpointPath: deployment.endpointPath,
+    });
+  }, [deployment?.endpointPath, deployment?.id, session, workspace]);
 
   if (loading) {
     return (
@@ -311,6 +378,96 @@ export default function WorkspaceContent() {
     }
   };
 
+  const createDeployment = async () => {
+    if (!session.modelSlug || !session.model) return;
+    setRuntimeLoading(true);
+    setRuntimeError(null);
+
+    try {
+      const response = await fetch("/api/workspace/deployment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug: session.modelSlug,
+          modelName: session.model,
+          providerName: session.provider,
+          conversationId: session.conversationId,
+          creditsBudget: session.suggestedAmount,
+          monthlyPriceEstimate: session.suggestedAmount,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to create deployment");
+      }
+
+      workspace.addWorkspaceEvent(
+        "Deployment created",
+        session.model
+          ? `Created a managed in-site deployment record for ${session.model}.`
+          : "Created a managed in-site deployment record."
+      );
+
+      workspace.updateWorkspaceSession({
+        runtimeId: payload.runtime?.id ?? null,
+        runtimeEndpointPath: payload.runtime?.endpointPath ?? null,
+        deploymentId: payload.deployment?.id ?? null,
+        deploymentEndpointPath: payload.deployment?.endpointPath ?? null,
+      });
+
+      await Promise.all([mutateRuntimeSnapshot(), mutateDeploymentSnapshot()]);
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : "Failed to create deployment");
+    } finally {
+      setRuntimeLoading(false);
+    }
+  };
+
+  const runSelectedModel = async () => {
+    const trimmed = runtimeDraft.trim();
+    if (!deployment?.endpointPath || !trimmed || runtimeLoading) return;
+
+    workspace.addWorkspaceEvent("Runtime prompt", trimmed, "user");
+    setRuntimeLoading(true);
+    setRuntimeError(null);
+    setRuntimeDraft("");
+
+    try {
+      const response = await fetch(deployment.endpointPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: trimmed,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to run selected model");
+      }
+
+      if (payload.response?.content) {
+        workspace.addWorkspaceEvent(
+          session.model ? `${session.model} response` : "Model response",
+          payload.response.content,
+          "system"
+        );
+      }
+
+      setRuntimeResponse(payload.response ?? null);
+      await Promise.all([mutateRuntimeSnapshot(), mutateDeploymentSnapshot()]);
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : "Failed to run selected model");
+    } finally {
+      setRuntimeLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -415,8 +572,8 @@ export default function WorkspaceContent() {
         </Card>
         <Card className="border-border/50 bg-card/60">
           <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Runtime Requests</p>
-            <p className="mt-1 text-xl font-semibold text-white">{runtime?.totalRequests ?? 0}</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deployment Requests</p>
+              <p className="mt-1 text-xl font-semibold text-white">{deployment?.totalRequests ?? runtime?.totalRequests ?? 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -486,30 +643,51 @@ export default function WorkspaceContent() {
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Runtime record
                       </p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    {deployment ? "Deployment created inside AI Market Cap" : "Not deployed yet"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {deployment
+                      ? "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
+                      : "Create the in-site deployment before deeper chat and API usage starts here."}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    deployment
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "border-border/50 bg-card/40"
+                  )}
+                >
+                  {deployment?.status ?? "draft"}
+                </Badge>
+              </div>
+                  {deployment ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Deployment mode
+                      </p>
                       <p className="mt-1 text-sm font-medium text-white">
-                        {runtime ? "Prepared inside AI Market Cap" : "Not prepared yet"}
+                        {deployment.execution.label}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {runtime
-                          ? "This stable runtime record is where future chat, API, and usage layers will attach for this model."
-                          : "Prepare one stable runtime record before deeper chat/API usage starts here."}
+                        {deployment.execution.summary}
                       </p>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        runtime
-                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                          : "border-border/50 bg-card/40"
-                      )}
-                    >
-                      {runtime?.status ?? "draft"}
-                    </Badge>
-                  </div>
+                  ) : null}
+                  {deployment ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Deployment status endpoint
+                      </p>
+                      <code className="mt-1 block text-xs text-foreground">{deployment.endpointPath}</code>
+                    </div>
+                  ) : null}
                   {runtime ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Runtime status endpoint
+                        Runtime record endpoint
                       </p>
                       <code className="mt-1 block text-xs text-foreground">{runtime.endpointPath}</code>
                     </div>
@@ -522,16 +700,16 @@ export default function WorkspaceContent() {
                       <code className="mt-1 block text-xs text-foreground">{runtime.assistantPath}</code>
                     </div>
                   ) : null}
-                  {runtime ? (
+                  {deployment ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                         Example request
                       </p>
                       <pre className="mt-2 overflow-x-auto text-[11px] leading-relaxed text-foreground">
-{`curl -X POST ${runtime.assistantPath} \\
+{`curl -X POST ${deployment.endpointPath} \\
   -H "Authorization: Bearer aimk_your_key_here" \\
   -H "Content-Type: application/json" \\
-  -d '{"message":"Help me start using ${session.model ?? "this model"}"}'`}
+  -d '{"message":"Say hello from AI Market Cap"}'`}
                       </pre>
                     </div>
                   ) : null}
@@ -543,6 +721,13 @@ export default function WorkspaceContent() {
                         : runtime
                           ? "Refresh Runtime Setup"
                           : "Activate Runtime"}
+                    </Button>
+                    <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
+                      {runtimeLoading
+                        ? "Creating..."
+                        : deployment
+                          ? "Refresh Deployment"
+                          : "Create Deployment"}
                     </Button>
                   </div>
                 </div>
@@ -576,6 +761,65 @@ export default function WorkspaceContent() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              {deployment?.execution.available ? (
+                <>
+                  <div className="mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <h2 className="text-lg font-semibold text-white">Run selected model</h2>
+                  </div>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Send a real prompt through the prepared in-site runtime for this selected model.
+                  </p>
+                  <textarea
+                    value={runtimeDraft}
+                    onChange={(event) => setRuntimeDraft(event.target.value)}
+                    rows={4}
+                    placeholder={`Example: Give me a short overview of ${session.model ?? "this model"}.`}
+                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
+                  />
+                  {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      variant="outline"
+                      disabled={runtimeDraft.trim().length === 0 || runtimeLoading}
+                      onClick={runSelectedModel}
+                    >
+                      {runtimeLoading ? "Running..." : "Run Model"}
+                    </Button>
+                  </div>
+                  {runtimeResponse ? (
+                    <div className="mt-4 rounded-lg border border-border/40 bg-card/30 px-4 py-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium text-white">
+                          {session.model ?? "Model"} response
+                        </p>
+                        <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          {runtimeResponse.provider} · {runtimeResponse.model}
+                        </span>
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                        {runtimeResponse.content}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-neon" />
+                    <h2 className="text-lg font-semibold text-white">Model runtime not mapped yet</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {deployment?.execution.summary ??
+                      "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
@@ -697,20 +941,20 @@ export default function WorkspaceContent() {
               </div>
               <div className="mb-4 grid gap-3 md:grid-cols-3">
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Runtime status</p>
-                  <p className="mt-1 text-sm font-medium text-white">{runtime?.status ?? "draft"}</p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deployment status</p>
+                  <p className="mt-1 text-sm font-medium text-white">{deployment?.status ?? runtime?.status ?? "draft"}</p>
                 </div>
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Updated</p>
                   <p className="mt-1 text-sm font-medium text-white">
-                    {runtime?.updatedAt
-                      ? new Date(runtime.updatedAt).toLocaleString([], {
+                    {deployment?.updatedAt || runtime?.updatedAt
+                      ? new Date(deployment?.updatedAt ?? runtime?.updatedAt ?? "").toLocaleString([], {
                           month: "short",
                           day: "numeric",
                           hour: "numeric",
                           minute: "2-digit",
                         })
-                      : "Not prepared"}
+                          : "Not prepared"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">

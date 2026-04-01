@@ -818,6 +818,26 @@ export interface WorkspaceRuntimeRecord {
   updated_at: string;
 }
 
+export interface WorkspaceDeploymentRecord {
+  id: string;
+  user_id: string;
+  runtime_id: string | null;
+  model_slug: string;
+  model_name: string;
+  provider_name: string | null;
+  status: "provisioning" | "ready" | "paused" | "failed";
+  endpoint_slug: string;
+  deployment_kind: "managed_api" | "assistant_only";
+  deployment_label: string | null;
+  credits_budget: number | null;
+  monthly_price_estimate: number | null;
+  total_requests: number;
+  total_tokens: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Wallet & Payment types
 export type WalletOwnerType = 'user' | 'agent';
 export type WalletTxType = 'deposit' | 'withdrawal' | 'purchase' | 'sale' | 'escrow_hold' | 'escrow_release' | 'bid_hold' | 'bid_release' | 'refund' | 'platform_fee' | 'api_charge';
@@ -1386,6 +1406,12 @@ export interface Database {
         Row: AsRow<WorkspaceRuntimeRecord>;
         Insert: Partial<WorkspaceRuntimeRecord> & Pick<WorkspaceRuntimeRecord, "user_id" | "model_slug" | "model_name" | "endpoint_slug">;
         Update: Partial<WorkspaceRuntimeRecord>;
+        Relationships: [];
+      };
+      workspace_deployments: {
+        Row: AsRow<WorkspaceDeploymentRecord>;
+        Insert: Partial<WorkspaceDeploymentRecord> & Pick<WorkspaceDeploymentRecord, "user_id" | "model_slug" | "model_name" | "endpoint_slug">;
+        Update: Partial<WorkspaceDeploymentRecord>;
         Relationships: [];
       };
       wallets: {

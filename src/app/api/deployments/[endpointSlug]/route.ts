@@ -1,0 +1,174 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { handleApiError } from "@/lib/api-error";
+import { resolveAuthUser } from "@/lib/auth/resolve-user";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { callAgentModel } from "@/lib/agents/provider-router";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
+
+export const dynamic = "force-dynamic";
+
+const RequestSchema = z.object({
+  message: z.string().trim().min(1).max(8000),
+  system: z.string().trim().max(4000).optional(),
+});
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ endpointSlug: string }> }
+) {
+  try {
+    const auth = await resolveAuthUser(request, ["read", "agent"]);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { endpointSlug } = await params;
+    const admin = createAdminClient();
+    const { data: deployment, error } = await admin
+      .from("workspace_deployments")
+      .select(
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+      )
+      .eq("user_id", auth.userId)
+      .eq("endpoint_slug", endpointSlug)
+      .single();
+
+    if (error || !deployment) {
+      return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      deployment: {
+        id: deployment.id,
+        runtimeId: deployment.runtime_id,
+        modelSlug: deployment.model_slug,
+        modelName: deployment.model_name,
+        providerName: deployment.provider_name,
+        status: deployment.status,
+        endpointSlug: deployment.endpoint_slug,
+        endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
+        deploymentKind: deployment.deployment_kind,
+        deploymentLabel: deployment.deployment_label,
+        creditsBudget: deployment.credits_budget,
+        monthlyPriceEstimate: deployment.monthly_price_estimate,
+        totalRequests: deployment.total_requests,
+        totalTokens: deployment.total_tokens,
+        lastUsedAt: deployment.last_used_at,
+        updatedAt: deployment.updated_at,
+        execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
+      },
+    });
+  } catch (error) {
+    return handleApiError(error, "api/deployments/[endpointSlug]");
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ endpointSlug: string }> }
+) {
+  try {
+    const auth = await resolveAuthUser(request, ["agent"]);
+    if (!auth) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const parsed = RequestSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 }
+      );
+    }
+
+    const { endpointSlug } = await params;
+    const admin = createAdminClient();
+    const { data: deployment, error } = await admin
+      .from("workspace_deployments")
+      .select(
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+      )
+      .eq("user_id", auth.userId)
+      .eq("endpoint_slug", endpointSlug)
+      .single();
+
+    if (error || !deployment) {
+      return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+    }
+
+    const execution = resolveWorkspaceRuntimeExecution(deployment.model_slug);
+    if (deployment.status !== "ready" || !execution.available || !execution.provider || !execution.model) {
+      return NextResponse.json(
+        { error: execution.summary, deployment: { status: deployment.status, execution } },
+        { status: 400 }
+      );
+    }
+
+    const response = await callAgentModel({
+      preferredProviders: [execution.provider],
+      providerModels: {
+        [execution.provider]: execution.model,
+      },
+      messages: [
+        ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
+        { role: "user", content: parsed.data.message },
+      ],
+      temperature: 0.2,
+      maxTokens: 2048,
+    });
+
+    const totalTokens = response.usage?.totalTokens ?? 0;
+    const nowIso = new Date().toISOString();
+
+    await admin
+      .from("workspace_deployments")
+      .update({
+        total_requests: (deployment.total_requests ?? 0) + 1,
+        total_tokens: Number(deployment.total_tokens ?? 0) + totalTokens,
+        last_used_at: nowIso,
+      })
+      .eq("id", deployment.id);
+
+    if (deployment.runtime_id) {
+      const { data: runtime } = await admin
+        .from("workspace_runtimes")
+        .select("id, total_requests, total_tokens")
+        .eq("id", deployment.runtime_id)
+        .single();
+
+      if (runtime) {
+        await admin
+          .from("workspace_runtimes")
+          .update({
+            total_requests: (runtime.total_requests ?? 0) + 1,
+            total_tokens: Number(runtime.total_tokens ?? 0) + totalTokens,
+            last_used_at: nowIso,
+          })
+          .eq("id", runtime.id);
+      }
+    }
+
+    return NextResponse.json({
+      response: {
+        content: response.content,
+        provider: response.provider,
+        model: response.model,
+        usage: response.usage,
+      },
+      deployment: {
+        id: deployment.id,
+        endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
+        status: deployment.status,
+        deploymentLabel: deployment.deployment_label,
+        totalRequests: (deployment.total_requests ?? 0) + 1,
+        totalTokens: Number(deployment.total_tokens ?? 0) + totalTokens,
+        lastUsedAt: nowIso,
+        execution,
+      },
+    });
+  } catch (error) {
+    return handleApiError(error, "api/deployments/[endpointSlug]");
+  }
+}

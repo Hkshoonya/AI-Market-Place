@@ -15,6 +15,8 @@ export interface WorkspaceSession {
   conversationId: string | null;
   runtimeId: string | null;
   runtimeEndpointPath: string | null;
+  deploymentId: string | null;
+  deploymentEndpointPath: string | null;
   sponsored: boolean;
   suggestedPackSlug: string | null;
   suggestedPack: string | null;
@@ -66,6 +68,8 @@ export function createWorkspaceSession(input: {
   conversationId?: string | null;
   runtimeId?: string | null;
   runtimeEndpointPath?: string | null;
+  deploymentId?: string | null;
+  deploymentEndpointPath?: string | null;
   sponsored?: boolean | null;
   suggestedPackSlug?: string | null;
   suggestedPack?: string | null;
@@ -80,6 +84,8 @@ export function createWorkspaceSession(input: {
     conversationId: input.conversationId ?? null,
     runtimeId: input.runtimeId ?? null,
     runtimeEndpointPath: input.runtimeEndpointPath ?? null,
+    deploymentId: input.deploymentId ?? null,
+    deploymentEndpointPath: input.deploymentEndpointPath ?? null,
     sponsored: Boolean(input.sponsored),
     suggestedPackSlug: input.suggestedPackSlug ?? null,
     suggestedPack: input.suggestedPack ?? null,
@@ -145,6 +151,12 @@ function normalizeWorkspaceSession(
     runtimeId: typeof session.runtimeId === "string" ? session.runtimeId : null,
     runtimeEndpointPath:
       typeof session.runtimeEndpointPath === "string" ? session.runtimeEndpointPath : null,
+    deploymentId:
+      typeof session.deploymentId === "string" ? session.deploymentId : null,
+    deploymentEndpointPath:
+      typeof session.deploymentEndpointPath === "string"
+        ? session.deploymentEndpointPath
+        : null,
     sponsored: Boolean(session.sponsored),
     suggestedPackSlug:
       typeof session.suggestedPackSlug === "string" ? session.suggestedPackSlug : null,

@@ -7,6 +7,7 @@ import {
   buildWorkspaceRuntimeEndpointPath,
   buildWorkspaceRuntimeEndpointSlug,
 } from "@/lib/workspace/runtime";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ function toRuntimeResponse(runtime: {
     totalTokens: runtime.total_tokens,
     lastUsedAt: runtime.last_used_at,
     updatedAt: runtime.updated_at,
+    execution: resolveWorkspaceRuntimeExecution(runtime.model_slug),
   };
 }
 
