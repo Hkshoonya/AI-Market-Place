@@ -41,7 +41,7 @@ const CATALOG_ROUTES: RuntimeCatalogRoute[] = [
     provider: "openrouter",
     providerPrefixes: ["google", "gemini"],
     modelPrefix: "google",
-    keys: Object.keys(GOOGLE_KNOWN_MODELS),
+    keys: Object.keys(GOOGLE_KNOWN_MODELS).filter((key) => key.startsWith("gemini-")),
     label: "OpenRouter-backed runtime",
   },
   {

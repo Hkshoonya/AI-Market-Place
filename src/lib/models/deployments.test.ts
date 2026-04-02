@@ -255,6 +255,58 @@ describe("buildDeploymentCatalog", () => {
 
     expect(kimi.relatedPlatforms.map((item) => item.platform.slug)).toContain("kimi-code-membership");
   });
+
+  it("does not suggest Gemini Advanced for open-weight Google models like Gemma", () => {
+    const result = buildDeploymentCatalog({
+      model: {
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+        is_open_weights: true,
+      },
+      deployments: [],
+      platforms: [
+        {
+          id: "platform-gemini-advanced",
+          slug: "gemini-advanced",
+          name: "Gemini Advanced",
+          type: "subscription",
+          base_url: "https://gemini.google.com",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+        {
+          id: "platform-gcp-vertex",
+          slug: "gcp-vertex",
+          name: "GCP Vertex AI",
+          type: "hosting",
+          base_url: "https://cloud.google.com/vertex-ai",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+        {
+          id: "platform-ollama",
+          slug: "ollama",
+          name: "Ollama",
+          type: "local",
+          base_url: "https://ollama.com",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+      ],
+      pricingProviderNames: [],
+    });
+
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).toContain("gcp-vertex");
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).toContain("ollama");
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("gemini-advanced");
+
+    const gcpVertex = result.relatedPlatforms.find((item) => item.platform.slug === "gcp-vertex");
+    expect(gcpVertex?.reason).toMatch(/private deployment of Gemma open-weight models/i);
+  });
 });
 
 describe("hasUserVisibleDeploymentAccess", () => {
@@ -284,6 +336,16 @@ describe("hasUserVisibleDeploymentAccess", () => {
         provider: "OpenRouter",
         is_open_weights: false,
         availablePlatformSlugs: ["anthropic-api"],
+      })
+    ).toBe(false);
+  });
+
+  it("does not treat Gemini Advanced as access coverage for open-weight Google models", () => {
+    expect(
+      hasUserVisibleDeploymentAccess({
+        provider: "Google",
+        is_open_weights: true,
+        availablePlatformSlugs: ["gemini-advanced"],
       })
     ).toBe(false);
   });

@@ -63,6 +63,20 @@ const PROVIDER_FAMILY_PLATFORMS: Record<string, string[]> = {
   glm: ["glm-coding-plan"],
 };
 
+function getProviderFamilyPlatformSlugs(input: {
+  provider: string;
+  is_open_weights: boolean | null | undefined;
+}) {
+  const providerKey = normalizeKey(input.provider);
+  const base = PROVIDER_FAMILY_PLATFORMS[providerKey] ?? [];
+
+  if (providerKey === "google" && input.is_open_weights) {
+    return base.filter((slug) => slug !== "gemini-advanced");
+  }
+
+  return base;
+}
+
 const OPEN_WEIGHT_PLATFORMS = [
   "ollama",
   "llamacpp",
@@ -81,9 +95,13 @@ function normalizeKey(value: string): string {
 
 function hasProviderFamilyAccessPath(
   provider: string,
+  isOpenWeights: boolean | null | undefined,
   availablePlatformSlugs: Set<string>
 ): boolean {
-  const providerFamily = PROVIDER_FAMILY_PLATFORMS[normalizeKey(provider)] ?? [];
+  const providerFamily = getProviderFamilyPlatformSlugs({
+    provider,
+    is_open_weights: isOpenWeights,
+  });
   return providerFamily.some((slug) => availablePlatformSlugs.has(slug));
 }
 
@@ -147,7 +165,7 @@ export function hasUserVisibleDeploymentAccess(input: {
       : new Set(input.availablePlatformSlugs);
 
   return (
-    hasProviderFamilyAccessPath(input.provider, platformSlugs) ||
+    hasProviderFamilyAccessPath(input.provider, input.is_open_weights, platformSlugs) ||
     hasOpenWeightAccessPath(input.is_open_weights, platformSlugs)
   );
 }
@@ -184,13 +202,20 @@ export function buildDeploymentCatalog(input: {
     );
   }
 
-  const providerFamily = PROVIDER_FAMILY_PLATFORMS[normalizeKey(input.model.provider)] ?? [];
+  const providerFamily = getProviderFamilyPlatformSlugs({
+    provider: input.model.provider,
+    is_open_weights: input.model.is_open_weights,
+  });
   for (const slug of providerFamily) {
+    const reason =
+      input.model.provider === "Google" && input.model.is_open_weights && slug === "gcp-vertex"
+        ? "Related Google Cloud path for private deployment of Gemma open-weight models; you still deploy and run the weights yourself."
+        : `Related first-party access path for ${input.model.provider}; confirm the exact model tier inside the platform.`;
     pushRelatedPlatform(
       relatedPlatforms,
       seenPlatformIds,
       platformBySlug.get(slug),
-      `Related first-party access path for ${input.model.provider}; confirm the exact model tier inside the platform.`,
+      reason,
       "provider_family"
     );
   }
