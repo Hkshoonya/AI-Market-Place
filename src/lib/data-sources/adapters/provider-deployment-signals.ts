@@ -17,6 +17,7 @@ import {
   fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 interface ProviderDeploymentSource {
   id: string;
@@ -28,12 +29,89 @@ interface ProviderDeploymentSource {
   summaryHint: string;
 }
 
+interface AliasModelRecord {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
+}
+
 const PROVIDER_PAGE_HEADERS = {
   Accept: "text/html,application/xhtml+xml",
   "Accept-Language": "en-US,en;q=0.9",
   "User-Agent":
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 };
+
+const VARIANT_TOKEN_RE =
+  /\b(exacto|preview|flash|air|turbo|lite|mini|audio|realtime|extended|older)\b/i;
+
+function normalizeMatchKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-_.:/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getProviderlessSlug(model: AliasModelRecord) {
+  const providerSlug = makeSlug(getCanonicalProviderName(model.provider));
+  return model.slug.startsWith(`${providerSlug}-`)
+    ? model.slug.slice(providerSlug.length + 1)
+    : model.slug;
+}
+
+function hasVariantToken(value: string) {
+  return VARIANT_TOKEN_RE.test(value);
+}
+
+function resolveHintedModelIds(
+  source: ProviderDeploymentSource,
+  modelHints: string[],
+  aliasIndex: ReturnType<typeof buildModelAliasIndex>,
+  models: AliasModelRecord[]
+) {
+  const canonicalSourceProvider = getCanonicalProviderName(source.provider);
+  const modelsById = new Map(models.map((model) => [model.id, model]));
+  const hintedIds = modelHints.flatMap((hint) => {
+    const hintKey = normalizeMatchKey(hint);
+    const familyIds = resolveAliasFamilyModelIds(aliasIndex, {
+      slugCandidates: [hint],
+      nameCandidates: [hint],
+    }).filter((id) => {
+      const model = modelsById.get(id);
+      return model
+        ? getCanonicalProviderName(model.provider) === canonicalSourceProvider
+        : false;
+    });
+
+    if (familyIds.length === 0) return [];
+
+    const exactIds = familyIds.filter((id) => {
+      const model = modelsById.get(id);
+      if (!model) return false;
+
+      return (
+        normalizeMatchKey(model.name) === hintKey ||
+        normalizeMatchKey(getProviderlessSlug(model)) === hintKey ||
+        normalizeMatchKey(model.slug) === hintKey
+      );
+    });
+    if (exactIds.length > 0) return exactIds;
+
+    if (hasVariantToken(hint)) return familyIds;
+
+    const nonVariantIds = familyIds.filter((id) => {
+      const model = modelsById.get(id);
+      if (!model) return false;
+      return !hasVariantToken(model.name) && !hasVariantToken(getProviderlessSlug(model));
+    });
+    return nonVariantIds.length > 0 ? nonVariantIds : familyIds;
+  });
+
+  return limitProviderScopedModelIds([...new Set(hintedIds)], 8);
+}
 
 function decodeHtmlEntities(value: string) {
   return value
@@ -194,7 +272,8 @@ function buildModelRelations(
   title: string,
   summary: string,
   lookup: ModelLookupEntry[],
-  aliasIndex: ReturnType<typeof buildModelAliasIndex>
+  aliasIndex: ReturnType<typeof buildModelAliasIndex>,
+  models: AliasModelRecord[]
 ) {
   const relation = resolveNewsRelations(
     title,
@@ -203,15 +282,9 @@ function buildModelRelations(
     lookup
   );
 
-  const hintedIds = source.modelHints.flatMap((hint) =>
-    resolveAliasFamilyModelIds(aliasIndex, {
-      slugCandidates: [hint],
-      nameCandidates: [hint],
-    })
-  );
-
+  const hintedIds = resolveHintedModelIds(source, source.modelHints, aliasIndex, models);
   if (hintedIds.length > 0) {
-    return limitProviderScopedModelIds([...new Set(hintedIds)], 8);
+    return hintedIds;
   }
 
   return limitProviderScopedModelIds([...new Set(relation.modelIds)], 8);
@@ -276,7 +349,14 @@ const adapter: DataSourceAdapter = {
         ? source.summaryHint
         : extractedSummary ?? source.summaryHint;
       const publishedAt = extractPublishedAt(html) ?? new Date().toISOString();
-      const relatedModelIds = buildModelRelations(source, title, summary, lookup, aliasIndex);
+      const relatedModelIds = buildModelRelations(
+        source,
+        title,
+        summary,
+        lookup,
+        aliasIndex,
+        models
+      );
 
       records.push({
         source: "provider-deployment-signals",
@@ -376,4 +456,5 @@ export const __testables = {
   extractPublishedAt,
   isGenericTitle,
   isGenericSummary,
+  resolveHintedModelIds,
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { __testables } from "./provider-deployment-signals";
+import { buildModelAliasIndex } from "../model-alias-resolver";
 
 describe("provider-deployment-signals adapter", () => {
   it("extracts title, description, and publish time from provider pages", () => {
@@ -55,5 +56,73 @@ describe("provider-deployment-signals adapter", () => {
         summaryHint: "Z.ai documents GLM deployment through its coding plan.",
       })
     ).toBe(true);
+  });
+
+  it("prefers exact non-variant model matches for generic provider deployment hints", () => {
+    const models = [
+      {
+        id: "glm-4-6",
+        slug: "z-ai-glm-4-6",
+        name: "GLM 4.6",
+        provider: "Z.ai",
+      },
+      {
+        id: "glm-4-6-exacto",
+        slug: "z-ai-glm-4-6-exacto",
+        name: "GLM 4.6 (exacto)",
+        provider: "Z-ai",
+      },
+    ];
+
+    const result = __testables.resolveHintedModelIds(
+      {
+        id: "zai-devpack-overview",
+        provider: "Z.ai",
+        url: "https://docs.z.ai/devpack/overview",
+        titleHint: "GLM coding plan deployment guide",
+        modelHints: ["GLM-4.6"],
+        signalType: "api",
+        summaryHint: "Z.ai documents GLM deployment through its coding plan.",
+      },
+      ["GLM-4.6"],
+      buildModelAliasIndex(models),
+      models
+    );
+
+    expect(result).toEqual(["glm-4-6"]);
+  });
+
+  it("keeps variant-specific matches when the hint explicitly names the variant", () => {
+    const models = [
+      {
+        id: "glm-4-6",
+        slug: "z-ai-glm-4-6",
+        name: "GLM 4.6",
+        provider: "Z.ai",
+      },
+      {
+        id: "glm-4-6-exacto",
+        slug: "z-ai-glm-4-6-exacto",
+        name: "GLM 4.6 (exacto)",
+        provider: "Z-ai",
+      },
+    ];
+
+    const result = __testables.resolveHintedModelIds(
+      {
+        id: "zai-exacto-guide",
+        provider: "Z.ai",
+        url: "https://docs.z.ai/devpack/overview",
+        titleHint: "GLM exacto guide",
+        modelHints: ["GLM-4.6 exacto"],
+        signalType: "api",
+        summaryHint: "Variant-specific guide.",
+      },
+      ["GLM-4.6 exacto"],
+      buildModelAliasIndex(models),
+      models
+    );
+
+    expect(result).toEqual(["glm-4-6-exacto"]);
   });
 });

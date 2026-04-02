@@ -9,6 +9,7 @@
 
 import type { SyncError } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 // --------------- Retry & Fetch ---------------
 
@@ -105,7 +106,9 @@ export async function upsertBatch(
   const sb = supabase as any;
   let totalCreated = 0;
   const errors: SyncError[] = [];
-  const sanitizedRecords = records.map((record) => sanitizeRecordForJson(record));
+  const sanitizedRecords = records.map((record) =>
+    sanitizeRecordForJson(normalizeProviderFields(table, record))
+  );
 
   for (let i = 0; i < sanitizedRecords.length; i += batchSize) {
     const batch = sanitizedRecords.slice(i, i + batchSize);
@@ -183,6 +186,30 @@ function sanitizeRecordForJson(
   record: Record<string, unknown>
 ): Record<string, unknown> {
   return sanitizeJsonValue(record);
+}
+
+function normalizeProviderFields(
+  table: string,
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  if (table !== "models" && table !== "model_news") {
+    return record;
+  }
+
+  const normalized = { ...record };
+
+  if (typeof normalized.provider === "string" && normalized.provider.trim()) {
+    normalized.provider = getCanonicalProviderName(normalized.provider);
+  }
+
+  if (
+    typeof normalized.related_provider === "string" &&
+    normalized.related_provider.trim()
+  ) {
+    normalized.related_provider = getCanonicalProviderName(normalized.related_provider);
+  }
+
+  return normalized;
 }
 
 function isTransientOperationError(error: unknown): boolean {

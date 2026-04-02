@@ -308,4 +308,63 @@ describe("upsertBatch", () => {
       }
     );
   });
+
+  it("canonicalizes provider aliases before upserting models and model news", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 2 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "z-ai-glm-4-6-exacto",
+          provider: "Z-ai",
+        },
+      ],
+      "slug"
+    );
+
+    await upsertBatch(
+      supabase as never,
+      "model_news",
+      [
+        {
+          source_id: "provider-deployment-signals-zai-devpack-overview",
+          related_provider: "Z-ai",
+        },
+      ],
+      "source,source_id"
+    );
+
+    expect(upsert).toHaveBeenNthCalledWith(
+      1,
+      [
+        {
+          slug: "z-ai-glm-4-6-exacto",
+          provider: "Z.ai",
+        },
+      ],
+      {
+        onConflict: "slug",
+        count: "exact",
+      }
+    );
+
+    expect(upsert).toHaveBeenNthCalledWith(
+      2,
+      [
+        {
+          source_id: "provider-deployment-signals-zai-devpack-overview",
+          related_provider: "Z.ai",
+        },
+      ],
+      {
+        onConflict: "source,source_id",
+        count: "exact",
+      }
+    );
+  });
 });
