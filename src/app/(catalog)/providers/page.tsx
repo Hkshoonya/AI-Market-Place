@@ -22,6 +22,7 @@ import {
   getDeployabilityLabel,
   isSelfHostedDeployabilityLabel,
 } from "@/lib/models/deployability";
+import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 
@@ -68,7 +69,7 @@ export default async function ProvidersPage() {
     supabase
     .from("models")
     .select(
-      "id, slug, name, provider, hf_downloads, capability_score, quality_score, economic_footprint_score, overall_rank, is_open_weights, category"
+      "id, slug, name, provider, hf_downloads, capability_score, quality_score, economic_footprint_score, overall_rank, is_open_weights, category, parameter_count, context_window, modalities"
     )
     .eq("status", "active"),
     supabase
@@ -244,6 +245,24 @@ export default async function ProvidersPage() {
     (sum, entry) => sum + entry.deployableCount,
     0
   );
+  const providerSelfHostSummaries = new Map(
+    providers.map((provider) => [
+      provider.provider,
+      summarizeProviderSelfHostRequirements(
+        uniqueModels
+          .filter((model) => getCanonicalProviderName(model.provider) === provider.provider)
+          .map((model) => ({
+            isOpenWeights: model.is_open_weights,
+            parameterCount: typeof model.parameter_count === "number" ? model.parameter_count : null,
+            contextWindow: typeof model.context_window === "number" ? model.context_window : null,
+            modalities: Array.isArray(model.modalities)
+              ? model.modalities.filter((value): value is string => typeof value === "string")
+              : [],
+            category: model.category,
+          }))
+      ),
+    ])
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -315,6 +334,7 @@ export default async function ProvidersPage() {
           const slug = getProviderSlug(prov.provider);
           const bestAccessOffer = getBestAccessOfferForModel(accessCatalog, prov.topModelId);
           const deployability = providerDeployability.get(prov.provider);
+          const selfHostSummary = providerSelfHostSummaries.get(prov.provider) ?? null;
 
           return (
             <Link key={prov.provider} href={`/providers/${slug}`}>
@@ -404,6 +424,11 @@ export default async function ProvidersPage() {
                   {bestAccessOffer ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
                       {bestAccessOffer.actionLabel} via {bestAccessOffer.platform.name}
+                    </p>
+                  ) : null}
+                  {selfHostSummary ? (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Open-weight reality: {selfHostSummary.headline.replace(/\.$/, "")}.
                     </p>
                   ) : null}
 
