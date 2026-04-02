@@ -158,7 +158,7 @@ describe("model presentation helpers", () => {
     });
 
     expect(gemmaVariant.source).toBe("official_catalog");
-    expect(gemmaVariant.text).toMatch(/compact gemma 3n family/i);
+    expect(gemmaVariant.text).toMatch(/compact multimodal gemma 3n family/i);
     expect(imagenVariant.source).toBe("official_catalog");
     expect(imagenVariant.text).toMatch(/text-to-image model/i);
   });
