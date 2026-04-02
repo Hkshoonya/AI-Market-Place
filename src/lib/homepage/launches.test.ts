@@ -172,8 +172,13 @@ describe("buildHomepageDeploymentSelections", () => {
   it("prefers recent direct Ollama and self-host deployment signals", () => {
     const result = buildHomepageDeploymentSelections(
       [
-        { id: "glm-5", provider: "Z.ai" },
-        { id: "minimax-m2-7", provider: "MiniMax" },
+        { id: "glm-5", slug: "z-ai-glm-5", name: "GLM 5", provider: "Z.ai" },
+        {
+          id: "minimax-m2-7",
+          slug: "minimaxai-minimax-m2-7",
+          name: "MiniMax M2.7",
+          provider: "MiniMax",
+        },
       ],
       [
         {
@@ -233,5 +238,40 @@ describe("buildHomepageDeploymentSelections", () => {
     );
 
     expect(result).toEqual([]);
+  });
+
+  it("keeps the directly signaled family representative instead of a stronger sibling variant", () => {
+    const result = buildHomepageDeploymentSelections(
+      [
+        {
+          id: "glm-5",
+          slug: "z-ai-glm-5",
+          name: "GLM 5",
+          provider: "Z.ai",
+          quality_score: 62,
+        },
+        {
+          id: "glm-5-exacto",
+          slug: "z-ai-glm-5-exacto",
+          name: "GLM 5 (exacto)",
+          provider: "Z.ai",
+          quality_score: 88,
+        },
+      ],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "GLM deployment guide",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+      ],
+      2,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["glm-5"]);
   });
 });

@@ -1,4 +1,5 @@
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { collapsePublicModelFamilies } from "@/lib/models/public-families";
 import { getNewsSignalType, type NewsPresentationItem } from "@/lib/news/presentation";
 
 const RECENT_DEPLOYMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -9,7 +10,17 @@ const SURFACEABLE_DEPLOYMENT_SOURCES = new Set([
 
 export interface HomepageDeploymentModel {
   id: string;
-  provider?: string | null;
+  slug: string;
+  name: string;
+  provider: string;
+  category?: string | null;
+  overall_rank?: number | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  popularity_score?: number | null;
+  adoption_score?: number | null;
+  economic_footprint_score?: number | null;
+  hf_downloads?: number | null;
 }
 
 export interface HomepageDeploymentSelection<TModel extends HomepageDeploymentModel> {
@@ -44,6 +55,26 @@ function getSourceBonus(source: string | null | undefined) {
 
 function getSignalBonus(signalType: "api" | "open_source") {
   return signalType === "open_source" ? 1_200 : 900;
+}
+
+function compareDeploymentSelections<TModel extends HomepageDeploymentModel>(
+  left: { score: number; selection: HomepageDeploymentSelection<TModel> },
+  right: { score: number; selection: HomepageDeploymentSelection<TModel> }
+) {
+  if (right.score !== left.score) return right.score - left.score;
+
+  const publishedDelta =
+    toTimestamp(right.selection.surfacedAt) - toTimestamp(left.selection.surfacedAt);
+  if (publishedDelta !== 0) return publishedDelta;
+
+  const rightOpenSource = right.selection.signalType === "open_source" ? 1 : 0;
+  const leftOpenSource = left.selection.signalType === "open_source" ? 1 : 0;
+  if (rightOpenSource !== leftOpenSource) return rightOpenSource - leftOpenSource;
+
+  return (
+    Number(right.selection.model.quality_score ?? 0) -
+    Number(left.selection.model.quality_score ?? 0)
+  );
 }
 
 export function buildHomepageDeploymentSelections<TModel extends HomepageDeploymentModel>(
@@ -95,11 +126,22 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
     }
   }
 
-  return [...selectedById.values()]
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      return toTimestamp(right.selection.surfacedAt) - toTimestamp(left.selection.surfacedAt);
+  return collapsePublicModelFamilies(
+    [...selectedById.values()].map((entry) => entry.selection.model)
+  )
+    .map((family) => {
+      const bestSelection = family.variants
+        .map((variant) => {
+          const selection = selectedById.get(variant.id);
+          return selection ?? null;
+        })
+        .filter((selection): selection is NonNullable<typeof selection> => Boolean(selection))
+        .sort(compareDeploymentSelections)[0];
+
+      return bestSelection ?? null;
     })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort(compareDeploymentSelections)
     .slice(0, limit)
     .map((entry) => entry.selection);
 }

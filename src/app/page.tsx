@@ -275,7 +275,7 @@ export default async function HomePage() {
     now
   );
   const newDeploymentPaths = buildHomepageDeploymentSelections(
-    activeModels,
+    (allActiveModels ?? []) as Parameters<typeof buildHomepageDeploymentSelections>[0],
     ((recentDeploymentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
       title: typeof item.title === "string" ? item.title : null,
       summary: typeof item.summary === "string" ? item.summary : null,
