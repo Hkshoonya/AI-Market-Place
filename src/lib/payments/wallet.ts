@@ -421,6 +421,8 @@ export async function getTransactionHistory(
     limit?: number;
     offset?: number;
     type?: TxType;
+    referenceType?: string;
+    referenceId?: string;
   }
 ): Promise<WalletTransaction[]> {
   const sb = adminClient();
@@ -433,6 +435,14 @@ export async function getTransactionHistory(
 
   if (opts?.type) {
     query = query.eq("type", opts.type);
+  }
+
+  if (opts?.referenceType) {
+    query = query.eq("reference_type", opts.referenceType);
+  }
+
+  if (opts?.referenceId) {
+    query = query.eq("reference_id", opts.referenceId);
   }
 
   if (opts?.limit) {
@@ -461,6 +471,8 @@ export async function getTransactionHistoryCount(
   walletId: string,
   opts?: {
     type?: TxType;
+    referenceType?: string;
+    referenceId?: string;
   }
 ): Promise<number> {
   const sb = adminClient();
@@ -472,6 +484,14 @@ export async function getTransactionHistoryCount(
 
   if (opts?.type) {
     query = query.eq("type", opts.type);
+  }
+
+  if (opts?.referenceType) {
+    query = query.eq("reference_type", opts.referenceType);
+  }
+
+  if (opts?.referenceId) {
+    query = query.eq("reference_id", opts.referenceId);
   }
 
   const { count, error } = await query;

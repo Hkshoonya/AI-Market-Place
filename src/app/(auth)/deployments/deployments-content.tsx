@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, PauseCircle, PlayCircle, Server, Wallet } from "lucide-react";
+import { ArrowUpRight, KeyRound, PauseCircle, PlayCircle, Server, Wallet } from "lucide-react";
 import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,65 @@ import type { WorkspaceDeploymentResponse } from "@/lib/workspace/deployment-sum
 
 interface DeploymentListSnapshot {
   deployments: WorkspaceDeploymentResponse[];
+}
+
+interface DeploymentActivitySnapshot {
+  activity: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    description: string | null;
+    referenceType: string | null;
+    status: string | null;
+    createdAt: string | null;
+  }>;
+}
+
+function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentResponse }) {
+  const { data } = useSWR<DeploymentActivitySnapshot>(
+    `/api/workspace/deployments/${deployment.id}/activity`,
+    { ...SWR_TIERS.MEDIUM }
+  );
+
+  const items = data?.activity ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Recent activity</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Charges and refunds recorded against this deployment.
+        </p>
+      </div>
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground">
+          No deployment activity recorded yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-lg border border-border/50 bg-card/40 px-4 py-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-white">
+                  {item.description ?? item.type.replace(/_/g, " ")}
+                </p>
+                <Badge variant="outline" className="border-border/50 bg-card/40 capitalize">
+                  ${item.amount.toFixed(2)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Unknown time"} ·{" "}
+                {item.status ?? "confirmed"}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatCurrency(value: number | null) {
@@ -331,6 +390,40 @@ export default function DeploymentsContent() {
                     </Button>
                     <div className="text-sm text-muted-foreground">
                       Current cap: {formatCurrency(deployment.creditsBudget)}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="h-4 w-4 text-neon" />
+                        <p className="text-sm font-medium text-white">API onboarding</p>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Use an API key with `agent` scope for requests and `read` if you also want
+                        to poll deployment status.
+                      </p>
+                      <code className="mt-3 block overflow-x-auto rounded-md border border-border/50 bg-background/60 px-3 py-2 text-xs text-foreground">
+                        {`curl -X POST ${deployment.endpointPath} \\\n+  -H "Authorization: Bearer YOUR_API_KEY" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"message":"Hello from AI Market Cap"}'`}
+                      </code>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button variant="outline" asChild>
+                          <Link
+                            href={`/settings/api-keys?intent=deploy&model=${encodeURIComponent(
+                              deployment.modelName
+                            )}&modelSlug=${encodeURIComponent(deployment.modelSlug)}&action=Deploy`}
+                          >
+                            Create API Key
+                          </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                          <Link href="/api-docs">API Docs</Link>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+                      <DeploymentActivity deployment={deployment} />
                     </div>
                   </div>
                 </CardContent>
