@@ -532,6 +532,12 @@ export function DeployWorkspacePanel() {
                       Open Full Workspace
                     </Link>
                   </Button>
+                  <Button asChild variant="outline" className="sm:col-span-2">
+                    <Link href="/deployments">
+                      <ArrowUpRight className="h-4 w-4" />
+                      View Deployments
+                    </Link>
+                  </Button>
                   <Button asChild className="bg-neon text-background hover:bg-neon/90">
                     <Link href={walletHref}>
                       <Wallet className="h-4 w-4" />

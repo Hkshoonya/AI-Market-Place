@@ -246,6 +246,9 @@ export default function WorkspaceContent() {
                 <Link href="/models">Browse Models</Link>
               </Button>
               <Button variant="outline" asChild>
+                <Link href="/deployments">View Deployments</Link>
+              </Button>
+              <Button variant="outline" asChild>
                 <Link href="/marketplace">Open Marketplace</Link>
               </Button>
             </div>
@@ -602,6 +605,9 @@ export default function WorkspaceContent() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/deployments">Deployments</Link>
+          </Button>
           <Button variant="outline" onClick={workspace.minimizeWorkspace}>
             Minimize Panel
           </Button>

@@ -8,11 +8,13 @@ import {
   buildWorkspaceRuntimeEndpointSlug,
 } from "@/lib/workspace/runtime";
 import {
-  buildWorkspaceDeploymentEndpointPath,
   buildWorkspaceDeploymentEndpointSlug,
 } from "@/lib/workspace/deployment";
-import { getWorkspaceDeploymentBudgetSummary } from "@/lib/workspace/deployment-billing";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import {
+  toWorkspaceDeploymentResponse,
+  type WorkspaceDeploymentRecord,
+} from "@/lib/workspace/deployment-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -74,50 +76,6 @@ function toRuntimeResponse(runtime: {
   };
 }
 
-function toDeploymentResponse(deployment: {
-  id: string;
-  runtime_id: string | null;
-  model_slug: string;
-  model_name: string;
-  provider_name: string | null;
-  status: "provisioning" | "ready" | "paused" | "failed";
-  endpoint_slug: string;
-  deployment_kind: "managed_api" | "assistant_only";
-  deployment_label: string | null;
-  credits_budget: number | null;
-  monthly_price_estimate: number | null;
-  total_requests: number;
-  total_tokens: number;
-  last_used_at: string | null;
-  updated_at: string;
-}) {
-  return {
-    id: deployment.id,
-    runtimeId: deployment.runtime_id,
-    modelSlug: deployment.model_slug,
-    modelName: deployment.model_name,
-    providerName: deployment.provider_name,
-    status: deployment.status,
-    endpointSlug: deployment.endpoint_slug,
-    endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
-    deploymentKind: deployment.deployment_kind,
-    deploymentLabel: deployment.deployment_label,
-    creditsBudget: deployment.credits_budget,
-    monthlyPriceEstimate: deployment.monthly_price_estimate,
-    totalRequests: deployment.total_requests,
-    totalTokens: deployment.total_tokens,
-    lastUsedAt: deployment.last_used_at,
-    updatedAt: deployment.updated_at,
-    execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
-    billing: getWorkspaceDeploymentBudgetSummary({
-      deploymentKind: deployment.deployment_kind,
-      monthlyPriceEstimate: deployment.monthly_price_estimate,
-      creditsBudget: deployment.credits_budget,
-      totalRequests: deployment.total_requests,
-    }),
-  };
-}
-
 export async function GET(request: Request) {
   try {
     const auth = await requireUser();
@@ -154,7 +112,9 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      deployment: deployment ? toDeploymentResponse(deployment) : null,
+      deployment: deployment
+        ? toWorkspaceDeploymentResponse(deployment as WorkspaceDeploymentRecord)
+        : null,
       runtime,
     });
   } catch (error) {
@@ -253,7 +213,7 @@ export async function POST(request: Request) {
     if (deploymentUpsertError) throw deploymentUpsertError;
 
     return NextResponse.json({
-      deployment: toDeploymentResponse(deploymentData),
+      deployment: toWorkspaceDeploymentResponse(deploymentData as WorkspaceDeploymentRecord),
       runtime: toRuntimeResponse(runtimeData),
       activation: {
         message:
@@ -330,7 +290,9 @@ export async function PATCH(request: Request) {
     if (updateError) throw updateError;
 
     return NextResponse.json({
-      deployment: toDeploymentResponse(updatedDeployment),
+      deployment: toWorkspaceDeploymentResponse(
+        updatedDeployment as WorkspaceDeploymentRecord
+      ),
       update: {
         action: parsed.data.action,
         message:
