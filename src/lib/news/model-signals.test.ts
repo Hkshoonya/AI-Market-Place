@@ -54,7 +54,7 @@ describe("pickBestModelSignals", () => {
     expect(picked.has("model-1")).toBe(false);
   });
 
-  it("prefers an official provider signal over an X-only provider mention", () => {
+  it("does not surface provider-wide launch posts as model-level signals", () => {
     const models = [{ id: "model-1", provider: "OpenAI" }];
     const signals = [
       {
@@ -78,12 +78,7 @@ describe("pickBestModelSignals", () => {
     ];
 
     const picked = pickBestModelSignals(models, signals);
-    expect(picked.get("model-1")).toEqual(
-      expect.objectContaining({
-        title: "OpenAI publishes the update notes",
-        source: "provider-blog",
-      })
-    );
+    expect(picked.has("model-1")).toBe(false);
   });
 
   it("does not surface provider-wide X posts as model-level signals", () => {
@@ -102,5 +97,28 @@ describe("pickBestModelSignals", () => {
 
     const picked = pickBestModelSignals(models, signals);
     expect(picked.has("model-1")).toBe(false);
+  });
+
+  it("still allows provider-wide research signals to surface at model level", () => {
+    const models = [{ id: "model-1", provider: "OpenAI" }];
+    const signals = [
+      {
+        id: "research-post",
+        title: "OpenAI publishes a new safety and research note",
+        source: "provider-blog",
+        related_provider: "OpenAI",
+        related_model_ids: null,
+        published_at: "2026-03-16T10:00:00.000Z",
+        metadata: { signal_type: "research", signal_importance: "medium" },
+      },
+    ];
+
+    const picked = pickBestModelSignals(models, signals);
+    expect(picked.get("model-1")).toEqual(
+      expect.objectContaining({
+        title: "OpenAI publishes a new safety and research note",
+        signalType: "research",
+      })
+    );
   });
 });

@@ -67,6 +67,16 @@ function computeCandidateScore(
     normalizeProvider(candidate.related_provider) === normalizeProvider(model.provider);
 
   if (!directMatch && !providerMatch) return -1;
+  if (
+    !directMatch &&
+    (signalType === "launch" ||
+      signalType === "pricing" ||
+      signalType === "benchmark" ||
+      signalType === "api" ||
+      signalType === "open_source")
+  ) {
+    return -1;
+  }
 
   const importance = getNewsSignalImportance(candidate);
   return (
