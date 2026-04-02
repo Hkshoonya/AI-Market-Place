@@ -108,4 +108,35 @@ describe("selectHomepageTopModelIds", () => {
 
     expect(ids[0]).toBe("current-gpt-4-1-shape");
   });
+
+  it("discounts old footprint and adoption signals when a newer peer is otherwise close", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "legacy-o1-like",
+          overall_rank: 8,
+          economic_footprint_score: 95,
+          adoption_score: 93,
+          capability_score: 79,
+          quality_score: 73,
+          popularity_score: 68,
+          release_date: "2024-09-12",
+        },
+        {
+          id: "current-frontier-peer",
+          overall_rank: 10,
+          economic_footprint_score: 86,
+          adoption_score: 90,
+          capability_score: 84,
+          quality_score: 82,
+          popularity_score: 66,
+          release_date: "2026-01-18",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-frontier-peer");
+  });
 });

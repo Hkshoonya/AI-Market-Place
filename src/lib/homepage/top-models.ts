@@ -38,16 +38,35 @@ function releaseFreshnessSignal(
   return 20;
 }
 
+function releaseFreshnessMultiplier(
+  releaseDate: string | null | undefined,
+  now = Date.now()
+): number {
+  if (!releaseDate) return 0.9;
+
+  const timestamp = Date.parse(releaseDate);
+  if (!Number.isFinite(timestamp)) return 0.9;
+
+  const ageDays = Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
+
+  if (ageDays <= 120) return 1;
+  if (ageDays <= 240) return 0.94;
+  if (ageDays <= 365) return 0.84;
+  if (ageDays <= 540) return 0.7;
+  return 0.55;
+}
+
 export function computeHomepageTopModelScore(
   model: HomepageTopModelCandidate,
   now = Date.now()
 ): number {
+  const freshnessMultiplier = releaseFreshnessMultiplier(model.release_date, now);
   return (
     numeric(model.capability_score) * 0.26 +
     numeric(model.quality_score) * 0.22 +
-    numeric(model.adoption_score) * 0.17 +
-    numeric(model.popularity_score) * 0.10 +
-    numeric(model.economic_footprint_score) * 0.09 +
+    numeric(model.adoption_score) * 0.17 * freshnessMultiplier +
+    numeric(model.popularity_score) * 0.10 * freshnessMultiplier +
+    numeric(model.economic_footprint_score) * 0.09 * freshnessMultiplier +
     rankSignal(model.overall_rank) * 0.08 +
     releaseFreshnessSignal(model.release_date, now) * 0.08
   );

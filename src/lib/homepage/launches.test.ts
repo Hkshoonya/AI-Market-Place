@@ -280,11 +280,12 @@ describe("buildHomepageDeploymentSelections", () => {
     expect(result.map((entry) => entry.model.id)).toEqual(["minimax-m2-7", "glm-5"]);
     expect(result[0]).toEqual(
       expect.objectContaining({
-        title: "MiniMax M2.7 is now available on Ollama Cloud",
+        title: "MiniMax M2.7 can now run on a cloud server you control",
         source: "ollama-library",
         signalType: "api",
       })
     );
+    expect(result[0]?.summary).toMatch(/run this model yourself/i);
   });
 
   it("ignores provider mismatches and stale deployment news", () => {
@@ -348,5 +349,29 @@ describe("buildHomepageDeploymentSelections", () => {
     );
 
     expect(result.map((entry) => entry.model.id)).toEqual(["glm-5"]);
+  });
+
+  it("rewrites raw deployment-guide titles into plain-language homepage copy", () => {
+    const result = buildHomepageDeploymentSelections(
+      [{ id: "glm-5", slug: "z-ai-glm-5", name: "GLM 5", provider: "Z.ai" }],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "GLM coding plan deployment guide",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+      ],
+      1,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        title: "GLM 5 now has an official setup path",
+      })
+    );
   });
 });

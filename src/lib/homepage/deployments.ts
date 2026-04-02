@@ -96,6 +96,41 @@ export function isSurfaceableDeploymentSignal(item: NewsPresentationItem) {
   return signalType === "api" || signalType === "open_source";
 }
 
+function normalizeDeploymentCopy<TModel extends HomepageDeploymentModel>(
+  model: TModel,
+  item: NewsPresentationItem,
+  signalType: "api" | "open_source"
+) {
+  if (item.source === "ollama-library") {
+    return {
+      title:
+        signalType === "open_source"
+          ? `${model.name} can now run outside a provider plan`
+          : `${model.name} can now run on a cloud server you control`,
+      summary:
+        "A new verified path is available to run this model yourself instead of depending only on a provider subscription.",
+    };
+  }
+
+  const rawTitle = item.title?.trim() ?? "";
+  if (/deployment guide/i.test(rawTitle) || /coding plan/i.test(rawTitle)) {
+    return {
+      title:
+        signalType === "open_source"
+          ? `${model.name} now has an official self-host path`
+          : `${model.name} now has an official setup path`,
+      summary:
+        item.summary?.trim() ??
+        "The provider now documents a clearer way to start using this model.",
+    };
+  }
+
+  return {
+    title: item.title ?? "New way to use this model",
+    summary: item.summary ?? null,
+  };
+}
+
 export function compareDeploymentSignalSummaries(
   left: DeploymentSignalSummary | LaunchRadarItem,
   right: DeploymentSignalSummary | LaunchRadarItem
@@ -196,11 +231,12 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
 
       const score =
         publishedTimestamp + getSourceBonus(item.source) + getSignalBonus(signalType);
+      const copy = normalizeDeploymentCopy(model, item, signalType);
       const selection: HomepageDeploymentSelection<TModel> = {
         model,
         surfacedAt: publishedAt,
-        title: item.title ?? "New deployment path available",
-        summary: item.summary ?? null,
+        title: copy.title,
+        summary: copy.summary,
         source: item.source ?? null,
         signalType,
       };
