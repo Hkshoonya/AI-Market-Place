@@ -362,8 +362,8 @@ export default async function ModelsPage({
         )}
         {deployableOnly && (
           <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-            Showing models with a verified deploy path, Ollama/runtime availability, or a recent
-            official self-host signal.
+            Showing models with a verified way to use them now, including provider access,
+            guided self-host options, or a recent official availability update.
           </div>
         )}
         {lifecycleFilter === "active" && (

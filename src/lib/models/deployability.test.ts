@@ -26,7 +26,7 @@ describe("getDeployabilityLabel", () => {
           actionLabel: "Deploy",
         },
       })
-    ).toBe("Deployable");
+    ).toBe("Ready to Use");
   });
 
   it("falls back to open weights when no deployment signal exists", () => {

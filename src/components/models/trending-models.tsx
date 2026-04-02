@@ -42,7 +42,7 @@ type TabKey = "trending" | "recent" | "deployable" | "popular" | "discussed";
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "trending", label: "Trending", icon: Flame },
   { key: "recent", label: "New Releases", icon: Rocket },
-  { key: "deployable", label: "Deployable", icon: Server },
+  { key: "deployable", label: "Ways to Use", icon: Server },
   { key: "popular", label: "Most Popular", icon: Crown },
   { key: "discussed", label: "Coverage", icon: Newspaper },
 ];
@@ -117,7 +117,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                   ? `Coverage ${Number(model.coverage_score).toFixed(1)}`
                   : "Coverage 0.0"
                 : activeTab === "deployable"
-                  ? model.recent_signal?.signalLabel ?? "Deployable"
+                  ? model.recent_signal?.signalLabel ?? "Ready to Use"
                 : activeTab === "popular"
                   ? model.popularity_score != null
                     ? `Pop ${Number(model.popularity_score).toFixed(0)}`

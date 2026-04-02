@@ -10,11 +10,11 @@ export function getDeployabilityLabel(input: {
   accessOffer?: DeployabilityAccessOffer | null;
 }): string | null {
   if (input.signal?.signalType === "open_source") return "Self-Host";
-  if (input.signal?.signalType === "api") return "Deployable";
+  if (input.signal?.signalType === "api") return "Ready to Use";
 
   switch (input.accessOffer?.actionLabel) {
     case "Deploy":
-      return "Deployable";
+      return "Ready to Use";
     case "Get API Access":
       return "API Access";
     case "Subscribe":

@@ -34,7 +34,7 @@ describe("compare deployability helpers", () => {
         },
         accessOffer: null,
       })
-    ).toBe("Deployable");
+    ).toBe("Ready to Use");
   });
 
   it("falls back to access offers and open-weight status", () => {
@@ -44,7 +44,7 @@ describe("compare deployability helpers", () => {
         signal: null,
         accessOffer: { actionLabel: "Deploy", monthlyPriceLabel: "Custom" },
       })
-    ).toBe("Deployable");
+    ).toBe("Ready to Use");
 
     expect(
       getCompareDeploymentLabel({

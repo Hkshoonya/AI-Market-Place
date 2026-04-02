@@ -41,8 +41,8 @@ function getDeployabilityLabel(input: {
   accessOffer: ReturnType<typeof getBestAccessOfferForModel>;
 }) {
   if (input.recentSignal?.signalType === "open_source") return "Self-Host";
-  if (input.recentSignal?.signalType === "api") return "Deployable";
-  if (input.accessOffer?.actionLabel === "Deploy") return "Deployable";
+  if (input.recentSignal?.signalType === "api") return "Ready to Use";
+  if (input.accessOffer?.actionLabel === "Deploy") return "Ready to Use";
   return null;
 }
 

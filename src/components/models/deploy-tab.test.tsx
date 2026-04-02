@@ -55,7 +55,7 @@ describe("DeployTab", () => {
     render(<DeployTab modelSlug="kimi-k2" modelName="Kimi K2" isOpenWeights={false} />);
 
     expect(
-      screen.getByText(/AI Market Cap cannot host this model directly yet/i)
+      screen.getByText(/AI Market Cap cannot run this model directly yet/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
@@ -123,15 +123,15 @@ describe("DeployTab", () => {
     expect(
       screen.getByText(/Best when you want to start a managed deployment path without extra setup/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/What this path should unlock/i)).toBeInTheDocument();
+    expect(screen.getByText(/What you get/i)).toBeInTheDocument();
     expect(screen.getByText(/Deployed runtime workspace/i)).toBeInTheDocument();
     expect(screen.getByText(/Chat UI/i)).toBeInTheDocument();
     expect(screen.getAllByText(/API access/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Usage tracking/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Managed cloud/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/official deployment evidence/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hosted for you/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/Recent updates about how people can use this model/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/managed cloud/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/hosted for you/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /start with starter pack/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
   });

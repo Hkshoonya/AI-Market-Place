@@ -117,8 +117,8 @@ function getRelativeDateLabel(value: string | null, now: number) {
 }
 
 function getDeploymentUpdateBadgeLabel(source: string | null, signalType: "api" | "open_source") {
-  if (signalType === "open_source") return "Run Yourself";
-  return "Use It";
+  if (signalType === "open_source") return "Run it yourself";
+  return "Start using it";
 }
 
 export default async function HomePage() {
@@ -754,7 +754,7 @@ export default async function HomePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Server className="h-5 w-5 text-neon" />
-              <h2 className="text-xl font-bold">New Ways to Use Models</h2>
+              <h2 className="text-xl font-bold">New Ways to Start Using Models</h2>
             </div>
             <Button variant="ghost" size="sm" className="text-neon" asChild>
               <Link href="/news">
@@ -764,8 +764,8 @@ export default async function HomePage() {
           </div>
 
           <p className="mt-3 text-sm text-muted-foreground">
-            This section tracks new ways a model became usable, such as use on AI Market Cap,
-            new provider access, or new self-host support.
+            This section tracks new ways a model became available to people, whether that means
+            use on AI Market Cap, a new provider option, or a new way to run it yourself.
           </p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

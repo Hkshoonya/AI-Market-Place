@@ -90,15 +90,15 @@ const CONFIDENCE_LABELS: Record<Deployment["confidence"], string> = {
 };
 
 function getDeploymentModeLabel(item: Deployment, isOpenWeights: boolean) {
-  if (item.platform.slug === "ollama") return "Local runtime";
-  if (item.platform.slug === "ollama-cloud") return "Managed cloud";
-  if (item.platform.type === "subscription") return "Plan access";
-  if (item.platform.type === "api") return "Provider API";
-  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "Private/self-host";
-  if (item.deployment?.one_click) return "One-click deploy";
-  if (item.platform.type === "hosting") return "Hosted runtime";
-  if (item.platform.type === "local") return "Local tool";
-  return "Deployment path";
+  if (item.platform.slug === "ollama") return "On your own setup";
+  if (item.platform.slug === "ollama-cloud") return "Hosted for you";
+  if (item.platform.type === "subscription") return "Provider plan";
+  if (item.platform.type === "api") return "Provider account";
+  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "On your own setup";
+  if (item.deployment?.one_click) return "One-click start";
+  if (item.platform.type === "hosting") return "Hosted for you";
+  if (item.platform.type === "local") return "On your own setup";
+  return "Usage option";
 }
 
 function getQuickStartSummary(item: Deployment, isOpenWeights: boolean) {
@@ -110,7 +110,7 @@ function getQuickStartSummary(item: Deployment, isOpenWeights: boolean) {
   if (item.platform.slug === "ollama-cloud") bestFor = "using the model without setting up your own stack";
   else if (item.platform.type === "subscription") bestFor = "using the model inside a paid plan";
   else if (item.platform.type === "api") bestFor = "building with the model through an API";
-  else if (modeLabel === "Private/self-host" || modeLabel === "Local runtime") {
+  else if (modeLabel === "On your own setup") {
     bestFor = "running the model with more control";
   }
 
@@ -214,9 +214,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
       <div className="rounded-lg border border-border/50 bg-card/20 p-4">
         <h3 className="mb-2 text-sm font-semibold text-white">How to use this model</h3>
         <p className="text-sm text-muted-foreground">
-          On this page, deployment simply means the practical way to start using the model:
+          On this page, deployment means the confirmed way to start using the model:
           on AI Market Cap, through the provider, or on your own setup. Start with the verified
-          rows first because they are confirmed, model-specific options.
+          rows first because they are the clearest model-specific options.
         </p>
       </div>
 

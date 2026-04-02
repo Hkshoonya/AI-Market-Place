@@ -245,7 +245,7 @@ describe("GET /api/search", () => {
       expect.objectContaining({
         slug: "google-deepmind-sonnet",
         display_description: expect.stringMatching(/Google llm model/i),
-        deployability_label: "Deployable",
+        deployability_label: "Ready to Use",
       })
     );
     expect(body.data[0].display_description).not.toMatch(

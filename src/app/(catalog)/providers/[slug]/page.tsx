@@ -414,7 +414,7 @@ export default async function ProviderDetailPage({
           <LaunchRadar
             items={providerDeploymentRadar}
             title="Recent Deployment Signals"
-            description="Recent self-host, Ollama, and official runtime updates linked to this provider."
+            description="Recent updates about new ways to use this provider's models, including self-host and official runtime options."
             ctaHref="/news"
             ctaLabel="View deployment updates"
           />

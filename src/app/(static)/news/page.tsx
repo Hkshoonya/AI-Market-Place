@@ -333,7 +333,7 @@ export default async function NewsPage() {
               ))}
             </div>
           ) : (
-            <EmptyState message="No deployment updates yet. New self-host, Ollama, and official runtime paths will appear here as they sync." />
+            <EmptyState message="No usage updates yet. New self-host and official runtime paths will appear here as they sync." />
           )}
         </TabsContent>
 
