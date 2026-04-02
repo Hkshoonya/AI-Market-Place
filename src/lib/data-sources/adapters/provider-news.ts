@@ -23,7 +23,7 @@ import { classifyNewsSignal } from "@/lib/news/signals";
  */
 
 const PROVIDER_BLOGS = [
-  { name: "OpenAI", url: "https://openai.com/blog", provider: "OpenAI" },
+  { name: "OpenAI", url: "https://openai.com/blog", provider: "OpenAI", rssUrl: "https://openai.com/news/rss.xml" },
   { name: "Anthropic", url: "https://www.anthropic.com/news", provider: "Anthropic" },
   { name: "Google AI", url: "https://blog.google/technology/ai/", provider: "Google" },
   { name: "Meta AI", url: "https://ai.meta.com/blog/", provider: "Meta" },
@@ -168,6 +168,44 @@ function parseZaiReleaseNotes(html: string, baseUrl: string): ParsedArticle[] {
   return articles;
 }
 
+function parseRssArticles(xml: string): ParsedArticle[] {
+  const articles: ParsedArticle[] = [];
+  const seenUrls = new Set<string>();
+  const itemPattern = /<item>([\s\S]*?)<\/item>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = itemPattern.exec(xml)) !== null) {
+    const block = match[1];
+    const titleMatch =
+      block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) ||
+      block.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const linkMatch =
+      block.match(/<link[^>]*>(https?:\/\/[^<]+)<\/link>/i) ||
+      block.match(/<guid[^>]*>(https?:\/\/[^<]+)<\/guid>/i);
+    const dateMatch =
+      block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) ||
+      block.match(/<published[^>]*>([\s\S]*?)<\/published>/i);
+
+    const title = stripHtml(titleMatch?.[1] ?? "");
+    const url = linkMatch?.[1]?.trim() ?? "";
+    if (!title || !url || seenUrls.has(url)) continue;
+    seenUrls.add(url);
+
+    let date: string | null = null;
+    const rawDate = dateMatch?.[1]?.trim();
+    if (rawDate) {
+      const parsed = Date.parse(rawDate);
+      if (Number.isFinite(parsed)) {
+        date = new Date(parsed).toISOString();
+      }
+    }
+
+    articles.push({ title, url, date });
+  }
+
+  return articles;
+}
+
 /**
  * Extract article candidates from raw HTML using generic regex patterns.
  *
@@ -236,6 +274,20 @@ function parseArticles(html: string, baseUrl: string): ParsedArticle[] {
   return articles;
 }
 
+async function fetchRssFallback(url: string, signal?: AbortSignal): Promise<ParsedArticle[]> {
+  const res = await fetchWithRetry(
+    url,
+    {
+      headers: { "User-Agent": "AI-Market-Cap-Bot/1.0", Accept: "application/rss+xml, application/xml, text/xml" },
+      signal,
+    },
+    { signal, maxRetries: 2 }
+  );
+
+  if (!res.ok) return [];
+  return parseRssArticles(await res.text());
+}
+
 function summarizeHealthChecks(results: ProviderHealthResult[]): HealthCheckResult {
   const reachable = results.filter((result) => result.ok);
   const latencyMs =
@@ -301,6 +353,53 @@ const adapter: DataSourceAdapter = {
 
         if (!res.ok) {
           if (isBotChallengeResponse(res)) {
+            if (blog.rssUrl) {
+              const rssArticles = await fetchRssFallback(blog.rssUrl, ctx.signal);
+              if (rssArticles.length > 0) {
+                reachableProviders++;
+                const relevant = rssArticles
+                  .filter((a) => isModelRelated(a.title))
+                  .slice(0, maxPerProvider);
+
+                for (const article of relevant) {
+                  recordsProcessed++;
+                  const signal = classifyNewsSignal(article.title);
+                  const publishedAt = inferPublishedAt(article);
+                  const metadata: Record<string, unknown> = {
+                    provider: blog.provider,
+                    blog_url: blog.url,
+                    rss_url: blog.rssUrl,
+                    signal_type: signal.signalType,
+                    signal_importance: signal.importance,
+                    signal_flags: signal.flags,
+                  };
+                  const { modelIds } = modelLookup.length > 0
+                    ? resolveNewsRelations(article.title, null, metadata, modelLookup)
+                    : { modelIds: [] };
+                  const relatedModelIds = limitProviderScopedModelIds(modelIds);
+                  const relationScope =
+                    relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
+                  metadata.match_scope = relationScope;
+                  metadata.matched_model_count = modelIds.length;
+
+                  allRecords.push({
+                    source: "provider-blog",
+                    source_id: makeSlug(`provider-news-${blog.provider}-${article.url}`),
+                    title: article.title.slice(0, 500),
+                    summary: null,
+                    url: article.url,
+                    published_at: publishedAt ?? new Date().toISOString(),
+                    category: signal.category,
+                    related_provider: blog.provider,
+                    related_model_ids: relatedModelIds,
+                    tags: [...new Set([blog.provider.toLowerCase(), "blog", "rss", ...signal.tags])],
+                    metadata,
+                  });
+                }
+                continue;
+              }
+            }
+
             providerWarnings.push({
               provider: blog.provider,
               message: `${blog.name} is blocking automated access with an anti-bot challenge`,
@@ -433,6 +532,7 @@ export const __testables = {
   inferPublishedAt,
   isModelRelated,
   isBotChallengeResponse,
+  parseRssArticles,
   parseZaiReleaseNotes,
   providerBlogs: PROVIDER_BLOGS,
   summarizeHealthChecks,

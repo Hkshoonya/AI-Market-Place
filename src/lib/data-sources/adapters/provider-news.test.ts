@@ -74,6 +74,28 @@ describe("provider-news health aggregation", () => {
     ]);
   });
 
+  it("parses official RSS items for provider-news fallback ingestion", () => {
+    const xml = `
+      <rss version="2.0">
+        <channel>
+          <item>
+            <title><![CDATA[Introducing GPT-5.4 for developers]]></title>
+            <link>https://openai.com/index/introducing-gpt-5-4</link>
+            <pubDate>Tue, 24 Mar 2026 09:00:00 GMT</pubDate>
+          </item>
+        </channel>
+      </rss>
+    `;
+
+    expect(__testables.parseRssArticles(xml)).toEqual([
+      {
+        title: "Introducing GPT-5.4 for developers",
+        url: "https://openai.com/index/introducing-gpt-5-4",
+        date: "2026-03-24T09:00:00.000Z",
+      },
+    ]);
+  });
+
   it("falls back to a date embedded in the article title when listing metadata omits it", () => {
     expect(
       __testables.inferPublishedAt({
