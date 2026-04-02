@@ -21,6 +21,11 @@ import {
   getNewsSignalType,
 } from "@/lib/news/presentation";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import {
+  buildDirectDeploymentSignals,
+  compareDeploymentSignalSummaries,
+  isSurfaceableDeploymentSignal,
+} from "@/lib/homepage/deployments";
 
 export const dynamic = "force-dynamic";
 
@@ -84,77 +89,6 @@ function getRecentSignalWeight(item: {
   const typeScore = signalType === "launch" ? 3 : signalType === "pricing" ? 2 : 1;
 
   return recencyScore + importanceScore * 12 + typeScore * 10;
-}
-
-function buildDirectModelSignals(
-  items: Array<{
-    title?: string | null;
-    source?: string | null;
-    related_provider?: string | null;
-    related_model_ids?: string[] | null;
-    published_at?: string | null;
-    metadata?: Record<string, unknown> | null;
-    category?: string | null;
-  }>
-) {
-  const selected = new Map<
-    string,
-    {
-      score: number;
-      summary: {
-        title: string;
-        signalType: string;
-        signalLabel: string;
-        signalImportance: "high" | "medium" | "low";
-        publishedAt: string | null;
-        source: string | null;
-        relatedProvider: string | null;
-      };
-    }
-  >();
-
-  for (const item of items) {
-    const signalType = getNewsSignalType(item);
-    if (signalType === "general") continue;
-
-    const signalLabel =
-      signalType === "launch"
-        ? "Launch"
-        : signalType === "pricing"
-          ? "Pricing"
-          : signalType === "benchmark"
-            ? "Benchmark"
-            : signalType === "api"
-              ? "API"
-              : signalType === "open_source"
-                ? "Open Source"
-                : signalType === "safety"
-                  ? "Safety"
-                  : "Research";
-    const importance = getNewsSignalImportance(item);
-    const score =
-      toTimestamp(item.published_at) +
-      (importance === "high" ? 30 : importance === "medium" ? 20 : 10);
-
-    for (const modelId of item.related_model_ids ?? []) {
-      const existing = selected.get(modelId);
-      if (existing && existing.score >= score) continue;
-      selected.set(modelId, {
-        score,
-        summary: {
-          title: item.title ?? "Recent update",
-          signalType,
-          signalLabel,
-          signalImportance: importance,
-          publishedAt: item.published_at ?? null,
-          source: item.source ?? null,
-          relatedProvider: item.related_provider ?? null,
-        },
-      });
-    }
-  }
-
-  return new Map([...selected.entries()].map(([modelId, value]) => [modelId, value.summary]));
 }
 
 // GET /api/trending — get trending models based on recent activity
@@ -370,27 +304,18 @@ export async function GET(request: NextRequest) {
     ]);
 
     const modelSignals = pickBestModelSignals(combinedModels, recentNewsItems);
-    const deployableNewsItems = recentNewsItems.filter((item) => {
-        const signalType = getNewsSignalType(item);
-        return (
-          (signalType === "api" || signalType === "open_source") &&
-          (item.source === "provider-deployment-signals" || item.source === "ollama-library")
-        );
-      });
-    const deployableSignals = buildDirectModelSignals(deployableNewsItems);
+    const deployableNewsItems = recentNewsItems.filter(isSurfaceableDeploymentSignal);
+    const deployableSignals = buildDirectDeploymentSignals(deployableNewsItems);
     const deployable = rankByOrderedFamilySelection(
       (data ?? [])
       .filter((model) => deployableSignals.has(model.id))
       .sort((left, right) => {
         const leftSignal = deployableSignals.get(left.id);
         const rightSignal = deployableSignals.get(right.id);
-        const publishedDelta =
-          toTimestamp(rightSignal?.publishedAt) - toTimestamp(leftSignal?.publishedAt);
-        if (publishedDelta !== 0) return publishedDelta;
-
-        const rightOpenSource = rightSignal?.signalType === "open_source" ? 1 : 0;
-        const leftOpenSource = leftSignal?.signalType === "open_source" ? 1 : 0;
-        if (rightOpenSource !== leftOpenSource) return rightOpenSource - leftOpenSource;
+        if (leftSignal && rightSignal) {
+          const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
+          if (signalDelta !== 0) return signalDelta;
+        }
 
         const qualityDelta = Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
         if (qualityDelta !== 0) return qualityDelta;
@@ -401,13 +326,10 @@ export async function GET(request: NextRequest) {
       (left, right) => {
         const leftSignal = deployableSignals.get(left.id);
         const rightSignal = deployableSignals.get(right.id);
-        const publishedDelta =
-          toTimestamp(rightSignal?.publishedAt) - toTimestamp(leftSignal?.publishedAt);
-        if (publishedDelta !== 0) return publishedDelta;
-
-        const rightOpenSource = rightSignal?.signalType === "open_source" ? 1 : 0;
-        const leftOpenSource = leftSignal?.signalType === "open_source" ? 1 : 0;
-        if (rightOpenSource !== leftOpenSource) return rightOpenSource - leftOpenSource;
+        if (leftSignal && rightSignal) {
+          const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
+          if (signalDelta !== 0) return signalDelta;
+        }
 
         return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
       }

@@ -7,6 +7,7 @@ import {
   type ModelDeployment,
 } from "@/lib/models/deployments";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
+import { compareDeploymentSignalSummaries } from "@/lib/homepage/deployments";
 
 export const revalidate = 300;
 
@@ -82,7 +83,7 @@ export async function GET(
           return signalType === "open_source" || signalType === "api";
         }),
       6
-    );
+    ).sort(compareDeploymentSignalSummaries);
 
     const typedDeployments: ModelDeployment[] = [];
     for (const deployment of deployments ?? []) {

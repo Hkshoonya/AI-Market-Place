@@ -1,12 +1,27 @@
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
-import { getNewsSignalType, type NewsPresentationItem } from "@/lib/news/presentation";
+import {
+  getNewsSignalImportance,
+  getNewsSignalType,
+  type LaunchRadarItem,
+  type NewsPresentationItem,
+} from "@/lib/news/presentation";
 
 const RECENT_DEPLOYMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const SURFACEABLE_DEPLOYMENT_SOURCES = new Set([
   "provider-deployment-signals",
   "ollama-library",
 ]);
+
+export interface DeploymentSignalSummary {
+  title: string;
+  signalType: "api" | "open_source";
+  signalLabel: string;
+  signalImportance: "high" | "medium" | "low";
+  publishedAt: string | null;
+  source: string | null;
+  relatedProvider: string | null;
+}
 
 export interface HomepageDeploymentModel {
   id: string;
@@ -32,6 +47,12 @@ export interface HomepageDeploymentSelection<TModel extends HomepageDeploymentMo
   signalType: "api" | "open_source";
 }
 
+function getSignalPublishedAt(
+  item: DeploymentSignalSummary | LaunchRadarItem
+) {
+  return "publishedAt" in item ? item.publishedAt : item.published_at;
+}
+
 function toTimestamp(value: string | null | undefined): number {
   if (!value) return 0;
   const timestamp = Date.parse(value);
@@ -47,14 +68,84 @@ function providersMatch(
   return getCanonicalProviderName(modelProvider) === getCanonicalProviderName(relatedProvider);
 }
 
-function getSourceBonus(source: string | null | undefined) {
-  if (source === "ollama-library") return 700;
-  if (source === "provider-deployment-signals") return 500;
+export function getDeploymentSignalSourcePriority(source: string | null | undefined) {
+  if (source === "provider-deployment-signals") return 2;
+  if (source === "ollama-library") return 1;
   return 0;
+}
+
+function getSourceBonus(source: string | null | undefined) {
+  if (source === "provider-deployment-signals") return 700;
+  if (source === "ollama-library") return 500;
+  return 0;
+}
+
+export function getDeploymentSignalTypePriority(signalType: "api" | "open_source") {
+  return signalType === "open_source" ? 2 : 1;
 }
 
 function getSignalBonus(signalType: "api" | "open_source") {
   return signalType === "open_source" ? 1_200 : 900;
+}
+
+export function isSurfaceableDeploymentSignal(item: NewsPresentationItem) {
+  const source = item.source ?? null;
+  if (!SURFACEABLE_DEPLOYMENT_SOURCES.has(source ?? "")) return false;
+
+  const signalType = getNewsSignalType(item);
+  return signalType === "api" || signalType === "open_source";
+}
+
+export function compareDeploymentSignalSummaries(
+  left: DeploymentSignalSummary | LaunchRadarItem,
+  right: DeploymentSignalSummary | LaunchRadarItem
+) {
+  const publishedDelta =
+    toTimestamp(getSignalPublishedAt(right)) - toTimestamp(getSignalPublishedAt(left));
+  if (publishedDelta !== 0) return publishedDelta;
+
+  const sourceDelta =
+    getDeploymentSignalSourcePriority(right.source) -
+    getDeploymentSignalSourcePriority(left.source);
+  if (sourceDelta !== 0) return sourceDelta;
+
+  const typeDelta =
+    getDeploymentSignalTypePriority(right.signalType as "api" | "open_source") -
+    getDeploymentSignalTypePriority(left.signalType as "api" | "open_source");
+  if (typeDelta !== 0) return typeDelta;
+
+  const importanceWeight = { high: 3, medium: 2, low: 1 } as const;
+  return importanceWeight[right.signalImportance] - importanceWeight[left.signalImportance];
+}
+
+export function buildDirectDeploymentSignals(
+  items: NewsPresentationItem[]
+) {
+  const selected = new Map<string, DeploymentSignalSummary>();
+
+  for (const item of items) {
+    if (!isSurfaceableDeploymentSignal(item)) continue;
+
+    const signalType = getNewsSignalType(item) as "api" | "open_source";
+    const summary: DeploymentSignalSummary = {
+      title: item.title ?? "Recent usage update",
+      signalType,
+      signalLabel: signalType === "open_source" ? "Open Source" : "API",
+      signalImportance: getNewsSignalImportance(item),
+      publishedAt: item.published_at ?? null,
+      source: item.source ?? null,
+      relatedProvider: item.related_provider ?? null,
+    };
+
+    for (const modelId of item.related_model_ids ?? []) {
+      const existing = selected.get(modelId);
+      if (!existing || compareDeploymentSignalSummaries(existing, summary) > 0) {
+        selected.set(modelId, summary);
+      }
+    }
+  }
+
+  return selected;
 }
 
 function compareDeploymentSelections<TModel extends HomepageDeploymentModel>(
@@ -86,18 +177,12 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
   if (limit <= 0) return [];
 
   const modelsById = new Map(models.map((model) => [model.id, model]));
-  const selectedById = new Map<
-    string,
-    { score: number; selection: HomepageDeploymentSelection<TModel> }
-  >();
+  const selectedById = new Map<string, { score: number; selection: HomepageDeploymentSelection<TModel> }>();
 
   for (const item of newsItems) {
-    const source = item.source ?? null;
-    if (!SURFACEABLE_DEPLOYMENT_SOURCES.has(source ?? "")) continue;
+    if (!isSurfaceableDeploymentSignal(item)) continue;
 
-    const signalType = getNewsSignalType(item);
-    if (signalType !== "api" && signalType !== "open_source") continue;
-
+    const signalType = getNewsSignalType(item) as "api" | "open_source";
     const publishedAt = item.published_at ?? null;
     const publishedTimestamp = toTimestamp(publishedAt);
     if (publishedTimestamp <= 0 || now - publishedTimestamp > RECENT_DEPLOYMENT_WINDOW_MS) {
@@ -110,17 +195,17 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
       if (!providersMatch(model.provider, item.related_provider)) continue;
 
       const score =
-        publishedTimestamp + getSourceBonus(source) + getSignalBonus(signalType);
+        publishedTimestamp + getSourceBonus(item.source) + getSignalBonus(signalType);
       const selection: HomepageDeploymentSelection<TModel> = {
         model,
         surfacedAt: publishedAt,
         title: item.title ?? "New deployment path available",
         summary: item.summary ?? null,
-        source,
+        source: item.source ?? null,
         signalType,
       };
       const existing = selectedById.get(modelId);
-      if (!existing || score > existing.score) {
+      if (!existing || compareDeploymentSelections(existing, { score, selection }) > 0) {
         selectedById.set(modelId, { score, selection });
       }
     }
