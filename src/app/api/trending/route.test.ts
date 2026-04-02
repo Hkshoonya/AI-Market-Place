@@ -125,6 +125,26 @@ function createMockSupabase() {
       parameter_count: null,
       is_open_weights: false,
     },
+    {
+      id: "old-deploy-only",
+      slug: "minimax-m2-5",
+      name: "MiniMax M2.5",
+      provider: "MiniMax",
+      category: "llm",
+      overall_rank: 40,
+      quality_score: 70,
+      capability_score: 74,
+      popularity_score: 48,
+      adoption_score: 54,
+      economic_footprint_score: 36,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-02-12",
+      created_at: "2026-02-28T19:35:17.301715+00:00",
+      parameter_count: null,
+      is_open_weights: false,
+    },
   ];
   const modelNews = [
     {
@@ -144,6 +164,16 @@ function createMockSupabase() {
       related_provider: "Z.ai",
       related_model_ids: ["zai-signal"],
       published_at: "2026-03-31T20:00:00.000Z",
+      category: "api",
+      metadata: { signal_type: "api", signal_importance: "medium" },
+    },
+    {
+      id: "deploy-old-minimax",
+      title: "MiniMax M2.5 now has a new deployment guide",
+      source: "provider-deployment-signals",
+      related_provider: "MiniMax",
+      related_model_ids: ["old-deploy-only"],
+      published_at: "2026-03-31T21:00:00.000Z",
       category: "api",
       metadata: { signal_type: "api", signal_importance: "medium" },
     },
@@ -206,12 +236,13 @@ describe("GET /api/trending", () => {
 
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
-      "z-ai-glm-5",
       "harrier-oss-v1-27b",
-      "llama-3-1-8b-instruct",
+      "z-ai-glm-5",
     ]);
+    expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();
+    expect(body.recent.find((model: { slug: string }) => model.slug === "llama-3-1-8b-instruct")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "gpt-image")).toBeFalsy();
-    expect(body.deployable[0]).toEqual(
+    expect(body.deployable).toContainEqual(
       expect.objectContaining({
         slug: "z-ai-glm-5",
         recent_signal: expect.objectContaining({
@@ -220,7 +251,7 @@ describe("GET /api/trending", () => {
         }),
       })
     );
-    expect(body.deployable[1]).toEqual(
+    expect(body.deployable).toContainEqual(
       expect.objectContaining({
         slug: "harrier-oss-v1-27b",
         recent_signal: expect.objectContaining({

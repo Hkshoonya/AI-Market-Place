@@ -60,6 +60,13 @@ function getRecentSignalWeight(item: {
   source?: string | null;
   category?: string | null;
 }) {
+  if (
+    item.source === "provider-deployment-signals" ||
+    item.source === "ollama-library"
+  ) {
+    return 0;
+  }
+
   const signalType = getNewsSignalType(item);
   if (
     signalType !== "launch" &&
@@ -267,8 +274,6 @@ export async function GET(request: NextRequest) {
       computePopularDiscoveryScore(model)
     ).slice(0, limit);
 
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
@@ -317,7 +322,7 @@ export async function GET(request: NextRequest) {
           model.release_date ??
           (typeof model.created_at === "string" && model.provider ? model.created_at : null);
         if (!releaseDate) return false;
-        return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
+        return Date.parse(releaseDate) >= thirtyDaysAgo.getTime();
       })
       .map((model) => ({
         ...model,
