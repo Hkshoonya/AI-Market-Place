@@ -15,7 +15,7 @@ describe("openrouter model record mapping", () => {
     });
 
     expect(record.license).toBe("open_source");
-    expect(record.license_name).toBe("Open weights");
+    expect(record.license_name).toBe("Llama Community License");
     expect(record.is_open_weights).toBe(true);
   });
 
@@ -80,6 +80,22 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(true);
     expect(record.license).toBe("open_source");
     expect(record.license_name).toBe("Open weights");
+  });
+
+  it("recognizes Cohere Command R+ as open-weight with its non-commercial license", () => {
+    const record = __testables.buildModelRecord({
+      id: "cohere/command-r-plus",
+      name: "Cohere: Command R+",
+      description: "Enterprise-grade model optimized for RAG, tool use, and multilingual tasks.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.is_open_weights).toBe(true);
+    expect(record.license).toBe("open_source");
+    expect(record.license_name).toBe("CC-BY-NC-4.0");
   });
 
   it("keeps proprietary Google models marked as closed-weight", () => {

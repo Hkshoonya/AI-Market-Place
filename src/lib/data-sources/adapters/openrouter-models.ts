@@ -182,9 +182,13 @@ const PROPRIETARY_PROVIDERS = new Set([
 const OPEN_WEIGHT_MODEL_PATTERNS = [
   /^openai\/gpt-oss(?:-|$)/i,
   /^cohere\/command-a(?:$|[-/])/i,
+  /^cohere\/command-r(?:\+|$|[-/])/i,
 ] as const;
 
-function inferOpenLicenseName(description: string | undefined): string | null {
+function inferOpenLicenseName(id: string, description: string | undefined): string | null {
+  if (id.startsWith("meta-llama/")) return "Llama Community License";
+  if (/^cohere\/command-r(?:\+|$|[-/])/i.test(id)) return "CC-BY-NC-4.0";
+
   const desc = (description ?? "").toLowerCase();
   if (desc.includes("apache 2.0") || desc.includes("apache-2.0")) return "Apache 2.0";
   if (desc.includes("mit license") || desc.includes("mit-licensed")) return "MIT";
@@ -226,7 +230,7 @@ function inferOpenWeights(id: string, description: string | undefined): boolean 
 function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> {
   const arch = model.architecture ?? {};
   const isOpen = inferOpenWeights(model.id, model.description);
-  const licenseName = inferOpenLicenseName(model.description) ?? (isOpen ? "Open weights" : null);
+  const licenseName = inferOpenLicenseName(model.id, model.description) ?? (isOpen ? "Open weights" : null);
   const license = isOpen ? "open_source" : "commercial";
 
   return {
