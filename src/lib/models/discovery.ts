@@ -53,6 +53,13 @@ export function getDiscoveryReleaseTimestamp<
 export function computeTrendingDiscoveryScore(model: DiscoverySignals, now = new Date()): number {
   const community = computeCommunitySignal(model);
   const recency = computeRecencyBoost(model.release_date, now);
+  const signalBoost = clamp(Number(model.recent_signal_score ?? 0) * 12, 0, 30);
+  const releaseTimestamp = getDiscoveryReleaseTimestamp(model);
+  const ageDays = releaseTimestamp
+    ? (now.getTime() - releaseTimestamp) / (1000 * 60 * 60 * 24)
+    : Number.POSITIVE_INFINITY;
+  const stalePenalty =
+    ageDays > 365 && Number(model.recent_signal_score ?? 0) <= 0 ? 12 : 0;
 
   return Math.round(
     clamp(
@@ -61,7 +68,9 @@ export function computeTrendingDiscoveryScore(model: DiscoverySignals, now = new
         (model.economic_footprint_score ?? 0) * 0.16 +
         (model.quality_score ?? 0) * 0.12 +
         community * 0.09 +
-        recency * 0.15,
+        recency * 0.1 +
+        signalBoost * 0.1 -
+        stalePenalty,
       0,
       100
     ) * 10

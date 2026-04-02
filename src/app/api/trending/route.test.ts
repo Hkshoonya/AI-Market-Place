@@ -85,6 +85,46 @@ function createMockSupabase() {
       parameter_count: null,
       is_open_weights: true,
     },
+    {
+      id: "zai-signal",
+      slug: "z-ai-glm-5",
+      name: "GLM-5",
+      provider: "Z.ai",
+      category: "multimodal",
+      overall_rank: 55,
+      quality_score: 58,
+      capability_score: 67,
+      popularity_score: 45,
+      adoption_score: 39,
+      economic_footprint_score: 20,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-03-29",
+      created_at: "2026-03-29T10:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: false,
+    },
+    {
+      id: "zai-preview",
+      slug: "z-ai-glm-5-preview",
+      name: "GLM-5 (Preview)",
+      provider: "Z.ai",
+      category: "multimodal",
+      overall_rank: 30,
+      quality_score: 84,
+      capability_score: 72,
+      popularity_score: 40,
+      adoption_score: 35,
+      economic_footprint_score: 18,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-03-10",
+      created_at: "2026-03-10T10:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: false,
+    },
   ];
   const modelNews = [
     {
@@ -96,6 +136,16 @@ function createMockSupabase() {
       published_at: "2026-03-30T20:00:00.000Z",
       category: "open_source",
       metadata: { signal_type: "open_source", signal_importance: "high" },
+    },
+    {
+      id: "deploy-glm",
+      title: "GLM-5 now has an official deployment guide",
+      source: "provider-deployment-signals",
+      related_provider: "Z.ai",
+      related_model_ids: ["zai-signal"],
+      published_at: "2026-03-31T20:00:00.000Z",
+      category: "api",
+      metadata: { signal_type: "api", signal_importance: "medium" },
     },
   ];
 
@@ -156,11 +206,21 @@ describe("GET /api/trending", () => {
 
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
+      "z-ai-glm-5",
       "harrier-oss-v1-27b",
       "llama-3-1-8b-instruct",
     ]);
     expect(body.recent.find((model: { slug: string }) => model.slug === "gpt-image")).toBeFalsy();
     expect(body.deployable[0]).toEqual(
+      expect.objectContaining({
+        slug: "z-ai-glm-5",
+        recent_signal: expect.objectContaining({
+          signalType: "api",
+          signalLabel: "API",
+        }),
+      })
+    );
+    expect(body.deployable[1]).toEqual(
       expect.objectContaining({
         slug: "harrier-oss-v1-27b",
         recent_signal: expect.objectContaining({

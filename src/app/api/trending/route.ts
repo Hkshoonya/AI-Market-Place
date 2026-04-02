@@ -10,10 +10,16 @@ import {
   sortRecentReleaseCandidates,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
-import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import {
+  collapsePublicModelFamilies,
+  dedupePublicModelFamilies,
+} from "@/lib/models/public-families";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
-import { getNewsSignalType } from "@/lib/news/presentation";
+import {
+  getNewsSignalImportance,
+  getNewsSignalType,
+} from "@/lib/news/presentation";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +28,126 @@ function toTimestamp(value: string | null | undefined) {
   if (!value) return 0;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function rankByOrderedFamilySelection<
+  T extends {
+    id: string;
+    slug: string;
+    name: string;
+    provider: string;
+    category?: string | null;
+    overall_rank?: number | null;
+    quality_score?: number | null;
+    capability_score?: number | null;
+    popularity_score?: number | null;
+    adoption_score?: number | null;
+    economic_footprint_score?: number | null;
+    hf_downloads?: number | null;
+  }
+>(models: T[], compare: (left: T, right: T) => number) {
+  return collapsePublicModelFamilies(models)
+    .map((family) => ({
+      representative: [...family.variants].sort(compare)[0] ?? family.representative,
+    }))
+    .map((family) => family.representative)
+    .sort(compare);
+}
+
+function getRecentSignalWeight(item: {
+  published_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  source?: string | null;
+  category?: string | null;
+}) {
+  const signalType = getNewsSignalType(item);
+  if (
+    signalType !== "launch" &&
+    signalType !== "pricing" &&
+    signalType !== "api" &&
+    signalType !== "open_source"
+  ) {
+    return 0;
+  }
+
+  const importance = getNewsSignalImportance(item);
+  const ageHours = Math.max(0, (Date.now() - toTimestamp(item.published_at)) / 3_600_000);
+  const recencyScore = Math.max(0, 72 - Math.min(ageHours, 72));
+  const importanceScore = importance === "high" ? 3 : importance === "medium" ? 2 : 1;
+  const typeScore = signalType === "launch" ? 3 : signalType === "pricing" ? 2 : 1;
+
+  return recencyScore + importanceScore * 12 + typeScore * 10;
+}
+
+function buildDirectModelSignals(
+  items: Array<{
+    title?: string | null;
+    source?: string | null;
+    related_provider?: string | null;
+    related_model_ids?: string[] | null;
+    published_at?: string | null;
+    metadata?: Record<string, unknown> | null;
+    category?: string | null;
+  }>
+) {
+  const selected = new Map<
+    string,
+    {
+      score: number;
+      summary: {
+        title: string;
+        signalType: string;
+        signalLabel: string;
+        signalImportance: "high" | "medium" | "low";
+        publishedAt: string | null;
+        source: string | null;
+        relatedProvider: string | null;
+      };
+    }
+  >();
+
+  for (const item of items) {
+    const signalType = getNewsSignalType(item);
+    if (signalType === "general") continue;
+
+    const signalLabel =
+      signalType === "launch"
+        ? "Launch"
+        : signalType === "pricing"
+          ? "Pricing"
+          : signalType === "benchmark"
+            ? "Benchmark"
+            : signalType === "api"
+              ? "API"
+              : signalType === "open_source"
+                ? "Open Source"
+                : signalType === "safety"
+                  ? "Safety"
+                  : "Research";
+    const importance = getNewsSignalImportance(item);
+    const score =
+      toTimestamp(item.published_at) +
+      (importance === "high" ? 30 : importance === "medium" ? 20 : 10);
+
+    for (const modelId of item.related_model_ids ?? []) {
+      const existing = selected.get(modelId);
+      if (existing && existing.score >= score) continue;
+      selected.set(modelId, {
+        score,
+        summary: {
+          title: item.title ?? "Recent update",
+          signalType,
+          signalLabel,
+          signalImportance: importance,
+          publishedAt: item.published_at ?? null,
+          source: item.source ?? null,
+          relatedProvider: item.related_provider ?? null,
+        },
+      });
+    }
+  }
+
+  return new Map([...selected.entries()].map(([modelId, value]) => [modelId, value.summary]));
 }
 
 // GET /api/trending — get trending models based on recent activity
@@ -137,39 +263,12 @@ export async function GET(request: NextRequest) {
         .filter((model): model is NonNullable<typeof model> => Boolean(model));
     }
 
-    const trending = sortByDiscoveryScore(visibleModels, (model) =>
-      computeTrendingDiscoveryScore(model)
-    ).slice(0, limit);
-
     const popular = sortByDiscoveryScore(visibleModels, (model) =>
       computePopularDiscoveryScore(model)
     ).slice(0, limit);
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const recent = sortRecentReleaseCandidates(
-      visibleModels
-        .filter((model) => {
-        const releaseDate =
-          model.release_date ??
-          (typeof model.created_at === "string" && model.provider ? model.created_at : null);
-        if (!releaseDate) return false;
-        return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
-        })
-        .map((model) => ({
-          ...model,
-          recent_signal_score: discussedEvidence.get(model.id) ?? 0,
-        }))
-        .filter((model) => isHighSignalRecentCandidate(model))
-    ).slice(0, Math.min(limit, 8));
-
-    const discussedUnique = dedupePublicModelFamilies(discussed);
-    const combinedModels = dedupePublicModelFamilies([
-      ...trending,
-      ...popular,
-      ...recent,
-      ...discussedUnique,
-    ]);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
@@ -199,18 +298,83 @@ export async function GET(request: NextRequest) {
           : null,
     }));
 
+    const recentSignalScores = new Map<string, number>();
+    for (const item of recentNewsItems) {
+      const weight = getRecentSignalWeight(item);
+      if (weight <= 0) continue;
+
+      for (const modelId of item.related_model_ids ?? []) {
+        const existing = recentSignalScores.get(modelId) ?? 0;
+        if (weight > existing) {
+          recentSignalScores.set(modelId, weight);
+        }
+      }
+    }
+
+    const recentCandidates = (data ?? [])
+      .filter((model) => {
+        const releaseDate =
+          model.release_date ??
+          (typeof model.created_at === "string" && model.provider ? model.created_at : null);
+        if (!releaseDate) return false;
+        return Date.parse(releaseDate) >= ninetyDaysAgo.getTime();
+      })
+      .map((model) => ({
+        ...model,
+        recent_signal_score: recentSignalScores.get(model.id) ?? 0,
+      }))
+      .filter((model) => isHighSignalRecentCandidate(model));
+
+    const recent = rankByOrderedFamilySelection(
+      sortRecentReleaseCandidates(recentCandidates),
+      (left, right) => {
+        const scoreDelta =
+          (right.recent_signal_score ?? 0) - (left.recent_signal_score ?? 0);
+        if (scoreDelta !== 0) return scoreDelta;
+
+        const releaseDelta = toTimestamp(right.release_date ?? right.created_at) -
+          toTimestamp(left.release_date ?? left.created_at);
+        if (releaseDelta !== 0) return releaseDelta;
+
+        return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+      }
+    ).slice(0, Math.min(limit, 8));
+
+    const trending = rankByOrderedFamilySelection(
+      (data ?? []).map((model) => ({
+        ...model,
+        recent_signal_score: recentSignalScores.get(model.id) ?? 0,
+      })),
+      (left, right) =>
+        computeTrendingDiscoveryScore({
+          ...right,
+          recent_signal_score: recentSignalScores.get(right.id) ?? 0,
+        }) -
+        computeTrendingDiscoveryScore({
+          ...left,
+          recent_signal_score: recentSignalScores.get(left.id) ?? 0,
+        })
+    ).slice(0, limit);
+
+    const discussedUnique = dedupePublicModelFamilies(discussed);
+    const combinedModels = dedupePublicModelFamilies([
+      ...trending,
+      ...popular,
+      ...recent,
+      ...discussedUnique,
+    ]);
+
     const modelSignals = pickBestModelSignals(combinedModels, recentNewsItems);
-    const deployableSignals = pickBestModelSignals(
-      visibleModels,
-      recentNewsItems.filter((item) => {
+    const deployableNewsItems = recentNewsItems.filter((item) => {
         const signalType = getNewsSignalType(item);
         return (
           (signalType === "api" || signalType === "open_source") &&
           (item.source === "provider-deployment-signals" || item.source === "ollama-library")
         );
-      })
-    );
-    const deployable = visibleModels
+      });
+    const deployableSignals = buildDirectModelSignals(deployableNewsItems);
+    const deployable = rankByOrderedFamilySelection(
+      (data ?? [])
       .filter((model) => deployableSignals.has(model.id))
       .sort((left, right) => {
         const leftSignal = deployableSignals.get(left.id);
@@ -228,7 +392,21 @@ export async function GET(request: NextRequest) {
 
         return Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
       })
-      .slice(0, limit);
+      ,
+      (left, right) => {
+        const leftSignal = deployableSignals.get(left.id);
+        const rightSignal = deployableSignals.get(right.id);
+        const publishedDelta =
+          toTimestamp(rightSignal?.publishedAt) - toTimestamp(leftSignal?.publishedAt);
+        if (publishedDelta !== 0) return publishedDelta;
+
+        const rightOpenSource = rightSignal?.signalType === "open_source" ? 1 : 0;
+        const leftOpenSource = leftSignal?.signalType === "open_source" ? 1 : 0;
+        if (rightOpenSource !== leftOpenSource) return rightOpenSource - leftOpenSource;
+
+        return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+      }
+    ).slice(0, limit);
 
     const attachSignal = <T extends { id: string; provider?: string | null }>(
       modelsWithScores: T[],
