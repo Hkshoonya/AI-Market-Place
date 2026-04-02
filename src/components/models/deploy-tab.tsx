@@ -212,10 +212,11 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border/50 bg-card/20 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">Where you can use this model right now</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white">How to use this model</h3>
         <p className="text-sm text-muted-foreground">
-          Start with the verified rows first. They are direct places where this model is already usable.
-          Related options below are still useful, but they are broader ecosystem paths rather than model-specific confirmations.
+          On this page, deployment simply means the practical way to start using the model:
+          on AI Market Cap, through the provider, or on your own setup. Start with the verified
+          rows first because they are confirmed, model-specific options.
         </p>
       </div>
 
@@ -237,8 +238,8 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
               ) : null}
               {!runtimeExecution.available ? (
                 <p className="text-xs text-amber-300">
-                  AI Market Cap cannot host this model directly yet. Use the verified provider path
-                  below instead of expecting an in-site deployment here.
+                  AI Market Cap cannot run this model directly yet. Use the verified provider path
+                  below instead.
                 </p>
               ) : null}
             </div>
@@ -297,9 +298,9 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           </div>
           {startPlan?.needsWallet && startPlan.recommendedAmount ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              AI Market Cap will first guide the user to{" "}
+                AI Market Cap will first guide you to{" "}
               {startPlan.recommendedPack ? startPlan.recommendedPack.label : "a wallet top-up"}{" "}
-              for about ${startPlan.recommendedAmount}, then continue to the verified provider path.
+              for about ${startPlan.recommendedAmount}, then continue to the verified path for this model.
             </p>
           ) : null}
           {showApiCostWarning ? (
@@ -317,7 +318,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           {startPlan ? (
             <div className="mt-4 rounded-md border border-border/40 bg-card/30 p-3">
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                What this path should unlock
+                What you get
               </p>
               <p className="mt-1 text-sm font-medium text-white">
                 {startPlan.experience.destinationLabel}
@@ -345,7 +346,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         <div>
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-[#00d4aa]" />
-            Verified access and deployment
+            Verified ways to use it
           </h3>
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
@@ -431,11 +432,11 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         <div className="rounded-lg border border-border/50 p-4 bg-card/20">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
             <ShieldCheck className="h-4 w-4 text-[#00d4aa]" />
-            Official deployment evidence
+            Official availability updates
           </h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            These are official provider or runtime pages confirming that this model is now self-hostable,
-            available in local tools, or usable through a managed deployment path.
+            These are official updates confirming new ways this model can be used, such as direct
+            provider access, AI Market Cap hosting support, or self-host support.
           </p>
           <div className="space-y-3">
             {deploymentEvidence.map((item, index) => (
@@ -473,8 +474,8 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
 
       {relatedPlatforms.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Related options below are ecosystem or self-hosting paths that fit this model family.
-          They are not stored as verified model-specific deployments unless explicitly marked above.
+          The options below are broader paths that may fit this model family. Use the verified
+          section above first when you want the clearest starting point.
         </p>
       )}
 

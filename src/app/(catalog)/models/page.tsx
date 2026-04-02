@@ -357,8 +357,7 @@ export default async function ModelsPage({
         </p>
         {managedOnly && (
           <div className="mt-4 rounded-xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-4 text-sm text-muted-foreground">
-            Showing only models that AI Market Cap can host directly right now through the managed
-            in-site deployment flow.
+            Showing only models that AI Market Cap can run directly for you on this site right now.
           </div>
         )}
         {deployableOnly && (
@@ -494,7 +493,7 @@ export default async function ModelsPage({
                                 variant="outline"
                                 className="ml-2 border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
                               >
-                                Managed Here
+                                Use on This Site
                               </Badge>
                             )}
                           </div>

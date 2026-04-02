@@ -561,8 +561,8 @@ export function DeployWorkspacePanel() {
                       {deploymentLoading
                         ? "Creating..."
                         : hasManagedDeployment
-                          ? "Refresh Deployment"
-                          : "Create Deployment"}
+                          ? "Refresh Site Setup"
+                          : "Start on This Site"}
                     </Button>
                   ) : null}
                   {hasManagedDeployment ? (
@@ -601,16 +601,16 @@ export function DeployWorkspacePanel() {
                     </p>
                     <p className="mt-1 text-sm font-medium text-white">
                       {hasManagedDeployment
-                        ? deployment?.deploymentLabel ?? "Managed deployment"
+                        ? deployment?.deploymentLabel ?? "Site-hosted model setup"
                         : canCreateManagedDeployment
                           ? "Not created yet"
-                          : "Direct deployment not available"}
+                          : "Run on this site not available"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {hasManagedDeployment
-                        ? deployment?.execution.summary
+                        ? "This is your saved AI Market Cap setup for running this model here with budget and usage tracking."
                         : canCreateManagedDeployment
-                          ? "Create the managed in-site deployment to get a stable endpoint and tracked usage."
+                          ? "Create a site-hosted setup to get a stable endpoint, usage tracking, and budget controls."
                           : deploymentExecution?.summary ??
                             "Use the verified provider path until a direct in-site runtime is mapped."}
                     </p>
@@ -662,7 +662,7 @@ export function DeployWorkspacePanel() {
                         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                           <li>Create a runtime-ready API key.</li>
                           <li>Send one short test request first.</li>
-                          <li>Pause the deployment when idle.</li>
+                          <li>Pause this setup when you are not using it.</li>
                         </ul>
                       </div>
                     ) : null}
@@ -744,7 +744,7 @@ export function DeployWorkspacePanel() {
                   {!canCreateManagedDeployment ? (
                     <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">
-                        Direct deployment is unavailable
+                        Run on this site is unavailable
                       </p>
                       <p className="mt-1 text-xs text-amber-100/80">
                         {deploymentExecution?.summary}

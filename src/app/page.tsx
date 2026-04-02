@@ -117,9 +117,8 @@ function getRelativeDateLabel(value: string | null, now: number) {
 }
 
 function getDeploymentUpdateBadgeLabel(source: string | null, signalType: "api" | "open_source") {
-  if (source === "ollama-library") return "Ollama";
-  if (signalType === "open_source") return "Self-Host";
-  return "Deploy";
+  if (signalType === "open_source") return "Run Yourself";
+  return "Use It";
 }
 
 export default async function HomePage() {
@@ -755,7 +754,7 @@ export default async function HomePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Server className="h-5 w-5 text-neon" />
-              <h2 className="text-xl font-bold">New Deployment Paths</h2>
+              <h2 className="text-xl font-bold">New Ways to Use Models</h2>
             </div>
             <Button variant="ghost" size="sm" className="text-neon" asChild>
               <Link href="/news">
@@ -765,8 +764,8 @@ export default async function HomePage() {
           </div>
 
           <p className="mt-3 text-sm text-muted-foreground">
-            When a model lands on Ollama, becomes self-hostable, or gets a new official deploy path,
-            it shows up here.
+            This section tracks new ways a model became usable, such as use on AI Market Cap,
+            new provider access, or new self-host support.
           </p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -797,7 +796,7 @@ export default async function HomePage() {
                       </div>
                       <p className="mt-3 line-clamp-2 text-sm text-foreground/90">{title}</p>
                       <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-                        {summary ?? "New verified deployment path available for this model."}
+                        {summary ?? "A new verified way to use this model is now available."}
                       </p>
                       <div className="mt-3 flex items-center justify-between">
                         {catConfig ? (

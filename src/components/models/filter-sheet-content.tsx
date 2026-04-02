@@ -95,12 +95,12 @@ export function FilterSheetContent({
             className={currentManagedOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
             onClick={() => updateParams({ managed: "true", deployable: null })}
           >
-            Managed Here
+            Use on This Site
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          `Deployable Now` includes provider APIs, subscriptions, Ollama, and self-host paths.
-          `Managed Here` only shows models AI Market Cap can host directly inside the site.
+          `Deployable Now` includes all verified ways to use a model.
+          `Use on This Site` only shows models AI Market Cap can run directly for you here.
         </p>
       </div>
 

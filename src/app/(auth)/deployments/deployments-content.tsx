@@ -282,8 +282,8 @@ export default function DeploymentsContent() {
           </Badge>
           <h1 className="mt-3 text-3xl font-semibold text-white">Managed model deployments</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Keep track of every in-site deployment you created on AI Market Cap. Review status,
-            budget, endpoint, and usage without losing the workspace session.
+            A deployment is a saved way to run a model on AI Market Cap with its own endpoint,
+            budget, and usage history. Keep track of every model setup you created here.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -338,7 +338,7 @@ export default function DeploymentsContent() {
             <div>
               <h2 className="text-xl font-semibold text-white">No deployments yet</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start from a supported model page and create the managed in-site deployment there.
+                Start from a supported model page and create a site-hosted model setup there.
               </p>
             </div>
             <Button asChild className="bg-neon text-background hover:bg-neon/90">

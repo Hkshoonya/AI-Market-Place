@@ -108,7 +108,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                       variant="outline"
                       className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
                     >
-                      Managed Here
+                      Use on This Site
                     </Badge>
                   </div>
                 ) : null}
