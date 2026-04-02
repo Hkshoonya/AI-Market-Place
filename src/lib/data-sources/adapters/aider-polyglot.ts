@@ -9,6 +9,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveMatchedAliasFamilyModelIds,
 } from "../model-alias-resolver";
 
@@ -238,16 +239,13 @@ const adapter: DataSourceAdapter = {
       };
     }
 
-    const { data: models } = await ctx.supabase
-      .from("models")
-      .select("id, name, slug, provider")
-      .eq("status", "active");
-    const activeModels = models ?? [];
+    const activeModels = await fetchAllActiveAliasModels(ctx.supabase);
     const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     const bestEntryByModel = new Map<string, PersistedEntry>();
     const unmatchedModels = new Set<string>();
     const knownCatalogGapModels = new Set<string>();
+    let matchedEntryCount = 0;
     let recordsProcessed = 0;
 
     for (const entry of entries) {
@@ -263,11 +261,11 @@ const adapter: DataSourceAdapter = {
         unmatchedModels.add(entry.modelName);
         if (KNOWN_CATALOG_GAPS.has(normalizedGapName)) {
           knownCatalogGapModels.add(entry.modelName);
-          continue;
         }
-        errors.push({ message: `No match for: ${entry.modelName}` });
         continue;
       }
+
+      matchedEntryCount++;
 
       for (const modelId of relatedIds) {
         const existing = bestEntryByModel.get(modelId);
@@ -308,6 +306,25 @@ const adapter: DataSourceAdapter = {
       recordsCreated++;
     }
 
+    if (recordsCreated === 0) {
+      return {
+        success: false,
+        recordsProcessed,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "No Aider leaderboard entries matched the active model catalog" }],
+        metadata: {
+          sourceUrl: url,
+          leaderboardEntries: entries.length,
+          matchedModels: 0,
+          unmatchedModels: [...unmatchedModels].sort(),
+          knownCatalogGapModels: [...knownCatalogGapModels].sort(),
+          warningCount: Math.max(0, unmatchedModels.size),
+          matchRate: `${((0 / Math.max(entries.length, 1)) * 100).toFixed(1)}%`,
+        },
+      };
+    }
+
     return {
       success: recordsCreated > 0,
       recordsProcessed,
@@ -318,9 +335,10 @@ const adapter: DataSourceAdapter = {
         sourceUrl: url,
         leaderboardEntries: entries.length,
         matchedModels: bestEntryByModel.size,
+        matchRate: `${((matchedEntryCount / Math.max(entries.length, 1)) * 100).toFixed(1)}%`,
         unmatchedModels: [...unmatchedModels].sort(),
         knownCatalogGapModels: [...knownCatalogGapModels].sort(),
-        warningCount: knownCatalogGapModels.size,
+        warningCount: unmatchedModels.size,
       },
     };
   },

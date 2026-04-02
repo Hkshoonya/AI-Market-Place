@@ -1285,8 +1285,9 @@ export default function AdminDataSourcesPage() {
                       qualityScore?.matchRate ?? getLatestSyncMatchRate(source);
                     const latestWarningCount =
                       qualityScore?.warningCount ?? getLatestSyncWarningCount(source);
-                    const latestWarningSummary =
-                      qualityScore?.issueSummary ?? getLatestSyncWarningSummary(source);
+                    const latestWarningSummary = qualityScore
+                      ? qualityScore.issueSummary
+                      : getLatestSyncWarningSummary(source);
                     const hasCoverageCaution =
                       (latestMatchRate !== null && latestMatchRate < 15) ||
                       latestWarningCount > 0;

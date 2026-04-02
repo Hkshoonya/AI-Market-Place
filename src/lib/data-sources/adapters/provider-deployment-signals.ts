@@ -14,6 +14,7 @@ import {
 } from "../model-matcher";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
 
@@ -230,22 +231,9 @@ const adapter: DataSourceAdapter = {
       (typeof ctx.config.maxPages === "number" ? ctx.config.maxPages : null) ??
       PROVIDER_DEPLOYMENT_SOURCES.length;
 
-    const { data: models, error: modelError } = await ctx.supabase
-      .from("models")
-      .select("id, name, slug, provider")
-      .eq("status", "active");
-    if (modelError) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [{ message: `Failed to load models: ${modelError.message}` }],
-      };
-    }
-
+    const models = await fetchAllActiveAliasModels(ctx.supabase);
     const lookup = await buildModelLookup(ctx.supabase);
-    const aliasIndex = buildModelAliasIndex(models ?? []);
+    const aliasIndex = buildModelAliasIndex(models);
     const records: Record<string, unknown>[] = [];
     const errors: Array<{ message: string; context?: string }> = [];
     let recordsProcessed = 0;

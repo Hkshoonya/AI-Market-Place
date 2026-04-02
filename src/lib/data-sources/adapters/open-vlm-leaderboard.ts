@@ -18,6 +18,7 @@ import type {
 } from "../types";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
@@ -256,16 +257,7 @@ const adapter: DataSourceAdapter = {
     rawEntries.sort((a, b) => b.averageNormalizedScore - a.averageNormalizedScore);
     const entries = rawEntries.slice(0, maxEntries);
 
-    const { data: allModelsRaw } = await sb
-      .from("models")
-      .select("id, slug, name, provider")
-      .eq("status", "active");
-    const allModels = (allModelsRaw ?? []) as {
-      id: string;
-      slug: string;
-      name: string;
-      provider: string;
-    }[];
+    const allModels = await fetchAllActiveAliasModels(sb);
     const modelAliasIndex = buildModelAliasIndex(allModels);
 
     const slugToId = new Map<string, string>();
@@ -431,7 +423,7 @@ const adapter: DataSourceAdapter = {
         url: OPENVLM_JSON_URL,
         totalRowsFetched: rawEntries.length,
         matchedModels: matchedCount,
-        matchRate: `${((matchedCount / Math.max(recordsProcessed, 1)) * 100).toFixed(1)}%`,
+        matchRateScope: "broad_public_leaderboard",
         sourceTime: payload.time ?? null,
       },
     };

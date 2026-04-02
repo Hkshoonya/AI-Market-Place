@@ -1,4 +1,5 @@
 import { makeSlug } from "./utils";
+import type { TypedSupabaseClient } from "@/types/database";
 
 interface AliasModelRecord {
   id: string;
@@ -6,6 +7,8 @@ interface AliasModelRecord {
   name: string;
   provider: string;
 }
+
+const MODEL_PAGE_SIZE = 1000;
 
 interface ResolveAliasFamilyOptions {
   slugCandidates?: Array<string | null | undefined>;
@@ -179,6 +182,32 @@ export function buildModelAliasIndex(models: AliasModelRecord[]): ModelAliasInde
     nameToIds,
     baseToDatedIds,
   };
+}
+
+export async function fetchAllActiveAliasModels(
+  supabase: TypedSupabaseClient
+): Promise<AliasModelRecord[]> {
+  const models: AliasModelRecord[] = [];
+
+  for (let from = 0; ; from += MODEL_PAGE_SIZE) {
+    const to = from + MODEL_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("models")
+      .select("id, name, slug, provider")
+      .eq("status", "active")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch active models: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as AliasModelRecord[];
+    models.push(...rows);
+
+    if (rows.length < MODEL_PAGE_SIZE) break;
+  }
+
+  return models;
 }
 
 export function resolveAliasFamilyModelIds(

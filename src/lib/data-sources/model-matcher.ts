@@ -14,6 +14,7 @@
 
 import type { TypedSupabaseClient } from "@/types/database";
 import { createTaggedLogger } from "@/lib/logging";
+import { fetchAllActiveAliasModels } from "./model-alias-resolver";
 
 const log = createTaggedLogger("data-sources/model-matcher");
 
@@ -169,19 +170,19 @@ export function generateAliases(name: string): string[] {
 export async function buildModelLookup(
   supabase: TypedSupabaseClient
 ): Promise<ModelLookupEntry[]> {
-  const { data: models, error } = await supabase
-    .from("models")
-    .select("id, name, slug, provider")
-    .eq("status", "active");
-
-  if (error) {
-    void log.error("Failed to fetch models", { error: error.message });
+  let models: Awaited<ReturnType<typeof fetchAllActiveAliasModels>>;
+  try {
+    models = await fetchAllActiveAliasModels(supabase);
+  } catch (error) {
+    void log.error("Failed to fetch models", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
 
   const entries: ModelLookupEntry[] = [];
 
-  for (const model of models ?? []) {
+  for (const model of models) {
     const nameLower = model.name.toLowerCase().trim();
 
     // Skip names that are too generic

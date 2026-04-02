@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
@@ -217,16 +218,7 @@ const adapter: DataSourceAdapter = {
 
     // ── Batch model lookup for efficient matching ──
     // Fetch ALL active models once, then match in-memory
-    const { data: allModelsRaw } = await sb
-      .from("models")
-      .select("id, slug, name, provider")
-      .eq("status", "active");
-    const allModels = (allModelsRaw ?? []) as {
-      id: string;
-      slug: string;
-      name: string;
-      provider: string;
-    }[];
+    const allModels = await fetchAllActiveAliasModels(sb);
     const modelAliasIndex = buildModelAliasIndex(allModels);
 
     // Build multiple lookup indexes for flexible matching
@@ -484,7 +476,7 @@ const adapter: DataSourceAdapter = {
         topModel: entries[0]?.["fullname"] ?? null,
         matchedModels: matchedCount,
         totalEntries: entries.length,
-        matchRate: `${((matchedCount / Math.max(entries.length, 1)) * 100).toFixed(1)}%`,
+        matchRateScope: "broad_public_leaderboard",
       },
     };
   },

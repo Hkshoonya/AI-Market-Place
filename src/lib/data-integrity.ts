@@ -292,7 +292,13 @@ function getArrayCount(value: unknown): number {
 
 function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
   const metadata = job?.metadata ?? null;
-  const matchRate = parseMatchRate(metadata?.matchRate);
+  const matchRateScope = typeof metadata?.matchRateScope === "string"
+    ? metadata.matchRateScope
+    : null;
+  const matchRate =
+    matchRateScope === "broad_public_leaderboard"
+      ? null
+      : parseMatchRate(metadata?.matchRate);
   const knownCatalogGapCount = getArrayCount(metadata?.knownCatalogGapModels);
   const optionalSkipCount = getArrayCount(metadata?.optionalHandleSkips);
   const unmatchedModelCount = Math.max(
@@ -300,15 +306,15 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
     getArrayCount(metadata?.unmatchedModels) - knownCatalogGapCount
   );
 
-  let warningCount = 0;
+  let rawWarningCount = 0;
   if (
     metadata &&
     typeof metadata.warningCount === "number" &&
     Number.isFinite(metadata.warningCount)
   ) {
-    warningCount = metadata.warningCount;
+    rawWarningCount = metadata.warningCount;
   } else {
-    warningCount =
+    rawWarningCount =
       getArrayCount(metadata?.warnings) +
       getArrayCount(metadata?.providerWarnings) +
       getArrayCount(metadata?.handleWarnings) +
@@ -316,7 +322,10 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
       optionalSkipCount;
   }
 
-  const structuralWarnings = Math.max(0, warningCount - optionalSkipCount);
+  const structuralWarnings = Math.max(
+    0,
+    rawWarningCount - optionalSkipCount - knownCatalogGapCount
+  );
 
   let diagnosticPenalty = 0;
   if (job?.status === "failed") diagnosticPenalty += 35;
@@ -347,7 +356,7 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
 
   return {
     matchRate,
-    warningCount,
+    warningCount: structuralWarnings,
     optionalSkipCount,
     knownCatalogGapCount,
     unmatchedModelCount,
