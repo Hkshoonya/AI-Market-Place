@@ -45,6 +45,10 @@ interface DeployTabProps {
   modelSlug: string;
   modelName: string;
   isOpenWeights: boolean;
+  parameterCount?: number | null;
+  contextWindow?: number | null;
+  modalities?: string[];
+  category?: string | null;
 }
 
 const UTM_PARAMS = "?ref=aimarketcap&utm_source=aimarketcap&utm_medium=deploy_tab";
@@ -78,8 +82,8 @@ const TYPE_LABELS: Record<string, string> = {
   api: "API Providers",
   hosting: "Cloud Hosting",
   subscription: "Subscriptions",
-  "self-hosted": "Self-Host GPU",
-  local: "Local/Edge",
+  "self-hosted": "Cloud servers you control",
+  local: "On your computer",
 };
 
 const CONFIDENCE_LABELS: Record<Deployment["confidence"], string> = {
@@ -89,15 +93,101 @@ const CONFIDENCE_LABELS: Record<Deployment["confidence"], string> = {
   open_weight_runtime: "Runtime Compatible",
 };
 
+const LOCAL_COMPUTER_SLUGS = new Set(["ollama", "llamacpp", "lm-studio"]);
+const CLOUD_SERVER_SLUGS = new Set([
+  "runpod",
+  "vast-ai",
+  "lambda-cloud",
+  "modal",
+  "gcp-vertex",
+]);
+const HOSTED_RUNTIME_SLUGS = new Set(["ollama-cloud", "replicate", "hf-inference"]);
+
+function formatParameterCountCompact(value: number | null | undefined) {
+  if (!value || value <= 0) return null;
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(value >= 10_000_000_000 ? 0 : 1)}B parameters`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M parameters`;
+  return `${value.toLocaleString()} parameters`;
+}
+
+function getSetupModeLabel(item: Deployment) {
+  if (LOCAL_COMPUTER_SLUGS.has(item.platform.slug) || item.platform.type === "local") {
+    return "On your computer";
+  }
+  if (CLOUD_SERVER_SLUGS.has(item.platform.slug) || item.platform.type === "self-hosted") {
+    return "Cloud server you control";
+  }
+  if (HOSTED_RUNTIME_SLUGS.has(item.platform.slug) || item.platform.type === "hosting") {
+    return "Hosted for you";
+  }
+  return null;
+}
+
+function buildSelfHostRequirements(input: {
+  isOpenWeights: boolean;
+  parameterCount?: number | null;
+  contextWindow?: number | null;
+  modalities?: string[];
+  category?: string | null;
+}) {
+  if (!input.isOpenWeights) return null;
+
+  const parameterCount = input.parameterCount ?? null;
+  const parameterBillions =
+    parameterCount && parameterCount > 0 ? parameterCount / 1_000_000_000 : null;
+  const modalities = new Set((input.modalities ?? []).map((item) => item.toLowerCase()));
+  const isVideo =
+    input.category === "video" || modalities.has("video");
+  const isMultimodal =
+    input.category === "multimodal" ||
+    modalities.has("image") ||
+    modalities.has("audio") ||
+    modalities.has("vision");
+
+  let setup = "A modern desktop or laptop may be enough.";
+  let hardware = "Start with the simplest local runtime above and move to cloud hardware only if it feels slow.";
+
+  if (isVideo) {
+    setup = "A rented cloud GPU is the realistic default.";
+    hardware = "Video models usually need high-memory cloud GPUs and are rarely comfortable on a normal laptop.";
+  } else if (parameterBillions != null && parameterBillions >= 60) {
+    setup = "A rented cloud GPU server is strongly recommended.";
+    hardware = "Plan for roughly 80GB+ GPU memory, and some variants may need more than one GPU.";
+  } else if (parameterBillions != null && parameterBillions >= 20) {
+    setup = "A strong GPU or rented cloud server is usually needed.";
+    hardware = "Plan for roughly 48GB+ GPU memory for a smooth setup.";
+  } else if (parameterBillions != null && parameterBillions >= 8) {
+    setup = "A good desktop GPU or small cloud GPU is usually enough.";
+    hardware = "Plan for roughly 16GB to 24GB of GPU memory.";
+  } else if (parameterBillions != null && parameterBillions >= 3) {
+    setup = "A consumer GPU is usually enough.";
+    hardware = "Plan for roughly 8GB to 16GB of GPU memory.";
+  }
+
+  const notes: string[] = [];
+  if (isMultimodal && !isVideo) {
+    notes.push("Image and audio features usually need more memory than text-only use.");
+  }
+  if ((input.contextWindow ?? 0) >= 200_000) {
+    notes.push("Very long context windows increase memory use, especially when you push the model hard.");
+  }
+  notes.push("Quantized builds can run on less hardware, but they may trade off speed or quality.");
+
+  return {
+    setup,
+    hardware,
+    sizeLabel: formatParameterCountCompact(parameterCount),
+    notes,
+  };
+}
+
 function getDeploymentModeLabel(item: Deployment, isOpenWeights: boolean) {
-  if (item.platform.slug === "ollama") return "On your own setup";
-  if (item.platform.slug === "ollama-cloud") return "Hosted for you";
+  const setupMode = getSetupModeLabel(item);
+  if (setupMode) return setupMode;
   if (item.platform.type === "subscription") return "Provider plan";
   if (item.platform.type === "api") return "Provider account";
-  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "On your own setup";
+  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "Run it yourself";
   if (item.deployment?.one_click) return "One-click start";
-  if (item.platform.type === "hosting") return "Hosted for you";
-  if (item.platform.type === "local") return "On your own setup";
   return "Usage option";
 }
 
@@ -110,7 +200,7 @@ function getQuickStartSummary(item: Deployment, isOpenWeights: boolean) {
   if (item.platform.slug === "ollama-cloud") bestFor = "using the model without setting up your own stack";
   else if (item.platform.type === "subscription") bestFor = "using the model inside a paid plan";
   else if (item.platform.type === "api") bestFor = "building with the model through an API";
-  else if (modeLabel === "On your own setup") {
+  else if (modeLabel === "On your computer" || modeLabel === "Cloud server you control" || modeLabel === "Run it yourself") {
     bestFor = "running the model with more control";
   }
 
@@ -137,7 +227,15 @@ function getLocalCommand(platformSlug: string, modelName: string): string | null
   return null;
 }
 
-export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProps) {
+export function DeployTab({
+  modelSlug,
+  modelName,
+  isOpenWeights,
+  parameterCount = null,
+  contextWindow = null,
+  modalities = [],
+  category = null,
+}: DeployTabProps) {
   const { openWorkspace } = useWorkspace();
   const { data, error, isLoading } = useSWR<{
     deployments: Deployment[];
@@ -208,6 +306,13 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
   const primaryPlatformType = primaryDeployment?.platform.type ?? null;
   const showApiCostWarning = primaryPlatformType === "api";
   const showSubscriptionCostHint = primaryPlatformType === "subscription";
+  const selfHostRequirements = buildSelfHostRequirements({
+    isOpenWeights,
+    parameterCount,
+    contextWindow,
+    modalities,
+    category,
+  });
 
   return (
     <div className="space-y-6">
@@ -215,7 +320,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         <h3 className="mb-2 text-sm font-semibold text-white">How to use this model</h3>
         <p className="text-sm text-muted-foreground">
           On this page, deployment means the confirmed way to start using the model:
-          on AI Market Cap, through the provider, or on your own setup. Start with the verified
+          on AI Market Cap, through the provider, on your own computer, or on a cloud server you control. Start with the verified
           rows first because they are the clearest model-specific options.
         </p>
       </div>
@@ -472,6 +577,37 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
         </div>
       )}
 
+      {selfHostRequirements ? (
+        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+            <Server className="h-4 w-4 text-[#00d4aa]" />
+            What you need to run it yourself
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            This model has open weights, so you can run it privately. Here is the simplest way to think about the setup before you choose a local tool or rented server.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Best fit</p>
+              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.setup}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Hardware guide</p>
+              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.hardware}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Model size</p>
+              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.sizeLabel ?? "Check model card"}</p>
+            </div>
+          </div>
+          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+            {selfHostRequirements.notes.map((note) => (
+              <li key={note}>• {note}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {relatedPlatforms.length > 0 && (
         <p className="text-xs text-muted-foreground">
           The options below are broader paths that may fit this model family. Use the verified
@@ -563,7 +699,7 @@ export function DeployTab({ modelSlug, modelName, isOpenWeights }: DeployTabProp
           <div className="space-y-3 text-xs text-muted-foreground">
             <p className="text-sm text-muted-foreground">
               This model has open weights. That usually means you can run it privately if you have the right hardware
-              and artifact format. Use the official deployment evidence above when available, then use the commands below as a starting point.
+              and artifact format. Use the hardware guidance above first, then use the official deployment evidence and commands below as a starting point.
             </p>
             <div>
               <p className="font-medium text-white mb-1">Docker + vLLM</p>

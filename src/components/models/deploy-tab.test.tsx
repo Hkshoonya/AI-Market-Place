@@ -52,7 +52,15 @@ describe("DeployTab", () => {
       isLoading: false,
     });
 
-    render(<DeployTab modelSlug="kimi-k2" modelName="Kimi K2" isOpenWeights={false} />);
+    render(
+      <DeployTab
+        modelSlug="kimi-k2"
+        modelName="Kimi K2"
+        isOpenWeights={false}
+        modalities={["text"]}
+        category="llm"
+      />
+    );
 
     expect(
       screen.getByText(/AI Market Cap cannot run this model directly yet/i)
@@ -115,6 +123,8 @@ describe("DeployTab", () => {
         modelSlug="minimax-minimax-m2-7"
         modelName="MiniMax M2.7"
         isOpenWeights={false}
+        modalities={["text"]}
+        category="llm"
       />
     );
 
@@ -134,5 +144,50 @@ describe("DeployTab", () => {
     expect(screen.getAllByText(/hosted for you/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /start with starter pack/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("explains cloud server requirements for open-weight models", () => {
+    mockUseSWR.mockReturnValue({
+      data: {
+        deployments: [],
+        relatedPlatforms: [
+          {
+            platform: {
+              id: "platform-runpod",
+              slug: "runpod",
+              name: "Runpod",
+              type: "self-hosted",
+              base_url: "https://runpod.io",
+              has_affiliate: false,
+              affiliate_url: null,
+              affiliate_tag: null,
+            },
+            reason: "Compatible self-hosting or local runtime for open-weight models; deployment specifics depend on the artifact format you choose.",
+            confidence: "open_weight_runtime",
+          },
+        ],
+        deploymentEvidence: [],
+      },
+      error: null,
+      isLoading: false,
+    });
+
+    render(
+      <DeployTab
+        modelSlug="google-gemma-4-31b-it"
+        modelName="Gemma 4 31B IT"
+        isOpenWeights
+        parameterCount={31_000_000_000}
+        contextWindow={262_000}
+        modalities={["text", "image"]}
+        category="multimodal"
+      />
+    );
+
+    expect(screen.getByText(/What you need to run it yourself/i)).toBeInTheDocument();
+    expect(screen.getByText(/A strong GPU or rented cloud server is usually needed/i)).toBeInTheDocument();
+    expect(screen.getByText(/roughly 48GB\+ GPU memory/i)).toBeInTheDocument();
+    expect(screen.getByText(/31\.0B parameters/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
   });
 });

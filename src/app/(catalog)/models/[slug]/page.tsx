@@ -420,6 +420,10 @@ export default async function ModelDetailPage({
             modelSlug={model.slug}
             modelName={model.name}
             isOpenWeights={!!model.is_open_weights}
+            parameterCount={model.parameter_count}
+            contextWindow={model.context_window}
+            modalities={modalities}
+            category={model.category}
           />
         </TabsContent>
 
