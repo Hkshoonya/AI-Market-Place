@@ -217,16 +217,25 @@ export default async function ProviderDetailPage({
     (deploymentsResponse.data ?? []).map((deployment) => deployment.model_id)
   );
   const localDeployModelIds = new Set<string>();
+  const cloudServerModelIds = new Set<string>();
   const managedDeployModelIds = new Set<string>();
 
   for (const deployment of deploymentsResponse.data ?? []) {
     const platform = deploymentPlatformById.get(deployment.platform_id);
     if (!platform) continue;
 
-    const isLocal =
-      platform.slug === "ollama" || platform.type === "local" || platform.type === "self-hosted";
+    const isLocal = platform.slug === "ollama" || platform.type === "local";
+    const isCloudServer =
+      platform.slug === "runpod" ||
+      platform.slug === "vast-ai" ||
+      platform.slug === "lambda-cloud" ||
+      platform.slug === "modal" ||
+      platform.slug === "gcp-vertex" ||
+      platform.type === "self-hosted";
     if (isLocal) {
       localDeployModelIds.add(deployment.model_id);
+    } else if (isCloudServer) {
+      cloudServerModelIds.add(deployment.model_id);
     } else {
       managedDeployModelIds.add(deployment.model_id);
     }
@@ -387,7 +396,7 @@ export default async function ProviderDetailPage({
               {verifiedDeploymentModelIds.size} / {models.length} models have verified deploy or runtime access
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {localDeployModelIds.size} local or private paths · {managedDeployModelIds.size} managed runtime paths
+              {localDeployModelIds.size} on your computer · {cloudServerModelIds.size} cloud servers you control · {managedDeployModelIds.size} hosted for you
             </p>
           </div>
         </CardContent>

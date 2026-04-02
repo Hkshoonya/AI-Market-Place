@@ -32,6 +32,50 @@ export interface DeploymentCatalogResult {
   relatedPlatforms: DeploymentCatalogItem[];
 }
 
+export function summarizeUserVisibleDeploymentModes(
+  items: DeploymentCatalogItem[],
+  isOpenWeights: boolean | null | undefined
+) {
+  let hostedForYou = false;
+  let cloudServerYouControl = false;
+  let onYourComputer = false;
+
+  for (const item of items) {
+    const slug = item.platform.slug;
+    const type = item.platform.type;
+
+    if (slug === "ollama-cloud" || type === "hosting") {
+      hostedForYou = true;
+      continue;
+    }
+
+    if (slug === "runpod" || slug === "vast-ai" || slug === "lambda-cloud" || slug === "modal" || slug === "gcp-vertex" || type === "self-hosted") {
+      cloudServerYouControl = true;
+      continue;
+    }
+
+    if (slug === "ollama" || slug === "llamacpp" || slug === "lm-studio" || type === "local") {
+      onYourComputer = true;
+    }
+  }
+
+  if (!hostedForYou && !cloudServerYouControl && !onYourComputer && isOpenWeights) {
+    cloudServerYouControl = true;
+  }
+
+  const labels: string[] = [];
+  if (hostedForYou) labels.push("Hosted for you");
+  if (cloudServerYouControl) labels.push("Cloud server you control");
+  if (onYourComputer) labels.push("On your computer");
+
+  return {
+    hostedForYou,
+    cloudServerYouControl,
+    onYourComputer,
+    labels,
+  };
+}
+
 const PRICING_PROVIDER_PLATFORM_SLUGS: Record<string, string> = {
   openai: "openai-api",
   openrouter: "openrouter",

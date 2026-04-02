@@ -13,6 +13,10 @@ import {
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
 import { getDeployabilityLabel as getSharedDeployabilityLabel } from "@/lib/models/deployability";
+import {
+  buildDeploymentCatalog,
+  summarizeUserVisibleDeploymentModes,
+} from "@/lib/models/deployments";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
@@ -262,6 +266,37 @@ export async function GET(request: NextRequest) {
       });
       const recentSignal = modelSignals.get(model.id) ?? null;
       const accessOffer = getBestAccessOfferForModel(accessCatalog, model.id);
+      const modelDeployments = (modelDeploymentsRaw ?? [])
+        .filter((deployment) => deployment.model_id === model.id)
+        .map((deployment) => ({
+          id: deployment.id,
+          deploy_url: null,
+          pricing_model: deployment.pricing_model,
+          price_per_unit: deployment.price_per_unit,
+          unit_description: deployment.unit_description,
+          free_tier: deployment.free_tier,
+          one_click: deployment.one_click,
+          deployment_platforms:
+            deploymentPlatforms.find((platform) => platform.id === deployment.platform_id)!,
+        }))
+        .filter((deployment) => Boolean(deployment.deployment_platforms));
+      const deploymentCatalog = buildDeploymentCatalog({
+        model: {
+          slug: model.slug,
+          name: model.name,
+          provider: model.provider,
+          is_open_weights: model.is_open_weights,
+        },
+        deployments: modelDeployments,
+        platforms: deploymentPlatforms,
+        pricingProviderNames: (pricingByModelId.get(model.id) ?? [])
+          .map((row) => row.provider_name)
+          .filter((value): value is string => Boolean(value)),
+      });
+      const usageModes = summarizeUserVisibleDeploymentModes(
+        [...deploymentCatalog.directDeployments, ...deploymentCatalog.relatedPlatforms],
+        model.is_open_weights
+      );
 
       return {
         ...model,
@@ -275,6 +310,7 @@ export async function GET(request: NextRequest) {
           signal: recentSignal,
           accessOffer,
         }),
+        usage_mode_labels: usageModes.labels,
       };
     });
 

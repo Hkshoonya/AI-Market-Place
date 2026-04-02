@@ -41,6 +41,7 @@ interface ModelsGridProps {
       actionLabel: string;
     } | null;
     managed_deployment_available?: boolean;
+    usage_mode_labels?: string[] | null;
   }>;
 }
 
@@ -56,6 +57,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const lifecycleBadge = getLifecycleBadge(model.status);
         const recentSignal = model.recent_signal ?? null;
         const managedDeploymentAvailable = model.managed_deployment_available ?? false;
+        const usageModeLabels = model.usage_mode_labels ?? [];
 
         return (
           <Link key={model.id} href={`/models/${model.slug}`}>
@@ -110,6 +112,19 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                     >
                       Use on This Site
                     </Badge>
+                  </div>
+                ) : null}
+                {!managedDeploymentAvailable && usageModeLabels.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {usageModeLabels.slice(0, 2).map((label) => (
+                      <Badge
+                        key={label}
+                        variant="outline"
+                        className="border-border/30 text-[10px] text-muted-foreground"
+                      >
+                        {label}
+                      </Badge>
+                    ))}
                   </div>
                 ) : null}
 
