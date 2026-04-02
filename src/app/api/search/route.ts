@@ -17,6 +17,7 @@ import {
   buildDeploymentCatalog,
   summarizeUserVisibleDeploymentModes,
 } from "@/lib/models/deployments";
+import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
@@ -311,6 +312,11 @@ export async function GET(request: NextRequest) {
           accessOffer,
         }),
         usage_mode_labels: usageModes.labels,
+        self_host_requirement_label: getSelfHostRequirements({
+          isOpenWeights: model.is_open_weights,
+          parameterCount: model.parameter_count,
+          category: model.category,
+        })?.shortLabel ?? null,
       };
     });
 

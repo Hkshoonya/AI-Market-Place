@@ -42,6 +42,7 @@ interface ModelsGridProps {
     } | null;
     managed_deployment_available?: boolean;
     usage_mode_labels?: string[] | null;
+    self_host_requirement_label?: string | null;
   }>;
 }
 
@@ -58,6 +59,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const recentSignal = model.recent_signal ?? null;
         const managedDeploymentAvailable = model.managed_deployment_available ?? false;
         const usageModeLabels = model.usage_mode_labels ?? [];
+        const selfHostRequirementLabel = model.self_host_requirement_label ?? null;
 
         return (
           <Link key={model.id} href={`/models/${model.slug}`}>
@@ -126,6 +128,11 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                       </Badge>
                     ))}
                   </div>
+                ) : null}
+                {!managedDeploymentAvailable && selfHostRequirementLabel ? (
+                  <p className="mt-2 text-[11px] text-amber-200">
+                    {selfHostRequirementLabel}
+                  </p>
                 ) : null}
 
                 <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-3">

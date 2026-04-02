@@ -34,6 +34,7 @@ import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { getDeployabilityLabel } from "@/lib/models/deployability";
+import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -398,6 +399,12 @@ export default async function ModelsPage({
               };
             })(),
             managed_deployment_available: managedDeploymentModelIds.has(model.id),
+            self_host_requirement_label:
+              getSelfHostRequirements({
+                isOpenWeights: model.is_open_weights,
+                parameterCount: model.parameter_count,
+                category: model.category,
+              })?.shortLabel ?? null,
           }))}
         />
       ) : (

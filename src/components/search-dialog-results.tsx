@@ -27,6 +27,7 @@ export interface SearchResult {
   compact_price_label?: string;
   compact_price_display?: string | null;
   deployability_label?: string | null;
+  self_host_requirement_label?: string | null;
   market_cap_estimate?: number | null;
   recent_signal?: ModelSignalSummary | null;
 }
@@ -112,6 +113,11 @@ export function SearchDialogResults({
                     {r.compact_price_display &&
                       ` \u00b7 ${r.compact_price_display}`}
                   </p>
+                  {r.self_host_requirement_label ? (
+                    <p className="mt-1 text-[11px] text-amber-200">
+                      {r.self_host_requirement_label}
+                    </p>
+                  ) : null}
                   {r.display_description ? (
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                       {r.display_description}

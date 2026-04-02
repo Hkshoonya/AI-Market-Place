@@ -28,6 +28,7 @@ import {
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
 import { getDeployabilityLabel } from "@/lib/models/deployability";
+import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import {
   getListingCommerceSignals,
   getListingPillClasses,
@@ -184,6 +185,7 @@ export default async function SearchPage({
       updated_at?: string | null;
     }> | null;
     recent_signal?: ModelSignalSummary | null;
+    self_host_requirement_label?: string | null;
   }> = [];
   let modelCount = 0;
   let modelAccessCatalog = buildAccessOffersCatalog({
@@ -494,6 +496,14 @@ export default async function SearchPage({
                       isOpenWeights: model.is_open_weights,
                       accessOffer,
                     });
+                    const selfHostRequirementLabel =
+                      model.self_host_requirement_label ??
+                      getSelfHostRequirements({
+                        isOpenWeights: model.is_open_weights,
+                        parameterCount: model.parameter_count,
+                        category: model.category,
+                      })?.shortLabel ??
+                      null;
 
                     return (
                       <Link
@@ -522,6 +532,11 @@ export default async function SearchPage({
                           {displayDescription ? (
                             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                               {displayDescription}
+                            </p>
+                          ) : null}
+                          {selfHostRequirementLabel ? (
+                            <p className="mt-1 text-[11px] text-amber-200">
+                              {selfHostRequirementLabel}
                             </p>
                           ) : null}
                           {model.recent_signal ? (
