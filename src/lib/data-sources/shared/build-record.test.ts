@@ -181,4 +181,26 @@ describe("buildRecord()", () => {
 
     expect(record.category).toBe("video");
   });
+
+  it("normalizes Apache-licensed rows to open weights even when upstream booleans drift", () => {
+    const record = buildRecord(
+      "gemma-3n-e4b-it",
+      {
+        name: "Gemma 3n",
+        description: "Released under the Apache 2.0 license for private deployment.",
+        is_open_weights: false,
+        license: "commercial",
+        license_name: "apache-2.0",
+      },
+      {},
+      {
+        provider: "Google",
+        slugPrefix: "google",
+      }
+    );
+
+    expect(record.is_open_weights).toBe(true);
+    expect(record.license).toBe("open_source");
+    expect(record.license_name).toBe("Apache 2.0");
+  });
 });

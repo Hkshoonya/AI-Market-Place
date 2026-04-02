@@ -96,6 +96,78 @@ export interface ModelRecord {
   data_refreshed_at: string;
 }
 
+function inferOpenLicenseName(
+  description: string | null | undefined,
+  licenseName: string | null | undefined
+): string | null | undefined {
+  const explicit = licenseName ?? null;
+  const haystack = `${explicit ?? ""}\n${description ?? ""}`.toLowerCase();
+
+  if (haystack.includes("apache 2.0") || haystack.includes("apache-2.0")) {
+    return "Apache 2.0";
+  }
+  if (haystack.includes("mit license") || haystack.includes("mit-licensed")) {
+    return "MIT";
+  }
+
+  return explicit;
+}
+
+function normalizeOpenWeightFields(
+  merged: Partial<KnownModelMeta>,
+  defaults: ProviderDefaults
+): Pick<ModelRecord, "is_open_weights" | "license" | "license_name"> {
+  const hasExplicitLicenseDefaults =
+    defaults.is_open_weights !== undefined ||
+    defaults.license !== undefined ||
+    "license_name" in defaults;
+
+  const normalizedLicenseName = inferOpenLicenseName(
+    merged.description ?? null,
+    "license_name" in defaults ? defaults.license_name : merged.license_name
+  );
+
+  const description = (merged.description ?? "").toLowerCase();
+  const hasStrongOpenWeightSignal =
+    description.includes("open-weight") ||
+    description.includes("open weights") ||
+    description.includes("open-weighted") ||
+    (description.includes("apache 2.0") && description.includes("license")) ||
+    description.includes("released under apache 2.0");
+
+  const baseIsOpenWeights =
+    defaults.is_open_weights ??
+    merged.is_open_weights ??
+    (merged.license === "open_source");
+
+  const is_open_weights =
+    hasExplicitLicenseDefaults
+      ? baseIsOpenWeights
+      : baseIsOpenWeights ||
+        merged.license === "open_source" ||
+        normalizedLicenseName === "Apache 2.0" ||
+        normalizedLicenseName === "MIT" ||
+        hasStrongOpenWeightSignal;
+
+  const license =
+    hasExplicitLicenseDefaults
+      ? defaults.license ?? merged.license
+      : defaults.license ??
+        (is_open_weights ? "open_source" : merged.license);
+
+  const license_name =
+    hasExplicitLicenseDefaults
+      ? ("license_name" in defaults ? defaults.license_name : (merged.license_name ?? null))
+      : normalizedLicenseName ??
+        (is_open_weights ? "Open weights" : null);
+
+  return {
+    is_open_weights,
+    license,
+    license_name,
+  };
+}
+
 const CATEGORY_ALIASES: Record<string, string> = {
   video_generation: "video",
   audio_generation: "speech_audio",
@@ -169,11 +241,7 @@ export function buildRecord(
     merged.modalities ??
     inferModalities(modelId);
 
-  // is_open_weights: ProviderDefaults > merged > false
-  const is_open_weights =
-    defaults.is_open_weights ??
-    merged.is_open_weights ??
-    false;
+  const normalizedLicense = normalizeOpenWeightFields(merged, defaults);
 
   const status = normalizeLifecycleStatus(
     merged.status,
@@ -194,9 +262,9 @@ export function buildRecord(
     context_window: merged.context_window ?? null,
     release_date: merged.release_date ?? null,
     is_api_available: true,
-    is_open_weights,
-    license: defaults.license ?? merged.license,
-    license_name: "license_name" in defaults ? defaults.license_name : (merged.license_name ?? null),
+    is_open_weights: normalizedLicense.is_open_weights,
+    license: normalizedLicense.license,
+    license_name: normalizedLicense.license_name,
     modalities,
     capabilities: merged.capabilities ?? {},
     data_refreshed_at: new Date().toISOString(),

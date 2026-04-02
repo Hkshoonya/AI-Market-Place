@@ -82,3 +82,22 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: "Open weights",
   },
 };
+
+const MINIMAX_KNOWN_MODEL_FAMILY_PREFIXES = [
+  "MiniMax-M2.5-",
+  "MiniMax-M1-",
+  "MiniMax-M2.7-",
+] as const;
+
+export function resolveMiniMaxKnownModelMeta(modelId: string): KnownModelMeta | undefined {
+  const exact = MINIMAX_KNOWN_MODELS[modelId];
+  if (exact) return exact;
+
+  const familyPrefix = MINIMAX_KNOWN_MODEL_FAMILY_PREFIXES.find((prefix) =>
+    modelId.startsWith(prefix)
+  );
+  if (!familyPrefix) return undefined;
+
+  const familyKey = familyPrefix.slice(0, -1);
+  return MINIMAX_KNOWN_MODELS[familyKey];
+}

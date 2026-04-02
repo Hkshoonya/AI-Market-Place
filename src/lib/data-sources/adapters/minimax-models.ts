@@ -7,7 +7,10 @@ import type {
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, upsertBatch } from "../utils";
 import { buildRecord, type ProviderDefaults } from "../shared/build-record";
-import { MINIMAX_KNOWN_MODELS } from "../shared/known-models/minimax";
+import {
+  MINIMAX_KNOWN_MODELS,
+  resolveMiniMaxKnownModelMeta,
+} from "../shared/known-models/minimax";
 
 const DOCS_URL = "https://platform.minimax.io/docs";
 const MODEL_PATTERN = /\b(MiniMax-[A-Za-z0-9.-]+)\b/g;
@@ -18,10 +21,11 @@ const PROVIDER_DEFAULTS: ProviderDefaults = {
 };
 
 function buildModelRecord(modelId: string): Record<string, unknown> {
+  const knownMeta = resolveMiniMaxKnownModelMeta(modelId);
   return buildRecord(
     modelId,
-    MINIMAX_KNOWN_MODELS[modelId],
-    { name: MINIMAX_KNOWN_MODELS[modelId]?.name ?? modelId.replace(/-/g, " ") },
+    knownMeta,
+    { name: knownMeta?.name ?? modelId.replace(/-/g, " ") },
     PROVIDER_DEFAULTS
   );
 }

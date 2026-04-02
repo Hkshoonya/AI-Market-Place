@@ -599,6 +599,8 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
 };
 
 const GOOGLE_KNOWN_MODEL_FAMILY_PREFIXES = [
+  "gemma-3n-",
+  "gemma-3-",
   "gemma-4-",
 ] as const;
 

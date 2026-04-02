@@ -44,4 +44,17 @@ describe("minimax-models adapter", () => {
       })
     );
   });
+
+  it("applies family fallback metadata to MiniMax variant releases", () => {
+    const record = __testables.buildModelRecord("MiniMax-M2.5-highspeed");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Open weights",
+      })
+    );
+  });
 });

@@ -178,11 +178,24 @@ const PROPRIETARY_PROVIDERS = new Set([
   "perplexity", "x-ai", "amazon",
 ]);
 
+const OPEN_WEIGHT_MODEL_PATTERNS = [
+  /^openai\/gpt-oss(?:-|$)/i,
+  /^cohere\/command-a(?:$|[-/])/i,
+] as const;
+
+function inferOpenLicenseName(description: string | undefined): string | null {
+  const desc = (description ?? "").toLowerCase();
+  if (desc.includes("apache 2.0") || desc.includes("apache-2.0")) return "Apache 2.0";
+  if (desc.includes("mit license") || desc.includes("mit-licensed")) return "MIT";
+  return null;
+}
+
 /**
  * Infer whether a model has open weights based on provider prefix and description.
  */
 function inferOpenWeights(id: string, description: string | undefined): boolean {
   const prefix = id.split("/")[0];
+  if (OPEN_WEIGHT_MODEL_PATTERNS.some((pattern) => pattern.test(id))) return true;
   if (PROPRIETARY_PROVIDERS.has(prefix)) return false;
   if (OPEN_WEIGHT_PROVIDERS.has(prefix)) return true;
 
@@ -207,6 +220,8 @@ function inferOpenWeights(id: string, description: string | undefined): boolean 
 function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> {
   const arch = model.architecture ?? {};
   const isOpen = inferOpenWeights(model.id, model.description);
+  const licenseName = inferOpenLicenseName(model.description) ?? (isOpen ? "Open weights" : null);
+  const license = isOpen ? "open_source" : "commercial";
 
   return {
     slug: makeSlug(model.id),
@@ -219,8 +234,8 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     release_date: unixToDateString(model.created),
     is_api_available: true,
     is_open_weights: isOpen,
-    license: isOpen ? "open_source" : "commercial",
-    license_name: isOpen ? "Open weights" : null,
+    license,
+    license_name: isOpen ? licenseName : null,
     modalities: mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),

@@ -33,6 +33,55 @@ describe("openrouter model record mapping", () => {
     expect(record.provider).toBe("OpenAI");
   });
 
+  it("keeps proprietary OpenAI models marked as closed-weight", () => {
+    const record = __testables.buildModelRecord({
+      id: "openai/gpt-4.1",
+      name: "OpenAI: GPT-4.1",
+      description: "Frontier proprietary model",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.is_open_weights).toBe(false);
+    expect(record.license).toBe("commercial");
+    expect(record.license_name).toBeNull();
+  });
+
+  it("allows explicit gpt-oss exceptions to stay open-weight", () => {
+    const record = __testables.buildModelRecord({
+      id: "openai/gpt-oss-20b",
+      name: "OpenAI: gpt-oss-20b",
+      description:
+        "gpt-oss-20b is an open-weight 21B parameter model released by OpenAI under the Apache 2.0 license.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.is_open_weights).toBe(true);
+    expect(record.license).toBe("open_source");
+    expect(record.license_name).toBe("Apache 2.0");
+  });
+
+  it("recognizes Cohere Command A as open-weight", () => {
+    const record = __testables.buildModelRecord({
+      id: "cohere/command-a",
+      name: "Cohere: Command A",
+      description: "Command A is an open-weights 111B parameter model with a 256k context window.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.is_open_weights).toBe(true);
+    expect(record.license).toBe("open_source");
+    expect(record.license_name).toBe("Open weights");
+  });
+
   it("canonicalizes Z.ai router prefixes", () => {
     const record = __testables.buildModelRecord({
       id: "z-ai/glm-5",

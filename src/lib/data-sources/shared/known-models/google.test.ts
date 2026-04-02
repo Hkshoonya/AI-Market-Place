@@ -28,4 +28,17 @@ describe("resolveGoogleKnownModelMeta", () => {
       category: "multimodal",
     });
   });
+
+  it("falls back to the Gemma 3n family metadata for Gemma 3n variants", () => {
+    const meta = resolveGoogleKnownModelMeta("gemma-3n-e4b-it");
+
+    expect(meta).toMatchObject({
+      name: "Gemma 3n",
+      is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      release_date: "2025-05-20",
+      category: "llm",
+    });
+  });
 });
