@@ -57,4 +57,49 @@ describe("minimax-models adapter", () => {
       })
     );
   });
+
+  it("applies family fallback metadata to MiniMax M2.1 variant releases", () => {
+    const record = __testables.buildModelRecord("MiniMax-M2.1-highspeed");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        category: "llm",
+        modalities: ["text"],
+        is_open_weights: false,
+        license: "commercial",
+        license_name: null,
+      })
+    );
+  });
+
+  it("keeps MiniMax speech models proprietary with audio metadata", () => {
+    const record = __testables.buildModelRecord("speech-2.8-turbo");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        category: "speech_audio",
+        modalities: ["text", "audio"],
+        is_open_weights: false,
+        license: "commercial",
+        license_name: null,
+      })
+    );
+  });
+
+  it("keeps MiniMax music models proprietary with audio metadata", () => {
+    const record = __testables.buildModelRecord("music-2.5");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        category: "speech_audio",
+        modalities: ["text", "audio"],
+        is_open_weights: false,
+        license: "commercial",
+        license_name: null,
+      })
+    );
+  });
 });

@@ -54,4 +54,26 @@ describe("resolveWorkspaceRuntimeExecution", () => {
       })
     );
   });
+
+  it("keeps xAI media-generation models out of the managed runtime", () => {
+    expect(resolveWorkspaceRuntimeExecution("xai-grok-imagine-video")).toEqual(
+      expect.objectContaining({
+        available: false,
+        mode: "assistant_only",
+        provider: null,
+        model: null,
+      })
+    );
+  });
+
+  it("keeps MiniMax speech models out of the managed runtime", () => {
+    expect(resolveWorkspaceRuntimeExecution("minimax-speech-2-8-turbo")).toEqual(
+      expect.objectContaining({
+        available: false,
+        mode: "assistant_only",
+        provider: null,
+        model: null,
+      })
+    );
+  });
 });

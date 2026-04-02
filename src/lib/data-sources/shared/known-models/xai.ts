@@ -125,4 +125,73 @@ export const XAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "grok-imagine-image": {
+    name: "Grok Imagine Image",
+    description:
+      "xAI's native image generation model for creating and editing images from text prompts inside the Grok Imagine family.",
+    category: "image_generation",
+    architecture: "Diffusion / multimodal generation",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+      vision: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "grok-imagine-video": {
+    name: "Grok Imagine Video",
+    description:
+      "xAI's native video generation model for producing audiovisual clips from text prompts in the Grok Imagine family.",
+    category: "video",
+    architecture: "Multimodal video generation",
+    status: "active",
+    modalities: ["text", "image", "video", "audio"],
+    capabilities: {
+      video_generation: true,
+      vision: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "grok-imagine-r2v": {
+    name: "Grok Imagine Reference to Video",
+    description:
+      "xAI's Grok Imagine video model for generating new audiovisual clips guided by a reference image and text prompt.",
+    category: "video",
+    architecture: "Multimodal video generation",
+    status: "active",
+    modalities: ["text", "image", "video", "audio"],
+    capabilities: {
+      video_generation: true,
+      vision: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "grok-imagine-video-extension": {
+    name: "Grok Imagine Video Extension",
+    description:
+      "xAI's Grok Imagine video model for extending an existing video clip with a guided next-scene continuation.",
+    category: "video",
+    architecture: "Multimodal video generation",
+    status: "active",
+    modalities: ["text", "video", "audio"],
+    capabilities: {
+      video_generation: true,
+      video_editing: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 };

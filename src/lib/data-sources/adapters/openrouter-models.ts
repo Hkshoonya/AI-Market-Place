@@ -22,6 +22,7 @@ import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
+import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
 import { XAI_KNOWN_MODELS } from "../shared/known-models/xai";
 
 // --------------- Constants ---------------
@@ -113,6 +114,7 @@ interface OpenRouterModelsResponse {
 function resolveCuratedKnownMeta(id: string) {
   const [providerPrefix, modelPart = ""] = id.split("/");
   if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
+  if (providerPrefix === "minimax") return resolveMiniMaxKnownModelMeta(modelPart);
   if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
   return undefined;
 }

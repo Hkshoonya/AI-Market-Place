@@ -48,14 +48,14 @@ const CATALOG_ROUTES: RuntimeCatalogRoute[] = [
     provider: "openrouter",
     providerPrefixes: ["xai", "x-ai", "grok"],
     modelPrefix: "x-ai",
-    keys: Object.keys(XAI_KNOWN_MODELS),
+    keys: Object.keys(XAI_KNOWN_MODELS).filter((key) => !key.startsWith("grok-imagine-")),
     label: "OpenRouter-backed runtime",
   },
   {
     provider: "minimax",
     providerPrefixes: ["minimax"],
     modelPrefix: null,
-    keys: Object.keys(MINIMAX_KNOWN_MODELS),
+    keys: Object.keys(MINIMAX_KNOWN_MODELS).filter((key) => key.startsWith("MiniMax-M")),
     label: "MiniMax direct runtime",
   },
 ];

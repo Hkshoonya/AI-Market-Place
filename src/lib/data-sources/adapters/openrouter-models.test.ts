@@ -163,4 +163,53 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(true);
     expect(record.license_name).toBe("Apache 2.0");
   });
+
+  it("uses curated xAI media metadata for Grok Imagine image models", () => {
+    const record = __testables.buildModelRecord({
+      id: "xai/grok-imagine-image",
+      name: "xAI: Grok Imagine Image",
+      description: "SOTA image model from xAI",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["image"],
+      },
+    });
+
+    expect(record.category).toBe("image_generation");
+    expect(record.modalities).toEqual(["text", "image"]);
+    expect(record.is_open_weights).toBe(false);
+  });
+
+  it("uses curated xAI media metadata for Grok Imagine video models", () => {
+    const record = __testables.buildModelRecord({
+      id: "xai/grok-imagine-video",
+      name: "xAI: Grok Imagine Video",
+      description: "Generate videos using xAI's Grok Imagine Video model",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["video"],
+      },
+    });
+
+    expect(record.category).toBe("video");
+    expect(record.modalities).toEqual(["text", "image", "video", "audio"]);
+    expect(record.is_open_weights).toBe(false);
+  });
+
+  it("uses curated MiniMax family metadata for highspeed text variants", () => {
+    const record = __testables.buildModelRecord({
+      id: "minimax/MiniMax-M2.1-highspeed",
+      name: "MiniMax: MiniMax-M2.1-highspeed",
+      description: "High-speed production variant of MiniMax M2.1.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.category).toBe("llm");
+    expect(record.modalities).toEqual(["text"]);
+    expect(record.is_open_weights).toBe(false);
+    expect(record.license).toBe("commercial");
+  });
 });
