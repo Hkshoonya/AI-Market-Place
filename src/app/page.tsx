@@ -766,6 +766,27 @@ export default async function HomePage() {
             use on AI Market Cap, a new provider option, or a new way to run it yourself.
           </p>
 
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">Hosted for you</p>
+              <p className="mt-1">
+                You can start through a managed service without setting up your own server.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">Cloud server you control</p>
+              <p className="mt-1">
+                You rent the machine, install the model, and manage the running cost yourself.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">On your computer</p>
+              <p className="mt-1">
+                It can run locally, but larger open models may still need a strong desktop GPU.
+              </p>
+            </div>
+          </div>
+
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {newDeploymentPaths.map(({ model, surfacedAt, title, summary, source, signalType }) => {
               const catConfig = CATEGORIES.find((c) => c.slug === model.category);
