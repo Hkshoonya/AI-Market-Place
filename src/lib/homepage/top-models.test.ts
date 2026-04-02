@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { selectHomepageTopModelIds } from "./top-models";
 
 describe("selectHomepageTopModelIds", () => {
+  const now = Date.parse("2026-04-02T00:00:00Z");
+
   it("prioritizes enterprise traction and real-world usage over a single raw rank", () => {
     const ids = selectHomepageTopModelIds(
       [
@@ -14,6 +16,7 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 50,
           quality_score: 58,
           popularity_score: 40,
+          release_date: "2025-05-01",
         },
         {
           id: "balanced-enterprise-leader",
@@ -23,6 +26,7 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 91,
           quality_score: 90,
           popularity_score: 72,
+          release_date: "2026-02-10",
         },
         {
           id: "quality-only",
@@ -32,9 +36,11 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 96,
           quality_score: 97,
           popularity_score: 30,
+          release_date: "2026-01-14",
         },
       ],
-      2
+      2,
+      now
     );
 
     expect(ids[0]).toBe("balanced-enterprise-leader");
@@ -52,6 +58,7 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 77.8,
           quality_score: 68.7,
           popularity_score: 63,
+          release_date: "2024-12-17",
         },
         {
           id: "current-top-model",
@@ -61,11 +68,44 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 78.1,
           quality_score: 77.3,
           popularity_score: 65.3,
+          release_date: "2025-06-17",
         },
       ],
-      2
+      2,
+      now
     );
 
     expect(ids[0]).toBe("current-top-model");
+  });
+
+  it("penalizes stale legacy leaders when newer top models are otherwise comparable", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "legacy-o1-shape",
+          overall_rank: 45,
+          economic_footprint_score: 89.1,
+          adoption_score: 87.5,
+          capability_score: 77.8,
+          quality_score: 68.1,
+          popularity_score: 62.3,
+          release_date: "2024-12-17",
+        },
+        {
+          id: "current-gpt-4-1-shape",
+          overall_rank: 36,
+          economic_footprint_score: 77.6,
+          adoption_score: 89.8,
+          capability_score: 77.1,
+          quality_score: 68.2,
+          popularity_score: 62.2,
+          release_date: "2025-04-14",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-gpt-4-1-shape");
   });
 });
