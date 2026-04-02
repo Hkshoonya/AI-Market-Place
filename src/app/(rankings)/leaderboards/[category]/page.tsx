@@ -17,7 +17,10 @@ import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
-import { getDeployabilityLabel } from "@/lib/models/deployability";
+import {
+  getDeployabilityLabel,
+  isSelfHostedDeployabilityLabel,
+} from "@/lib/models/deployability";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
 import type { z } from "zod";
@@ -240,7 +243,7 @@ export default async function CategoryLeaderboardPage({
   ).length;
   const selfHostModelsCount = sortedModels.filter((model) => {
     const label = deploymentLabelsByModelId.get(model.id);
-    return label === "Self-Host" || label === "Open Weights";
+    return isSelfHostedDeployabilityLabel(label);
   }).length;
 
   function getBenchmarkScore(

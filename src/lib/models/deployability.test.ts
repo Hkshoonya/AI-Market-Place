@@ -16,7 +16,7 @@ describe("getDeployabilityLabel", () => {
           relatedProvider: "MiniMax",
         },
       })
-    ).toBe("Self-Host");
+    ).toBe("Run it yourself");
   });
 
   it("uses access-offer actions when there is no signal", () => {

@@ -36,7 +36,10 @@ import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
-import { getDeployabilityLabel } from "@/lib/models/deployability";
+import {
+  getDeployabilityLabel,
+  getUsageUpdateBadgeLabel,
+} from "@/lib/models/deployability";
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
@@ -114,11 +117,6 @@ function getRelativeDateLabel(value: string | null, now: number) {
 
   const monthsAgo = Math.floor(daysAgo / 30);
   return `${monthsAgo} month${monthsAgo > 1 ? "s" : ""} ago`;
-}
-
-function getDeploymentUpdateBadgeLabel(source: string | null, signalType: "api" | "open_source") {
-  if (signalType === "open_source") return "Run it yourself";
-  return "Start using it";
 }
 
 export default async function HomePage() {
@@ -783,7 +781,7 @@ export default async function HomePage() {
                           variant="outline"
                           className="border-neon/30 bg-neon/10 text-[11px] text-neon"
                         >
-                          {getDeploymentUpdateBadgeLabel(source, signalType)}
+                          {getUsageUpdateBadgeLabel(signalType)}
                         </Badge>
                         <span className="text-[11px] text-muted-foreground">{dateLabel}</span>
                       </div>

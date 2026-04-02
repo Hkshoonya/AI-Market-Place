@@ -33,6 +33,7 @@ import { SITE_URL } from "@/lib/constants/site";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -481,11 +482,10 @@ export default async function ModelsPage({
                             )}
                             {recentSignal && (
                               <Badge variant="outline" className="ml-2 text-[10px]">
-                                {recentSignal.signalType === "open_source"
-                                  ? "Self-Host"
-                                  : recentSignal.signalType === "api"
-                                    ? "Deployable"
-                                    : recentSignal.signalLabel}
+                                {getDeployabilityLabel({
+                                  signal: recentSignal,
+                                  isOpenWeights: model.is_open_weights,
+                                }) ?? recentSignal.signalLabel}
                               </Badge>
                             )}
                             {managedDeploymentAvailable && (

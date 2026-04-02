@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { Flame, Rocket, Crown, Newspaper, Server } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber } from "@/lib/format";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -117,7 +118,10 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
                   ? `Coverage ${Number(model.coverage_score).toFixed(1)}`
                   : "Coverage 0.0"
                 : activeTab === "deployable"
-                  ? model.recent_signal?.signalLabel ?? "Ready to Use"
+                  ? getDeployabilityLabel({
+                      signal: model.recent_signal ?? null,
+                      isOpenWeights: model.is_open_weights,
+                    }) ?? "Ready to Use"
                 : activeTab === "popular"
                   ? model.popularity_score != null
                     ? `Pop ${Number(model.popularity_score).toFixed(0)}`

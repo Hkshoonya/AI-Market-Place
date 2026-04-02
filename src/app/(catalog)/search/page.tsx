@@ -19,7 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
-import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
@@ -27,6 +27,7 @@ import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
+import { getDeployabilityLabel } from "@/lib/models/deployability";
 import {
   getListingCommerceSignals,
   getListingPillClasses,
@@ -35,16 +36,6 @@ import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 0;
-
-function getDeployabilityLabel(input: {
-  recentSignal: ModelSignalSummary | null;
-  accessOffer: ReturnType<typeof getBestAccessOfferForModel>;
-}) {
-  if (input.recentSignal?.signalType === "open_source") return "Self-Host";
-  if (input.recentSignal?.signalType === "api") return "Ready to Use";
-  if (input.accessOffer?.actionLabel === "Deploy") return "Ready to Use";
-  return null;
-}
 
 const SEARCH_MODEL_SELECT =
   "id, slug, name, provider, category, overall_rank, quality_score, capability_score, economic_footprint_score, popularity_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
@@ -499,7 +490,8 @@ export default async function SearchPage({
                     const accessOffer = getBestAccessOfferForModel(modelAccessCatalog, model.id);
                     const displayDescription = getModelDisplayDescription(model).text;
                     const deployabilityLabel = getDeployabilityLabel({
-                      recentSignal: model.recent_signal ?? null,
+                      signal: model.recent_signal ?? null,
+                      isOpenWeights: model.is_open_weights,
                       accessOffer,
                     });
 

@@ -18,7 +18,10 @@ import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
-import { getDeployabilityLabel } from "@/lib/models/deployability";
+import {
+  getDeployabilityLabel,
+  isSelfHostedDeployabilityLabel,
+} from "@/lib/models/deployability";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 
@@ -232,7 +235,7 @@ export default async function ProvidersPage() {
       selfHostCount: 0,
     };
     existing.deployableCount += 1;
-    if (deploymentLabel === "Self-Host" || deploymentLabel === "Open Weights") {
+    if (isSelfHostedDeployabilityLabel(deploymentLabel)) {
       existing.selfHostCount += 1;
     }
     providerDeployability.set(canonicalProvider, existing);
