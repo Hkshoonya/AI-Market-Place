@@ -325,4 +325,40 @@ describe("GET /api/search", () => {
       })
     );
   });
+
+  it("shows open-weight deployability when no direct deployment signal is present", async () => {
+    const openWeightClient = createMockSupabase({
+      modelFtsData: [
+        {
+          id: "model-open-1",
+          slug: "google-gemma-4-31b-it",
+          name: "Gemma 4 31B IT",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 45,
+          quality_score: 77,
+          capability_score: 78,
+          is_open_weights: true,
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: null,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(openWeightClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=gemma") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "google-gemma-4-31b-it",
+        deployability_label: "Open Weights",
+      })
+    );
+  });
 });

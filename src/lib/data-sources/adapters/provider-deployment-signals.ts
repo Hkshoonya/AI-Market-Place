@@ -125,6 +125,38 @@ function decodeHtmlEntities(value: string) {
 
 const PROVIDER_DEPLOYMENT_SOURCES: ProviderDeploymentSource[] = [
   {
+    id: "google-gemma-4-launch",
+    provider: "Google",
+    url: "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/",
+    titleHint: "Gemma 4 open deployment launch",
+    modelHints: [
+      "Gemma 4 31B",
+      "Gemma 4 31B IT",
+      "Gemma 4 26B A4B IT",
+      "Gemma 4 E2B IT",
+      "Gemma 4 E4B IT",
+    ],
+    signalType: "open_source",
+    summaryHint:
+      "Google launched Gemma 4 under Apache 2.0 and positioned it for private deployment on your own hardware, cloud GPUs, and edge devices.",
+  },
+  {
+    id: "google-gemma-cloud-deploy",
+    provider: "Google",
+    url: "https://ai.google.dev/gemma/docs/integrations/google-cloud",
+    titleHint: "Deploy Gemma on Google Cloud",
+    modelHints: [
+      "Gemma 4 31B",
+      "Gemma 4 31B IT",
+      "Gemma 4 26B A4B IT",
+      "Gemma 4 E2B IT",
+      "Gemma 4 E4B IT",
+    ],
+    signalType: "open_source",
+    summaryHint:
+      "Google documents private Gemma deployment paths on your own Google Cloud infrastructure for managed self-hosting.",
+  },
+  {
     id: "minimax-m2-open-source",
     provider: "MiniMax",
     url: "https://www.minimax.io/news/minimax-m2",

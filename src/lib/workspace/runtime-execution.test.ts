@@ -33,6 +33,16 @@ describe("resolveWorkspaceRuntimeExecution", () => {
     );
   });
 
+  it("maps supported Gemma 4 variants to OpenRouter runtime routes", () => {
+    expect(resolveWorkspaceRuntimeExecution("google-gemma-4-31b-it")).toEqual(
+      expect.objectContaining({
+        available: true,
+        provider: "openrouter",
+        model: "google/gemma-4-31b-it",
+      })
+    );
+  });
+
   it("falls back to assistant-only when the runtime route is not deterministic", () => {
     expect(resolveWorkspaceRuntimeExecution("unknown-provider-custom-model")).toEqual(
       expect.objectContaining({

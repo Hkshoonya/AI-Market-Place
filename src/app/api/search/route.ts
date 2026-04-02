@@ -5,13 +5,14 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
-import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
+import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
 } from "@/lib/models/access-offers";
+import { getDeployabilityLabel as getSharedDeployabilityLabel } from "@/lib/models/deployability";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
@@ -22,16 +23,6 @@ const SEARCH_MODEL_SELECT =
   "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
-
-function getDeployabilityLabel(input: {
-  recentSignal: ModelSignalSummary | null;
-  accessOffer: { actionLabel?: string | null } | null;
-}) {
-  if (input.recentSignal?.signalType === "open_source") return "Self-Host";
-  if (input.recentSignal?.signalType === "api") return "Deployable";
-  if (input.accessOffer?.actionLabel === "Deploy") return "Deployable";
-  return null;
-}
 
 async function searchModelsWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
@@ -279,8 +270,9 @@ export async function GET(request: NextRequest) {
         compact_price_label: pricingSummary.compactLabel,
         compact_price_display: pricingSummary.compactDisplay,
         recent_signal: recentSignal,
-        deployability_label: getDeployabilityLabel({
-          recentSignal,
+        deployability_label: getSharedDeployabilityLabel({
+          isOpenWeights: model.is_open_weights,
+          signal: recentSignal,
           accessOffer,
         }),
       };

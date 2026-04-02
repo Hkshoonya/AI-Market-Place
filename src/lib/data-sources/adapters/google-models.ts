@@ -18,7 +18,10 @@ import {
   type KnownModelMeta,
   type ProviderDefaults,
 } from "../shared/build-record";
-import { GOOGLE_KNOWN_MODELS } from "../shared/known-models/google";
+import {
+  GOOGLE_KNOWN_MODELS,
+  resolveGoogleKnownModelMeta,
+} from "../shared/known-models/google";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
 
 // ---------------------------------------------------------------------------
@@ -40,7 +43,7 @@ function boundBuildRecord(
 ): Record<string, unknown> {
   return buildRecord(
     modelId,
-    GOOGLE_KNOWN_MODELS[modelId],
+    resolveGoogleKnownModelMeta(modelId),
     overrides,
     PROVIDER_DEFAULTS
   );

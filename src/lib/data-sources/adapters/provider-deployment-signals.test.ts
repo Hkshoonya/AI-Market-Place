@@ -125,4 +125,38 @@ describe("provider-deployment-signals adapter", () => {
 
     expect(result).toEqual(["glm-4-6-exacto"]);
   });
+
+  it("keeps Google Gemma 4 deployment hints attached to Gemma 4 variants", () => {
+    const models = [
+      {
+        id: "gemma-4-31b-it",
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+      },
+      {
+        id: "gemma-4-26b-a4b-it",
+        slug: "google-gemma-4-26b-a4b-it",
+        name: "Gemma 4 26B A4B IT",
+        provider: "Google",
+      },
+    ];
+
+    const result = __testables.resolveHintedModelIds(
+      {
+        id: "google-gemma-4-launch",
+        provider: "Google",
+        url: "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/",
+        titleHint: "Gemma 4 open deployment launch",
+        modelHints: ["Gemma 4 31B IT", "Gemma 4 26B A4B IT"],
+        signalType: "open_source",
+        summaryHint: "Google launched Gemma 4 under Apache 2.0 for private deployment.",
+      },
+      ["Gemma 4 31B IT", "Gemma 4 26B A4B IT"],
+      buildModelAliasIndex(models),
+      models
+    );
+
+    expect(result).toEqual(["gemma-4-31b-it", "gemma-4-26b-a4b-it"]);
+  });
 });

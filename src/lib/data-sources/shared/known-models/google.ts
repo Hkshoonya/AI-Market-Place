@@ -305,6 +305,132 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   },
 
   // ---- Gemma open models ----
+  "gemma-4": {
+    name: "Gemma 4",
+    description:
+      "Google's fourth-generation open-weight multimodal model family, released under Apache 2.0 for private deployment on your own hardware, cloud GPUs, and edge devices.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
+  "gemma-4-31b": {
+    name: "Gemma 4 31B",
+    description:
+      "31B Gemma 4 open-weight multimodal model for private deployment, local development, and production serving on your own infrastructure.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
+  "gemma-4-31b-it": {
+    name: "Gemma 4 31B IT",
+    description:
+      "Instruction-tuned 31B Gemma 4 model with open weights and Apache 2.0 licensing for private deployment and local multimodal applications.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
+  "gemma-4-26b-a4b-it": {
+    name: "Gemma 4 26B A4B IT",
+    description:
+      "Instruction-tuned Gemma 4 26B A4B variant released as open weights under Apache 2.0 for private and edge deployment.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
+  "gemma-4-e2b-it": {
+    name: "Gemma 4 E2B IT",
+    description:
+      "Compact instruction-tuned Gemma 4 E2B variant designed for efficient private deployment on constrained hardware.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
+  "gemma-4-e4b-it": {
+    name: "Gemma 4 E4B IT",
+    description:
+      "Compact instruction-tuned Gemma 4 E4B variant for private multimodal deployment on local and edge hardware.",
+    category: "multimodal",
+    context_window: 128000,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+  },
   "gemma-3": {
     name: "Gemma 3",
     description:
@@ -471,3 +597,20 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
   },
 };
+
+const GOOGLE_KNOWN_MODEL_FAMILY_PREFIXES = [
+  "gemma-4-",
+] as const;
+
+export function resolveGoogleKnownModelMeta(modelId: string): KnownModelMeta | undefined {
+  const exact = GOOGLE_KNOWN_MODELS[modelId];
+  if (exact) return exact;
+
+  for (const familyPrefix of GOOGLE_KNOWN_MODEL_FAMILY_PREFIXES) {
+    if (modelId.startsWith(familyPrefix)) {
+      return GOOGLE_KNOWN_MODELS[familyPrefix.slice(0, -1)];
+    }
+  }
+
+  return undefined;
+}
