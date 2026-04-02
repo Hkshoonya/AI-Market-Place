@@ -256,7 +256,7 @@ export default async function HomePage() {
     .filter((model): model is NonNullable<typeof model> => Boolean(model));
 
   const newModels = buildHomepageLaunchSelections(
-    activeModels,
+    (allActiveModels ?? []) as Parameters<typeof buildHomepageLaunchSelections>[0],
     ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
       source: typeof item.source === "string" ? item.source : null,
       published_at: typeof item.published_at === "string" ? item.published_at : null,
@@ -681,7 +681,7 @@ export default async function HomePage() {
               (c) => c.slug === model.category
             );
             const parameterDisplay = getParameterDisplay(model);
-            const surfaceDateValue = surfacedAt ?? model.release_date;
+            const surfaceDateValue = surfacedAt ?? model.release_date ?? null;
             const dateLabel = getRelativeDateLabel(surfaceDateValue, now);
             const deploymentLabel = getDeployabilityLabel({
               isOpenWeights: model.is_open_weights,

@@ -166,6 +166,42 @@ describe("buildHomepageLaunchSelections", () => {
 
     expect(result.map((entry) => entry.model.id)).toEqual(["real-launch"]);
   });
+
+  it("keeps the directly signaled launch family representative instead of a stronger sibling variant", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "glm-5",
+          slug: "z-ai-glm-5",
+          name: "GLM 5",
+          provider: "Z.ai",
+          release_date: "2026-03-29",
+          quality_score: 62,
+        },
+        {
+          id: "glm-5-preview",
+          slug: "z-ai-glm-5-preview",
+          name: "GLM 5 (Preview)",
+          provider: "Z.ai",
+          release_date: "2026-03-10",
+          quality_score: 88,
+        },
+      ],
+      [
+        {
+          source: "provider-blog",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+      ],
+      2,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["glm-5"]);
+  });
 });
 
 describe("buildHomepageDeploymentSelections", () => {
