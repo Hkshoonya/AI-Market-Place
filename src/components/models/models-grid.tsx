@@ -40,6 +40,7 @@ interface ModelsGridProps {
       monthlyPriceLabel: string;
       actionLabel: string;
     } | null;
+    managed_deployment_available?: boolean;
   }>;
 }
 
@@ -54,6 +55,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
         const accessOffer = model.access_offer ?? null;
         const lifecycleBadge = getLifecycleBadge(model.status);
         const recentSignal = model.recent_signal ?? null;
+        const managedDeploymentAvailable = model.managed_deployment_available ?? false;
 
         return (
           <Link key={model.id} href={`/models/${model.slug}`}>
@@ -98,6 +100,16 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                 {recentSignal ? (
                   <div className="mt-3">
                     <ModelSignalBadge signal={recentSignal} />
+                  </div>
+                ) : null}
+                {managedDeploymentAvailable ? (
+                  <div className="mt-3">
+                    <Badge
+                      variant="outline"
+                      className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
+                    >
+                      Managed Here
+                    </Badge>
                   </div>
                 ) : null}
 

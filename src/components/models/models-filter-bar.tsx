@@ -36,6 +36,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentQuery = searchParams.get("q") ?? "";
   const currentOpenOnly = searchParams.get("open") === "true";
   const currentDeployableOnly = searchParams.get("deployable") === "true";
+  const currentManagedOnly = searchParams.get("managed") === "true";
   const currentProvider = searchParams.get("provider") ?? "";
   const currentParams = searchParams.get("params") ?? "";
   const currentHasApi = searchParams.get("api") === "true";
@@ -43,7 +44,13 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
   const currentLifecycle = searchParams.get("lifecycle") === "all" ? "all" : "active";
 
   const activeFilterCount = [
-    currentOpenOnly, currentDeployableOnly, currentProvider, currentParams, currentHasApi, currentLicense,
+    currentOpenOnly,
+    currentDeployableOnly,
+    currentManagedOnly,
+    currentProvider,
+    currentParams,
+    currentHasApi,
+    currentLicense,
   ].filter(Boolean).length;
 
   const [searchValue, setSearchValue] = useState(currentQuery);
@@ -153,6 +160,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
                 currentLicense={currentLicense}
                 currentOpenOnly={currentOpenOnly}
                 currentDeployableOnly={currentDeployableOnly}
+                currentManagedOnly={currentManagedOnly}
                 currentHasApi={currentHasApi}
                 updateParams={updateParams}
                 onClearAll={handleClearAll}
@@ -189,7 +197,11 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
           ) : (
             <>
               Showing <span className="font-medium text-foreground">{totalCount}</span>{" "}
-              {currentLifecycle === "all" ? "tracked models" : "active models"}
+              {currentManagedOnly
+                ? "managed-deployable models"
+                : currentLifecycle === "all"
+                  ? "tracked models"
+                  : "active models"}
             </>
           )}
         </p>

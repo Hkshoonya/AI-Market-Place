@@ -32,6 +32,7 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -63,6 +64,7 @@ export default async function ModelsPage({
     params?: string;
     api?: string;
     deployable?: string;
+    managed?: string;
     license?: string;
     lifecycle?: string;
   }>;
@@ -75,6 +77,7 @@ export default async function ModelsPage({
   const page = parseInt(p.page ?? "1", 10);
   const openOnly = p.open === "true";
   const deployableOnly = p.deployable === "true";
+  const managedOnly = p.managed === "true";
   const providerFilter = p.provider ?? "";
   const paramsFilter = p.params ?? "";
   const apiFilter = p.api === "true";
@@ -218,6 +221,7 @@ export default async function ModelsPage({
   });
 
   let deployableModelIds = new Set<string>();
+  let managedDeploymentModelIds = new Set<string>();
   let modelSignals = new Map<string, ModelSignalSummary>();
   let accessCatalog = buildAccessOffersCatalog({
     platforms: [],
@@ -312,10 +316,27 @@ export default async function ModelsPage({
         deployableModelIds.add(modelId);
       }
     }
+
+    managedDeploymentModelIds = new Set(
+      sortedUniqueModels
+        .filter((model) => {
+          const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
+          if (!runtimeExecution.available) return false;
+
+          return Boolean(getBestAccessOfferForModel(accessCatalog, model.id));
+        })
+        .map((model) => model.id)
+    );
   }
 
   if (deployableOnly) {
     sortedUniqueModels = sortedUniqueModels.filter((model) => deployableModelIds.has(model.id));
+  }
+
+  if (managedOnly) {
+    sortedUniqueModels = sortedUniqueModels.filter((model) =>
+      managedDeploymentModelIds.has(model.id)
+    );
   }
 
   const totalCount =
@@ -334,6 +355,12 @@ export default async function ModelsPage({
         <p className="mt-2 text-muted-foreground">
           Browse, search, and compare AI models from providers worldwide.
         </p>
+        {managedOnly && (
+          <div className="mt-4 rounded-xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-4 text-sm text-muted-foreground">
+            Showing only models that AI Market Cap can host directly right now through the managed
+            in-site deployment flow.
+          </div>
+        )}
         {deployableOnly && (
           <div className="mt-4 rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
             Showing models with a verified deploy path, Ollama/runtime availability, or a recent
@@ -370,6 +397,7 @@ export default async function ModelsPage({
                 actionLabel: offer.actionLabel,
               };
             })(),
+            managed_deployment_available: managedDeploymentModelIds.has(model.id),
           }))}
         />
       ) : (
@@ -418,6 +446,7 @@ export default async function ModelsPage({
                 const parameterDisplay = getParameterDisplay(model);
                 const lifecycleBadge = getLifecycleBadge(model.status);
                 const recentSignal = modelSignals.get(model.id);
+                const managedDeploymentAvailable = managedDeploymentModelIds.has(model.id);
 
                 return (
                   <tr
@@ -458,6 +487,14 @@ export default async function ModelsPage({
                                   : recentSignal.signalType === "api"
                                     ? "Deployable"
                                     : recentSignal.signalLabel}
+                              </Badge>
+                            )}
+                            {managedDeploymentAvailable && (
+                              <Badge
+                                variant="outline"
+                                className="ml-2 border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
+                              >
+                                Managed Here
                               </Badge>
                             )}
                           </div>

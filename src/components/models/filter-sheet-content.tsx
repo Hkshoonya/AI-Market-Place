@@ -31,6 +31,7 @@ interface FilterSheetContentProps {
   currentLicense: string;
   currentOpenOnly: boolean;
   currentDeployableOnly: boolean;
+  currentManagedOnly: boolean;
   currentHasApi: boolean;
   updateParams: (updates: Record<string, string | null>) => void;
   onClearAll: () => void;
@@ -42,6 +43,7 @@ export function FilterSheetContent({
   currentLicense,
   currentOpenOnly,
   currentDeployableOnly,
+  currentManagedOnly,
   currentHasApi,
   updateParams,
   onClearAll,
@@ -73,22 +75,33 @@ export function FilterSheetContent({
 
       <div className="space-y-3">
         <label className="text-sm font-medium text-muted-foreground">Deployment</label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
-            variant={!currentDeployableOnly ? "default" : "outline"} size="sm"
-            className={!currentDeployableOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
-            onClick={() => updateParams({ deployable: null })}
+            variant={!currentDeployableOnly && !currentManagedOnly ? "default" : "outline"} size="sm"
+            className={!currentDeployableOnly && !currentManagedOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
+            onClick={() => updateParams({ deployable: null, managed: null })}
           >
             All
           </Button>
           <Button
             variant={currentDeployableOnly ? "default" : "outline"} size="sm"
             className={currentDeployableOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
-            onClick={() => updateParams({ deployable: "true" })}
+            onClick={() => updateParams({ deployable: "true", managed: null })}
           >
             Deployable Now
           </Button>
+          <Button
+            variant={currentManagedOnly ? "default" : "outline"} size="sm"
+            className={currentManagedOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
+            onClick={() => updateParams({ managed: "true", deployable: null })}
+          >
+            Managed Here
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          `Deployable Now` includes provider APIs, subscriptions, Ollama, and self-host paths.
+          `Managed Here` only shows models AI Market Cap can host directly inside the site.
+        </p>
       </div>
 
       {/* Provider Filter */}
