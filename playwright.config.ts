@@ -67,6 +67,8 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
       CRON_SECRET: "test-cron-secret",
       NEXT_PUBLIC_E2E_MSW: "true",
+      E2E_TEST_MODE: "true",
+      RATE_LIMIT_BACKEND: "memory",
     },
   },
 });

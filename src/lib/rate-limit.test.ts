@@ -111,4 +111,21 @@ describe("rate-limit", () => {
       consoleErrorSpy.mockRestore();
     }
   });
+
+  it("forces in-memory limiting during e2e mode", async () => {
+    process.env.RATE_LIMIT_BACKEND = "database";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.E2E_TEST_MODE = "true";
+
+    const { rateLimit } = await import("./rate-limit");
+    const config = { limit: 1, windowMs: 60_000 };
+
+    const first = await rateLimit("models:203.0.113.8", config);
+    const second = await rateLimit("models:203.0.113.8", config);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(false);
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
 });

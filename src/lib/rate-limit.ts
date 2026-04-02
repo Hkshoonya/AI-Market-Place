@@ -8,6 +8,7 @@
 
 import { isIP } from "node:net";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isE2ETestMode } from "@/lib/runtime-environment";
 
 interface RateLimitEntry {
   timestamps: number[];
@@ -103,6 +104,10 @@ function getInMemoryRateLimit(
 }
 
 function getRateLimitBackend(): "database" | "memory" {
+  if (isE2ETestMode()) {
+    return "memory";
+  }
+
   const configured = process.env.RATE_LIMIT_BACKEND?.trim().toLowerCase();
   const hasDurableConfig =
     !!process.env.NEXT_PUBLIC_SUPABASE_URL &&

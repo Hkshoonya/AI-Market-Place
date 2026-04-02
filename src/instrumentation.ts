@@ -1,33 +1,39 @@
 import * as Sentry from "@sentry/nextjs";
+import { isE2ETestMode } from "@/lib/runtime-environment";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     // 1. Sentry initialised first so startup errors are captured.
     await import("../sentry.server.config");
 
-    // 2. Pipeline startup: validate secrets + seed data_sources table.
-    //    validatePipelineSecrets() exits on missing core secrets.
-    //    seedDataSources() is idempotent (INSERT … ON CONFLICT DO NOTHING).
-    try {
-      const { validatePipelineSecrets } = await import(
-        "@/lib/pipeline/startup"
-      );
-      const { seedDataSources } = await import(
-        "@/lib/data-sources/seeder"
-      );
+    if (!isE2ETestMode()) {
+      // 2. Pipeline startup: validate secrets + seed data_sources table.
+      //    validatePipelineSecrets() exits on missing core secrets.
+      //    seedDataSources() is idempotent (INSERT … ON CONFLICT DO NOTHING).
+      try {
+        const { validatePipelineSecrets } = await import(
+          "@/lib/pipeline/startup"
+        );
+        const { seedDataSources } = await import(
+          "@/lib/data-sources/seeder"
+        );
 
-      await validatePipelineSecrets();
+        await validatePipelineSecrets();
 
-      // Timeout guard: don't let a slow DB connection block server startup.
-      await Promise.race([
-        seedDataSources(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("seedDataSources timed out after 15s")), 15_000)
-        ),
-      ]);
-    } catch (err) {
-      // Log but don't crash — server should start even if seeding fails.
-      console.error("[instrumentation] Pipeline startup error:", err);
+        // Timeout guard: don't let a slow DB connection block server startup.
+        await Promise.race([
+          seedDataSources(),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error("seedDataSources timed out after 15s")),
+              15_000
+            )
+          ),
+        ]);
+      } catch (err) {
+        // Log but don't crash — server should start even if seeding fails.
+        console.error("[instrumentation] Pipeline startup error:", err);
+      }
     }
 
     // 3. MSW server-side interception for E2E tests.

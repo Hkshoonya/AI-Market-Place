@@ -13,6 +13,7 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isE2ETestMode } from "@/lib/runtime-environment";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -33,6 +34,10 @@ async function writeLog(entry: LogEntry): Promise<string | null> {
   // Always mirror to console for Vercel's log drain
   const consoleFn = level === "error" ? console.error : level === "warn" ? console.warn : console.info;
   consoleFn(`[${level.toUpperCase()}] [${source}] ${message}`, metadata ?? "");
+
+  if (isE2ETestMode()) {
+    return null;
+  }
 
   try {
     const supabase = createAdminClient();

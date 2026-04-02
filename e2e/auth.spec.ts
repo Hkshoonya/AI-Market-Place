@@ -22,7 +22,9 @@ test.describe("Auth flow", () => {
     await page.goto("/login");
 
     // Verify the login page renders with all expected elements
-    await expect(page.getByText("Welcome back")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Welcome back" })
+    ).toBeVisible();
     await expect(page.getByLabel("Email address")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
     await expect(
@@ -74,6 +76,18 @@ test.describe("Auth flow", () => {
   // Test 3: Form submission with bad credentials shows error
   // ---------------------------------------------------------------------------
   test("form submission shows error message on failure", async ({ page }) => {
+    await page.route("**/auth/v1/token**", (route) => {
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "invalid_grant",
+          error_description: "Invalid login credentials",
+          msg: "Invalid login credentials",
+        }),
+      });
+    });
+
     await page.goto("/login");
 
     await page.getByLabel("Email address").fill("wrong@example.com");
@@ -85,10 +99,7 @@ test.describe("Auth flow", () => {
     const errorAlert = page.locator('[role="alert"]').first();
     await expect(errorAlert).toBeVisible({ timeout: 5_000 });
 
-    // Verify error text is non-empty (exact message varies: "Failed to fetch"
-    // offline vs "Invalid login credentials" with real Supabase)
-    const alertText = await errorAlert.textContent();
-    expect(alertText).toBeTruthy();
+    await expect(errorAlert).toContainText(/invalid login credentials/i);
 
     // User stays on login page
     await expect(page).toHaveURL(/\/login/);
@@ -106,14 +117,6 @@ test.describe("Auth flow", () => {
     );
 
     await injectMockAuth(context);
-
-    await page.route("**/rest/v1/**", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([]),
-      });
-    });
 
     await page.goto("/");
 
@@ -142,14 +145,6 @@ test.describe("Auth flow", () => {
     );
 
     await injectMockAuth(context);
-
-    await page.route("**/rest/v1/**", (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([]),
-      });
-    });
 
     await page.goto("/");
 

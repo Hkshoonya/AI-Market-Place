@@ -8,6 +8,7 @@ import type { User } from "@supabase/supabase-js";
 
 const AUTH_INIT_TIMEOUT_MS = 4000;
 const AUTH_CACHE_KEY = "ai-market-cap.auth";
+const E2E_AUTH_OVERRIDE_KEY = "ai-market-cap.e2e-auth";
 
 interface Profile {
   id: string;
@@ -87,6 +88,30 @@ function writeCachedAuthState(user: User | null, profile: Profile | null) {
   );
 }
 
+function readE2EAuthOverride(): { user: User | null; profile: Profile | null } {
+  if (
+    typeof window === "undefined" ||
+    process.env.NEXT_PUBLIC_E2E_MSW !== "true"
+  ) {
+    return { user: null, profile: null };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(E2E_AUTH_OVERRIDE_KEY);
+    if (!raw) {
+      return { user: null, profile: null };
+    }
+
+    const parsed = JSON.parse(raw) as { user?: User | null; profile?: Profile | null };
+    return {
+      user: parsed.user ?? null,
+      profile: parsed.profile ?? null,
+    };
+  } catch {
+    return { user: null, profile: null };
+  }
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
@@ -108,6 +133,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const e2eAuth = readE2EAuthOverride();
+    if (e2eAuth.user) {
+      setUser(e2eAuth.user);
+      setProfile(e2eAuth.profile);
+      setLoading(false);
+      return;
+    }
+
     const cachedAuth = readCachedAuthState();
     const cachedUser = cachedAuth.user;
     const cachedProfile = cachedAuth.profile;
@@ -233,6 +266,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       clientWarn("Auth sign-out failed:", error);
     } finally {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(E2E_AUTH_OVERRIDE_KEY);
+      }
       posthog.reset();
       setUser(null);
       setProfile(null);
