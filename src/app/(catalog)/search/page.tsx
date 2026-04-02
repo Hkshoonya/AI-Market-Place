@@ -19,7 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { formatMarketValue } from "@/lib/models/market-value";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
-import { pickBestModelSignals } from "@/lib/news/model-signals";
+import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
