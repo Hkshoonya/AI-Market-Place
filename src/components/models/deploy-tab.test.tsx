@@ -65,6 +65,9 @@ describe("DeployTab", () => {
     expect(
       screen.getByText(/AI Market Cap cannot run this model directly yet/i)
     ).toBeInTheDocument();
+    expect(screen.getByText(/What deployment means here/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted for you/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cloud server you control/i)).toBeInTheDocument();
     expect(
       screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
     ).toBeInTheDocument();
@@ -130,6 +133,7 @@ describe("DeployTab", () => {
 
     expect(screen.getByText(/best way to start/i)).toBeInTheDocument();
     expect(screen.getByText(/If you just want the fastest verified path/i)).toBeInTheDocument();
+    expect(screen.getByText(/What deployment means here/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Best when you want to start a managed deployment path without extra setup/i)
     ).toBeInTheDocument();
@@ -189,5 +193,6 @@ describe("DeployTab", () => {
     expect(screen.getByText(/roughly 48GB\+ GPU memory/i)).toBeInTheDocument();
     expect(screen.getByText(/31\.0B parameters/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/On your computer/i)).toBeInTheDocument();
   });
 });

@@ -247,12 +247,33 @@ export function DeployTab({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border/50 bg-card/20 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">How to use this model</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white">What deployment means here</h3>
         <p className="text-sm text-muted-foreground">
-          On this page, deployment means the confirmed way to start using the model:
-          on AI Market Cap, through the provider, on your own computer, or on a cloud server you control. Start with the verified
-          rows first because they are the clearest model-specific options.
+          On this page, deployment means the real way you can start using this model. That might
+          mean a hosted service, a provider plan, your own computer, or a cloud server you rent
+          and manage yourself. Start with the verified rows first because they are the clearest
+          model-specific options.
         </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-md border border-border/40 bg-card/30 p-3">
+            <p className="text-xs font-semibold text-white">Hosted for you</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You can start without setting up your own server.
+            </p>
+          </div>
+          <div className="rounded-md border border-border/40 bg-card/30 p-3">
+            <p className="text-xs font-semibold text-white">Cloud server you control</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You rent the machine and manage the setup yourself.
+            </p>
+          </div>
+          <div className="rounded-md border border-border/40 bg-card/30 p-3">
+            <p className="text-xs font-semibold text-white">On your computer</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              It runs locally, but larger models may still need a strong GPU.
+            </p>
+          </div>
+        </div>
       </div>
 
       {primaryDeployment && quickStart && (
@@ -381,7 +402,7 @@ export function DeployTab({
         <div>
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-[#00d4aa]" />
-            Verified ways to use it
+            Choose how to use this model
           </h3>
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
