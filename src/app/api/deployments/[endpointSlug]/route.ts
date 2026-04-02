@@ -34,7 +34,7 @@ export async function GET(
     const { data: deployment, error } = await admin
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.userId)
       .eq("endpoint_slug", endpointSlug)
@@ -99,7 +99,7 @@ export async function POST(
     const { data: deployment, error } = await admin
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.userId)
       .eq("endpoint_slug", endpointSlug)
@@ -187,6 +187,7 @@ export async function POST(
       });
     }
 
+    const startedAt = Date.now();
     let response;
     try {
       response = await callAgentModel({
@@ -204,11 +205,14 @@ export async function POST(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to run deployment request";
+      const durationMs = Date.now() - startedAt;
 
       await admin
         .from("workspace_deployments")
         .update({
           status: "failed",
+          failed_requests: (deployment.failed_requests ?? 0) + 1,
+          last_response_latency_ms: durationMs,
           last_error_at: new Date().toISOString(),
           last_error_message: errorMessage,
         })
@@ -222,6 +226,7 @@ export async function POST(
         provider_name: deployment.provider_name,
         model_name: deployment.model_name,
         charge_amount: requestCharge > 0 ? requestCharge : null,
+        duration_ms: durationMs,
         error_message: errorMessage,
       });
 
@@ -240,13 +245,26 @@ export async function POST(
 
     const totalTokens = response.usage?.totalTokens ?? 0;
     const nowIso = new Date().toISOString();
+    const durationMs = Date.now() - startedAt;
+    const previousSuccesses = deployment.successful_requests ?? 0;
+    const previousAvgLatency = deployment.avg_response_latency_ms ?? 0;
+    const nextSuccessfulRequests = previousSuccesses + 1;
+    const nextAvgLatency =
+      nextSuccessfulRequests > 0
+        ? Math.round(
+            ((previousAvgLatency * previousSuccesses) + durationMs) / nextSuccessfulRequests
+          )
+        : durationMs;
 
     await admin
       .from("workspace_deployments")
       .update({
         status: "ready",
         total_requests: (deployment.total_requests ?? 0) + 1,
+        successful_requests: nextSuccessfulRequests,
         total_tokens: Number(deployment.total_tokens ?? 0) + totalTokens,
+        avg_response_latency_ms: nextAvgLatency,
+        last_response_latency_ms: durationMs,
         last_used_at: nowIso,
         last_success_at: nowIso,
         last_error_at: null,
@@ -264,6 +282,7 @@ export async function POST(
       model_name: response.model,
       tokens_used: totalTokens,
       charge_amount: requestCharge > 0 ? requestCharge : null,
+      duration_ms: durationMs,
     });
 
     if (deployment.runtime_id) {

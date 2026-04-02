@@ -832,7 +832,11 @@ export interface WorkspaceDeploymentRecord {
   credits_budget: number | null;
   monthly_price_estimate: number | null;
   total_requests: number;
+  successful_requests: number;
+  failed_requests: number;
   total_tokens: number;
+  avg_response_latency_ms: number | null;
+  last_response_latency_ms: number | null;
   last_used_at: string | null;
   last_success_at: string | null;
   last_error_at: string | null;
@@ -858,6 +862,7 @@ export interface WorkspaceDeploymentEventRecord {
   model_name: string | null;
   tokens_used: number | null;
   charge_amount: number | null;
+  duration_ms: number | null;
   error_message: string | null;
   created_at: string;
 }

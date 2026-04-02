@@ -30,7 +30,7 @@ export async function GET() {
     const { data, error } = await auth.supabase
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.user.id)
       .order("updated_at", { ascending: false })

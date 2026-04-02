@@ -37,6 +37,7 @@ interface DeploymentActivitySnapshot {
     modelName: string | null;
     tokensUsed: number | null;
     chargeAmount: number | null;
+    durationMs: number | null;
     errorMessage: string | null;
     createdAt: string | null;
   }>;
@@ -93,6 +94,7 @@ function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentRes
               <p className="mt-2 text-xs text-muted-foreground">
                 {event.createdAt ? new Date(event.createdAt).toLocaleString() : "Unknown time"}
                 {event.tokensUsed != null ? ` · ${event.tokensUsed} tokens` : ""}
+                {event.durationMs != null ? ` · ${event.durationMs}ms` : ""}
               </p>
             </div>
           ))}
@@ -133,6 +135,10 @@ export default function DeploymentsContent() {
   const [pendingModelSlug, setPendingModelSlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [testLoadingSlug, setTestLoadingSlug] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<
+    Record<string, { content?: string; error?: string; provider?: string; model?: string }>
+  >({});
 
   useEffect(() => {
     if (!loading && !user) {
@@ -205,6 +211,51 @@ export default function DeploymentsContent() {
       setError(updateError instanceof Error ? updateError.message : "Failed to update deployment");
     } finally {
       setPendingModelSlug(null);
+    }
+  };
+
+  const runTestCall = async (deployment: WorkspaceDeploymentResponse) => {
+    setTestLoadingSlug(deployment.modelSlug);
+    setTestResults((current) => ({
+      ...current,
+      [deployment.modelSlug]: {},
+    }));
+
+    try {
+      const response = await fetch(deployment.endpointPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Give a short one-sentence confirmation that deployment for ${deployment.modelName} is working.`,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Test call failed");
+      }
+
+      setTestResults((current) => ({
+        ...current,
+        [deployment.modelSlug]: {
+          content: payload.response?.content ?? "Deployment responded.",
+          provider: payload.response?.provider,
+          model: payload.response?.model,
+        },
+      }));
+
+      await mutate();
+    } catch (testError) {
+      setTestResults((current) => ({
+        ...current,
+        [deployment.modelSlug]: {
+          error: testError instanceof Error ? testError.message : "Test call failed",
+        },
+      }));
+    } finally {
+      setTestLoadingSlug(null);
     }
   };
 
@@ -387,7 +438,7 @@ export default function DeploymentsContent() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                     <div className="rounded-lg border border-border/50 bg-card/40 p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
                         Requests
@@ -424,6 +475,33 @@ export default function DeploymentsContent() {
                         {deployment.lastSuccessAt
                           ? new Date(deployment.lastSuccessAt).toLocaleString()
                           : "No successful request yet"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Success rate
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {deployment.successRate != null ? `${deployment.successRate}%` : "N/A"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {deployment.successfulRequests} ok / {deployment.failedRequests} failed
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Avg latency
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {deployment.avgResponseLatencyMs != null
+                          ? `${deployment.avgResponseLatencyMs}ms`
+                          : "N/A"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Last:{" "}
+                        {deployment.lastResponseLatencyMs != null
+                          ? `${deployment.lastResponseLatencyMs}ms`
+                          : "N/A"}
                       </p>
                     </div>
                   </div>
@@ -475,9 +553,17 @@ export default function DeploymentsContent() {
                         to poll deployment status.
                       </p>
                       <code className="mt-3 block overflow-x-auto rounded-md border border-border/50 bg-background/60 px-3 py-2 text-xs text-foreground">
-                        {`curl -X POST ${deployment.endpointPath} \\\n+  -H "Authorization: Bearer YOUR_API_KEY" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"message":"Hello from AI Market Cap"}'`}
+                        {`curl -X POST ${deployment.endpointPath} \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Hello from AI Market Cap"}'`}
                       </code>
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={testLoadingSlug === deployment.modelSlug}
+                          onClick={() => runTestCall(deployment)}
+                        >
+                          {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Test Call"}
+                        </Button>
                         <Button variant="outline" asChild>
                           <Link
                             href={`/settings/api-keys?intent=deploy&model=${encodeURIComponent(
@@ -491,6 +577,25 @@ export default function DeploymentsContent() {
                           <Link href="/api-docs">API Docs</Link>
                         </Button>
                       </div>
+                      {testResults[deployment.modelSlug]?.error ? (
+                        <p className="mt-3 text-xs text-red-300">
+                          {testResults[deployment.modelSlug]?.error}
+                        </p>
+                      ) : null}
+                      {testResults[deployment.modelSlug]?.content ? (
+                        <div className="mt-3 rounded-md border border-border/50 bg-background/60 px-3 py-2">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                            Latest test response
+                          </p>
+                          <p className="mt-2 text-sm text-white">
+                            {testResults[deployment.modelSlug]?.content}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {testResults[deployment.modelSlug]?.provider ?? "Unknown provider"} ·{" "}
+                            {testResults[deployment.modelSlug]?.model ?? "Unknown model"}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="rounded-lg border border-border/50 bg-card/40 p-4">

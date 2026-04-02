@@ -15,7 +15,11 @@ export interface WorkspaceDeploymentRecord {
   credits_budget: number | null;
   monthly_price_estimate: number | null;
   total_requests: number;
+  successful_requests: number;
+  failed_requests: number;
   total_tokens: number;
+  avg_response_latency_ms: number | null;
+  last_response_latency_ms: number | null;
   last_used_at: string | null;
   last_success_at: string | null;
   last_error_at: string | null;
@@ -24,6 +28,7 @@ export interface WorkspaceDeploymentRecord {
 }
 
 export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRecord) {
+  const totalAttempts = deployment.successful_requests + deployment.failed_requests;
   const healthStatus =
     deployment.status === "paused"
       ? "paused"
@@ -47,11 +52,19 @@ export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRec
     creditsBudget: deployment.credits_budget,
     monthlyPriceEstimate: deployment.monthly_price_estimate,
     totalRequests: deployment.total_requests,
+    successfulRequests: deployment.successful_requests,
+    failedRequests: deployment.failed_requests,
     totalTokens: deployment.total_tokens,
+    avgResponseLatencyMs: deployment.avg_response_latency_ms,
+    lastResponseLatencyMs: deployment.last_response_latency_ms,
     lastUsedAt: deployment.last_used_at,
     lastSuccessAt: deployment.last_success_at,
     lastErrorAt: deployment.last_error_at,
     lastErrorMessage: deployment.last_error_message,
+    successRate:
+      totalAttempts > 0
+        ? Number(((deployment.successful_requests / totalAttempts) * 100).toFixed(1))
+        : null,
     healthStatus,
     updatedAt: deployment.updated_at,
     execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),

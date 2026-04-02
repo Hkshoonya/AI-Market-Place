@@ -59,7 +59,7 @@ export async function GET(
       auth.supabase
         .from("workspace_deployment_events")
         .select(
-          "id, event_type, request_message, response_preview, provider_name, model_name, tokens_used, charge_amount, error_message, created_at"
+          "id, event_type, request_message, response_preview, provider_name, model_name, tokens_used, charge_amount, duration_ms, error_message, created_at"
         )
         .eq("deployment_id", deploymentId)
         .order("created_at", { ascending: false })
@@ -94,6 +94,7 @@ export async function GET(
       modelName: item.model_name,
       tokensUsed: item.tokens_used,
       chargeAmount: item.charge_amount != null ? Number(item.charge_amount) : null,
+      durationMs: item.duration_ms,
       errorMessage: item.error_message,
       createdAt: item.created_at,
     }));
