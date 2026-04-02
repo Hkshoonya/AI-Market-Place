@@ -57,6 +57,14 @@ export interface SourceQualityScore {
   completeness: number; // 0-1
   freshness: number; // 0-1
   trend: number; // 0-1
+  matchRate: number | null; // 0-100
+  warningCount: number;
+  optionalSkipCount: number;
+  knownCatalogGapCount: number;
+  unmatchedModelCount: number;
+  lastSyncStatus: "success" | "partial" | "failed" | null;
+  diagnosticPenalty: number; // 0-100 points deducted from base score
+  issueSummary: string | null;
   recordCount: number;
   lastSyncAt: string | null;
   syncIntervalHours: number;
@@ -77,6 +85,8 @@ export interface DataIntegrityReport {
     totalSources: number;
     healthySources: number;
     staleSources: number;
+    warningSources: number;
+    lowMatchSources: number;
     emptyTables: number;
     averageQualityScore: number;
   };
@@ -241,6 +251,9 @@ interface SyncJobRow {
   source_slug: string;
   records_processed: number | null;
   created_at: string;
+  status: "success" | "partial" | "failed" | null;
+  error_message?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 interface ModelSnapshotCoverageRow {
@@ -250,6 +263,98 @@ interface ModelSnapshotCoverageRow {
     independentQualitySourceCount?: number;
     totalDistinctSources?: number;
   } | null;
+}
+
+interface SyncDiagnostics {
+  matchRate: number | null;
+  warningCount: number;
+  optionalSkipCount: number;
+  knownCatalogGapCount: number;
+  unmatchedModelCount: number;
+  lastSyncStatus: "success" | "partial" | "failed" | null;
+  diagnosticPenalty: number;
+  issueSummary: string | null;
+}
+
+function parseMatchRate(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, Math.min(100, raw));
+  }
+  if (typeof raw !== "string") return null;
+  const parsed = Number.parseFloat(raw.replace("%", "").trim());
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+function getArrayCount(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
+  const metadata = job?.metadata ?? null;
+  const matchRate = parseMatchRate(metadata?.matchRate);
+  const knownCatalogGapCount = getArrayCount(metadata?.knownCatalogGapModels);
+  const optionalSkipCount = getArrayCount(metadata?.optionalHandleSkips);
+  const unmatchedModelCount = Math.max(
+    0,
+    getArrayCount(metadata?.unmatchedModels) - knownCatalogGapCount
+  );
+
+  let warningCount = 0;
+  if (
+    metadata &&
+    typeof metadata.warningCount === "number" &&
+    Number.isFinite(metadata.warningCount)
+  ) {
+    warningCount = metadata.warningCount;
+  } else {
+    warningCount =
+      getArrayCount(metadata?.warnings) +
+      getArrayCount(metadata?.providerWarnings) +
+      getArrayCount(metadata?.handleWarnings) +
+      knownCatalogGapCount +
+      optionalSkipCount;
+  }
+
+  const structuralWarnings = Math.max(0, warningCount - optionalSkipCount);
+
+  let diagnosticPenalty = 0;
+  if (job?.status === "failed") diagnosticPenalty += 35;
+  else if (job?.status === "partial") diagnosticPenalty += 15;
+
+  if (job?.error_message) diagnosticPenalty += 10;
+
+  if (matchRate !== null) {
+    if (matchRate < 15) diagnosticPenalty += 20;
+    else if (matchRate < 35) diagnosticPenalty += 12;
+    else if (matchRate < 60) diagnosticPenalty += 5;
+  }
+
+  diagnosticPenalty += Math.min(15, structuralWarnings * 3);
+  diagnosticPenalty += Math.min(10, unmatchedModelCount * 2);
+  diagnosticPenalty = Math.min(45, diagnosticPenalty);
+
+  let issueSummary: string | null = null;
+  if (job?.status === "failed") {
+    issueSummary = job.error_message ?? "Latest sync failed";
+  } else if (matchRate !== null && matchRate < 15) {
+    issueSummary = `Low match rate: ${matchRate.toFixed(1)}%`;
+  } else if (structuralWarnings > 0) {
+    issueSummary = `${structuralWarnings} warning${structuralWarnings === 1 ? "" : "s"} in latest sync`;
+  } else if (unmatchedModelCount > 0) {
+    issueSummary = `${unmatchedModelCount} unmatched model${unmatchedModelCount === 1 ? "" : "s"} in latest sync`;
+  }
+
+  return {
+    matchRate,
+    warningCount,
+    optionalSkipCount,
+    knownCatalogGapCount,
+    unmatchedModelCount,
+    lastSyncStatus: job?.status ?? null,
+    diagnosticPenalty,
+    issueSummary,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +410,7 @@ export async function verifyDataIntegrity(
   // ── Fetch recent sync_jobs (last 2 per source) ────────────────────────────
   const { data: rawSyncJobs, error: sjError } = await supabase
     .from("sync_jobs")
-    .select("source_slug, records_processed, created_at")
+    .select("source_slug, records_processed, created_at, status, error_message, metadata")
     .order("created_at", { ascending: false })
     .limit(200); // fetch enough to get 2 per source across all sources
 
@@ -377,12 +482,16 @@ export async function verifyDataIntegrity(
     const latestCount = jobs[0]?.records_processed ?? 0;
     const previousCount = jobs[1]?.records_processed ?? 0;
     const trendScore = computeTrend(latestCount, previousCount);
-
-    const qualityScore = computeQualityScore({
+    const baseQualityScore = computeQualityScore({
       completeness: completenessScore,
       freshness: freshnessScore,
       trend: trendScore,
     });
+    const diagnostics = extractSyncDiagnostics(jobs[0]);
+    const qualityScore = Math.max(
+      0,
+      Math.round(baseQualityScore - diagnostics.diagnosticPenalty)
+    );
 
     // Determine staleness
     const isStale = freshnessScore === 0;
@@ -406,6 +515,14 @@ export async function verifyDataIntegrity(
       completeness: completenessScore,
       freshness: freshnessScore,
       trend: trendScore,
+      matchRate: diagnostics.matchRate,
+      warningCount: diagnostics.warningCount,
+      optionalSkipCount: diagnostics.optionalSkipCount,
+      knownCatalogGapCount: diagnostics.knownCatalogGapCount,
+      unmatchedModelCount: diagnostics.unmatchedModelCount,
+      lastSyncStatus: diagnostics.lastSyncStatus,
+      diagnosticPenalty: diagnostics.diagnosticPenalty,
+      issueSummary: diagnostics.issueSummary,
       recordCount,
       lastSyncAt,
       syncIntervalHours: intervalHours,
@@ -462,6 +579,10 @@ export async function verifyDataIntegrity(
   // ── Assemble summary ──────────────────────────────────────────────────────
   const totalSources = enabledDataSources.length;
   const staleCount = qualityScores.filter((s) => s.isStale).length;
+  const warningSources = qualityScores.filter((s) => s.warningCount > 0).length;
+  const lowMatchSources = qualityScores.filter(
+    (s) => s.matchRate !== null && s.matchRate < 35
+  ).length;
   const healthySources = totalSources - staleCount;
   const emptyTables = tableCoverage.filter((t) => t.isEmpty).length;
   const averageQualityScore =
@@ -518,6 +639,8 @@ export async function verifyDataIntegrity(
       totalSources,
       healthySources,
       staleSources: staleCount,
+      warningSources,
+      lowMatchSources,
       emptyTables,
       averageQualityScore,
     },

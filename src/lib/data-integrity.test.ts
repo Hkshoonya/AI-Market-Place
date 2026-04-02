@@ -392,11 +392,58 @@ describe("verifyDataIntegrity", () => {
     expect(score).toHaveProperty("completeness");
     expect(score).toHaveProperty("freshness");
     expect(score).toHaveProperty("trend");
+    expect(score).toHaveProperty("matchRate");
+    expect(score).toHaveProperty("warningCount");
+    expect(score).toHaveProperty("optionalSkipCount");
+    expect(score).toHaveProperty("knownCatalogGapCount");
+    expect(score).toHaveProperty("unmatchedModelCount");
+    expect(score).toHaveProperty("lastSyncStatus");
+    expect(score).toHaveProperty("diagnosticPenalty");
+    expect(score).toHaveProperty("issueSummary");
     expect(score).toHaveProperty("recordCount");
     expect(score).toHaveProperty("lastSyncAt");
     expect(score).toHaveProperty("syncIntervalHours");
     expect(score).toHaveProperty("staleSince");
     expect(score).toHaveProperty("isStale");
+  });
+
+  it("downgrades fresh sources with low match rates and warnings", async () => {
+    const supabase = makeMockSupabase({
+      syncJobs: [
+        {
+          source_slug: "openrouter-models",
+          records_processed: 200,
+          created_at: syncedAgo(3),
+          status: "success",
+          error_message: null,
+          metadata: {
+            matchRate: "12.5%",
+            warningCount: 2,
+            unmatchedModels: ["foo"],
+          },
+        },
+        {
+          source_slug: "openrouter-models",
+          records_processed: 190,
+          created_at: syncedAgo(9),
+          status: "success",
+          error_message: null,
+          metadata: null,
+        },
+      ],
+    });
+
+    const report = await verifyDataIntegrity(supabase as never);
+    const score = report.qualityScores[0];
+
+    expect(score.matchRate).toBe(12.5);
+    expect(score.warningCount).toBe(2);
+    expect(score.unmatchedModelCount).toBe(1);
+    expect(score.diagnosticPenalty).toBeGreaterThan(0);
+    expect(score.qualityScore).toBeLessThan(100);
+    expect(score.issueSummary).toContain("Low match rate");
+    expect(report.summary.warningSources).toBe(1);
+    expect(report.summary.lowMatchSources).toBe(1);
   });
 
   it("freshly synced source is not stale", async () => {

@@ -223,6 +223,14 @@ interface SourceQualityScore {
   completeness: number;
   freshness: number;
   trend: number;
+  matchRate: number | null;
+  warningCount: number;
+  optionalSkipCount: number;
+  knownCatalogGapCount: number;
+  unmatchedModelCount: number;
+  lastSyncStatus: "success" | "partial" | "failed" | null;
+  diagnosticPenalty: number;
+  issueSummary: string | null;
   recordCount: number;
   lastSyncAt: string | null;
   syncIntervalHours: number;
@@ -243,6 +251,8 @@ interface DataIntegrityReport {
     totalSources: number;
     healthySources: number;
     staleSources: number;
+    warningSources: number;
+    lowMatchSources: number;
     emptyTables: number;
     averageQualityScore: number;
   };
@@ -860,7 +870,7 @@ export default function AdminDataSourcesPage() {
           </div>
         ) : integrityData ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {/* Average Quality card */}
               <Card className="border-border/50 bg-card">
                 <CardContent className="p-4">
@@ -969,6 +979,48 @@ export default function AdminDataSourcesPage() {
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         Empty Tables · missing data
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        integrityData.summary.lowMatchSources > 0 ||
+                          integrityData.summary.warningSources > 0
+                          ? "bg-amber-400/15"
+                          : "bg-gain/15"
+                      )}
+                    >
+                      <AlertCircle
+                        className={cn(
+                          "h-4 w-4",
+                          integrityData.summary.lowMatchSources > 0 ||
+                            integrityData.summary.warningSources > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          integrityData.summary.lowMatchSources > 0 ||
+                            integrityData.summary.warningSources > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      >
+                        {integrityData.summary.lowMatchSources}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Low-Match Sources · warning-heavy coverage
                       </p>
                     </div>
                   </div>
@@ -1229,9 +1281,12 @@ export default function AdminDataSourcesPage() {
                     const qualityScore = integrityData?.qualityScores.find(
                       (q) => q.slug === source.slug
                     );
-                    const latestMatchRate = getLatestSyncMatchRate(source);
-                    const latestWarningCount = getLatestSyncWarningCount(source);
-                    const latestWarningSummary = getLatestSyncWarningSummary(source);
+                    const latestMatchRate =
+                      qualityScore?.matchRate ?? getLatestSyncMatchRate(source);
+                    const latestWarningCount =
+                      qualityScore?.warningCount ?? getLatestSyncWarningCount(source);
+                    const latestWarningSummary =
+                      qualityScore?.issueSummary ?? getLatestSyncWarningSummary(source);
                     const hasCoverageCaution =
                       (latestMatchRate !== null && latestMatchRate < 15) ||
                       latestWarningCount > 0;
