@@ -45,7 +45,7 @@ export async function GET(
       return NextResponse.json({ activity: [] });
     }
 
-    const [charges, refunds] = await Promise.all([
+    const [charges, refunds, eventsResponse] = await Promise.all([
       getTransactionHistory(wallet.id, {
         limit: 20,
         referenceType: "workspace_deployment_request",
@@ -56,7 +56,17 @@ export async function GET(
         referenceType: "workspace_deployment_refund",
         referenceId: deploymentId,
       }),
+      auth.supabase
+        .from("workspace_deployment_events")
+        .select(
+          "id, event_type, request_message, response_preview, provider_name, model_name, tokens_used, charge_amount, error_message, created_at"
+        )
+        .eq("deployment_id", deploymentId)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
+
+    if (eventsResponse.error) throw eventsResponse.error;
 
     const activity = [...charges, ...refunds]
       .sort((a, b) => {
@@ -75,7 +85,20 @@ export async function GET(
         createdAt: item.created_at,
       }));
 
-    return NextResponse.json({ activity });
+    const events = (eventsResponse.data ?? []).map((item) => ({
+      id: item.id,
+      eventType: item.event_type,
+      requestMessage: item.request_message,
+      responsePreview: item.response_preview,
+      providerName: item.provider_name,
+      modelName: item.model_name,
+      tokensUsed: item.tokens_used,
+      chargeAmount: item.charge_amount != null ? Number(item.charge_amount) : null,
+      errorMessage: item.error_message,
+      createdAt: item.created_at,
+    }));
+
+    return NextResponse.json({ activity, events });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployments/[deploymentId]/activity");
   }

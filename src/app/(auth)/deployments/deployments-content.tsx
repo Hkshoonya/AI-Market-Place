@@ -28,6 +28,18 @@ interface DeploymentActivitySnapshot {
     status: string | null;
     createdAt: string | null;
   }>;
+  events: Array<{
+    id: string;
+    eventType: string;
+    requestMessage: string | null;
+    responsePreview: string | null;
+    providerName: string | null;
+    modelName: string | null;
+    tokensUsed: number | null;
+    chargeAmount: number | null;
+    errorMessage: string | null;
+    createdAt: string | null;
+  }>;
 }
 
 function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentResponse }) {
@@ -37,6 +49,7 @@ function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentRes
   );
 
   const items = data?.activity ?? [];
+  const events = data?.events ?? [];
 
   return (
     <div className="space-y-3">
@@ -46,12 +59,43 @@ function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentRes
           Charges and refunds recorded against this deployment.
         </p>
       </div>
-      {items.length === 0 ? (
+      {events.length === 0 && items.length === 0 ? (
         <div className="rounded-lg border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground">
           No deployment activity recorded yet.
         </div>
       ) : (
         <div className="space-y-2">
+          {events.map((event) => (
+            <div
+              key={event.id}
+              className="rounded-lg border border-border/50 bg-card/40 px-4 py-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-white">
+                  {event.eventType.replace(/_/g, " ")}
+                </p>
+                <Badge variant="outline" className="border-border/50 bg-card/40">
+                  {event.chargeAmount != null ? `$${event.chargeAmount.toFixed(2)}` : "event"}
+                </Badge>
+              </div>
+              {event.errorMessage ? (
+                <p className="mt-2 text-xs text-red-300">{event.errorMessage}</p>
+              ) : event.responsePreview ? (
+                <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                  {event.responsePreview}
+                </p>
+              ) : null}
+              {event.requestMessage ? (
+                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                  Prompt: {event.requestMessage}
+                </p>
+              ) : null}
+              <p className="mt-2 text-xs text-muted-foreground">
+                {event.createdAt ? new Date(event.createdAt).toLocaleString() : "Unknown time"}
+                {event.tokensUsed != null ? ` · ${event.tokensUsed} tokens` : ""}
+              </p>
+            </div>
+          ))}
           {items.map((item) => (
             <div
               key={item.id}
@@ -275,6 +319,20 @@ export default function DeploymentsContent() {
                         <Badge variant="outline" className={cn("capitalize", budgetStatusTone)}>
                           {deployment.billing.budgetStatus}
                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            deployment.healthStatus === "healthy"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                              : deployment.healthStatus === "error"
+                                ? "border-red-500/20 bg-red-500/10 text-red-300"
+                                : deployment.healthStatus === "paused"
+                                  ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+                                  : "border-border/50 bg-card/40 text-muted-foreground"
+                          )}
+                        >
+                          {deployment.healthStatus}
+                        </Badge>
                         <Badge variant="outline" className="border-border/50 bg-card/40 capitalize">
                           {deployment.status}
                         </Badge>
@@ -284,6 +342,9 @@ export default function DeploymentsContent() {
                         <p className="text-sm text-muted-foreground">
                           {deployment.providerName ?? "Unknown provider"} · {deployment.execution.summary}
                         </p>
+                        {deployment.lastErrorMessage ? (
+                          <p className="mt-2 text-sm text-red-300">{deployment.lastErrorMessage}</p>
+                        ) : null}
                       </div>
                       <code className="block text-xs text-foreground">
                         {deployment.endpointPath}
@@ -353,6 +414,16 @@ export default function DeploymentsContent() {
                       </p>
                       <p className="mt-2 text-lg font-semibold text-white">
                         {formatCurrency(deployment.billing.budgetRemaining)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Last success
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        {deployment.lastSuccessAt
+                          ? new Date(deployment.lastSuccessAt).toLocaleString()
+                          : "No successful request yet"}
                       </p>
                     </div>
                   </div>

@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     const { data: deployment, error: deploymentError } = await auth.supabase
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.user.id)
       .eq("model_slug", modelSlug)
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
     const { data: existingDeployment, error: existingDeploymentError } = await auth.supabase
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.user.id)
       .eq("model_slug", parsed.data.modelSlug)
@@ -207,10 +207,18 @@ export async function POST(request: Request) {
       .from("workspace_deployments")
       .upsert(deploymentPayload, { onConflict: "user_id,model_slug" })
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .single();
     if (deploymentUpsertError) throw deploymentUpsertError;
+
+    await auth.supabase.from("workspace_deployment_events").insert({
+      deployment_id: deploymentData.id,
+      user_id: auth.user.id,
+      event_type: "deployment_created",
+      provider_name: parsed.data.providerName ?? null,
+      model_name: parsed.data.modelName,
+    });
 
     return NextResponse.json({
       deployment: toWorkspaceDeploymentResponse(deploymentData as WorkspaceDeploymentRecord),
@@ -241,7 +249,7 @@ export async function PATCH(request: Request) {
     const { data: deployment, error: deploymentError } = await auth.supabase
       .from("workspace_deployments")
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .eq("user_id", auth.user.id)
       .eq("model_slug", parsed.data.modelSlug)
@@ -283,11 +291,26 @@ export async function PATCH(request: Request) {
       .update(updatePayload)
       .eq("id", deployment.id)
       .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, updated_at"
+        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, total_tokens, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
       )
       .single();
 
     if (updateError) throw updateError;
+
+    await auth.supabase.from("workspace_deployment_events").insert({
+      deployment_id: updatedDeployment.id,
+      user_id: auth.user.id,
+      event_type:
+        parsed.data.action === "pause"
+          ? "deployment_paused"
+          : parsed.data.action === "resume"
+            ? "deployment_resumed"
+            : "budget_updated",
+      provider_name: updatedDeployment.provider_name,
+      model_name: updatedDeployment.model_name,
+      charge_amount:
+        parsed.data.action === "set_budget" ? updatedDeployment.credits_budget ?? null : null,
+    });
 
     return NextResponse.json({
       deployment: toWorkspaceDeploymentResponse(

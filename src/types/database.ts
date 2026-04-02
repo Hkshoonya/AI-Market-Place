@@ -834,8 +834,32 @@ export interface WorkspaceDeploymentRecord {
   total_requests: number;
   total_tokens: number;
   last_used_at: string | null;
+  last_success_at: string | null;
+  last_error_at: string | null;
+  last_error_message: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface WorkspaceDeploymentEventRecord {
+  id: string;
+  deployment_id: string;
+  user_id: string;
+  event_type:
+    | "request_succeeded"
+    | "request_failed"
+    | "deployment_created"
+    | "deployment_paused"
+    | "deployment_resumed"
+    | "budget_updated";
+  request_message: string | null;
+  response_preview: string | null;
+  provider_name: string | null;
+  model_name: string | null;
+  tokens_used: number | null;
+  charge_amount: number | null;
+  error_message: string | null;
+  created_at: string;
 }
 
 // Wallet & Payment types
@@ -1412,6 +1436,12 @@ export interface Database {
         Row: AsRow<WorkspaceDeploymentRecord>;
         Insert: Partial<WorkspaceDeploymentRecord> & Pick<WorkspaceDeploymentRecord, "user_id" | "model_slug" | "model_name" | "endpoint_slug">;
         Update: Partial<WorkspaceDeploymentRecord>;
+        Relationships: [];
+      };
+      workspace_deployment_events: {
+        Row: AsRow<WorkspaceDeploymentEventRecord>;
+        Insert: Partial<WorkspaceDeploymentEventRecord> & Pick<WorkspaceDeploymentEventRecord, "deployment_id" | "user_id" | "event_type">;
+        Update: Partial<WorkspaceDeploymentEventRecord>;
         Relationships: [];
       };
       wallets: {

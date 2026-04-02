@@ -17,10 +17,22 @@ export interface WorkspaceDeploymentRecord {
   total_requests: number;
   total_tokens: number;
   last_used_at: string | null;
+  last_success_at: string | null;
+  last_error_at: string | null;
+  last_error_message: string | null;
   updated_at: string;
 }
 
 export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRecord) {
+  const healthStatus =
+    deployment.status === "paused"
+      ? "paused"
+      : deployment.status === "failed" || deployment.last_error_message
+        ? "error"
+        : deployment.last_success_at || deployment.total_requests > 0
+          ? "healthy"
+          : "idle";
+
   return {
     id: deployment.id,
     runtimeId: deployment.runtime_id,
@@ -37,6 +49,10 @@ export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRec
     totalRequests: deployment.total_requests,
     totalTokens: deployment.total_tokens,
     lastUsedAt: deployment.last_used_at,
+    lastSuccessAt: deployment.last_success_at,
+    lastErrorAt: deployment.last_error_at,
+    lastErrorMessage: deployment.last_error_message,
+    healthStatus,
     updatedAt: deployment.updated_at,
     execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
     billing: getWorkspaceDeploymentBudgetSummary({
