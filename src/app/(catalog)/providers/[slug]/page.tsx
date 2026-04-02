@@ -41,6 +41,7 @@ import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { getNewsSignalType } from "@/lib/news/presentation";
+import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-requirements";
 
 export const revalidate = 300;
 
@@ -255,6 +256,15 @@ export default async function ProviderDetailPage({
   const dominantCategoryConfig = dominantCategory
     ? CATEGORIES.find((category) => category.slug === dominantCategory[0])
     : null;
+  const providerSelfHostSummary = summarizeProviderSelfHostRequirements(
+    models.map((model) => ({
+      isOpenWeights: model.is_open_weights,
+      parameterCount: model.parameter_count,
+      contextWindow: model.context_window,
+      modalities: Array.isArray(model.modalities) ? (model.modalities as string[]) : [],
+      category: model.category,
+    }))
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -401,6 +411,26 @@ export default async function ProviderDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {providerSelfHostSummary ? (
+        <Card className="mb-8 border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Open-Weight Setup Reality</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Open weights do not always mean easy hosted access. For {providerName}, they usually
+              mean you bring the hardware yourself or rent a cloud GPU when the models are larger.
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              {providerSelfHostSummary.headline}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {providerSelfHostSummary.detail}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {providerNews.length > 0 && (
         <div className="mb-8 space-y-4">
