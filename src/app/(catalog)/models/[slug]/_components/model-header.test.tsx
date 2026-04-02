@@ -206,4 +206,23 @@ describe("ModelHeader", () => {
       screen.getByRole("button", { name: /start with starter pack/i })
     ).toBeInTheDocument();
   });
+
+  it("shows a self-host expectation for open-weight models", () => {
+    render(
+      <ModelHeader
+        name="Test Model"
+        provider="OpenAI"
+        description="A test model"
+        overall_rank={1}
+        is_open_weights
+        website_url="https://example.com"
+        slug="test-model"
+        id="model-1"
+        catConfig={undefined}
+        selfHostRequirementLabel="Likely needs a rented cloud GPU"
+      />
+    );
+
+    expect(screen.getByText(/running this yourself: likely needs a rented cloud gpu\./i)).toBeInTheDocument();
+  });
 });

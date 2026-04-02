@@ -21,6 +21,7 @@ export interface ModelHeaderProps {
   catConfig: CategoryConfig | undefined;
   hasNews?: boolean;
   latestUpdateAt?: string | null;
+  selfHostRequirementLabel?: string | null;
   deployActionLabel?: string | null;
   deployActionHref?: string | null;
   deployActionExternal?: boolean;
@@ -50,6 +51,7 @@ export function ModelHeader({
   catConfig,
   hasNews,
   latestUpdateAt,
+  selfHostRequirementLabel,
   deployActionLabel,
   deployActionHref,
   deployActionExternal,
@@ -96,6 +98,11 @@ export function ModelHeader({
               {description}
             </p>
           )}
+          {is_open_weights && selfHostRequirementLabel ? (
+            <p className="mt-3 text-sm text-amber-200">
+              Running this yourself: {selfHostRequirementLabel.toLowerCase()}.
+            </p>
+          ) : null}
           {latestUpdateAt ? (
             <div className="mt-4">
               <DataFreshnessBadge

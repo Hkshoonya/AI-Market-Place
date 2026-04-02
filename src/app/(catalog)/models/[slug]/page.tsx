@@ -44,6 +44,7 @@ import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 
 export const revalidate = 300;
 
@@ -245,6 +246,13 @@ export default async function ModelDetailPage({
   const rawCap = model.capabilities;
   const capabilities: Record<string, boolean> =
     rawCap && typeof rawCap === "object" && !Array.isArray(rawCap) ? (rawCap as Record<string, boolean>) : {};
+  const selfHostRequirements = getSelfHostRequirements({
+    isOpenWeights: model.is_open_weights,
+    parameterCount: model.parameter_count,
+    contextWindow: model.context_window,
+    modalities,
+    category: model.category,
+  });
 
   const stats = [
     { label: "Quality Score", value: model.quality_score ? Number(model.quality_score).toFixed(1) : "---", icon: BarChart3 },
@@ -357,6 +365,7 @@ export default async function ModelDetailPage({
         catConfig={catConfig}
         hasNews={modelNews.length > 0}
         latestUpdateAt={latestModelUpdateAt}
+        selfHostRequirementLabel={selfHostRequirements?.shortLabel ?? null}
         deployActionLabel={deployStartPlan?.label ?? null}
         deployActionHref={deployStartPlan?.href ?? null}
         deployActionExternal={deployStartPlan?.external ?? false}
