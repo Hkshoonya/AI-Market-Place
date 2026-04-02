@@ -50,4 +50,34 @@ describe("aider-polyglot helpers", () => {
       expect.arrayContaining(["openrouter/x-ai/grok-4", "x-ai/grok-4", "grok-4"])
     );
   });
+
+  it("augments known alias variants for brittle leaderboard names", () => {
+    expect(
+      __testables.augmentAliases({
+        modelName: "yi-lightning",
+        command: "aider --model openai/yi-lightning",
+        aliases: ["yi-lightning", "openai/yi-lightning"],
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        "yi-lightning",
+        "Yi-Lightning",
+        "01.AI Yi-Lightning",
+      ])
+    );
+
+    expect(
+      __testables.augmentAliases({
+        modelName: "Codestral 25.01",
+        command: "aider --model mistral/codestral-latest",
+        aliases: ["Codestral 25.01", "mistral/codestral-latest", "codestral-latest"],
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        "Codestral",
+        "codestral",
+        "Codestral latest",
+      ])
+    );
+  });
 });

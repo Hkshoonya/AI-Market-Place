@@ -114,6 +114,14 @@ interface DataSourceRow {
   last_error_message: string | null;
   quarantined_at: string | null;
   quarantine_reason: string | null;
+  latest_sync_job?: {
+    source: string;
+    status: string;
+    error_message: string | null;
+    metadata: Record<string, unknown> | null;
+    completed_at: string | null;
+    started_at: string | null;
+  } | null;
 }
 
 type SourceLifecycleState = "active" | "degraded" | "quarantined" | "disabled";
@@ -280,6 +288,60 @@ function qualityColor(score: number): { text: string; bg: string } {
   if (score >= 70) return { text: "text-gain", bg: "bg-gain/10" };
   if (score >= 40) return { text: "text-amber-400", bg: "bg-amber-400/10" };
   return { text: "text-loss", bg: "bg-loss/10" };
+}
+
+function getLatestSyncMatchRate(source: DataSourceRow) {
+  const raw = source.latest_sync_job?.metadata?.matchRate;
+  if (typeof raw !== "string") return null;
+  const parsed = Number.parseFloat(raw.replace("%", ""));
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+}
+
+function getLatestSyncWarningCount(source: DataSourceRow) {
+  const metadata = source.latest_sync_job?.metadata;
+  if (!metadata) return 0;
+
+  if (typeof metadata.warningCount === "number" && Number.isFinite(metadata.warningCount)) {
+    return metadata.warningCount;
+  }
+
+  const arrayKeys = [
+    "warnings",
+    "providerWarnings",
+    "handleWarnings",
+    "knownCatalogGapModels",
+    "optionalHandleSkips",
+  ] as const;
+
+  return arrayKeys.reduce((count, key) => {
+    const value = metadata[key];
+    return count + (Array.isArray(value) ? value.length : 0);
+  }, 0);
+}
+
+function getLatestSyncWarningSummary(source: DataSourceRow) {
+  const metadata = source.latest_sync_job?.metadata;
+  if (!metadata) return null;
+
+  const knownCatalogGapModels = metadata.knownCatalogGapModels;
+  if (Array.isArray(knownCatalogGapModels) && knownCatalogGapModels.length > 0) {
+    return `Catalog gaps: ${knownCatalogGapModels.slice(0, 2).join(", ")}${
+      knownCatalogGapModels.length > 2 ? "…" : ""
+    }`;
+  }
+
+  const optionalHandleSkips = metadata.optionalHandleSkips;
+  if (Array.isArray(optionalHandleSkips) && optionalHandleSkips.length > 0) {
+    return `Optional feed skips: ${optionalHandleSkips.length}`;
+  }
+
+  const rawWarnings = metadata.warnings;
+  if (Array.isArray(rawWarnings) && rawWarnings.length > 0) {
+    return String(rawWarnings[0]);
+  }
+
+  return null;
 }
 
 function SyncHistoryInline({ slug }: { slug: string }) {
@@ -1167,6 +1229,12 @@ export default function AdminDataSourcesPage() {
                     const qualityScore = integrityData?.qualityScores.find(
                       (q) => q.slug === source.slug
                     );
+                    const latestMatchRate = getLatestSyncMatchRate(source);
+                    const latestWarningCount = getLatestSyncWarningCount(source);
+                    const latestWarningSummary = getLatestSyncWarningSummary(source);
+                    const hasCoverageCaution =
+                      (latestMatchRate !== null && latestMatchRate < 15) ||
+                      latestWarningCount > 0;
 
                     return [
                       <tr
@@ -1201,6 +1269,31 @@ export default function AdminDataSourcesPage() {
                             <p className="text-[11px] text-muted-foreground line-clamp-1">
                               {source.description}
                             </p>
+                            {hasCoverageCaution && (
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                {latestMatchRate !== null && latestMatchRate < 15 && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-400/30 bg-amber-400/10 text-[10px] text-amber-400"
+                                  >
+                                    Match rate {latestMatchRate.toFixed(1)}%
+                                  </Badge>
+                                )}
+                                {latestWarningCount > 0 && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-400/30 bg-amber-400/10 text-[10px] text-amber-400"
+                                  >
+                                    {latestWarningCount} warning{latestWarningCount === 1 ? "" : "s"}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                            {latestWarningSummary && (
+                              <p className="mt-1 text-[11px] text-amber-400 line-clamp-1">
+                                {latestWarningSummary}
+                              </p>
+                            )}
                             {source.quarantined_at && (
                               <p className="mt-1 text-[11px] text-loss line-clamp-1">
                                 Quarantined: {source.quarantine_reason ?? "permanent upstream failure"}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    const adminSupabase = createAdminClient();
+
+    const { data, error } = await adminSupabase
       .from("data_sources")
       .select("*")
       .order("tier", { ascending: true })
@@ -48,7 +51,30 @@ export async function GET(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ data });
+
+    const { data: syncJobs, error: syncJobsError } = await adminSupabase
+      .from("sync_jobs")
+      .select("source, status, error_message, metadata, completed_at, started_at")
+      .order("started_at", { ascending: false })
+      .limit(500);
+
+    if (syncJobsError) {
+      return NextResponse.json({ error: syncJobsError.message }, { status: 500 });
+    }
+
+    const latestSyncJobBySource = new Map<string, (typeof syncJobs)[number]>();
+    for (const job of syncJobs ?? []) {
+      if (!latestSyncJobBySource.has(job.source)) {
+        latestSyncJobBySource.set(job.source, job);
+      }
+    }
+
+    const enrichedData = (data ?? []).map((source) => ({
+      ...source,
+      latest_sync_job: latestSyncJobBySource.get(source.slug) ?? null,
+    }));
+
+    return NextResponse.json({ data: enrichedData });
   } catch (err) {
     return handleApiError(err, "api/admin/data-sources");
   }

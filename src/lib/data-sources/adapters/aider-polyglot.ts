@@ -28,6 +28,33 @@ interface PersistedEntry extends AiderLeaderboardEntry {
 
 const SOURCE_URL = "https://aider.chat/docs/leaderboards/";
 const BENCHMARK_SLUG = "aider-polyglot";
+const KNOWN_CATALOG_GAPS = new Set([
+  "gemini-exp-1206",
+  "codestral 25.01",
+]);
+
+function normalizeGapKey(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function augmentAliases(entry: Pick<PersistedEntry, "modelName" | "aliases" | "command">) {
+  const aliases = new Set(entry.aliases);
+  const normalizedName = entry.modelName.trim().toLowerCase();
+
+  if (normalizedName === "yi-lightning") {
+    aliases.add("Yi-Lightning");
+    aliases.add("01.AI Yi-Lightning");
+    aliases.add("01AI Yi-Lightning");
+  }
+
+  if (aliases.has("codestral-latest") || aliases.has("mistral/codestral-latest")) {
+    aliases.add("Codestral");
+    aliases.add("codestral");
+    aliases.add("Codestral latest");
+  }
+
+  return Array.from(aliases);
+}
 
 function decodeHtmlEntities(value: string): string {
   return value
@@ -109,7 +136,15 @@ export function extractAiderLeaderboardEntries(html: string): PersistedEntry[] {
     const conformRate = parsePercent(stripHtml(cells[5]));
     const editFormat = stripHtml(cells[6]) || null;
     const details = extractDetailMap(detailsHtml);
-    const aliases = new Set<string>([modelName, ...(details.Model ? [details.Model] : []), ...extractCommandAliases(command)]);
+    const aliases = augmentAliases({
+      modelName,
+      command,
+      aliases: [
+        modelName,
+        ...(details.Model ? [details.Model] : []),
+        ...extractCommandAliases(command),
+      ],
+    });
 
     entries.push({
       modelName,
@@ -118,7 +153,7 @@ export function extractAiderLeaderboardEntries(html: string): PersistedEntry[] {
       editFormat,
       command,
       date: details.Date ?? null,
-      aliases: Array.from(aliases),
+      aliases,
       sourceUrl: SOURCE_URL,
     });
   }
@@ -211,6 +246,8 @@ const adapter: DataSourceAdapter = {
     const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     const bestEntryByModel = new Map<string, PersistedEntry>();
+    const unmatchedModels = new Set<string>();
+    const knownCatalogGapModels = new Set<string>();
     let recordsProcessed = 0;
 
     for (const entry of entries) {
@@ -222,6 +259,12 @@ const adapter: DataSourceAdapter = {
       );
 
       if (relatedIds.length === 0) {
+        const normalizedGapName = normalizeGapKey(entry.modelName);
+        unmatchedModels.add(entry.modelName);
+        if (KNOWN_CATALOG_GAPS.has(normalizedGapName)) {
+          knownCatalogGapModels.add(entry.modelName);
+          continue;
+        }
         errors.push({ message: `No match for: ${entry.modelName}` });
         continue;
       }
@@ -271,7 +314,14 @@ const adapter: DataSourceAdapter = {
       recordsCreated,
       recordsUpdated: recordsCreated,
       errors,
-      metadata: { sourceUrl: url, leaderboardEntries: entries.length, matchedModels: bestEntryByModel.size },
+      metadata: {
+        sourceUrl: url,
+        leaderboardEntries: entries.length,
+        matchedModels: bestEntryByModel.size,
+        unmatchedModels: [...unmatchedModels].sort(),
+        knownCatalogGapModels: [...knownCatalogGapModels].sort(),
+        warningCount: knownCatalogGapModels.size,
+      },
     };
   },
 
@@ -309,4 +359,5 @@ registerAdapter(adapter);
 export const __testables = {
   extractAiderLeaderboardEntries,
   extractCommandAliases,
+  augmentAliases,
 };
