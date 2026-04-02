@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const resolveAuthUser = vi.fn();
-const single = vi.fn();
-const eq = vi.fn();
+const deploymentSingle = vi.fn();
+const runtimeSingle = vi.fn();
+const deploymentEqSecond = vi.fn();
+const deploymentEqFirst = vi.fn();
+const runtimeEq = vi.fn();
 const updateEq = vi.fn();
 const update = vi.fn();
+const insert = vi.fn();
 const from = vi.fn();
 const callAgentModel = vi.fn();
 const getWalletByOwner = vi.fn();
@@ -34,15 +38,11 @@ vi.mock("@/lib/payments/wallet", () => ({
 describe("POST /api/deployments/[endpointSlug]", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 
     updateEq.mockResolvedValue({ error: null });
     update.mockImplementation(() => ({
       eq: updateEq,
-    }));
-    eq.mockImplementation(() => ({
-      eq,
-      single,
     }));
     getWalletByOwner.mockResolvedValue({
       id: "wallet-1",
@@ -50,14 +50,40 @@ describe("POST /api/deployments/[endpointSlug]", () => {
     });
     debitWallet.mockResolvedValue("tx-1");
     creditWallet.mockResolvedValue("refund-1");
+    insert.mockResolvedValue({ error: null });
+
+    deploymentEqSecond.mockImplementation(() => ({
+      single: deploymentSingle,
+    }));
+    deploymentEqFirst.mockImplementation(() => ({
+      eq: deploymentEqSecond,
+    }));
+    runtimeEq.mockImplementation(() => ({
+      single: runtimeSingle,
+    }));
 
     from.mockImplementation((table: string) => {
-      if (table === "workspace_deployments" || table === "workspace_runtimes") {
+      if (table === "workspace_deployments") {
         return {
           select: () => ({
-            eq,
+            eq: deploymentEqFirst,
           }),
           update,
+        };
+      }
+
+      if (table === "workspace_runtimes") {
+        return {
+          select: () => ({
+            eq: runtimeEq,
+          }),
+          update,
+        };
+      }
+
+      if (table === "workspace_deployment_events") {
+        return {
+          insert,
         };
       }
 
@@ -73,7 +99,7 @@ describe("POST /api/deployments/[endpointSlug]", () => {
       apiKeyScopes: ["agent"],
     });
 
-    single
+    deploymentSingle
       .mockResolvedValueOnce({
         data: {
           id: "deployment-1",
@@ -94,14 +120,15 @@ describe("POST /api/deployments/[endpointSlug]", () => {
         },
         error: null,
       })
-      .mockResolvedValueOnce({
-        data: {
-          id: "runtime-1",
-          total_requests: 3,
-          total_tokens: 120,
-        },
-        error: null,
-      });
+      .mockResolvedValueOnce({ data: null, error: null });
+    runtimeSingle.mockResolvedValueOnce({
+      data: {
+        id: "runtime-1",
+        total_requests: 3,
+        total_tokens: 120,
+      },
+      error: null,
+    });
 
     callAgentModel.mockResolvedValue({
       content: "Hello from GPT-4.1",
@@ -135,7 +162,7 @@ describe("POST /api/deployments/[endpointSlug]", () => {
       apiKeyScopes: ["agent"],
     });
 
-    single.mockResolvedValueOnce({
+    deploymentSingle.mockResolvedValueOnce({
       data: {
         id: "deployment-1",
         runtime_id: "runtime-1",
@@ -180,7 +207,7 @@ describe("POST /api/deployments/[endpointSlug]", () => {
       apiKeyScopes: ["agent"],
     });
 
-    single.mockResolvedValueOnce({
+    deploymentSingle.mockResolvedValueOnce({
       data: {
         id: "deployment-1",
         runtime_id: "runtime-1",

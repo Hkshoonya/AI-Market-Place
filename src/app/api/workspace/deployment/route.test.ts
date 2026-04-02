@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUser = vi.fn();
-const maybeSingle = vi.fn();
-const selectSingle = vi.fn();
-const eq = vi.fn();
+const runtimeMaybeSingle = vi.fn();
+const deploymentMaybeSingle = vi.fn();
+const deploymentSingle = vi.fn();
+const runtimeEqSecond = vi.fn();
+const runtimeEqFirst = vi.fn();
+const deploymentEqSecond = vi.fn();
+const deploymentEqFirst = vi.fn();
 const upsert = vi.fn();
 const upsertSelect = vi.fn();
 const update = vi.fn();
+const updateEq = vi.fn();
 const updateSelect = vi.fn();
+const insert = vi.fn();
 const from = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -22,14 +28,23 @@ vi.mock("@/lib/supabase/server", () => ({
 describe("workspace deployment API", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 
-    eq.mockImplementation(() => ({
-      eq,
-      maybeSingle,
+    runtimeEqSecond.mockImplementation(() => ({
+      maybeSingle: runtimeMaybeSingle,
     }));
-    selectSingle.mockImplementation(() => ({
-      single: vi.fn().mockResolvedValue({
+    runtimeEqFirst.mockImplementation(() => ({
+      eq: runtimeEqSecond,
+    }));
+    deploymentEqSecond.mockImplementation(() => ({
+      maybeSingle: deploymentMaybeSingle,
+      single: deploymentSingle,
+    }));
+    deploymentEqFirst.mockImplementation(() => ({
+      eq: deploymentEqSecond,
+    }));
+
+    const singleResolved = vi.fn().mockResolvedValue({
         data: {
           id: "entity-1",
           runtime_id: "runtime-1",
@@ -48,32 +63,47 @@ describe("workspace deployment API", () => {
           updated_at: "2026-04-01T13:30:00.000Z",
         },
         error: null,
-      }),
-    }));
+      });
     upsertSelect.mockImplementation(() => ({
-      single: selectSingle,
+      single: singleResolved,
     }));
     upsert.mockImplementation(() => ({
       select: upsertSelect,
     }));
     updateSelect.mockImplementation(() => ({
-      single: selectSingle,
+      single: singleResolved,
     }));
     update.mockImplementation(() => ({
-      eq: vi.fn(() => ({
+      eq: updateEq.mockImplementation(() => ({
         select: updateSelect,
       })),
     }));
+    insert.mockResolvedValue({ error: null });
 
     from.mockImplementation((table: string) => {
-      if (table === "workspace_runtimes" || table === "workspace_deployments") {
+      if (table === "workspace_runtimes") {
         return {
           select: () => ({
-            eq,
-            maybeSingle,
+            eq: runtimeEqFirst,
           }),
           upsert,
           update,
+        };
+      }
+
+      if (table === "workspace_deployments") {
+        return {
+          select: () => ({
+            eq: deploymentEqFirst,
+          }),
+          upsert,
+          update,
+        };
+      }
+
+      if (table === "workspace_deployment_events") {
+        return {
+          insert,
         };
       }
 
@@ -86,7 +116,8 @@ describe("workspace deployment API", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-    maybeSingle.mockResolvedValue({ data: null, error: null });
+    runtimeMaybeSingle.mockResolvedValue({ data: null, error: null });
+    deploymentMaybeSingle.mockResolvedValue({ data: null, error: null });
 
     const { POST } = await import("./route");
     const response = await POST(
@@ -141,7 +172,7 @@ describe("workspace deployment API", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-    maybeSingle.mockResolvedValue({
+    deploymentSingle.mockResolvedValue({
       data: {
         id: "entity-1",
         runtime_id: "runtime-1",
