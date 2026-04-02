@@ -42,6 +42,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   "mistralai": "Mistral AI",
   "qwen": "Alibaba / Qwen",
   "x-ai": "xAI",
+  "xai": "xAI",
   "z-ai": "Z.ai",
   "cohere": "Cohere",
   "microsoft": "Microsoft",
@@ -175,7 +176,7 @@ const OPEN_WEIGHT_PROVIDERS = new Set([
 /** Providers that are always proprietary / closed weights */
 const PROPRIETARY_PROVIDERS = new Set([
   "openai", "anthropic", "cohere", "inflection",
-  "perplexity", "x-ai", "amazon",
+  "perplexity", "x-ai", "xai", "amazon",
 ]);
 
 const OPEN_WEIGHT_MODEL_PATTERNS = [

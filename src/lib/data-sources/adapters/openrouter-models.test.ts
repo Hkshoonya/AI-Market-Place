@@ -111,4 +111,21 @@ describe("openrouter model record mapping", () => {
 
     expect(record.provider).toBe("Z.ai");
   });
+
+  it("treats xai-prefixed router models as proprietary", () => {
+    const record = __testables.buildModelRecord({
+      id: "xai/grok-4",
+      name: "xAI: Grok 4",
+      description: "xAI's flagship reasoning model.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.provider).toBe("xAI");
+    expect(record.is_open_weights).toBe(false);
+    expect(record.license).toBe("commercial");
+    expect(record.license_name).toBeNull();
+  });
 });
