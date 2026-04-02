@@ -272,7 +272,7 @@ const adapter: DataSourceAdapter = {
       const res = await fetchWithRetry(
         OPENROUTER_MODELS_URL,
         { headers: requestHeaders, signal: ctx.signal },
-        { signal: ctx.signal }
+        { signal: ctx.signal, maxRetries: 4, baseDelayMs: 1500 }
       );
 
       if (!res.ok) {
@@ -469,7 +469,7 @@ const adapter: DataSourceAdapter = {
       const res = await fetchWithRetry(
         OPENROUTER_MODELS_URL,
         { headers },
-        { maxRetries: 1 }
+        { maxRetries: 2, baseDelayMs: 1500 }
       );
 
       const latencyMs = Date.now() - start;

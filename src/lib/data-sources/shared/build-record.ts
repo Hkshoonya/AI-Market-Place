@@ -96,6 +96,37 @@ export interface ModelRecord {
   data_refreshed_at: string;
 }
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  video_generation: "video",
+  audio_generation: "speech_audio",
+  text_generation: "llm",
+};
+
+const VALID_MODEL_CATEGORIES = new Set([
+  "llm",
+  "image_generation",
+  "vision",
+  "multimodal",
+  "embeddings",
+  "speech_audio",
+  "video",
+  "code",
+  "agentic_browser",
+  "specialized",
+]);
+
+function normalizeModelCategory(
+  category: string | undefined,
+  fallbackCategory: string
+): string {
+  if (!category) return fallbackCategory;
+
+  const normalized = CATEGORY_ALIASES[category] ?? category;
+  return VALID_MODEL_CATEGORIES.has(normalized)
+    ? normalized
+    : fallbackCategory;
+}
+
 /**
  * Build a normalized DB record for a model.
  *
@@ -126,10 +157,11 @@ export function buildRecord(
   const name = merged.name ?? modelId;
 
   // Category: ProviderDefaults.category > merged.category > infer from model ID
-  const category =
-    defaults.category ??
-    merged.category ??
-    inferCategory({ mode: "id", modelId });
+  const inferredCategory = inferCategory({ mode: "id", modelId });
+  const category = normalizeModelCategory(
+    defaults.category ?? merged.category,
+    inferredCategory
+  );
 
   // Modalities: ProviderDefaults.modalities > merged.modalities > infer from model ID
   const modalities =

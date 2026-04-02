@@ -166,4 +166,19 @@ describe("buildRecord()", () => {
 
     expect(record.status).toBe("preview");
   });
+
+  it("maps legacy upstream categories to enum-safe categories", () => {
+    const record = buildRecord(
+      "sora-2",
+      {
+        name: "Sora 2",
+        description: "Video generation model",
+        category: "video_generation",
+      },
+      {},
+      openaiDefaults
+    );
+
+    expect(record.category).toBe("video");
+  });
 });

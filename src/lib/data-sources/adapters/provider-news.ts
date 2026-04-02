@@ -28,7 +28,7 @@ const PROVIDER_BLOGS = [
   { name: "Google AI", url: "https://blog.google/technology/ai/", provider: "Google" },
   { name: "Meta AI", url: "https://ai.meta.com/blog/", provider: "Meta" },
   { name: "Mistral AI", url: "https://mistral.ai/news/", provider: "Mistral AI" },
-  { name: "DeepSeek", url: "https://api-docs.deepseek.com/news", provider: "DeepSeek" },
+  { name: "DeepSeek", url: "https://api-docs.deepseek.com/updates/", provider: "DeepSeek" },
   { name: "xAI", url: "https://x.ai/blog", provider: "xAI" },
   { name: "Cohere", url: "https://cohere.com/blog", provider: "Cohere" },
   { name: "Stability AI", url: "https://stability.ai/news", provider: "Stability AI" },
@@ -124,6 +124,20 @@ interface ProviderHealthResult {
   ok: boolean;
   status: number | null;
   latencyMs: number;
+}
+
+function isBotChallengeResponse(res: Response): boolean {
+  if (res.status !== 403) return false;
+
+  const cfMitigated = res.headers.get("cf-mitigated");
+  const server = res.headers.get("server")?.toLowerCase() ?? "";
+  const setCookie = res.headers.get("set-cookie") ?? "";
+
+  return (
+    cfMitigated != null ||
+    server.includes("cloudflare") ||
+    setCookie.includes("__cf_bm=")
+  );
 }
 
 function parseZaiReleaseNotes(html: string, baseUrl: string): ParsedArticle[] {
@@ -262,8 +276,10 @@ const adapter: DataSourceAdapter = {
       (ctx.config.maxArticlesPerProvider as number) ?? 10;
 
     const errors: { message: string; context?: string }[] = [];
+    const providerWarnings: Array<{ provider: string; message: string }> = [];
     let recordsProcessed = 0;
     const allRecords: Record<string, unknown>[] = [];
+    let reachableProviders = 0;
 
     // Build model lookup for news-to-model linking
     let modelLookup: ModelLookupEntry[] = [];
@@ -284,6 +300,14 @@ const adapter: DataSourceAdapter = {
         );
 
         if (!res.ok) {
+          if (isBotChallengeResponse(res)) {
+            providerWarnings.push({
+              provider: blog.provider,
+              message: `${blog.name} is blocking automated access with an anti-bot challenge`,
+            });
+            continue;
+          }
+
           errors.push({
             message: `Failed to fetch ${blog.name} blog: HTTP ${res.status}`,
             context: `url=${blog.url}`,
@@ -291,6 +315,7 @@ const adapter: DataSourceAdapter = {
           continue;
         }
 
+        reachableProviders++;
         const html = await res.text();
         const parsed = parseArticles(html, blog.url);
 
@@ -360,11 +385,18 @@ const adapter: DataSourceAdapter = {
     }
 
     return {
-      success: errors.filter((e) => !e.context?.startsWith("url=")).length === 0,
+      success:
+        errors.filter((e) => !e.context?.startsWith("url=")).length === 0 &&
+        reachableProviders > 0,
       recordsProcessed,
       recordsCreated: allRecords.length,
       recordsUpdated: 0,
       errors,
+      metadata: {
+        providersChecked: PROVIDER_BLOGS.length,
+        reachableProviders,
+        providerWarnings,
+      },
     };
   },
 
@@ -400,6 +432,7 @@ const adapter: DataSourceAdapter = {
 export const __testables = {
   inferPublishedAt,
   isModelRelated,
+  isBotChallengeResponse,
   parseZaiReleaseNotes,
   providerBlogs: PROVIDER_BLOGS,
   summarizeHealthChecks,

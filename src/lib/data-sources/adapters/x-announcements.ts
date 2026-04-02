@@ -391,6 +391,7 @@ const adapter: DataSourceAdapter = {
       (ctx.config.maxTweetsPerAccount as number) ?? 10;
 
     const errors: { message: string; context?: string }[] = [];
+    const handleWarnings: Array<{ handle: string; message: string }> = [];
     let recordsProcessed = 0;
     const allRecords: Record<string, unknown>[] = [];
     const templates = getRssEndpointTemplates();
@@ -415,9 +416,9 @@ const adapter: DataSourceAdapter = {
         } else {
           const result = await fetchRssForHandle(account.handle, templates, ctx.signal);
           if (!result) {
-            errors.push({
+            handleWarnings.push({
+              handle: account.handle,
               message: `All timeline endpoints failed for @${account.handle}`,
-              context: `handle=${account.handle}`,
             });
             continue;
           }
@@ -427,9 +428,9 @@ const adapter: DataSourceAdapter = {
         }
 
         if (tweets.length === 0) {
-          errors.push({
+          handleWarnings.push({
+            handle: account.handle,
             message: `No usable timeline entries for @${account.handle}`,
-            context: `handle=${account.handle}`,
           });
           continue;
         }
@@ -481,9 +482,9 @@ const adapter: DataSourceAdapter = {
           });
         }
       } catch (err) {
-        errors.push({
+        handleWarnings.push({
+          handle: account.handle,
           message: `Error processing @${account.handle}: ${err instanceof Error ? err.message : String(err)}`,
-          context: `handle=${account.handle}`,
         });
         // Continue to next account regardless of error
       }
@@ -499,18 +500,27 @@ const adapter: DataSourceAdapter = {
       errors.push(...ue);
     }
 
-    const fatalErrors = errors.filter((e) => !e.context?.startsWith("handle="));
     const hadAnyTimelineData = recordsProcessed > 0 || workingSource !== null;
+    const finalErrors = hadAnyTimelineData
+      ? errors
+      : [
+          ...errors,
+          ...handleWarnings.map((warning) => ({
+            message: warning.message,
+            context: `handle=${warning.handle}`,
+          })),
+        ];
     return {
-      success: fatalErrors.length === 0 && hadAnyTimelineData,
+      success: finalErrors.length === 0 && hadAnyTimelineData,
       recordsProcessed,
       recordsCreated: allRecords.length,
       recordsUpdated: 0,
-      errors,
+      errors: finalErrors,
       metadata: {
         rssSource: workingSource ?? "none",
         rsshubConfigured: !!process.env.RSSHUB_BASE_URL,
         syndicationEnabled: true,
+        handleWarnings,
       },
     };
   },

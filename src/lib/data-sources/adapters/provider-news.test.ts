@@ -39,10 +39,23 @@ describe("provider-news health aggregation", () => {
   it("tracks Z.ai and MiniMax provider blogs", () => {
     expect(__testables.providerBlogs).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ provider: "DeepSeek", url: "https://api-docs.deepseek.com/updates/" }),
         expect.objectContaining({ provider: "Z.ai" }),
         expect.objectContaining({ provider: "MiniMax" }),
       ])
     );
+  });
+
+  it("treats Cloudflare challenge responses as warnings instead of hard provider failures", () => {
+    const response = new Response("", {
+      status: 403,
+      headers: {
+        "cf-mitigated": "challenge",
+        server: "cloudflare",
+      },
+    });
+
+    expect(__testables.isBotChallengeResponse(response)).toBe(true);
   });
 
   it("extracts structured Z.ai release-note entries instead of the generic page title", () => {
