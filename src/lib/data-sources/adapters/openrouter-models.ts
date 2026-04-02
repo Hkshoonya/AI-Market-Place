@@ -164,7 +164,7 @@ function mergeModalities(arch: OpenRouterArchitecture | undefined): string[] {
  * Models from these providers are typically released with open weights.
  */
 const OPEN_WEIGHT_PROVIDERS = new Set([
-  "meta-llama", "mistralai", "qwen", "deepseek", "google",
+  "meta-llama", "mistralai", "qwen", "deepseek",
   "microsoft", "nvidia", "01-ai", "nousresearch",
   "cognitivecomputations", "thudm", "bigcode", "stabilityai",
   "tiiuae", "databricks", "sophosympatheia", "neversleep",
@@ -199,10 +199,15 @@ function inferOpenWeights(id: string, description: string | undefined): boolean 
   if (PROPRIETARY_PROVIDERS.has(prefix)) return false;
   if (OPEN_WEIGHT_PROVIDERS.has(prefix)) return true;
 
-  // Google models: Gemma is open, Gemini is not
+  // Google catalog is mixed. Only Gemma-family style releases are open-weight.
   if (prefix === "google") {
     const modelPart = id.split("/")[1] ?? "";
-    return modelPart.toLowerCase().startsWith("gemma");
+    const normalized = modelPart.toLowerCase();
+    return (
+      normalized.startsWith("gemma") ||
+      normalized.startsWith("embeddinggemma") ||
+      normalized.startsWith("translategemma")
+    );
   }
 
   // Check description for open-weight signals

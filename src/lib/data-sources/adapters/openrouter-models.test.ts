@@ -82,6 +82,22 @@ describe("openrouter model record mapping", () => {
     expect(record.license_name).toBe("Open weights");
   });
 
+  it("keeps proprietary Google models marked as closed-weight", () => {
+    const record = __testables.buildModelRecord({
+      id: "google/gemini-2.5-pro",
+      name: "Google: Gemini 2.5 Pro",
+      description: "Google's frontier proprietary multimodal model.",
+      architecture: {
+        input_modalities: ["text", "image"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.is_open_weights).toBe(false);
+    expect(record.license).toBe("commercial");
+    expect(record.license_name).toBeNull();
+  });
+
   it("canonicalizes Z.ai router prefixes", () => {
     const record = __testables.buildModelRecord({
       id: "z-ai/glm-5",
