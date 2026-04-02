@@ -73,12 +73,7 @@ function getRecentSignalWeight(item: {
   }
 
   const signalType = getNewsSignalType(item);
-  if (
-    signalType !== "launch" &&
-    signalType !== "pricing" &&
-    signalType !== "api" &&
-    signalType !== "open_source"
-  ) {
+  if (signalType !== "launch") {
     return 0;
   }
 
@@ -86,7 +81,7 @@ function getRecentSignalWeight(item: {
   const ageHours = Math.max(0, (Date.now() - toTimestamp(item.published_at)) / 3_600_000);
   const recencyScore = Math.max(0, 72 - Math.min(ageHours, 72));
   const importanceScore = importance === "high" ? 3 : importance === "medium" ? 2 : 1;
-  const typeScore = signalType === "launch" ? 3 : signalType === "pricing" ? 2 : 1;
+  const typeScore = 3;
 
   return recencyScore + importanceScore * 12 + typeScore * 10;
 }

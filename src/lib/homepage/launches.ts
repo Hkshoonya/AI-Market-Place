@@ -134,10 +134,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     if (!isRecent(publishedTimestamp, now)) continue;
 
     const signalType = getNewsSignalType(item);
-    const signalScore =
-      signalType === "launch" || signalType === "open_source" || signalType === "api"
-        ? 2_000
-        : 0;
+    const signalScore = signalType === "launch" ? 2_000 : 0;
 
     for (const modelId of item.related_model_ids ?? []) {
       const model = modelsById.get(modelId);

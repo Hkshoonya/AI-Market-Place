@@ -267,4 +267,15 @@ describe("GET /api/trending", () => {
       })
     );
   });
+
+  it("keeps usage updates out of the recent release rail", async () => {
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/trending?limit=8")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();
+    expect(body.recent.find((model: { slug: string }) => model.slug === "z-ai-glm-5")).toBeTruthy();
+  });
 });

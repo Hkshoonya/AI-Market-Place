@@ -202,6 +202,45 @@ describe("buildHomepageLaunchSelections", () => {
 
     expect(result.map((entry) => entry.model.id)).toEqual(["glm-5"]);
   });
+
+  it("does not let api or open-source updates make an older model look newly launched", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "older-open-model",
+          provider: "MiniMax",
+          release_date: "2026-02-10",
+          quality_score: 70,
+        },
+        {
+          id: "real-new-launch",
+          provider: "Google",
+          release_date: "2026-03-30",
+          quality_score: 66,
+        },
+      ],
+      [
+        {
+          source: "provider-blog",
+          published_at: "2026-03-31T10:00:00.000Z",
+          related_provider: "MiniMax",
+          related_model_ids: ["older-open-model"],
+          metadata: { signal_type: "api", signal_importance: "high" },
+        },
+        {
+          source: "provider-blog",
+          published_at: "2026-03-31T11:00:00.000Z",
+          related_provider: "MiniMax",
+          related_model_ids: ["older-open-model"],
+          metadata: { signal_type: "open_source", signal_importance: "high" },
+        },
+      ],
+      2,
+      Date.parse("2026-04-01T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["real-new-launch"]);
+  });
 });
 
 describe("buildHomepageDeploymentSelections", () => {
