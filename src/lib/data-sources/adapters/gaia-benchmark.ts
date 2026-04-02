@@ -18,6 +18,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveMatchedAliasFamilyModelIds,
 } from "../model-alias-resolver";
 import {
@@ -309,12 +310,9 @@ const adapter: DataSourceAdapter = {
       };
     }
 
-    const { data: models } = await supabase
-      .from("models")
-      .select("id, name, slug, provider")
-      .eq("status", "active");
+    const models = await fetchAllActiveAliasModels(supabase);
 
-    if (!models) {
+    if (models.length === 0) {
       return {
         success: false,
         recordsProcessed: 0,

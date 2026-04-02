@@ -8,6 +8,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveMatchedAliasFamilyModelIds,
 } from "../model-alias-resolver";
 // REMOVED: import { sanitizeFilterValue, sanitizeSlug } from "@/lib/utils/sanitize";
@@ -270,10 +271,7 @@ const adapter: DataSourceAdapter = {
     const today = new Date().toISOString().split("T")[0];
 
     // ── Pre-load all models + benchmark IDs for efficient matching ──
-    const { data: allModels } = await sb
-      .from("models")
-      .select("id, slug, name, provider");
-    const modelList: { id: string; slug: string; name: string; provider: string }[] = allModels ?? [];
+    const modelList = await fetchAllActiveAliasModels(sb);
     const modelAliasIndex = buildModelAliasIndex(modelList);
 
     // Build base-slug → dated-variant-IDs map

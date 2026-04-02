@@ -22,6 +22,7 @@ import type {
 } from "../types";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
@@ -198,16 +199,7 @@ const adapter: DataSourceAdapter = {
     const sealBenchmarkId = benchmarkRows?.[0]?.id ?? null;
 
     // ── Batch model lookup for efficient matching ──
-    const { data: allModelsRaw } = await sb
-      .from("models")
-      .select("id, slug, name, provider")
-      .eq("status", "active");
-    const allModels = (allModelsRaw ?? []) as {
-      id: string;
-      slug: string;
-      name: string;
-      provider: string;
-    }[];
+    const allModels = await fetchAllActiveAliasModels(sb);
     const modelAliasIndex = buildModelAliasIndex(allModels);
 
     // Build multiple lookup indexes

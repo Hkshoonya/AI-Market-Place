@@ -9,6 +9,7 @@ import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../t
 import { registerAdapter } from "../registry";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveMatchedAliasFamilyModelIds,
 } from "../model-alias-resolver";
 import {
@@ -56,13 +57,10 @@ const adapter: DataSourceAdapter = {
         return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "os-world benchmark not found" }] };
       }
 
-      const { data: models } = await supabase
-        .from("models")
-        .select("id, name, slug, provider")
-        .eq("status", "active");
-      const modelAliasIndex = buildModelAliasIndex(models ?? []);
+      const models = await fetchAllActiveAliasModels(supabase);
+      const modelAliasIndex = buildModelAliasIndex(models);
 
-      if (!models) {
+      if (models.length === 0) {
         return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "No models found" }] };
       }
 

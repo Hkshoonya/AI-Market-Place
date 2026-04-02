@@ -9,6 +9,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveMatchedAliasFamilyModelIds,
 } from "../model-alias-resolver";
 
@@ -186,11 +187,7 @@ const adapter: DataSourceAdapter = {
       };
     }
 
-    const { data: models } = await ctx.supabase
-      .from("models")
-      .select("id, name, slug, provider")
-      .eq("status", "active");
-    const activeModels = models ?? [];
+    const activeModels = await fetchAllActiveAliasModels(ctx.supabase);
     const modelAliasIndex = buildModelAliasIndex(activeModels);
 
     let recordsCreated = 0;

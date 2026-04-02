@@ -8,6 +8,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import {
   buildModelAliasIndex,
+  fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
 
@@ -349,15 +350,12 @@ const adapter: DataSourceAdapter = {
     const { supabase } = ctx;
     const errors: { message: string; context?: string }[] = [];
 
-    const [{ data: models }, { data: existingPlatforms }] = await Promise.all([
-      supabase
-        .from("models")
-        .select("id, slug, name, provider")
-        .eq("status", "active"),
+    const [models, { data: existingPlatforms }] = await Promise.all([
+      fetchAllActiveAliasModels(supabase),
       supabase.from("deployment_platforms").select("id, slug"),
     ]);
 
-    if (!models || models.length === 0) {
+    if (models.length === 0) {
       return {
         success: false,
         recordsProcessed: 0,
