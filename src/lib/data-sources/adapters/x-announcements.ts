@@ -36,7 +36,13 @@ import { classifyNewsSignal } from "@/lib/news/signals";
  * success=false so pipeline health reflects the gap honestly.
  */
 
-const MONITORED_ACCOUNTS = [
+interface MonitoredAccount {
+  handle: string;
+  provider: string;
+  optional?: boolean;
+}
+
+const MONITORED_ACCOUNTS: MonitoredAccount[] = [
   { handle: "OpenAI", provider: "OpenAI" },
   { handle: "AnthropicAI", provider: "Anthropic" },
   { handle: "GoogleDeepMind", provider: "Google" },
@@ -47,10 +53,10 @@ const MONITORED_ACCOUNTS = [
   { handle: "xai", provider: "xAI" },
   { handle: "cohere", provider: "Cohere" },
   { handle: "MicrosoftAI", provider: "Microsoft" },
-  { handle: "huggingface", provider: "Hugging Face" },
+  { handle: "huggingface", provider: "Hugging Face", optional: true },
   { handle: "StabilityAI", provider: "Stability AI" },
   { handle: "Zai_org", provider: "Z.ai" },
-  { handle: "MiniMax__AI", provider: "MiniMax" },
+  { handle: "MiniMax__AI", provider: "MiniMax", optional: true },
 ];
 
 const SYNDICATION_TIMELINE_URL =
@@ -392,6 +398,7 @@ const adapter: DataSourceAdapter = {
 
     const errors: { message: string; context?: string }[] = [];
     const handleWarnings: Array<{ handle: string; message: string }> = [];
+    const optionalHandleSkips: Array<{ handle: string; message: string }> = [];
     let recordsProcessed = 0;
     const allRecords: Record<string, unknown>[] = [];
     const templates = getRssEndpointTemplates();
@@ -416,10 +423,18 @@ const adapter: DataSourceAdapter = {
         } else {
           const result = await fetchRssForHandle(account.handle, templates, ctx.signal);
           if (!result) {
-            handleWarnings.push({
-              handle: account.handle,
-              message: `All timeline endpoints failed for @${account.handle}`,
-            });
+            const message = `All timeline endpoints failed for @${account.handle}`;
+            if (account.optional) {
+              optionalHandleSkips.push({
+                handle: account.handle,
+                message,
+              });
+            } else {
+              handleWarnings.push({
+                handle: account.handle,
+                message,
+              });
+            }
             continue;
           }
 
@@ -428,10 +443,18 @@ const adapter: DataSourceAdapter = {
         }
 
         if (tweets.length === 0) {
-          handleWarnings.push({
-            handle: account.handle,
-            message: `No usable timeline entries for @${account.handle}`,
-          });
+          const message = `No usable timeline entries for @${account.handle}`;
+          if (account.optional) {
+            optionalHandleSkips.push({
+              handle: account.handle,
+              message,
+            });
+          } else {
+            handleWarnings.push({
+              handle: account.handle,
+              message,
+            });
+          }
           continue;
         }
 
@@ -482,10 +505,18 @@ const adapter: DataSourceAdapter = {
           });
         }
       } catch (err) {
-        handleWarnings.push({
-          handle: account.handle,
-          message: `Error processing @${account.handle}: ${err instanceof Error ? err.message : String(err)}`,
-        });
+        const message = `Error processing @${account.handle}: ${err instanceof Error ? err.message : String(err)}`;
+        if (account.optional) {
+          optionalHandleSkips.push({
+            handle: account.handle,
+            message,
+          });
+        } else {
+          handleWarnings.push({
+            handle: account.handle,
+            message,
+          });
+        }
         // Continue to next account regardless of error
       }
     }
@@ -521,6 +552,7 @@ const adapter: DataSourceAdapter = {
         rsshubConfigured: !!process.env.RSSHUB_BASE_URL,
         syndicationEnabled: true,
         handleWarnings,
+        optionalHandleSkips,
       },
     };
   },

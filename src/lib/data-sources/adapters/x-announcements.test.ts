@@ -100,10 +100,11 @@ describe("x-announcements parser", () => {
     expect(__testables.isModelRelated("MiniMax M2.7 is now available in the API")).toBe(true);
   });
 
-  it("monitors the MiniMax official account", () => {
+  it("marks fragile social accounts as optional coverage when other sources already cover them", () => {
     expect(__testables.monitoredAccounts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ handle: "MiniMax__AI", provider: "MiniMax" }),
+        expect.objectContaining({ handle: "MiniMax__AI", provider: "MiniMax", optional: true }),
+        expect.objectContaining({ handle: "huggingface", provider: "Hugging Face", optional: true }),
         expect.objectContaining({ handle: "Zai_org", provider: "Z.ai" }),
       ])
     );
