@@ -38,7 +38,8 @@ describe("resolveGoogleKnownModelMeta", () => {
       license: "open_source",
       license_name: "Apache 2.0",
       release_date: "2025-05-20",
-      category: "llm",
+      category: "multimodal",
+      modalities: ["text", "image", "audio"],
     });
   });
 });

@@ -21,6 +21,8 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
+import { XAI_KNOWN_MODELS } from "../shared/known-models/xai";
 
 // --------------- Constants ---------------
 
@@ -106,6 +108,13 @@ interface OpenRouterModelEntry {
 
 interface OpenRouterModelsResponse {
   data: OpenRouterModelEntry[];
+}
+
+function resolveCuratedKnownMeta(id: string) {
+  const [providerPrefix, modelPart = ""] = id.split("/");
+  if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
+  if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
+  return undefined;
 }
 
 // --------------- Helper Functions ---------------
@@ -232,21 +241,22 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
   const isOpen = inferOpenWeights(model.id, model.description);
   const licenseName = inferOpenLicenseName(model.id, model.description) ?? (isOpen ? "Open weights" : null);
   const license = isOpen ? "open_source" : "commercial";
+  const knownMeta = resolveCuratedKnownMeta(model.id);
 
   return {
     slug: makeSlug(model.id),
     name: extractModelName(model.name, model.id),
     provider: extractProvider(model.id),
-    category: inferCategory({ mode: "arch", arch }),
+    category: knownMeta?.category ?? inferCategory({ mode: "arch", arch }),
     status: "active",
     description: model.description || null,
     context_window: model.context_length ?? null,
-    release_date: unixToDateString(model.created),
+    release_date: knownMeta?.release_date ?? unixToDateString(model.created),
     is_api_available: true,
-    is_open_weights: isOpen,
-    license,
-    license_name: isOpen ? licenseName : null,
-    modalities: mergeModalities(arch),
+    is_open_weights: knownMeta?.is_open_weights ?? isOpen,
+    license: knownMeta?.license ?? license,
+    license_name: "license_name" in (knownMeta ?? {}) ? (knownMeta?.license_name ?? null) : (isOpen ? licenseName : null),
+    modalities: knownMeta?.modalities ?? mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),
   };

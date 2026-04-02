@@ -453,17 +453,18 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemma-3n": {
     name: "Gemma 3n",
     description:
-      "Compact Gemma 3n family for efficient on-device or resource-constrained inference with modern instruction tuning.",
-    category: "llm",
+      "Compact multimodal Gemma 3n family for efficient on-device or resource-constrained inference with support for text, image, and audio inputs.",
+    category: "multimodal",
     context_window: 32000,
     release_date: "2025-05-20",
     architecture: "Transformer",
     status: "active",
-    modalities: ["text"],
+    modalities: ["text", "image", "audio"],
     capabilities: {
       coding: true,
       function_calling: true,
       streaming: true,
+      vision: true,
     },
     is_open_weights: true,
     license: "open_source",

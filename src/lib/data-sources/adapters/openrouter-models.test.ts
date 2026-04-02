@@ -143,5 +143,24 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(false);
     expect(record.license).toBe("commercial");
     expect(record.license_name).toBeNull();
+    expect(record.category).toBe("llm");
+    expect(record.modalities).toEqual(["text", "image"]);
+  });
+
+  it("uses curated Google family metadata for Gemma 3n variants", () => {
+    const record = __testables.buildModelRecord({
+      id: "google/gemma-3n-e4b-it",
+      name: "Google: Gemma 3n E4B IT",
+      description: "Multimodal on-device Gemma family model.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.category).toBe("multimodal");
+    expect(record.modalities).toEqual(["text", "image", "audio"]);
+    expect(record.is_open_weights).toBe(true);
+    expect(record.license_name).toBe("Apache 2.0");
   });
 });
