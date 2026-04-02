@@ -22,16 +22,33 @@ import { classifyNewsSignal } from "@/lib/news/signals";
  * Uses regex-based HTML parsing — no DOM parser dependency.
  */
 
-const PROVIDER_BLOGS = [
+interface ProviderBlog {
+  name: string;
+  url: string;
+  provider: string;
+  rssUrl?: string;
+}
+
+const PROVIDER_BLOGS: ProviderBlog[] = [
   { name: "OpenAI", url: "https://openai.com/blog", provider: "OpenAI", rssUrl: "https://openai.com/news/rss.xml" },
   { name: "Anthropic", url: "https://www.anthropic.com/news", provider: "Anthropic" },
-  { name: "Google AI", url: "https://blog.google/technology/ai/", provider: "Google" },
+  {
+    name: "Google AI",
+    url: "https://blog.google/technology/ai/",
+    provider: "Google",
+    rssUrl: "https://blog.google/innovation-and-ai/technology/ai/rss/",
+  },
   { name: "Meta AI", url: "https://ai.meta.com/blog/", provider: "Meta" },
   { name: "Mistral AI", url: "https://mistral.ai/news/", provider: "Mistral AI" },
   { name: "DeepSeek", url: "https://api-docs.deepseek.com/updates/", provider: "DeepSeek" },
   { name: "xAI", url: "https://x.ai/blog", provider: "xAI" },
   { name: "Cohere", url: "https://cohere.com/blog", provider: "Cohere" },
-  { name: "Stability AI", url: "https://stability.ai/news", provider: "Stability AI" },
+  {
+    name: "Stability AI",
+    url: "https://stability.ai/news",
+    provider: "Stability AI",
+    rssUrl: "https://stability.ai/news-updates?format=rss",
+  },
   { name: "Z.ai", url: "https://docs.z.ai/release-notes/new-released", provider: "Z.ai" },
   { name: "MiniMax", url: "https://www.minimax.io/news", provider: "MiniMax" },
 ];
@@ -288,6 +305,68 @@ async function fetchRssFallback(url: string, signal?: AbortSignal): Promise<Pars
   return parseRssArticles(await res.text());
 }
 
+function buildNewsRecords(
+  blog: ProviderBlog,
+  articles: ParsedArticle[],
+  maxPerProvider: number,
+  modelLookup: ModelLookupEntry[],
+  tagHints: string[] = []
+): Array<Record<string, unknown>> {
+  const relevant = articles
+    .filter((article) => isModelRelated(article.title))
+    .slice(0, maxPerProvider);
+
+  return relevant.map((article) => {
+    const signal = classifyNewsSignal(article.title);
+    const publishedAt = inferPublishedAt(article);
+    const metadata: Record<string, unknown> = {
+      provider: blog.provider,
+      blog_url: blog.url,
+      signal_type: signal.signalType,
+      signal_importance: signal.importance,
+      signal_flags: signal.flags,
+    };
+    if (blog.rssUrl && tagHints.includes("rss")) {
+      metadata.rss_url = blog.rssUrl;
+    }
+
+    const { modelIds } = modelLookup.length > 0
+      ? resolveNewsRelations(article.title, null, metadata, modelLookup)
+      : { modelIds: [] };
+    const relatedModelIds = limitProviderScopedModelIds(modelIds);
+    const relationScope =
+      relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
+    metadata.match_scope = relationScope;
+    metadata.matched_model_count = modelIds.length;
+
+    return {
+      source: "provider-blog",
+      source_id: makeSlug(`provider-news-${blog.provider}-${article.url}`),
+      title: article.title.slice(0, 500),
+      summary: null,
+      url: article.url,
+      published_at: publishedAt ?? new Date().toISOString(),
+      category: signal.category,
+      related_provider: blog.provider,
+      related_model_ids: relatedModelIds,
+      tags: [...new Set([blog.provider.toLowerCase(), "blog", ...tagHints, ...signal.tags])],
+      metadata,
+    };
+  });
+}
+
+async function getRssRecords(
+  blog: ProviderBlog,
+  maxPerProvider: number,
+  modelLookup: ModelLookupEntry[],
+  signal?: AbortSignal
+): Promise<Array<Record<string, unknown>>> {
+  if (!blog.rssUrl) return [];
+  const rssArticles = await fetchRssFallback(blog.rssUrl, signal);
+  if (rssArticles.length === 0) return [];
+  return buildNewsRecords(blog, rssArticles, maxPerProvider, modelLookup, ["rss"]);
+}
+
 function summarizeHealthChecks(results: ProviderHealthResult[]): HealthCheckResult {
   const reachable = results.filter((result) => result.ok);
   const latencyMs =
@@ -353,56 +432,33 @@ const adapter: DataSourceAdapter = {
 
         if (!res.ok) {
           if (isBotChallengeResponse(res)) {
-            if (blog.rssUrl) {
-              const rssArticles = await fetchRssFallback(blog.rssUrl, ctx.signal);
-              if (rssArticles.length > 0) {
-                reachableProviders++;
-                const relevant = rssArticles
-                  .filter((a) => isModelRelated(a.title))
-                  .slice(0, maxPerProvider);
-
-                for (const article of relevant) {
-                  recordsProcessed++;
-                  const signal = classifyNewsSignal(article.title);
-                  const publishedAt = inferPublishedAt(article);
-                  const metadata: Record<string, unknown> = {
-                    provider: blog.provider,
-                    blog_url: blog.url,
-                    rss_url: blog.rssUrl,
-                    signal_type: signal.signalType,
-                    signal_importance: signal.importance,
-                    signal_flags: signal.flags,
-                  };
-                  const { modelIds } = modelLookup.length > 0
-                    ? resolveNewsRelations(article.title, null, metadata, modelLookup)
-                    : { modelIds: [] };
-                  const relatedModelIds = limitProviderScopedModelIds(modelIds);
-                  const relationScope =
-                    relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
-                  metadata.match_scope = relationScope;
-                  metadata.matched_model_count = modelIds.length;
-
-                  allRecords.push({
-                    source: "provider-blog",
-                    source_id: makeSlug(`provider-news-${blog.provider}-${article.url}`),
-                    title: article.title.slice(0, 500),
-                    summary: null,
-                    url: article.url,
-                    published_at: publishedAt ?? new Date().toISOString(),
-                    category: signal.category,
-                    related_provider: blog.provider,
-                    related_model_ids: relatedModelIds,
-                    tags: [...new Set([blog.provider.toLowerCase(), "blog", "rss", ...signal.tags])],
-                    metadata,
-                  });
-                }
-                continue;
-              }
+            const rssRecords = await getRssRecords(blog, maxPerProvider, modelLookup, ctx.signal);
+            if (rssRecords.length > 0) {
+              reachableProviders++;
+              recordsProcessed += rssRecords.length;
+              allRecords.push(...rssRecords);
+              providerWarnings.push({
+                provider: blog.provider,
+                message: `${blog.name} blocked direct scraping, using official feed fallback`,
+              });
+              continue;
             }
 
             providerWarnings.push({
               provider: blog.provider,
               message: `${blog.name} is blocking automated access with an anti-bot challenge`,
+            });
+            continue;
+          }
+
+          const rssRecords = await getRssRecords(blog, maxPerProvider, modelLookup, ctx.signal);
+          if (rssRecords.length > 0) {
+            reachableProviders++;
+            recordsProcessed += rssRecords.length;
+            allRecords.push(...rssRecords);
+            providerWarnings.push({
+              provider: blog.provider,
+              message: `${blog.name} returned HTTP ${res.status}, using official feed fallback`,
             });
             continue;
           }
@@ -419,52 +475,37 @@ const adapter: DataSourceAdapter = {
         const parsed = parseArticles(html, blog.url);
 
         if (parsed.length === 0) {
+          const rssRecords = await getRssRecords(blog, maxPerProvider, modelLookup, ctx.signal);
+          if (rssRecords.length > 0) {
+            recordsProcessed += rssRecords.length;
+            allRecords.push(...rssRecords);
+            providerWarnings.push({
+              provider: blog.provider,
+              message: `${blog.name} page layout changed, using official feed fallback`,
+            });
+            continue;
+          }
+
           // Structure likely changed — skip silently
           continue;
         }
 
-        // Filter to model-related articles only, then take the most recent N
-        const relevant = parsed
-          .filter((a) => isModelRelated(a.title))
-          .slice(0, maxPerProvider);
-
-        for (const article of relevant) {
-          recordsProcessed++;
-          const signal = classifyNewsSignal(article.title);
-          const publishedAt = inferPublishedAt(article);
-          const metadata: Record<string, unknown> = {
-            provider: blog.provider,
-            blog_url: blog.url,
-            signal_type: signal.signalType,
-            signal_importance: signal.importance,
-            signal_flags: signal.flags,
-          };
-          const { modelIds } = modelLookup.length > 0
-            ? resolveNewsRelations(article.title, null, metadata, modelLookup)
-            : { modelIds: [] };
-          const relatedModelIds = limitProviderScopedModelIds(modelIds);
-          const relationScope =
-            relatedModelIds.length > 0 ? "model" : modelIds.length > 0 ? "provider" : "none";
-          metadata.match_scope = relationScope;
-          metadata.matched_model_count = modelIds.length;
-
-          allRecords.push({
-            source: "provider-blog",
-            source_id: makeSlug(
-              `provider-news-${blog.provider}-${article.url}`
-            ),
-            title: article.title.slice(0, 500),
-            summary: null,
-            url: article.url,
-            published_at: publishedAt ?? new Date().toISOString(),
-            category: signal.category,
-            related_provider: blog.provider,
-            related_model_ids: relatedModelIds,
-            tags: [...new Set([blog.provider.toLowerCase(), "blog", ...signal.tags])],
-            metadata,
-          });
-        }
+        const records = buildNewsRecords(blog, parsed, maxPerProvider, modelLookup);
+        recordsProcessed += records.length;
+        allRecords.push(...records);
       } catch (err) {
+        const rssRecords = await getRssRecords(blog, maxPerProvider, modelLookup, ctx.signal);
+        if (rssRecords.length > 0) {
+          reachableProviders++;
+          recordsProcessed += rssRecords.length;
+          allRecords.push(...rssRecords);
+          providerWarnings.push({
+            provider: blog.provider,
+            message: `${blog.name} blog fetch failed, using official feed fallback`,
+          });
+          continue;
+        }
+
         errors.push({
           message: `Error fetching ${blog.name} blog: ${err instanceof Error ? err.message : String(err)}`,
           context: `url=${blog.url}`,
@@ -507,13 +548,61 @@ const adapter: DataSourceAdapter = {
           const res = await fetch(blog.url, {
             headers: { "User-Agent": "AI-Market-Cap-Bot/1.0" },
           });
+
+          if (res.ok) {
+            return {
+              name: blog.name,
+              ok: true,
+              status: res.status,
+              latencyMs: Date.now() - start,
+            };
+          }
+
+          if (blog.rssUrl) {
+            const feedRes = await fetch(blog.rssUrl, {
+              headers: {
+                "User-Agent": "AI-Market-Cap-Bot/1.0",
+                Accept: "application/rss+xml, application/xml, text/xml",
+              },
+            });
+            if (feedRes.ok) {
+              return {
+                name: blog.name,
+                ok: true,
+                status: feedRes.status,
+                latencyMs: Date.now() - start,
+              };
+            }
+          }
+
           return {
             name: blog.name,
-            ok: res.ok,
+            ok: false,
             status: res.status,
             latencyMs: Date.now() - start,
           };
         } catch {
+          if (blog.rssUrl) {
+            try {
+              const feedRes = await fetch(blog.rssUrl, {
+                headers: {
+                  "User-Agent": "AI-Market-Cap-Bot/1.0",
+                  Accept: "application/rss+xml, application/xml, text/xml",
+                },
+              });
+              if (feedRes.ok) {
+                return {
+                  name: blog.name,
+                  ok: true,
+                  status: feedRes.status,
+                  latencyMs: Date.now() - start,
+                };
+              }
+            } catch {
+              // Fall through to unhealthy result
+            }
+          }
+
           return {
             name: blog.name,
             ok: false,

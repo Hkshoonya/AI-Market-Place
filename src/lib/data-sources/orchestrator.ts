@@ -36,12 +36,40 @@ export interface OrchestratorResult {
   details: SourceDetail[];
 }
 
+const STALE_SYNC_JOB_HOURS = 6;
+
 /** Create a service-role Supabase client (bypasses RLS) */
 function createServiceClient(): TypedSupabaseClient {
   return createClient<import("@/types/database").Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+async function recoverStaleRunningSyncJobs(sb: TypedSupabaseClient): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_SYNC_JOB_HOURS * 60 * 60 * 1000).toISOString();
+  const recoveredAt = new Date().toISOString();
+
+  const { error } = await sb
+    .from("sync_jobs")
+    .update({
+      status: "failed",
+      completed_at: recoveredAt,
+      error_message: `Marked failed after exceeding ${STALE_SYNC_JOB_HOURS}h without completion`,
+      metadata: {
+        stale_recovered: true,
+        stale_timeout_hours: STALE_SYNC_JOB_HOURS,
+      },
+    })
+    .eq("status", "running")
+    .lt("started_at", cutoff);
+
+  if (error) {
+    void systemLog.warn("sync-orchestrator", "Failed to recover stale sync jobs", {
+      error: error.message,
+      cutoff,
+    });
+  }
 }
 
 /** Run a single adapter with timeout, job tracking, and error handling */
@@ -276,6 +304,7 @@ export async function runTierSync(
 
   const supabase = createServiceClient();
   const sb = supabase;
+  await recoverStaleRunningSyncJobs(sb);
 
   // Fetch enabled sources for this tier, ordered by priority
   const { data: sources, error: fetchErr } = await sb
@@ -333,6 +362,7 @@ export async function runSingleSync(
 
   const supabase = createServiceClient();
   const sb = supabase;
+  await recoverStaleRunningSyncJobs(sb);
 
   const { data: source, error } = await sb
     .from("data_sources")

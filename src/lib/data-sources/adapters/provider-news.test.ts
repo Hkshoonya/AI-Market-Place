@@ -36,10 +36,18 @@ describe("provider-news health aggregation", () => {
     expect(__testables.isModelRelated("MiniMax M2.7 launch for coding agents")).toBe(true);
   });
 
-  it("tracks Z.ai and MiniMax provider blogs", () => {
+  it("tracks provider blogs and official feed fallbacks for fragile sources", () => {
     expect(__testables.providerBlogs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ provider: "DeepSeek", url: "https://api-docs.deepseek.com/updates/" }),
+        expect.objectContaining({
+          provider: "Google",
+          rssUrl: "https://blog.google/innovation-and-ai/technology/ai/rss/",
+        }),
+        expect.objectContaining({
+          provider: "Stability AI",
+          rssUrl: "https://stability.ai/news-updates?format=rss",
+        }),
         expect.objectContaining({ provider: "Z.ai" }),
         expect.objectContaining({ provider: "MiniMax" }),
       ])

@@ -68,9 +68,18 @@ vi.mock("@/lib/data-sources/registry", () => ({
 // ── Mock Supabase ──────────────────────────────────────────────────────────────
 
 const _mockUpsertFn = vi.fn().mockResolvedValue({ error: null });
-const mockUpdateFn = vi.fn().mockReturnValue({
-  eq: vi.fn().mockResolvedValue({ error: null }),
-});
+function createUpdateChain() {
+  const chain = {
+    eq: vi.fn().mockReturnValue(undefined),
+    lt: vi.fn().mockReturnValue(undefined),
+  };
+
+  chain.eq.mockImplementation(() => chain);
+  chain.lt.mockResolvedValue({ error: null });
+  return chain;
+}
+
+const mockUpdateFn = vi.fn().mockImplementation(() => createUpdateChain());
 const _mockSelectFn = vi.fn().mockReturnValue({
   single: vi.fn().mockResolvedValue({ data: { id: "job-123" }, error: null }),
 });
@@ -187,6 +196,22 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("recovers stale running sync jobs before starting a tier sync", async () => {
+    const { runTierSync } = await import("./orchestrator");
+    await runTierSync(1);
+
+    expect(mockUpdateFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        error_message: expect.stringContaining("exceeding 6h"),
+        metadata: expect.objectContaining({
+          stale_recovered: true,
+          stale_timeout_hours: 6,
+        }),
+      })
+    );
   });
 
   it("logs systemLog.error for every adapter failure with full metadata", async () => {
