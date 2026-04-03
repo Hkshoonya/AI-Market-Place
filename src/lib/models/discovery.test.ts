@@ -185,4 +185,30 @@ describe("model discovery scoring", () => {
 
     expect(evidenced).toBeGreaterThan(generic);
   });
+
+  it("penalizes packaging-style recent variants against the base launch", () => {
+    const models = sortRecentReleaseCandidates([
+      {
+        slug: "minimax-minimax-m2-7-highspeed",
+        name: "MiniMax M2.7 Highspeed",
+        provider: "MiniMax",
+        release_date: "2026-04-02",
+        quality_score: 72,
+        capability_score: 74,
+      },
+      {
+        slug: "minimax-minimax-m2-7",
+        name: "MiniMax M2.7",
+        provider: "MiniMax",
+        release_date: "2026-04-02",
+        quality_score: 70,
+        capability_score: 73,
+      },
+    ]);
+
+    expect(models.map((model) => model.slug)).toEqual([
+      "minimax-minimax-m2-7",
+      "minimax-minimax-m2-7-highspeed",
+    ]);
+  });
 });

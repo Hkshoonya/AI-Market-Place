@@ -1,6 +1,8 @@
 import { getProviderBrand } from "@/lib/constants/providers";
 
 interface DiscoverySignals {
+  slug?: string | null;
+  name?: string | null;
   popularity_score?: number | null;
   adoption_score?: number | null;
   economic_footprint_score?: number | null;
@@ -13,6 +15,24 @@ interface DiscoverySignals {
   created_at?: string | null;
   provider?: string | null;
   recent_signal_score?: number | null;
+}
+
+const RECENT_PACKAGING_RE =
+  /\b(?:gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|exacto|extended)\b/i;
+const RECENT_MACHINE_SNAPSHOT_RE =
+  /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
+
+function getRecentCandidatePenalty(model: DiscoverySignals): number {
+  const slug = String(model.slug ?? "").toLowerCase();
+  const name = String(model.name ?? "").toLowerCase();
+  let penalty = 0;
+
+  if (RECENT_PACKAGING_RE.test(slug) || RECENT_PACKAGING_RE.test(name)) penalty += 18;
+  if (RECENT_MACHINE_SNAPSHOT_RE.test(slug)) penalty += 28;
+  if (/\bpreview\b/i.test(name) || /(^|-)preview($|-)/i.test(slug)) penalty += 12;
+  if (/\bbeta\b/i.test(name) || /(^|-)beta($|-)/i.test(slug)) penalty += 10;
+
+  return penalty;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -119,8 +139,18 @@ export function computeRecentReleaseDiscoveryScore(
   const quality = clamp(Number(model.quality_score ?? 0), 0, 100) * 0.16;
   const adoption = clamp(Number(model.adoption_score ?? 0), 0, 100) * 0.12;
   const penalty = !model.release_date && !Number(model.recent_signal_score ?? 0) ? 20 : 0;
+  const variantPenalty = getRecentCandidatePenalty(model);
 
-  return recency + providerBonus + signalBonus + capability + quality + adoption - penalty;
+  return (
+    recency +
+    providerBonus +
+    signalBonus +
+    capability +
+    quality +
+    adoption -
+    penalty -
+    variantPenalty
+  );
 }
 
 export function sortByReleaseDate<T extends { release_date?: string | null; quality_score?: number | null }>(
