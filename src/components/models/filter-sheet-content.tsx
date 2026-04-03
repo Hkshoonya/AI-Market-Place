@@ -88,7 +88,7 @@ export function FilterSheetContent({
             className={currentDeployableOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
             onClick={() => updateParams({ deployable: "true", managed: null })}
           >
-            Deployable Now
+            Ready to Use
           </Button>
           <Button
             variant={currentManagedOnly ? "default" : "outline"} size="sm"
@@ -99,7 +99,7 @@ export function FilterSheetContent({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          `Deployable Now` includes all verified ways to use a model.
+          `Ready to Use` includes all verified ways to start using a model.
           `Use on This Site` only shows models AI Market Cap can run directly for you here.
         </p>
       </div>

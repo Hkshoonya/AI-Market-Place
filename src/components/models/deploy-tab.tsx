@@ -116,7 +116,7 @@ function getDeploymentModeLabel(item: Deployment, isOpenWeights: boolean) {
   if (setupMode) return setupMode;
   if (item.platform.type === "subscription") return "Provider plan";
   if (item.platform.type === "api") return "Provider account";
-  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "Run it yourself";
+  if (item.confidence === "open_weight_runtime" && isOpenWeights) return "Self-host it";
   if (item.deployment?.one_click) return "One-click start";
   return "Usage option";
 }
@@ -130,7 +130,7 @@ function getQuickStartSummary(item: Deployment, isOpenWeights: boolean) {
   if (item.platform.slug === "ollama-cloud") bestFor = "using the model without setting up your own stack";
   else if (item.platform.type === "subscription") bestFor = "using the model inside a paid plan";
   else if (item.platform.type === "api") bestFor = "building with the model through an API";
-  else if (modeLabel === "On your computer" || modeLabel === "Cloud server you control" || modeLabel === "Run it yourself") {
+  else if (modeLabel === "On your computer" || modeLabel === "Cloud server you control" || modeLabel === "Self-host it") {
     bestFor = "running the model with more control";
   }
 
