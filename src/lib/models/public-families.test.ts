@@ -114,6 +114,32 @@ describe("public model family dedupe", () => {
     ]);
   });
 
+  it("collapses provider alias prefixes into the same public surface series", () => {
+    const canonical = getPublicSurfaceSeriesKey({
+      slug: "minimax-minimax-m2-7-highspeed",
+      name: "MiniMax M2.7 Highspeed",
+      provider: "MiniMax",
+    });
+    const alias = getPublicSurfaceSeriesKey({
+      slug: "minimaxai-minimax-m2-7",
+      name: "MiniMax M2.7",
+      provider: "MiniMax",
+    });
+    const splitAlias = getPublicSurfaceSeriesKey({
+      slug: "z-ai-glm-5",
+      name: "GLM-5",
+      provider: "Z.ai",
+    });
+    const compactAlias = getPublicSurfaceSeriesKey({
+      slug: "zai-org-glm-5",
+      name: "GLM-5",
+      provider: "Z.ai",
+    });
+
+    expect(alias).toBe(canonical);
+    expect(compactAlias).toBe(splitAlias);
+  });
+
   it("does not emit overlapping duplicate families when a late variant resolves back to an existing cluster", () => {
     const families = collapsePublicModelFamilies([
       {

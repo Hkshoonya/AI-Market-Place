@@ -2,7 +2,11 @@ import {
   buildModelAliasIndex,
   resolveAliasFamilyModelIds,
 } from "@/lib/data-sources/model-alias-resolver";
-import { getProviderSlug } from "@/lib/constants/providers";
+import {
+  getCanonicalProviderName,
+  getProviderSlug,
+  normalizeProviderKey,
+} from "@/lib/constants/providers";
 
 export interface PublicModelFamilyCandidate {
   id: string;
@@ -33,6 +37,7 @@ const MACHINE_SNAPSHOT_RE =
   /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
 
 function stripProviderPrefix(slug: string, provider: string) {
+  const canonicalProvider = getCanonicalProviderName(provider);
   const providerSlug = provider
     .toLowerCase()
     .trim()
@@ -41,6 +46,24 @@ function stripProviderPrefix(slug: string, provider: string) {
 
   if (providerSlug && slug.startsWith(`${providerSlug}-`)) {
     return slug.slice(providerSlug.length + 1);
+  }
+
+  const canonicalProviderSlug = getProviderSlug(canonicalProvider);
+  if (canonicalProviderSlug && slug.startsWith(`${canonicalProviderSlug}-`)) {
+    return slug.slice(canonicalProviderSlug.length + 1);
+  }
+
+  const slugParts = slug.split("-");
+  const canonicalProviderKey = normalizeProviderKey(canonicalProvider);
+  for (
+    let prefixLength = Math.min(3, slugParts.length - 1);
+    prefixLength >= 1;
+    prefixLength -= 1
+  ) {
+    const prefix = slugParts.slice(0, prefixLength).join("-");
+    if (normalizeProviderKey(getCanonicalProviderName(prefix)) === canonicalProviderKey) {
+      return slugParts.slice(prefixLength).join("-");
+    }
   }
 
   return slug;
