@@ -211,4 +211,42 @@ describe("model discovery scoring", () => {
       "minimax-minimax-m2-7-highspeed",
     ]);
   });
+
+  it("prefers mainstream frontier launches over specialist speech and OCR releases", () => {
+    const models = sortRecentReleaseCandidates([
+      {
+        slug: "qwen-qwen3-tts",
+        name: "Qwen3 TTS",
+        provider: "Qwen",
+        category: "speech_audio",
+        release_date: "2026-04-02",
+        quality_score: 74,
+        capability_score: 70,
+      },
+      {
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+        category: "multimodal",
+        release_date: "2026-04-01",
+        quality_score: 76,
+        capability_score: 77,
+      },
+      {
+        slug: "nvidia-nemotron-ocr-v2",
+        name: "Nemotron OCR v2",
+        provider: "NVIDIA",
+        category: "multimodal",
+        release_date: "2026-04-01",
+        quality_score: 73,
+        capability_score: 71,
+      },
+    ]);
+
+    expect(models.map((model) => model.slug)).toEqual([
+      "google-gemma-4-31b-it",
+      "nvidia-nemotron-ocr-v2",
+      "qwen-qwen3-tts",
+    ]);
+  });
 });

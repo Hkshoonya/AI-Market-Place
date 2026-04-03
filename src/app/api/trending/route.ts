@@ -4,6 +4,7 @@ import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 import {
+  computeRecentReleaseDiscoveryScore,
   computePopularDiscoveryScore,
   computeTrendingDiscoveryScore,
   isHighSignalRecentCandidate,
@@ -448,7 +449,8 @@ export async function GET(request: NextRequest) {
         sortRecentReleaseCandidates(recentDisplayCandidates),
         (left, right) => {
           const scoreDelta =
-            (right.recent_signal_score ?? 0) - (left.recent_signal_score ?? 0);
+            computeRecentReleaseDiscoveryScore(right) -
+            computeRecentReleaseDiscoveryScore(left);
           if (scoreDelta !== 0) return scoreDelta;
 
           const releaseDelta = toTimestamp(right.release_date ?? right.created_at) -

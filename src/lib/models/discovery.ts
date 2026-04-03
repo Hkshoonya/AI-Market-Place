@@ -3,6 +3,7 @@ import { getProviderBrand } from "@/lib/constants/providers";
 interface DiscoverySignals {
   slug?: string | null;
   name?: string | null;
+  category?: string | null;
   popularity_score?: number | null;
   adoption_score?: number | null;
   economic_footprint_score?: number | null;
@@ -21,11 +22,33 @@ const RECENT_PACKAGING_RE =
   /\b(?:gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|exacto|extended)\b/i;
 const RECENT_MACHINE_SNAPSHOT_RE =
   /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
+const RECENT_SPECIALIZED_RE =
+  /\b(?:transcribe|tts|speech|audio|ocr|embedding|embed)\b/i;
+
+function isSpecializedRecentCandidate(model: DiscoverySignals): boolean {
+  const category = String(model.category ?? "").toLowerCase();
+  const slug = String(model.slug ?? "").toLowerCase();
+  const name = String(model.name ?? "").toLowerCase();
+
+  if (["speech_audio", "embeddings", "image_generation", "video_generation"].includes(category)) {
+    return true;
+  }
+
+  return RECENT_SPECIALIZED_RE.test(slug) || RECENT_SPECIALIZED_RE.test(name);
+}
+
+function getRecentSpecializationPenalty(model: DiscoverySignals): number {
+  return isSpecializedRecentCandidate(model)
+    ? ["speech_audio", "embeddings"].includes(String(model.category ?? "").toLowerCase())
+      ? 42
+      : 26
+    : 0;
+}
 
 function getRecentCandidatePenalty(model: DiscoverySignals): number {
   const slug = String(model.slug ?? "").toLowerCase();
   const name = String(model.name ?? "").toLowerCase();
-  let penalty = 0;
+  let penalty = getRecentSpecializationPenalty(model);
 
   if (RECENT_PACKAGING_RE.test(slug) || RECENT_PACKAGING_RE.test(name)) penalty += 18;
   if (RECENT_MACHINE_SNAPSHOT_RE.test(slug)) penalty += 28;
@@ -179,6 +202,10 @@ export function sortRecentReleaseCandidates<
   }
 >(models: T[]): T[] {
   return [...models].sort((left, right) => {
+    const leftSpecialized = isSpecializedRecentCandidate(left);
+    const rightSpecialized = isSpecializedRecentCandidate(right);
+    if (leftSpecialized !== rightSpecialized) return Number(leftSpecialized) - Number(rightSpecialized);
+
     const scoreDelta =
       computeRecentReleaseDiscoveryScore(right) - computeRecentReleaseDiscoveryScore(left);
     if (scoreDelta !== 0) return scoreDelta;

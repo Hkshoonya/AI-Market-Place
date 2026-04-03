@@ -539,4 +539,49 @@ describe("buildHomepageDeploymentSelections", () => {
     expect(result.map((entry) => entry.model.id)).toEqual(["glm-5", "glm-4-7", "m2-7"]);
     expect(result.filter((entry) => entry.model.provider === "Z.ai")).toHaveLength(2);
   });
+
+  it("prefers mainstream launch rows over specialist audio launches on the homepage rail", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "gemma-4",
+          slug: "google-gemma-4-31b-it",
+          name: "Gemma 4 31B IT",
+          provider: "Google",
+          category: "multimodal",
+          release_date: "2026-04-01",
+          quality_score: 76,
+        },
+        {
+          id: "qwen-tts",
+          slug: "qwen-qwen3-tts",
+          name: "Qwen3 TTS",
+          provider: "Qwen",
+          category: "speech_audio",
+          release_date: "2026-04-02",
+          quality_score: 74,
+        },
+      ],
+      [
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T12:00:00.000Z",
+          related_provider: "Qwen",
+          related_model_ids: ["qwen-tts"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T10:00:00.000Z",
+          related_provider: "Google",
+          related_model_ids: ["gemma-4"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+      ],
+      2,
+      Date.parse("2026-04-03T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["gemma-4", "qwen-tts"]);
+  });
 });

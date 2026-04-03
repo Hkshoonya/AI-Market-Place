@@ -84,6 +84,34 @@ function getSourceBonus(source: string | null | undefined) {
   return 0;
 }
 
+function getLaunchSurfacePenalty<TModel extends HomepageLaunchModel>(model: TModel) {
+  const category = String(model.category ?? "").toLowerCase();
+  const slug = String(model.slug ?? "").toLowerCase();
+  const name = String(model.name ?? "").toLowerCase();
+  let penalty = 0;
+
+  if (["speech_audio", "embeddings", "image_generation", "video_generation"].includes(category)) {
+    penalty += 2_000;
+  }
+
+  if (/\b(?:transcribe|tts|speech|audio|ocr|embedding|embed)\b/.test(`${slug} ${name}`)) {
+    penalty += 1_500;
+  }
+
+  return penalty;
+}
+
+function isSpecializedHomepageLaunch<TModel extends HomepageLaunchModel>(model: TModel) {
+  const category = String(model.category ?? "").toLowerCase();
+  const haystack = `${String(model.slug ?? "").toLowerCase()} ${String(model.name ?? "").toLowerCase()}`;
+
+  if (["speech_audio", "embeddings", "image_generation", "video_generation"].includes(category)) {
+    return true;
+  }
+
+  return /\b(?:transcribe|tts|speech|audio|ocr|embedding|embed)\b/.test(haystack);
+}
+
 function providersMatch(
   modelProvider: string | null | undefined,
   relatedProvider: string | null | undefined
@@ -97,6 +125,14 @@ function compareLaunchSelections<TModel extends HomepageLaunchModel>(
   left: { score: number; model: TModel; surfacedAt: string | null },
   right: { score: number; model: TModel; surfacedAt: string | null }
 ) {
+  const leftSpecialized = isSpecializedHomepageLaunch(left.model);
+  const rightSpecialized = isSpecializedHomepageLaunch(right.model);
+  if (leftSpecialized !== rightSpecialized) return Number(leftSpecialized) - Number(rightSpecialized);
+
+  const leftPenalty = getLaunchSurfacePenalty(left.model);
+  const rightPenalty = getLaunchSurfacePenalty(right.model);
+  if (leftPenalty !== rightPenalty) return leftPenalty - rightPenalty;
+
   if (right.score !== left.score) return right.score - left.score;
 
   const launchDelta = getLaunchTimestamp(right.model) - getLaunchTimestamp(left.model);
@@ -207,6 +243,14 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
         .map((family) => family.representative)
     : fallbackCandidates)
     .sort((left, right) => {
+      const leftSpecialized = isSpecializedHomepageLaunch(left);
+      const rightSpecialized = isSpecializedHomepageLaunch(right);
+      if (leftSpecialized !== rightSpecialized) return Number(leftSpecialized) - Number(rightSpecialized);
+
+      const leftPenalty = getLaunchSurfacePenalty(left);
+      const rightPenalty = getLaunchSurfacePenalty(right);
+      if (leftPenalty !== rightPenalty) return leftPenalty - rightPenalty;
+
       const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
       const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
       if (rightKnown !== leftKnown) return rightKnown - leftKnown;
