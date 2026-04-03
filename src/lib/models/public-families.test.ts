@@ -209,6 +209,34 @@ describe("public model family dedupe", () => {
     expect(deduped[0]?.slug).toBe("z-ai-glm-5");
   });
 
+  it("prefers the cleaner public slug over machine snapshot variants", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "imagen-clean",
+        slug: "google-imagen-4",
+        name: "Imagen 4",
+        provider: "Google",
+        category: "image_generation",
+        overall_rank: 480,
+        quality_score: 24.7,
+        hf_downloads: 0,
+      },
+      {
+        id: "imagen-snapshot",
+        slug: "google-imagen-4-0-generate-001",
+        name: "Imagen 4",
+        provider: "Google",
+        category: "image_generation",
+        overall_rank: 538,
+        quality_score: 0,
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("google-imagen-4");
+  });
+
   it("collapses multi-agent and highspeed suffixes into the same public surface series", () => {
     const base = getPublicSurfaceSeriesKey({
       slug: "x-ai-grok-4-20",

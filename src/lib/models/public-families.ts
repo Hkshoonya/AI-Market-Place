@@ -29,6 +29,8 @@ export interface PublicModelFamily<T extends PublicModelFamilyCandidate> {
 const DATED_SLUG_RE = /-\d{4}-\d{2}-\d{2}$/;
 const SAFE_VARIANT_RE =
   /\b(exacto|extended|preview|older|audio-preview|realtime-preview)\b/i;
+const MACHINE_SNAPSHOT_RE =
+  /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
 
 function stripProviderPrefix(slug: string, provider: string) {
   const providerSlug = provider
@@ -115,6 +117,7 @@ function getVariantPenalty<T extends PublicModelFamilyCandidate>(model: T) {
 
   if (DATED_SLUG_RE.test(slug)) penalty += 40;
   if (SAFE_VARIANT_RE.test(slug) || SAFE_VARIANT_RE.test(name)) penalty += 35;
+  if (MACHINE_SNAPSHOT_RE.test(slug)) penalty += 55;
   if (/(^|-)it($|-)/.test(slug)) penalty += 12;
   if (/\bolder\b/.test(name)) penalty += 25;
   if ((model.quality_score ?? 0) <= 0) penalty += 18;
