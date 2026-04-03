@@ -142,6 +142,16 @@ describe("model discovery scoring", () => {
         recent_signal_score: 0,
       })
     ).toBe(false);
+
+    expect(
+      isHighSignalRecentCandidate({
+        provider: "randomuser",
+        release_date: "2026-04-02",
+        quality_score: 62,
+        capability_score: null,
+        recent_signal_score: 0,
+      })
+    ).toBe(false);
   });
 
   it("prefers recent candidates with launch evidence over generic created-at rows", () => {

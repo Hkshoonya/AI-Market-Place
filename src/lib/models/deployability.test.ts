@@ -36,4 +36,15 @@ describe("getDeployabilityLabel", () => {
       })
     ).toBe("Open Weights");
   });
+
+  it("keeps open-weight identity ahead of generic trial offers", () => {
+    expect(
+      getDeployabilityLabel({
+        isOpenWeights: true,
+        accessOffer: {
+          actionLabel: "Start Free Trial",
+        },
+      })
+    ).toBe("Open Weights");
+  });
 });

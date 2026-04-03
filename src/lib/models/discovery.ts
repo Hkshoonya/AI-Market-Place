@@ -95,10 +95,14 @@ export function computePopularDiscoveryScore(model: DiscoverySignals): number {
 export function isHighSignalRecentCandidate(model: DiscoverySignals): boolean {
   const hasOfficialReleaseDate = Boolean(model.release_date);
   const hasRecentSignal = Number(model.recent_signal_score ?? 0) > 0;
+  const hasTrustedProvider = Boolean(getProviderBrand(model.provider ?? ""));
   const hasMeaningfulScores =
-    Number(model.quality_score ?? 0) > 0 || Number(model.capability_score ?? 0) > 0;
+    Number(model.quality_score ?? 0) >= 50 || Number(model.capability_score ?? 0) >= 50;
 
-  return hasOfficialReleaseDate || hasRecentSignal || hasMeaningfulScores;
+  if (hasRecentSignal) return true;
+  if (hasOfficialReleaseDate && hasTrustedProvider) return true;
+  if (hasMeaningfulScores && hasTrustedProvider) return true;
+  return false;
 }
 
 export function computeRecentReleaseDiscoveryScore(

@@ -252,6 +252,8 @@ export default async function ModelDetailPage({
     contextWindow: model.context_window,
     modalities,
     category: model.category,
+    name: model.name,
+    slug: model.slug,
   });
 
   const stats = [

@@ -315,6 +315,8 @@ export async function GET(request: NextRequest) {
         self_host_requirement_label: getSelfHostRequirements({
           isOpenWeights: model.is_open_weights,
           parameterCount: model.parameter_count,
+          name: model.name,
+          slug: model.slug,
           category: model.category,
         })?.shortLabel ?? null,
       };

@@ -4,6 +4,8 @@ export interface SelfHostRequirementsInput {
   contextWindow?: number | null;
   modalities?: string[] | null;
   category?: string | null;
+  name?: string | null;
+  slug?: string | null;
 }
 
 export interface SelfHostRequirementsSummary {
@@ -34,12 +36,26 @@ export function formatParameterCountCompact(value: number | null | undefined) {
   return `${value.toLocaleString()} parameters`;
 }
 
+function inferParameterCountFromText(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/(?:^|[\s-])(\d+(?:\.\d+)?)\s*b(?:\b|[-\s])/i);
+  if (!match) return null;
+
+  const billions = Number(match[1]);
+  if (!Number.isFinite(billions) || billions <= 0) return null;
+  return billions * 1_000_000_000;
+}
+
 export function getSelfHostRequirements(
   input: SelfHostRequirementsInput
 ): SelfHostRequirementsSummary | null {
   if (!input.isOpenWeights) return null;
 
-  const parameterCount = input.parameterCount ?? null;
+  const parameterCount =
+    input.parameterCount ??
+    inferParameterCountFromText(input.name) ??
+    inferParameterCountFromText(input.slug) ??
+    null;
   const parameterBillions =
     parameterCount && parameterCount > 0 ? parameterCount / 1_000_000_000 : null;
   const modalities = new Set((input.modalities ?? []).map((item) => item.toLowerCase()));

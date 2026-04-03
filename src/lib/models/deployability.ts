@@ -29,6 +29,13 @@ export function getDeployabilityLabel(input: {
       return "Ready to Use";
     case "Get API Access":
       return "API Access";
+    default:
+      break;
+  }
+
+  if (input.isOpenWeights) return "Open Weights";
+
+  switch (input.accessOffer?.actionLabel) {
     case "Subscribe":
       return "Subscription";
     case "Start Free Trial":
@@ -36,8 +43,6 @@ export function getDeployabilityLabel(input: {
     default:
       break;
   }
-
-  if (input.isOpenWeights) return "Open Weights";
   return null;
 }
 

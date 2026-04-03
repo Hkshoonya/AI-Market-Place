@@ -522,6 +522,8 @@ export default async function SearchPage({
                       getSelfHostRequirements({
                         isOpenWeights: model.is_open_weights,
                         parameterCount: model.parameter_count,
+                        name: model.name,
+                        slug: model.slug,
                         category: model.category,
                       })?.shortLabel ??
                       null;
