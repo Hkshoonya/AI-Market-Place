@@ -241,7 +241,7 @@ export function buildDeploymentCatalog(input: {
       relatedPlatforms,
       seenPlatformIds,
       pricingSlug ? platformBySlug.get(pricingSlug) : undefined,
-      `Pricing was observed through ${providerName}, but a dedicated deployment manifest is not stored yet.`,
+      `This service has shown working access for this model family, but we have not stored a model-specific setup record yet.`,
       "pricing_inferred"
     );
   }
@@ -253,8 +253,8 @@ export function buildDeploymentCatalog(input: {
   for (const slug of providerFamily) {
     const reason =
       input.model.provider === "Google" && input.model.is_open_weights && slug === "gcp-vertex"
-        ? "Related Google Cloud path for private deployment of Gemma open-weight models; you still deploy and run the weights yourself."
-        : `Related first-party access path for ${input.model.provider}; confirm the exact model tier inside the platform.`;
+        ? "Google documents a cloud-server path for private Gemma deployments, but you still set up and run the model yourself."
+        : `Related first-party path for ${input.model.provider}; check the platform to confirm the exact model tier.`;
     pushRelatedPlatform(
       relatedPlatforms,
       seenPlatformIds,
@@ -270,7 +270,7 @@ export function buildDeploymentCatalog(input: {
         relatedPlatforms,
         seenPlatformIds,
         platformBySlug.get(slug),
-        "Compatible self-hosting or local runtime for open-weight models; deployment specifics depend on the artifact format you choose.",
+        "This is a common self-host option for open-weight models. You still choose the runtime and set up the model yourself.",
         "open_weight_runtime"
       );
     }

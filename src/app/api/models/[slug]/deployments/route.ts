@@ -85,7 +85,7 @@ export async function GET(
           const signalType = getNewsSignalType(item);
           return signalType === "open_source" || signalType === "api";
         }),
-      6
+      12
     )
       .map((item) =>
         normalizeDeploymentSignalSummary(
@@ -98,7 +98,15 @@ export async function GET(
           item
         )
       )
-      .sort(compareDeploymentSignalSummaries);
+      .sort(compareDeploymentSignalSummaries)
+      .filter((item, index, items) => {
+        const dedupeKey = `${item.signalType}::${item.title}`;
+        return (
+          items.findIndex((candidate) => `${candidate.signalType}::${candidate.title}` === dedupeKey) ===
+          index
+        );
+      })
+      .slice(0, 6);
 
     const typedDeployments: ModelDeployment[] = [];
     for (const deployment of deployments ?? []) {

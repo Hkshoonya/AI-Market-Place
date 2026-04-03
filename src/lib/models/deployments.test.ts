@@ -305,7 +305,7 @@ describe("buildDeploymentCatalog", () => {
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("gemini-advanced");
 
     const gcpVertex = result.relatedPlatforms.find((item) => item.platform.slug === "gcp-vertex");
-    expect(gcpVertex?.reason).toMatch(/private deployment of Gemma open-weight models/i);
+    expect(gcpVertex?.reason).toMatch(/cloud-server path for private Gemma deployments/i);
   });
 });
 

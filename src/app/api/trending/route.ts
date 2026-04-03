@@ -346,6 +346,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     const modelSignals = pickBestModelSignals(combinedModels, recentNewsItems);
+    const launchOnlySignals = pickBestModelSignals(
+      combinedModels,
+      recentNewsItems.filter((item) => getNewsSignalType(item) === "launch")
+    );
     const deployableNewsItems = recentNewsItems.filter(isSurfaceableDeploymentSignal);
     const deployableSignals = buildDirectDeploymentSignals(deployableNewsItems);
     const deployable = limitRecentSeriesDuplicates(
@@ -413,7 +417,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       trending: attachSignal(trending),
-      recent: attachSignal(recent),
+      recent: attachSignal(recent, launchOnlySignals),
       deployable: attachSignal(deployable, deployableSignals),
       popular: attachSignal(popular),
       discussed: attachSignal(discussedUnique.slice(0, limit)),
