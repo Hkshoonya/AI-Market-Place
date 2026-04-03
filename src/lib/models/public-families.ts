@@ -85,6 +85,7 @@ function providerlessSlugToSeriesKey(providerlessSlug: string) {
   const slugKey = normalizeFamilyKey(
     providerlessSlug
       .replace(DATED_SLUG_RE, "")
+      .replace(/-v\d+$/i, "")
       .replace(/-v(\d+)-0(?=-|$)/g, "-v$1")
       .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
       .replace(
@@ -101,6 +102,7 @@ function displayNameToSeriesKey(name: string) {
   return normalizeFamilyKey(
     name
       .replace(/\([^)]*\)/g, " ")
+      .replace(/\sv\d+$/i, " ")
       .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")
       .replace(
@@ -116,6 +118,7 @@ function getVariantPenalty<T extends PublicModelFamilyCandidate>(model: T) {
   let penalty = 0;
 
   if (DATED_SLUG_RE.test(slug)) penalty += 40;
+  if (/-v\d+$/.test(slug) || /\sv\d+$/.test(name)) penalty += 20;
   if (SAFE_VARIANT_RE.test(slug) || SAFE_VARIANT_RE.test(name)) penalty += 35;
   if (MACHINE_SNAPSHOT_RE.test(slug)) penalty += 55;
   if (/(^|-)it($|-)/.test(slug)) penalty += 12;
