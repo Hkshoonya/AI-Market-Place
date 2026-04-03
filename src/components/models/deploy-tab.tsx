@@ -645,15 +645,18 @@ export function DeployTab({
         <div className="rounded-lg border border-border/50 p-4 bg-card/20">
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <Server className="h-4 w-4 text-[#00d4aa]" />
-            Self-Hosting Guide
+            Common self-host options
           </h3>
           <div className="space-y-3 text-xs text-muted-foreground">
             <p className="text-sm text-muted-foreground">
-              This model has open weights. That usually means you can run it privately if you have the right hardware
-              and artifact format. Use the hardware guidance above first, then use the official deployment evidence and commands below as a starting point.
+              This model has open weights. That usually means you can run it privately if you have
+              the right hardware. If you want an API-style setup, use a server runtime. If you
+              want the simplest private setup, use a local runner on your own computer. The examples
+              below are starting points, not the only valid tools.
             </p>
             <div>
-              <p className="font-medium text-white mb-1">Docker + vLLM</p>
+              <p className="font-medium text-white mb-1">Server runtime example</p>
+              <p className="mb-1 text-[11px] text-muted-foreground">Example with vLLM</p>
               <div className="flex items-center gap-1">
                 <code className="bg-black/50 rounded px-2 py-1 flex-1 overflow-auto font-mono">
                   docker run --gpus all -p 8000:8000 vllm/vllm-openai --model {modelName.toLowerCase().replace(/\s+/g, "-")}
@@ -667,7 +670,8 @@ export function DeployTab({
               </div>
             </div>
             <div>
-              <p className="font-medium text-white mb-1">Ollama</p>
+              <p className="font-medium text-white mb-1">Local runner example</p>
+              <p className="mb-1 text-[11px] text-muted-foreground">Example with Ollama</p>
               <div className="flex items-center gap-1">
                 <code className="bg-black/50 rounded px-2 py-1 flex-1 font-mono">
                   ollama pull {modelName.toLowerCase().replace(/\s+/g, "-")}

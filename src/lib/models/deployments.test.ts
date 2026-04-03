@@ -123,7 +123,7 @@ describe("buildDeploymentCatalog", () => {
     });
 
     expect(result.directDeployments[0]?.reason).toBe(
-      "Verified managed Ollama Cloud runtime for this exact model."
+      "Verified path to run this exact model on a cloud server you control."
     );
   });
 

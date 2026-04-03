@@ -173,23 +173,23 @@ function getDirectDeploymentReason(deployment: ModelDeployment) {
   const { deployment_platforms: platform } = deployment;
 
   if (platform.slug === "ollama") {
-    return "Verified local Ollama runtime for this exact model.";
+    return "Verified path to run this exact model on your own computer.";
   }
 
   if (platform.slug === "ollama-cloud") {
-    return "Verified managed Ollama Cloud runtime for this exact model.";
+    return "Verified path to run this exact model on a cloud server you control.";
   }
 
   if (platform.type === "subscription") {
-    return "Verified first-party subscription or plan access for this exact model.";
+    return "Verified first-party plan access for this exact model.";
   }
 
   if (platform.type === "api") {
-    return "Verified API access is available for this exact model.";
+    return "Verified direct API access for this exact model.";
   }
 
   if (deployment.one_click) {
-    return "Verified one-click deployment or hosted runtime for this exact model.";
+    return "Verified hosted setup path for this exact model.";
   }
 
   return "Model-specific deployment or pricing has been confirmed for this platform.";

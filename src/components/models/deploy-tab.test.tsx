@@ -90,7 +90,7 @@ describe("DeployTab", () => {
               affiliate_url: null,
               affiliate_tag: null,
             },
-            reason: "Model-specific deployment or pricing has been confirmed for this platform.",
+            reason: "Verified path to run this exact model on a cloud server you control.",
             confidence: "direct",
             deployment: {
               id: "dep-1",
@@ -107,7 +107,7 @@ describe("DeployTab", () => {
         deploymentEvidence: [
           {
             id: "news-1",
-            title: "MiniMax M2.7 is now available on Ollama Cloud",
+            title: "MiniMax M2.7 can now run on a cloud server you control",
             summary: "Official runtime evidence for managed deployment.",
             source: "ollama-library",
             signalLabel: "API",
@@ -143,8 +143,8 @@ describe("DeployTab", () => {
     expect(screen.getAllByText(/API access/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Usage tracking/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Hosted for you/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/Recent updates about how people can use this model/i)).toBeInTheDocument();
-    expect(screen.getByText(/MiniMax M2.7 is now available on Ollama Cloud/i)).toBeInTheDocument();
+    expect(screen.getByText(/These are official updates confirming new ways this model can be used/i)).toBeInTheDocument();
+    expect(screen.getByText(/MiniMax M2.7 can now run on a cloud server you control/i)).toBeInTheDocument();
     expect(screen.getAllByText(/hosted for you/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /start with starter pack/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
@@ -191,7 +191,7 @@ describe("DeployTab", () => {
     expect(screen.getByText(/What you need to run it yourself/i)).toBeInTheDocument();
     expect(screen.getByText(/A strong GPU or rented cloud server is usually needed/i)).toBeInTheDocument();
     expect(screen.getByText(/roughly 48GB\+ GPU memory/i)).toBeInTheDocument();
-    expect(screen.getByText(/31\.0B parameters/i)).toBeInTheDocument();
+    expect(screen.getByText(/31B parameters/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/On your computer/i)).toBeInTheDocument();
   });
