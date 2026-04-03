@@ -7,7 +7,10 @@ import {
   type ModelDeployment,
 } from "@/lib/models/deployments";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
-import { compareDeploymentSignalSummaries } from "@/lib/homepage/deployments";
+import {
+  compareDeploymentSignalSummaries,
+  normalizeDeploymentSignalSummary,
+} from "@/lib/homepage/deployments";
 
 export const revalidate = 300;
 
@@ -83,7 +86,19 @@ export async function GET(
           return signalType === "open_source" || signalType === "api";
         }),
       6
-    ).sort(compareDeploymentSignalSummaries);
+    )
+      .map((item) =>
+        normalizeDeploymentSignalSummary(
+          {
+            id: modelRaw.id,
+            slug: modelRaw.slug,
+            name: modelRaw.name,
+            provider: modelRaw.provider,
+          },
+          item
+        )
+      )
+      .sort(compareDeploymentSignalSummaries);
 
     const typedDeployments: ModelDeployment[] = [];
     for (const deployment of deployments ?? []) {

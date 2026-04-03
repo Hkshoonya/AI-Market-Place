@@ -15,6 +15,7 @@ const SURFACEABLE_DEPLOYMENT_SOURCES = new Set([
 
 export interface DeploymentSignalSummary {
   title: string;
+  summary?: string | null;
   signalType: "api" | "open_source";
   signalLabel: string;
   signalImportance: "high" | "medium" | "low";
@@ -38,10 +39,15 @@ export interface HomepageDeploymentModel {
   hf_downloads?: number | null;
 }
 
-export function normalizeDeploymentSignalSummary<TModel extends HomepageDeploymentModel>(
+export function normalizeDeploymentSignalSummary<
+  TModel extends HomepageDeploymentModel,
+  TSignal extends DeploymentSignalSummary | LaunchRadarItem,
+>(
   model: TModel,
-  signal: DeploymentSignalSummary
-): DeploymentSignalSummary {
+  signal: TSignal
+): TSignal {
+  const rawTitle = signal.title ?? "";
+
   if (signal.source === "ollama-library") {
     return {
       ...signal,
@@ -49,17 +55,23 @@ export function normalizeDeploymentSignalSummary<TModel extends HomepageDeployme
         signal.signalType === "open_source"
           ? `${model.name} now has a verified self-host path`
           : `${model.name} can now run on a cloud server you control`,
-    };
+      summary:
+        signal.summary ??
+        "A verified path is available to run this model outside a provider plan.",
+    } as TSignal;
   }
 
-  if (/deployment guide/i.test(signal.title) || /coding plan/i.test(signal.title)) {
+  if (/deployment guide/i.test(rawTitle) || /coding plan/i.test(rawTitle)) {
     return {
       ...signal,
       title:
         signal.signalType === "open_source"
           ? `${model.name} now has an official self-host path`
           : `${model.name} now has an official setup path`,
-    };
+      summary:
+        signal.summary ??
+        "The provider now documents a clearer way to start using this model.",
+    } as TSignal;
   }
 
   return signal;

@@ -145,6 +145,46 @@ function createMockSupabase() {
       parameter_count: null,
       is_open_weights: false,
     },
+    {
+      id: "gemma-4-31b",
+      slug: "google-gemma-4-31b-it",
+      name: "Gemma 4 31B IT",
+      provider: "Google",
+      category: "multimodal",
+      overall_rank: 24,
+      quality_score: 79,
+      capability_score: 77,
+      popularity_score: 58,
+      adoption_score: 49,
+      economic_footprint_score: 28,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-04-01",
+      created_at: "2026-04-01T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
+    {
+      id: "gemma-4-27b",
+      slug: "google-gemma-4-27b-it",
+      name: "Gemma 4 27B IT",
+      provider: "Google",
+      category: "multimodal",
+      overall_rank: 28,
+      quality_score: 75,
+      capability_score: 74,
+      popularity_score: 56,
+      adoption_score: 46,
+      economic_footprint_score: 25,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-04-01",
+      created_at: "2026-04-01T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
   ];
   const modelNews = [
     {
@@ -236,9 +276,11 @@ describe("GET /api/trending", () => {
 
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
+      "google-gemma-4-31b-it",
       "harrier-oss-v1-27b",
       "z-ai-glm-5",
     ]);
+    expect(body.recent.find((model: { slug: string }) => model.slug === "google-gemma-4-27b-it")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "llama-3-1-8b-instruct")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "gpt-image")).toBeFalsy();
@@ -277,5 +319,24 @@ describe("GET /api/trending", () => {
     expect(response.status).toBe(200);
     expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "z-ai-glm-5")).toBeTruthy();
+  });
+
+  it("caps sibling recent variants so one launch family does not dominate the rail", async () => {
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/trending?limit=8")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    const gemmaRecent = body.recent.filter((model: { slug: string }) =>
+      model.slug.startsWith("google-gemma-4-")
+    );
+
+    expect(gemmaRecent).toHaveLength(1);
+    expect(gemmaRecent[0]).toEqual(
+      expect.objectContaining({
+        slug: "google-gemma-4-31b-it",
+      })
+    );
   });
 });

@@ -36,6 +36,47 @@ function toTimestamp(value: string | null | undefined) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function normalizeRecentSeriesKey(model: {
+  slug: string;
+  name: string;
+  provider: string;
+}) {
+  const providerPrefix = model.provider
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const providerlessSlug = providerPrefix && model.slug.startsWith(`${providerPrefix}-`)
+    ? model.slug.slice(providerPrefix.length + 1)
+    : model.slug;
+
+  return `${getCanonicalProviderName(model.provider)}::${providerlessSlug
+    .toLowerCase()
+    .replace(/-\d{4}-\d{2}-\d{2}$/, "")
+    .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
+    .replace(/-(?:it|instruct|preview|exacto|extended|older)(?=-|$)/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")}`;
+}
+
+function limitRecentSeriesDuplicates<
+  T extends { slug: string; name: string; provider: string }
+>(models: T[], limit: number) {
+  const selected: T[] = [];
+  const seenSeries = new Set<string>();
+
+  for (const model of models) {
+    const seriesKey = normalizeRecentSeriesKey(model);
+    if (seenSeries.has(seriesKey)) continue;
+
+    seenSeries.add(seriesKey);
+    selected.push(model);
+    if (selected.length >= limit) break;
+  }
+
+  return selected.slice(0, limit);
+}
+
 function rankByOrderedFamilySelection<
   T extends {
     id: string;
@@ -260,20 +301,23 @@ export async function GET(request: NextRequest) {
       }))
       .filter((model) => isHighSignalRecentCandidate(model));
 
-    const recent = rankByOrderedFamilySelection(
-      sortRecentReleaseCandidates(recentCandidates),
-      (left, right) => {
-        const scoreDelta =
-          (right.recent_signal_score ?? 0) - (left.recent_signal_score ?? 0);
-        if (scoreDelta !== 0) return scoreDelta;
+    const recent = limitRecentSeriesDuplicates(
+      rankByOrderedFamilySelection(
+        sortRecentReleaseCandidates(recentCandidates),
+        (left, right) => {
+          const scoreDelta =
+            (right.recent_signal_score ?? 0) - (left.recent_signal_score ?? 0);
+          if (scoreDelta !== 0) return scoreDelta;
 
-        const releaseDelta = toTimestamp(right.release_date ?? right.created_at) -
-          toTimestamp(left.release_date ?? left.created_at);
-        if (releaseDelta !== 0) return releaseDelta;
+          const releaseDelta = toTimestamp(right.release_date ?? right.created_at) -
+            toTimestamp(left.release_date ?? left.created_at);
+          if (releaseDelta !== 0) return releaseDelta;
 
-        return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
-      }
-    ).slice(0, Math.min(limit, 8));
+          return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+        }
+      ),
+      Math.min(limit, 8)
+    );
 
     const trending = rankByOrderedFamilySelection(
       (data ?? []).map((model) => ({
