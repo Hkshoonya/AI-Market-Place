@@ -146,6 +146,46 @@ function createMockSupabase() {
       is_open_weights: false,
     },
     {
+      id: "minimax-base",
+      slug: "minimax-minimax-m2-7",
+      name: "MiniMax M2.7",
+      provider: "MiniMax",
+      category: "llm",
+      overall_rank: 26,
+      quality_score: 76,
+      capability_score: 77,
+      popularity_score: 52,
+      adoption_score: 47,
+      economic_footprint_score: 24,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-03-20",
+      created_at: "2026-03-20T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
+    {
+      id: "minimax-highspeed",
+      slug: "minimax-minimax-m2-7-highspeed",
+      name: "MiniMax M2.7 Highspeed",
+      provider: "MiniMax",
+      category: "llm",
+      overall_rank: 32,
+      quality_score: 70,
+      capability_score: 73,
+      popularity_score: 46,
+      adoption_score: 40,
+      economic_footprint_score: 18,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-04-01",
+      created_at: "2026-04-01T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
+    {
       id: "gemma-4-31b",
       slug: "google-gemma-4-31b-it",
       name: "Gemma 4 31B IT",
@@ -337,6 +377,7 @@ describe("GET /api/trending", () => {
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
       "google-gemma-4-31b-it",
+      "minimax-minimax-m2-7",
       "harrier-oss-v1-27b",
       "z-ai-glm-5",
       "qwen-qwen3-5-122b-a10b",
@@ -409,5 +450,22 @@ describe("GET /api/trending", () => {
         slug: "google-gemma-4-31b-it",
       })
     );
+  });
+
+  it("shows the canonical family model when a recent sibling variant is newer", async () => {
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/trending?limit=8")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(
+      body.recent.find((model: { slug: string }) => model.slug === "minimax-minimax-m2-7")
+    ).toBeTruthy();
+    expect(
+      body.recent.find(
+        (model: { slug: string }) => model.slug === "minimax-minimax-m2-7-highspeed"
+      )
+    ).toBeFalsy();
   });
 });

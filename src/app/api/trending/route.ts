@@ -104,6 +104,70 @@ function rankByOrderedFamilySelection<
     .sort(compare);
 }
 
+function getRecentDisplayPenalty(model: { slug: string; name: string }) {
+  const slug = model.slug.toLowerCase();
+  const name = model.name.toLowerCase();
+  let penalty = 0;
+
+  if (/(^|-)preview($|-)|\bpreview\b/.test(slug) || /\bpreview\b/.test(name)) penalty += 40;
+  if (/(^|-)beta($|-)|\bbeta\b/.test(slug) || /\bbeta\b/.test(name)) penalty += 35;
+  if (
+    /(^|-)(?:gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest)($|-)/.test(slug) ||
+    /\b(?:gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest)\b/.test(name)
+  ) {
+    penalty += 30;
+  }
+  if (/(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/.test(slug)) {
+    penalty += 60;
+  }
+
+  return penalty;
+}
+
+function mapRecentCandidatesToCanonicalFamilyRepresentatives<
+  T extends {
+    id: string;
+    slug: string;
+    name: string;
+    provider: string;
+    quality_score?: number | null;
+    release_date?: string | null;
+    created_at?: string | null;
+    recent_signal_score?: number | null;
+  }
+>(models: T[], allModels: T[]) {
+  const representativeByVariantId = new Map<string, T>();
+
+  for (const family of collapsePublicModelFamilies(allModels)) {
+    const displayRepresentative =
+      [...family.variants].sort((left, right) => {
+        const penaltyDelta = getRecentDisplayPenalty(left) - getRecentDisplayPenalty(right);
+        if (penaltyDelta !== 0) return penaltyDelta;
+
+        const qualityDelta = Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+        if (qualityDelta !== 0) return qualityDelta;
+
+        return left.slug.length - right.slug.length;
+      })[0] ?? family.representative;
+
+    for (const variant of family.variants) {
+      representativeByVariantId.set(variant.id, displayRepresentative);
+    }
+  }
+
+  return models.map((model) => {
+    const representative = representativeByVariantId.get(model.id);
+    if (!representative || representative.id === model.id) return model;
+
+    return {
+      ...representative,
+      release_date: model.release_date ?? representative.release_date ?? null,
+      created_at: model.created_at ?? representative.created_at ?? null,
+      recent_signal_score: model.recent_signal_score ?? 0,
+    };
+  });
+}
+
 function getRecentSignalWeight(item: {
   published_at?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -304,9 +368,19 @@ export async function GET(request: NextRequest) {
       }))
       .filter((model) => isHighSignalRecentCandidate(model));
 
+    const allModelsWithRecentSignals = (data ?? []).map((model) => ({
+      ...model,
+      recent_signal_score: recentSignalScores.get(model.id) ?? 0,
+    }));
+
+    const recentDisplayCandidates = mapRecentCandidatesToCanonicalFamilyRepresentatives(
+      recentCandidates,
+      allModelsWithRecentSignals
+    );
+
     const recent = limitRecentSeriesDuplicates(
       rankByOrderedFamilySelection(
-        sortRecentReleaseCandidates(recentCandidates),
+        sortRecentReleaseCandidates(recentDisplayCandidates),
         (left, right) => {
           const scoreDelta =
             (right.recent_signal_score ?? 0) - (left.recent_signal_score ?? 0);
