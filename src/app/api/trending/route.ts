@@ -13,6 +13,7 @@ import {
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
+  getPublicSurfaceSeriesKey,
 } from "@/lib/models/public-families";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
@@ -36,29 +37,6 @@ function toTimestamp(value: string | null | undefined) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
-function normalizeRecentSeriesKey(model: {
-  slug: string;
-  name: string;
-  provider: string;
-}) {
-  const providerPrefix = model.provider
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const providerlessSlug = providerPrefix && model.slug.startsWith(`${providerPrefix}-`)
-    ? model.slug.slice(providerPrefix.length + 1)
-    : model.slug;
-
-  return `${getCanonicalProviderName(model.provider)}::${providerlessSlug
-    .toLowerCase()
-    .replace(/-\d{4}-\d{2}-\d{2}$/, "")
-    .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
-    .replace(/-(?:it|instruct|preview|exacto|extended|older)(?=-|$)/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")}`;
-}
-
 function limitRecentSeriesDuplicates<
   T extends { slug: string; name: string; provider: string }
 >(models: T[], limit: number) {
@@ -66,7 +44,7 @@ function limitRecentSeriesDuplicates<
   const seenSeries = new Set<string>();
 
   for (const model of models) {
-    const seriesKey = normalizeRecentSeriesKey(model);
+    const seriesKey = getPublicSurfaceSeriesKey(model);
     if (seenSeries.has(seriesKey)) continue;
 
     seenSeries.add(seriesKey);
@@ -346,34 +324,36 @@ export async function GET(request: NextRequest) {
     const modelSignals = pickBestModelSignals(combinedModels, recentNewsItems);
     const deployableNewsItems = recentNewsItems.filter(isSurfaceableDeploymentSignal);
     const deployableSignals = buildDirectDeploymentSignals(deployableNewsItems);
-    const deployable = rankByOrderedFamilySelection(
-      (data ?? [])
-      .filter((model) => deployableSignals.has(model.id))
-      .sort((left, right) => {
-        const leftSignal = deployableSignals.get(left.id);
-        const rightSignal = deployableSignals.get(right.id);
-        if (leftSignal && rightSignal) {
-          const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
-          if (signalDelta !== 0) return signalDelta;
+    const deployable = limitRecentSeriesDuplicates(
+      rankByOrderedFamilySelection(
+        (data ?? [])
+          .filter((model) => deployableSignals.has(model.id))
+          .sort((left, right) => {
+            const leftSignal = deployableSignals.get(left.id);
+            const rightSignal = deployableSignals.get(right.id);
+            if (leftSignal && rightSignal) {
+              const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
+              if (signalDelta !== 0) return signalDelta;
+            }
+
+            const qualityDelta = Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+            if (qualityDelta !== 0) return qualityDelta;
+
+            return Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
+          }),
+        (left, right) => {
+          const leftSignal = deployableSignals.get(left.id);
+          const rightSignal = deployableSignals.get(right.id);
+          if (leftSignal && rightSignal) {
+            const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
+            if (signalDelta !== 0) return signalDelta;
+          }
+
+          return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
         }
-
-        const qualityDelta = Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
-        if (qualityDelta !== 0) return qualityDelta;
-
-        return Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
-      })
-      ,
-      (left, right) => {
-        const leftSignal = deployableSignals.get(left.id);
-        const rightSignal = deployableSignals.get(right.id);
-        if (leftSignal && rightSignal) {
-          const signalDelta = compareDeploymentSignalSummaries(leftSignal, rightSignal);
-          if (signalDelta !== 0) return signalDelta;
-        }
-
-        return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
-      }
-    ).slice(0, limit);
+      ),
+      limit
+    );
 
     const attachSignal = <T extends { id: string; slug: string; name: string; provider: string }>(
       modelsWithScores: T[],

@@ -374,4 +374,48 @@ describe("buildHomepageDeploymentSelections", () => {
       })
     );
   });
+
+  it("collapses repackaged deployment variants into one surfaced family item", () => {
+    const result = buildHomepageDeploymentSelections(
+      [
+        {
+          id: "qwen-main",
+          slug: "qwen-qwen3-5-122b-a10b",
+          name: "Qwen3.5 122B A10B",
+          provider: "Qwen",
+          quality_score: 82,
+        },
+        {
+          id: "qwen-gguf",
+          slug: "unsloth-qwen3-5-122b-a10b-gguf",
+          name: "Qwen3.5-122B-A10B-GGUF",
+          provider: "Unsloth",
+          quality_score: 61,
+        },
+      ],
+      [
+        {
+          source: "ollama-library",
+          title: "Qwen3.5 122B A10B is now available on Ollama",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Qwen",
+          related_model_ids: ["qwen-main"],
+          metadata: { signal_type: "open_source", signal_importance: "medium" },
+        },
+        {
+          source: "ollama-library",
+          title: "Qwen3.5-122B-A10B-GGUF is now available on Ollama",
+          published_at: "2026-03-30T11:00:00.000Z",
+          related_provider: "Unsloth",
+          related_model_ids: ["qwen-gguf"],
+          metadata: { signal_type: "open_source", signal_importance: "medium" },
+        },
+      ],
+      4,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.model.id).toBe("qwen-gguf");
+  });
 });

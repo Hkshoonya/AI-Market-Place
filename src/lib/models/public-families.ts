@@ -67,6 +67,28 @@ function getFamilyKey<T extends PublicModelFamilyCandidate>(model: T) {
   return normalizeFamilyKey(baseSlug || model.name || model.slug);
 }
 
+export function getPublicSurfaceSeriesKey<
+  T extends Pick<PublicModelFamilyCandidate, "slug" | "name" | "provider">
+>(model: T) {
+  const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
+  const slugKey = normalizeFamilyKey(
+    providerlessSlug
+      .replace(DATED_SLUG_RE, "")
+      .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
+      .replace(/-(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq)(?=-|$)/g, "")
+      .replace(/-+/g, "-")
+  );
+
+  if (slugKey) return slugKey;
+
+  return normalizeFamilyKey(
+    model.name
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\b(?:e|a)?\d+b\b/gi, " ")
+      .replace(/\b(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq)\b/gi, " ")
+  );
+}
+
 function getVariantPenalty<T extends PublicModelFamilyCandidate>(model: T) {
   const slug = model.slug.toLowerCase();
   const name = model.name.toLowerCase();

@@ -185,6 +185,46 @@ function createMockSupabase() {
       parameter_count: null,
       is_open_weights: true,
     },
+    {
+      id: "qwen-main",
+      slug: "qwen-qwen3-5-122b-a10b",
+      name: "Qwen3.5 122B A10B",
+      provider: "Qwen",
+      category: "llm",
+      overall_rank: 20,
+      quality_score: 81,
+      capability_score: 79,
+      popularity_score: 59,
+      adoption_score: 44,
+      economic_footprint_score: 24,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-03-25",
+      created_at: "2026-03-25T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
+    {
+      id: "qwen-gguf",
+      slug: "unsloth-qwen3-5-122b-a10b-gguf",
+      name: "Qwen3.5-122B-A10B-GGUF",
+      provider: "Unsloth",
+      category: "llm",
+      overall_rank: 36,
+      quality_score: 63,
+      capability_score: 60,
+      popularity_score: 41,
+      adoption_score: 28,
+      economic_footprint_score: 10,
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      release_date: "2026-03-25",
+      created_at: "2026-03-25T08:00:00.000000+00:00",
+      parameter_count: null,
+      is_open_weights: true,
+    },
   ];
   const modelNews = [
     {
@@ -216,6 +256,26 @@ function createMockSupabase() {
       published_at: "2026-03-31T21:00:00.000Z",
       category: "api",
       metadata: { signal_type: "api", signal_importance: "medium" },
+    },
+    {
+      id: "deploy-qwen-main",
+      title: "Qwen3.5 122B A10B is now available on Ollama",
+      source: "ollama-library",
+      related_provider: "Qwen",
+      related_model_ids: ["qwen-main"],
+      published_at: "2026-03-31T19:00:00.000Z",
+      category: "open_source",
+      metadata: { signal_type: "open_source", signal_importance: "medium" },
+    },
+    {
+      id: "deploy-qwen-gguf",
+      title: "Qwen3.5-122B-A10B-GGUF is now available on Ollama",
+      source: "ollama-library",
+      related_provider: "Unsloth",
+      related_model_ids: ["qwen-gguf"],
+      published_at: "2026-03-31T20:00:00.000Z",
+      category: "open_source",
+      metadata: { signal_type: "open_source", signal_importance: "medium" },
     },
   ];
 
@@ -302,6 +362,11 @@ describe("GET /api/trending", () => {
         }),
       })
     );
+    expect(
+      body.deployable.filter((model: { slug: string }) =>
+        model.slug.includes("qwen3-5-122b-a10b")
+      )
+    ).toHaveLength(1);
     expect(body.popular[0]).toEqual(
       expect.objectContaining({
         slug: "llama-3-1-8b-instruct",

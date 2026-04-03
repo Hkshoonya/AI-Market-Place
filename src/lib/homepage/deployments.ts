@@ -1,5 +1,8 @@
 import { getCanonicalProviderName } from "@/lib/constants/providers";
-import { collapsePublicModelFamilies } from "@/lib/models/public-families";
+import {
+  collapsePublicModelFamilies,
+  getPublicSurfaceSeriesKey,
+} from "@/lib/models/public-families";
 import {
   getNewsSignalImportance,
   getNewsSignalType,
@@ -302,6 +305,14 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
     .sort(compareDeploymentSelections)
+    .filter((entry, index, entries) => {
+      const currentKey = getPublicSurfaceSeriesKey(entry.selection.model);
+      return (
+        entries.findIndex(
+          (candidate) => getPublicSurfaceSeriesKey(candidate.selection.model) === currentKey
+        ) === index
+      );
+    })
     .slice(0, limit)
     .map((entry) => entry.selection);
 }
