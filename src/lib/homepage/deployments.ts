@@ -38,6 +38,33 @@ export interface HomepageDeploymentModel {
   hf_downloads?: number | null;
 }
 
+export function normalizeDeploymentSignalSummary<TModel extends HomepageDeploymentModel>(
+  model: TModel,
+  signal: DeploymentSignalSummary
+): DeploymentSignalSummary {
+  if (signal.source === "ollama-library") {
+    return {
+      ...signal,
+      title:
+        signal.signalType === "open_source"
+          ? `${model.name} now has a verified self-host path`
+          : `${model.name} can now run on a cloud server you control`,
+    };
+  }
+
+  if (/deployment guide/i.test(signal.title) || /coding plan/i.test(signal.title)) {
+    return {
+      ...signal,
+      title:
+        signal.signalType === "open_source"
+          ? `${model.name} now has an official self-host path`
+          : `${model.name} now has an official setup path`,
+    };
+  }
+
+  return signal;
+}
+
 export interface HomepageDeploymentSelection<TModel extends HomepageDeploymentModel> {
   model: TModel;
   surfacedAt: string | null;

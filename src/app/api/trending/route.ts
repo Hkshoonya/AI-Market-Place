@@ -25,6 +25,7 @@ import {
   buildDirectDeploymentSignals,
   compareDeploymentSignalSummaries,
   isSurfaceableDeploymentSignal,
+  normalizeDeploymentSignalSummary,
 } from "@/lib/homepage/deployments";
 
 export const dynamic = "force-dynamic";
@@ -330,7 +331,7 @@ export async function GET(request: NextRequest) {
       }
     ).slice(0, limit);
 
-    const attachSignal = <T extends { id: string; provider?: string | null }>(
+    const attachSignal = <T extends { id: string; slug: string; name: string; provider: string }>(
       modelsWithScores: T[],
       signals = modelSignals
     ) =>
@@ -340,7 +341,13 @@ export async function GET(request: NextRequest) {
           typeof model.provider === "string"
             ? getCanonicalProviderName(model.provider)
             : model.provider ?? null,
-        recent_signal: signals.get(model.id) ?? null,
+        recent_signal:
+          signals === deployableSignals
+            ? (() => {
+                const signal = deployableSignals.get(model.id);
+                return signal ? normalizeDeploymentSignalSummary(model, signal) : null;
+              })()
+            : signals.get(model.id) ?? null,
       }));
 
     return NextResponse.json({
