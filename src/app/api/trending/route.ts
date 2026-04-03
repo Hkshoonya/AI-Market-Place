@@ -138,9 +138,17 @@ function mapRecentCandidatesToCanonicalFamilyRepresentatives<
 >(models: T[], allModels: T[]) {
   const representativeByVariantId = new Map<string, T>();
 
-  for (const family of collapsePublicModelFamilies(allModels)) {
+  const groupedBySeries = new Map<string, T[]>();
+  for (const model of allModels) {
+    const key = getPublicSurfaceSeriesKey(model);
+    const existing = groupedBySeries.get(key) ?? [];
+    existing.push(model);
+    groupedBySeries.set(key, existing);
+  }
+
+  for (const variants of groupedBySeries.values()) {
     const displayRepresentative =
-      [...family.variants].sort((left, right) => {
+      [...variants].sort((left, right) => {
         const penaltyDelta = getRecentDisplayPenalty(left) - getRecentDisplayPenalty(right);
         if (penaltyDelta !== 0) return penaltyDelta;
 
@@ -148,9 +156,9 @@ function mapRecentCandidatesToCanonicalFamilyRepresentatives<
         if (qualityDelta !== 0) return qualityDelta;
 
         return left.slug.length - right.slug.length;
-      })[0] ?? family.representative;
+      })[0] ?? variants[0];
 
-    for (const variant of family.variants) {
+    for (const variant of variants) {
       representativeByVariantId.set(variant.id, displayRepresentative);
     }
   }
