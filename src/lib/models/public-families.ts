@@ -70,22 +70,40 @@ function getFamilyKey<T extends PublicModelFamilyCandidate>(model: T) {
 export function getPublicSurfaceSeriesKey<
   T extends Pick<PublicModelFamilyCandidate, "slug" | "name" | "provider">
 >(model: T) {
-  const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
+  const normalizedProviderlessSlug = providerlessSlugToSeriesKey(
+    stripProviderPrefix(model.slug, model.provider)
+  );
+  if (normalizedProviderlessSlug) return normalizedProviderlessSlug;
+
+  return displayNameToSeriesKey(model.name);
+}
+
+function providerlessSlugToSeriesKey(providerlessSlug: string) {
   const slugKey = normalizeFamilyKey(
     providerlessSlug
       .replace(DATED_SLUG_RE, "")
+      .replace(/-v(\d+)-0(?=-|$)/g, "-v$1")
       .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
-      .replace(/-(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq)(?=-|$)/g, "")
+      .replace(
+        /-(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)(?=-|$)/g,
+        ""
+      )
       .replace(/-+/g, "-")
   );
 
-  if (slugKey) return slugKey;
+  return slugKey;
+}
 
+function displayNameToSeriesKey(name: string) {
   return normalizeFamilyKey(
-    model.name
+    name
       .replace(/\([^)]*\)/g, " ")
+      .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")
-      .replace(/\b(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq)\b/gi, " ")
+      .replace(
+        /\b(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)\b/gi,
+        " "
+      )
   );
 }
 

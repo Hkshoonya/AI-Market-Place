@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
+  getPublicSurfaceSeriesKey,
 } from "./public-families";
 
 describe("public model family dedupe", () => {
@@ -176,5 +177,46 @@ describe("public model family dedupe", () => {
     ]);
 
     expect(deduped).toHaveLength(1);
+  });
+
+  it("collapses multi-agent and highspeed suffixes into the same public surface series", () => {
+    const base = getPublicSurfaceSeriesKey({
+      slug: "x-ai-grok-4-20",
+      name: "Grok 4.20",
+      provider: "xAI",
+    });
+    const multiAgent = getPublicSurfaceSeriesKey({
+      slug: "x-ai-grok-4-20-multi-agent",
+      name: "Grok 4.20 Multi-Agent",
+      provider: "xAI",
+    });
+    const highspeed = getPublicSurfaceSeriesKey({
+      slug: "minimax-minimax-m2-7-highspeed",
+      name: "MiniMax M2.7 Highspeed",
+      provider: "MiniMax",
+    });
+    const standard = getPublicSurfaceSeriesKey({
+      slug: "minimax-minimax-m2-7",
+      name: "MiniMax M2.7",
+      provider: "MiniMax",
+    });
+
+    expect(multiAgent).toBe(base);
+    expect(highspeed).toBe(standard);
+  });
+
+  it("treats v1-0 and v1 sized variants as the same public surface series", () => {
+    const small = getPublicSurfaceSeriesKey({
+      slug: "microsoft-harrier-oss-v1-0-6b",
+      name: "Harrier OSS v1.0 6B",
+      provider: "Microsoft",
+    });
+    const large = getPublicSurfaceSeriesKey({
+      slug: "microsoft-harrier-oss-v1-27b",
+      name: "Harrier OSS v1 27B",
+      provider: "Microsoft",
+    });
+
+    expect(small).toBe(large);
   });
 });
