@@ -75,8 +75,9 @@ export function normalizeDeploymentSignalSummary<
           ? `${model.name} now has a verified self-host path`
           : `${model.name} can now run on a cloud server you control`,
       summary:
-        signal.summary ??
-        "A verified path is available to run this model outside a provider plan.",
+        signal.signalType === "open_source"
+          ? "A verified self-host path is now available, so you can run this model privately instead of relying only on a provider plan."
+          : "A verified cloud-server path is now available, so you can run this model on infrastructure you control.",
     } as TSignal;
   }
 
@@ -92,8 +93,9 @@ export function normalizeDeploymentSignalSummary<
           ? `${model.name} now has an official self-host path`
           : `${model.name} now has an official setup path`,
       summary:
-        signal.summary ??
-        "The provider now documents a clearer way to start using this model.",
+        signal.signalType === "open_source"
+          ? "The provider now documents an official way to run this model privately on your own infrastructure."
+          : "The provider now documents an official way to start using this model.",
     } as TSignal;
   }
 
@@ -170,7 +172,9 @@ function normalizeDeploymentCopy<TModel extends HomepageDeploymentModel>(
           ? `${model.name} can now run outside a provider plan`
           : `${model.name} can now run on a cloud server you control`,
       summary:
-        "A new verified path is available to run this model yourself instead of depending only on a provider subscription.",
+        signalType === "open_source"
+          ? "A verified self-host path is now available, so you can run this model privately instead of depending only on a provider subscription."
+          : "A verified cloud-server path is now available, so you can run this model on infrastructure you control.",
     };
   }
 
@@ -186,8 +190,9 @@ function normalizeDeploymentCopy<TModel extends HomepageDeploymentModel>(
           ? `${model.name} now has an official self-host path`
           : `${model.name} now has an official setup path`,
       summary:
-        item.summary?.trim() ??
-        "The provider now documents a clearer way to start using this model.",
+        signalType === "open_source"
+          ? "The provider now documents an official way to run this model privately on your own infrastructure."
+          : "The provider now documents an official way to start using this model.",
     };
   }
 

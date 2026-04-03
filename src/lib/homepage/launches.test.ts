@@ -285,7 +285,7 @@ describe("buildHomepageDeploymentSelections", () => {
         signalType: "api",
       })
     );
-    expect(result[0]?.summary).toMatch(/run this model yourself/i);
+    expect(result[0]?.summary).toMatch(/cloud-server path/i);
   });
 
   it("ignores provider mismatches and stale deployment news", () => {
@@ -439,6 +439,7 @@ describe("buildHomepageDeploymentSelections", () => {
     expect(result[0]).toEqual(
       expect.objectContaining({
         title: "Gemma 4 31B IT now has an official self-host path",
+        summary: "The provider now documents an official way to run this model privately on your own infrastructure.",
       })
     );
   });
