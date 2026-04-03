@@ -111,6 +111,33 @@ export interface HomepageDeploymentSelection<TModel extends HomepageDeploymentMo
   signalType: "api" | "open_source";
 }
 
+export function limitProviderBurst<
+  T extends { provider?: string | null; model?: { provider?: string | null } }
+>(items: T[], limit: number, maxPerProvider = 2) {
+  if (limit <= 0) {
+    return items.slice(0, limit);
+  }
+
+  const selected: T[] = [];
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    const providerKey = getCanonicalProviderName(item.provider ?? item.model?.provider ?? "");
+    const count = counts.get(providerKey) ?? 0;
+
+    if (count < maxPerProvider) {
+      counts.set(providerKey, count + 1);
+      selected.push(item);
+      if (selected.length >= limit) {
+        return selected;
+      }
+      continue;
+    }
+  }
+
+  return selected.slice(0, limit);
+}
+
 function getSignalPublishedAt(
   item: DeploymentSignalSummary | LaunchRadarItem
 ) {
@@ -372,8 +399,11 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
     }
   }
 
-  return surfacedEntries
+  return limitProviderBurst(
+    surfacedEntries
     .sort(compareDeploymentSelections)
-    .slice(0, limit)
-    .map((entry) => entry.selection);
+    .map((entry) => entry.selection)
+    .filter((entry): entry is HomepageDeploymentSelection<TModel> => Boolean(entry)),
+    limit
+  );
 }

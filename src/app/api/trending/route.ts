@@ -27,6 +27,7 @@ import {
   compareDeploymentSignalSummaries,
   isHighSignalDeploymentCandidate,
   isSurfaceableDeploymentSignal,
+  limitProviderBurst,
   normalizeDeploymentSignalSummary,
 } from "@/lib/homepage/deployments";
 
@@ -352,7 +353,8 @@ export async function GET(request: NextRequest) {
     );
     const deployableNewsItems = recentNewsItems.filter(isSurfaceableDeploymentSignal);
     const deployableSignals = buildDirectDeploymentSignals(deployableNewsItems);
-    const deployable = limitRecentSeriesDuplicates(
+    const deployable = limitProviderBurst(
+      limitRecentSeriesDuplicates(
       rankByOrderedFamilySelection(
         (data ?? [])
           .filter((model) => deployableSignals.has(model.id))
@@ -392,6 +394,8 @@ export async function GET(request: NextRequest) {
 
           return Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
         }
+      ),
+      limit
       ),
       limit
     );

@@ -443,4 +443,54 @@ describe("buildHomepageDeploymentSelections", () => {
       })
     );
   });
+
+  it("caps one provider from dominating the homepage usage rail", () => {
+    const result = buildHomepageDeploymentSelections(
+      [
+        { id: "glm-5", slug: "z-ai-glm-5", name: "GLM-5", provider: "Z.ai", quality_score: 72 },
+        { id: "glm-4-7", slug: "z-ai-glm-4-7", name: "GLM-4.7", provider: "Z.ai", quality_score: 69 },
+        { id: "glm-4-5", slug: "z-ai-glm-4-5", name: "GLM-4.5", provider: "Z.ai", quality_score: 66 },
+        { id: "m2-7", slug: "minimax-minimax-m2-7", name: "MiniMax M2.7", provider: "MiniMax", quality_score: 70 },
+      ],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "GLM-5 deployment guide",
+          published_at: "2026-04-02T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+        {
+          source: "provider-deployment-signals",
+          title: "GLM-4.7 deployment guide",
+          published_at: "2026-04-02T09:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-4-7"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+        {
+          source: "provider-deployment-signals",
+          title: "GLM-4.5 deployment guide",
+          published_at: "2026-04-02T08:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-4-5"],
+          metadata: { signal_type: "api", signal_importance: "medium" },
+        },
+        {
+          source: "provider-deployment-signals",
+          title: "MiniMax M2.7 self-host path",
+          published_at: "2026-04-02T07:00:00.000Z",
+          related_provider: "MiniMax",
+          related_model_ids: ["m2-7"],
+          metadata: { signal_type: "open_source", signal_importance: "high" },
+        },
+      ],
+      4,
+      Date.parse("2026-04-03T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["glm-5", "glm-4-7", "m2-7"]);
+    expect(result.filter((entry) => entry.model.provider === "Z.ai")).toHaveLength(2);
+  });
 });
