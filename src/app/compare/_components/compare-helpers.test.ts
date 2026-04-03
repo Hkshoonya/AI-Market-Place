@@ -18,7 +18,7 @@ describe("compare deployability helpers", () => {
         },
         accessOffer: null,
       })
-    ).toBe("Run it yourself");
+    ).toBe("Self-Host");
 
     expect(
       getCompareDeploymentLabel({

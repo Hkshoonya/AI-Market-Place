@@ -5,7 +5,7 @@ export interface DeployabilityAccessOffer {
 }
 
 export type DeployabilityLabel =
-  | "Run it yourself"
+  | "Self-Host"
   | "Ready to Use"
   | "API Access"
   | "Subscription"
@@ -13,7 +13,7 @@ export type DeployabilityLabel =
   | "Open Weights";
 
 export function getUsageUpdateBadgeLabel(signalType: "api" | "open_source") {
-  return signalType === "open_source" ? "Run it yourself" : "Start using it";
+  return signalType === "open_source" ? "Self-Host" : "Start using it";
 }
 
 export function getDeployabilityLabel(input: {
@@ -21,7 +21,7 @@ export function getDeployabilityLabel(input: {
   signal?: ModelSignalSummary | null;
   accessOffer?: DeployabilityAccessOffer | null;
 }): DeployabilityLabel | null {
-  if (input.signal?.signalType === "open_source") return "Run it yourself";
+  if (input.signal?.signalType === "open_source") return "Self-Host";
   if (input.signal?.signalType === "api") return "Ready to Use";
 
   switch (input.accessOffer?.actionLabel) {
@@ -44,5 +44,5 @@ export function getDeployabilityLabel(input: {
 export function isSelfHostedDeployabilityLabel(
   label: string | null | undefined
 ): boolean {
-  return label === "Run it yourself" || label === "Open Weights" || label === "Self-Host";
+  return label === "Self-Host" || label === "Open Weights";
 }
