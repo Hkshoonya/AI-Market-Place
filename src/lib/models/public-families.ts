@@ -88,7 +88,7 @@ function providerlessSlugToSeriesKey(providerlessSlug: string) {
       .replace(/-v(\d+)-0(?=-|$)/g, "-v$1")
       .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
       .replace(
-        /-(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)(?=-|$)/g,
+        /-(?:it|instruct|preview|beta|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)(?=-|$)/g,
         ""
       )
       .replace(/-+/g, "-")
@@ -104,7 +104,7 @@ function displayNameToSeriesKey(name: string) {
       .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")
       .replace(
-        /\b(?:it|instruct|preview|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)\b/gi,
+        /\b(?:it|instruct|preview|beta|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)\b/gi,
         " "
       )
   );

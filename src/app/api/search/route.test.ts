@@ -397,4 +397,63 @@ describe("GET /api/search", () => {
       })
     );
   });
+
+  it("collapses sibling surface variants for exact versioned queries", async () => {
+    const versionedClient = createMockSupabase({
+      modelFtsData: [],
+      modelIlikeData: [
+        {
+          id: "model-grok-main",
+          slug: "x-ai-grok-4-20",
+          name: "Grok 4.20",
+          provider: "xAI",
+          category: "llm",
+          overall_rank: 12,
+          quality_score: 84,
+          capability_score: 84,
+          is_open_weights: false,
+          parameter_count: null,
+          short_description: "Main Grok 4.20 release",
+          market_cap_estimate: 500_000_000,
+        },
+        {
+          id: "model-grok-beta",
+          slug: "x-ai-grok-4-20-beta",
+          name: "Grok 4.20 Beta",
+          provider: "xAI",
+          category: "llm",
+          overall_rank: 40,
+          quality_score: 70,
+          capability_score: 70,
+          is_open_weights: false,
+          parameter_count: null,
+          short_description: "Beta variant",
+          market_cap_estimate: 100_000_000,
+        },
+        {
+          id: "model-grok-multi",
+          slug: "x-ai-grok-4-20-multi-agent",
+          name: "Grok 4.20 Multi-Agent",
+          provider: "xAI",
+          category: "llm",
+          overall_rank: 55,
+          quality_score: 68,
+          capability_score: 68,
+          is_open_weights: false,
+          parameter_count: null,
+          short_description: "Multi-agent variant",
+          market_cap_estimate: 90_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(versionedClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=grok%204.20") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((item: { slug: string }) => item.slug)).toEqual(["x-ai-grok-4-20"]);
+  });
 });

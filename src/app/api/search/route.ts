@@ -3,7 +3,10 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
-import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import {
+  dedupePublicModelFamilies,
+  getPublicSurfaceSeriesKey,
+} from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
@@ -42,6 +45,21 @@ interface SearchModelRow {
   parameter_count?: number | null;
   short_description?: string | null;
   market_cap_estimate?: number | null;
+}
+
+function collapseSearchSurfaceSeries<T extends SearchModelRow>(models: T[], limit: number) {
+  const selected: T[] = [];
+  const seenSeries = new Set<string>();
+
+  for (const model of models) {
+    const key = getPublicSurfaceSeriesKey(model);
+    if (seenSeries.has(key)) continue;
+    seenSeries.add(key);
+    selected.push(model);
+    if (selected.length >= limit) break;
+  }
+
+  return selected;
 }
 
 function normalizeSearchInput(value: string) {
@@ -185,10 +203,10 @@ export async function GET(request: NextRequest) {
 
     const models = await searchModelsWithFallback(supabase, query, limit);
 
-    const uniqueModels = rankModelsForSearch(
-      dedupePublicModelFamilies(models ?? []),
-      safeQuery
-    ).slice(0, limit);
+    const uniqueModels = collapseSearchSurfaceSeries(
+      rankModelsForSearch(dedupePublicModelFamilies(models ?? []), safeQuery),
+      limit
+    );
     const [
       { data: pricingRows },
       { data: newsRaw },
