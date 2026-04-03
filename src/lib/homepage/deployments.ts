@@ -1,4 +1,7 @@
-import { getCanonicalProviderName } from "@/lib/constants/providers";
+import {
+  getCanonicalProviderName,
+  getProviderBrand,
+} from "@/lib/constants/providers";
 import {
   collapsePublicModelFamilies,
   getPublicSurfaceSeriesKey,
@@ -42,6 +45,19 @@ export interface HomepageDeploymentModel {
   hf_downloads?: number | null;
 }
 
+export function isHighSignalDeploymentCandidate<TModel extends HomepageDeploymentModel>(
+  model: TModel
+) {
+  if (getProviderBrand(model.provider ?? "")) return true;
+
+  return (
+    Number(model.quality_score ?? 0) >= 50 ||
+    Number(model.capability_score ?? 0) >= 50 ||
+    Number(model.popularity_score ?? 0) >= 50 ||
+    Number(model.adoption_score ?? 0) >= 45
+  );
+}
+
 export function normalizeDeploymentSignalSummary<
   TModel extends HomepageDeploymentModel,
   TSignal extends DeploymentSignalSummary | LaunchRadarItem,
@@ -64,7 +80,11 @@ export function normalizeDeploymentSignalSummary<
     } as TSignal;
   }
 
-  if (/deployment guide/i.test(rawTitle) || /coding plan/i.test(rawTitle)) {
+  if (
+    signal.source === "provider-deployment-signals" ||
+    /deployment guide/i.test(rawTitle) ||
+    /coding plan/i.test(rawTitle)
+  ) {
     return {
       ...signal,
       title:
@@ -155,7 +175,11 @@ function normalizeDeploymentCopy<TModel extends HomepageDeploymentModel>(
   }
 
   const rawTitle = item.title?.trim() ?? "";
-  if (/deployment guide/i.test(rawTitle) || /coding plan/i.test(rawTitle)) {
+  if (
+    item.source === "provider-deployment-signals" ||
+    /deployment guide/i.test(rawTitle) ||
+    /coding plan/i.test(rawTitle)
+  ) {
     return {
       title:
         signalType === "open_source"
@@ -229,6 +253,12 @@ function compareDeploymentSelections<TModel extends HomepageDeploymentModel>(
   left: { score: number; selection: HomepageDeploymentSelection<TModel> },
   right: { score: number; selection: HomepageDeploymentSelection<TModel> }
 ) {
+  const rightTrustedProvider = getProviderBrand(right.selection.model.provider ?? "") ? 1 : 0;
+  const leftTrustedProvider = getProviderBrand(left.selection.model.provider ?? "") ? 1 : 0;
+  if (rightTrustedProvider !== leftTrustedProvider) {
+    return rightTrustedProvider - leftTrustedProvider;
+  }
+
   if (right.score !== left.score) return right.score - left.score;
 
   const publishedDelta =
@@ -270,9 +300,13 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
       const model = modelsById.get(modelId);
       if (!model) continue;
       if (!providersMatch(model.provider, item.related_provider)) continue;
+      if (!isHighSignalDeploymentCandidate(model)) continue;
 
       const score =
-        publishedTimestamp + getSourceBonus(item.source) + getSignalBonus(signalType);
+        publishedTimestamp +
+        getSourceBonus(item.source) +
+        getSignalBonus(signalType) +
+        (getProviderBrand(model.provider ?? "") ? 2_000 : 0);
       const copy = normalizeDeploymentCopy(model, item, signalType);
       const selection: HomepageDeploymentSelection<TModel> = {
         model,
@@ -289,7 +323,7 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
     }
   }
 
-  return collapsePublicModelFamilies(
+  const collapsedEntries = collapsePublicModelFamilies(
     [...selectedById.values()].map((entry) => entry.selection.model)
   )
     .map((family) => {
@@ -304,15 +338,37 @@ export function buildHomepageDeploymentSelections<TModel extends HomepageDeploym
       return bestSelection ?? null;
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort(compareDeploymentSelections);
+
+  const surfacedEntries: typeof collapsedEntries = [];
+  const surfacedIndexBySeries = new Map<string, number>();
+
+  for (const entry of collapsedEntries) {
+    const seriesKey = getPublicSurfaceSeriesKey(entry.selection.model);
+    const existingIndex = surfacedIndexBySeries.get(seriesKey);
+    if (existingIndex == null) {
+      surfacedIndexBySeries.set(seriesKey, surfacedEntries.length);
+      surfacedEntries.push(entry);
+      continue;
+    }
+
+    const existing = surfacedEntries[existingIndex];
+    if (!existing) continue;
+
+    const existingTrustedProvider = getProviderBrand(existing.selection.model.provider ?? "") ? 1 : 0;
+    const nextTrustedProvider = getProviderBrand(entry.selection.model.provider ?? "") ? 1 : 0;
+
+    if (
+      nextTrustedProvider > existingTrustedProvider ||
+      (nextTrustedProvider === existingTrustedProvider &&
+        compareDeploymentSelections(existing, entry) > 0)
+    ) {
+      surfacedEntries[existingIndex] = entry;
+    }
+  }
+
+  return surfacedEntries
     .sort(compareDeploymentSelections)
-    .filter((entry, index, entries) => {
-      const currentKey = getPublicSurfaceSeriesKey(entry.selection.model);
-      return (
-        entries.findIndex(
-          (candidate) => getPublicSurfaceSeriesKey(candidate.selection.model) === currentKey
-        ) === index
-      );
-    })
     .slice(0, limit)
     .map((entry) => entry.selection);
 }

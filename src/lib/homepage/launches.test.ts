@@ -416,6 +416,30 @@ describe("buildHomepageDeploymentSelections", () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.model.id).toBe("qwen-gguf");
+    expect(result[0]?.model.id).toBe("qwen-main");
+  });
+
+  it("normalizes provider deployment signals into plain-language official path copy", () => {
+    const result = buildHomepageDeploymentSelections(
+      [{ id: "gemma-4", slug: "google-gemma-4-31b-it", name: "Gemma 4 31B IT", provider: "Google" }],
+      [
+        {
+          source: "provider-deployment-signals",
+          title: "Gemma 4: Byte for byte, the most capable open models",
+          published_at: "2026-03-30T10:00:00.000Z",
+          related_provider: "Google",
+          related_model_ids: ["gemma-4"],
+          metadata: { signal_type: "open_source", signal_importance: "high" },
+        },
+      ],
+      1,
+      Date.parse("2026-03-31T01:00:00.000Z")
+    );
+
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        title: "Gemma 4 31B IT now has an official self-host path",
+      })
+    );
   });
 });

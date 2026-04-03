@@ -48,6 +48,7 @@ export const PROVIDER_BRANDS: Record<string, ProviderBrand> = {
   "Anthropic": { color: "#D4A27F", domain: "anthropic.com" },
   "Google": { color: "#4285F4", domain: "google.com" },
   "Meta": { color: "#0866FF", domain: "meta.com" },
+  "Qwen": { color: "#FF6A00", domain: "qwen.ai" },
   "DeepSeek": { color: "#4D6CFA", domain: "deepseek.com" },
   "Stability AI": { color: "#7B61FF", domain: "stability.ai" },
   "Mistral AI": { color: "#F54E42", domain: "mistral.ai" },

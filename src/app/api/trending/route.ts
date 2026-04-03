@@ -21,10 +21,11 @@ import {
   getNewsSignalImportance,
   getNewsSignalType,
 } from "@/lib/news/presentation";
-import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import {
   buildDirectDeploymentSignals,
   compareDeploymentSignalSummaries,
+  isHighSignalDeploymentCandidate,
   isSurfaceableDeploymentSignal,
   normalizeDeploymentSignalSummary,
 } from "@/lib/homepage/deployments";
@@ -38,17 +39,40 @@ function toTimestamp(value: string | null | undefined) {
 }
 
 function limitRecentSeriesDuplicates<
-  T extends { slug: string; name: string; provider: string }
+  T extends {
+    slug: string;
+    name: string;
+    provider: string;
+    quality_score?: number | null;
+  }
 >(models: T[], limit: number) {
   const selected: T[] = [];
-  const seenSeries = new Set<string>();
+  const selectedIndexBySeries = new Map<string, number>();
 
   for (const model of models) {
     const seriesKey = getPublicSurfaceSeriesKey(model);
-    if (seenSeries.has(seriesKey)) continue;
+    const existingIndex = selectedIndexBySeries.get(seriesKey);
+    if (existingIndex == null) {
+      selectedIndexBySeries.set(seriesKey, selected.length);
+      selected.push(model);
+      if (selected.length >= limit) break;
+      continue;
+    }
 
-    seenSeries.add(seriesKey);
-    selected.push(model);
+    const existing = selected[existingIndex];
+    if (!existing) continue;
+
+    const existingTrustedProvider = getProviderBrand(existing.provider ?? "") ? 1 : 0;
+    const nextTrustedProvider = getProviderBrand(model.provider ?? "") ? 1 : 0;
+
+    if (
+      nextTrustedProvider > existingTrustedProvider ||
+      (nextTrustedProvider === existingTrustedProvider &&
+        Number(model.quality_score ?? 0) > Number(existing.quality_score ?? 0))
+    ) {
+      selected[existingIndex] = model;
+    }
+
     if (selected.length >= limit) break;
   }
 
@@ -328,7 +352,14 @@ export async function GET(request: NextRequest) {
       rankByOrderedFamilySelection(
         (data ?? [])
           .filter((model) => deployableSignals.has(model.id))
+          .filter((model) => isHighSignalDeploymentCandidate(model))
           .sort((left, right) => {
+            const rightTrustedProvider = getProviderBrand(right.provider ?? "") ? 1 : 0;
+            const leftTrustedProvider = getProviderBrand(left.provider ?? "") ? 1 : 0;
+            if (rightTrustedProvider !== leftTrustedProvider) {
+              return rightTrustedProvider - leftTrustedProvider;
+            }
+
             const leftSignal = deployableSignals.get(left.id);
             const rightSignal = deployableSignals.get(right.id);
             if (leftSignal && rightSignal) {
@@ -342,6 +373,12 @@ export async function GET(request: NextRequest) {
             return Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
           }),
         (left, right) => {
+          const rightTrustedProvider = getProviderBrand(right.provider ?? "") ? 1 : 0;
+          const leftTrustedProvider = getProviderBrand(left.provider ?? "") ? 1 : 0;
+          if (rightTrustedProvider !== leftTrustedProvider) {
+            return rightTrustedProvider - leftTrustedProvider;
+          }
+
           const leftSignal = deployableSignals.get(left.id);
           const rightSignal = deployableSignals.get(right.id);
           if (leftSignal && rightSignal) {

@@ -339,6 +339,7 @@ describe("GET /api/trending", () => {
       "google-gemma-4-31b-it",
       "harrier-oss-v1-27b",
       "z-ai-glm-5",
+      "qwen-qwen3-5-122b-a10b",
     ]);
     expect(body.recent.find((model: { slug: string }) => model.slug === "google-gemma-4-27b-it")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();
@@ -367,6 +368,11 @@ describe("GET /api/trending", () => {
         model.slug.includes("qwen3-5-122b-a10b")
       )
     ).toHaveLength(1);
+    expect(
+      body.deployable.find((model: { slug: string }) =>
+        model.slug === "unsloth-qwen3-5-122b-a10b-gguf"
+      )
+    ).toBeFalsy();
     expect(body.popular[0]).toEqual(
       expect.objectContaining({
         slug: "llama-3-1-8b-instruct",
