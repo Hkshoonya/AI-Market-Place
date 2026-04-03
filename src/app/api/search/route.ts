@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [], marketplace: [] });
     }
 
-    const models = await searchModelsWithFallback(supabase, safeQuery, limit);
+    const models = await searchModelsWithFallback(supabase, query, limit);
 
     const uniqueModels = rankModelsForSearch(
       dedupePublicModelFamilies(models ?? []),
@@ -397,7 +397,7 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     if (includeMarketplace && query.length >= 2) {
-      const marketplaceResults = await searchMarketplaceWithFallback(supabase, safeQuery);
+      const marketplaceResults = await searchMarketplaceWithFallback(supabase, query);
 
       marketplace = await attachListingPolicies(admin, marketplaceResults ?? []);
     }
