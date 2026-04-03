@@ -179,6 +179,36 @@ describe("public model family dedupe", () => {
     expect(deduped).toHaveLength(1);
   });
 
+  it("prefers the canonical provider-prefixed slug over an older alias slug in the same family", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "glm5-canonical",
+        slug: "z-ai-glm-5",
+        name: "GLM-5",
+        provider: "Z.ai",
+        category: "llm",
+        overall_rank: 153,
+        quality_score: 38.8,
+        popularity_score: 43.8,
+        hf_downloads: 0,
+      },
+      {
+        id: "glm5-alias",
+        slug: "zai-org-glm-5",
+        name: "GLM-5",
+        provider: "Z.ai",
+        category: "llm",
+        overall_rank: 396,
+        quality_score: 57,
+        popularity_score: 46.2,
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("z-ai-glm-5");
+  });
+
   it("collapses multi-agent and highspeed suffixes into the same public surface series", () => {
     const base = getPublicSurfaceSeriesKey({
       slug: "x-ai-grok-4-20",

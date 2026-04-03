@@ -2,6 +2,7 @@ import {
   buildModelAliasIndex,
   resolveAliasFamilyModelIds,
 } from "@/lib/data-sources/model-alias-resolver";
+import { getProviderSlug } from "@/lib/constants/providers";
 
 export interface PublicModelFamilyCandidate {
   id: string;
@@ -122,6 +123,11 @@ function getVariantPenalty<T extends PublicModelFamilyCandidate>(model: T) {
   return penalty;
 }
 
+function hasCanonicalProviderPrefix<T extends PublicModelFamilyCandidate>(model: T) {
+  const canonicalProviderSlug = getProviderSlug(model.provider);
+  return Boolean(canonicalProviderSlug) && model.slug.startsWith(`${canonicalProviderSlug}-`);
+}
+
 function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) {
   const quality = Number(model.quality_score ?? 0);
   const capability = Number(model.capability_score ?? 0);
@@ -142,6 +148,7 @@ function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) 
   score -= getVariantPenalty(model);
 
   const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
+  if (hasCanonicalProviderPrefix(model)) score += 220;
   if (!DATED_SLUG_RE.test(model.slug)) score += 12;
   if (normalizeFamilyKey(providerlessSlug) === normalizeFamilyKey(model.name)) score += 10;
   if (!SAFE_VARIANT_RE.test(model.slug) && !SAFE_VARIANT_RE.test(model.name)) score += 8;
