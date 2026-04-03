@@ -267,6 +267,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["GLM-5", "GLM-5 Turbo"],
   },
   {
+    id: "zai-glm-5v-turbo",
+    provider: "Z.ai",
+    url: "https://docs.z.ai/guides/vlm/glm-5v-turbo",
+    titleHint: "GLM-5V-Turbo benchmark update",
+    modelHints: ["GLM-5V-Turbo", "GLM-5V Turbo"],
+  },
+  {
     id: "zai-glm-4-7",
     provider: "Z.ai",
     url: "https://docs.z.ai/guides/llm/glm-4.7",
