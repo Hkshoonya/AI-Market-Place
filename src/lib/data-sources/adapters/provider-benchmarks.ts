@@ -181,20 +181,6 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     ],
   },
   {
-    id: "google-gemma-4-model-card",
-    provider: "Google",
-    url: "https://ai.google.dev/gemma/docs/core/model_card_4",
-    titleHint: "Gemma 4 model card benchmark update",
-    modelHints: [
-      "Gemma 4",
-      "Gemma 4 31B",
-      "Gemma 4 31B IT",
-      "Gemma 4 26B A4B IT",
-      "Gemma 4 E4B IT",
-      "Gemma 4 E2B IT",
-    ],
-  },
-  {
     id: "xai-grok-4-1",
     provider: "xAI",
     url: "https://data.x.ai/2025-11-17-grok-4-1-model-card.pdf",

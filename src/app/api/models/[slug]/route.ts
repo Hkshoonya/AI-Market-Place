@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -56,10 +57,44 @@ export async function GET(
     }
 
     const eloRatings = Array.isArray(data.elo_ratings) ? data.elo_ratings : [];
+    const newsFields =
+      "id, title, summary, url, source, category, related_provider, related_model_ids, tags, metadata, published_at";
+    const { data: modelNewsRaw } = await supabase
+      .from("model_news")
+      .select(newsFields)
+      .contains("related_model_ids", [data.id])
+      .order("published_at", { ascending: false })
+      .limit(20);
+    const { data: providerNewsRaw } = data.provider
+      ? await supabase
+          .from("model_news")
+          .select(newsFields)
+          .eq("related_provider", data.provider)
+          .or("related_model_ids.is.null,related_model_ids.eq.{}")
+          .order("published_at", { ascending: false })
+          .limit(10)
+      : { data: [] as typeof modelNewsRaw };
+    const seenNewsIds = new Set<string>();
+    const modelNews = [...(modelNewsRaw ?? []), ...(providerNewsRaw ?? [])]
+      .filter((item) => {
+        if (!item.id || seenNewsIds.has(item.id)) return false;
+        seenNewsIds.add(item.id);
+        return true;
+      })
+      .sort((a, b) => {
+        const left = a.published_at ? Date.parse(a.published_at) : 0;
+        const right = b.published_at ? Date.parse(b.published_at) : 0;
+        return right - left;
+      });
+    const benchmark_news = buildLaunchRadar(
+      modelNews.filter((item) => getNewsSignalType(item) === "benchmark"),
+      6
+    );
 
     return NextResponse.json({
       ...data,
       elo_ratings: collapseArenaRatings(eloRatings),
+      benchmark_news,
     });
   } catch (err) {
     return handleApiError(err, "api/models");
