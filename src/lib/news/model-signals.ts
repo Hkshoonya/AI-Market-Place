@@ -4,6 +4,7 @@ import {
   type NewsPresentationItem,
 } from "./presentation";
 import { getNewsSignalTrustBonus } from "./evidence";
+import { normalizeDeploymentSignalSummary } from "@/lib/homepage/deployments";
 
 export interface ModelSignalCandidate extends NewsPresentationItem {
   related_provider?: string | null;
@@ -22,6 +23,8 @@ export interface ModelSignalSummary {
 
 interface ModelLike {
   id: string;
+  slug?: string | null;
+  name?: string | null;
   provider?: string | null;
 }
 
@@ -108,10 +111,41 @@ export function pickBestModelSignals<T extends ModelLike>(
         source: item.source ?? null,
         relatedProvider: item.related_provider ?? null,
       };
+      const normalizedSummary =
+        (signalType === "api" || signalType === "open_source") &&
+        typeof model.slug === "string" &&
+        typeof model.name === "string" &&
+        typeof model.provider === "string"
+          ? (() => {
+              const normalized = normalizeDeploymentSignalSummary(
+                {
+                  id: model.id,
+                  slug: model.slug,
+                  name: model.name,
+                  provider: model.provider,
+                },
+                {
+                  title: summary.title,
+                  summary: null,
+                  signalType: signalType as "api" | "open_source",
+                  signalLabel: summary.signalLabel,
+                  signalImportance: summary.signalImportance,
+                  publishedAt: summary.publishedAt,
+                  source: summary.source,
+                  relatedProvider: summary.relatedProvider,
+                }
+              );
+
+              return {
+                ...summary,
+                title: normalized.title,
+              };
+            })()
+          : summary;
 
       const existing = selected.get(model.id);
       if (!existing || score > existing.score) {
-        selected.set(model.id, { score, summary });
+        selected.set(model.id, { score, summary: normalizedSummary });
       }
     }
   }

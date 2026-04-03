@@ -121,4 +121,34 @@ describe("pickBestModelSignals", () => {
       })
     );
   });
+
+  it("normalizes deployment-style signals into plain-language usage copy", () => {
+    const models = [
+      {
+        id: "model-1",
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+      },
+    ];
+    const signals = [
+      {
+        id: "deploy-post",
+        title: "Gemma 4: Byte for byte, the most capable open models",
+        source: "provider-deployment-signals",
+        related_provider: "Google",
+        related_model_ids: ["model-1"],
+        published_at: "2026-04-03T10:00:00.000Z",
+        metadata: { signal_type: "open_source", signal_importance: "high" },
+      },
+    ];
+
+    const picked = pickBestModelSignals(models, signals);
+    expect(picked.get("model-1")).toEqual(
+      expect.objectContaining({
+        title: "Gemma 4 31B IT now has an official self-host path",
+        signalType: "open_source",
+      })
+    );
+  });
 });
