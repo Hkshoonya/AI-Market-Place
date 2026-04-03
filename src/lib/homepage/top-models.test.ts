@@ -139,4 +139,78 @@ describe("selectHomepageTopModelIds", () => {
 
     expect(ids[0]).toBe("current-frontier-peer");
   });
+
+  it("keeps specialized image and audio variants from crowding out mainstream top models", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "image-specialist",
+          slug: "google-gemini-2-5-flash-image",
+          name: "Gemini 2.5 Flash Image",
+          category: "image_generation",
+          overall_rank: 18,
+          economic_footprint_score: 82,
+          adoption_score: 87,
+          capability_score: 76,
+          quality_score: 73,
+          popularity_score: 62,
+          release_date: "2025-05-20",
+        },
+        {
+          id: "general-frontier-model",
+          slug: "openai-gpt-4-1",
+          name: "GPT-4.1",
+          category: "multimodal",
+          overall_rank: 28,
+          economic_footprint_score: 77,
+          adoption_score: 89,
+          capability_score: 76,
+          quality_score: 72,
+          popularity_score: 61,
+          release_date: "2025-04-14",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("general-frontier-model");
+  });
+
+  it("penalizes preview-style rows when a stable peer is otherwise comparable", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "preview-row",
+          slug: "google-gemini-2-5-pro-preview-05-06",
+          name: "Gemini 2.5 Pro Preview 05-06",
+          category: "multimodal",
+          overall_rank: 14,
+          economic_footprint_score: 76,
+          adoption_score: 75,
+          capability_score: 79,
+          quality_score: 71,
+          popularity_score: 56,
+          release_date: "2025-05-07",
+        },
+        {
+          id: "stable-row",
+          slug: "openai-gpt-4-1",
+          name: "GPT-4.1",
+          category: "multimodal",
+          overall_rank: 24,
+          economic_footprint_score: 77,
+          adoption_score: 83,
+          capability_score: 76,
+          quality_score: 72,
+          popularity_score: 60,
+          release_date: "2025-04-14",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("stable-row");
+  });
 });

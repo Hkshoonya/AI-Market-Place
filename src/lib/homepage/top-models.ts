@@ -1,5 +1,8 @@
 interface HomepageTopModelCandidate {
   id: string;
+  slug?: string | null;
+  name?: string | null;
+  category?: string | null;
   overall_rank?: number | null;
   capability_score?: number | null;
   adoption_score?: number | null;
@@ -56,20 +59,58 @@ function releaseFreshnessMultiplier(
   return 0.55;
 }
 
+function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
+  const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
+  return /\b(preview|beta|experimental|alpha|test)\b/.test(haystack);
+}
+
+function isSpecializedHomepageCandidate(model: HomepageTopModelCandidate): boolean {
+  const category = (model.category ?? "").toLowerCase();
+  if (["image_generation", "video_generation", "speech_audio", "embeddings"].includes(category)) {
+    return true;
+  }
+
+  const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
+  return /\b(image|transcribe|tts|speech|audio|embedding|embed|ocr)\b/.test(haystack);
+}
+
+function homepageCandidateMultiplier(
+  model: HomepageTopModelCandidate,
+  now = Date.now()
+): number {
+  let multiplier = 1;
+
+  if (isSpecializedHomepageCandidate(model)) {
+    multiplier *= 0.78;
+  }
+
+  if (isPreviewLikeModel(model)) {
+    multiplier *= 0.88;
+  }
+
+  const freshness = releaseFreshnessSignal(model.release_date, now);
+  if (freshness < 45) {
+    multiplier *= 0.92;
+  }
+
+  return multiplier;
+}
+
 export function computeHomepageTopModelScore(
   model: HomepageTopModelCandidate,
   now = Date.now()
 ): number {
   const freshnessMultiplier = releaseFreshnessMultiplier(model.release_date, now);
-  return (
+  const rawScore =
     numeric(model.capability_score) * 0.26 +
     numeric(model.quality_score) * 0.22 +
     numeric(model.adoption_score) * 0.17 * freshnessMultiplier +
     numeric(model.popularity_score) * 0.10 * freshnessMultiplier +
     numeric(model.economic_footprint_score) * 0.09 * freshnessMultiplier +
     rankSignal(model.overall_rank) * 0.08 +
-    releaseFreshnessSignal(model.release_date, now) * 0.08
-  );
+    releaseFreshnessSignal(model.release_date, now) * 0.08;
+
+  return rawScore * homepageCandidateMultiplier(model, now);
 }
 
 export function selectHomepageTopModelIds<
