@@ -123,14 +123,10 @@ function getProviderFamilyPlatformSlugs(input: {
 
 const OPEN_WEIGHT_PLATFORMS = [
   "ollama",
-  "llamacpp",
   "lm-studio",
   "runpod",
   "vast-ai",
   "lambda-cloud",
-  "modal",
-  "hf-inference",
-  "replicate",
 ];
 
 function normalizeKey(value: string): string {
@@ -167,6 +163,24 @@ function pushRelatedPlatform(
   if (!platform || seenIds.has(platform.id)) return;
   seenIds.add(platform.id);
   list.push({ platform, reason, confidence });
+}
+
+function getOpenWeightPlatformReason(slug: string) {
+  if (slug === "ollama" || slug === "lm-studio" || slug === "llamacpp") {
+    return "Run this on your own computer if you have enough GPU memory for the model.";
+  }
+
+  if (
+    slug === "runpod" ||
+    slug === "vast-ai" ||
+    slug === "lambda-cloud" ||
+    slug === "modal" ||
+    slug === "gcp-vertex"
+  ) {
+    return "Rent a cloud GPU and run the model yourself on infrastructure you control.";
+  }
+
+  return "This is a self-host path for open-weight models, and you still set up and run the model yourself.";
 }
 
 function getDirectDeploymentReason(deployment: ModelDeployment) {
@@ -235,15 +249,17 @@ export function buildDeploymentCatalog(input: {
 
   const relatedPlatforms: DeploymentCatalogItem[] = [];
 
-  for (const providerName of input.pricingProviderNames) {
-    const pricingSlug = PRICING_PROVIDER_PLATFORM_SLUGS[normalizeKey(providerName)];
-    pushRelatedPlatform(
-      relatedPlatforms,
-      seenPlatformIds,
-      pricingSlug ? platformBySlug.get(pricingSlug) : undefined,
-      `This service has shown working access for this model family, but we have not stored a model-specific setup record yet.`,
-      "pricing_inferred"
-    );
+  if (!input.model.is_open_weights) {
+    for (const providerName of input.pricingProviderNames) {
+      const pricingSlug = PRICING_PROVIDER_PLATFORM_SLUGS[normalizeKey(providerName)];
+      pushRelatedPlatform(
+        relatedPlatforms,
+        seenPlatformIds,
+        pricingSlug ? platformBySlug.get(pricingSlug) : undefined,
+        "This service has shown working access for this model family, but we have not stored a model-specific setup record yet.",
+        "pricing_inferred"
+      );
+    }
   }
 
   const providerFamily = getProviderFamilyPlatformSlugs({
@@ -253,7 +269,7 @@ export function buildDeploymentCatalog(input: {
   for (const slug of providerFamily) {
     const reason =
       input.model.provider === "Google" && input.model.is_open_weights && slug === "gcp-vertex"
-        ? "Google documents a cloud-server path for private Gemma deployments, but you still set up and run the model yourself."
+        ? "Google documents a cloud-server path for private Gemma deployments."
         : `Related first-party path for ${input.model.provider}; check the platform to confirm the exact model tier.`;
     pushRelatedPlatform(
       relatedPlatforms,
@@ -270,7 +286,7 @@ export function buildDeploymentCatalog(input: {
         relatedPlatforms,
         seenPlatformIds,
         platformBySlug.get(slug),
-        "This is a common self-host option for open-weight models. You still choose the runtime and set up the model yourself.",
+        getOpenWeightPlatformReason(slug),
         "open_weight_runtime"
       );
     }

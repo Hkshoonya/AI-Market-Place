@@ -173,10 +173,48 @@ describe("buildDeploymentCatalog", () => {
 
     expect(result.directDeployments).toHaveLength(0);
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).toEqual(
-      expect.arrayContaining(["ollama", "llamacpp"])
+      expect.arrayContaining(["ollama"])
     );
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("chatgpt-plus");
     expect(result.relatedPlatforms.every((item) => item.confidence === "open_weight_runtime")).toBe(true);
+  });
+
+  it("does not mix inferred API access into open-weight setup options", () => {
+    const result = buildDeploymentCatalog({
+      model: {
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+        is_open_weights: true,
+      },
+      deployments: [],
+      platforms: [
+        {
+          id: "platform-openrouter",
+          slug: "openrouter",
+          name: "OpenRouter",
+          type: "api",
+          base_url: "https://openrouter.ai",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+        {
+          id: "platform-runpod",
+          slug: "runpod",
+          name: "RunPod",
+          type: "self-hosted",
+          base_url: "https://runpod.io",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+      ],
+      pricingProviderNames: ["OpenRouter"],
+    });
+
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).toContain("runpod");
+    expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("openrouter");
   });
 
   it("maps provider-family subscription plans for MiniMax, Kimi, and GLM providers", () => {
@@ -306,6 +344,9 @@ describe("buildDeploymentCatalog", () => {
 
     const gcpVertex = result.relatedPlatforms.find((item) => item.platform.slug === "gcp-vertex");
     expect(gcpVertex?.reason).toMatch(/cloud-server path for private Gemma deployments/i);
+    expect(result.relatedPlatforms.find((item) => item.platform.slug === "ollama")?.reason).toMatch(
+      /own computer/i
+    );
   });
 });
 
