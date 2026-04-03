@@ -1,6 +1,7 @@
 import { getNewsSignalType } from "@/lib/news/presentation";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
+import { limitProviderBurst } from "@/lib/homepage/deployments";
 
 const RECENT_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const RECENT_MODEL_RELEASE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -178,7 +179,13 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
         }));
 
   if (prioritized.length >= limit) {
-    return prioritized.slice(0, limit);
+    return limitProviderBurst(
+      prioritized.map((entry) => ({
+        ...entry,
+        provider: entry.model.provider,
+      })),
+      limit
+    ).map(({ provider: _provider, ...entry }) => entry);
   }
 
   const usedIds = new Set(prioritized.map((entry) => entry.model.id));
@@ -211,5 +218,11 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
       surfacedAt: model.release_date ?? model.created_at ?? null,
     }));
 
-  return [...prioritized, ...fallback];
+  return limitProviderBurst(
+    [...prioritized, ...fallback].map((entry) => ({
+      ...entry,
+      provider: entry.model.provider,
+    })),
+    limit
+  ).map(({ provider: _provider, ...entry }) => entry);
 }

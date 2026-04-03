@@ -241,6 +241,52 @@ describe("buildHomepageLaunchSelections", () => {
 
     expect(result.map((entry) => entry.model.id)).toEqual(["real-new-launch"]);
   });
+
+  it("caps one provider from dominating the homepage launch rail", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        { id: "glm-5", slug: "z-ai-glm-5", name: "GLM 5", provider: "Z.ai", release_date: "2026-04-02" },
+        { id: "glm-5v", slug: "z-ai-glm-5v-turbo", name: "GLM 5V Turbo", provider: "Z.ai", release_date: "2026-04-02" },
+        { id: "glm-5-turbo", slug: "z-ai-glm-5-turbo", name: "GLM 5 Turbo", provider: "Z.ai", release_date: "2026-04-02" },
+        { id: "gemma-4", slug: "google-gemma-4-31b-it", name: "Gemma 4 31B IT", provider: "Google", release_date: "2026-04-02" },
+      ],
+      [
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T10:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T09:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5v"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T08:00:00.000Z",
+          related_provider: "Z.ai",
+          related_model_ids: ["glm-5-turbo"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+        {
+          source: "provider-blog",
+          published_at: "2026-04-02T07:00:00.000Z",
+          related_provider: "Google",
+          related_model_ids: ["gemma-4"],
+          metadata: { signal_type: "launch", signal_importance: "high" },
+        },
+      ],
+      4,
+      Date.parse("2026-04-03T01:00:00.000Z")
+    );
+
+    expect(result.map((entry) => entry.model.id)).toEqual(["glm-5", "glm-5v", "gemma-4"]);
+    expect(result.filter((entry) => entry.model.provider === "Z.ai")).toHaveLength(2);
+  });
 });
 
 describe("buildHomepageDeploymentSelections", () => {
