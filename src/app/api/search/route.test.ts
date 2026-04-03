@@ -361,4 +361,40 @@ describe("GET /api/search", () => {
       })
     );
   });
+
+  it("merges normalized fallback matches for versioned queries like 4.6", async () => {
+    const versionedClient = createMockSupabase({
+      modelFtsData: [],
+      modelIlikeData: [
+        {
+          id: "model-claude-46",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "llm",
+          overall_rank: 2,
+          quality_score: 94,
+          capability_score: 95,
+          is_open_weights: false,
+          parameter_count: null,
+          short_description: "Frontier Anthropic model",
+          market_cap_estimate: 700_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(versionedClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=claude%20opus%204.6") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+      })
+    );
+  });
 });

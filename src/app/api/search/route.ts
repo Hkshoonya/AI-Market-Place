@@ -29,30 +29,77 @@ const SEARCH_MODEL_SELECT =
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
 
+interface SearchModelRow {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
+  category?: string | null;
+  overall_rank?: number | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  is_open_weights?: boolean | null;
+  parameter_count?: number | null;
+  short_description?: string | null;
+  market_cap_estimate?: number | null;
+}
+
+function normalizeSearchInput(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buildSearchVariants(value: string) {
+  const normalized = normalizeSearchInput(value);
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+
+  return Array.from(
+    new Set(
+      [
+        sanitizeFilterValue(value),
+        tokens.join(" "),
+        tokens.join("-"),
+        tokens.join(""),
+      ]
+        .map((variant) => variant.trim())
+        .filter((variant) => variant.length >= 2)
+    )
+  );
+}
+
+function buildIlikeOrFilter(fields: string[], variants: string[]) {
+  return fields
+    .flatMap((field) => variants.map((variant) => `${field}.ilike.%${sanitizeFilterValue(variant)}%`))
+    .join(",");
+}
+
 async function searchModelsWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
   safeQuery: string,
   limit: number
-) {
+): Promise<SearchModelRow[]> {
+  const variants = buildSearchVariants(safeQuery);
+  const ftsQuery = normalizeSearchInput(safeQuery);
+  const ilikeFilter = buildIlikeOrFilter(
+    ["name", "slug", "provider", "description", "short_description"],
+    variants
+  );
+
   const ftsResult = await queryClient
     .from("models")
     .select(SEARCH_MODEL_SELECT)
-    .textSearch("fts", safeQuery)
+    .textSearch("fts", ftsQuery || safeQuery)
     .eq("status", "active")
     .order("popularity_score", { ascending: false, nullsFirst: false })
     .limit(Math.min(limit * 4, 50));
-
-  if (ftsResult.data && ftsResult.data.length > 0) {
-    return ftsResult.data;
-  }
 
   const ilikeResult = await queryClient
     .from("models")
     .select(SEARCH_MODEL_SELECT)
     .eq("status", "active")
-    .or(
-      `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
-    )
+    .or(ilikeFilter)
     .order("popularity_score", { ascending: false, nullsFirst: false })
     .limit(Math.min(limit * 4, 50));
 
@@ -60,7 +107,17 @@ async function searchModelsWithFallback(
     throw ilikeResult.error;
   }
 
-  return ilikeResult.data ?? [];
+  const merged = new Map<string, SearchModelRow>();
+  for (const row of ftsResult.data ?? []) {
+    if (typeof row.id === "string") merged.set(row.id, row as SearchModelRow);
+  }
+  for (const row of ilikeResult.data ?? []) {
+    if (typeof row.id === "string" && !merged.has(row.id)) {
+      merged.set(row.id, row as SearchModelRow);
+    }
+  }
+
+  return [...merged.values()];
 }
 
 async function searchMarketplaceWithFallback(
@@ -253,9 +310,9 @@ export async function GET(request: NextRequest) {
         slug: model.slug,
         name: model.name,
         provider: model.provider,
-        category: model.category,
-        quality_score: model.quality_score,
-        capability_score: model.capability_score,
+        category: model.category ?? "llm",
+        quality_score: model.quality_score ?? null,
+        capability_score: model.capability_score ?? null,
         economic_footprint_score: null,
       })),
     });
@@ -263,6 +320,7 @@ export async function GET(request: NextRequest) {
     const enrichedModels = uniqueModels.map((model) => {
       const pricingSummary = getPublicPricingSummary({
         ...model,
+        overall_rank: model.overall_rank ?? null,
         model_pricing: pricingByModelId.get(model.id) ?? [],
       });
       const recentSignal = modelSignals.get(model.id) ?? null;
@@ -286,7 +344,7 @@ export async function GET(request: NextRequest) {
           slug: model.slug,
           name: model.name,
           provider: model.provider,
-          is_open_weights: model.is_open_weights,
+          is_open_weights: model.is_open_weights ?? null,
         },
         deployments: modelDeployments,
         platforms: deploymentPlatforms,
