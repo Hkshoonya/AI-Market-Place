@@ -377,10 +377,10 @@ describe("GET /api/trending", () => {
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
       "google-gemma-4-31b-it",
-      "minimax-minimax-m2-7",
-      "harrier-oss-v1-27b",
-      "z-ai-glm-5",
       "qwen-qwen3-5-122b-a10b",
+      "minimax-minimax-m2-7",
+      "z-ai-glm-5",
+      "harrier-oss-v1-27b",
     ]);
     expect(body.recent.find((model: { slug: string }) => model.slug === "google-gemma-4-27b-it")).toBeFalsy();
     expect(body.recent.find((model: { slug: string }) => model.slug === "minimax-m2-5")).toBeFalsy();

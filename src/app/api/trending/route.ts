@@ -176,6 +176,62 @@ function mapRecentCandidatesToCanonicalFamilyRepresentatives<
   });
 }
 
+function rewriteRecentRailToCanonicalDisplay<
+  T extends {
+    id: string;
+    slug: string;
+    name: string;
+    provider: string;
+    quality_score?: number | null;
+    recent_signal_score?: number | null;
+    release_date?: string | null;
+    created_at?: string | null;
+  }
+>(selected: T[], allModels: T[]) {
+  const displayRepresentativeBySeries = new Map<string, T>();
+
+  for (const model of allModels) {
+    const seriesKey = getPublicSurfaceSeriesKey(model);
+    const existing = displayRepresentativeBySeries.get(seriesKey);
+    if (!existing) {
+      displayRepresentativeBySeries.set(seriesKey, model);
+      continue;
+    }
+
+    const penaltyDelta = getRecentDisplayPenalty(model) - getRecentDisplayPenalty(existing);
+    if (penaltyDelta < 0) {
+      displayRepresentativeBySeries.set(seriesKey, model);
+      continue;
+    }
+    if (penaltyDelta > 0) continue;
+
+    const qualityDelta = Number(model.quality_score ?? 0) - Number(existing.quality_score ?? 0);
+    if (qualityDelta > 0) {
+      displayRepresentativeBySeries.set(seriesKey, model);
+      continue;
+    }
+    if (qualityDelta < 0) continue;
+
+    if (model.slug.length < existing.slug.length) {
+      displayRepresentativeBySeries.set(seriesKey, model);
+    }
+  }
+
+  return dedupePublicModelFamilies(
+    selected.map((model) => {
+      const representative = displayRepresentativeBySeries.get(getPublicSurfaceSeriesKey(model));
+      if (!representative || representative.id === model.id) return model;
+
+      return {
+        ...representative,
+        recent_signal_score: model.recent_signal_score ?? 0,
+        release_date: model.release_date ?? representative.release_date ?? null,
+        created_at: model.created_at ?? representative.created_at ?? null,
+      };
+    })
+  );
+}
+
 function getRecentSignalWeight(item: {
   published_at?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -386,7 +442,8 @@ export async function GET(request: NextRequest) {
       allModelsWithRecentSignals
     );
 
-    const recent = limitRecentSeriesDuplicates(
+    const recent = rewriteRecentRailToCanonicalDisplay(
+      limitRecentSeriesDuplicates(
       rankByOrderedFamilySelection(
         sortRecentReleaseCandidates(recentDisplayCandidates),
         (left, right) => {
@@ -402,6 +459,8 @@ export async function GET(request: NextRequest) {
         }
       ),
       Math.min(limit, 8)
+      ),
+      allModelsWithRecentSignals
     );
 
     const trending = rankByOrderedFamilySelection(
