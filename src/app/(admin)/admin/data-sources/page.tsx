@@ -283,6 +283,20 @@ interface DataIntegrityReport {
     averageIndependentQualitySources: number;
     averageDistinctSources: number;
   };
+  benchmarkMetadata: {
+    benchmarkExpectedModels: number;
+    withTrustedHfLocator: number;
+    withTrustedWebsiteLocator: number;
+    withAnyTrustedBenchmarkLocator: number;
+    missingTrustedBenchmarkLocatorCount: number;
+    trustedLocatorCoveragePct: number;
+    missingTrustedBenchmarkLocator: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -882,7 +896,7 @@ export default function AdminDataSourcesPage() {
           </div>
         ) : integrityData ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {/* Average Quality card */}
               <Card className="border-border/50 bg-card">
                 <CardContent className="p-4">
@@ -1038,7 +1052,58 @@ export default function AdminDataSourcesPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount > 0
+                          ? "bg-amber-400/15"
+                          : "bg-gain/15"
+                      )}
+                    >
+                      <BarChart2
+                        className={cn(
+                          "h-4 w-4",
+                          integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      >
+                        {integrityData.benchmarkMetadata.trustedLocatorCoveragePct}%
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Benchmark Locator Coverage · {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount} gaps
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
+                  Benchmark locator gaps:{" "}
+                  {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator
+                    .slice(0, 3)
+                    .map((model) => model.slug)
+                    .join(", ")}
+                </Badge>
+              </div>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-3">
               <Card className="border-border/50 bg-card">
