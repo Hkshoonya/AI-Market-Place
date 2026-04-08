@@ -36,6 +36,7 @@ import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
 } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import {
   getPublicLensLabel,
   getPublicLensSort,
@@ -134,37 +135,43 @@ export default async function LeaderboardsPage({
 
   const explorerModelsResponse = await explorerModelsQuery;
 
-  const explorerModels = dedupePublicModelFamilies(
-    parseQueryResult(explorerModelsResponse, ExplorerModelSchema, "ExplorerModel").map((m) => ({
-      id: m.slug,
-      name: m.name,
-      slug: m.slug,
-      provider: m.provider,
-      category: m.category,
-      status: m.status,
-      overall_rank: m.overall_rank,
-      category_rank: m.category_rank,
-      quality_score: m.quality_score != null ? Number(m.quality_score) : null,
-      value_score: m.value_score != null ? Number(m.value_score) : null,
-      is_open_weights: !!m.is_open_weights,
-      hf_downloads: m.hf_downloads != null ? Number(m.hf_downloads) : null,
-      popularity_score: m.popularity_score != null ? Number(m.popularity_score) : null,
-      adoption_score: m.adoption_score != null ? Number(m.adoption_score) : null,
-      adoption_rank: m.adoption_rank,
-      agent_score: m.agent_score != null ? Number(m.agent_score) : null,
-      agent_rank: m.agent_rank,
-      popularity_rank: m.popularity_rank,
-      economic_footprint_score: m.economic_footprint_score != null ? Number(m.economic_footprint_score) : null,
-      economic_footprint_rank: m.economic_footprint_rank,
-      market_cap_estimate: m.market_cap_estimate != null ? Number(m.market_cap_estimate) : null,
-      capability_score: m.capability_score != null ? Number(m.capability_score) : null,
-      capability_rank: m.capability_rank,
-      usage_score: m.usage_score != null ? Number(m.usage_score) : null,
-      usage_rank: m.usage_rank,
-      expert_score: m.expert_score != null ? Number(m.expert_score) : null,
-      expert_rank: m.expert_rank,
-      balanced_rank: m.balanced_rank,
-    }))
+  const parsedExplorerModels = parseQueryResult(
+    explorerModelsResponse,
+    ExplorerModelSchema,
+    "ExplorerModel"
+  ).map((m) => ({
+    id: m.slug,
+    name: m.name,
+    slug: m.slug,
+    provider: m.provider,
+    category: m.category,
+    status: m.status,
+    overall_rank: m.overall_rank,
+    category_rank: m.category_rank,
+    quality_score: m.quality_score != null ? Number(m.quality_score) : null,
+    value_score: m.value_score != null ? Number(m.value_score) : null,
+    is_open_weights: !!m.is_open_weights,
+    hf_downloads: m.hf_downloads != null ? Number(m.hf_downloads) : null,
+    popularity_score: m.popularity_score != null ? Number(m.popularity_score) : null,
+    adoption_score: m.adoption_score != null ? Number(m.adoption_score) : null,
+    adoption_rank: m.adoption_rank,
+    agent_score: m.agent_score != null ? Number(m.agent_score) : null,
+    agent_rank: m.agent_rank,
+    popularity_rank: m.popularity_rank,
+    economic_footprint_score: m.economic_footprint_score != null ? Number(m.economic_footprint_score) : null,
+    economic_footprint_rank: m.economic_footprint_rank,
+    market_cap_estimate: m.market_cap_estimate != null ? Number(m.market_cap_estimate) : null,
+    capability_score: m.capability_score != null ? Number(m.capability_score) : null,
+    capability_rank: m.capability_rank,
+    usage_score: m.usage_score != null ? Number(m.usage_score) : null,
+    usage_rank: m.usage_rank,
+    expert_score: m.expert_score != null ? Number(m.expert_score) : null,
+    expert_rank: m.expert_rank,
+    balanced_rank: m.balanced_rank,
+  }));
+  const explorerModels = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(parsedExplorerModels),
+    20
   ).sort((left, right) => {
     const leftValue = getLensSortValue(left as Record<string, unknown>);
     const rightValue = getLensSortValue(right as Record<string, unknown>);
@@ -206,10 +213,13 @@ export default async function LeaderboardsPage({
   const trackedModels =
     lifecycleFilter === "active"
       ? dedupePublicModelFamilies(
-          parseQueryResult(trackedModelsResponse, TrackedModelSchema, "TrackedModel").map((model) => ({
-            ...model,
-            id: model.slug,
-          }))
+          preferDefaultPublicSurfaceReady(
+            parseQueryResult(trackedModelsResponse, TrackedModelSchema, "TrackedModel").map((model) => ({
+              ...model,
+              id: model.slug,
+            })),
+            3
+          )
         )
       : [];
 

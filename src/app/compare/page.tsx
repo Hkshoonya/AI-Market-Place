@@ -10,6 +10,7 @@ import type { ModelWithDetails } from "@/types/database";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 import type { CompareAccessOffer } from "./_components/compare-helpers";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const revalidate = 3600;
 
@@ -81,7 +82,16 @@ export default async function ComparePage({
     .eq("status", "active")
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  const modelList = (allModels as { id: string; slug: string; name: string; provider: string; category: string }[] | null) ?? [];
+  const modelList = preferDefaultPublicSurfaceReady(
+    ((allModels as {
+      id: string;
+      slug: string;
+      name: string;
+      provider: string;
+      category: string;
+    }[] | null) ?? []),
+    12
+  );
 
   // If specific models are requested via URL params, fetch their full data
   const selectedSlugs = modelsParam

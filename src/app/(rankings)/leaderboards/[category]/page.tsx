@@ -28,6 +28,7 @@ import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 3600;
@@ -96,12 +97,15 @@ export default async function CategoryLeaderboardPage({
   const modelsResponse = await modelsQuery;
 
   type CategoryModel = z.infer<typeof CategoryModelSchema>;
-  const models = dedupePublicModelFamilies(
-    parseQueryResult(
-      modelsResponse,
-      CategoryModelSchema,
-      "CategoryModel"
-    )
+  const models = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(
+      parseQueryResult(
+        modelsResponse,
+        CategoryModelSchema,
+        "CategoryModel"
+      )
+    ),
+    10
   );
 
   const isBrowserCategory = category === "agentic_browser";
