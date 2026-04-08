@@ -258,6 +258,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Nemotron-Terminal-32B", "Nemotron Terminal 32B"],
   },
   {
+    id: "nvidia-nemotron-ocr-v2",
+    provider: "NVIDIA",
+    url: "https://huggingface.co/nvidia/nemotron-ocr-v2",
+    titleHint: "Nemotron OCR v2 benchmark update",
+    modelHints: ["Nemotron OCR v2", "nemotron-ocr-v2"],
+  },
+  {
     id: "minimax-m2-1-coding",
     provider: "MiniMax",
     url: "https://www.minimaxi.com/news/m21-coding-%E5%A4%9A%E8%AF%AD%E8%A8%80%E5%A4%9A%E4%BB%BB%E5%8A%A1%E4%B8%8E%E6%B3%9B%E5%8C%96%E6%80%A7",
