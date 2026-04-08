@@ -4,6 +4,8 @@ import type { Database } from "@/types/database";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("models")
-      .select("*, rankings(*), model_pricing(*)", { count: "exact" })
+      .select("*, rankings(*), model_pricing(*)")
       .eq("status", "active");
 
     if (category) query = query.eq("category", category as import("@/types/database").ModelCategory);
@@ -62,20 +64,28 @@ export async function GET(request: NextRequest) {
       nullsFirst: false,
     });
 
-    query = query.range((page - 1) * limit, page * limit - 1);
+    query = query.range(0, 1999);
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const filteredData = preferDefaultPublicSurfaceReady(
+      data ?? [],
+      search ? Math.min(limit, 3) : Math.min(limit, 5)
+    );
+    const uniqueModels = dedupePublicModelFamilies(filteredData);
+    const total = uniqueModels.length;
+    const pagedModels = uniqueModels.slice((page - 1) * limit, page * limit);
+
     return NextResponse.json({
-      data,
-      total: count,
+      data: pagedModels,
+      total,
       page,
       limit,
-      totalPages: Math.ceil((count || 0) / limit),
+      totalPages: Math.ceil(total / limit),
     });
   } catch (err) {
     return handleApiError(err, "api/models");
