@@ -30,6 +30,20 @@ vi.mock("@/lib/logging", () => ({
   }),
 }));
 
+vi.mock("@/lib/benchmark-coverage-compute", () => ({
+  computeBenchmarkCoverage: vi.fn().mockResolvedValue({
+    totals: {
+      active_models: 100,
+      with_scores: 40,
+      with_benchmark_news: 20,
+      covered_models: 50,
+      coverage_pct: 50,
+    },
+    official_providers: [],
+    recent_sparse_benchmark_expected_official: [],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Supabase mock helpers
 // ---------------------------------------------------------------------------
