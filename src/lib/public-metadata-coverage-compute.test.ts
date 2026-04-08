@@ -89,6 +89,8 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.activeModels).toBe(6);
     expect(coverage.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.completeDiscoveryMetadataPct).toBeCloseTo(83.3);
+    expect(coverage.defaultPublicSurfaceReadyCount).toBe(3);
+    expect(coverage.defaultPublicSurfaceReadyPct).toBe(50);
     expect(coverage.missingCategoryCount).toBe(1);
     expect(coverage.missingReleaseDateCount).toBe(1);
     expect(coverage.releaseDateExemptAliasCount).toBe(1);
@@ -97,7 +99,10 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.activeModels).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
+    expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(3);
+    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(60);
     expect(coverage.providers[0]?.complete_pct).toBe(0);
+    expect(coverage.providers[0]?.ready_pct).toBe(0);
     expect(coverage.providers.map((provider) => provider.provider)).toEqual(
       expect.arrayContaining(["Unknown", "xAI"])
     );
@@ -106,5 +111,6 @@ describe("computePublicMetadataCoverage", () => {
     );
     expect(coverage.official.releaseDateExemptAliasCount).toBe(1);
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
+    expect(coverage.recentNotReadyModels[0]?.slug).toBe("x-ai-grok-4-20");
   });
 });

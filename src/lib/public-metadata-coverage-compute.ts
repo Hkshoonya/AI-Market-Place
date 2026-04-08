@@ -1,27 +1,16 @@
 import type { TypedSupabaseClient } from "@/types/database";
 import { getPublicSurfaceSeriesKey } from "@/lib/models/public-families";
+import {
+  hasCompletePublicMetadata,
+  hasDiscoveryMetadata,
+  hasOpenWeightLicense,
+  isDefaultPublicSurfaceReady,
+  needsContextWindowForCoverage,
+  OFFICIAL_PROVIDERS,
+  isReleaseDateWrapperModel,
+} from "@/lib/models/public-surface-readiness";
 
 const PAGE_SIZE = 1000;
-const OFFICIAL_PROVIDERS = new Set([
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "xAI",
-  "Z.ai",
-  "MiniMax",
-  "Microsoft",
-  "NVIDIA",
-  "Meta",
-  "Mistral AI",
-  "Moonshot AI",
-  "Qwen",
-  "DeepSeek",
-  "Black Forest Labs",
-  "Cohere",
-  "Amazon",
-  "Alibaba",
-  "Bytedance",
-]);
 
 type ActiveModelPublicMetadataRow = {
   slug: string;
@@ -33,6 +22,15 @@ type ActiveModelPublicMetadataRow = {
   license: string | null;
   license_name: string | null;
   context_window: number | null;
+  overall_rank?: number | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  adoption_score?: number | null;
+  popularity_score?: number | null;
+  economic_footprint_score?: number | null;
+  hf_downloads?: number | null;
+  hf_likes?: number | null;
+  hf_trending_score?: number | null;
 };
 
 type CoverageFamilyAggregate = {
@@ -60,28 +58,6 @@ async function fetchAllRows<T>(
   }
 
   return rows;
-}
-
-function needsContextWindow(model: ActiveModelPublicMetadataRow) {
-  return model.category === "llm" || model.category === "multimodal";
-}
-
-function isPackagingVariantModel(model: ActiveModelPublicMetadataRow) {
-  return /(?:^|-)(?:gguf|bf16|fp8|int4|int8|nvfp4|awq)(?:-|$)/i.test(
-    model.slug
-  );
-}
-
-function isReleaseDateWrapperModel(model: ActiveModelPublicMetadataRow) {
-  return (
-    /(?:^|-)latest$/i.test(model.slug) ||
-    /(?:^|-)(?:preview|exp|experimental)(?:-|$)/i.test(model.slug) ||
-    /(?:^|-)(?:generate|image|video)-\d{3}(?:$|-)/i.test(model.slug)
-  );
-}
-
-function needsContextWindowForCoverage(model: ActiveModelPublicMetadataRow) {
-  return needsContextWindow(model) && !isPackagingVariantModel(model);
 }
 
 function buildCoverageFamilyMap(models: ActiveModelPublicMetadataRow[]) {
@@ -136,26 +112,6 @@ function applyFamilyCoverageFallback(
   };
 }
 
-function hasOpenWeightLicense(model: ActiveModelPublicMetadataRow) {
-  return Boolean(model.license_name || model.license);
-}
-
-function hasDiscoveryMetadata(model: ActiveModelPublicMetadataRow) {
-  return Boolean(
-    model.name?.trim() &&
-      model.category &&
-      (model.release_date || isReleaseDateWrapperModel(model))
-  );
-}
-
-function hasCompletePublicMetadata(model: ActiveModelPublicMetadataRow) {
-  return (
-    hasDiscoveryMetadata(model) &&
-    (!Boolean(model.is_open_weights) || hasOpenWeightLicense(model)) &&
-    (!needsContextWindowForCoverage(model) || Boolean(model.context_window))
-  );
-}
-
 export async function computePublicMetadataCoverage(
   supabase: TypedSupabaseClient
 ) {
@@ -164,7 +120,7 @@ export async function computePublicMetadataCoverage(
       const { data, error } = await supabase
         .from("models")
         .select(
-          "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window"
+          "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
         )
         .eq("status", "active")
         .range(from, to);
@@ -216,8 +172,14 @@ export async function computePublicMetadataCoverage(
   const completeDiscoveryMetadataCount = models.filter(
     (_, index) => hasDiscoveryMetadata(effectiveModels[index]!)
   ).length;
+  const defaultPublicSurfaceReadyCount = effectiveModels.filter(
+    isDefaultPublicSurfaceReady
+  ).length;
   const officialCompleteDiscoveryMetadataCount = officialModels.filter(
     hasDiscoveryMetadata
+  ).length;
+  const officialDefaultPublicSurfaceReadyCount = officialModels.filter(
+    isDefaultPublicSurfaceReady
   ).length;
   const completeDiscoveryMetadataPct =
     models.length > 0
@@ -225,11 +187,26 @@ export async function computePublicMetadataCoverage(
           ((completeDiscoveryMetadataCount / models.length) * 100).toFixed(1)
         )
       : 100;
+  const defaultPublicSurfaceReadyPct =
+    models.length > 0
+      ? Number(
+          ((defaultPublicSurfaceReadyCount / models.length) * 100).toFixed(1)
+        )
+      : 100;
   const officialCompleteDiscoveryMetadataPct =
     officialModels.length > 0
       ? Number(
           (
             (officialCompleteDiscoveryMetadataCount / officialModels.length) *
+            100
+          ).toFixed(1)
+        )
+      : 100;
+  const officialDefaultPublicSurfaceReadyPct =
+    officialModels.length > 0
+      ? Number(
+          (
+            (officialDefaultPublicSurfaceReadyCount / officialModels.length) *
             100
           ).toFixed(1)
         )
@@ -250,6 +227,19 @@ export async function computePublicMetadataCoverage(
     .map((model) => ({
       slug: model.slug,
       provider: model.provider,
+        category: model.category,
+        release_date: model.release_date,
+    }));
+  const recentNotReadyModels = effectiveModels
+    .filter((model) => !isDefaultPublicSurfaceReady(model))
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 10)
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
       category: model.category,
       release_date: model.release_date,
     }));
@@ -259,6 +249,7 @@ export async function computePublicMetadataCoverage(
     {
       total: number;
       complete: number;
+      ready: number;
       missingCategory: number;
       missingReleaseDate: number;
       releaseDateExemptAliases: number;
@@ -270,6 +261,7 @@ export async function computePublicMetadataCoverage(
     const stats = providerStats.get(provider) ?? {
       total: 0,
       complete: 0,
+      ready: 0,
       missingCategory: 0,
       missingReleaseDate: 0,
       releaseDateExemptAliases: 0,
@@ -277,6 +269,7 @@ export async function computePublicMetadataCoverage(
 
     stats.total += 1;
     if (hasCompletePublicMetadata(model)) stats.complete += 1;
+    if (isDefaultPublicSurfaceReady(model)) stats.ready += 1;
     if (!model.category) stats.missingCategory += 1;
     if (isReleaseDateWrapperModel(model)) {
       stats.releaseDateExemptAliases += 1;
@@ -291,6 +284,8 @@ export async function computePublicMetadataCoverage(
     activeModels: models.length,
     completeDiscoveryMetadataCount,
     completeDiscoveryMetadataPct,
+    defaultPublicSurfaceReadyCount,
+    defaultPublicSurfaceReadyPct,
     missingCategoryCount: missingCategory.length,
     missingReleaseDateCount: missingReleaseDate.length,
     releaseDateExemptAliasCount,
@@ -300,6 +295,8 @@ export async function computePublicMetadataCoverage(
       activeModels: officialModels.length,
       completeDiscoveryMetadataCount: officialCompleteDiscoveryMetadataCount,
       completeDiscoveryMetadataPct: officialCompleteDiscoveryMetadataPct,
+      defaultPublicSurfaceReadyCount: officialDefaultPublicSurfaceReadyCount,
+      defaultPublicSurfaceReadyPct: officialDefaultPublicSurfaceReadyPct,
       missingCategoryCount: officialMissingCategory.length,
       missingReleaseDateCount: officialMissingReleaseDate.length,
       releaseDateExemptAliasCount: officialReleaseDateExemptAliasCount,
@@ -311,8 +308,12 @@ export async function computePublicMetadataCoverage(
           provider,
           total: stats.total,
           complete: stats.complete,
+          ready: stats.ready,
           complete_pct: Number(
             ((stats.complete / Math.max(stats.total, 1)) * 100).toFixed(1)
+          ),
+          ready_pct: Number(
+            ((stats.ready / Math.max(stats.total, 1)) * 100).toFixed(1)
           ),
           missingCategoryCount: stats.missingCategory,
           missingReleaseDateCount: stats.missingReleaseDate,
@@ -320,7 +321,9 @@ export async function computePublicMetadataCoverage(
         }))
         .sort(
           (left, right) =>
-            left.complete_pct - right.complete_pct || right.total - left.total
+            left.ready_pct - right.ready_pct ||
+            left.complete_pct - right.complete_pct ||
+            right.total - left.total
         ),
       recentIncompleteModels: officialModels
         .filter(
@@ -341,14 +344,32 @@ export async function computePublicMetadataCoverage(
           category: model.category,
           release_date: model.release_date,
         })),
+      recentNotReadyModels: officialModels
+        .filter((model) => !isDefaultPublicSurfaceReady(model))
+        .sort(
+          (left, right) =>
+            Date.parse(right.release_date ?? "0") -
+            Date.parse(left.release_date ?? "0")
+        )
+        .slice(0, 10)
+        .map((model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          release_date: model.release_date,
+        })),
     },
     providers: [...providerStats.entries()]
       .map(([provider, stats]) => ({
         provider,
         total: stats.total,
         complete: stats.complete,
+        ready: stats.ready,
         complete_pct: Number(
           ((stats.complete / Math.max(stats.total, 1)) * 100).toFixed(1)
+        ),
+        ready_pct: Number(
+          ((stats.ready / Math.max(stats.total, 1)) * 100).toFixed(1)
         ),
         missingCategoryCount: stats.missingCategory,
         missingReleaseDateCount: stats.missingReleaseDate,
@@ -356,8 +377,11 @@ export async function computePublicMetadataCoverage(
       }))
       .sort(
         (left, right) =>
-          left.complete_pct - right.complete_pct || right.total - left.total
+          left.ready_pct - right.ready_pct ||
+          left.complete_pct - right.complete_pct ||
+          right.total - left.total
       ),
     recentIncompleteModels,
+    recentNotReadyModels,
   };
 }

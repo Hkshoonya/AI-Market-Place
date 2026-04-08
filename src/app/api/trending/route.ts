@@ -11,6 +11,7 @@ import {
   sortRecentReleaseCandidates,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
+import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
@@ -296,7 +297,12 @@ export async function GET(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    const visibleModels = dedupePublicModelFamilies(data ?? []);
+    const discoveryEligibleModels = (data ?? []).filter(
+      isDefaultPublicSurfaceReady
+    );
+    const visibleModels = dedupePublicModelFamilies(
+      discoveryEligibleModels.length > 0 ? discoveryEligibleModels : data ?? []
+    );
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -419,7 +425,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const recentCandidates = (data ?? [])
+    const recentCandidates = visibleModels
       .filter((model) => {
         const releaseDate =
           model.release_date ??
@@ -433,7 +439,7 @@ export async function GET(request: NextRequest) {
       }))
       .filter((model) => isHighSignalRecentCandidate(model));
 
-    const allModelsWithRecentSignals = (data ?? []).map((model) => ({
+    const allModelsWithRecentSignals = visibleModels.map((model) => ({
       ...model,
       recent_signal_score: recentSignalScores.get(model.id) ?? 0,
     }));
@@ -466,7 +472,7 @@ export async function GET(request: NextRequest) {
     );
 
     const trending = rankByOrderedFamilySelection(
-      (data ?? []).map((model) => ({
+      visibleModels.map((model) => ({
         ...model,
         recent_signal_score: recentSignalScores.get(model.id) ?? 0,
       })),
@@ -499,7 +505,7 @@ export async function GET(request: NextRequest) {
     const deployable = limitProviderBurst(
       limitRecentSeriesDuplicates(
       rankByOrderedFamilySelection(
-        (data ?? [])
+        visibleModels
           .filter((model) => deployableSignals.has(model.id))
           .filter((model) => isHighSignalDeploymentCandidate(model))
           .sort((left, right) => {

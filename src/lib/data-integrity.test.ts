@@ -315,6 +315,15 @@ describe("verifyDataIntegrity", () => {
         license: "open_source",
         license_name: "Apache 2.0",
         context_window: 128000,
+        overall_rank: 12,
+        quality_score: 82,
+        capability_score: 84,
+        adoption_score: 70,
+        popularity_score: 66,
+        economic_footprint_score: 51,
+        hf_downloads: 1200,
+        hf_likes: 80,
+        hf_trending_score: 15,
         status: "active",
       },
       {
@@ -329,6 +338,15 @@ describe("verifyDataIntegrity", () => {
         license: null,
         license_name: null,
         context_window: null,
+        overall_rank: 22,
+        quality_score: 76,
+        capability_score: 79,
+        adoption_score: 61,
+        popularity_score: 58,
+        economic_footprint_score: 34,
+        hf_downloads: 0,
+        hf_likes: 0,
+        hf_trending_score: 0,
         status: "active",
       },
       {
@@ -343,6 +361,15 @@ describe("verifyDataIntegrity", () => {
         license: null,
         license_name: null,
         context_window: null,
+        overall_rank: null,
+        quality_score: 0,
+        capability_score: 0,
+        adoption_score: 0,
+        popularity_score: 0,
+        economic_footprint_score: 0,
+        hf_downloads: 0,
+        hf_likes: 0,
+        hf_trending_score: 0,
         status: "active",
       },
     ];
@@ -401,8 +428,10 @@ describe("verifyDataIntegrity", () => {
                 };
               }
               if (
-                columns ===
-                "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window"
+                typeof columns === "string" &&
+                columns.startsWith(
+                  "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window"
+                )
               ) {
                 return {
                   eq: () => ({

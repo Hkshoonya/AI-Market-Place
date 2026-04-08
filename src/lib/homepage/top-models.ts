@@ -1,4 +1,5 @@
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
+import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 interface HomepageTopModelCandidate {
   id: string;
@@ -13,7 +14,13 @@ interface HomepageTopModelCandidate {
   quality_score?: number | null;
   popularity_score?: number | null;
   release_date?: string | null;
+  is_open_weights?: boolean | null;
+  license?: string | null;
+  license_name?: string | null;
+  context_window?: number | null;
   hf_downloads?: number | null;
+  hf_likes?: number | null;
+  hf_trending_score?: number | null;
 }
 
 function numeric(value: number | null | undefined): number {
@@ -129,7 +136,20 @@ export function computeHomepageTopModelScore(
 export function selectHomepageTopModelIds<
   T extends HomepageTopModelCandidate
 >(models: T[], limit: number, now = Date.now()): string[] {
-  const familyCandidates = models.filter(
+  const readinessEligible = models.filter(
+    (
+      model
+    ): model is T & {
+      slug: string;
+    } =>
+      typeof model.slug === "string" &&
+      model.slug.length > 0 &&
+      isDefaultPublicSurfaceReady(model as T & { slug: string })
+  );
+  const discoveryPool =
+    readinessEligible.length >= Math.min(limit, 5) ? readinessEligible : models;
+
+  const familyCandidates = discoveryPool.filter(
     (
       model
     ): model is T & {
@@ -148,7 +168,9 @@ export function selectHomepageTopModelIds<
     (family) => family.representative
   );
   const familyCandidateIds = new Set(familyCandidates.map((model) => model.id));
-  const uncategorizedCandidates = models.filter((model) => !familyCandidateIds.has(model.id));
+  const uncategorizedCandidates = discoveryPool.filter(
+    (model) => !familyCandidateIds.has(model.id)
+  );
 
   return [...familyRepresentatives, ...uncategorizedCandidates]
     .filter((model) => {

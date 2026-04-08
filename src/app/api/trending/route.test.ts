@@ -64,6 +64,9 @@ function createMockSupabase() {
       created_at: "2026-03-30T16:58:51.385568+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "MIT",
+      context_window: 131072,
     },
     {
       id: "meta-popular",
@@ -84,6 +87,9 @@ function createMockSupabase() {
       created_at: "2026-02-01T00:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Llama Community License",
+      context_window: 131072,
     },
     {
       id: "zai-signal",
@@ -104,6 +110,7 @@ function createMockSupabase() {
       created_at: "2026-03-29T10:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: false,
+      context_window: 202752,
     },
     {
       id: "zai-preview",
@@ -164,6 +171,9 @@ function createMockSupabase() {
       created_at: "2026-03-20T08:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      context_window: 131072,
     },
     {
       id: "minimax-highspeed",
@@ -184,6 +194,9 @@ function createMockSupabase() {
       created_at: "2026-04-01T08:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      context_window: 131072,
     },
     {
       id: "gemma-4-31b",
@@ -204,6 +217,9 @@ function createMockSupabase() {
       created_at: "2026-04-01T08:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      context_window: 128000,
     },
     {
       id: "gemma-4-27b",
@@ -224,6 +240,9 @@ function createMockSupabase() {
       created_at: "2026-04-01T08:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      context_window: 128000,
     },
     {
       id: "qwen-main",
@@ -244,6 +263,9 @@ function createMockSupabase() {
       created_at: "2026-03-25T08:00:00.000000+00:00",
       parameter_count: null,
       is_open_weights: true,
+      license: "open_source",
+      license_name: "Apache 2.0",
+      context_window: 262144,
     },
     {
       id: "qwen-gguf",
