@@ -6,6 +6,7 @@ import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall
 import { handleApiError } from "@/lib/api-error";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +80,24 @@ export async function GET(request: NextRequest) {
     const uniqueModels = dedupePublicModelFamilies(filteredData);
     const total = uniqueModels.length;
     const pagedModels = uniqueModels.slice((page - 1) * limit, page * limit);
+    const benchmarkTracking = await buildBenchmarkTrackingSummaryMap(
+      supabase as never,
+      pagedModels.map((model) => ({
+        id: String(model.id),
+        slug: String(model.slug),
+        provider: String(model.provider),
+        category:
+          typeof model.category === "string" || model.category === null
+            ? model.category
+            : null,
+      }))
+    );
 
     return NextResponse.json({
-      data: pagedModels,
+      data: pagedModels.map((model) => ({
+        ...model,
+        benchmark_tracking: benchmarkTracking.get(String(model.id)) ?? null,
+      })),
       total,
       page,
       limit,

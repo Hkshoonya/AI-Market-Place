@@ -50,127 +50,153 @@ describe("GET /api/models", () => {
 
   it("keeps weak wrapper rows out of default public model listings when enough ready models exist", async () => {
     vi.mocked(createClient).mockReturnValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() =>
-          createQuery([
-            {
-              id: "wrapper",
-              slug: "community-model-latest",
-              name: "Community Model Latest",
-              provider: "Community Hub",
-              category: "llm",
-              release_date: null,
-              is_open_weights: false,
-              license: null,
-              license_name: null,
-              context_window: 32768,
-              balanced_rank: 1,
-              rankings: [],
-              model_pricing: [],
-            },
-            {
-              id: "openai-gpt-4-1",
-              slug: "openai-gpt-4-1",
-              name: "GPT-4.1",
-              provider: "OpenAI",
-              category: "multimodal",
-              release_date: "2025-04-14",
-              is_open_weights: false,
-              license: null,
-              license_name: null,
-              context_window: 1047576,
-              balanced_rank: 2,
-              quality_score: 85,
-              capability_score: 86,
-              adoption_score: 88,
-              popularity_score: 69,
-              economic_footprint_score: 84,
-              rankings: [],
-              model_pricing: [],
-            },
-            {
-              id: "anthropic-claude-opus-4-6",
-              slug: "anthropic-claude-opus-4-6",
-              name: "Claude Opus 4.6",
-              provider: "Anthropic",
-              category: "multimodal",
-              release_date: "2026-02-05",
-              is_open_weights: false,
-              license: null,
-              license_name: null,
-              context_window: 200000,
-              balanced_rank: 3,
-              quality_score: 91,
-              capability_score: 92,
-              adoption_score: 90,
-              popularity_score: 74,
-              economic_footprint_score: 88,
-              rankings: [],
-              model_pricing: [],
-            },
-            {
-              id: "google-gemma-4-31b-it",
-              slug: "google-gemma-4-31b-it",
-              name: "Gemma 4 31B IT",
-              provider: "Google",
-              category: "multimodal",
-              release_date: "2026-04-02",
-              is_open_weights: true,
-              license: "open_source",
-              license_name: "Apache 2.0",
-              context_window: 128000,
-              balanced_rank: 4,
-              quality_score: 79,
-              capability_score: 80,
-              adoption_score: 70,
-              popularity_score: 65,
-              economic_footprint_score: 72,
-              rankings: [],
-              model_pricing: [],
-            },
-            {
-              id: "z-ai-glm-5",
-              slug: "z-ai-glm-5",
-              name: "GLM-5",
-              provider: "Z.ai",
-              category: "multimodal",
-              release_date: "2026-03-29",
-              is_open_weights: false,
-              license: null,
-              license_name: null,
-              context_window: 202752,
-              balanced_rank: 5,
-              quality_score: 77,
-              capability_score: 78,
-              adoption_score: 68,
-              popularity_score: 61,
-              economic_footprint_score: 70,
-              rankings: [],
-              model_pricing: [],
-            },
-            {
-              id: "minimax-minimax-m2-7",
-              slug: "minimax-minimax-m2-7",
-              name: "MiniMax M2.7",
-              provider: "MiniMax",
-              category: "llm",
-              release_date: "2026-03-20",
-              is_open_weights: true,
-              license: "open_source",
-              license_name: "Apache 2.0",
-              context_window: 131072,
-              balanced_rank: 6,
-              quality_score: 74,
-              capability_score: 75,
-              adoption_score: 63,
-              popularity_score: 60,
-              economic_footprint_score: 68,
-              rankings: [],
-              model_pricing: [],
-            },
-          ])
-        ),
-      })),
+      from: vi.fn((table: string) => {
+        if (table === "models") {
+          return {
+            select: vi.fn(() =>
+              createQuery([
+                {
+                  id: "wrapper",
+                  slug: "community-model-latest",
+                  name: "Community Model Latest",
+                  provider: "Community Hub",
+                  category: "llm",
+                  release_date: null,
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: 32768,
+                  balanced_rank: 1,
+                  rankings: [],
+                  model_pricing: [],
+                },
+                {
+                  id: "openai-gpt-4-1",
+                  slug: "openai-gpt-4-1",
+                  name: "GPT-4.1",
+                  provider: "OpenAI",
+                  category: "multimodal",
+                  release_date: "2025-04-14",
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: 1047576,
+                  balanced_rank: 2,
+                  quality_score: 85,
+                  capability_score: 86,
+                  adoption_score: 88,
+                  popularity_score: 69,
+                  economic_footprint_score: 84,
+                  rankings: [],
+                  model_pricing: [],
+                },
+                {
+                  id: "anthropic-claude-opus-4-6",
+                  slug: "anthropic-claude-opus-4-6",
+                  name: "Claude Opus 4.6",
+                  provider: "Anthropic",
+                  category: "multimodal",
+                  release_date: "2026-02-05",
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: 200000,
+                  balanced_rank: 3,
+                  quality_score: 91,
+                  capability_score: 92,
+                  adoption_score: 90,
+                  popularity_score: 74,
+                  economic_footprint_score: 88,
+                  rankings: [],
+                  model_pricing: [],
+                },
+                {
+                  id: "google-gemma-4-31b-it",
+                  slug: "google-gemma-4-31b-it",
+                  name: "Gemma 4 31B IT",
+                  provider: "Google",
+                  category: "multimodal",
+                  release_date: "2026-04-02",
+                  is_open_weights: true,
+                  license: "open_source",
+                  license_name: "Apache 2.0",
+                  context_window: 128000,
+                  balanced_rank: 4,
+                  quality_score: 79,
+                  capability_score: 80,
+                  adoption_score: 70,
+                  popularity_score: 65,
+                  economic_footprint_score: 72,
+                  rankings: [],
+                  model_pricing: [],
+                },
+                {
+                  id: "z-ai-glm-5",
+                  slug: "z-ai-glm-5",
+                  name: "GLM-5",
+                  provider: "Z.ai",
+                  category: "multimodal",
+                  release_date: "2026-03-29",
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: 202752,
+                  balanced_rank: 5,
+                  quality_score: 77,
+                  capability_score: 78,
+                  adoption_score: 68,
+                  popularity_score: 61,
+                  economic_footprint_score: 70,
+                  rankings: [],
+                  model_pricing: [],
+                },
+                {
+                  id: "minimax-minimax-m2-7",
+                  slug: "minimax-minimax-m2-7",
+                  name: "MiniMax M2.7",
+                  provider: "MiniMax",
+                  category: "llm",
+                  release_date: "2026-03-20",
+                  is_open_weights: true,
+                  license: "open_source",
+                  license_name: "Apache 2.0",
+                  context_window: 131072,
+                  balanced_rank: 6,
+                  quality_score: 74,
+                  capability_score: 75,
+                  adoption_score: 63,
+                  popularity_score: 60,
+                  economic_footprint_score: 68,
+                  rankings: [],
+                  model_pricing: [],
+                },
+              ])
+            ),
+          };
+        }
+
+        if (table === "benchmark_scores" || table === "elo_ratings") {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          };
+        }
+
+        if (table === "model_news") {
+          return {
+            select: vi.fn(() => ({
+              overlaps: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: [], error: null })),
+                })),
+              })),
+            })),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
     } as never);
 
     const response = await GET(
@@ -182,6 +208,7 @@ describe("GET /api/models", () => {
     expect(body.data.map((model: { slug: string }) => model.slug)).not.toContain(
       "community-model-latest"
     );
+    expect(body.data[0]).toHaveProperty("benchmark_tracking");
     expect(body.total).toBe(5);
   });
 
@@ -205,9 +232,30 @@ describe("GET /api/models", () => {
     ]);
 
     vi.mocked(createClient).mockReturnValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() => query),
-      })),
+      from: vi.fn((table: string) => {
+        if (table === "models") {
+          return { select: vi.fn(() => query) };
+        }
+        if (table === "benchmark_scores" || table === "elo_ratings") {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          };
+        }
+        if (table === "model_news") {
+          return {
+            select: vi.fn(() => ({
+              overlaps: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: [], error: null })),
+                })),
+              })),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
     } as never);
 
     const response = await GET(

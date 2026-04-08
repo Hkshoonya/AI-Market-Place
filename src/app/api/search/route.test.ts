@@ -135,11 +135,51 @@ function createMockSupabase(options?: {
       if (table === "model_news") {
         return {
           select: () => ({
+            overlaps: () => ({
+              order: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: "news-1",
+                      title: "Sonnet benchmark update",
+                      source: "provider-blog",
+                      category: "benchmark",
+                      related_model_ids: ["model-1"],
+                      metadata: { signal_type: "benchmark" },
+                      published_at: "2026-04-01T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
             order: () => ({
               limit: async () => ({
                 data: [],
                 error: null,
               }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "benchmark_scores") {
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [{ model_id: "model-1" }],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === "elo_ratings") {
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [],
+              error: null,
             }),
           }),
         };
@@ -241,13 +281,17 @@ describe("GET /api/search", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toEqual(
-      expect.objectContaining({
-        slug: "google-deepmind-sonnet",
-        display_description: expect.stringMatching(/Google llm model/i),
-        deployability_label: "Ready to Use",
-      })
-    );
+      expect(body.data[0]).toEqual(
+        expect.objectContaining({
+          slug: "google-deepmind-sonnet",
+          display_description: expect.stringMatching(/Google llm model/i),
+          deployability_label: "Ready to Use",
+          benchmark_tracking: expect.objectContaining({
+            status: "structured",
+            badgeLabel: "Structured",
+          }),
+        })
+      );
     expect(body.data[0].display_description).not.toMatch(
       /TensorFlow-based neural network library/i
     );

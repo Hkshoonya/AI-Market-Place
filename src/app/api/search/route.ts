@@ -22,6 +22,7 @@ import {
   summarizeUserVisibleDeploymentModes,
 } from "@/lib/models/deployments";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
@@ -339,6 +340,15 @@ export async function GET(request: NextRequest) {
         economic_footprint_score: null,
       })),
     });
+    const benchmarkTracking = await buildBenchmarkTrackingSummaryMap(
+      supabase as never,
+      uniqueModels.map((model) => ({
+        id: model.id,
+        slug: model.slug,
+        provider: model.provider,
+        category: model.category ?? null,
+      }))
+    );
 
     const enrichedModels = uniqueModels.map((model) => {
       const pricingSummary = getPublicPricingSummary({
@@ -392,6 +402,7 @@ export async function GET(request: NextRequest) {
           signal: recentSignal,
           accessOffer,
         }),
+        benchmark_tracking: benchmarkTracking.get(model.id) ?? null,
         usage_mode_labels: usageModes.labels,
         self_host_requirement_label: getSelfHostRequirements({
           isOpenWeights: model.is_open_weights,
