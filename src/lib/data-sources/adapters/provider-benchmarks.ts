@@ -183,6 +183,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     ],
   },
   {
+    id: "google-gemma-4-26b-a4b",
+    provider: "Google",
+    url: "https://huggingface.co/google/gemma-4-26b-a4b",
+    titleHint: "Gemma 4 26B A4B benchmark update",
+    modelHints: ["Gemma 4 26B A4B", "gemma-4-26b-a4b"],
+  },
+  {
     id: "xai-grok-4-1",
     provider: "xAI",
     url: "https://data.x.ai/2025-11-17-grok-4-1-model-card.pdf",
@@ -258,6 +265,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://huggingface.co/nvidia/Nemotron-Terminal-32B",
     titleHint: "Nemotron Terminal 32B benchmark update",
     modelHints: ["Nemotron-Terminal-32B", "Nemotron Terminal 32B"],
+  },
+  {
+    id: "nvidia-gemma-4-31b-it-nvfp4",
+    provider: "NVIDIA",
+    url: "https://huggingface.co/nvidia/gemma-4-31b-it-nvfp4",
+    titleHint: "Gemma 4 31B IT NVFP4 benchmark update",
+    modelHints: ["Gemma 4 31B IT NVFP4", "gemma-4-31b-it-nvfp4"],
   },
   {
     id: "nvidia-nemotron-ocr-v2",
