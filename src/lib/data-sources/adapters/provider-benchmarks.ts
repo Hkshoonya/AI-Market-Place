@@ -230,6 +230,20 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Phi-4-reasoning-vision-15B", "Phi-4 Reasoning Vision 15B"],
   },
   {
+    id: "microsoft-vibevoice-asr",
+    provider: "Microsoft",
+    url: "https://huggingface.co/microsoft/VibeVoice-ASR-HF",
+    titleHint: "VibeVoice ASR benchmark update",
+    modelHints: ["VibeVoice-ASR", "VibeVoice ASR"],
+  },
+  {
+    id: "microsoft-bitnet-b1-58-2b-4t",
+    provider: "Microsoft",
+    url: "https://huggingface.co/microsoft/bitnet-b1.58-2B-4T",
+    titleHint: "BitNet b1.58 2B4T benchmark update",
+    modelHints: ["bitnet-b1.58-2B-4T", "BitNet b1.58 2B4T"],
+  },
+  {
     id: "nvidia-nemotron-cascade-2",
     provider: "NVIDIA",
     url: "https://huggingface.co/nvidia/Nemotron-Cascade-2-30B-A3B",
