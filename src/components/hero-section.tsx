@@ -91,9 +91,9 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
             className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl animate-slide-up"
             style={{ animationDelay: "200ms" }}
           >
-            Track, rank, and compare every AI model in the world. Real-time
-            benchmarks, pricing intelligence, and a marketplace — all in one
-            place.
+            Track, rank, and compare AI models with structured benchmarks where
+            available, provider-reported evidence, pricing intelligence, and a
+            marketplace in one place.
           </p>
           <p id="home-hero-scene-description" className="sr-only">
             Animated background showing AI models connecting, sharing signals, and growing across a living network.

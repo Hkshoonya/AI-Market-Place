@@ -22,5 +22,5 @@ export function getCanonicalWwwHost(): string {
 
 export const SITE_NAME = "AI Market Cap";
 export const SITE_DESCRIPTION =
-  "Track, rank, and compare every AI model in the world. Real-time benchmarks, pricing, and marketplace.";
+  "Track and compare AI models with structured benchmarks where available, provider-reported evidence, pricing, and marketplace data.";
 export const SITE_URL = getCanonicalOrigin();

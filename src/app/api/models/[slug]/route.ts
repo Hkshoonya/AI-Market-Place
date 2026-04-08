@@ -5,6 +5,10 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import {
+  countProviderReportedBenchmarkEvidence,
+  getBenchmarkTrackingSummary,
+} from "@/lib/models/benchmark-status";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const dynamic = "force-dynamic";
@@ -90,11 +94,22 @@ export async function GET(
       modelNews.filter((item) => getNewsSignalType(item) === "benchmark"),
       6
     );
+    const benchmark_tracking = getBenchmarkTrackingSummary({
+      slug: data.slug,
+      provider: data.provider,
+      category: data.category,
+      benchmarkScoreCount: Array.isArray(data.benchmark_scores)
+        ? data.benchmark_scores.length
+        : 0,
+      benchmarkEvidenceCount: countProviderReportedBenchmarkEvidence(benchmark_news),
+      arenaSignalCount: eloRatings.length,
+    });
 
     return NextResponse.json({
       ...data,
       elo_ratings: collapseArenaRatings(eloRatings),
       benchmark_news,
+      benchmark_tracking,
     });
   } catch (err) {
     return handleApiError(err, "api/models");

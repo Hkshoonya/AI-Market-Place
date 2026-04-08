@@ -45,6 +45,10 @@ import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import {
+  countProviderReportedBenchmarkEvidence,
+  getBenchmarkTrackingSummary,
+} from "@/lib/models/benchmark-status";
 
 export const revalidate = 300;
 
@@ -67,7 +71,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!model) return { title: "Model Not Found" };
   const title = `${model.name} by ${model.provider}`;
   const description = model.short_description ??
-    `Explore ${model.name} by ${model.provider} — benchmarks, pricing, and comparisons on ${SITE_NAME}.`;
+    `Explore ${model.name} by ${model.provider} — benchmark coverage where available, pricing, and comparisons on ${SITE_NAME}.`;
   return {
     title, description,
     openGraph: { title, description, url: `${SITE_URL}/models/${slug}`, type: "article" },
@@ -236,6 +240,16 @@ export default async function ModelDetailPage({
     6
   );
   const currentArenaRatings = collapseArenaRatings(eloRatings);
+  const benchmarkTracking = getBenchmarkTrackingSummary({
+    slug: model.slug,
+    provider: model.provider,
+    category: model.category,
+    benchmarkScoreCount: benchmarkScores.length,
+    benchmarkEvidenceCount: countProviderReportedBenchmarkEvidence(
+      recentBenchmarkEvidence
+    ),
+    arenaSignalCount: currentArenaRatings.length,
+  });
   const bestElo = currentArenaRatings.length > 0
     ? currentArenaRatings.reduce((best, curr) => (curr.elo_score > best.elo_score ? curr : best), currentArenaRatings[0])
     : null;
@@ -415,6 +429,7 @@ export default async function ModelDetailPage({
             benchmarkScores={benchmarkScores}
             eloRatings={eloRatings}
             recentBenchmarkEvidence={recentBenchmarkEvidence}
+            benchmarkTracking={benchmarkTracking}
           />
         </TabsContent>
 

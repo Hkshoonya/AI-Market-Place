@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { BenchmarkRadar } from "@/components/charts/benchmark-radar";
 import { formatNumber } from "@/lib/format";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import type { BenchmarkTrackingSummary } from "@/lib/models/benchmark-status";
 import type { LaunchRadarItem } from "@/lib/news/presentation";
 
 export interface BenchmarkScore {
@@ -32,12 +33,14 @@ export interface BenchmarksTabProps {
   benchmarkScores: BenchmarkScore[];
   eloRatings: EloRating[];
   recentBenchmarkEvidence?: LaunchRadarItem[];
+  benchmarkTracking: BenchmarkTrackingSummary;
 }
 
 export function BenchmarksTab({
   benchmarkScores,
   eloRatings,
   recentBenchmarkEvidence = [],
+  benchmarkTracking,
 }: BenchmarksTabProps) {
   const currentArenaRatings = collapseArenaRatings(eloRatings);
   const hasNormalizedBenchmarks = benchmarkScores.length > 0;
@@ -50,10 +53,23 @@ export function BenchmarksTab({
           <CardTitle className="text-lg">Benchmarks and Competitive Signal</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="text-[10px]">
+              {benchmarkTracking.badgeLabel}
+            </Badge>
+            {benchmarkTracking.showTrustAsterisk ? (
+              <span className="text-[11px] text-muted-foreground">
+                * Official provider claim, not a normalized independent benchmark row.
+              </span>
+            ) : null}
+          </div>
           <p className="mb-6 text-sm text-muted-foreground">
             Use this section to answer one simple question first: how much outside evidence do we have
             that this model performs well? Structured benchmark scores appear first, then official provider
             evidence, then live arena signal.
+          </p>
+          <p className="mb-6 text-xs text-muted-foreground">
+            {benchmarkTracking.summary}
           </p>
           {hasNormalizedBenchmarks ? (
             <>
