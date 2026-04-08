@@ -149,6 +149,22 @@ const SAMPLE_REPORT = {
     averageIndependentQualitySources: 2.1,
     averageDistinctSources: 4.6,
   },
+  benchmarkMetadata: {
+    benchmarkExpectedModels: 14,
+    withTrustedHfLocator: 6,
+    withTrustedWebsiteLocator: 4,
+    withAnyTrustedBenchmarkLocator: 10,
+    missingTrustedBenchmarkLocatorCount: 4,
+    trustedLocatorCoveragePct: 71.4,
+    missingTrustedBenchmarkLocator: [
+      {
+        slug: "x-ai-grok-next",
+        provider: "xAI",
+        category: "llm",
+        releaseDate: "2026-03-01",
+      },
+    ],
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -367,6 +383,31 @@ describe("GET /api/admin/data-integrity", () => {
     expect(stale).toHaveProperty("slug");
     expect(stale).toHaveProperty("lastSyncAt");
     expect(stale).toHaveProperty("overdueBy");
+  });
+
+  it("response includes benchmark metadata coverage", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    mockCreateAdminClient.mockReturnValue(
+      {} as ReturnType<typeof createAdminClient>
+    );
+    mockVerifyDataIntegrity.mockResolvedValue(SAMPLE_REPORT);
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(body).toHaveProperty("benchmarkMetadata");
+    expect(body.benchmarkMetadata).toHaveProperty("benchmarkExpectedModels");
+    expect(body.benchmarkMetadata).toHaveProperty("withAnyTrustedBenchmarkLocator");
+    expect(body.benchmarkMetadata).toHaveProperty("trustedLocatorCoveragePct");
+    expect(body.benchmarkMetadata).toHaveProperty("missingTrustedBenchmarkLocator");
+    expect(Array.isArray(body.benchmarkMetadata.missingTrustedBenchmarkLocator)).toBe(true);
   });
 
   it("calls verifyDataIntegrity with admin client", async () => {

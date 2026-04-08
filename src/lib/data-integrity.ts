@@ -11,6 +11,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncOutputType } from "@/lib/data-sources/types";
+import {
+  getTrustedBenchmarkHfUrl,
+  getTrustedBenchmarkWebsiteUrl,
+  isBenchmarkExpectedModel,
+} from "@/lib/data-sources/shared/benchmark-coverage";
 
 // ---------------------------------------------------------------------------
 // TABLE_MAP: SyncOutputType -> actual Supabase table name
@@ -110,6 +115,20 @@ export interface DataIntegrityReport {
     corroboratedModels: number;
     averageIndependentQualitySources: number;
     averageDistinctSources: number;
+  };
+  benchmarkMetadata: {
+    benchmarkExpectedModels: number;
+    withTrustedHfLocator: number;
+    withTrustedWebsiteLocator: number;
+    withAnyTrustedBenchmarkLocator: number;
+    missingTrustedBenchmarkLocatorCount: number;
+    trustedLocatorCoveragePct: number;
+    missingTrustedBenchmarkLocator: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
   };
 }
 
@@ -265,6 +284,15 @@ interface ModelSnapshotCoverageRow {
   } | null;
 }
 
+interface ActiveModelMetadataRow {
+  slug: string;
+  provider: string;
+  category: string | null;
+  hf_model_id: string | null;
+  website_url: string | null;
+  release_date: string | null;
+}
+
 interface SyncDiagnostics {
   matchRate: number | null;
   warningCount: number;
@@ -275,6 +303,8 @@ interface SyncDiagnostics {
   diagnosticPenalty: number;
   issueSummary: string | null;
 }
+
+const METADATA_PAGE_SIZE = 1000;
 
 function parseMatchRate(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) {
@@ -364,6 +394,35 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
     diagnosticPenalty,
     issueSummary,
   };
+}
+
+async function fetchAllActiveModelMetadata(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>
+): Promise<ActiveModelMetadataRow[]> {
+  const rows: ActiveModelMetadataRow[] = [];
+
+  for (let from = 0; ; from += METADATA_PAGE_SIZE) {
+    const to = from + METADATA_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("models")
+      .select("slug, provider, category, hf_model_id, website_url, release_date")
+      .eq("status", "active")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch active model metadata: ${error.message}`);
+    }
+
+    const page = (data ?? []) as ActiveModelMetadataRow[];
+    rows.push(...page);
+
+    if (page.length < METADATA_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -642,6 +701,45 @@ export async function verifyDataIntegrity(
         ) / totalModels
       : 0;
 
+  const activeModelMetadata = await fetchAllActiveModelMetadata(supabase);
+  const benchmarkExpectedModels = activeModelMetadata.filter((model) =>
+    isBenchmarkExpectedModel(model)
+  );
+  const withTrustedHfLocator = benchmarkExpectedModels.filter((model) =>
+    Boolean(getTrustedBenchmarkHfUrl(model))
+  ).length;
+  const withTrustedWebsiteLocator = benchmarkExpectedModels.filter((model) =>
+    Boolean(getTrustedBenchmarkWebsiteUrl(model))
+  ).length;
+  const missingTrustedBenchmarkLocatorRows = benchmarkExpectedModels.filter(
+    (model) =>
+      !getTrustedBenchmarkHfUrl(model) && !getTrustedBenchmarkWebsiteUrl(model)
+  );
+  const missingTrustedBenchmarkLocator = missingTrustedBenchmarkLocatorRows
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 25)
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+      releaseDate: model.release_date,
+    }));
+  const missingTrustedBenchmarkLocatorCount =
+    missingTrustedBenchmarkLocatorRows.length;
+  const withAnyTrustedBenchmarkLocator =
+    benchmarkExpectedModels.length - missingTrustedBenchmarkLocatorCount;
+  const trustedLocatorCoveragePct =
+    benchmarkExpectedModels.length > 0
+      ? Math.round(
+          ((benchmarkExpectedModels.length - missingTrustedBenchmarkLocatorCount) /
+            benchmarkExpectedModels.length) *
+            1000
+        ) / 10
+      : 100;
+
   return {
     checkedAt,
     summary: {
@@ -668,6 +766,15 @@ export async function verifyDataIntegrity(
       averageIndependentQualitySources:
         Math.round(averageIndependentQualitySources * 10) / 10,
       averageDistinctSources: Math.round(averageDistinctSources * 10) / 10,
+    },
+    benchmarkMetadata: {
+      benchmarkExpectedModels: benchmarkExpectedModels.length,
+      withTrustedHfLocator,
+      withTrustedWebsiteLocator,
+      withAnyTrustedBenchmarkLocator,
+      missingTrustedBenchmarkLocatorCount,
+      trustedLocatorCoveragePct,
+      missingTrustedBenchmarkLocator,
     },
   };
 }

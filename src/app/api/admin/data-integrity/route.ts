@@ -94,6 +94,22 @@ const DataIntegrityReportSchema = z.object({
     averageIndependentQualitySources: z.number(),
     averageDistinctSources: z.number(),
   }),
+  benchmarkMetadata: z.object({
+    benchmarkExpectedModels: z.number(),
+    withTrustedHfLocator: z.number(),
+    withTrustedWebsiteLocator: z.number(),
+    withAnyTrustedBenchmarkLocator: z.number(),
+    missingTrustedBenchmarkLocatorCount: z.number(),
+    trustedLocatorCoveragePct: z.number(),
+    missingTrustedBenchmarkLocator: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+      })
+    ),
+  }),
 });
 
 // ---------------------------------------------------------------------------

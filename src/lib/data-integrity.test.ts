@@ -302,6 +302,27 @@ describe("verifyDataIntegrity", () => {
       },
     ];
 
+    const activeModels = [
+      {
+        slug: "google-gemma-4-31b-it",
+        provider: "Google",
+        category: "multimodal",
+        hf_model_id: "google/gemma-4-31b-it",
+        website_url: "https://ai.google.dev/gemma",
+        release_date: "2026-04-02",
+        status: "active",
+      },
+      {
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        category: "llm",
+        hf_model_id: null,
+        website_url: null,
+        release_date: "2026-04-01",
+        status: "active",
+      },
+    ];
+
     return {
       from: (table: string) => {
         if (table === "data_sources") {
@@ -330,6 +351,36 @@ describe("verifyDataIntegrity", () => {
             }),
           };
         }
+        if (table === "models") {
+          return {
+            select: (columns?: string, options?: { count?: string; head?: boolean }) => {
+              if (options?.head) {
+                if (overrides.tableError) {
+                  return Promise.resolve({
+                    count: null,
+                    error: { message: "DB error" },
+                  });
+                }
+                const count = overrides.tableCount ?? 100;
+                return Promise.resolve({ count, error: null });
+              }
+
+              if (
+                columns ===
+                "slug, provider, category, hf_model_id, website_url, release_date"
+              ) {
+                return {
+                  eq: () => ({
+                    range: () =>
+                      Promise.resolve({ data: activeModels, error: null }),
+                  }),
+                };
+              }
+
+              return Promise.resolve({ data: activeModels, error: null });
+            },
+          };
+        }
         // Table row count queries
         if (overrides.tableError) {
           return {
@@ -354,6 +405,7 @@ describe("verifyDataIntegrity", () => {
     expect(report).toHaveProperty("tableCoverage");
     expect(report).toHaveProperty("freshness");
     expect(report).toHaveProperty("modelEvidence");
+    expect(report).toHaveProperty("benchmarkMetadata");
   });
 
   it("summary.totalSources matches data sources count", async () => {
@@ -371,6 +423,21 @@ describe("verifyDataIntegrity", () => {
     expect(report.modelEvidence.highBiasRiskModels).toBe(1);
     expect(report.modelEvidence.lowBiasRiskModels).toBe(1);
     expect(report.modelEvidence.averageIndependentQualitySources).toBeCloseTo(1.5);
+  });
+
+  it("includes benchmark metadata coverage summary", async () => {
+    const supabase = makeMockSupabase({});
+    const report = await verifyDataIntegrity(supabase as never);
+
+    expect(report.benchmarkMetadata.benchmarkExpectedModels).toBe(2);
+    expect(report.benchmarkMetadata.withTrustedHfLocator).toBe(1);
+    expect(report.benchmarkMetadata.withTrustedWebsiteLocator).toBe(1);
+    expect(report.benchmarkMetadata.withAnyTrustedBenchmarkLocator).toBe(1);
+    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocatorCount).toBe(1);
+    expect(report.benchmarkMetadata.trustedLocatorCoveragePct).toBe(50);
+    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocator[0]?.slug).toBe(
+      "x-ai-grok-4-20"
+    );
   });
 
   it("qualityScores has one entry per source", async () => {
