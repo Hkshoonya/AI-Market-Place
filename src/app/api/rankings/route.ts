@@ -5,6 +5,7 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
@@ -108,11 +109,24 @@ export async function GET(request: NextRequest) {
         return lensConfig.ascending ? leftValue - rightValue : rightValue - leftValue;
       })
       .slice(0, limit);
+    const benchmarkTracking = await buildBenchmarkTrackingSummaryMap(
+      supabase as never,
+      uniqueModels.map((model) => ({
+        id: String(model.id),
+        slug: String(model.slug),
+        provider: String(model.provider),
+        category:
+          typeof model.category === "string" || model.category === null
+            ? model.category
+            : null,
+      }))
+    );
 
     return NextResponse.json({
       data: uniqueModels.map((model) => ({
         ...model,
         elo_ratings: collapseArenaRatings(Array.isArray(model.elo_ratings) ? model.elo_ratings : []),
+        benchmark_tracking: benchmarkTracking.get(String(model.id)) ?? null,
       })),
       lens,
       lifecycle: lifecycleFilter,
