@@ -25,6 +25,7 @@ import {
   resolveEffectiveHealthRow,
 } from "@/lib/pipeline-health-compute";
 import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
+import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import {
   rateLimit,
   RATE_LIMITS,
@@ -58,6 +59,8 @@ const PipelineHealthSummarySchema = z.object({
     coveredModels: z.number(),
     activeModels: z.number(),
     officialGapCount: z.number(),
+    trustedLocatorCoveragePct: z.number(),
+    missingTrustedLocatorCount: z.number(),
   }),
 });
 
@@ -68,6 +71,8 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     coveredModels: z.number(),
     activeModels: z.number(),
     officialGapCount: z.number(),
+    trustedLocatorCoveragePct: z.number(),
+    missingTrustedLocatorCount: z.number(),
     weakestOfficialProviders: z.array(
       z.object({
         provider: z.string(),
@@ -76,6 +81,14 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
     recentOfficialGaps: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+      })
+    ),
+    recentMissingTrustedLocators: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),
@@ -138,7 +151,12 @@ export async function GET(request: NextRequest) {
     // ── Data queries via admin client (bypasses RLS) ─────────────────────────
     const adminSupabase = createAdminClient();
 
-    const [dataSourcesResult, pipelineHealthResult, benchmarkCoverage] = await Promise.all([
+    const [
+      dataSourcesResult,
+      pipelineHealthResult,
+      benchmarkCoverage,
+      benchmarkMetadataCoverage,
+    ] = await Promise.all([
       adminSupabase
         .from("data_sources")
         .select("slug, is_enabled, last_success_at, last_sync_at, last_sync_records, last_error_message, sync_interval_hours")
@@ -148,6 +166,7 @@ export async function GET(request: NextRequest) {
         .from("pipeline_health")
         .select("source_slug, consecutive_failures, last_success_at, expected_interval_hours"),
       computeBenchmarkCoverage(adminSupabase),
+      computeBenchmarkMetadataCoverage(adminSupabase),
     ]);
 
     if (dataSourcesResult.error) {
@@ -205,6 +224,10 @@ export async function GET(request: NextRequest) {
       activeModels: benchmarkCoverage.totals.active_models,
       officialGapCount:
         benchmarkCoverage.recent_sparse_benchmark_expected_official.length,
+      trustedLocatorCoveragePct:
+        benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+      missingTrustedLocatorCount:
+        benchmarkMetadataCoverage.missingTrustedLocatorCount,
     };
 
     const detail = PipelineHealthDetailSchema.parse({
@@ -225,6 +248,8 @@ export async function GET(request: NextRequest) {
           })),
         recentOfficialGaps:
           benchmarkCoverage.recent_sparse_benchmark_expected_official.slice(0, 10),
+        recentMissingTrustedLocators:
+          benchmarkMetadataCoverage.recentMissingTrustedLocators,
       },
     });
 

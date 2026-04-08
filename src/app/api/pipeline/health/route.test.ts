@@ -44,6 +44,18 @@ vi.mock("@/lib/benchmark-coverage-compute", () => ({
   }),
 }));
 
+vi.mock("@/lib/benchmark-metadata-coverage-compute", () => ({
+  computeBenchmarkMetadataCoverage: vi.fn().mockResolvedValue({
+    benchmarkExpectedModels: 60,
+    withTrustedHfLocator: 20,
+    withTrustedWebsiteLocator: 15,
+    withAnyTrustedBenchmarkLocator: 30,
+    missingTrustedLocatorCount: 30,
+    trustedLocatorCoveragePct: 50,
+    recentMissingTrustedLocators: [],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Supabase mock helpers
 // ---------------------------------------------------------------------------
@@ -194,6 +206,9 @@ describe("GET /api/pipeline/health", () => {
       expect(body).toHaveProperty("degraded");
       expect(body).toHaveProperty("down");
       expect(body).toHaveProperty("checkedAt");
+      expect(body).toHaveProperty("benchmarkCoverage");
+      expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
+      expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
     });
 
     it("does NOT include adapters field in public response", async () => {
@@ -276,6 +291,7 @@ describe("GET /api/pipeline/health", () => {
       expect(body).toHaveProperty("adapters");
       expect(Array.isArray(body.adapters)).toBe(true);
       expect(body.adapters).toHaveLength(1);
+      expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
 
       const adapter = body.adapters[0];
       expect(adapter).toHaveProperty("slug", "adapter-a");

@@ -36,6 +36,18 @@ vi.mock("@/lib/benchmark-coverage-compute", () => ({
   }),
 }));
 
+vi.mock("@/lib/benchmark-metadata-coverage-compute", () => ({
+  computeBenchmarkMetadataCoverage: vi.fn().mockResolvedValue({
+    benchmarkExpectedModels: 60,
+    withTrustedHfLocator: 20,
+    withTrustedWebsiteLocator: 15,
+    withAnyTrustedBenchmarkLocator: 30,
+    missingTrustedLocatorCount: 30,
+    trustedLocatorCoveragePct: 50,
+    recentMissingTrustedLocators: [],
+  }),
+}));
+
 // ── Mock rate-limit (always allow in tests) ────────────────────────────────────
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({ success: true, limit: 60, remaining: 59, reset: 60 })),
@@ -275,6 +287,10 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(typeof body.down).toBe("number");
     expect(body).toHaveProperty("checkedAt");
     expect(typeof body.checkedAt).toBe("string");
+    expect(body).toHaveProperty("benchmarkCoverage");
+    expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
+    expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
+    expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
 
     // Adapter fields
     const adapter = body.adapters[0];
