@@ -24,6 +24,7 @@ import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
 import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
 import { XAI_KNOWN_MODELS } from "../shared/known-models/xai";
+import { resolveZAIKnownModelMeta } from "../shared/known-models/zai";
 
 // --------------- Constants ---------------
 
@@ -116,6 +117,7 @@ function resolveCuratedKnownMeta(id: string) {
   if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
   if (providerPrefix === "minimax") return resolveMiniMaxKnownModelMeta(modelPart);
   if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
+  if (providerPrefix === "z-ai") return resolveZAIKnownModelMeta(modelPart);
   return undefined;
 }
 
@@ -247,17 +249,23 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
 
   return {
     slug: makeSlug(model.id),
-    name: extractModelName(model.name, model.id),
+    name: knownMeta?.name ?? extractModelName(model.name, model.id),
     provider: extractProvider(model.id),
     category: knownMeta?.category ?? inferCategory({ mode: "arch", arch }),
     status: "active",
-    description: model.description || null,
-    context_window: model.context_length ?? null,
+    description: knownMeta?.description ?? model.description ?? null,
+    context_window:
+      knownMeta?.context_window ??
+      model.context_length ??
+      model.top_provider?.context_length ??
+      null,
     release_date: knownMeta?.release_date ?? unixToDateString(model.created),
     is_api_available: true,
     is_open_weights: knownMeta?.is_open_weights ?? isOpen,
     license: knownMeta?.license ?? license,
     license_name: "license_name" in (knownMeta ?? {}) ? (knownMeta?.license_name ?? null) : (isOpen ? licenseName : null),
+    hf_model_id: knownMeta?.hf_model_id ?? null,
+    website_url: knownMeta?.website_url ?? null,
     modalities: knownMeta?.modalities ?? mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),

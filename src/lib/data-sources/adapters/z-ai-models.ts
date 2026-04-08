@@ -7,7 +7,10 @@ import type {
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, upsertBatch } from "../utils";
 import { buildRecord, type ProviderDefaults } from "../shared/build-record";
-import { ZAI_KNOWN_MODELS } from "../shared/known-models/zai";
+import {
+  resolveZAIKnownModelMeta,
+  ZAI_KNOWN_MODELS,
+} from "../shared/known-models/zai";
 
 const DOCS_URL = "https://docs.z.ai/guides/llm";
 const SITEMAP_URL = "https://docs.z.ai/sitemap.xml";
@@ -24,7 +27,8 @@ const MODEL_PATH_PATTERN =
   /<loc>https:\/\/docs\.z\.ai\/guides\/(?:llm|vlm|image|audio)\/([^<]+)<\/loc>/gi;
 
 function humanizeModelId(modelId: string): string {
-  if (ZAI_KNOWN_MODELS[modelId]?.name) return ZAI_KNOWN_MODELS[modelId].name;
+  const knownMeta = resolveZAIKnownModelMeta(modelId);
+  if (knownMeta?.name) return knownMeta.name;
 
   return modelId
     .replace(/^glm-/, "GLM-")
@@ -42,7 +46,7 @@ function humanizeModelId(modelId: string): string {
 function buildModelRecord(modelId: string): Record<string, unknown> {
   return buildRecord(
     modelId,
-    ZAI_KNOWN_MODELS[modelId],
+    resolveZAIKnownModelMeta(modelId),
     { name: humanizeModelId(modelId) },
     PROVIDER_DEFAULTS
   );

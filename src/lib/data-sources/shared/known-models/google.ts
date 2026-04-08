@@ -140,6 +140,26 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "gemini-3.1-flash-lite": {
+    name: "Gemini 3.1 Flash Lite",
+    description:
+      "Lower-cost Gemini 3.1 Flash Lite model for high-throughput multimodal assistant workloads with the latest Gemini 3.1 family improvements.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-03-24",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "audio", "video"],
+    capabilities: {
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 
   // ---- Gemini 2.5 series ----
   "gemini-2.5-pro": {
@@ -210,6 +230,52 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "gemini-2.5": {
+    name: "Gemini 2.5",
+    description:
+      "Google's Gemini 2.5 family for long-context multimodal reasoning, coding, and assistant workloads.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2025-03-25",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "audio", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      grounding: true,
+      code_execution: true,
+      function_calling: true,
+      extended_thinking: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "gemini-2.5-flash-native": {
+    name: "Gemini 2.5 Flash Native Audio",
+    description:
+      "Gemini 2.5 Flash native-audio family for low-latency voice interactions, streaming conversations, and multimodal assistant experiences.",
+    category: "multimodal",
+    context_window: 131072,
+    release_date: "2025-09-23",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "audio", "image", "video"],
+    capabilities: {
+      reasoning: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+      text_to_speech: true,
+      speech_to_text: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 
   // ---- Gemini 2.0 series ----
   "gemini-2.0-flash": {
@@ -248,6 +314,29 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     capabilities: {
       coding: true,
       vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "gemini-2": {
+    name: "Gemini 2",
+    description:
+      "Google's Gemini 2 family for multimodal assistant workloads, tool use, and long-context production applications.",
+    category: "multimodal",
+    context_window: 1048576,
+    release_date: "2025-02-05",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "audio", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      grounding: true,
+      code_execution: true,
       function_calling: true,
       streaming: true,
     },
@@ -488,6 +577,23 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "open_source",
     license_name: "Apache 2.0",
   },
+  "gemini-embedding-001": {
+    name: "Gemini Embedding 001",
+    description:
+      "Google's stable Gemini embeddings model for semantic search, retrieval, clustering, and vector indexing workflows.",
+    category: "embeddings",
+    context_window: 2048,
+    release_date: "2025-07-14",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      streaming: false,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 
   // ---- Image generation ----
   "imagen-3": {
@@ -527,6 +633,21 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     category: "image_generation",
     context_window: null,
     release_date: "2025-05-20",
+    architecture: "Diffusion",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: { image_generation: true, image_editing: true },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "imagen-4-ultra": {
+    name: "Imagen 4 Ultra",
+    description:
+      "Highest-fidelity Imagen 4 tier for premium image generation with stronger prompt fidelity and creative detail.",
+    category: "image_generation",
+    context_window: null,
+    release_date: "2025-08-14",
     architecture: "Diffusion",
     status: "active",
     modalities: ["text", "image"],
@@ -582,6 +703,21 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "veo-3.1-lite": {
+    name: "Veo 3.1 Lite",
+    description:
+      "Lighter Veo 3.1 variant for faster video ideation and lower-cost video generation workloads.",
+    category: "video",
+    context_window: null,
+    release_date: "2026-03-24",
+    architecture: "Diffusion (Video)",
+    status: "active",
+    modalities: ["text", "image", "video", "audio"],
+    capabilities: { video_generation: true, text_to_speech: true },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
   "veo-3": {
     name: "Veo 3",
     description:
@@ -605,9 +741,27 @@ const GOOGLE_KNOWN_MODEL_FAMILY_PREFIXES = [
   "gemma-4-",
 ] as const;
 
+const GOOGLE_EXACT_MODEL_ALIASES: Record<string, string> = {
+  "gemini-3-pro-image": "gemini-3-pro",
+  "gemini-flash-latest": "gemini-2.0-flash",
+  "gemini-flash-lite-latest": "gemini-2.0-flash-lite",
+  "gemini-pro-latest": "gemini-1.5-pro",
+  "gemini-2.0-flash-exp-image-generation": "gemini-2.0-flash",
+  "gemini-2.5-flash-native-audio-latest": "gemini-2.5-flash-native",
+  "imagen-4.0-generate-001": "imagen-4",
+  "imagen-4.0-fast-generate-001": "imagen-4-fast",
+  "imagen-4.0-ultra-generate-001": "imagen-4-ultra",
+  "veo-2.0-generate-001": "veo-2",
+  "veo-3.0-generate-001": "veo-3",
+  "veo-3.0-fast-generate-001": "veo-3",
+};
+
 export function resolveGoogleKnownModelMeta(modelId: string): KnownModelMeta | undefined {
   const exact = GOOGLE_KNOWN_MODELS[modelId];
   if (exact) return exact;
+
+  const alias = GOOGLE_EXACT_MODEL_ALIASES[modelId];
+  if (alias) return GOOGLE_KNOWN_MODELS[alias];
 
   for (const familyPrefix of GOOGLE_KNOWN_MODEL_FAMILY_PREFIXES) {
     if (modelId.startsWith(familyPrefix)) {

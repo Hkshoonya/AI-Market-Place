@@ -128,6 +128,40 @@ describe("openrouter model record mapping", () => {
     expect(record.provider).toBe("Z.ai");
   });
 
+  it("uses curated Z.ai metadata for newer GLM families", () => {
+    const record = __testables.buildModelRecord({
+      id: "z-ai/glm-5.1",
+      name: "Z.ai: GLM-5.1",
+      description: "Updated GLM reasoning model",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.name).toBe("GLM-5.1");
+    expect(record.context_window).toBe(202752);
+    expect(record.release_date).toBe("2026-04-03");
+  });
+
+  it("falls back to top_provider context length when model context is missing", () => {
+    const record = __testables.buildModelRecord({
+      id: "nvidia/nemotron-terminal-32b",
+      name: "NVIDIA: Nemotron-Terminal-32B",
+      description: "Agent model with long-context support",
+      context_length: undefined,
+      top_provider: {
+        context_length: 262144,
+      },
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.context_window).toBe(262144);
+  });
+
   it("treats xai-prefixed router models as proprietary", () => {
     const record = __testables.buildModelRecord({
       id: "xai/grok-4",

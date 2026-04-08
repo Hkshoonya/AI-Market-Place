@@ -20,6 +20,28 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://docs.z.ai/guides/llm/glm-5",
+  },
+  "glm-5.1": {
+    name: "GLM-5.1",
+    description:
+      "Z.ai's updated flagship reasoning and coding model family with stronger agentic performance and longer-context production workflows.",
+    category: "llm",
+    context_window: 202752,
+    release_date: "2026-04-03",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.z.ai/devpack/using5.1",
   },
   "glm-5-turbo": {
     name: "GLM-5 Turbo",
@@ -169,6 +191,7 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://docs.z.ai/guides/vlm/glm-ocr",
   },
   "glm-image": {
     name: "GLM Image",
@@ -185,6 +208,7 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://docs.z.ai/guides/image/glm-image",
   },
   "glm-asr-2512": {
     name: "GLM ASR 2512",
@@ -201,5 +225,58 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://docs.z.ai/guides/audio/glm-asr-2512",
+  },
+  "autoglm-phone-multilingual": {
+    name: "AutoGLM Phone Multilingual",
+    description:
+      "Z.ai's multimodal mobile automation framework for understanding phone screens and executing real actions across Android apps.",
+    category: "agentic_browser",
+    release_date: "2025-12-11",
+    architecture: "Multimodal agent framework",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.z.ai/guides/vlm/autoglm-phone-multilingual",
+  },
+  "cogview-4": {
+    name: "CogView-4",
+    description:
+      "Z.ai's open-source text-to-image model for bilingual prompt following, high-resolution generation, and creative image workflows.",
+    category: "image_generation",
+    release_date: "2025-03-04",
+    architecture: "Diffusion Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Open weights",
+    website_url: "https://docs.z.ai/guides/image/cogview-4",
   },
 };
+
+const ZAI_EXACT_MODEL_ALIASES: Record<string, string> = {
+  "zai-org-glm-5": "glm-5",
+  "zai-org-glm-5-1": "glm-5.1",
+};
+
+export function resolveZAIKnownModelMeta(modelId: string): KnownModelMeta | undefined {
+  const exact = ZAI_KNOWN_MODELS[modelId];
+  if (exact) return exact;
+
+  const alias = ZAI_EXACT_MODEL_ALIASES[modelId];
+  if (alias) return ZAI_KNOWN_MODELS[alias];
+
+  return undefined;
+}

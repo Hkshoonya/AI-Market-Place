@@ -42,4 +42,36 @@ describe("resolveGoogleKnownModelMeta", () => {
       modalities: ["text", "image", "audio"],
     });
   });
+
+  it("resolves Google API wrapper IDs to canonical release metadata", () => {
+    expect(resolveGoogleKnownModelMeta("imagen-4.0-generate-001")).toMatchObject({
+      name: "Imagen 4",
+      release_date: "2025-05-20",
+      category: "image_generation",
+    });
+
+    expect(resolveGoogleKnownModelMeta("veo-2.0-generate-001")).toMatchObject({
+      name: "Veo 2",
+      release_date: "2024-12-01",
+      category: "video",
+    });
+  });
+
+  it("resolves Google canonical metadata for embeddings and live-audio aliases", () => {
+    expect(resolveGoogleKnownModelMeta("gemini-embedding-001")).toMatchObject({
+      name: "Gemini Embedding 001",
+      release_date: "2025-07-14",
+      category: "embeddings",
+      context_window: 2048,
+    });
+
+    expect(
+      resolveGoogleKnownModelMeta("gemini-2.5-flash-native-audio-latest")
+    ).toMatchObject({
+      name: "Gemini 2.5 Flash Native Audio",
+      release_date: "2025-09-23",
+      category: "multimodal",
+      context_window: 131072,
+    });
+  });
 });
