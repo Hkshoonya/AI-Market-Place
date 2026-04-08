@@ -34,6 +34,37 @@ const OFFICIAL_PROVIDERS = new Set([
   "Bytedance",
 ]);
 
+function isBenchmarkExpectedModel(model: {
+  category: string | null;
+  slug: string;
+  provider: string;
+}) {
+  const category = model.category ?? "";
+  const text = `${model.provider} ${model.slug}`.toLowerCase();
+
+  if (category === "llm" || category === "multimodal") {
+    return true;
+  }
+
+  if (category === "vision") {
+    return /\b(ocr|doc|docvqa|vqa|parse|chart|screen)\b/.test(text);
+  }
+
+  if (category === "speech_audio") {
+    return /\b(asr|transcribe|transcription|speech|stt)\b/.test(text);
+  }
+
+  if (category === "image_generation" || category === "video") {
+    return false;
+  }
+
+  if (category === "specialized") {
+    return /\b(ocr|asr|transcribe|reasoning|terminal|code|coder|math)\b/.test(text);
+  }
+
+  return false;
+}
+
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: Error | null }>
 ) {
@@ -110,6 +141,12 @@ async function main() {
     category: string | null;
     release_date: string | null;
   }> = [];
+  const recentSparseBenchmarkExpectedOfficialModels: Array<{
+    slug: string;
+    provider: string;
+    category: string | null;
+    release_date: string | null;
+  }> = [];
 
   for (const model of models) {
     const provider = model.provider ?? "Unknown";
@@ -142,6 +179,9 @@ async function main() {
       recentSparseModels.push(entry);
       if (OFFICIAL_PROVIDERS.has(provider)) {
         recentSparseOfficialModels.push(entry);
+        if (isBenchmarkExpectedModel({ ...entry, provider })) {
+          recentSparseBenchmarkExpectedOfficialModels.push(entry);
+        }
       }
     }
 
@@ -176,6 +216,13 @@ async function main() {
         Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
     )
     .slice(0, 40);
+  const recentSparseBenchmarkExpectedOfficial =
+    recentSparseBenchmarkExpectedOfficialModels
+      .sort(
+        (left, right) =>
+          Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+      )
+      .slice(0, 40);
 
   console.log(
     JSON.stringify(
@@ -189,6 +236,8 @@ async function main() {
         official_providers: officialProviders,
         recent_sparse: recentSparse,
         recent_sparse_official: recentSparseOfficial,
+        recent_sparse_benchmark_expected_official:
+          recentSparseBenchmarkExpectedOfficial,
       },
       null,
       2
