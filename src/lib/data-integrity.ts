@@ -16,6 +16,7 @@ import {
   getTrustedBenchmarkWebsiteUrl,
   isBenchmarkExpectedModel,
 } from "@/lib/data-sources/shared/benchmark-coverage";
+import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 
 // ---------------------------------------------------------------------------
 // TABLE_MAP: SyncOutputType -> actual Supabase table name
@@ -124,6 +125,21 @@ export interface DataIntegrityReport {
     missingTrustedBenchmarkLocatorCount: number;
     trustedLocatorCoveragePct: number;
     missingTrustedBenchmarkLocator: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
+  };
+  publicMetadata: {
+    activeModels: number;
+    completeDiscoveryMetadataCount: number;
+    completeDiscoveryMetadataPct: number;
+    missingCategoryCount: number;
+    missingReleaseDateCount: number;
+    openWeightsMissingLicenseCount: number;
+    llmMissingContextWindowCount: number;
+    recentIncompleteModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -702,6 +718,9 @@ export async function verifyDataIntegrity(
       : 0;
 
   const activeModelMetadata = await fetchAllActiveModelMetadata(supabase);
+  const publicMetadataCoverage = await computePublicMetadataCoverage(
+    supabase as never
+  );
   const benchmarkExpectedModels = activeModelMetadata.filter((model) =>
     isBenchmarkExpectedModel(model)
   );
@@ -775,6 +794,17 @@ export async function verifyDataIntegrity(
       missingTrustedBenchmarkLocatorCount,
       trustedLocatorCoveragePct,
       missingTrustedBenchmarkLocator,
+    },
+    publicMetadata: {
+      ...publicMetadataCoverage,
+      recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels.map(
+        (model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          releaseDate: model.release_date,
+        })
+      ),
     },
   };
 }

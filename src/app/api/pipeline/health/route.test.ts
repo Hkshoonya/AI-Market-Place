@@ -56,6 +56,19 @@ vi.mock("@/lib/benchmark-metadata-coverage-compute", () => ({
   }),
 }));
 
+vi.mock("@/lib/public-metadata-coverage-compute", () => ({
+  computePublicMetadataCoverage: vi.fn().mockResolvedValue({
+    activeModels: 100,
+    completeDiscoveryMetadataCount: 80,
+    completeDiscoveryMetadataPct: 80,
+    missingCategoryCount: 5,
+    missingReleaseDateCount: 10,
+    openWeightsMissingLicenseCount: 2,
+    llmMissingContextWindowCount: 4,
+    recentIncompleteModels: [],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Supabase mock helpers
 // ---------------------------------------------------------------------------
@@ -209,6 +222,13 @@ describe("GET /api/pipeline/health", () => {
       expect(body).toHaveProperty("benchmarkCoverage");
       expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
       expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
+      expect(body).toHaveProperty("publicMetadataCoverage");
+      expect(body.publicMetadataCoverage).toHaveProperty(
+        "completeDiscoveryMetadataPct"
+      );
+      expect(body.publicMetadataCoverage).toHaveProperty(
+        "missingReleaseDateCount"
+      );
     });
 
     it("does NOT include adapters field in public response", async () => {
@@ -292,6 +312,7 @@ describe("GET /api/pipeline/health", () => {
       expect(Array.isArray(body.adapters)).toBe(true);
       expect(body.adapters).toHaveLength(1);
       expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
+      expect(body.publicMetadataCoverage).toHaveProperty("recentIncompleteModels");
 
       const adapter = body.adapters[0];
       expect(adapter).toHaveProperty("slug", "adapter-a");

@@ -165,6 +165,23 @@ const SAMPLE_REPORT = {
       },
     ],
   },
+  publicMetadata: {
+    activeModels: 20,
+    completeDiscoveryMetadataCount: 16,
+    completeDiscoveryMetadataPct: 80,
+    missingCategoryCount: 2,
+    missingReleaseDateCount: 3,
+    openWeightsMissingLicenseCount: 1,
+    llmMissingContextWindowCount: 2,
+    recentIncompleteModels: [
+      {
+        slug: "x-ai-grok-next",
+        provider: "xAI",
+        category: "llm",
+        releaseDate: "2026-03-01",
+      },
+    ],
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -408,6 +425,31 @@ describe("GET /api/admin/data-integrity", () => {
     expect(body.benchmarkMetadata).toHaveProperty("trustedLocatorCoveragePct");
     expect(body.benchmarkMetadata).toHaveProperty("missingTrustedBenchmarkLocator");
     expect(Array.isArray(body.benchmarkMetadata.missingTrustedBenchmarkLocator)).toBe(true);
+  });
+
+  it("response includes public metadata coverage", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    mockCreateAdminClient.mockReturnValue(
+      {} as ReturnType<typeof createAdminClient>
+    );
+    mockVerifyDataIntegrity.mockResolvedValue(SAMPLE_REPORT);
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(body).toHaveProperty("publicMetadata");
+    expect(body.publicMetadata).toHaveProperty("completeDiscoveryMetadataPct");
+    expect(body.publicMetadata).toHaveProperty("missingCategoryCount");
+    expect(body.publicMetadata).toHaveProperty("missingReleaseDateCount");
+    expect(body.publicMetadata).toHaveProperty("recentIncompleteModels");
+    expect(Array.isArray(body.publicMetadata.recentIncompleteModels)).toBe(true);
   });
 
   it("calls verifyDataIntegrity with admin client", async () => {

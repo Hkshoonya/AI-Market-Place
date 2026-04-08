@@ -202,6 +202,15 @@ interface PipelineHealthDetail {
     coveredModels: number;
     activeModels: number;
     officialGapCount: number;
+    trustedLocatorCoveragePct: number;
+    missingTrustedLocatorCount: number;
+  };
+  publicMetadataCoverage?: {
+    completeDiscoveryMetadataPct: number;
+    missingCategoryCount: number;
+    missingReleaseDateCount: number;
+    openWeightsMissingLicenseCount: number;
+    llmMissingContextWindowCount: number;
   };
 }
 
@@ -291,6 +300,21 @@ interface DataIntegrityReport {
     missingTrustedBenchmarkLocatorCount: number;
     trustedLocatorCoveragePct: number;
     missingTrustedBenchmarkLocator: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
+  };
+  publicMetadata: {
+    activeModels: number;
+    completeDiscoveryMetadataCount: number;
+    completeDiscoveryMetadataPct: number;
+    missingCategoryCount: number;
+    missingReleaseDateCount: number;
+    openWeightsMissingLicenseCount: number;
+    llmMissingContextWindowCount: number;
+    recentIncompleteModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -850,6 +874,12 @@ export default function AdminDataSourcesPage() {
             {healthData.benchmarkCoverage.officialGapCount}
           </Badge>
         )}
+        {healthData?.publicMetadataCoverage && (
+          <Badge variant="outline" className="border-border/40 text-[10px]">
+            Public metadata: {healthData.publicMetadataCoverage.completeDiscoveryMetadataPct}% · release gaps:{" "}
+            {healthData.publicMetadataCoverage.missingReleaseDateCount}
+          </Badge>
+        )}
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -896,7 +926,7 @@ export default function AdminDataSourcesPage() {
           </div>
         ) : integrityData ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
               {/* Average Quality card */}
               <Card className="border-border/50 bg-card">
                 <CardContent className="p-4">
@@ -1091,6 +1121,51 @@ export default function AdminDataSourcesPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        integrityData.publicMetadata.missingCategoryCount > 0 ||
+                          integrityData.publicMetadata.missingReleaseDateCount > 0 ||
+                          integrityData.publicMetadata.openWeightsMissingLicenseCount > 0
+                          ? "bg-amber-400/15"
+                          : "bg-gain/15"
+                      )}
+                    >
+                      <Database
+                        className={cn(
+                          "h-4 w-4",
+                          integrityData.publicMetadata.missingCategoryCount > 0 ||
+                            integrityData.publicMetadata.missingReleaseDateCount > 0 ||
+                            integrityData.publicMetadata.openWeightsMissingLicenseCount > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-xl font-bold tabular-nums",
+                          integrityData.publicMetadata.missingCategoryCount > 0 ||
+                            integrityData.publicMetadata.missingReleaseDateCount > 0 ||
+                            integrityData.publicMetadata.openWeightsMissingLicenseCount > 0
+                            ? "text-amber-400"
+                            : "text-gain"
+                        )}
+                      >
+                        {integrityData.publicMetadata.completeDiscoveryMetadataPct}%
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Public Metadata · {integrityData.publicMetadata.missingReleaseDateCount} release gaps
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator.length > 0 && (
@@ -1098,6 +1173,18 @@ export default function AdminDataSourcesPage() {
                 <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
                   Benchmark locator gaps:{" "}
                   {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator
+                    .slice(0, 3)
+                    .map((model) => model.slug)
+                    .join(", ")}
+                </Badge>
+              </div>
+            )}
+
+            {integrityData.publicMetadata.recentIncompleteModels.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
+                  Public metadata gaps:{" "}
+                  {integrityData.publicMetadata.recentIncompleteModels
                     .slice(0, 3)
                     .map((model) => model.slug)
                     .join(", ")}

@@ -48,6 +48,19 @@ vi.mock("@/lib/benchmark-metadata-coverage-compute", () => ({
   }),
 }));
 
+vi.mock("@/lib/public-metadata-coverage-compute", () => ({
+  computePublicMetadataCoverage: vi.fn().mockResolvedValue({
+    activeModels: 100,
+    completeDiscoveryMetadataCount: 80,
+    completeDiscoveryMetadataPct: 80,
+    missingCategoryCount: 5,
+    missingReleaseDateCount: 10,
+    openWeightsMissingLicenseCount: 2,
+    llmMissingContextWindowCount: 4,
+    recentIncompleteModels: [],
+  }),
+}));
+
 // ── Mock rate-limit (always allow in tests) ────────────────────────────────────
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({ success: true, limit: 60, remaining: 59, reset: 60 })),
@@ -291,6 +304,14 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
     expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
     expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
+    expect(body).toHaveProperty("publicMetadataCoverage");
+    expect(body.publicMetadataCoverage).toHaveProperty(
+      "completeDiscoveryMetadataPct"
+    );
+    expect(body.publicMetadataCoverage).toHaveProperty(
+      "missingReleaseDateCount"
+    );
+    expect(body.publicMetadataCoverage).toHaveProperty("recentIncompleteModels");
 
     // Adapter fields
     const adapter = body.adapters[0];

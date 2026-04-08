@@ -306,19 +306,43 @@ describe("verifyDataIntegrity", () => {
       {
         slug: "google-gemma-4-31b-it",
         provider: "Google",
+        name: "Gemma 4 31B IT",
         category: "multimodal",
         hf_model_id: "google/gemma-4-31b-it",
         website_url: "https://ai.google.dev/gemma",
         release_date: "2026-04-02",
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Apache 2.0",
+        context_window: 128000,
         status: "active",
       },
       {
         slug: "x-ai-grok-4-20",
         provider: "xAI",
+        name: "Grok 4.20",
         category: "llm",
         hf_model_id: null,
         website_url: null,
         release_date: "2026-04-01",
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: null,
+        status: "active",
+      },
+      {
+        slug: "mystery-model",
+        provider: "Unknown",
+        name: "Mystery Model",
+        category: null,
+        hf_model_id: null,
+        website_url: null,
+        release_date: null,
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: null,
         status: "active",
       },
     ];
@@ -376,6 +400,17 @@ describe("verifyDataIntegrity", () => {
                   }),
                 };
               }
+              if (
+                columns ===
+                "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window"
+              ) {
+                return {
+                  eq: () => ({
+                    range: () =>
+                      Promise.resolve({ data: activeModels, error: null }),
+                  }),
+                };
+              }
 
               return Promise.resolve({ data: activeModels, error: null });
             },
@@ -406,6 +441,7 @@ describe("verifyDataIntegrity", () => {
     expect(report).toHaveProperty("freshness");
     expect(report).toHaveProperty("modelEvidence");
     expect(report).toHaveProperty("benchmarkMetadata");
+    expect(report).toHaveProperty("publicMetadata");
   });
 
   it("summary.totalSources matches data sources count", async () => {
@@ -436,6 +472,22 @@ describe("verifyDataIntegrity", () => {
     expect(report.benchmarkMetadata.missingTrustedBenchmarkLocatorCount).toBe(1);
     expect(report.benchmarkMetadata.trustedLocatorCoveragePct).toBe(50);
     expect(report.benchmarkMetadata.missingTrustedBenchmarkLocator[0]?.slug).toBe(
+      "x-ai-grok-4-20"
+    );
+  });
+
+  it("includes public metadata coverage summary", async () => {
+    const supabase = makeMockSupabase({});
+    const report = await verifyDataIntegrity(supabase as never);
+
+    expect(report.publicMetadata.activeModels).toBe(3);
+    expect(report.publicMetadata.completeDiscoveryMetadataCount).toBe(2);
+    expect(report.publicMetadata.completeDiscoveryMetadataPct).toBeCloseTo(66.7);
+    expect(report.publicMetadata.missingCategoryCount).toBe(1);
+    expect(report.publicMetadata.missingReleaseDateCount).toBe(1);
+    expect(report.publicMetadata.openWeightsMissingLicenseCount).toBe(0);
+    expect(report.publicMetadata.llmMissingContextWindowCount).toBe(1);
+    expect(report.publicMetadata.recentIncompleteModels[0]?.slug).toBe(
       "x-ai-grok-4-20"
     );
   });

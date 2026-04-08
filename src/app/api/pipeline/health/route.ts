@@ -25,6 +25,7 @@ import {
 } from "@/lib/pipeline-health-compute";
 import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
+import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,13 @@ const PipelineHealthSummarySchema = z.object({
     trustedLocatorCoveragePct: z.number(),
     missingTrustedLocatorCount: z.number(),
   }),
+  publicMetadataCoverage: z.object({
+    completeDiscoveryMetadataPct: z.number(),
+    missingCategoryCount: z.number(),
+    missingReleaseDateCount: z.number(),
+    openWeightsMissingLicenseCount: z.number(),
+    llmMissingContextWindowCount: z.number(),
+  }),
 });
 
 const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
@@ -82,6 +90,21 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
     recentMissingTrustedLocators: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+      })
+    ),
+  }),
+  publicMetadataCoverage: z.object({
+    completeDiscoveryMetadataPct: z.number(),
+    missingCategoryCount: z.number(),
+    missingReleaseDateCount: z.number(),
+    openWeightsMissingLicenseCount: z.number(),
+    llmMissingContextWindowCount: z.number(),
+    recentIncompleteModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),
@@ -124,6 +147,7 @@ export async function GET(request: NextRequest) {
       pipelineHealthResult,
       benchmarkCoverage,
       benchmarkMetadataCoverage,
+      publicMetadataCoverage,
     ] = await Promise.all([
       supabase
         .from("data_sources")
@@ -135,6 +159,7 @@ export async function GET(request: NextRequest) {
         .select("source_slug, consecutive_failures, last_success_at, expected_interval_hours"),
       computeBenchmarkCoverage(supabase),
       computeBenchmarkMetadataCoverage(supabase),
+      computePublicMetadataCoverage(supabase),
     ]);
 
     if (dataSourcesResult.error) {
@@ -220,6 +245,17 @@ export async function GET(request: NextRequest) {
           recentMissingTrustedLocators:
             benchmarkMetadataCoverage.recentMissingTrustedLocators,
         },
+        publicMetadataCoverage: {
+          completeDiscoveryMetadataPct:
+            publicMetadataCoverage.completeDiscoveryMetadataPct,
+          missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
+          missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
+          openWeightsMissingLicenseCount:
+            publicMetadataCoverage.openWeightsMissingLicenseCount,
+          llmMissingContextWindowCount:
+            publicMetadataCoverage.llmMissingContextWindowCount,
+          recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels,
+        },
       });
       return NextResponse.json(detail);
     }
@@ -231,6 +267,16 @@ export async function GET(request: NextRequest) {
       down: downCount,
       checkedAt,
       benchmarkCoverage: benchmarkCoverageSummary,
+      publicMetadataCoverage: {
+        completeDiscoveryMetadataPct:
+          publicMetadataCoverage.completeDiscoveryMetadataPct,
+        missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
+        missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
+        openWeightsMissingLicenseCount:
+          publicMetadataCoverage.openWeightsMissingLicenseCount,
+        llmMissingContextWindowCount:
+          publicMetadataCoverage.llmMissingContextWindowCount,
+      },
     });
     return NextResponse.json(summary);
   } catch (err) {

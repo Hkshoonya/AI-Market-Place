@@ -110,6 +110,23 @@ const DataIntegrityReportSchema = z.object({
       })
     ),
   }),
+  publicMetadata: z.object({
+    activeModels: z.number(),
+    completeDiscoveryMetadataCount: z.number(),
+    completeDiscoveryMetadataPct: z.number(),
+    missingCategoryCount: z.number(),
+    missingReleaseDateCount: z.number(),
+    openWeightsMissingLicenseCount: z.number(),
+    llmMissingContextWindowCount: z.number(),
+    recentIncompleteModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+      })
+    ),
+  }),
 });
 
 // ---------------------------------------------------------------------------
