@@ -90,6 +90,21 @@ describe("buildRecord()", () => {
     expect(record.description).toBe("Overridden description");
   });
 
+  it("does not let undefined overrides wipe known metadata", () => {
+    const record = buildRecord(
+      "claude-opus-4-6",
+      knownClaudeOpus,
+      {
+        release_date: undefined,
+        context_window: undefined,
+      },
+      anthropicDefaults
+    );
+
+    expect(record.release_date).toBe("2025-04-01");
+    expect(record.context_window).toBe(200000);
+  });
+
   it("uses modelId as fallback name when knownData is undefined", () => {
     const record = buildRecord("unknown-model-xyz", undefined, {}, openaiDefaults);
 

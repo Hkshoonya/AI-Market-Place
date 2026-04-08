@@ -203,6 +203,14 @@ function normalizeModelCategory(
     : fallbackCategory;
 }
 
+function omitUndefinedFields<T extends Record<string, unknown>>(
+  value: T
+): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined)
+  ) as Partial<T>;
+}
+
 /**
  * Build a normalized DB record for a model.
  *
@@ -224,7 +232,10 @@ export function buildRecord(
   defaults: ProviderDefaults
 ): Record<string, unknown> {
   // Merge known static data with per-call overrides (overrides win)
-  const merged: Partial<KnownModelMeta> = { ...knownData, ...overrides };
+  const merged: Partial<KnownModelMeta> = {
+    ...knownData,
+    ...omitUndefinedFields(overrides),
+  };
 
   // Slug: "{slugPrefix}-{modelId}"
   const slug = makeSlug(`${defaults.slugPrefix}-${modelId}`);
