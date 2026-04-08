@@ -197,6 +197,12 @@ interface PipelineHealthDetail {
   down: number;
   checkedAt: string;
   adapters: AdapterHealth[];
+  benchmarkCoverage?: {
+    coveragePct: number;
+    coveredModels: number;
+    activeModels: number;
+    officialGapCount: number;
+  };
 }
 
 interface SyncJob {
@@ -824,6 +830,12 @@ export default function AdminDataSourcesPage() {
         <Badge variant="outline" className="border-border/40 text-[10px]">
           Pipeline health: {healthData?.status ?? "healthy"}
         </Badge>
+        {healthData?.benchmarkCoverage && (
+          <Badge variant="outline" className="border-border/40 text-[10px]">
+            Benchmark coverage: {healthData.benchmarkCoverage.coveragePct}% · gaps:{" "}
+            {healthData.benchmarkCoverage.officialGapCount}
+          </Badge>
+        )}
       </div>
 
       {/* ------------------------------------------------------------------ */}

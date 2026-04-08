@@ -23,6 +23,7 @@ import {
   computeStatus,
   resolveEffectiveHealthRow,
 } from "@/lib/pipeline-health-compute";
+import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +46,37 @@ const PipelineHealthSummarySchema = z.object({
   degraded: z.number(),
   down: z.number(),
   checkedAt: z.string(),
+  benchmarkCoverage: z.object({
+    coveragePct: z.number(),
+    coveredModels: z.number(),
+    activeModels: z.number(),
+    officialGapCount: z.number(),
+  }),
 });
 
 const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   adapters: z.array(AdapterHealthSchema),
+  benchmarkCoverage: z.object({
+    coveragePct: z.number(),
+    coveredModels: z.number(),
+    activeModels: z.number(),
+    officialGapCount: z.number(),
+    weakestOfficialProviders: z.array(
+      z.object({
+        provider: z.string(),
+        coverage_pct: z.number(),
+        total: z.number(),
+      })
+    ),
+    recentOfficialGaps: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+      })
+    ),
+  }),
 });
 
 function sanitizePipelineErrorMessage(error: string | null | undefined) {
@@ -78,7 +106,7 @@ export async function GET(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Fetch data_sources and pipeline_health in parallel
-    const [dataSourcesResult, pipelineHealthResult] = await Promise.all([
+    const [dataSourcesResult, pipelineHealthResult, benchmarkCoverage] = await Promise.all([
       supabase
         .from("data_sources")
         .select("slug, is_enabled, last_success_at, last_sync_at, last_sync_records, last_error_message, sync_interval_hours")
@@ -87,6 +115,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from("pipeline_health")
         .select("source_slug, consecutive_failures, last_success_at, expected_interval_hours"),
+      computeBenchmarkCoverage(supabase),
     ]);
 
     if (dataSourcesResult.error) {
@@ -138,6 +167,13 @@ export async function GET(request: NextRequest) {
       downCount > 0 ? "down" : degradedCount > 0 ? "degraded" : "healthy";
 
     const checkedAt = new Date().toISOString();
+    const benchmarkCoverageSummary = {
+      coveragePct: benchmarkCoverage.totals.coverage_pct,
+      coveredModels: benchmarkCoverage.totals.covered_models,
+      activeModels: benchmarkCoverage.totals.active_models,
+      officialGapCount:
+        benchmarkCoverage.recent_sparse_benchmark_expected_official.length,
+    };
 
     if (isAuthenticated) {
       const detail = PipelineHealthDetailSchema.parse({
@@ -147,6 +183,18 @@ export async function GET(request: NextRequest) {
         down: downCount,
         checkedAt,
         adapters: adapterStatuses,
+        benchmarkCoverage: {
+          ...benchmarkCoverageSummary,
+          weakestOfficialProviders: benchmarkCoverage.official_providers
+            .slice(0, 5)
+            .map((provider) => ({
+              provider: provider.provider,
+              coverage_pct: provider.coverage_pct,
+              total: provider.total,
+            })),
+          recentOfficialGaps:
+            benchmarkCoverage.recent_sparse_benchmark_expected_official.slice(0, 10),
+        },
       });
       return NextResponse.json(detail);
     }
@@ -157,6 +205,7 @@ export async function GET(request: NextRequest) {
       degraded: degradedCount,
       down: downCount,
       checkedAt,
+      benchmarkCoverage: benchmarkCoverageSummary,
     });
     return NextResponse.json(summary);
   } catch (err) {
