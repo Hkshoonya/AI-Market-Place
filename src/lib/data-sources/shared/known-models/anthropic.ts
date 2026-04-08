@@ -211,3 +211,38 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     },
   },
 };
+
+export function resolveAnthropicKnownModelMeta(
+  modelId: string
+): KnownModelMeta | undefined {
+  const direct = ANTHROPIC_KNOWN_MODELS[modelId];
+  if (direct) return direct;
+
+  const candidates = new Set<string>([
+    modelId.replace(/-v\d+$/, ""),
+    modelId.replace(/-\d{8}(?:-v\d+)?$/, ""),
+    modelId.replace(/-(202\d{5})(?:-v\d+)?$/, ""),
+  ]);
+
+  const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-(opus|sonnet|haiku)-4-5(?:-v\d+)?$/, "claude-4-5-$1"],
+    [/^claude-(opus|sonnet)-4-6(?:-v\d+)?$/, "claude-$1-4-6"],
+    [/^claude-(opus|sonnet)-4(?:-0)?$/, "claude-4-$1"],
+    [/^claude-(opus|sonnet|haiku)-4-5-(\d{8})(?:-v\d+)?$/, "claude-4-5-$1"],
+    [/^claude-(opus|sonnet)-4-(\d{8})(?:-v\d+)?$/, "claude-4-$1"],
+  ];
+
+  for (const [pattern, replacement] of familyAliasMatches) {
+    if (pattern.test(modelId)) {
+      candidates.add(modelId.replace(pattern, replacement));
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (candidate && ANTHROPIC_KNOWN_MODELS[candidate]) {
+      return ANTHROPIC_KNOWN_MODELS[candidate];
+    }
+  }
+
+  return undefined;
+}

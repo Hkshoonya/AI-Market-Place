@@ -552,6 +552,70 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "gpt-4o-transcribe": {
+    name: "GPT-4o Transcribe",
+    description:
+      "Speech-to-text model in the GPT-4o family for high-quality transcription and audio understanding workflows.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-03-20",
+    architecture: "Transformer (audio)",
+    status: "active",
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+      streaming: true,
+    },
+  },
+  "gpt-4o-transcribe-diarize": {
+    name: "GPT-4o Transcribe Diarize",
+    description:
+      "Diarization-capable GPT-4o transcription model for speaker-aware speech-to-text workflows.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-03-20",
+    architecture: "Transformer (audio)",
+    status: "active",
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+      streaming: true,
+    },
+  },
+  "gpt-4o-mini-transcribe": {
+    name: "GPT-4o Mini Transcribe",
+    description:
+      "Compact GPT-4o-family transcription model tuned for affordable speech-to-text and voice-assistant pipelines.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-03-20",
+    architecture: "Transformer (audio)",
+    status: "active",
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+      streaming: true,
+    },
+  },
+  "gpt-4o-mini-tts": {
+    name: "GPT-4o Mini TTS",
+    description:
+      "Compact text-to-speech model in the GPT-4o family for low-cost voice output and streaming assistants.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-03-20",
+    architecture: "Transformer (audio)",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      text_to_speech: true,
+      streaming: true,
+    },
+  },
   "gpt-realtime-mini": {
     name: "GPT Realtime Mini",
     description:
@@ -651,6 +715,36 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "babbage-002": {
+    name: "babbage-002",
+    description:
+      "Legacy OpenAI base model retained for older completions-style and fine-tuning-compatible workflows.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 16384,
+    release_date: "2023-11-06",
+    architecture: "Transformer",
+    status: "deprecated",
+    modalities: ["text"],
+    capabilities: {
+      streaming: true,
+    },
+  },
+  "davinci-002": {
+    name: "davinci-002",
+    description:
+      "Legacy OpenAI base model retained for older completions-style and fine-tuning-compatible workflows with stronger general capability than babbage-002.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 16384,
+    release_date: "2023-11-06",
+    architecture: "Transformer",
+    status: "deprecated",
+    modalities: ["text"],
+    capabilities: {
+      streaming: true,
+    },
+  },
   "whisper-1": {
     name: "Whisper",
     description:
@@ -719,3 +813,39 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     capabilities: { embeddings: true },
   },
 };
+
+function normalizeOpenAiFamilyId(modelId: string) {
+  return modelId.replace(/^gpt-(\d)-(\d)(?=-|$)/, "gpt-$1.$2");
+}
+
+export function resolveOpenAIKnownModelMeta(
+  modelId: string
+): KnownModelMeta | undefined {
+  const direct = OPENAI_KNOWN_MODELS[modelId];
+  if (direct) return direct;
+
+  const normalized = normalizeOpenAiFamilyId(modelId);
+  const candidates = new Set<string>([normalized]);
+
+  const withoutLatest = normalized.replace(/-latest$/, "");
+  candidates.add(withoutLatest);
+  candidates.add(withoutLatest.replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(withoutLatest.replace(/-\d{4}-\d{2}-\d{2}$/, ""));
+  candidates.add(
+    withoutLatest
+      .replace(/-\d{4}-\d{2}-\d{2}$/, "")
+      .replace(/-(chat|codex|pro|structured|instant)$/, "")
+  );
+  candidates.add(normalized.replace(/-\d{8}$/, ""));
+  candidates.add(normalized.replace(/-\d{4}$/, ""));
+  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-instruct$/, "-instruct"));
+  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(chat|codex|pro|structured|instant)$/, ""));
+
+  for (const candidate of candidates) {
+    if (candidate && OPENAI_KNOWN_MODELS[candidate]) {
+      return OPENAI_KNOWN_MODELS[candidate];
+    }
+  }
+
+  return undefined;
+}

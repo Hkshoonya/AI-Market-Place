@@ -18,7 +18,10 @@ import {
   type KnownModelMeta,
   type ProviderDefaults,
 } from "../shared/build-record";
-import { ANTHROPIC_KNOWN_MODELS } from "../shared/known-models/anthropic";
+import {
+  ANTHROPIC_KNOWN_MODELS,
+  resolveAnthropicKnownModelMeta,
+} from "../shared/known-models/anthropic";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +45,7 @@ function boundBuildRecord(
 ): Record<string, unknown> {
   return buildRecord(
     modelId,
-    ANTHROPIC_KNOWN_MODELS[modelId],
+    resolveAnthropicKnownModelMeta(modelId),
     overrides,
     PROVIDER_DEFAULTS
   );
@@ -145,7 +148,12 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       found.add(match[1]);
     }
 
-    return [...found];
+    return [...found].filter((modelId) => {
+      if (/^claude-(computer-use|4|4-6)$/.test(modelId)) {
+        return false;
+      }
+      return true;
+    });
   } catch {
     return [];
   }

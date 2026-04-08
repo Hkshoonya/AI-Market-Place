@@ -18,7 +18,10 @@ import {
   type KnownModelMeta,
   type ProviderDefaults,
 } from "../shared/build-record";
-import { OPENAI_KNOWN_MODELS } from "../shared/known-models/openai";
+import {
+  OPENAI_KNOWN_MODELS,
+  resolveOpenAIKnownModelMeta,
+} from "../shared/known-models/openai";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +44,7 @@ function boundBuildRecord(
 ): Record<string, unknown> {
   return buildRecord(
     modelId,
-    OPENAI_KNOWN_MODELS[modelId],
+    resolveOpenAIKnownModelMeta(modelId),
     overrides,
     PROVIDER_DEFAULTS
   );
@@ -119,7 +122,12 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       found.add(match[1]);
     }
 
-    return [...found];
+    return [...found].filter((modelId) => {
+      if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
+        return false;
+      }
+      return true;
+    });
   } catch {
     return [];
   }
