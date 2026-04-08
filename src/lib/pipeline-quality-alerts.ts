@@ -4,7 +4,8 @@ export type PipelineDataQualityAlert = {
     | "benchmark_official_gaps"
     | "missing_trusted_benchmark_locators"
     | "official_metadata_completeness"
-    | "official_discovery_readiness";
+    | "official_discovery_readiness"
+    | "official_ranking_contamination";
   message: string;
   value: number;
   target: number;
@@ -19,6 +20,7 @@ type BenchmarkCoverageSummaryInput = {
 type PublicMetadataCoverageSummaryInput = {
   officialCompleteDiscoveryMetadataPct: number;
   officialDefaultPublicSurfaceReadyPct: number;
+  officialRankingContaminationCount: number;
 };
 
 export function computePipelineDataQualityAlerts(input: {
@@ -71,6 +73,17 @@ export function computePipelineDataQualityAlerts(input: {
       message: "Official models are not fully ready for default public discovery.",
       value: input.publicMetadataCoverage.officialDefaultPublicSurfaceReadyPct,
       target: 95,
+    });
+  }
+
+  if (input.publicMetadataCoverage.officialRankingContaminationCount > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "official_ranking_contamination",
+      message:
+        "Some official models still have public ranking fields despite failing discovery readiness.",
+      value: input.publicMetadataCoverage.officialRankingContaminationCount,
+      target: 0,
     });
   }
 

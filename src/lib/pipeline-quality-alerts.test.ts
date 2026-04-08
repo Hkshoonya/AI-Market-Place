@@ -16,6 +16,7 @@ describe("pipeline data quality alerts", () => {
       publicMetadataCoverage: {
         officialCompleteDiscoveryMetadataPct: 99.5,
         officialDefaultPublicSurfaceReadyPct: 97.2,
+        officialRankingContaminationCount: 0,
       },
     });
 
@@ -33,6 +34,7 @@ describe("pipeline data quality alerts", () => {
       publicMetadataCoverage: {
         officialCompleteDiscoveryMetadataPct: 96.5,
         officialDefaultPublicSurfaceReadyPct: 88,
+        officialRankingContaminationCount: 2,
       },
     });
 
@@ -41,6 +43,7 @@ describe("pipeline data quality alerts", () => {
       "missing_trusted_benchmark_locators",
       "official_metadata_completeness",
       "official_discovery_readiness",
+      "official_ranking_contamination",
     ]);
     expect(computePipelineDataQualityStatus(alerts)).toBe("critical");
   });

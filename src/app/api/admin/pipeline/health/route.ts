@@ -84,9 +84,11 @@ const PipelineHealthSummarySchema = z.object({
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    rankingContaminationCount: z.number(),
     officialCompleteDiscoveryMetadataPct: z.number(),
     officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
+    officialRankingContaminationCount: z.number(),
   }),
 });
 
@@ -136,9 +138,11 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    rankingContaminationCount: z.number(),
     officialCompleteDiscoveryMetadataPct: z.number(),
     officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
+    officialRankingContaminationCount: z.number(),
     topOfficialReadinessBlockers: z.array(
       z.object({
         reason: z.string(),
@@ -187,6 +191,24 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
     recentNotReadyOfficialModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        reasons: z.array(z.string()),
+      })
+    ),
+    recentRankingContaminationModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        reasons: z.array(z.string()),
+      })
+    ),
+    recentRankingContaminationOfficialModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),
@@ -337,6 +359,8 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.official.completeDiscoveryMetadataPct,
         officialDefaultPublicSurfaceReadyPct:
           publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
+        officialRankingContaminationCount:
+          publicMetadataCoverage.official.rankingContaminationCount,
       },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
@@ -377,12 +401,16 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.openWeightsMissingLicenseCount,
         llmMissingContextWindowCount:
           publicMetadataCoverage.llmMissingContextWindowCount,
+        rankingContaminationCount:
+          publicMetadataCoverage.rankingContaminationCount,
         officialCompleteDiscoveryMetadataPct:
           publicMetadataCoverage.official.completeDiscoveryMetadataPct,
         officialDefaultPublicSurfaceReadyPct:
           publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
         officialMissingReleaseDateCount:
           publicMetadataCoverage.official.missingReleaseDateCount,
+        officialRankingContaminationCount:
+          publicMetadataCoverage.official.rankingContaminationCount,
         topOfficialReadinessBlockers:
           publicMetadataCoverage.official.topReadinessBlockers.slice(0, 5),
         weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
@@ -407,6 +435,10 @@ export async function GET(request: NextRequest) {
         recentNotReadyModels: publicMetadataCoverage.recentNotReadyModels,
         recentNotReadyOfficialModels:
           publicMetadataCoverage.official.recentNotReadyModels,
+        recentRankingContaminationModels:
+          publicMetadataCoverage.recentRankingContaminationModels,
+        recentRankingContaminationOfficialModels:
+          publicMetadataCoverage.official.recentRankingContaminationModels,
       },
     });
 

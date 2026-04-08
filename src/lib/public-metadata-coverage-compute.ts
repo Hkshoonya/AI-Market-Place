@@ -1,5 +1,6 @@
 import type { TypedSupabaseClient } from "@/types/database";
 import { getPublicSurfaceSeriesKey } from "@/lib/models/public-families";
+import { hasPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 import {
   getDefaultPublicSurfaceReadinessBlockers,
   hasCompletePublicMetadata,
@@ -45,6 +46,14 @@ type CoverageFamilyAggregate = {
 };
 
 type NotReadyRow = {
+  slug: string;
+  provider: string;
+  category: string | null;
+  release_date: string | null;
+  reasons: PublicSurfaceReadinessBlocker[];
+};
+
+type RankingContaminationRow = {
   slug: string;
   provider: string;
   category: string | null;
@@ -153,6 +162,25 @@ function buildRecentNotReadyRows(models: ActiveModelPublicMetadataRow[]): NotRea
     .slice(0, 10);
 }
 
+function buildRecentRankingContaminationRows(
+  models: ActiveModelPublicMetadataRow[]
+): RankingContaminationRow[] {
+  return models
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+      release_date: model.release_date,
+      reasons: getDefaultPublicSurfaceReadinessBlockers(model),
+    }))
+    .filter((model) => model.reasons.length > 0)
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 10);
+}
+
 export async function computePublicMetadataCoverage(
   supabase: TypedSupabaseClient
 ) {
@@ -209,6 +237,14 @@ export async function computePublicMetadataCoverage(
   );
   const officialLlmMissingContextWindow = officialModels.filter(
     (model) => needsContextWindowForCoverage(model) && !model.context_window
+  );
+  const rankingContaminationModels = effectiveModels.filter(
+    (model) =>
+      !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
+  );
+  const officialRankingContaminationModels = officialModels.filter(
+    (model) =>
+      !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
   );
   const completeDiscoveryMetadataCount = models.filter(
     (_, index) => hasDiscoveryMetadata(effectiveModels[index]!)
@@ -274,6 +310,9 @@ export async function computePublicMetadataCoverage(
         release_date: model.release_date,
     }));
   const recentNotReadyModels = buildRecentNotReadyRows(effectiveModels);
+  const recentRankingContaminationModels = buildRecentRankingContaminationRows(
+    rankingContaminationModels
+  );
 
   const providerStats = new Map<
     string,
@@ -323,6 +362,7 @@ export async function computePublicMetadataCoverage(
     releaseDateExemptAliasCount,
     openWeightsMissingLicenseCount: openWeightsMissingLicense.length,
     llmMissingContextWindowCount: llmMissingContextWindow.length,
+    rankingContaminationCount: rankingContaminationModels.length,
     official: {
       activeModels: officialModels.length,
       completeDiscoveryMetadataCount: officialCompleteDiscoveryMetadataCount,
@@ -335,6 +375,7 @@ export async function computePublicMetadataCoverage(
       releaseDateExemptAliasCount: officialReleaseDateExemptAliasCount,
       openWeightsMissingLicenseCount: officialOpenWeightsMissingLicense.length,
       llmMissingContextWindowCount: officialLlmMissingContextWindow.length,
+      rankingContaminationCount: officialRankingContaminationModels.length,
       providers: [...providerStats.entries()]
         .filter(([provider]) => OFFICIAL_PROVIDERS.has(provider))
         .map(([provider, stats]) => ({
@@ -378,6 +419,8 @@ export async function computePublicMetadataCoverage(
           release_date: model.release_date,
         })),
       recentNotReadyModels: buildRecentNotReadyRows(officialModels),
+      recentRankingContaminationModels:
+        buildRecentRankingContaminationRows(officialRankingContaminationModels),
     },
     providers: [...providerStats.entries()]
       .map(([provider, stats]) => ({
@@ -403,5 +446,6 @@ export async function computePublicMetadataCoverage(
       ),
     recentIncompleteModels,
     recentNotReadyModels,
+    recentRankingContaminationModels,
   };
 }

@@ -224,9 +224,11 @@ interface PipelineHealthDetail {
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    rankingContaminationCount: number;
     officialCompleteDiscoveryMetadataPct: number;
     officialDefaultPublicSurfaceReadyPct: number;
     officialMissingReleaseDateCount: number;
+    officialRankingContaminationCount: number;
     topOfficialReadinessBlockers: Array<{
       reason: string;
       count: number;
@@ -340,6 +342,7 @@ interface DataIntegrityReport {
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    rankingContaminationCount: number;
     official: {
       activeModels: number;
       completeDiscoveryMetadataCount: number;
@@ -354,6 +357,7 @@ interface DataIntegrityReport {
       missingReleaseDateCount: number;
       openWeightsMissingLicenseCount: number;
       llmMissingContextWindowCount: number;
+      rankingContaminationCount: number;
       providers: Array<{
         provider: string;
         total: number;
@@ -371,6 +375,13 @@ interface DataIntegrityReport {
         releaseDate: string | null;
       }>;
       recentNotReadyModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+        reasons: string[];
+      }>;
+      recentRankingContaminationModels: Array<{
         slug: string;
         provider: string;
         category: string | null;
@@ -395,6 +406,13 @@ interface DataIntegrityReport {
       releaseDate: string | null;
     }>;
     recentNotReadyModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      reasons: string[];
+    }>;
+    recentRankingContaminationModels: Array<{
       slug: string;
       provider: string;
       category: string | null;

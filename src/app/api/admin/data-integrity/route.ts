@@ -126,6 +126,7 @@ const DataIntegrityReportSchema = z.object({
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    rankingContaminationCount: z.number(),
     official: z.object({
       activeModels: z.number(),
       completeDiscoveryMetadataCount: z.number(),
@@ -142,6 +143,7 @@ const DataIntegrityReportSchema = z.object({
       missingReleaseDateCount: z.number(),
       openWeightsMissingLicenseCount: z.number(),
       llmMissingContextWindowCount: z.number(),
+      rankingContaminationCount: z.number(),
       providers: z.array(
         z.object({
           provider: z.string(),
@@ -164,6 +166,15 @@ const DataIntegrityReportSchema = z.object({
         })
       ),
       recentNotReadyModels: z.array(
+        z.object({
+          slug: z.string(),
+          provider: z.string(),
+          category: z.string().nullable(),
+          releaseDate: z.string().nullable(),
+          reasons: z.array(z.string()),
+        })
+      ),
+      recentRankingContaminationModels: z.array(
         z.object({
           slug: z.string(),
           provider: z.string(),
@@ -195,6 +206,15 @@ const DataIntegrityReportSchema = z.object({
       })
     ),
     recentNotReadyModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+        reasons: z.array(z.string()),
+      })
+    ),
+    recentRankingContaminationModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),

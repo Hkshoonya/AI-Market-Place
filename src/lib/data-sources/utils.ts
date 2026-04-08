@@ -11,6 +11,7 @@ import type { SyncError } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { getDefaultPublicSurfaceReadinessBlockers } from "@/lib/models/public-surface-readiness";
+import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 
 // --------------- Retry & Fetch ---------------
 
@@ -217,29 +218,6 @@ function normalizeProviderFields(
   return normalized;
 }
 
-const MODEL_PUBLIC_RANKING_FIELDS = [
-  "overall_rank",
-  "popularity_score",
-  "adoption_score",
-  "quality_score",
-  "value_score",
-  "economic_footprint_score",
-  "market_cap_estimate",
-  "popularity_rank",
-  "adoption_rank",
-  "agent_score",
-  "agent_rank",
-  "capability_score",
-  "capability_rank",
-  "economic_footprint_rank",
-  "usage_score",
-  "usage_rank",
-  "expert_score",
-  "expert_rank",
-  "balanced_rank",
-  "hf_trending_score",
-] as const;
-
 function normalizeModelRankingInputs(
   record: Record<string, unknown>
 ): Record<string, unknown> {
@@ -299,12 +277,7 @@ function normalizeModelRankingInputs(
     return record;
   }
 
-  const downgraded = { ...record };
-  for (const field of MODEL_PUBLIC_RANKING_FIELDS) {
-    downgraded[field] = null;
-  }
-
-  return downgraded;
+  return stripPublicRankingInputs(record);
 }
 
 function isTransientOperationError(error: unknown): boolean {

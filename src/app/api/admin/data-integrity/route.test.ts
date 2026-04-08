@@ -176,6 +176,7 @@ const SAMPLE_REPORT = {
     missingReleaseDateCount: 3,
     openWeightsMissingLicenseCount: 1,
     llmMissingContextWindowCount: 2,
+    rankingContaminationCount: 2,
     official: {
       activeModels: 10,
       completeDiscoveryMetadataCount: 9,
@@ -187,6 +188,7 @@ const SAMPLE_REPORT = {
       missingReleaseDateCount: 1,
       openWeightsMissingLicenseCount: 0,
       llmMissingContextWindowCount: 1,
+      rankingContaminationCount: 1,
       providers: [
         {
           provider: "xAI",
@@ -217,6 +219,7 @@ const SAMPLE_REPORT = {
           reasons: ["missing_release_date"],
         },
       ],
+      recentRankingContaminationModels: [],
     },
     providers: [
       {
@@ -248,6 +251,7 @@ const SAMPLE_REPORT = {
         reasons: ["missing_release_date"],
       },
     ],
+    recentRankingContaminationModels: [],
   },
 };
 

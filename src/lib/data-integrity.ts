@@ -146,6 +146,7 @@ export interface DataIntegrityReport {
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    rankingContaminationCount: number;
     official: {
       activeModels: number;
       completeDiscoveryMetadataCount: number;
@@ -160,6 +161,7 @@ export interface DataIntegrityReport {
       missingReleaseDateCount: number;
       openWeightsMissingLicenseCount: number;
       llmMissingContextWindowCount: number;
+      rankingContaminationCount: number;
       providers: Array<{
         provider: string;
         total: number;
@@ -178,6 +180,13 @@ export interface DataIntegrityReport {
         releaseDate: string | null;
       }>;
       recentNotReadyModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+        reasons: PublicSurfaceReadinessBlocker[];
+      }>;
+      recentRankingContaminationModels: Array<{
         slug: string;
         provider: string;
         category: string | null;
@@ -203,6 +212,13 @@ export interface DataIntegrityReport {
       releaseDate: string | null;
     }>;
     recentNotReadyModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      reasons: PublicSurfaceReadinessBlocker[];
+    }>;
+    recentRankingContaminationModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -870,6 +886,14 @@ export async function verifyDataIntegrity(
           reasons: model.reasons,
         })
       ),
+      recentRankingContaminationModels:
+        publicMetadataCoverage.recentRankingContaminationModels.map((model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          releaseDate: model.release_date,
+          reasons: model.reasons,
+        })),
       official: {
         ...publicMetadataCoverage.official,
         recentIncompleteModels:
@@ -887,6 +911,16 @@ export async function verifyDataIntegrity(
             releaseDate: model.release_date,
             reasons: model.reasons,
           })),
+        recentRankingContaminationModels:
+          publicMetadataCoverage.official.recentRankingContaminationModels.map(
+            (model) => ({
+              slug: model.slug,
+              provider: model.provider,
+              category: model.category,
+              releaseDate: model.release_date,
+              reasons: model.reasons,
+            })
+          ),
       },
       recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels.map(
         (model) => ({

@@ -68,6 +68,7 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
     missingReleaseDateCount: 10,
     openWeightsMissingLicenseCount: 2,
     llmMissingContextWindowCount: 4,
+    rankingContaminationCount: 3,
     official: {
       activeModels: 40,
       completeDiscoveryMetadataCount: 34,
@@ -79,6 +80,7 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
       missingReleaseDateCount: 4,
       openWeightsMissingLicenseCount: 0,
       llmMissingContextWindowCount: 2,
+      rankingContaminationCount: 1,
       providers: [
         {
           provider: "Google",
@@ -93,6 +95,7 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
       ],
       recentIncompleteModels: [],
       recentNotReadyModels: [],
+      recentRankingContaminationModels: [],
     },
     providers: [
       {
@@ -108,6 +111,7 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
     ],
     recentIncompleteModels: [],
     recentNotReadyModels: [],
+    recentRankingContaminationModels: [],
   }),
 }));
 
