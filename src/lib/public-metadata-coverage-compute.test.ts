@@ -60,6 +60,8 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.missingReleaseDateCount).toBe(1);
     expect(coverage.openWeightsMissingLicenseCount).toBe(0);
     expect(coverage.llmMissingContextWindowCount).toBe(1);
+    expect(coverage.providers[0]?.provider).toBe("Unknown");
+    expect(coverage.providers[0]?.complete_pct).toBe(0);
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
   });
 });

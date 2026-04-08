@@ -65,6 +65,16 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
     missingReleaseDateCount: 10,
     openWeightsMissingLicenseCount: 2,
     llmMissingContextWindowCount: 4,
+    providers: [
+      {
+        provider: "ExampleAI",
+        total: 10,
+        complete: 6,
+        complete_pct: 60,
+        missingCategoryCount: 1,
+        missingReleaseDateCount: 3,
+      },
+    ],
     recentIncompleteModels: [],
   }),
 }));
@@ -229,6 +239,7 @@ describe("GET /api/pipeline/health", () => {
       expect(body.publicMetadataCoverage).toHaveProperty(
         "missingReleaseDateCount"
       );
+      expect(body.publicMetadataCoverage).not.toHaveProperty("weakestProviders");
     });
 
     it("does NOT include adapters field in public response", async () => {
@@ -312,6 +323,7 @@ describe("GET /api/pipeline/health", () => {
       expect(Array.isArray(body.adapters)).toBe(true);
       expect(body.adapters).toHaveLength(1);
       expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
+      expect(body.publicMetadataCoverage).toHaveProperty("weakestProviders");
       expect(body.publicMetadataCoverage).toHaveProperty("recentIncompleteModels");
 
       const adapter = body.adapters[0];

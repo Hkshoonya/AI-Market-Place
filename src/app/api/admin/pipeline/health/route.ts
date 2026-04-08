@@ -111,6 +111,13 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    weakestProviders: z.array(
+      z.object({
+        provider: z.string(),
+        complete_pct: z.number(),
+        total: z.number(),
+      })
+    ),
     recentIncompleteModels: z.array(
       z.object({
         slug: z.string(),
@@ -285,6 +292,13 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.openWeightsMissingLicenseCount,
         llmMissingContextWindowCount:
           publicMetadataCoverage.llmMissingContextWindowCount,
+        weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
+          (provider) => ({
+            provider: provider.provider,
+            complete_pct: provider.complete_pct,
+            total: provider.total,
+          })
+        ),
         recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels,
       },
     });

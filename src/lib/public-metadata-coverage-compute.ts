@@ -104,6 +104,33 @@ export async function computePublicMetadataCoverage(
       release_date: model.release_date,
     }));
 
+  const providerStats = new Map<
+    string,
+    {
+      total: number;
+      complete: number;
+      missingCategory: number;
+      missingReleaseDate: number;
+    }
+  >();
+
+  for (const model of models) {
+    const provider = model.provider ?? "Unknown";
+    const stats = providerStats.get(provider) ?? {
+      total: 0,
+      complete: 0,
+      missingCategory: 0,
+      missingReleaseDate: 0,
+    };
+
+    stats.total += 1;
+    if (hasDiscoveryMetadata(model)) stats.complete += 1;
+    if (!model.category) stats.missingCategory += 1;
+    if (!model.release_date) stats.missingReleaseDate += 1;
+
+    providerStats.set(provider, stats);
+  }
+
   return {
     activeModels: models.length,
     completeDiscoveryMetadataCount,
@@ -112,6 +139,21 @@ export async function computePublicMetadataCoverage(
     missingReleaseDateCount: missingReleaseDate.length,
     openWeightsMissingLicenseCount: openWeightsMissingLicense.length,
     llmMissingContextWindowCount: llmMissingContextWindow.length,
+    providers: [...providerStats.entries()]
+      .map(([provider, stats]) => ({
+        provider,
+        total: stats.total,
+        complete: stats.complete,
+        complete_pct: Number(
+          ((stats.complete / Math.max(stats.total, 1)) * 100).toFixed(1)
+        ),
+        missingCategoryCount: stats.missingCategory,
+        missingReleaseDateCount: stats.missingReleaseDate,
+      }))
+      .sort(
+        (left, right) =>
+          left.complete_pct - right.complete_pct || right.total - left.total
+      ),
     recentIncompleteModels,
   };
 }
