@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,10 @@ export async function GET() {
       return NextResponse.json({ error: "No models found" }, { status: 500 });
     }
 
-    const uniqueModels = dedupePublicModelFamilies(models);
+    const uniqueModels = preferDefaultPublicSurfaceReady(
+      dedupePublicModelFamilies(models),
+      12
+    );
     const totalModels = uniqueModels.length;
     const scoredModels = uniqueModels.filter((m) => m.quality_score && m.quality_score > 0);
     const avgQuality =

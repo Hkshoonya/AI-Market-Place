@@ -30,6 +30,7 @@ import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import {
@@ -197,7 +198,10 @@ export default async function HomePage() {
         { data: [] },
       ];
 
-  const activeModels = dedupePublicModelFamilies(allActiveModels ?? []);
+  const activeModels = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(allActiveModels ?? []),
+    12
+  );
   const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
     const platformRecord = platform as Record<string, unknown>;
 

@@ -5,6 +5,7 @@ import { parseQueryResult } from "@/lib/schemas/parse";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +53,10 @@ export async function GET(request: NextRequest) {
 
     const filteredModels =
       providers && providers.length > 0
-        ? dedupePublicModelFamilies(models ?? []).filter((model) =>
+        ? preferDefaultPublicSurfaceReady(dedupePublicModelFamilies(models ?? []), 12).filter((model) =>
             providers.some((provider) => providerMatchesCanonical(model.provider, provider))
           )
-        : dedupePublicModelFamilies(models ?? []);
+        : preferDefaultPublicSurfaceReady(dedupePublicModelFamilies(models ?? []), 12);
 
     const visibleModels = filteredModels.slice(0, limit);
 
