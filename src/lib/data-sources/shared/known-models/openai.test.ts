@@ -26,4 +26,19 @@ describe("resolveOpenAIKnownModelMeta", () => {
     expect(meta?.release_date).toBe("2023-11-06");
     expect(meta?.context_window).toBe(16384);
   });
+
+  it("inherits metadata for GPT-5 mini dated variants", () => {
+    const meta = resolveOpenAIKnownModelMeta("gpt-5-mini-2025-08-07");
+    expect(meta?.release_date).toBe("2025-08-07");
+    expect(meta?.context_window).toBe(128000);
+  });
+
+  it("inherits metadata for realtime and image aliases", () => {
+    expect(resolveOpenAIKnownModelMeta("gpt-realtime-1-5")?.context_window).toBe(
+      128000
+    );
+    expect(resolveOpenAIKnownModelMeta("gpt-image")?.release_date).toBe(
+      "2025-12-16"
+    );
+  });
 });

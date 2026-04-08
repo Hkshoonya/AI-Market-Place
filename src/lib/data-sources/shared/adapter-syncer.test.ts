@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createAdapterSyncer } from "./adapter-syncer";
+import * as utils from "../utils";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -115,5 +116,57 @@ describe("createAdapterSyncer — healthCheck (PIPE-06)", () => {
 
     const firstCallUrl = mockFetch.mock.calls[0]?.[0];
     expect(firstCallUrl).toBe("https://api.example.com/models?key=my-api-key");
+  });
+});
+
+describe("createAdapterSyncer — stale provider row cleanup", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("deactivates active provider rows that are no longer emitted", async () => {
+    vi.spyOn(utils, "upsertBatch").mockResolvedValue({
+      created: 0,
+      errors: [],
+    });
+
+    const staleRows = [{ slug: "test-stale-docs-slug" }, { slug: "model-a" }];
+    const selectChain = {
+      eq: vi.fn().mockReturnThis(),
+      like: vi.fn().mockResolvedValue({ data: staleRows, error: null }),
+    };
+    const updateChain = {
+      in: vi.fn().mockResolvedValue({ error: null }),
+    };
+    const mockSupabase = {
+      from: vi.fn((table: string) => {
+        if (table !== "models") throw new Error(`Unexpected table ${table}`);
+        return {
+          select: vi.fn(() => selectChain),
+          update: vi.fn(() => updateChain),
+        };
+      }),
+    };
+
+    const { sync } = createAdapterSyncer({
+      ...makeConfig(),
+      deactivateMissing: {
+        provider: "Test Provider",
+        slugPrefix: "test",
+      },
+    });
+
+    const result = await sync({
+      supabase: mockSupabase as never,
+      config: {},
+      secrets: {},
+      lastSyncAt: null,
+    });
+
+    expect(updateChain.in).toHaveBeenCalledWith("slug", [
+      "test-stale-docs-slug",
+    ]);
+    expect(result.success).toBe(true);
+    expect(result.metadata?.deactivatedStale).toBe(1);
   });
 });

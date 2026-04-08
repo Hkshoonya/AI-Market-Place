@@ -131,6 +131,24 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "claude-opus-4-1": {
+    name: "Claude Opus 4.1",
+    description:
+      "Anthropic's Claude Opus 4.1 release with flagship reasoning, coding, and agentic task performance for demanding production and research workloads.",
+    context_window: 200000,
+    release_date: "2025-08-05",
+    architecture: "Transformer",
+    status: "active",
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      extended_thinking: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+  },
 
   // ---- Claude 3.5 series ----
   "claude-3-5-sonnet-v2": {
@@ -225,6 +243,7 @@ export function resolveAnthropicKnownModelMeta(
   ]);
 
   const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-opus-4-1(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-1"],
     [/^claude-(opus|sonnet|haiku)-4-5(?:-v\d+)?$/, "claude-4-5-$1"],
     [/^claude-(opus|sonnet)-4-6(?:-v\d+)?$/, "claude-$1-4-6"],
     [/^claude-(opus|sonnet)-4(?:-0)?$/, "claude-4-$1"],

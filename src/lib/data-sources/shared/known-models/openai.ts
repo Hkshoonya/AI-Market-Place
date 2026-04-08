@@ -137,6 +137,60 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "gpt-5-mini": {
+    name: "GPT-5 Mini",
+    description:
+      "Smaller GPT-5 family model tuned for lower-latency chat, coding, and multimodal assistant workloads.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-08-07",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-5-nano": {
+    name: "GPT-5 Nano",
+    description:
+      "Smallest GPT-5 family model for cost-sensitive classification, lightweight assistants, and high-throughput automation.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-08-07",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      function_calling: true,
+      streaming: true,
+    },
+  },
+  "gpt-5-search-api": {
+    name: "GPT-5 Search API",
+    description:
+      "Search-oriented GPT-5 variant for retrieval-augmented answers, web search experiences, and citation-heavy response flows.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-10-14",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
 
   // ---- GPT-4.1 series ----
   "gpt-4.1": {
@@ -377,6 +431,32 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     modalities: ["text", "image"],
     capabilities: { image_generation: true, image_editing: true },
   },
+  "gpt-image-1.5": {
+    name: "GPT Image 1.5",
+    description:
+      "Updated GPT Image model generation family with stronger instruction following, editing, and visual quality than GPT Image 1.",
+    category: "image_generation",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2025-12-16",
+    architecture: "Diffusion",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: { image_generation: true, image_editing: true },
+  },
+  "gpt-image-1-mini": {
+    name: "GPT Image 1 Mini",
+    description:
+      "Compact GPT Image family model for lower-cost generation and editing workloads.",
+    category: "image_generation",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2025-12-16",
+    architecture: "Diffusion",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: { image_generation: true, image_editing: true },
+  },
   "dall-e-3": {
     name: "DALL-E 3",
     description:
@@ -535,6 +615,24 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "gpt-realtime": {
+    name: "GPT Realtime",
+    description:
+      "General-purpose realtime OpenAI model for streaming voice, multimodal assistants, and low-latency interactive applications.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2025-08-28",
+    architecture: "Transformer (realtime)",
+    status: "active",
+    modalities: ["text", "audio", "image"],
+    capabilities: {
+      vision: true,
+      transcription: true,
+      text_to_speech: true,
+      streaming: true,
+    },
+  },
   "gpt-audio-mini": {
     name: "GPT Audio Mini",
     description:
@@ -648,6 +746,38 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     capabilities: {
       image_generation: true,
       image_editing: true,
+    },
+  },
+  "omni-moderation-latest": {
+    name: "Omni Moderation",
+    description:
+      "OpenAI moderation model for text and image safety classification in production applications.",
+    category: "specialized",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2024-09-26",
+    architecture: "Transformer (moderation)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      classification: true,
+      vision: true,
+    },
+  },
+  "omni-moderation-2024-09-26": {
+    name: "Omni Moderation 2024-09-26",
+    description:
+      "Versioned OpenAI moderation model for text and image safety classification.",
+    category: "specialized",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2024-09-26",
+    architecture: "Transformer (moderation)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      classification: true,
+      vision: true,
     },
   },
   "sora-2": {
@@ -815,7 +945,12 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
 };
 
 function normalizeOpenAiFamilyId(modelId: string) {
-  return modelId.replace(/^gpt-(\d)-(\d)(?=-|$)/, "gpt-$1.$2");
+  return modelId
+    .replace(/^gpt-(\d)-(\d)(?=-|$)/, "gpt-$1.$2")
+    .replace(/^gpt-image$/, "gpt-image-1.5")
+    .replace(/^gpt-image-1-5$/, "gpt-image-1.5")
+    .replace(/^gpt-audio-1-5$/, "gpt-audio")
+    .replace(/^gpt-realtime-1-5$/, "gpt-realtime");
 }
 
 export function resolveOpenAIKnownModelMeta(
@@ -830,16 +965,23 @@ export function resolveOpenAIKnownModelMeta(
   const withoutLatest = normalized.replace(/-latest$/, "");
   candidates.add(withoutLatest);
   candidates.add(withoutLatest.replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(withoutLatest.replace(/-(mini|nano|search-api)$/, ""));
   candidates.add(withoutLatest.replace(/-\d{4}-\d{2}-\d{2}$/, ""));
   candidates.add(
     withoutLatest
       .replace(/-\d{4}-\d{2}-\d{2}$/, "")
       .replace(/-(chat|codex|pro|structured|instant)$/, "")
   );
+  candidates.add(
+    withoutLatest
+      .replace(/-\d{4}-\d{2}-\d{2}$/, "")
+      .replace(/-(mini|nano|search-api)$/, "")
+  );
   candidates.add(normalized.replace(/-\d{8}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-instruct$/, "-instruct"));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(mini|nano|search-api)$/, ""));
 
   for (const candidate of candidates) {
     if (candidate && OPENAI_KNOWN_MODELS[candidate]) {

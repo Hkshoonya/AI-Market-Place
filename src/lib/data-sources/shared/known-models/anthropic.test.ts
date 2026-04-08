@@ -19,4 +19,10 @@ describe("resolveAnthropicKnownModelMeta", () => {
     expect(meta?.release_date).toBe("2025-05-22");
     expect(meta?.context_window).toBe(200000);
   });
+
+  it("inherits metadata for Claude Opus 4.1 variants", () => {
+    const meta = resolveAnthropicKnownModelMeta("claude-opus-4-1-20250805-v1");
+    expect(meta?.release_date).toBe("2025-08-05");
+    expect(meta?.context_window).toBe(200000);
+  });
 });

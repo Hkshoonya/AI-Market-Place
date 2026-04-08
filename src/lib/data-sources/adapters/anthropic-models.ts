@@ -38,15 +38,26 @@ const PROVIDER_DEFAULTS: ProviderDefaults = {
   license_name: "Proprietary",
 };
 
+function parseReleaseDateFromModelId(modelId: string): string | undefined {
+  const compactMatch = modelId.match(/-(20\d{2})(\d{2})(\d{2})(?:-v\d+)?$/);
+  if (!compactMatch) return undefined;
+
+  return `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
+}
+
 /** Bound buildRecord — pre-fills provider defaults and known data lookup. */
 function boundBuildRecord(
   modelId: string,
   overrides: Partial<KnownModelMeta> = {}
 ): Record<string, unknown> {
+  const releaseDate = parseReleaseDateFromModelId(modelId);
   return buildRecord(
     modelId,
     resolveAnthropicKnownModelMeta(modelId),
-    overrides,
+    {
+      ...overrides,
+      release_date: overrides.release_date ?? releaseDate,
+    },
     PROVIDER_DEFAULTS
   );
 }
@@ -209,6 +220,10 @@ const { sync, healthCheck } = createAdapterSyncer<
     "anthropic-version": "2023-06-01",
   }),
   healthCheckSuccessMsg: "Anthropic /v1/models API reachable",
+  deactivateMissing: {
+    provider: "Anthropic",
+    slugPrefix: "anthropic",
+  },
 });
 
 // ---------------------------------------------------------------------------

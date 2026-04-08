@@ -37,15 +37,29 @@ const PROVIDER_DEFAULTS: ProviderDefaults = {
   license_name: "Proprietary",
 };
 
+function parseReleaseDateFromModelId(modelId: string): string | undefined {
+  const dashedMatch = modelId.match(/-(20\d{2}-\d{2}-\d{2})$/);
+  if (dashedMatch) return dashedMatch[1];
+
+  const compactMatch = modelId.match(/-(20\d{2})(\d{2})(\d{2})(?:-v\d+)?$/);
+  if (!compactMatch) return undefined;
+
+  return `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}`;
+}
+
 /** Bound buildRecord — pre-fills provider defaults and known data lookup. */
 function boundBuildRecord(
   modelId: string,
   overrides: Partial<KnownModelMeta> = {}
 ): Record<string, unknown> {
+  const releaseDate = parseReleaseDateFromModelId(modelId);
   return buildRecord(
     modelId,
     resolveOpenAIKnownModelMeta(modelId),
-    overrides,
+    {
+      ...overrides,
+      release_date: overrides.release_date ?? releaseDate,
+    },
     PROVIDER_DEFAULTS
   );
 }
@@ -114,7 +128,7 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
 
     const html = await res.text();
     const modelPattern =
-      /\b(gpt-[\w.]+|o[134](?:-[\w.]+)?|dall-e-\d|codex-[\w-]+|whisper-\d|tts-[\w-]+|text-embedding-[\w-]+|computer-use-[\w-]+|gpt-image-[\w-]+)\b/g;
+      /\b(gpt-[\w.-]+|o[134](?:-[\w.-]+)?|dall-e-\d|codex-[\w-]+|whisper-\d|tts-[\w-]+|text-embedding-[\w-]+|computer-use-[\w-]+)\b/g;
 
     const found = new Set<string>();
     let match: RegExpExecArray | null;
@@ -174,6 +188,10 @@ const { sync, healthCheck } = createAdapterSyncer<string[]>({
   healthCheckUrl: "https://api.openai.com/v1/models",
   healthCheckHeaders: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
   healthCheckSuccessMsg: "OpenAI API reachable",
+  deactivateMissing: {
+    provider: "OpenAI",
+    slugPrefix: "openai",
+  },
 });
 
 // ---------------------------------------------------------------------------

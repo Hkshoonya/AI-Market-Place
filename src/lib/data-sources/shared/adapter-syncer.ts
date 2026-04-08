@@ -100,6 +100,17 @@ export interface AdapterSyncerConfig<TApiResult> {
 
   /** Message returned in HealthCheckResult when the API is reachable. */
   healthCheckSuccessMsg: string;
+
+  /**
+   * Optionally deactivate active provider rows that are no longer emitted by the
+   * current static + scrape + API sync result. This is useful for retiring
+   * stale docs/article slugs that previously leaked into the models table.
+   */
+  deactivateMissing?: {
+    provider: string;
+    slugPrefix: string;
+    shouldDeactivateSlug?: (slug: string) => boolean;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +169,54 @@ export function createAdapterSyncer<TApiResult>(
       "slug"
     );
 
+    let deactivatedStale = 0;
+    if (config.deactivateMissing) {
+      const currentSlugs = new Set(
+        records
+          .map((record) =>
+            typeof record.slug === "string" ? record.slug : null
+          )
+          .filter((slug): slug is string => Boolean(slug))
+      );
+
+      const { data: activeRows, error: activeRowsError } = await ctx.supabase
+        .from("models")
+        .select("slug")
+        .eq("provider", config.deactivateMissing.provider)
+        .eq("status", "active")
+        .like("slug", `${config.deactivateMissing.slugPrefix}-%`);
+
+      if (activeRowsError) {
+        upsertErrors.push({
+          message: `Failed to fetch active ${config.deactivateMissing.provider} rows for stale cleanup: ${activeRowsError.message}`,
+        });
+      } else {
+        const staleSlugs = (activeRows ?? [])
+          .map((row) => row.slug)
+          .filter(
+            (slug): slug is string =>
+              typeof slug === "string" &&
+              !currentSlugs.has(slug) &&
+              (config.deactivateMissing?.shouldDeactivateSlug?.(slug) ?? true)
+          );
+
+        if (staleSlugs.length > 0) {
+          const { error: deactivateError } = await ctx.supabase
+            .from("models")
+            .update({ status: "archived", data_refreshed_at: now })
+            .in("slug", staleSlugs);
+
+          if (deactivateError) {
+            upsertErrors.push({
+              message: `Failed to deactivate stale ${config.deactivateMissing.provider} rows: ${deactivateError.message}`,
+            });
+          } else {
+            deactivatedStale = staleSlugs.length;
+          }
+        }
+      }
+    }
+
     return {
       success: upsertErrors.length === 0,
       recordsProcessed: records.length,
@@ -170,6 +229,7 @@ export function createAdapterSyncer<TApiResult>(
         scrapedIds: scrapedIds.length,
         apiModels: getApiResultSize(apiResult),
         totalRecords: records.length,
+        deactivatedStale,
       },
     };
   }
