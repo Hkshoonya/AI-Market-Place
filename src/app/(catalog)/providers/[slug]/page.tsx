@@ -42,6 +42,7 @@ import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { getNewsSignalType } from "@/lib/news/presentation";
 import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const revalidate = 300;
 
@@ -112,10 +113,18 @@ export default async function ProviderDetailPage({
     .eq("status", "active")
     .order("overall_rank", { ascending: true, nullsFirst: false });
 
-  const models = dedupePublicModelFamilies(
-    parseQueryResultPartial(modelsResponse, ProviderModelSchema, "ProviderModel").filter(
-      (model) => providerMatchesCanonical(model.provider, providerName)
-    )
+  const parsedProviderModels = parseQueryResultPartial(
+    modelsResponse,
+    ProviderModelSchema,
+    "ProviderModel"
+  );
+  const models = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(
+      parsedProviderModels.filter((model) =>
+        providerMatchesCanonical(model.provider, providerName)
+      )
+    ),
+    Math.min(6, Math.max(parsedProviderModels.length, 1))
   );
   if (models.length === 0) notFound();
 

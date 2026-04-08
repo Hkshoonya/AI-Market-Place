@@ -23,6 +23,7 @@ import {
   isSelfHostedDeployabilityLabel,
 } from "@/lib/models/deployability";
 import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
 
@@ -85,7 +86,10 @@ export default async function ProvidersPage() {
       .limit(200),
   ]);
 
-  const uniqueModels = dedupePublicModelFamilies(models ?? []);
+  const uniqueModels = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(models ?? []),
+    Math.min(12, Math.max((models ?? []).length, 1))
+  );
   const uniqueModelIds = uniqueModels.map((model) => model.id);
   const [deploymentPlatformsRaw, modelDeploymentsRaw] =
     uniqueModelIds.length > 0

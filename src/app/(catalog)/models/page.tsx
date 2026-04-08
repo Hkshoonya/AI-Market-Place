@@ -35,6 +35,7 @@ import type { ModelSignalSummary } from "@/lib/news/model-signals";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { getDeployabilityLabel } from "@/lib/models/deployability";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -202,7 +203,10 @@ export default async function ModelsPage({
     "ModelsPage"
   );
 
-  const uniqueModels = dedupePublicModelFamilies(parsedModels);
+  const uniqueModels = preferDefaultPublicSurfaceReady(
+    dedupePublicModelFamilies(parsedModels),
+    Math.min(12, Math.max(parsedModels.length, 1))
+  );
   let sortedUniqueModels = [...uniqueModels].sort((left, right) => {
     switch (sort) {
       case "downloads":
