@@ -140,6 +140,12 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
         return false;
       }
+      if (/(\.png|\.jpe?g|\.svg|\.webp)$/i.test(modelId)) {
+        return false;
+      }
+      if (modelId === "gpt-oss") {
+        return false;
+      }
       return true;
     });
   } catch {

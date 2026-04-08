@@ -37,8 +37,20 @@ describe("resolveOpenAIKnownModelMeta", () => {
     expect(resolveOpenAIKnownModelMeta("gpt-realtime-1-5")?.context_window).toBe(
       128000
     );
+    expect(resolveOpenAIKnownModelMeta("gpt-realtime-1.5")?.context_window).toBe(
+      128000
+    );
     expect(resolveOpenAIKnownModelMeta("gpt-image")?.release_date).toBe(
       "2025-12-16"
+    );
+  });
+
+  it("inherits metadata for codex max and deep research aliases", () => {
+    expect(resolveOpenAIKnownModelMeta("gpt-5.1-codex-max")?.context_window).toBe(
+      200000
+    );
+    expect(resolveOpenAIKnownModelMeta("o4-mini-deep-research")?.release_date).toBe(
+      "2025-06-26"
     );
   });
 });

@@ -559,6 +559,25 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "o4-mini-deep-research": {
+    name: "o4-mini Deep Research",
+    description:
+      "Research-oriented o4-mini variant for longer multi-step synthesis, investigative workflows, and citation-heavy analysis with lower cost than o3 Deep Research.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 200000,
+    release_date: "2025-06-26",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+  },
   "o1-pro": {
     name: "o1 Pro",
     description:
@@ -949,8 +968,11 @@ function normalizeOpenAiFamilyId(modelId: string) {
     .replace(/^gpt-(\d)-(\d)(?=-|$)/, "gpt-$1.$2")
     .replace(/^gpt-image$/, "gpt-image-1.5")
     .replace(/^gpt-image-1-5$/, "gpt-image-1.5")
+    .replace(/^gpt-image-1\.5$/, "gpt-image-1.5")
     .replace(/^gpt-audio-1-5$/, "gpt-audio")
-    .replace(/^gpt-realtime-1-5$/, "gpt-realtime");
+    .replace(/^gpt-audio-1\.5$/, "gpt-audio")
+    .replace(/^gpt-realtime-1-5$/, "gpt-realtime")
+    .replace(/^gpt-realtime-1\.5$/, "gpt-realtime");
 }
 
 export function resolveOpenAIKnownModelMeta(
@@ -965,6 +987,7 @@ export function resolveOpenAIKnownModelMeta(
   const withoutLatest = normalized.replace(/-latest$/, "");
   candidates.add(withoutLatest);
   candidates.add(withoutLatest.replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(withoutLatest.replace(/-(max)$/, ""));
   candidates.add(withoutLatest.replace(/-(mini|nano|search-api)$/, ""));
   candidates.add(withoutLatest.replace(/-\d{4}-\d{2}-\d{2}$/, ""));
   candidates.add(
@@ -975,12 +998,18 @@ export function resolveOpenAIKnownModelMeta(
   candidates.add(
     withoutLatest
       .replace(/-\d{4}-\d{2}-\d{2}$/, "")
+      .replace(/-(max)$/, "")
+  );
+  candidates.add(
+    withoutLatest
+      .replace(/-\d{4}-\d{2}-\d{2}$/, "")
       .replace(/-(mini|nano|search-api)$/, "")
   );
   candidates.add(normalized.replace(/-\d{8}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-instruct$/, "-instruct"));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(max)$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(mini|nano|search-api)$/, ""));
 
   for (const candidate of candidates) {
