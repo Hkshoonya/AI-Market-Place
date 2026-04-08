@@ -342,10 +342,15 @@ describe("upsertBatch", () => {
     expect(upsert).toHaveBeenNthCalledWith(
       1,
       [
-        {
+        expect.objectContaining({
           slug: "z-ai-glm-4-6-exacto",
           provider: "Z.ai",
-        },
+          overall_rank: null,
+          quality_score: null,
+          capability_score: null,
+          popularity_score: null,
+          hf_trending_score: null,
+        }),
       ],
       {
         onConflict: "slug",
@@ -363,6 +368,119 @@ describe("upsertBatch", () => {
       ],
       {
         onConflict: "source,source_id",
+        count: "exact",
+      }
+    );
+  });
+
+  it("strips ranking inputs from packaging and wrapper model rows before upserting", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 2 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "community-cool-model-gguf",
+          provider: "Community",
+          name: "Cool Model GGUF",
+          category: "llm",
+          release_date: "2026-04-01",
+          context_window: 32768,
+          overall_rank: 12,
+          quality_score: 88,
+          capability_score: 86,
+          popularity_score: 80,
+          hf_trending_score: 99,
+        },
+        {
+          slug: "community-cool-model-latest",
+          provider: "Community",
+          name: "Cool Model Latest",
+          category: "llm",
+          context_window: 32768,
+          overall_rank: 9,
+          quality_score: 90,
+          capability_score: 89,
+          popularity_score: 91,
+          hf_trending_score: 87,
+        },
+      ],
+      "slug"
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          slug: "community-cool-model-gguf",
+          overall_rank: null,
+          quality_score: null,
+          capability_score: null,
+          popularity_score: null,
+          hf_trending_score: null,
+        }),
+        expect.objectContaining({
+          slug: "community-cool-model-latest",
+          overall_rank: null,
+          quality_score: null,
+          capability_score: null,
+          popularity_score: null,
+          hf_trending_score: null,
+        }),
+      ],
+      {
+        onConflict: "slug",
+        count: "exact",
+      }
+    );
+  });
+
+  it("preserves ranking inputs for discovery-ready official model rows", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "google-gemma-4-31b-it",
+          provider: "Google",
+          name: "Gemma 4 31B IT",
+          category: "multimodal",
+          release_date: "2026-04-02",
+          context_window: 131072,
+          is_open_weights: true,
+          license: "open_source",
+          license_name: "Apache 2.0",
+          overall_rank: 7,
+          quality_score: 92,
+          capability_score: 90,
+          popularity_score: 78,
+          hf_trending_score: 44,
+        },
+      ],
+      "slug"
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          slug: "google-gemma-4-31b-it",
+          overall_rank: 7,
+          quality_score: 92,
+          capability_score: 90,
+          popularity_score: 78,
+          hf_trending_score: 44,
+        }),
+      ],
+      {
+        onConflict: "slug",
         count: "exact",
       }
     );

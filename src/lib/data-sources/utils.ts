@@ -10,6 +10,7 @@
 import type { SyncError } from "./types";
 import type { TypedSupabaseClient } from "@/types/database";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getDefaultPublicSurfaceReadinessBlockers } from "@/lib/models/public-surface-readiness";
 
 // --------------- Retry & Fetch ---------------
 
@@ -209,7 +210,101 @@ function normalizeProviderFields(
     normalized.related_provider = getCanonicalProviderName(normalized.related_provider);
   }
 
+  if (table === "models") {
+    return normalizeModelRankingInputs(normalized);
+  }
+
   return normalized;
+}
+
+const MODEL_PUBLIC_RANKING_FIELDS = [
+  "overall_rank",
+  "popularity_score",
+  "adoption_score",
+  "quality_score",
+  "value_score",
+  "economic_footprint_score",
+  "market_cap_estimate",
+  "popularity_rank",
+  "adoption_rank",
+  "agent_score",
+  "agent_rank",
+  "capability_score",
+  "capability_rank",
+  "economic_footprint_rank",
+  "usage_score",
+  "usage_rank",
+  "expert_score",
+  "expert_rank",
+  "balanced_rank",
+  "hf_trending_score",
+] as const;
+
+function normalizeModelRankingInputs(
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  const blockers = getDefaultPublicSurfaceReadinessBlockers({
+    slug: typeof record.slug === "string" ? record.slug : null,
+    provider: typeof record.provider === "string" ? record.provider : null,
+    name: typeof record.name === "string" ? record.name : null,
+    category: typeof record.category === "string" ? record.category : null,
+    release_date:
+      typeof record.release_date === "string" ? record.release_date : null,
+    is_open_weights:
+      typeof record.is_open_weights === "boolean" ? record.is_open_weights : null,
+    license: typeof record.license === "string" ? record.license : null,
+    license_name:
+      typeof record.license_name === "string" ? record.license_name : null,
+    context_window:
+      typeof record.context_window === "number" ? record.context_window : null,
+    overall_rank:
+      typeof record.overall_rank === "number" ? record.overall_rank : null,
+    capability_score:
+      typeof record.capability_score === "number" ? record.capability_score : null,
+    quality_score:
+      typeof record.quality_score === "number" ? record.quality_score : null,
+    adoption_score:
+      typeof record.adoption_score === "number" ? record.adoption_score : null,
+    popularity_score:
+      typeof record.popularity_score === "number" ? record.popularity_score : null,
+    economic_footprint_score:
+      typeof record.economic_footprint_score === "number"
+        ? record.economic_footprint_score
+        : null,
+    hf_downloads:
+      typeof record.hf_downloads === "number" ? record.hf_downloads : null,
+    hf_likes: typeof record.hf_likes === "number" ? record.hf_likes : null,
+    hf_trending_score:
+      typeof record.hf_trending_score === "number" ? record.hf_trending_score : null,
+  });
+
+  if (blockers.length === 0) {
+    return record;
+  }
+
+  if (
+    !blockers.some((blocker) =>
+      [
+        "missing_name",
+        "missing_category",
+        "missing_release_date",
+        "missing_open_weight_license",
+        "missing_context_window",
+        "packaging_variant",
+        "wrapper_variant",
+        "weak_signals",
+      ].includes(blocker)
+    )
+  ) {
+    return record;
+  }
+
+  const downgraded = { ...record };
+  for (const field of MODEL_PUBLIC_RANKING_FIELDS) {
+    downgraded[field] = null;
+  }
+
+  return downgraded;
 }
 
 function isTransientOperationError(error: unknown): boolean {
