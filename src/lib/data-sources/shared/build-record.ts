@@ -41,6 +41,8 @@ export interface KnownModelMeta {
    *  some providers hardcode it via ProviderDefaults. */
   license?: string;
   license_name?: string | null;
+  hf_model_id?: string | null;
+  website_url?: string | null;
   /** Parameter count in billions (OpenAI only). */
   parameter_count?: number | null;
 }
@@ -91,6 +93,8 @@ export interface ModelRecord {
   is_open_weights: boolean;
   license: string | undefined;
   license_name: string | null | undefined;
+  hf_model_id: string | null;
+  website_url: string | null;
   modalities: string[];
   capabilities: Record<string, boolean>;
   data_refreshed_at: string;
@@ -265,6 +269,8 @@ export function buildRecord(
     is_open_weights: normalizedLicense.is_open_weights,
     license: normalizedLicense.license,
     license_name: normalizedLicense.license_name,
+    hf_model_id: merged.hf_model_id ?? null,
+    website_url: merged.website_url ?? null,
     modalities,
     capabilities: merged.capabilities ?? {},
     data_refreshed_at: new Date().toISOString(),

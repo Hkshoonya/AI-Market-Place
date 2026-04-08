@@ -28,6 +28,7 @@ describe("minimax-models adapter", () => {
         provider: "MiniMax",
         slug: "minimax-minimax-m2-7",
         name: "MiniMax M2.7",
+        website_url: "https://www.minimax.io/models/text",
       })
     );
   });
@@ -99,6 +100,18 @@ describe("minimax-models adapter", () => {
         is_open_weights: false,
         license: "commercial",
         license_name: null,
+      })
+    );
+  });
+
+  it("adds official website metadata to MiniMax M2-her", () => {
+    const record = __testables.buildModelRecord("MiniMax-M2-her");
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        slug: "minimax-minimax-m2-her",
+        website_url: "https://www.minimax.io/models/text",
       })
     );
   });

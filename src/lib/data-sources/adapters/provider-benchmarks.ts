@@ -17,7 +17,10 @@ import {
   fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
-import { getTrustedBenchmarkHfUrl } from "../shared/benchmark-coverage";
+import {
+  getTrustedBenchmarkHfUrl,
+  getTrustedBenchmarkWebsiteUrl,
+} from "../shared/benchmark-coverage";
 
 interface ProviderBenchmarkSource {
   id: string;
@@ -830,7 +833,7 @@ async function fetchExistingAutoBenchmarkSourceIds(
       .from("model_news")
       .select("source_id")
       .eq("source", "provider-benchmarks")
-      .like("source_id", "provider-benchmarks-auto-hf-%")
+      .or("source_id.like.provider-benchmarks-auto-hf-%,source_id.like.provider-benchmarks-auto-web-%")
       .range(from, to);
 
     if (error) {
@@ -876,25 +879,37 @@ function buildAutoBenchmarkSources(
     PROVIDER_BENCHMARK_SOURCES.map((source) => source.url)
   );
   const candidates: Array<
-    ProviderBenchmarkSource & { sourceType: "official_model_card"; releaseDate: string | null }
+    ProviderBenchmarkSource & {
+      sourceType: "official_model_card" | "official_provider_page";
+      releaseDate: string | null;
+    }
   > = [];
 
   for (const model of models) {
-    const sourceId = `provider-benchmarks-auto-hf-${makeSlug(model.slug)}`;
-    if (coveredModelIds.has(model.id) && !existingAutoSourceIds.has(sourceId)) {
+    const hfSourceId = `provider-benchmarks-auto-hf-${makeSlug(model.slug)}`;
+    const websiteSourceId = `provider-benchmarks-auto-web-${makeSlug(model.slug)}`;
+    if (
+      coveredModelIds.has(model.id) &&
+      !existingAutoSourceIds.has(hfSourceId) &&
+      !existingAutoSourceIds.has(websiteSourceId)
+    ) {
       continue;
     }
 
     const trustedHfUrl = getTrustedBenchmarkHfUrl(model);
-    if (!trustedHfUrl || curatedUrls.has(trustedHfUrl)) continue;
+    const trustedWebsiteUrl = getTrustedBenchmarkWebsiteUrl(model);
+    const selectedUrl = trustedHfUrl ?? trustedWebsiteUrl;
+    if (!selectedUrl || curatedUrls.has(selectedUrl)) continue;
+    const isHfSource = selectedUrl === trustedHfUrl;
+    const sourceId = isHfSource ? hfSourceId : websiteSourceId;
 
     candidates.push({
       id: sourceId.replace("provider-benchmarks-", ""),
       provider: model.provider,
-      url: trustedHfUrl,
+      url: selectedUrl,
       titleHint: `${model.name} benchmark update`,
       modelHints: buildAutoBenchmarkModelHints(model),
-      sourceType: "official_model_card",
+      sourceType: isHfSource ? "official_model_card" : "official_provider_page",
       requiresBenchmarkSignal: true,
       releaseDate: model.release_date,
     });

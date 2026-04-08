@@ -218,4 +218,53 @@ describe("provider-benchmarks helpers", () => {
     expect(sources[0].modelHints).toContain("Gemma 4 31B IT");
     expect(sources[0].modelHints).toContain("gemma-4-31B-it");
   });
+
+  it("falls back to trusted official provider pages when HF cards are unavailable", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "x-ai-grok-4-20",
+          name: "Grok 4.20",
+          provider: "xAI",
+          category: "multimodal",
+          hf_model_id: null,
+          website_url: "https://docs.x.ai/docs/models",
+          release_date: "2026-03-31",
+        },
+        {
+          id: "2",
+          slug: "minimax-speech-2-8-hd",
+          name: "MiniMax Speech 2.8 HD",
+          provider: "MiniMax",
+          category: "speech_audio",
+          hf_model_id: null,
+          website_url: "https://www.minimax.io/models/audio",
+          release_date: "2026-02-05",
+        },
+      ],
+      new Set<string>(),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-web-x-ai-grok-4-20",
+          provider: "xAI",
+          url: "https://docs.x.ai/docs/models",
+          sourceType: "official_provider_page",
+          requiresBenchmarkSignal: true,
+        }),
+        expect.objectContaining({
+          id: "auto-web-minimax-speech-2-8-hd",
+          provider: "MiniMax",
+          url: "https://www.minimax.io/models/audio",
+          sourceType: "official_provider_page",
+          requiresBenchmarkSignal: true,
+        }),
+      ])
+    );
+  });
 });

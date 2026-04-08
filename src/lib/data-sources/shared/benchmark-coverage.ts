@@ -14,6 +14,18 @@ const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
   MiniMax: ["minimaxai"],
 };
 
+const TRUSTED_BENCHMARK_WEBSITE_HOSTS: Record<string, string[]> = {
+  OpenAI: ["openai.com", "platform.openai.com"],
+  Anthropic: ["anthropic.com"],
+  Google: ["ai.google.dev", "blog.google", "cloud.google.com"],
+  xAI: ["x.ai", "docs.x.ai", "data.x.ai"],
+  "Z.ai": ["z.ai", "www.z.ai", "docs.z.ai"],
+  MiniMax: ["minimax.io", "www.minimax.io", "platform.minimax.io"],
+  Microsoft: ["microsoft.com", "azure.microsoft.com", "huggingface.co"],
+  NVIDIA: ["nvidia.com", "build.nvidia.com", "huggingface.co"],
+  Amazon: ["aws.amazon.com", "docs.aws.amazon.com"],
+};
+
 export function isBenchmarkExpectedModel(model: {
   category: string | null;
   slug: string;
@@ -60,4 +72,28 @@ export function getTrustedBenchmarkHfUrl(
   if (!isTrustedOrg) return null;
 
   return `https://huggingface.co/${hfModelId}`;
+}
+
+export function getTrustedBenchmarkWebsiteUrl(
+  model: BenchmarkExpectedModel
+): string | null {
+  const websiteUrl = model.website_url?.trim();
+  if (!websiteUrl) return null;
+  if (!isBenchmarkExpectedModel(model)) return null;
+
+  let host: string;
+  try {
+    host = new URL(websiteUrl).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+
+  const allowedHosts = TRUSTED_BENCHMARK_WEBSITE_HOSTS[model.provider] ?? [];
+  const isTrustedHost = allowedHosts.some(
+    (allowedHost) => host === allowedHost || host.endsWith(`.${allowedHost}`)
+  );
+
+  if (!isTrustedHost) return null;
+
+  return websiteUrl;
 }

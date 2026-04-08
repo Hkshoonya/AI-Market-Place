@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getTrustedBenchmarkHfUrl,
+  getTrustedBenchmarkWebsiteUrl,
   isBenchmarkExpectedModel,
 } from "./benchmark-coverage";
 
@@ -50,6 +51,35 @@ describe("benchmark coverage helpers", () => {
         provider: "NVIDIA",
         category: "llm",
         hf_model_id: "other-org/Qwen3.5-397B-A17B-NVFP4",
+      })
+    ).toBeNull();
+  });
+
+  it("accepts trusted official provider pages when HF model cards are unavailable", () => {
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        category: "multimodal",
+        website_url: "https://docs.x.ai/docs/models",
+      })
+    ).toBe("https://docs.x.ai/docs/models");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "minimax-speech-2-8-hd",
+        provider: "MiniMax",
+        category: "speech_audio",
+        website_url: "https://www.minimax.io/models/audio",
+      })
+    ).toBe("https://www.minimax.io/models/audio");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        category: "multimodal",
+        website_url: "https://example.com/grok",
       })
     ).toBeNull();
   });

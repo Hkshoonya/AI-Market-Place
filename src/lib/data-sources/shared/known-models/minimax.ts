@@ -20,6 +20,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://www.minimax.io/models/text",
   },
   "MiniMax-M2.5": {
     name: "MiniMax M2.5",
@@ -40,6 +41,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: true,
     license: "open_source",
     license_name: "Open weights",
+    website_url: "https://www.minimax.io/models/text",
   },
   "MiniMax-M2.1": {
     name: "MiniMax M2.1",
@@ -60,6 +62,28 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://www.minimax.io/models/text",
+  },
+  "MiniMax-M2-her": {
+    name: "MiniMax M2-her",
+    description:
+      "MiniMax reasoning model variant for structured long-context workflows and production agent tasks.",
+    category: "llm",
+    context_window: 1000000,
+    release_date: "2026-01-23",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/text",
   },
   "MiniMax-M1": {
     name: "MiniMax M1",
@@ -80,6 +104,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: true,
     license: "open_source",
     license_name: "Open weights",
+    website_url: "https://www.minimax.io/models/text",
   },
   "MiniMax-M1-80k": {
     name: "MiniMax M1 80K",
@@ -100,6 +125,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: true,
     license: "open_source",
     license_name: "Open weights",
+    website_url: "https://www.minimax.io/models/text",
   },
   "speech-2.8-turbo": {
     name: "MiniMax Speech 2.8 Turbo",
@@ -117,6 +143,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://www.minimax.io/models/audio",
   },
   "speech-2.8-hd": {
     name: "MiniMax Speech 2.8 HD",
@@ -134,6 +161,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://www.minimax.io/models/audio",
   },
   "music-2.5": {
     name: "MiniMax Music 2.5",
@@ -151,12 +179,14 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url: "https://www.minimax.io/models/audio",
   },
 };
 
 const MINIMAX_KNOWN_MODEL_FAMILY_PREFIXES = [
   "MiniMax-M2.5-",
   "MiniMax-M2.1-",
+  "MiniMax-M2-her-",
   "MiniMax-M1-",
   "MiniMax-M2.7-",
 ] as const;
