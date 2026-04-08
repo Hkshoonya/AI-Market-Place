@@ -46,6 +46,8 @@ const PROVIDER_PAGE_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 };
+const PROVIDER_FETCH_TIMEOUT_MS = 15000;
+const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 
 const BENCHMARK_KEYWORDS = [
   "benchmark",
@@ -528,6 +530,14 @@ function buildRelationText(source: ProviderBenchmarkSource, title: string, summa
   return `${title} ${summary} ${source.modelHints.join(" ")}`.trim();
 }
 
+function buildRequestSignal(
+  signal: AbortSignal | undefined,
+  timeoutMs: number
+) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+}
+
 function buildModelRelations(
   source: ProviderBenchmarkSource,
   title: string,
@@ -587,9 +597,13 @@ const adapter: DataSourceAdapter = {
         source.url,
         {
           headers: PROVIDER_PAGE_HEADERS,
-          signal: ctx.signal,
+          signal: buildRequestSignal(ctx.signal, PROVIDER_FETCH_TIMEOUT_MS),
         },
-        { signal: ctx.signal, maxRetries: 3, baseDelayMs: 1200 }
+        {
+          signal: buildRequestSignal(ctx.signal, PROVIDER_FETCH_TIMEOUT_MS),
+          maxRetries: 3,
+          baseDelayMs: 1200,
+        }
       ).catch((error) => error);
 
       if (response instanceof Error) {
@@ -675,8 +689,15 @@ const adapter: DataSourceAdapter = {
         try {
           const response = await fetchWithRetry(
             source.url,
-            { headers: PROVIDER_PAGE_HEADERS },
-            { maxRetries: 1, baseDelayMs: 500 }
+            {
+              headers: PROVIDER_PAGE_HEADERS,
+              signal: buildRequestSignal(undefined, PROVIDER_HEALTHCHECK_TIMEOUT_MS),
+            },
+            {
+              signal: buildRequestSignal(undefined, PROVIDER_HEALTHCHECK_TIMEOUT_MS),
+              maxRetries: 1,
+              baseDelayMs: 500,
+            }
           );
 
           return {
