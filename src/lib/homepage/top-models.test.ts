@@ -10,6 +10,9 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "economic-only",
+          slug: "economic-only",
+          name: "Economic Only",
+          provider: "Provider A",
           overall_rank: 42,
           economic_footprint_score: 95,
           adoption_score: 42,
@@ -20,6 +23,9 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "balanced-enterprise-leader",
+          slug: "balanced-enterprise-leader",
+          name: "Balanced Enterprise Leader",
+          provider: "Provider B",
           overall_rank: 5,
           economic_footprint_score: 89,
           adoption_score: 86,
@@ -30,6 +36,9 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "quality-only",
+          slug: "quality-only",
+          name: "Quality Only",
+          provider: "Provider C",
           overall_rank: 14,
           economic_footprint_score: 55,
           adoption_score: 44,
@@ -52,6 +61,9 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "legacy-footprint-winner",
+          slug: "legacy-footprint-winner",
+          name: "Legacy Footprint Winner",
+          provider: "OpenAI",
           overall_rank: 42,
           economic_footprint_score: 89.1,
           adoption_score: 87.5,
@@ -62,6 +74,9 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "current-top-model",
+          slug: "current-top-model",
+          name: "Current Top Model",
+          provider: "Anthropic",
           overall_rank: 12,
           economic_footprint_score: 71.6,
           adoption_score: 90.6,
@@ -83,6 +98,9 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "legacy-o1-shape",
+          slug: "legacy-o1-shape",
+          name: "Legacy O1 Shape",
+          provider: "OpenAI",
           overall_rank: 45,
           economic_footprint_score: 89.1,
           adoption_score: 87.5,
@@ -93,6 +111,9 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "current-gpt-4-1-shape",
+          slug: "current-gpt-4-1-shape",
+          name: "Current GPT-4.1 Shape",
+          provider: "OpenAI",
           overall_rank: 36,
           economic_footprint_score: 77.6,
           adoption_score: 89.8,
@@ -114,6 +135,9 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "legacy-o1-like",
+          slug: "legacy-o1-like",
+          name: "Legacy O1 Like",
+          provider: "OpenAI",
           overall_rank: 8,
           economic_footprint_score: 95,
           adoption_score: 93,
@@ -124,6 +148,9 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "current-frontier-peer",
+          slug: "current-frontier-peer",
+          name: "Current Frontier Peer",
+          provider: "Anthropic",
           overall_rank: 10,
           economic_footprint_score: 86,
           adoption_score: 90,
@@ -212,5 +239,85 @@ describe("selectHomepageTopModelIds", () => {
     );
 
     expect(ids[0]).toBe("stable-row");
+  });
+
+  it("keeps flagship models ahead of older efficiency-tier rows with strong adoption", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "older-flash-leader",
+          slug: "google-gemini-2-5-flash",
+          name: "Gemini 2.5 Flash",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 8,
+          economic_footprint_score: 72.3,
+          adoption_score: 91.1,
+          capability_score: 77.7,
+          quality_score: 70,
+          popularity_score: 63.8,
+          release_date: "2025-05-20",
+        },
+        {
+          id: "current-flagship",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 75,
+          economic_footprint_score: 74.8,
+          adoption_score: 80.5,
+          capability_score: 80.4,
+          quality_score: 69.5,
+          popularity_score: 53.1,
+          release_date: "2025-12-12",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-flagship");
+  });
+
+  it("collapses dated sibling variants to a single representative model", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "stable-o4-mini",
+          slug: "openai-o4-mini",
+          name: "o4-mini",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 20,
+          economic_footprint_score: 75,
+          adoption_score: 90,
+          capability_score: 81,
+          quality_score: 69,
+          popularity_score: 57,
+          release_date: "2025-04-16",
+          hf_downloads: 500000,
+        },
+        {
+          id: "dated-o4-mini",
+          slug: "openai-o4-mini-2025-04-16",
+          name: "o4-mini-2025-04-16",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 5,
+          economic_footprint_score: 54,
+          adoption_score: 63,
+          capability_score: 82,
+          quality_score: 63,
+          popularity_score: 50,
+          release_date: null,
+          hf_downloads: 0,
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids).toEqual(["stable-o4-mini"]);
   });
 });

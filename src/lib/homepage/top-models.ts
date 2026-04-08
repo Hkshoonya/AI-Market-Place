@@ -1,7 +1,10 @@
+import { collapsePublicModelFamilies } from "@/lib/models/public-families";
+
 interface HomepageTopModelCandidate {
   id: string;
   slug?: string | null;
   name?: string | null;
+  provider?: string | null;
   category?: string | null;
   overall_rank?: number | null;
   capability_score?: number | null;
@@ -10,6 +13,7 @@ interface HomepageTopModelCandidate {
   quality_score?: number | null;
   popularity_score?: number | null;
   release_date?: string | null;
+  hf_downloads?: number | null;
 }
 
 function numeric(value: number | null | undefined): number {
@@ -53,15 +57,20 @@ function releaseFreshnessMultiplier(
   const ageDays = Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
 
   if (ageDays <= 120) return 1;
-  if (ageDays <= 240) return 0.94;
-  if (ageDays <= 365) return 0.84;
-  if (ageDays <= 540) return 0.7;
-  return 0.55;
+  if (ageDays <= 240) return 0.9;
+  if (ageDays <= 365) return 0.75;
+  if (ageDays <= 540) return 0.56;
+  return 0.4;
 }
 
 function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(preview|beta|experimental|alpha|test)\b/.test(haystack);
+}
+
+function isEfficiencyTierModel(model: HomepageTopModelCandidate): boolean {
+  const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
+  return /\b(flash|mini|nano|instant|lite)\b/.test(haystack);
 }
 
 function isSpecializedHomepageCandidate(model: HomepageTopModelCandidate): boolean {
@@ -86,6 +95,10 @@ function homepageCandidateMultiplier(
 
   if (isPreviewLikeModel(model)) {
     multiplier *= 0.88;
+  }
+
+  if (isEfficiencyTierModel(model)) {
+    multiplier *= 0.84;
   }
 
   const freshness = releaseFreshnessSignal(model.release_date, now);
@@ -116,7 +129,28 @@ export function computeHomepageTopModelScore(
 export function selectHomepageTopModelIds<
   T extends HomepageTopModelCandidate
 >(models: T[], limit: number, now = Date.now()): string[] {
-  return [...models]
+  const familyCandidates = models.filter(
+    (
+      model
+    ): model is T & {
+      slug: string;
+      name: string;
+      provider: string;
+    } =>
+      typeof model.slug === "string" &&
+      model.slug.length > 0 &&
+      typeof model.name === "string" &&
+      model.name.length > 0 &&
+      typeof model.provider === "string" &&
+      model.provider.length > 0
+  );
+  const familyRepresentatives = collapsePublicModelFamilies(familyCandidates).map(
+    (family) => family.representative
+  );
+  const familyCandidateIds = new Set(familyCandidates.map((model) => model.id));
+  const uncategorizedCandidates = models.filter((model) => !familyCandidateIds.has(model.id));
+
+  return [...familyRepresentatives, ...uncategorizedCandidates]
     .filter((model) => {
       return (
         model.economic_footprint_score != null ||
