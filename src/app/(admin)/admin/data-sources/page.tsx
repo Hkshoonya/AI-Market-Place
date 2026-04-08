@@ -211,6 +211,8 @@ interface PipelineHealthDetail {
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    officialCompleteDiscoveryMetadataPct: number;
+    officialMissingReleaseDateCount: number;
   };
 }
 
@@ -314,6 +316,29 @@ interface DataIntegrityReport {
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    official: {
+      activeModels: number;
+      completeDiscoveryMetadataCount: number;
+      completeDiscoveryMetadataPct: number;
+      missingCategoryCount: number;
+      missingReleaseDateCount: number;
+      openWeightsMissingLicenseCount: number;
+      llmMissingContextWindowCount: number;
+      providers: Array<{
+        provider: string;
+        total: number;
+        complete: number;
+        complete_pct: number;
+        missingCategoryCount: number;
+        missingReleaseDateCount: number;
+      }>;
+      recentIncompleteModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+      }>;
+    };
     recentIncompleteModels: Array<{
       slug: string;
       provider: string;
@@ -876,8 +901,8 @@ export default function AdminDataSourcesPage() {
         )}
         {healthData?.publicMetadataCoverage && (
           <Badge variant="outline" className="border-border/40 text-[10px]">
-            Public metadata: {healthData.publicMetadataCoverage.completeDiscoveryMetadataPct}% · release gaps:{" "}
-            {healthData.publicMetadataCoverage.missingReleaseDateCount}
+            Official metadata: {healthData.publicMetadataCoverage.officialCompleteDiscoveryMetadataPct}% · release gaps:{" "}
+            {healthData.publicMetadataCoverage.officialMissingReleaseDateCount}
           </Badge>
         )}
       </div>
@@ -1157,10 +1182,10 @@ export default function AdminDataSourcesPage() {
                             : "text-gain"
                         )}
                       >
-                        {integrityData.publicMetadata.completeDiscoveryMetadataPct}%
+                        {integrityData.publicMetadata.official.completeDiscoveryMetadataPct}%
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        Public Metadata · {integrityData.publicMetadata.missingReleaseDateCount} release gaps
+                        Official Metadata · {integrityData.publicMetadata.official.missingReleaseDateCount} release gaps
                       </p>
                     </div>
                   </div>
@@ -1180,11 +1205,11 @@ export default function AdminDataSourcesPage() {
               </div>
             )}
 
-            {integrityData.publicMetadata.recentIncompleteModels.length > 0 && (
+            {integrityData.publicMetadata.official.recentIncompleteModels.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
-                  Public metadata gaps:{" "}
-                  {integrityData.publicMetadata.recentIncompleteModels
+                  Official metadata gaps:{" "}
+                  {integrityData.publicMetadata.official.recentIncompleteModels
                     .slice(0, 3)
                     .map((model) => model.slug)
                     .join(", ")}

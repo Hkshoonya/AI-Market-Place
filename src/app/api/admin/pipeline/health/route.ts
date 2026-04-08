@@ -111,6 +111,15 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    officialCompleteDiscoveryMetadataPct: z.number(),
+    officialMissingReleaseDateCount: z.number(),
+    weakestOfficialProviders: z.array(
+      z.object({
+        provider: z.string(),
+        complete_pct: z.number(),
+        total: z.number(),
+      })
+    ),
     weakestProviders: z.array(
       z.object({
         provider: z.string(),
@@ -119,6 +128,14 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
     recentIncompleteModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+      })
+    ),
+    recentIncompleteOfficialModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),
@@ -292,6 +309,10 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.openWeightsMissingLicenseCount,
         llmMissingContextWindowCount:
           publicMetadataCoverage.llmMissingContextWindowCount,
+        officialCompleteDiscoveryMetadataPct:
+          publicMetadataCoverage.official.completeDiscoveryMetadataPct,
+        officialMissingReleaseDateCount:
+          publicMetadataCoverage.official.missingReleaseDateCount,
         weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
           (provider) => ({
             provider: provider.provider,
@@ -299,7 +320,16 @@ export async function GET(request: NextRequest) {
             total: provider.total,
           })
         ),
+        weakestOfficialProviders: publicMetadataCoverage.official.providers
+          .slice(0, 5)
+          .map((provider) => ({
+            provider: provider.provider,
+            complete_pct: provider.complete_pct,
+            total: provider.total,
+          })),
         recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels,
+        recentIncompleteOfficialModels:
+          publicMetadataCoverage.official.recentIncompleteModels,
       },
     });
 

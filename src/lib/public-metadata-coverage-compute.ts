@@ -1,6 +1,26 @@
 import type { TypedSupabaseClient } from "@/types/database";
 
 const PAGE_SIZE = 1000;
+const OFFICIAL_PROVIDERS = new Set([
+  "OpenAI",
+  "Anthropic",
+  "Google",
+  "xAI",
+  "Z.ai",
+  "MiniMax",
+  "Microsoft",
+  "NVIDIA",
+  "Meta",
+  "Mistral AI",
+  "Moonshot AI",
+  "Qwen",
+  "DeepSeek",
+  "Black Forest Labs",
+  "Cohere",
+  "Amazon",
+  "Alibaba",
+  "Bytedance",
+]);
 
 type ActiveModelPublicMetadataRow = {
   slug: string;
@@ -75,13 +95,38 @@ export async function computePublicMetadataCoverage(
   const llmMissingContextWindow = models.filter(
     (model) => needsContextWindow(model) && !model.context_window
   );
+  const officialModels = models.filter((model) =>
+    OFFICIAL_PROVIDERS.has(model.provider ?? "")
+  );
+  const officialMissingCategory = officialModels.filter((model) => !model.category);
+  const officialMissingReleaseDate = officialModels.filter(
+    (model) => !model.release_date
+  );
+  const officialOpenWeightsMissingLicense = officialModels.filter(
+    (model) => Boolean(model.is_open_weights) && !hasOpenWeightLicense(model)
+  );
+  const officialLlmMissingContextWindow = officialModels.filter(
+    (model) => needsContextWindow(model) && !model.context_window
+  );
   const completeDiscoveryMetadataCount = models.filter(
+    hasDiscoveryMetadata
+  ).length;
+  const officialCompleteDiscoveryMetadataCount = officialModels.filter(
     hasDiscoveryMetadata
   ).length;
   const completeDiscoveryMetadataPct =
     models.length > 0
       ? Number(
           ((completeDiscoveryMetadataCount / models.length) * 100).toFixed(1)
+        )
+      : 100;
+  const officialCompleteDiscoveryMetadataPct =
+    officialModels.length > 0
+      ? Number(
+          (
+            (officialCompleteDiscoveryMetadataCount / officialModels.length) *
+            100
+          ).toFixed(1)
         )
       : 100;
 
@@ -139,6 +184,50 @@ export async function computePublicMetadataCoverage(
     missingReleaseDateCount: missingReleaseDate.length,
     openWeightsMissingLicenseCount: openWeightsMissingLicense.length,
     llmMissingContextWindowCount: llmMissingContextWindow.length,
+    official: {
+      activeModels: officialModels.length,
+      completeDiscoveryMetadataCount: officialCompleteDiscoveryMetadataCount,
+      completeDiscoveryMetadataPct: officialCompleteDiscoveryMetadataPct,
+      missingCategoryCount: officialMissingCategory.length,
+      missingReleaseDateCount: officialMissingReleaseDate.length,
+      openWeightsMissingLicenseCount: officialOpenWeightsMissingLicense.length,
+      llmMissingContextWindowCount: officialLlmMissingContextWindow.length,
+      providers: [...providerStats.entries()]
+        .filter(([provider]) => OFFICIAL_PROVIDERS.has(provider))
+        .map(([provider, stats]) => ({
+          provider,
+          total: stats.total,
+          complete: stats.complete,
+          complete_pct: Number(
+            ((stats.complete / Math.max(stats.total, 1)) * 100).toFixed(1)
+          ),
+          missingCategoryCount: stats.missingCategory,
+          missingReleaseDateCount: stats.missingReleaseDate,
+        }))
+        .sort(
+          (left, right) =>
+            left.complete_pct - right.complete_pct || right.total - left.total
+        ),
+      recentIncompleteModels: officialModels
+        .filter(
+          (model) =>
+            !hasDiscoveryMetadata(model) ||
+            (Boolean(model.is_open_weights) && !hasOpenWeightLicense(model)) ||
+            (needsContextWindow(model) && !model.context_window)
+        )
+        .sort(
+          (left, right) =>
+            Date.parse(right.release_date ?? "0") -
+            Date.parse(left.release_date ?? "0")
+        )
+        .slice(0, 10)
+        .map((model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          release_date: model.release_date,
+        })),
+    },
     providers: [...providerStats.entries()]
       .map(([provider, stats]) => ({
         provider,

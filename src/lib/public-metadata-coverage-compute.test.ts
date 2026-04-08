@@ -60,8 +60,14 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.missingReleaseDateCount).toBe(1);
     expect(coverage.openWeightsMissingLicenseCount).toBe(0);
     expect(coverage.llmMissingContextWindowCount).toBe(1);
+    expect(coverage.official.activeModels).toBe(2);
+    expect(coverage.official.completeDiscoveryMetadataCount).toBe(2);
+    expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
     expect(coverage.providers[0]?.provider).toBe("Unknown");
     expect(coverage.providers[0]?.complete_pct).toBe(0);
+    expect(coverage.official.providers.map((provider) => provider.provider)).toEqual(
+      expect.arrayContaining(["Google", "xAI"])
+    );
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
   });
 });
