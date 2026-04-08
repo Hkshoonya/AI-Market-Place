@@ -11,6 +11,29 @@ type ProviderCoverage = {
   covered: number;
 };
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: Error | null }>
+) {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await fetchPage(from, to);
+    if (error) throw error;
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return rows;
+}
+
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -24,30 +47,30 @@ async function main() {
     auth: { persistSession: false },
   });
 
-  const [
-    { data: models, error: modelsError },
-    { data: benchmarkRows, error: benchmarkError },
-    { data: benchmarkNewsRows, error: benchmarkNewsError },
-  ] = await Promise.all([
-    supabase
-      .from("models")
-      .select("id, slug, name, provider, category, release_date")
-      .eq("status", "active"),
-    supabase.from("benchmark_scores").select("model_id"),
-    supabase
-      .from("model_news")
-      .select("related_model_ids")
-      .eq("category", "benchmark"),
+  const [models, benchmarkRows, benchmarkNewsRows] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from("models")
+        .select("id, slug, name, provider, category, release_date")
+        .eq("status", "active")
+        .range(from, to)
+    ),
+    fetchAllRows((from, to) =>
+      supabase.from("benchmark_scores").select("model_id").range(from, to)
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from("model_news")
+        .select("related_model_ids")
+        .eq("category", "benchmark")
+        .range(from, to)
+    ),
   ]);
 
-  if (modelsError) throw modelsError;
-  if (benchmarkError) throw benchmarkError;
-  if (benchmarkNewsError) throw benchmarkNewsError;
-
-  const scoredModelIds = new Set((benchmarkRows ?? []).map((row) => row.model_id));
+  const scoredModelIds = new Set(benchmarkRows.map((row) => row.model_id));
   const evidencedModelIds = new Set<string>();
 
-  for (const row of benchmarkNewsRows ?? []) {
+  for (const row of benchmarkNewsRows) {
     for (const modelId of row.related_model_ids ?? []) {
       evidencedModelIds.add(modelId);
     }
@@ -61,7 +84,7 @@ async function main() {
     release_date: string | null;
   }> = [];
 
-  for (const model of models ?? []) {
+  for (const model of models) {
     const provider = model.provider ?? "Unknown";
     const stats = providerStats.get(provider) ?? {
       total: 0,
@@ -113,9 +136,9 @@ async function main() {
 
   console.log(
     JSON.stringify(
-      {
+          {
         totals: {
-          active_models: (models ?? []).length,
+          active_models: models.length,
           with_scores: scoredModelIds.size,
           with_benchmark_news: evidencedModelIds.size,
         },
