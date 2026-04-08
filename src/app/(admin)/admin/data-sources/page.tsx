@@ -192,6 +192,14 @@ interface AdapterHealth {
 
 interface PipelineHealthDetail {
   status: "healthy" | "degraded" | "down";
+  dataQualityStatus?: "healthy" | "warning" | "critical";
+  dataQualityAlerts?: Array<{
+    severity: "warning" | "critical";
+    code: string;
+    message: string;
+    value: number;
+    target: number;
+  }>;
   healthy: number;
   degraded: number;
   down: number;
@@ -952,6 +960,15 @@ export default function AdminDataSourcesPage() {
             Official discovery-ready: {healthData.publicMetadataCoverage.officialDefaultPublicSurfaceReadyPct}% · metadata complete:{" "}
             {healthData.publicMetadataCoverage.officialCompleteDiscoveryMetadataPct}% · release gaps:{" "}
             {healthData.publicMetadataCoverage.officialMissingReleaseDateCount}
+          </Badge>
+        )}
+        {healthData?.dataQualityAlerts && healthData.dataQualityAlerts.length > 0 && (
+          <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
+            Data quality {healthData.dataQualityStatus}:{" "}
+            {healthData.dataQualityAlerts
+              .slice(0, 2)
+              .map((alert) => `${alert.code} (${alert.value})`)
+              .join(" · ")}
           </Badge>
         )}
       </div>

@@ -28,6 +28,10 @@ import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 import {
+  computePipelineDataQualityAlerts,
+  computePipelineDataQualityStatus,
+} from "@/lib/pipeline-quality-alerts";
+import {
   rateLimit,
   RATE_LIMITS,
   getClientIp,
@@ -51,6 +55,16 @@ const AdapterHealthSchema = z.object({
 
 const PipelineHealthSummarySchema = z.object({
   status: z.enum(["healthy", "degraded", "down"]),
+  dataQualityStatus: z.enum(["healthy", "warning", "critical"]),
+  dataQualityAlerts: z.array(
+    z.object({
+      severity: z.enum(["warning", "critical"]),
+      code: z.string(),
+      message: z.string(),
+      value: z.number(),
+      target: z.number(),
+    })
+  ),
   healthy: z.number(),
   degraded: z.number(),
   down: z.number(),
@@ -316,9 +330,21 @@ export async function GET(request: NextRequest) {
       missingTrustedLocatorCount:
         benchmarkMetadataCoverage.missingTrustedLocatorCount,
     };
+    const dataQualityAlerts = computePipelineDataQualityAlerts({
+      benchmarkCoverage: benchmarkCoverageSummary,
+      publicMetadataCoverage: {
+        officialCompleteDiscoveryMetadataPct:
+          publicMetadataCoverage.official.completeDiscoveryMetadataPct,
+        officialDefaultPublicSurfaceReadyPct:
+          publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
+      },
+    });
+    const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
 
     const detail = PipelineHealthDetailSchema.parse({
       status: topLevelStatus,
+      dataQualityStatus,
+      dataQualityAlerts,
       healthy: healthyCount,
       degraded: degradedCount,
       down: downCount,

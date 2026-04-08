@@ -257,6 +257,8 @@ describe("GET /api/pipeline/health", () => {
 
       expect(response.status).toBe(200);
       expect(body).toHaveProperty("status");
+      expect(body).toHaveProperty("dataQualityStatus");
+      expect(body).toHaveProperty("dataQualityAlerts");
       expect(body).toHaveProperty("healthy");
       expect(body).toHaveProperty("degraded");
       expect(body).toHaveProperty("down");
@@ -363,9 +365,17 @@ describe("GET /api/pipeline/health", () => {
       expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
       expect(body.publicMetadataCoverage).toHaveProperty("weakestProviders");
       expect(body.publicMetadataCoverage).toHaveProperty("weakestOfficialProviders");
+      expect(body.publicMetadataCoverage).toHaveProperty("topReadinessBlockers");
+      expect(body.publicMetadataCoverage).toHaveProperty(
+        "topOfficialReadinessBlockers"
+      );
       expect(body.publicMetadataCoverage).toHaveProperty("recentIncompleteModels");
       expect(body.publicMetadataCoverage).toHaveProperty(
         "recentIncompleteOfficialModels"
+      );
+      expect(body.publicMetadataCoverage).toHaveProperty("recentNotReadyModels");
+      expect(body.publicMetadataCoverage).toHaveProperty(
+        "recentNotReadyOfficialModels"
       );
 
       const adapter = body.adapters[0];

@@ -333,6 +333,8 @@ describe("GET /api/admin/pipeline/health", () => {
 
     // Top-level fields
     expect(body).toHaveProperty("status");
+    expect(body).toHaveProperty("dataQualityStatus");
+    expect(body).toHaveProperty("dataQualityAlerts");
     expect(["healthy", "degraded", "down"]).toContain(body.status);
     expect(body).toHaveProperty("healthy");
     expect(typeof body.healthy).toBe("number");
@@ -359,11 +361,19 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.publicMetadataCoverage).toHaveProperty(
       "officialMissingReleaseDateCount"
     );
+    expect(body.publicMetadataCoverage).toHaveProperty("topReadinessBlockers");
+    expect(body.publicMetadataCoverage).toHaveProperty(
+      "topOfficialReadinessBlockers"
+    );
     expect(body.publicMetadataCoverage).toHaveProperty("weakestProviders");
     expect(body.publicMetadataCoverage).toHaveProperty("weakestOfficialProviders");
     expect(body.publicMetadataCoverage).toHaveProperty("recentIncompleteModels");
     expect(body.publicMetadataCoverage).toHaveProperty(
       "recentIncompleteOfficialModels"
+    );
+    expect(body.publicMetadataCoverage).toHaveProperty("recentNotReadyModels");
+    expect(body.publicMetadataCoverage).toHaveProperty(
+      "recentNotReadyOfficialModels"
     );
 
     // Adapter fields
