@@ -314,6 +314,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["GLM-5.1", "GLM 5.1"],
   },
   {
+    id: "zai-glm-ocr",
+    provider: "Z.ai",
+    url: "https://huggingface.co/zai-org/GLM-OCR",
+    titleHint: "GLM-OCR benchmark update",
+    modelHints: ["GLM-OCR", "GLM OCR"],
+  },
+  {
     id: "zai-glm-4-7",
     provider: "Z.ai",
     url: "https://docs.z.ai/guides/llm/glm-4.7",

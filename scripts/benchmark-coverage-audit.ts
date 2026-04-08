@@ -12,6 +12,27 @@ type ProviderCoverage = {
 };
 
 const PAGE_SIZE = 1000;
+const RECENT_RELEASE_CUTOFF = Date.parse("2025-12-01T00:00:00.000Z");
+const OFFICIAL_PROVIDERS = new Set([
+  "OpenAI",
+  "Anthropic",
+  "Google",
+  "xAI",
+  "Z.ai",
+  "MiniMax",
+  "Microsoft",
+  "NVIDIA",
+  "Meta",
+  "Mistral AI",
+  "Moonshot AI",
+  "Qwen",
+  "DeepSeek",
+  "Black Forest Labs",
+  "Cohere",
+  "Amazon",
+  "Alibaba",
+  "Bytedance",
+]);
 
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: Error | null }>
@@ -83,6 +104,12 @@ async function main() {
     category: string | null;
     release_date: string | null;
   }> = [];
+  const recentSparseOfficialModels: Array<{
+    slug: string;
+    provider: string;
+    category: string | null;
+    release_date: string | null;
+  }> = [];
 
   for (const model of models) {
     const provider = model.provider ?? "Unknown";
@@ -104,14 +131,18 @@ async function main() {
       stats.covered += 1;
     } else if (
       model.release_date &&
-      Date.parse(model.release_date) >= Date.parse("2025-12-01T00:00:00.000Z")
+      Date.parse(model.release_date) >= RECENT_RELEASE_CUTOFF
     ) {
-      recentSparseModels.push({
+      const entry = {
         slug: model.slug,
         provider,
         category: model.category,
         release_date: model.release_date,
-      });
+      };
+      recentSparseModels.push(entry);
+      if (OFFICIAL_PROVIDERS.has(provider)) {
+        recentSparseOfficialModels.push(entry);
+      }
     }
 
     providerStats.set(provider, stats);
@@ -126,8 +157,20 @@ async function main() {
       ),
     }))
     .sort((left, right) => right.total - left.total);
+  const officialProviders = providers
+    .filter((provider) => OFFICIAL_PROVIDERS.has(provider.provider))
+    .sort(
+      (left, right) =>
+        left.coverage_pct - right.coverage_pct || right.total - left.total
+    );
 
   const recentSparse = recentSparseModels
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 40);
+  const recentSparseOfficial = recentSparseOfficialModels
     .sort(
       (left, right) =>
         Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
@@ -136,14 +179,16 @@ async function main() {
 
   console.log(
     JSON.stringify(
-          {
+      {
         totals: {
           active_models: models.length,
           with_scores: scoredModelIds.size,
           with_benchmark_news: evidencedModelIds.size,
         },
         providers: providers.slice(0, 20),
+        official_providers: officialProviders,
         recent_sparse: recentSparse,
+        recent_sparse_official: recentSparseOfficial,
       },
       null,
       2
