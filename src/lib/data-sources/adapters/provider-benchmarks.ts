@@ -17,6 +17,7 @@ import {
   fetchAllActiveAliasModels,
   resolveAliasFamilyModelIds,
 } from "../model-alias-resolver";
+import { getTrustedBenchmarkHfUrl } from "../shared/benchmark-coverage";
 
 interface ProviderBenchmarkSource {
   id: string;
@@ -26,6 +27,19 @@ interface ProviderBenchmarkSource {
   modelHints: string[];
   publishedAtHint?: string;
   contentType?: "html" | "pdf";
+  sourceType?: "official_provider_page" | "official_model_card";
+  requiresBenchmarkSignal?: boolean;
+}
+
+interface ProviderBenchmarkModel {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
+  category: string | null;
+  hf_model_id: string | null;
+  website_url: string | null;
+  release_date: string | null;
 }
 
 type PdfParseModule = typeof import("pdf-parse");
@@ -48,6 +62,7 @@ const PROVIDER_PAGE_HEADERS = {
 };
 const PROVIDER_FETCH_TIMEOUT_MS = 15000;
 const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
+const BENCHMARK_MODEL_PAGE_SIZE = 1000;
 
 const BENCHMARK_KEYWORDS = [
   "benchmark",
@@ -515,6 +530,21 @@ function extractBenchmarkSnippetFromText(text: string) {
   return summary || null;
 }
 
+function hasBenchmarkSignal(text: string | null | undefined) {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return BENCHMARK_KEYWORDS.some((keyword) => lower.includes(keyword));
+}
+
+function buildGenericBenchmarkSummary(source: ProviderBenchmarkSource) {
+  const target =
+    source.requiresBenchmarkSignal
+      ? source.modelHints[0] ?? source.titleHint
+      : source.modelHints.join(", ");
+
+  return `${source.provider} published benchmark or leaderboard evidence for ${target}.`;
+}
+
 function isLowQualityBenchmarkSummary(summary: string | null) {
   if (!summary) return true;
 
@@ -581,7 +611,7 @@ function extractPdfSummary(source: ProviderBenchmarkSource, text: string) {
   const snippet = extractBenchmarkSnippetFromText(text);
   if (snippet && !isLowQualityBenchmarkSummary(snippet)) return snippet;
 
-  return `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`;
+  return buildGenericBenchmarkSummary(source);
 }
 
 function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
@@ -589,6 +619,7 @@ function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
     title: source.titleHint,
     summary: `${source.provider} published official provider-reported benchmark evidence for ${source.modelHints.join(", ")}.`,
     publishedAt: source.publishedAtHint ?? extractPdfPublishedAt(source, source.url) ?? new Date().toISOString(),
+    hasBenchmarkSignal: false,
   };
 }
 
@@ -618,6 +649,7 @@ async function parseProviderSourceContent(
             extractPdfPublishedAt(source, rawText) ??
             source.publishedAtHint ??
             new Date().toISOString(),
+          hasBenchmarkSignal: hasBenchmarkSignal(rawText),
         };
       } finally {
         await parser.destroy();
@@ -630,11 +662,15 @@ async function parseProviderSourceContent(
   const html = await response.text();
   const title = extractTitle(html) ?? source.titleHint;
   const summary = buildRecordSummary(source, html);
+  const description = extractDescription(html);
+  const benchmarkSignal =
+    hasBenchmarkSignal(stripHtml(html)) || hasBenchmarkSignal(description);
   return {
     title,
     summary,
     publishedAt:
       extractPublishedAt(html) ?? source.publishedAtHint ?? new Date().toISOString(),
+    hasBenchmarkSignal: benchmarkSignal,
   };
 }
 
@@ -643,7 +679,7 @@ function buildRecordSummary(
   html: string
 ) {
   if (source.url.includes("huggingface.co")) {
-    return `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`;
+    return buildGenericBenchmarkSummary(source);
   }
 
   const snippet = extractBenchmarkSnippet(html);
@@ -657,7 +693,7 @@ function buildRecordSummary(
   }
 
   return (
-    `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`
+    buildGenericBenchmarkSummary(source)
   );
 }
 
@@ -704,12 +740,182 @@ function buildModelRelations(
   );
 }
 
+async function fetchBenchmarkCandidateModels(
+  supabase: SyncContext["supabase"]
+) {
+  const models: ProviderBenchmarkModel[] = [];
+
+  for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
+    const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("models")
+      .select(
+        "id, slug, name, provider, category, hf_model_id, website_url, release_date"
+      )
+      .eq("status", "active")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch benchmark candidate models: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as ProviderBenchmarkModel[];
+    models.push(...rows);
+
+    if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
+  }
+
+  return models;
+}
+
+async function fetchCoveredBenchmarkModelIds(
+  supabase: SyncContext["supabase"]
+) {
+  const coveredIds = new Set<string>();
+
+  for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
+    const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("benchmark_scores")
+      .select("model_id")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch benchmark score coverage: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    for (const row of rows) {
+      if (typeof row.model_id === "string") {
+        coveredIds.add(row.model_id);
+      }
+    }
+
+    if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
+  }
+
+  for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
+    const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("model_news")
+      .select("related_model_ids")
+      .eq("category", "benchmark")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    for (const row of rows) {
+      for (const modelId of row.related_model_ids ?? []) {
+        coveredIds.add(modelId);
+      }
+    }
+
+    if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
+  }
+
+  return coveredIds;
+}
+
+async function fetchExistingAutoBenchmarkSourceIds(
+  supabase: SyncContext["supabase"]
+) {
+  const sourceIds = new Set<string>();
+
+  for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
+    const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("model_news")
+      .select("source_id")
+      .eq("source", "provider-benchmarks")
+      .like("source_id", "provider-benchmarks-auto-hf-%")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch auto benchmark sources: ${error.message}`);
+    }
+
+    const rows = data ?? [];
+    for (const row of rows) {
+      if (typeof row.source_id === "string") {
+        sourceIds.add(row.source_id);
+      }
+    }
+
+    if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
+  }
+
+  return sourceIds;
+}
+
+function buildAutoBenchmarkModelHints(model: ProviderBenchmarkModel) {
+  const hints = new Set<string>([model.name, model.slug]);
+
+  const hfTail = model.hf_model_id?.split("/").pop();
+  if (hfTail) {
+    hints.add(hfTail);
+  }
+
+  const providerSlug = makeSlug(model.provider);
+  if (providerSlug && model.slug.startsWith(providerSlug + "-")) {
+    hints.add(model.slug.slice(providerSlug.length + 1));
+  }
+
+  return [...hints].filter(Boolean);
+}
+
+function buildAutoBenchmarkSources(
+  models: ProviderBenchmarkModel[],
+  coveredModelIds: Set<string>,
+  existingAutoSourceIds: Set<string>,
+  autoMaxPages: number
+) {
+  const curatedUrls = new Set(
+    PROVIDER_BENCHMARK_SOURCES.map((source) => source.url)
+  );
+  const candidates: Array<
+    ProviderBenchmarkSource & { sourceType: "official_model_card"; releaseDate: string | null }
+  > = [];
+
+  for (const model of models) {
+    const sourceId = `provider-benchmarks-auto-hf-${makeSlug(model.slug)}`;
+    if (coveredModelIds.has(model.id) && !existingAutoSourceIds.has(sourceId)) {
+      continue;
+    }
+
+    const trustedHfUrl = getTrustedBenchmarkHfUrl(model);
+    if (!trustedHfUrl || curatedUrls.has(trustedHfUrl)) continue;
+
+    candidates.push({
+      id: sourceId.replace("provider-benchmarks-", ""),
+      provider: model.provider,
+      url: trustedHfUrl,
+      titleHint: `${model.name} benchmark update`,
+      modelHints: buildAutoBenchmarkModelHints(model),
+      sourceType: "official_model_card",
+      requiresBenchmarkSignal: true,
+      releaseDate: model.release_date,
+    });
+  }
+
+  return candidates
+    .sort(
+      (left, right) =>
+        Date.parse(right.releaseDate ?? "0") - Date.parse(left.releaseDate ?? "0")
+    )
+    .slice(0, autoMaxPages)
+    .map(({ releaseDate: _releaseDate, ...source }) => source);
+}
+
 const adapter: DataSourceAdapter = {
   id: "provider-benchmarks",
   name: "Provider Benchmarks",
   outputTypes: ["news"],
   defaultConfig: {
     maxPages: PROVIDER_BENCHMARK_SOURCES.length,
+    autoMaxPages: 100,
   },
   requiredSecrets: [],
 
@@ -717,15 +923,32 @@ const adapter: DataSourceAdapter = {
     const maxPages =
       (typeof ctx.config.maxPages === "number" ? ctx.config.maxPages : null) ??
       PROVIDER_BENCHMARK_SOURCES.length;
+    const autoMaxPages =
+      (typeof ctx.config.autoMaxPages === "number"
+        ? ctx.config.autoMaxPages
+        : null) ?? 100;
 
     const activeModels = await fetchAllActiveAliasModels(ctx.supabase);
+    const benchmarkCandidateModels = await fetchBenchmarkCandidateModels(ctx.supabase);
+    const coveredBenchmarkModelIds = await fetchCoveredBenchmarkModelIds(ctx.supabase);
+    const existingAutoSourceIds = await fetchExistingAutoBenchmarkSourceIds(ctx.supabase);
     const lookup = await buildModelLookup(ctx.supabase);
     const aliasIndex = buildModelAliasIndex(activeModels);
+    const sources = [
+      ...PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages),
+      ...buildAutoBenchmarkSources(
+        benchmarkCandidateModels,
+        coveredBenchmarkModelIds,
+        existingAutoSourceIds,
+        autoMaxPages
+      ),
+    ];
     const records: Record<string, unknown>[] = [];
     const errors: Array<{ message: string; context?: string }> = [];
     let recordsProcessed = 0;
+    let autoSkippedWithoutBenchmarkSignal = 0;
 
-    for (const source of PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages)) {
+    for (const source of sources) {
       recordsProcessed++;
 
       const response = await fetchWithRetry(
@@ -758,24 +981,28 @@ const adapter: DataSourceAdapter = {
         continue;
       }
 
-      const { title, summary, publishedAt } = await parseProviderSourceContent(
-        source,
-        response
-      );
+      const parsedContent = await parseProviderSourceContent(source, response);
+      if (
+        source.requiresBenchmarkSignal &&
+        !parsedContent.hasBenchmarkSignal
+      ) {
+        autoSkippedWithoutBenchmarkSignal += 1;
+        continue;
+      }
       const relatedModelIds = buildModelRelations(
         source,
-        title,
-        summary,
+        parsedContent.title,
+        parsedContent.summary,
         lookup,
         aliasIndex
       );
       records.push({
         source: "provider-benchmarks",
         source_id: `provider-benchmarks-${source.id}`,
-        title,
-        summary,
+        title: parsedContent.title,
+        summary: parsedContent.summary,
         url: source.url,
-        published_at: publishedAt,
+        published_at: parsedContent.publishedAt,
         category: "benchmark",
         related_provider: source.provider,
         related_model_ids: relatedModelIds,
@@ -788,10 +1015,10 @@ const adapter: DataSourceAdapter = {
         metadata: {
           provider: source.provider,
           provider_reported: true,
-          source_type: "official_provider_page",
+          source_type: source.sourceType ?? "official_provider_page",
           source_key: source.id,
           model_hints: source.modelHints,
-          extracted_title: title,
+          extracted_title: parsedContent.title,
         },
       });
     }
@@ -811,7 +1038,13 @@ const adapter: DataSourceAdapter = {
       recordsUpdated: 0,
       errors: [...errors, ...upsertErrors],
       metadata: {
-        sourceCount: PROVIDER_BENCHMARK_SOURCES.length,
+        sourceCount: sources.length,
+        curatedSourceCount: Math.min(maxPages, PROVIDER_BENCHMARK_SOURCES.length),
+        autoSourceCount: Math.max(
+          0,
+          sources.length - Math.min(maxPages, PROVIDER_BENCHMARK_SOURCES.length)
+        ),
+        autoSkippedWithoutBenchmarkSignal,
         pagesFetched: records.length,
       },
     };
@@ -878,5 +1111,7 @@ export const __testables = {
   extractPdfPublishedAt,
   extractPdfSummary,
   buildPdfFallbackRecord,
+  buildAutoBenchmarkSources,
+  buildAutoBenchmarkModelHints,
   PROVIDER_PAGE_HEADERS,
 };

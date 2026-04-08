@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { isBenchmarkExpectedModel } from "../src/lib/data-sources/shared/benchmark-coverage";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -33,37 +34,6 @@ const OFFICIAL_PROVIDERS = new Set([
   "Alibaba",
   "Bytedance",
 ]);
-
-function isBenchmarkExpectedModel(model: {
-  category: string | null;
-  slug: string;
-  provider: string;
-}) {
-  const category = model.category ?? "";
-  const text = `${model.provider} ${model.slug}`.toLowerCase();
-
-  if (category === "llm" || category === "multimodal") {
-    return true;
-  }
-
-  if (category === "vision") {
-    return /\b(ocr|doc|docvqa|vqa|parse|chart|screen)\b/.test(text);
-  }
-
-  if (category === "speech_audio") {
-    return /\b(asr|transcribe|transcription|speech|stt)\b/.test(text);
-  }
-
-  if (category === "image_generation" || category === "video") {
-    return false;
-  }
-
-  if (category === "specialized") {
-    return /\b(ocr|asr|transcribe|reasoning|terminal|code|coder|math)\b/.test(text);
-  }
-
-  return false;
-}
 
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: Error | null }>

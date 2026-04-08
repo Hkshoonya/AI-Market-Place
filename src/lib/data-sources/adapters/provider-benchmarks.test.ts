@@ -160,10 +160,62 @@ describe("provider-benchmarks helpers", () => {
         contentType: "pdf",
       })
     ).toEqual({
+      hasBenchmarkSignal: false,
       title: "Grok 4 Fast benchmark update",
       summary:
         "xAI published official provider-reported benchmark evidence for Grok 4 Fast.",
       publishedAt: "2025-09-19T00:00:00.000Z",
     });
+  });
+
+  it("auto-generates benchmark sources only for uncovered trusted HF models", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "google-gemma-4-31b-it",
+          name: "Gemma 4 31B IT",
+          provider: "Google",
+          category: "multimodal",
+          hf_model_id: "google/gemma-4-31B-it",
+          website_url: null,
+          release_date: "2026-04-02",
+        },
+        {
+          id: "2",
+          slug: "google-imagen-4-fast",
+          name: "Imagen 4 Fast",
+          provider: "Google",
+          category: "image_generation",
+          hf_model_id: "google/imagen-4-fast",
+          website_url: null,
+          release_date: "2026-04-02",
+        },
+        {
+          id: "3",
+          slug: "z-ai-glm-5-1",
+          name: "GLM-5.1",
+          provider: "Z.ai",
+          category: "llm",
+          hf_model_id: "zai-org/GLM-5.1",
+          website_url: null,
+          release_date: "2026-04-03",
+        },
+      ],
+      new Set(["3"]),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({
+      id: "auto-hf-google-gemma-4-31b-it",
+      provider: "Google",
+      url: "https://huggingface.co/google/gemma-4-31B-it",
+      requiresBenchmarkSignal: true,
+      sourceType: "official_model_card",
+    });
+    expect(sources[0].modelHints).toContain("Gemma 4 31B IT");
+    expect(sources[0].modelHints).toContain("gemma-4-31B-it");
   });
 });
