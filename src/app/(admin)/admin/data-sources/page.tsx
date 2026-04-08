@@ -208,6 +208,10 @@ interface PipelineHealthDetail {
   publicMetadataCoverage?: {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyPct: number;
+    topReadinessBlockers: Array<{
+      reason: string;
+      count: number;
+    }>;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
@@ -215,6 +219,10 @@ interface PipelineHealthDetail {
     officialCompleteDiscoveryMetadataPct: number;
     officialDefaultPublicSurfaceReadyPct: number;
     officialMissingReleaseDateCount: number;
+    topOfficialReadinessBlockers: Array<{
+      reason: string;
+      count: number;
+    }>;
   };
 }
 
@@ -316,6 +324,10 @@ interface DataIntegrityReport {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyCount: number;
     defaultPublicSurfaceReadyPct: number;
+    topReadinessBlockers: Array<{
+      reason: string;
+      count: number;
+    }>;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
@@ -326,6 +338,10 @@ interface DataIntegrityReport {
       completeDiscoveryMetadataPct: number;
       defaultPublicSurfaceReadyCount: number;
       defaultPublicSurfaceReadyPct: number;
+      topReadinessBlockers: Array<{
+        reason: string;
+        count: number;
+      }>;
       missingCategoryCount: number;
       missingReleaseDateCount: number;
       openWeightsMissingLicenseCount: number;
@@ -351,6 +367,7 @@ interface DataIntegrityReport {
         provider: string;
         category: string | null;
         releaseDate: string | null;
+        reasons: string[];
       }>;
     };
     providers: Array<{
@@ -374,6 +391,7 @@ interface DataIntegrityReport {
       provider: string;
       category: string | null;
       releaseDate: string | null;
+      reasons: string[];
     }>;
   };
 }
@@ -1255,6 +1273,18 @@ export default function AdminDataSourcesPage() {
                   {integrityData.publicMetadata.official.recentNotReadyModels
                     .slice(0, 3)
                     .map((model) => model.slug)
+                    .join(", ")}
+                </Badge>
+              </div>
+            )}
+
+            {integrityData.publicMetadata.official.topReadinessBlockers.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
+                  Top readiness blockers:{" "}
+                  {integrityData.publicMetadata.official.topReadinessBlockers
+                    .slice(0, 3)
+                    .map((blocker) => `${blocker.reason} (${blocker.count})`)
                     .join(", ")}
                 </Badge>
               </div>

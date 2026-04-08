@@ -116,6 +116,12 @@ const DataIntegrityReportSchema = z.object({
     completeDiscoveryMetadataPct: z.number(),
     defaultPublicSurfaceReadyCount: z.number(),
     defaultPublicSurfaceReadyPct: z.number(),
+    topReadinessBlockers: z.array(
+      z.object({
+        reason: z.string(),
+        count: z.number(),
+      })
+    ),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
@@ -126,6 +132,12 @@ const DataIntegrityReportSchema = z.object({
       completeDiscoveryMetadataPct: z.number(),
       defaultPublicSurfaceReadyCount: z.number(),
       defaultPublicSurfaceReadyPct: z.number(),
+      topReadinessBlockers: z.array(
+        z.object({
+          reason: z.string(),
+          count: z.number(),
+        })
+      ),
       missingCategoryCount: z.number(),
       missingReleaseDateCount: z.number(),
       openWeightsMissingLicenseCount: z.number(),
@@ -157,6 +169,7 @@ const DataIntegrityReportSchema = z.object({
           provider: z.string(),
           category: z.string().nullable(),
           releaseDate: z.string().nullable(),
+          reasons: z.array(z.string()),
         })
       ),
     }),
@@ -187,6 +200,7 @@ const DataIntegrityReportSchema = z.object({
         provider: z.string(),
         category: z.string().nullable(),
         releaseDate: z.string().nullable(),
+        reasons: z.array(z.string()),
       })
     ),
   }),

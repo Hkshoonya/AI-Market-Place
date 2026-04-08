@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncOutputType } from "@/lib/data-sources/types";
+import type { PublicSurfaceReadinessBlocker } from "@/lib/models/public-surface-readiness";
 import {
   getTrustedBenchmarkHfUrl,
   getTrustedBenchmarkWebsiteUrl,
@@ -137,6 +138,10 @@ export interface DataIntegrityReport {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyCount: number;
     defaultPublicSurfaceReadyPct: number;
+    topReadinessBlockers: Array<{
+      reason: PublicSurfaceReadinessBlocker;
+      count: number;
+    }>;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
@@ -147,6 +152,10 @@ export interface DataIntegrityReport {
       completeDiscoveryMetadataPct: number;
       defaultPublicSurfaceReadyCount: number;
       defaultPublicSurfaceReadyPct: number;
+      topReadinessBlockers: Array<{
+        reason: PublicSurfaceReadinessBlocker;
+        count: number;
+      }>;
       missingCategoryCount: number;
       missingReleaseDateCount: number;
       openWeightsMissingLicenseCount: number;
@@ -173,6 +182,7 @@ export interface DataIntegrityReport {
         provider: string;
         category: string | null;
         releaseDate: string | null;
+        reasons: PublicSurfaceReadinessBlocker[];
       }>;
     };
     providers: Array<{
@@ -197,6 +207,7 @@ export interface DataIntegrityReport {
       provider: string;
       category: string | null;
       releaseDate: string | null;
+      reasons: PublicSurfaceReadinessBlocker[];
     }>;
   };
 }
@@ -856,6 +867,7 @@ export async function verifyDataIntegrity(
           provider: model.provider,
           category: model.category,
           releaseDate: model.release_date,
+          reasons: model.reasons,
         })
       ),
       official: {
@@ -873,6 +885,7 @@ export async function verifyDataIntegrity(
             provider: model.provider,
             category: model.category,
             releaseDate: model.release_date,
+            reasons: model.reasons,
           })),
       },
       recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels.map(

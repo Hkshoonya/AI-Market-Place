@@ -1,12 +1,14 @@
 import type { TypedSupabaseClient } from "@/types/database";
 import { getPublicSurfaceSeriesKey } from "@/lib/models/public-families";
 import {
+  getDefaultPublicSurfaceReadinessBlockers,
   hasCompletePublicMetadata,
   hasDiscoveryMetadata,
   hasOpenWeightLicense,
   isDefaultPublicSurfaceReady,
   needsContextWindowForCoverage,
   OFFICIAL_PROVIDERS,
+  type PublicSurfaceReadinessBlocker,
   isReleaseDateWrapperModel,
 } from "@/lib/models/public-surface-readiness";
 
@@ -40,6 +42,14 @@ type CoverageFamilyAggregate = {
   license: string | null;
   license_name: string | null;
   context_window: number | null;
+};
+
+type NotReadyRow = {
+  slug: string;
+  provider: string;
+  category: string | null;
+  release_date: string | null;
+  reasons: PublicSurfaceReadinessBlocker[];
 };
 
 async function fetchAllRows<T>(
@@ -110,6 +120,37 @@ function applyFamilyCoverageFallback(
     license_name: model.license_name ?? family.license_name,
     context_window: model.context_window ?? family.context_window,
   };
+}
+
+function computeBlockerCounts(models: ActiveModelPublicMetadataRow[]) {
+  const counts = new Map<PublicSurfaceReadinessBlocker, number>();
+
+  for (const model of models) {
+    for (const blocker of getDefaultPublicSurfaceReadinessBlockers(model)) {
+      counts.set(blocker, (counts.get(blocker) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()]
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
+}
+
+function buildRecentNotReadyRows(models: ActiveModelPublicMetadataRow[]): NotReadyRow[] {
+  return models
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+      release_date: model.release_date,
+      reasons: getDefaultPublicSurfaceReadinessBlockers(model),
+    }))
+    .filter((model) => model.reasons.length > 0)
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 10);
 }
 
 export async function computePublicMetadataCoverage(
@@ -211,6 +252,8 @@ export async function computePublicMetadataCoverage(
           ).toFixed(1)
         )
       : 100;
+  const topReadinessBlockers = computeBlockerCounts(effectiveModels);
+  const officialTopReadinessBlockers = computeBlockerCounts(officialModels);
 
   const recentIncompleteModels = effectiveModels
     .filter(
@@ -230,19 +273,7 @@ export async function computePublicMetadataCoverage(
         category: model.category,
         release_date: model.release_date,
     }));
-  const recentNotReadyModels = effectiveModels
-    .filter((model) => !isDefaultPublicSurfaceReady(model))
-    .sort(
-      (left, right) =>
-        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
-    )
-    .slice(0, 10)
-    .map((model) => ({
-      slug: model.slug,
-      provider: model.provider,
-      category: model.category,
-      release_date: model.release_date,
-    }));
+  const recentNotReadyModels = buildRecentNotReadyRows(effectiveModels);
 
   const providerStats = new Map<
     string,
@@ -286,6 +317,7 @@ export async function computePublicMetadataCoverage(
     completeDiscoveryMetadataPct,
     defaultPublicSurfaceReadyCount,
     defaultPublicSurfaceReadyPct,
+    topReadinessBlockers,
     missingCategoryCount: missingCategory.length,
     missingReleaseDateCount: missingReleaseDate.length,
     releaseDateExemptAliasCount,
@@ -297,6 +329,7 @@ export async function computePublicMetadataCoverage(
       completeDiscoveryMetadataPct: officialCompleteDiscoveryMetadataPct,
       defaultPublicSurfaceReadyCount: officialDefaultPublicSurfaceReadyCount,
       defaultPublicSurfaceReadyPct: officialDefaultPublicSurfaceReadyPct,
+      topReadinessBlockers: officialTopReadinessBlockers,
       missingCategoryCount: officialMissingCategory.length,
       missingReleaseDateCount: officialMissingReleaseDate.length,
       releaseDateExemptAliasCount: officialReleaseDateExemptAliasCount,
@@ -344,20 +377,7 @@ export async function computePublicMetadataCoverage(
           category: model.category,
           release_date: model.release_date,
         })),
-      recentNotReadyModels: officialModels
-        .filter((model) => !isDefaultPublicSurfaceReady(model))
-        .sort(
-          (left, right) =>
-            Date.parse(right.release_date ?? "0") -
-            Date.parse(left.release_date ?? "0")
-        )
-        .slice(0, 10)
-        .map((model) => ({
-          slug: model.slug,
-          provider: model.provider,
-          category: model.category,
-          release_date: model.release_date,
-        })),
+      recentNotReadyModels: buildRecentNotReadyRows(officialModels),
     },
     providers: [...providerStats.entries()]
       .map(([provider, stats]) => ({

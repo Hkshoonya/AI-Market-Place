@@ -112,6 +112,12 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
     defaultPublicSurfaceReadyPct: z.number(),
+    topReadinessBlockers: z.array(
+      z.object({
+        reason: z.string(),
+        count: z.number(),
+      })
+    ),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
@@ -119,6 +125,12 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     officialCompleteDiscoveryMetadataPct: z.number(),
     officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
+    topOfficialReadinessBlockers: z.array(
+      z.object({
+        reason: z.string(),
+        count: z.number(),
+      })
+    ),
     weakestOfficialProviders: z.array(
       z.object({
         provider: z.string(),
@@ -149,6 +161,24 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
         provider: z.string(),
         category: z.string().nullable(),
         release_date: z.string().nullable(),
+      })
+    ),
+    recentNotReadyModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        reasons: z.array(z.string()),
+      })
+    ),
+    recentNotReadyOfficialModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        reasons: z.array(z.string()),
       })
     ),
   }),
@@ -313,6 +343,8 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.completeDiscoveryMetadataPct,
         defaultPublicSurfaceReadyPct:
           publicMetadataCoverage.defaultPublicSurfaceReadyPct,
+        topReadinessBlockers:
+          publicMetadataCoverage.topReadinessBlockers.slice(0, 5),
         missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
         missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
         openWeightsMissingLicenseCount:
@@ -325,6 +357,8 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
         officialMissingReleaseDateCount:
           publicMetadataCoverage.official.missingReleaseDateCount,
+        topOfficialReadinessBlockers:
+          publicMetadataCoverage.official.topReadinessBlockers.slice(0, 5),
         weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
           (provider) => ({
             provider: provider.provider,
@@ -344,6 +378,9 @@ export async function GET(request: NextRequest) {
         recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels,
         recentIncompleteOfficialModels:
           publicMetadataCoverage.official.recentIncompleteModels,
+        recentNotReadyModels: publicMetadataCoverage.recentNotReadyModels,
+        recentNotReadyOfficialModels:
+          publicMetadataCoverage.official.recentNotReadyModels,
       },
     });
 

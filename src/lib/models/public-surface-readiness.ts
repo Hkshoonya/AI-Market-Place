@@ -40,6 +40,16 @@ export interface PublicSurfaceReadinessModel {
   hf_trending_score?: number | null;
 }
 
+export type PublicSurfaceReadinessBlocker =
+  | "missing_name"
+  | "missing_category"
+  | "missing_release_date"
+  | "missing_open_weight_license"
+  | "missing_context_window"
+  | "packaging_variant"
+  | "wrapper_variant"
+  | "weak_signals";
+
 export function needsContextWindow(model: Pick<PublicSurfaceReadinessModel, "category">) {
   return model.category === "llm" || model.category === "multimodal";
 }
@@ -107,13 +117,36 @@ export function hasMeaningfulPublicSignals(model: PublicSurfaceReadinessModel) {
   return false;
 }
 
-export function isDefaultPublicSurfaceReady(model: PublicSurfaceReadinessModel) {
-  if (!hasCompletePublicMetadata(model)) return false;
-  if (isPackagingVariantModel(model) || isReleaseDateWrapperModel(model)) return false;
+export function getDefaultPublicSurfaceReadinessBlockers(
+  model: PublicSurfaceReadinessModel
+): PublicSurfaceReadinessBlocker[] {
+  const blockers: PublicSurfaceReadinessBlocker[] = [];
 
-  return (
-    OFFICIAL_PROVIDERS.has(model.provider ?? "") || hasMeaningfulPublicSignals(model)
-  );
+  if (!model.name?.trim()) blockers.push("missing_name");
+  if (!model.category) blockers.push("missing_category");
+  if (!model.release_date && !isReleaseDateWrapperModel(model)) {
+    blockers.push("missing_release_date");
+  }
+  if (Boolean(model.is_open_weights) && !hasOpenWeightLicense(model)) {
+    blockers.push("missing_open_weight_license");
+  }
+  if (needsContextWindowForCoverage(model) && !Boolean(model.context_window)) {
+    blockers.push("missing_context_window");
+  }
+  if (isPackagingVariantModel(model)) blockers.push("packaging_variant");
+  if (isReleaseDateWrapperModel(model)) blockers.push("wrapper_variant");
+  if (
+    !OFFICIAL_PROVIDERS.has(model.provider ?? "") &&
+    !hasMeaningfulPublicSignals(model)
+  ) {
+    blockers.push("weak_signals");
+  }
+
+  return blockers;
+}
+
+export function isDefaultPublicSurfaceReady(model: PublicSurfaceReadinessModel) {
+  return getDefaultPublicSurfaceReadinessBlockers(model).length === 0;
 }
 
 export function preferDefaultPublicSurfaceReady<T extends PublicSurfaceReadinessModel>(

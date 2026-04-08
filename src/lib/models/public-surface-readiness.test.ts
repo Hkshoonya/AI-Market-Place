@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getDefaultPublicSurfaceReadinessBlockers,
   hasCompletePublicMetadata,
   isDefaultPublicSurfaceReady,
 } from "./public-surface-readiness";
@@ -63,5 +64,22 @@ describe("public surface readiness", () => {
         context_window: 32768,
       })
     ).toBe(false);
+  });
+
+  it("explains why a row is not discovery-ready", () => {
+    expect(
+      getDefaultPublicSurfaceReadinessBlockers({
+        slug: "community-latest",
+        provider: "Community Hub",
+        name: "Community Latest",
+        category: "llm",
+        release_date: null,
+        context_window: null,
+      })
+    ).toEqual([
+      "missing_context_window",
+      "wrapper_variant",
+      "weak_signals",
+    ]);
   });
 });

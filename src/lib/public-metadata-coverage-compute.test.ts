@@ -91,6 +91,12 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.completeDiscoveryMetadataPct).toBeCloseTo(83.3);
     expect(coverage.defaultPublicSurfaceReadyCount).toBe(3);
     expect(coverage.defaultPublicSurfaceReadyPct).toBe(50);
+    expect(coverage.topReadinessBlockers).toEqual(
+      expect.arrayContaining([
+        { reason: "missing_category", count: 1 },
+        { reason: "missing_context_window", count: 1 },
+      ])
+    );
     expect(coverage.missingCategoryCount).toBe(1);
     expect(coverage.missingReleaseDateCount).toBe(1);
     expect(coverage.releaseDateExemptAliasCount).toBe(1);
@@ -101,6 +107,9 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
     expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(3);
     expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(60);
+    expect(coverage.official.topReadinessBlockers).toEqual(
+      expect.arrayContaining([{ reason: "missing_context_window", count: 1 }])
+    );
     expect(coverage.providers[0]?.complete_pct).toBe(0);
     expect(coverage.providers[0]?.ready_pct).toBe(0);
     expect(coverage.providers.map((provider) => provider.provider)).toEqual(
@@ -112,5 +121,8 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.releaseDateExemptAliasCount).toBe(1);
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
     expect(coverage.recentNotReadyModels[0]?.slug).toBe("x-ai-grok-4-20");
+    expect(coverage.recentNotReadyModels[0]?.reasons).toEqual([
+      "missing_context_window",
+    ]);
   });
 });
