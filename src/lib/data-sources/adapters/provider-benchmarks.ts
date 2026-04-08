@@ -52,6 +52,10 @@ const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_KEYWORDS = [
   "benchmark",
   "benchmarks",
+  "evaluation",
+  "evaluations",
+  "evaluate",
+  "evaluated",
   "leaderboard",
   "leaderboards",
   "swe-bench",
@@ -67,6 +71,28 @@ const BENCHMARK_KEYWORDS = [
   "agents",
   "performance",
   "state-of-the-art",
+  "effectiveness",
+  "hallucination",
+  "error rate",
+];
+
+const STRONG_BENCHMARK_KEYWORDS = [
+  "benchmark",
+  "benchmarks",
+  "evaluation",
+  "evaluations",
+  "evaluate",
+  "evaluated",
+  "leaderboard",
+  "leaderboards",
+  "swe-bench",
+  "livebench",
+  "mmlu",
+  "gpqa",
+  "aime",
+  "effectiveness",
+  "hallucination",
+  "error rate",
 ];
 
 const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
@@ -111,6 +137,14 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://openai.com/index/introducing-gpt-5-3-codex/",
     titleHint: "GPT-5.3-Codex benchmark update",
     modelHints: ["GPT-5.3-Codex", "GPT-5.3 Codex"],
+  },
+  {
+    id: "openai-gpt-5-3-instant",
+    provider: "OpenAI",
+    url: "https://deploymentsafety.openai.com/gpt-5-3-instant/gpt-5-3-instant.pdf",
+    titleHint: "GPT-5.3 Instant benchmark update",
+    modelHints: ["GPT-5.3", "GPT-5.3 Chat"],
+    contentType: "pdf",
   },
   {
     id: "openai-gpt-5-4",
@@ -281,6 +315,17 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Nemotron OCR v2", "nemotron-ocr-v2"],
   },
   {
+    id: "nvidia-nemotron-3-super-120b-a12b",
+    provider: "NVIDIA",
+    url: "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+    titleHint: "Nemotron 3 Super benchmark update",
+    modelHints: [
+      "Nemotron 3 Super",
+      "NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+      "NVIDIA Nemotron 3 Super 120B A12B FP8",
+    ],
+  },
+  {
     id: "minimax-m2-1-coding",
     provider: "MiniMax",
     url: "https://www.minimaxi.com/news/m21-coding-%E5%A4%9A%E8%AF%AD%E8%A8%80%E5%A4%9A%E4%BB%BB%E5%8A%A1%E4%B8%8E%E6%B3%9B%E5%8C%96%E6%80%A7",
@@ -342,6 +387,25 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://huggingface.co/zai-org/GLM-OCR",
     titleHint: "GLM-OCR benchmark update",
     modelHints: ["GLM-OCR", "GLM OCR"],
+  },
+  {
+    id: "zai-glm-asr-2512",
+    provider: "Z.ai",
+    url: "https://huggingface.co/zai-org/GLM-ASR-Nano-2512",
+    titleHint: "GLM ASR 2512 benchmark update",
+    modelHints: [
+      "GLM-ASR-Nano-2512",
+      "GLM ASR Nano 2512",
+      "GLM ASR 2512",
+    ],
+  },
+  {
+    id: "amazon-nova-2-lite",
+    provider: "Amazon",
+    url: "https://docs.aws.amazon.com/pdfs/ai/responsible-ai/nova-2-lite/nova-2-lite.pdf",
+    titleHint: "Nova 2 Lite benchmark update",
+    modelHints: ["Nova 2 Lite", "Amazon Nova 2 Lite"],
+    contentType: "pdf",
   },
   {
     id: "zai-glm-4-7",
@@ -444,12 +508,27 @@ function extractBenchmarkSnippetFromText(text: string) {
   return summary || null;
 }
 
+function isLowQualityBenchmarkSummary(summary: string | null) {
+  if (!summary) return true;
+
+  const lower = summary.toLowerCase();
+  return (
+    lower.includes("hugging face models datasets spaces") ||
+    lower.includes("chat_template") ||
+    lower.includes("<|im_start|") ||
+    lower.includes("deployment and performance optimization best practices") ||
+    lower.includes("window.hubconfig")
+  );
+}
+
 function extractPdfTitle(text: string) {
   const lines = text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
-  return lines[0] ?? null;
+  const firstLine = lines[0] ?? null;
+  if (!firstLine) return null;
+  return firstLine.length <= 160 ? firstLine : null;
 }
 
 function extractPdfPublishedAt(source: ProviderBenchmarkSource, text: string) {
@@ -466,11 +545,34 @@ function extractPdfPublishedAt(source: ProviderBenchmarkSource, text: string) {
 }
 
 function extractPdfSummary(source: ProviderBenchmarkSource, text: string) {
-  const snippet = extractBenchmarkSnippetFromText(text);
-  if (snippet) return snippet;
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized) return normalized.slice(0, 480).trim();
+  const strongRelevantLines = lines.filter((line) => {
+    const lower = line.toLowerCase();
+    return STRONG_BENCHMARK_KEYWORDS.some((keyword) => lower.includes(keyword));
+  });
+
+  if (strongRelevantLines.length > 0) {
+    return strongRelevantLines.slice(0, 3).join(" ").slice(0, 480).trim();
+  }
+
+  const relevantLines = lines.filter((line) => {
+    const lower = line.toLowerCase();
+    return BENCHMARK_KEYWORDS.some((keyword) => lower.includes(keyword));
+  });
+
+  if (relevantLines.length > 0) {
+    const summary = relevantLines.slice(0, 3).join(" ").slice(0, 480).trim();
+    if (!isLowQualityBenchmarkSummary(summary)) {
+      return summary;
+    }
+  }
+
+  const snippet = extractBenchmarkSnippetFromText(text);
+  if (snippet && !isLowQualityBenchmarkSummary(snippet)) return snippet;
 
   return `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`;
 }
@@ -500,13 +602,13 @@ async function parseProviderSourceContent(
       const parser = new PDFParse({ data: pdfBytes });
       try {
         const textResult = await parser.getText({ first: 3 });
-        const text = textResult.text.replace(/\s+/g, " ").trim();
-        const title = extractPdfTitle(text) ?? source.titleHint;
+        const rawText = textResult.text.trim();
+        const title = extractPdfTitle(rawText) ?? source.titleHint;
         return {
           title,
-          summary: extractPdfSummary(source, text),
+          summary: extractPdfSummary(source, rawText),
           publishedAt:
-            extractPdfPublishedAt(source, text) ??
+            extractPdfPublishedAt(source, rawText) ??
             source.publishedAtHint ??
             new Date().toISOString(),
         };
@@ -533,9 +635,21 @@ function buildRecordSummary(
   source: ProviderBenchmarkSource,
   html: string
 ) {
+  if (source.url.includes("huggingface.co")) {
+    return `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`;
+  }
+
+  const snippet = extractBenchmarkSnippet(html);
+  if (snippet && !isLowQualityBenchmarkSummary(snippet)) {
+    return snippet;
+  }
+
+  const description = extractDescription(html);
+  if (description && !isLowQualityBenchmarkSummary(description)) {
+    return description;
+  }
+
   return (
-    extractDescription(html) ??
-    extractBenchmarkSnippet(html) ??
     `${source.provider} published benchmark or leaderboard evidence for ${source.modelHints.join(", ")}.`
   );
 }
