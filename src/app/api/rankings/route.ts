@@ -6,6 +6,7 @@ import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(`
-        id, slug, name, provider, category, overall_rank, parameter_count, is_open_weights,
+        id, slug, name, provider, category, overall_rank, parameter_count, is_open_weights, license, license_name, context_window, release_date,
         hf_downloads, quality_score, capability_score, capability_rank,
         adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank,
         usage_score, usage_rank, expert_score, expert_rank, balanced_rank,
@@ -92,7 +93,12 @@ export async function GET(request: NextRequest) {
       return lensConfig.ascending ? Number.MAX_SAFE_INTEGER : Number.NEGATIVE_INFINITY;
     };
 
-    const uniqueModels = dedupePublicModelFamilies(data ?? [])
+    const rankingPool =
+      lifecycleFilter === "all"
+        ? data ?? []
+        : preferDefaultPublicSurfaceReady(data ?? [], Math.min(limit, 10));
+
+    const uniqueModels = dedupePublicModelFamilies(rankingPool)
       .sort((left, right) => {
         const leftValue = getSortMetric(left as Record<string, unknown>);
         const rightValue = getSortMetric(right as Record<string, unknown>);

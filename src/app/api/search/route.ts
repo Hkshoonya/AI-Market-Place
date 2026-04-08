@@ -11,6 +11,7 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
@@ -203,8 +204,12 @@ export async function GET(request: NextRequest) {
 
     const models = await searchModelsWithFallback(supabase, query, limit);
 
+    const rankedModels = rankModelsForSearch(
+      dedupePublicModelFamilies(models ?? []),
+      safeQuery
+    );
     const uniqueModels = collapseSearchSurfaceSeries(
-      rankModelsForSearch(dedupePublicModelFamilies(models ?? []), safeQuery),
+      preferDefaultPublicSurfaceReady(rankedModels, Math.min(limit, 3)),
       limit
     );
     const [

@@ -20,7 +20,7 @@ export const OFFICIAL_PROVIDERS = new Set([
 ]);
 
 export interface PublicSurfaceReadinessModel {
-  slug: string;
+  slug?: string | null;
   provider?: string | null;
   name?: string | null;
   category?: string | null;
@@ -48,7 +48,7 @@ export function isPackagingVariantModel(
   model: Pick<PublicSurfaceReadinessModel, "slug">
 ) {
   return /(?:^|-)(?:gguf|bf16|fp8|int4|int8|nvfp4|awq)(?:-|$)/i.test(
-    model.slug
+    String(model.slug ?? "")
   );
 }
 
@@ -56,9 +56,9 @@ export function isReleaseDateWrapperModel(
   model: Pick<PublicSurfaceReadinessModel, "slug">
 ) {
   return (
-    /(?:^|-)latest$/i.test(model.slug) ||
-    /(?:^|-)(?:preview|exp|experimental)(?:-|$)/i.test(model.slug) ||
-    /(?:^|-)(?:generate|image|video)-\d{3}(?:$|-)/i.test(model.slug)
+    /(?:^|-)latest$/i.test(String(model.slug ?? "")) ||
+    /(?:^|-)(?:preview|exp|experimental)(?:-|$)/i.test(String(model.slug ?? "")) ||
+    /(?:^|-)(?:generate|image|video)-\d{3}(?:$|-)/i.test(String(model.slug ?? ""))
   );
 }
 
@@ -114,4 +114,17 @@ export function isDefaultPublicSurfaceReady(model: PublicSurfaceReadinessModel) 
   return (
     OFFICIAL_PROVIDERS.has(model.provider ?? "") || hasMeaningfulPublicSignals(model)
   );
+}
+
+export function preferDefaultPublicSurfaceReady<T extends PublicSurfaceReadinessModel>(
+  models: T[],
+  minimumCount: number
+) {
+  const ready = models.filter((model) =>
+    typeof model.slug === "string" &&
+    model.slug.length > 0 &&
+    isDefaultPublicSurfaceReady(model)
+  );
+
+  return ready.length >= minimumCount ? ready : models;
 }

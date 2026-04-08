@@ -114,11 +114,74 @@ const DataIntegrityReportSchema = z.object({
     activeModels: z.number(),
     completeDiscoveryMetadataCount: z.number(),
     completeDiscoveryMetadataPct: z.number(),
+    defaultPublicSurfaceReadyCount: z.number(),
+    defaultPublicSurfaceReadyPct: z.number(),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
+    official: z.object({
+      activeModels: z.number(),
+      completeDiscoveryMetadataCount: z.number(),
+      completeDiscoveryMetadataPct: z.number(),
+      defaultPublicSurfaceReadyCount: z.number(),
+      defaultPublicSurfaceReadyPct: z.number(),
+      missingCategoryCount: z.number(),
+      missingReleaseDateCount: z.number(),
+      openWeightsMissingLicenseCount: z.number(),
+      llmMissingContextWindowCount: z.number(),
+      providers: z.array(
+        z.object({
+          provider: z.string(),
+          total: z.number(),
+          complete: z.number(),
+          ready: z.number(),
+          complete_pct: z.number(),
+          ready_pct: z.number(),
+          missingCategoryCount: z.number(),
+          missingReleaseDateCount: z.number(),
+          releaseDateExemptAliasCount: z.number(),
+        })
+      ),
+      recentIncompleteModels: z.array(
+        z.object({
+          slug: z.string(),
+          provider: z.string(),
+          category: z.string().nullable(),
+          releaseDate: z.string().nullable(),
+        })
+      ),
+      recentNotReadyModels: z.array(
+        z.object({
+          slug: z.string(),
+          provider: z.string(),
+          category: z.string().nullable(),
+          releaseDate: z.string().nullable(),
+        })
+      ),
+    }),
+    providers: z.array(
+      z.object({
+        provider: z.string(),
+        total: z.number(),
+        complete: z.number(),
+        ready: z.number(),
+        complete_pct: z.number(),
+        ready_pct: z.number(),
+        missingCategoryCount: z.number(),
+        missingReleaseDateCount: z.number(),
+        releaseDateExemptAliasCount: z.number(),
+      })
+    ),
     recentIncompleteModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+      })
+    ),
+    recentNotReadyModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),

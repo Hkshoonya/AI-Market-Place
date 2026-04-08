@@ -1,5 +1,5 @@
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
-import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 interface HomepageTopModelCandidate {
   id: string;
@@ -136,18 +136,10 @@ export function computeHomepageTopModelScore(
 export function selectHomepageTopModelIds<
   T extends HomepageTopModelCandidate
 >(models: T[], limit: number, now = Date.now()): string[] {
-  const readinessEligible = models.filter(
-    (
-      model
-    ): model is T & {
-      slug: string;
-    } =>
-      typeof model.slug === "string" &&
-      model.slug.length > 0 &&
-      isDefaultPublicSurfaceReady(model as T & { slug: string })
+  const discoveryPool = preferDefaultPublicSurfaceReady(
+    models,
+    Math.min(limit, 5)
   );
-  const discoveryPool =
-    readinessEligible.length >= Math.min(limit, 5) ? readinessEligible : models;
 
   const familyCandidates = discoveryPool.filter(
     (

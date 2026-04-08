@@ -207,11 +207,13 @@ interface PipelineHealthDetail {
   };
   publicMetadataCoverage?: {
     completeDiscoveryMetadataPct: number;
+    defaultPublicSurfaceReadyPct: number;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
     officialCompleteDiscoveryMetadataPct: number;
+    officialDefaultPublicSurfaceReadyPct: number;
     officialMissingReleaseDateCount: number;
   };
 }
@@ -312,6 +314,8 @@ interface DataIntegrityReport {
     activeModels: number;
     completeDiscoveryMetadataCount: number;
     completeDiscoveryMetadataPct: number;
+    defaultPublicSurfaceReadyCount: number;
+    defaultPublicSurfaceReadyPct: number;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
@@ -320,6 +324,8 @@ interface DataIntegrityReport {
       activeModels: number;
       completeDiscoveryMetadataCount: number;
       completeDiscoveryMetadataPct: number;
+      defaultPublicSurfaceReadyCount: number;
+      defaultPublicSurfaceReadyPct: number;
       missingCategoryCount: number;
       missingReleaseDateCount: number;
       openWeightsMissingLicenseCount: number;
@@ -328,7 +334,9 @@ interface DataIntegrityReport {
         provider: string;
         total: number;
         complete: number;
+        ready: number;
         complete_pct: number;
+        ready_pct: number;
         missingCategoryCount: number;
         missingReleaseDateCount: number;
       }>;
@@ -338,8 +346,30 @@ interface DataIntegrityReport {
         category: string | null;
         releaseDate: string | null;
       }>;
+      recentNotReadyModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+      }>;
     };
+    providers: Array<{
+      provider: string;
+      total: number;
+      complete: number;
+      ready: number;
+      complete_pct: number;
+      ready_pct: number;
+      missingCategoryCount: number;
+      missingReleaseDateCount: number;
+    }>;
     recentIncompleteModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
+    recentNotReadyModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -901,7 +931,8 @@ export default function AdminDataSourcesPage() {
         )}
         {healthData?.publicMetadataCoverage && (
           <Badge variant="outline" className="border-border/40 text-[10px]">
-            Official metadata: {healthData.publicMetadataCoverage.officialCompleteDiscoveryMetadataPct}% · release gaps:{" "}
+            Official discovery-ready: {healthData.publicMetadataCoverage.officialDefaultPublicSurfaceReadyPct}% · metadata complete:{" "}
+            {healthData.publicMetadataCoverage.officialCompleteDiscoveryMetadataPct}% · release gaps:{" "}
             {healthData.publicMetadataCoverage.officialMissingReleaseDateCount}
           </Badge>
         )}
@@ -1182,10 +1213,10 @@ export default function AdminDataSourcesPage() {
                             : "text-gain"
                         )}
                       >
-                        {integrityData.publicMetadata.official.completeDiscoveryMetadataPct}%
+                        {integrityData.publicMetadata.official.defaultPublicSurfaceReadyPct}%
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        Official Metadata · {integrityData.publicMetadata.official.missingReleaseDateCount} release gaps
+                        Official Discovery Ready · {integrityData.publicMetadata.official.recentNotReadyModels.length} not-ready rows
                       </p>
                     </div>
                   </div>
@@ -1210,6 +1241,18 @@ export default function AdminDataSourcesPage() {
                 <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
                   Official metadata gaps:{" "}
                   {integrityData.publicMetadata.official.recentIncompleteModels
+                    .slice(0, 3)
+                    .map((model) => model.slug)
+                    .join(", ")}
+                </Badge>
+              </div>
+            )}
+
+            {integrityData.publicMetadata.official.recentNotReadyModels.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
+                  Official not-ready rows:{" "}
+                  {integrityData.publicMetadata.official.recentNotReadyModels
                     .slice(0, 3)
                     .map((model) => model.slug)
                     .join(", ")}

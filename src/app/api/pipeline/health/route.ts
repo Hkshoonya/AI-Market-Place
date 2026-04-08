@@ -58,11 +58,13 @@ const PipelineHealthSummarySchema = z.object({
   }),
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
+    defaultPublicSurfaceReadyPct: z.number(),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
     officialCompleteDiscoveryMetadataPct: z.number(),
+    officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
   }),
 });
@@ -102,16 +104,19 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   }),
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
+    defaultPublicSurfaceReadyPct: z.number(),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
     llmMissingContextWindowCount: z.number(),
     officialCompleteDiscoveryMetadataPct: z.number(),
+    officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
     weakestProviders: z.array(
       z.object({
         provider: z.string(),
         complete_pct: z.number(),
+        ready_pct: z.number(),
         total: z.number(),
       })
     ),
@@ -271,26 +276,31 @@ export async function GET(request: NextRequest) {
           recentMissingTrustedLocators:
             benchmarkMetadataCoverage.recentMissingTrustedLocators,
         },
-        publicMetadataCoverage: {
-          completeDiscoveryMetadataPct:
-            publicMetadataCoverage.completeDiscoveryMetadataPct,
-          missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
-          missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
-          openWeightsMissingLicenseCount:
-            publicMetadataCoverage.openWeightsMissingLicenseCount,
-          llmMissingContextWindowCount:
-            publicMetadataCoverage.llmMissingContextWindowCount,
-          officialCompleteDiscoveryMetadataPct:
-            publicMetadataCoverage.official.completeDiscoveryMetadataPct,
-          officialMissingReleaseDateCount:
-            publicMetadataCoverage.official.missingReleaseDateCount,
-          weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
-            (provider) => ({
-              provider: provider.provider,
-              complete_pct: provider.complete_pct,
-              total: provider.total,
-            })
-          ),
+      publicMetadataCoverage: {
+        completeDiscoveryMetadataPct:
+          publicMetadataCoverage.completeDiscoveryMetadataPct,
+        defaultPublicSurfaceReadyPct:
+          publicMetadataCoverage.defaultPublicSurfaceReadyPct,
+        missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
+        missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
+        openWeightsMissingLicenseCount:
+          publicMetadataCoverage.openWeightsMissingLicenseCount,
+        llmMissingContextWindowCount:
+          publicMetadataCoverage.llmMissingContextWindowCount,
+        officialCompleteDiscoveryMetadataPct:
+          publicMetadataCoverage.official.completeDiscoveryMetadataPct,
+        officialDefaultPublicSurfaceReadyPct:
+          publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
+        officialMissingReleaseDateCount:
+          publicMetadataCoverage.official.missingReleaseDateCount,
+        weakestProviders: publicMetadataCoverage.providers.slice(0, 5).map(
+          (provider) => ({
+            provider: provider.provider,
+            complete_pct: provider.complete_pct,
+            ready_pct: provider.ready_pct,
+            total: provider.total,
+          })
+        ),
           weakestOfficialProviders: publicMetadataCoverage.official.providers
             .slice(0, 5)
             .map((provider) => ({
@@ -316,6 +326,8 @@ export async function GET(request: NextRequest) {
       publicMetadataCoverage: {
         completeDiscoveryMetadataPct:
           publicMetadataCoverage.completeDiscoveryMetadataPct,
+        defaultPublicSurfaceReadyPct:
+          publicMetadataCoverage.defaultPublicSurfaceReadyPct,
         missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
         missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
         openWeightsMissingLicenseCount:
@@ -324,6 +336,8 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.llmMissingContextWindowCount,
         officialCompleteDiscoveryMetadataPct:
           publicMetadataCoverage.official.completeDiscoveryMetadataPct,
+        officialDefaultPublicSurfaceReadyPct:
+          publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
         officialMissingReleaseDateCount:
           publicMetadataCoverage.official.missingReleaseDateCount,
       },

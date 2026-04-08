@@ -11,7 +11,7 @@ import {
   sortRecentReleaseCandidates,
   sortByDiscoveryScore,
 } from "@/lib/models/discovery";
-import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
@@ -297,11 +297,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    const discoveryEligibleModels = (data ?? []).filter(
-      isDefaultPublicSurfaceReady
-    );
     const visibleModels = dedupePublicModelFamilies(
-      discoveryEligibleModels.length > 0 ? discoveryEligibleModels : data ?? []
+      preferDefaultPublicSurfaceReady(data ?? [], 8)
     );
 
     const thirtyDaysAgo = new Date();

@@ -135,11 +135,64 @@ export interface DataIntegrityReport {
     activeModels: number;
     completeDiscoveryMetadataCount: number;
     completeDiscoveryMetadataPct: number;
+    defaultPublicSurfaceReadyCount: number;
+    defaultPublicSurfaceReadyPct: number;
     missingCategoryCount: number;
     missingReleaseDateCount: number;
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
+    official: {
+      activeModels: number;
+      completeDiscoveryMetadataCount: number;
+      completeDiscoveryMetadataPct: number;
+      defaultPublicSurfaceReadyCount: number;
+      defaultPublicSurfaceReadyPct: number;
+      missingCategoryCount: number;
+      missingReleaseDateCount: number;
+      openWeightsMissingLicenseCount: number;
+      llmMissingContextWindowCount: number;
+      providers: Array<{
+        provider: string;
+        total: number;
+        complete: number;
+        ready: number;
+        complete_pct: number;
+        ready_pct: number;
+        missingCategoryCount: number;
+        missingReleaseDateCount: number;
+        releaseDateExemptAliasCount: number;
+      }>;
+      recentIncompleteModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+      }>;
+      recentNotReadyModels: Array<{
+        slug: string;
+        provider: string;
+        category: string | null;
+        releaseDate: string | null;
+      }>;
+    };
+    providers: Array<{
+      provider: string;
+      total: number;
+      complete: number;
+      ready: number;
+      complete_pct: number;
+      ready_pct: number;
+      missingCategoryCount: number;
+      missingReleaseDateCount: number;
+      releaseDateExemptAliasCount: number;
+    }>;
     recentIncompleteModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+    }>;
+    recentNotReadyModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -797,6 +850,31 @@ export async function verifyDataIntegrity(
     },
     publicMetadata: {
       ...publicMetadataCoverage,
+      recentNotReadyModels: publicMetadataCoverage.recentNotReadyModels.map(
+        (model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          releaseDate: model.release_date,
+        })
+      ),
+      official: {
+        ...publicMetadataCoverage.official,
+        recentIncompleteModels:
+          publicMetadataCoverage.official.recentIncompleteModels.map((model) => ({
+            slug: model.slug,
+            provider: model.provider,
+            category: model.category,
+            releaseDate: model.release_date,
+          })),
+        recentNotReadyModels:
+          publicMetadataCoverage.official.recentNotReadyModels.map((model) => ({
+            slug: model.slug,
+            provider: model.provider,
+            category: model.category,
+            releaseDate: model.release_date,
+          })),
+      },
       recentIncompleteModels: publicMetadataCoverage.recentIncompleteModels.map(
         (model) => ({
           slug: model.slug,
