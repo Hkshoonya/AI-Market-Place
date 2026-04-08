@@ -140,6 +140,32 @@ describe("public model family dedupe", () => {
     expect(compactAlias).toBe(splitAlias);
   });
 
+  it("collapses DeepSeek provider aliases and Meta Llama branding into the same series", () => {
+    const deepseekCanonical = getPublicSurfaceSeriesKey({
+      slug: "deepseek-deepseek-v3-2",
+      name: "DeepSeek V3.2",
+      provider: "DeepSeek",
+    });
+    const deepseekAlias = getPublicSurfaceSeriesKey({
+      slug: "deepseek-ai-deepseek-v3-2",
+      name: "DeepSeek-V3.2",
+      provider: "DeepSeek",
+    });
+    const metaCanonical = getPublicSurfaceSeriesKey({
+      slug: "meta-llama-llama-3-1-405b-instruct",
+      name: "Llama 3.1 405B Instruct",
+      provider: "Meta",
+    });
+    const metaAlias = getPublicSurfaceSeriesKey({
+      slug: "meta-meta-llama-3-1-405b-instruct",
+      name: "meta-llama-3.1-405b-instruct",
+      provider: "Meta",
+    });
+
+    expect(deepseekAlias).toBe(deepseekCanonical);
+    expect(metaAlias).toBe(metaCanonical);
+  });
+
   it("does not emit overlapping duplicate families when a late variant resolves back to an existing cluster", () => {
     const families = collapsePublicModelFamilies([
       {

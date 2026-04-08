@@ -16,6 +16,13 @@ describe("resolveZAIKnownModelMeta", () => {
       is_open_weights: true,
       release_date: "2025-03-04",
     });
+
+    expect(resolveZAIKnownModelMeta("glm-5v-turbo")).toMatchObject({
+      name: "GLM-5V-Turbo",
+      category: "multimodal",
+      context_window: 202752,
+      release_date: "2026-04-02",
+    });
   });
 
   it("falls back from provider alias rows to canonical GLM family metadata", () => {

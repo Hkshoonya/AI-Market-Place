@@ -65,6 +65,20 @@ describe("resolveGoogleKnownModelMeta", () => {
       context_window: 2048,
     });
 
+    expect(resolveGoogleKnownModelMeta("aqa")).toMatchObject({
+      name: "Attributed Question Answering (AQA)",
+      release_date: "2023-12-13",
+      category: "specialized",
+      context_window: 7168,
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-2.5-flash-image")).toMatchObject({
+      name: "Gemini 2.5 Flash Image",
+      release_date: "2025-10-02",
+      category: "multimodal",
+      context_window: 65536,
+    });
+
     expect(
       resolveGoogleKnownModelMeta("gemini-2.5-flash-native-audio-latest")
     ).toMatchObject({

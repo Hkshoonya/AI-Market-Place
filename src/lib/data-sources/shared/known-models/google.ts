@@ -594,6 +594,46 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  aqa: {
+    name: "Attributed Question Answering (AQA)",
+    description:
+      "Google's grounded question-answering model for producing answers tied to supplied source passages, with answerability scoring in the response flow.",
+    category: "specialized",
+    context_window: 7168,
+    release_date: "2023-12-13",
+    architecture: "Grounded question answering",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      grounded_qa: true,
+      retrieval_augmented_generation: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://ai.google.dev/gemini-api/docs/changelog",
+  },
+  "gemini-2.5-flash-image": {
+    name: "Gemini 2.5 Flash Image",
+    description:
+      "Google's stable Gemini image-generation and image-editing model for high-volume visual creation with native multimodal understanding.",
+    category: "multimodal",
+    context_window: 65536,
+    release_date: "2025-10-02",
+    architecture: "Native multimodal generation",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      vision: true,
+      structured_outputs: true,
+      streaming: false,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-image",
+  },
 
   // ---- Image generation ----
   "imagen-3": {

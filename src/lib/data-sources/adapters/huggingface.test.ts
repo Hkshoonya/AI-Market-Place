@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inferOpenWeightsFromHfModel } from "./huggingface";
+import { __testables, inferOpenWeightsFromHfModel } from "./huggingface";
 
 describe("inferOpenWeightsFromHfModel", () => {
   it("recognizes known open families that were being misclassified as proprietary", () => {
@@ -31,5 +31,72 @@ describe("inferOpenWeightsFromHfModel", () => {
     expect(inferOpenWeightsFromHfModel("01-ai/Yi-Lightning")).toBe(false);
     expect(inferOpenWeightsFromHfModel("openai/gpt-4o")).toBe(false);
     expect(inferOpenWeightsFromHfModel("black-forest-labs/FLUX.1-pro")).toBe(false);
+  });
+});
+
+describe("huggingface metadata helpers", () => {
+  it("prefers tokenizer model_max_length when it is trustworthy", () => {
+    expect(
+      __testables.extractContextWindowFromTokenizerConfig({
+        model_max_length: 131072,
+      })
+    ).toBe(131072);
+  });
+
+  it("ignores absurd tokenizer sentinels and falls back to config max positions", () => {
+    expect(
+      __testables.extractContextWindowFromTokenizerConfig({
+        model_max_length: 1000000000000000019884624838656,
+      })
+    ).toBeNull();
+
+    expect(
+      __testables.extractContextWindowFromConfig({
+        max_position_embeddings: 4096,
+      })
+    ).toBe(4096);
+  });
+
+  it("derives context from sliding window and rope scaling when needed", () => {
+    expect(
+      __testables.extractContextWindowFromConfig({
+        max_position_embeddings: 32768,
+        sliding_window: 131072,
+      })
+    ).toBe(131072);
+
+    expect(
+      __testables.extractContextWindowFromConfig({
+        rope_scaling: {
+          original_max_position_embeddings: 4096,
+          factor: 56,
+        },
+      })
+    ).toBe(229376);
+  });
+
+  it("adds the canonical HF page URL to transformed records", () => {
+    const record = __testables.transformModel({
+      id: "Qwen/Qwen2.5-7B-Instruct",
+      modelId: "Qwen/Qwen2.5-7B-Instruct",
+      author: "Qwen",
+      sha: "abc123",
+      lastModified: "2026-04-08T00:00:00.000Z",
+      private: false,
+      disabled: false,
+      gated: false,
+      pipeline_tag: "text-generation",
+      tags: ["license:apache-2.0"],
+      downloads: 1,
+      likes: 1,
+      trendingScore: 1,
+      library_name: "transformers",
+      createdAt: "2024-09-16T00:00:00.000Z",
+    });
+
+    expect(record.website_url).toBe(
+      "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct"
+    );
+    expect(record.hf_model_id).toBe("Qwen/Qwen2.5-7B-Instruct");
   });
 });

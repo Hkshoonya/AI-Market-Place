@@ -97,8 +97,10 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.activeModels).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
-    expect(coverage.providers[0]?.provider).toBe("Unknown");
     expect(coverage.providers[0]?.complete_pct).toBe(0);
+    expect(coverage.providers.map((provider) => provider.provider)).toEqual(
+      expect.arrayContaining(["Unknown", "xAI"])
+    );
     expect(coverage.official.providers.map((provider) => provider.provider)).toEqual(
       expect.arrayContaining(["Google", "xAI"])
     );

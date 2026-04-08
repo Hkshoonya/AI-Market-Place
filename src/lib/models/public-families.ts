@@ -35,22 +35,39 @@ const SAFE_VARIANT_RE =
   /\b(exacto|extended|preview|older|audio-preview|realtime-preview)\b/i;
 const MACHINE_SNAPSHOT_RE =
   /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
+const PROVIDER_ALIAS_SLUGS: Partial<Record<string, string[]>> = {
+  DeepSeek: ["deepseek-ai"],
+  Meta: ["meta-ai", "meta-llama", "facebook"],
+  MiniMax: ["minimaxai"],
+  "Z.ai": ["z-ai", "zai-org", "zai-org-cn", "zaiai"],
+  xAI: ["x-ai", "xai"],
+};
+const MODEL_FAMILY_PREFIX_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/^meta-llama-/i, "llama-"],
+  [/^nvidia-nemotron-/i, "nemotron-"],
+  [/^deepseek-ai-/i, "deepseek-"],
+];
 
-function stripProviderPrefix(slug: string, provider: string) {
+function getProviderSlugCandidates(provider: string) {
   const canonicalProvider = getCanonicalProviderName(provider);
   const providerSlug = provider
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
-  if (providerSlug && slug.startsWith(`${providerSlug}-`)) {
-    return slug.slice(providerSlug.length + 1);
-  }
-
   const canonicalProviderSlug = getProviderSlug(canonicalProvider);
-  if (canonicalProviderSlug && slug.startsWith(`${canonicalProviderSlug}-`)) {
-    return slug.slice(canonicalProviderSlug.length + 1);
+  const aliasSlugs = PROVIDER_ALIAS_SLUGS[canonicalProvider] ?? [];
+
+  return [...new Set([providerSlug, canonicalProviderSlug, ...aliasSlugs].filter(Boolean))]
+    .sort((left, right) => right.length - left.length);
+}
+
+function stripProviderPrefix(slug: string, provider: string) {
+  const canonicalProvider = getCanonicalProviderName(provider);
+  for (const providerSlug of getProviderSlugCandidates(provider)) {
+    if (slug.startsWith(`${providerSlug}-`)) {
+      return slug.slice(providerSlug.length + 1);
+    }
   }
 
   const slugParts = slug.split("-");
@@ -107,9 +124,17 @@ export function getPublicSurfaceSeriesKey<
 function providerlessSlugToSeriesKey(providerlessSlug: string) {
   const slugKey = normalizeFamilyKey(
     providerlessSlug
+      .replace(/^meta-meta-llama-/i, "llama-")
       .replace(DATED_SLUG_RE, "")
       .replace(/-v\d+$/i, "")
       .replace(/-v(\d+)-0(?=-|$)/g, "-v$1")
+      .replace(
+        /^((?:meta-llama|nvidia-nemotron|deepseek-ai)-)/i,
+        (match) =>
+          MODEL_FAMILY_PREFIX_REPLACEMENTS.find(([pattern]) =>
+            pattern.test(match)
+          )?.[1] ?? match
+      )
       .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
       .replace(
         /-(?:it|instruct|preview|beta|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)(?=-|$)/g,
@@ -125,6 +150,7 @@ function displayNameToSeriesKey(name: string) {
   return normalizeFamilyKey(
     name
       .replace(/\([^)]*\)/g, " ")
+      .replace(/\bmeta[-\s]?llama\b/gi, "llama")
       .replace(/\sv\d+$/i, " ")
       .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")

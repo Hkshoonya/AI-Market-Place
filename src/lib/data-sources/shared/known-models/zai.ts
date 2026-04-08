@@ -193,6 +193,28 @@ export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
     website_url: "https://docs.z.ai/guides/vlm/glm-ocr",
   },
+  "glm-5v-turbo": {
+    name: "GLM-5V-Turbo",
+    description:
+      "Z.ai's native multimodal coding and agent model for visual programming, image and video understanding, and long-context multimodal workflows.",
+    category: "multimodal",
+    context_window: 202752,
+    release_date: "2026-04-02",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.z.ai/guides/vlm/glm-5v-turbo",
+  },
   "glm-image": {
     name: "GLM Image",
     description: "Z.ai image generation model surfaced in the official docs catalog.",

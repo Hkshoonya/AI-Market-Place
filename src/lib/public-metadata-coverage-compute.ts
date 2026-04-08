@@ -148,6 +148,14 @@ function hasDiscoveryMetadata(model: ActiveModelPublicMetadataRow) {
   );
 }
 
+function hasCompletePublicMetadata(model: ActiveModelPublicMetadataRow) {
+  return (
+    hasDiscoveryMetadata(model) &&
+    (!Boolean(model.is_open_weights) || hasOpenWeightLicense(model)) &&
+    (!needsContextWindowForCoverage(model) || Boolean(model.context_window))
+  );
+}
+
 export async function computePublicMetadataCoverage(
   supabase: TypedSupabaseClient
 ) {
@@ -268,7 +276,7 @@ export async function computePublicMetadataCoverage(
     };
 
     stats.total += 1;
-    if (hasDiscoveryMetadata(model)) stats.complete += 1;
+    if (hasCompletePublicMetadata(model)) stats.complete += 1;
     if (!model.category) stats.missingCategory += 1;
     if (isReleaseDateWrapperModel(model)) {
       stats.releaseDateExemptAliases += 1;
@@ -319,7 +327,7 @@ export async function computePublicMetadataCoverage(
           (model) =>
             !hasDiscoveryMetadata(model) ||
             (Boolean(model.is_open_weights) && !hasOpenWeightLicense(model)) ||
-            (needsContextWindow(model) && !model.context_window)
+            (needsContextWindowForCoverage(model) && !model.context_window)
         )
         .sort(
           (left, right) =>
