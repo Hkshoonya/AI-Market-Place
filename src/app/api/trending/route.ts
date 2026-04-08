@@ -24,6 +24,7 @@ import {
   getNewsSignalType,
 } from "@/lib/news/presentation";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import {
   buildDirectDeploymentSignals,
   compareDeploymentSignalSummaries,
@@ -545,6 +546,15 @@ export async function GET(request: NextRequest) {
       ),
       limit
     );
+    const benchmarkTracking = await buildBenchmarkTrackingSummaryMap(
+      supabase as never,
+      combinedModels.map((model) => ({
+        id: model.id,
+        slug: model.slug,
+        provider: model.provider,
+        category: model.category ?? null,
+      }))
+    );
 
     const attachSignal = <T extends { id: string; slug: string; name: string; provider: string }>(
       modelsWithScores: T[],
@@ -563,6 +573,7 @@ export async function GET(request: NextRequest) {
                 return signal ? normalizeDeploymentSignalSummary(model, signal) : null;
               })()
             : signals.get(model.id) ?? null,
+        benchmark_tracking: benchmarkTracking.get(model.id) ?? null,
       }));
 
     return NextResponse.json({

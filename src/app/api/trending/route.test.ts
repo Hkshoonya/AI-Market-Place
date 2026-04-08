@@ -357,6 +357,24 @@ function createMockSupabase() {
       if (table === "model_news") {
         return {
           select: () => ({
+            overlaps: () => ({
+              order: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: "benchmark-gemma",
+                      title: "Gemma 4 benchmark update",
+                      source: "provider-blog",
+                      category: "benchmark",
+                      related_model_ids: ["gemma-4-31b"],
+                      metadata: { signal_type: "benchmark" },
+                      published_at: "2026-04-02T12:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
             gte: () => ({
               not: () => ({
                 order: () => ({
@@ -372,6 +390,28 @@ function createMockSupabase() {
                   error: null,
                 }),
               }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "benchmark_scores") {
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [{ model_id: "gemma-4-31b" }],
+              error: null,
+            }),
+          }),
+        };
+      }
+
+      if (table === "elo_ratings") {
+        return {
+          select: () => ({
+            in: async () => ({
+              data: [],
+              error: null,
             }),
           }),
         };
@@ -442,6 +482,15 @@ describe("GET /api/trending", () => {
         provider: "Meta",
       })
     );
+    expect(body.recent.find((model: { slug: string }) => model.slug === "google-gemma-4-31b-it"))
+      .toEqual(
+        expect.objectContaining({
+          benchmark_tracking: expect.objectContaining({
+            status: "structured",
+            badgeLabel: "Structured",
+          }),
+        })
+      );
   });
 
   it("keeps usage updates out of the recent release rail", async () => {
