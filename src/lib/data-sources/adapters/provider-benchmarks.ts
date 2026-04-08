@@ -115,14 +115,21 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     provider: "OpenAI",
     url: "https://openai.com/index/introducing-gpt-5-for-developers/",
     titleHint: "GPT-5 benchmark update",
-    modelHints: ["GPT-5", "GPT-5 mini", "GPT-5 nano", "gpt-5-chat-latest"],
+    modelHints: [
+      "GPT-5",
+      "GPT-5 mini",
+      "GPT-5 nano",
+      "gpt-5-chat-latest",
+      "gpt-5-structured",
+      "GPT-5 Structured",
+    ],
   },
   {
     id: "openai-gpt-5-2",
     provider: "OpenAI",
     url: "https://openai.com/index/introducing-gpt-5-2",
     titleHint: "GPT-5.2 benchmark update",
-    modelHints: ["GPT-5.2", "GPT-5.2 Pro"],
+    modelHints: ["GPT-5.2", "GPT-5.2 Chat", "gpt-5-2-chat", "GPT-5.2 Pro"],
   },
   {
     id: "openai-gpt-5-2-codex",
