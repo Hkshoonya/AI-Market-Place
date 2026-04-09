@@ -17,7 +17,9 @@ import {
 } from "@/lib/workspace/deployment-summary";
 import {
   provisionReplicateDeployment,
+  refreshHostedDeploymentStatus,
   resolveWorkspaceProvisioningOption,
+  updateHostedDeploymentScale,
 } from "@/lib/workspace/external-deployment";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +85,48 @@ function toRuntimeResponse(runtime: {
 const DEPLOYMENT_SELECT =
   "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
 
+async function reconcileHostedDeployment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  deployment: WorkspaceDeploymentRecord | null
+) {
+  if (!deployment || deployment.deployment_kind !== "hosted_external") {
+    return deployment;
+  }
+
+  const snapshot = await refreshHostedDeploymentStatus({
+    provider: deployment.external_provider,
+    owner: deployment.external_owner,
+    name: deployment.external_name,
+  });
+
+  if (!snapshot) return deployment;
+
+  const needsUpdate =
+    deployment.status !== snapshot.status ||
+    deployment.external_web_url !== snapshot.externalWebUrl ||
+    deployment.external_model_ref !== snapshot.externalModelRef ||
+    (deployment.last_error_message ?? null) !== snapshot.errorMessage;
+
+  if (!needsUpdate) return deployment;
+
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("workspace_deployments")
+    .update({
+      status: snapshot.status,
+      external_web_url: snapshot.externalWebUrl,
+      external_model_ref: snapshot.externalModelRef,
+      last_error_at: snapshot.errorMessage ? nowIso : null,
+      last_error_message: snapshot.errorMessage,
+    })
+    .eq("id", deployment.id)
+    .select(DEPLOYMENT_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data as WorkspaceDeploymentRecord;
+}
+
 export async function GET(request: Request) {
   try {
     const auth = await requireUser();
@@ -122,9 +166,13 @@ export async function GET(request: Request) {
       runtime = runtimeData ? toRuntimeResponse(runtimeData) : null;
     }
 
+    const reconciledDeployment = deployment
+      ? await reconcileHostedDeployment(auth.supabase, deployment as WorkspaceDeploymentRecord)
+      : null;
+
     return NextResponse.json({
-      deployment: deployment
-        ? toWorkspaceDeploymentResponse(deployment as WorkspaceDeploymentRecord)
+      deployment: reconciledDeployment
+        ? toWorkspaceDeploymentResponse(reconciledDeployment)
         : null,
       runtime,
       provisioning,
@@ -327,6 +375,15 @@ export async function PATCH(request: Request) {
     } = {};
 
     if (parsed.data.action === "pause") {
+      if (deployment.deployment_kind === "hosted_external") {
+        await updateHostedDeploymentScale({
+          provider: deployment.external_provider,
+          owner: deployment.external_owner,
+          name: deployment.external_name,
+          minInstances: 0,
+          maxInstances: 0,
+        });
+      }
       updatePayload.status = "paused";
     }
 
@@ -339,6 +396,15 @@ export async function PATCH(request: Request) {
           },
           { status: 422 }
         );
+      }
+      if (deployment.deployment_kind === "hosted_external") {
+        await updateHostedDeploymentScale({
+          provider: deployment.external_provider,
+          owner: deployment.external_owner,
+          name: deployment.external_name,
+          minInstances: 0,
+          maxInstances: 1,
+        });
       }
       updatePayload.status = "ready";
     }

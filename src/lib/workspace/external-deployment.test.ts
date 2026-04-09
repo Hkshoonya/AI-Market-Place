@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearReplicateCatalogCacheForTests,
+  refreshHostedDeploymentStatus,
   resolveWorkspaceProvisioningOption,
+  updateHostedDeploymentScale,
 } from "./external-deployment";
 
 function createSupabaseModelLookup(model: {
@@ -266,5 +268,117 @@ describe("resolveWorkspaceProvisioningOption", () => {
       canCreate: false,
       deploymentKind: "assistant_only",
     });
+  });
+});
+
+describe("hosted deployment lifecycle helpers", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    clearReplicateCatalogCacheForTests();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    clearReplicateCatalogCacheForTests();
+    vi.restoreAllMocks();
+  });
+
+  it("maps a scaled-down Replicate deployment to paused", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          owner: "meta",
+          name: "llama-3.3-70b-instruct",
+          current_release: {
+            model: "meta/llama-3.3-70b-instruct",
+            version: "version-1",
+            configuration: {
+              min_instances: 0,
+              max_instances: 0,
+            },
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const snapshot = await refreshHostedDeploymentStatus({
+      provider: "replicate",
+      owner: "meta",
+      name: "llama-3.3-70b-instruct",
+    });
+
+    expect(snapshot).toEqual({
+      status: "paused",
+      externalWebUrl: "https://replicate.com/meta/llama-3.3-70b-instruct",
+      externalModelRef: "meta/llama-3.3-70b-instruct",
+      errorMessage: null,
+    });
+  });
+
+  it("maps a missing Replicate deployment to failed", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response("not found", { status: 404 })
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const snapshot = await refreshHostedDeploymentStatus({
+      provider: "replicate",
+      owner: "meta",
+      name: "missing-deployment",
+    });
+
+    expect(snapshot).toEqual({
+      status: "failed",
+      externalWebUrl: "https://replicate.com/meta/missing-deployment",
+      externalModelRef: null,
+      errorMessage: "The hosted Replicate deployment no longer exists.",
+    });
+  });
+
+  it("updates Replicate deployment scale for pause and resume actions", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          owner: "meta",
+          name: "llama-3.3-70b-instruct",
+          current_release: {
+            model: "meta/llama-3.3-70b-instruct",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await updateHostedDeploymentScale({
+      provider: "replicate",
+      owner: "meta",
+      name: "llama-3.3-70b-instruct",
+      minInstances: 0,
+      maxInstances: 0,
+    });
+
+    expect(result).toEqual({
+      externalWebUrl: "https://replicate.com/meta/llama-3.3-70b-instruct",
+      externalModelRef: "meta/llama-3.3-70b-instruct",
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.replicate.com/v1/deployments/meta/llama-3.3-70b-instruct",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          min_instances: 0,
+          max_instances: 0,
+        }),
+      })
+    );
   });
 });

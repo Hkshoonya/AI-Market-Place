@@ -20,6 +20,13 @@ export interface WorkspaceProvisioningOption {
   target: ExternalDeploymentTarget | null;
 }
 
+export interface HostedDeploymentStatusSnapshot {
+  status: "provisioning" | "ready" | "paused" | "failed";
+  externalWebUrl: string | null;
+  externalModelRef: string | null;
+  errorMessage: string | null;
+}
+
 interface ModelProvisioningRecord {
   slug: string;
   name: string;
@@ -63,6 +70,11 @@ interface ReplicateDeploymentResponse {
     model?: string;
     version?: string;
     created_at?: string;
+    configuration?: {
+      hardware?: string;
+      min_instances?: number;
+      max_instances?: number;
+    } | null;
   } | null;
 }
 
@@ -138,6 +150,10 @@ function toReplicateTarget(candidate: { owner: string; name: string }): External
     modelRef: `${candidate.owner}/${candidate.name}`,
     webUrl: `https://replicate.com/${candidate.owner}/${candidate.name}`,
   };
+}
+
+function buildReplicateDeploymentWebUrl(owner: string, name: string) {
+  return `https://replicate.com/${owner}/${name}`;
 }
 
 let replicateCatalogCache:
@@ -363,6 +379,98 @@ function buildReplicateHeaders() {
   };
 }
 
+async function fetchReplicateDeployment(input: { owner: string; name: string }) {
+  const response = await fetch(
+    `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}`,
+    {
+      headers: {
+        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+      },
+      cache: "no-store",
+    }
+  );
+  const raw = (await response.json().catch(() => null)) as ReplicateDeploymentResponse | null;
+  return { response, raw };
+}
+
+export async function refreshHostedDeploymentStatus(input: {
+  provider: string | null;
+  owner: string | null;
+  name: string | null;
+}): Promise<HostedDeploymentStatusSnapshot | null> {
+  if (input.provider !== "replicate" || !input.owner || !input.name) {
+    return null;
+  }
+
+  const { response, raw } = await fetchReplicateDeployment({
+    owner: input.owner,
+    name: input.name,
+  });
+
+  if (response.status === 404) {
+    return {
+      status: "failed",
+      externalWebUrl: buildReplicateDeploymentWebUrl(input.owner, input.name),
+      externalModelRef: null,
+      errorMessage: "The hosted Replicate deployment no longer exists.",
+    };
+  }
+
+  if (!response.ok || !raw) {
+    throw new Error("Replicate deployment status lookup failed");
+  }
+
+  const minInstances = raw.current_release?.configuration?.min_instances ?? null;
+  const maxInstances = raw.current_release?.configuration?.max_instances ?? null;
+  const isPaused = minInstances === 0 && maxInstances === 0;
+  const isReady = Boolean(raw.current_release?.model && raw.current_release?.version);
+
+  return {
+    status: isPaused ? "paused" : isReady ? "ready" : "provisioning",
+    externalWebUrl: buildReplicateDeploymentWebUrl(raw.owner, raw.name),
+    externalModelRef: raw.current_release?.model ?? null,
+    errorMessage: null,
+  };
+}
+
+export async function updateHostedDeploymentScale(input: {
+  provider: string | null;
+  owner: string | null;
+  name: string | null;
+  minInstances: number;
+  maxInstances: number;
+}) {
+  if (input.provider !== "replicate" || !input.owner || !input.name) {
+    throw new Error("Hosted deployment target is incomplete");
+  }
+
+  const response = await fetch(
+    `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}`,
+    {
+      method: "PATCH",
+      headers: buildReplicateHeaders(),
+      body: JSON.stringify({
+        min_instances: input.minInstances,
+        max_instances: input.maxInstances,
+      }),
+    }
+  );
+  const raw = (await response.json().catch(() => null)) as ReplicateDeploymentResponse | null;
+
+  if (!response.ok || !raw) {
+    const message =
+      raw && typeof raw === "object" && "detail" in raw
+        ? String((raw as { detail?: unknown }).detail)
+        : "Replicate deployment scaling update failed";
+    throw new Error(message);
+  }
+
+  return {
+    externalWebUrl: buildReplicateDeploymentWebUrl(raw.owner, raw.name),
+    externalModelRef: raw.current_release?.model ?? null,
+  };
+}
+
 function estimateReplicateHardware(input: { parameterCount: number | null; category: string | null }) {
   if (input.category !== "llm") return "gpu-t4";
   if ((input.parameterCount ?? 0) >= 20_000_000_000) return "gpu-a40-large";
@@ -438,7 +546,7 @@ export async function provisionReplicateDeployment(input: {
     external_owner: createRaw.owner,
     external_name: createRaw.name,
     external_model_ref: createRaw.current_release?.model ?? input.target.modelRef,
-    external_web_url: `https://replicate.com/${createRaw.owner}/${createRaw.name}`,
+    external_web_url: buildReplicateDeploymentWebUrl(createRaw.owner, createRaw.name),
   };
 }
 
