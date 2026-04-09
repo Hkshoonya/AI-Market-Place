@@ -44,6 +44,7 @@ import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import { getDeployStartPlan } from "@/lib/models/deploy-start";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { resolveWorkspaceProvisioningOption } from "@/lib/workspace/external-deployment";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import {
   countProviderReportedBenchmarkEvidence,
@@ -205,11 +206,16 @@ export default async function ModelDetailPage({
   }).offersByModelId[model.id] ?? [];
   const bestAccessOffer = modelAccessOffers[0] ?? null;
   const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
+  const provisioning = await resolveWorkspaceProvisioningOption({
+    supabase,
+    modelSlug: model.slug,
+    runtimeExecution,
+  });
   const deployStartPlan = getDeployStartPlan({
     modelSlug: slug,
     modelName: model.name,
     isOpenWeights: model.is_open_weights,
-    allowInSiteWorkspace: runtimeExecution.available,
+    allowInSiteWorkspace: provisioning.canCreate,
     offer: bestAccessOffer
       ? {
           actionLabel: bestAccessOffer.actionLabel,

@@ -6,6 +6,8 @@ import {
   type DeploymentPlatform,
   type ModelDeployment,
 } from "@/lib/models/deployments";
+import { resolveWorkspaceProvisioningOption } from "@/lib/workspace/external-deployment";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import {
   compareDeploymentSignalSummaries,
@@ -157,6 +159,11 @@ export async function GET(
       platforms: typedPlatforms,
       pricingProviderNames,
     });
+    const provisioning = await resolveWorkspaceProvisioningOption({
+      supabase,
+      modelSlug: modelRaw.slug,
+      runtimeExecution: resolveWorkspaceRuntimeExecution(modelRaw.slug),
+    });
 
     return NextResponse.json({
       model: {
@@ -168,6 +175,7 @@ export async function GET(
       deployments: deploymentCatalog.directDeployments,
       relatedPlatforms: deploymentCatalog.relatedPlatforms,
       deploymentEvidence,
+      provisioning,
     });
   } catch (err) {
     return handleApiError(err, "api/models/deployments");

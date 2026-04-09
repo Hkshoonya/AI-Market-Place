@@ -195,4 +195,53 @@ describe("DeployTab", () => {
     expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/On your computer/i)).toBeInTheDocument();
   });
+
+  it("shows AI Market Cap hosted deploy when provisioning is available", () => {
+    mockUseSWR.mockReturnValue({
+      data: {
+        deployments: [],
+        relatedPlatforms: [],
+        deploymentEvidence: [],
+        provisioning: {
+          canCreate: true,
+          deploymentKind: "hosted_external",
+          label: "Replicate hosted deployment",
+          summary:
+            "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
+          target: {
+            platformSlug: "replicate",
+            provider: "replicate",
+            owner: "meta",
+            name: "llama-3.3-70b-instruct",
+            modelRef: "meta/llama-3.3-70b-instruct",
+            webUrl: "https://replicate.com/meta/llama-3.3-70b-instruct",
+          },
+        },
+      },
+      error: null,
+      isLoading: false,
+    });
+
+    render(
+      <DeployTab
+        modelSlug="meta-llama-3-3-70b-instruct"
+        modelName="Llama 3.3 70B Instruct"
+        isOpenWeights
+        parameterCount={70_000_000_000}
+        modalities={["text"]}
+        category="llm"
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Deploy on AI Market Cap/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/hosted Replicate deployment/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Chat, API, usage tracking/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Deploy on AI Market Cap/i })
+    ).toBeInTheDocument();
+  });
 });

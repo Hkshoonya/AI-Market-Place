@@ -52,6 +52,21 @@ interface DeployTabProps {
   category?: string | null;
 }
 
+interface WorkspaceProvisioning {
+  canCreate: boolean;
+  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+  label: string;
+  summary: string;
+  target: {
+    platformSlug: string;
+    provider: string;
+    owner: string | null;
+    name: string | null;
+    modelRef: string | null;
+    webUrl: string | null;
+  } | null;
+}
+
 const UTM_PARAMS = "?ref=aimarketcap&utm_source=aimarketcap&utm_medium=deploy_tab";
 
 /** Returns the best URL for a platform: affiliate_url if set, otherwise base_url + UTM */
@@ -171,6 +186,7 @@ export function DeployTab({
     deployments: Deployment[];
     relatedPlatforms: Deployment[];
     deploymentEvidence?: LaunchRadarItem[];
+    provisioning?: WorkspaceProvisioning | null;
   }>(
     `/api/models/${modelSlug}/deployments`,
     { ...SWR_TIERS.SLOW }
@@ -178,6 +194,7 @@ export function DeployTab({
   const deployments = data?.deployments ?? [];
   const relatedPlatforms = data?.relatedPlatforms ?? [];
   const deploymentEvidence = data?.deploymentEvidence ?? [];
+  const provisioning = data?.provisioning ?? null;
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
@@ -215,7 +232,7 @@ export function DeployTab({
         modelSlug,
         modelName,
         isOpenWeights,
-        allowInSiteWorkspace: runtimeExecution.available,
+        allowInSiteWorkspace: provisioning?.canCreate ?? runtimeExecution.available,
         offer: {
           actionLabel: quickStart?.actionLabel,
           actionUrl: getPlatformUrl(
@@ -232,6 +249,17 @@ export function DeployTab({
           },
         },
       })
+    : null;
+  const aiMarketCapPlan = provisioning?.canCreate
+    ? {
+        label:
+          provisioning.deploymentKind === "hosted_external"
+            ? "Deploy on AI Market Cap"
+            : "Use on AI Market Cap",
+        summary: provisioning.summary,
+        modeLabel:
+          provisioning.deploymentKind === "hosted_external" ? "Hosted for you" : "Hosted for you",
+      }
     : null;
   const primaryPlatformType = primaryDeployment?.platform.type ?? null;
   const showApiCostWarning = primaryPlatformType === "api";
@@ -294,8 +322,9 @@ export function DeployTab({
               ) : null}
               {!runtimeExecution.available ? (
                 <p className="text-xs text-amber-300">
-                  AI Market Cap cannot run this model directly yet. Use the verified provider path
-                  below instead.
+                  {provisioning?.canCreate
+                    ? provisioning.summary
+                    : "AI Market Cap cannot run this model directly yet. Use the verified provider path below instead."}
                 </p>
               ) : null}
             </div>
@@ -396,6 +425,62 @@ export function DeployTab({
           ) : null}
         </div>
       )}
+
+      {aiMarketCapPlan ? (
+        <div className="rounded-lg border border-neon/20 bg-neon/5 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-neon" />
+                <h3 className="text-sm font-semibold text-white">Deploy on AI Market Cap</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">{aiMarketCapPlan.summary}</p>
+              <p className="text-xs text-muted-foreground">
+                This keeps deployment, chat, API access, and usage tracking on this site.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                openWorkspace({
+                  model: modelName,
+                  modelSlug,
+                  action: aiMarketCapPlan.label,
+                  provider: "AI Market Cap",
+                  nextUrl: `/models/${modelSlug}?tab=deploy#model-tabs`,
+                  sponsored: false,
+                  suggestedPackSlug: startPlan?.recommendedPack?.slug ?? null,
+                  suggestedPack: startPlan?.recommendedPack?.label ?? null,
+                  suggestedAmount: startPlan?.recommendedAmount ?? primaryDeployment?.deployment?.price_per_unit ?? 20,
+                });
+              }}
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-neon/15 px-3 py-2 text-sm font-medium text-neon transition-colors hover:bg-neon/25"
+            >
+              {aiMarketCapPlan.label}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Use it as</p>
+              <p className="mt-1 text-sm font-medium text-white">{aiMarketCapPlan.modeLabel}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">What you get</p>
+              <p className="mt-1 text-sm font-medium text-white">Chat, API, usage tracking</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-card/30 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Backed by</p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {provisioning?.deploymentKind === "hosted_external"
+                  ? provisioning.target?.platformSlug === "replicate"
+                    ? "Replicate hosted runtime"
+                    : "Hosted deployment target"
+                  : "AI Market Cap managed runtime"}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Pricing Comparison Table */}
       {deployments.length > 0 && (
