@@ -5,6 +5,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 const FOOTER_LINKS = {
   Platform: [
     { href: "/models", label: "Models" },
+    { href: "/deploy", label: "Deploy" },
     { href: "/leaderboards", label: "Leaderboards" },
     { href: "/compare", label: "Compare" },
     { href: "/news", label: "News" },

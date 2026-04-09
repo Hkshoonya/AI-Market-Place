@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Newspaper,
   // REMOVED: Search,
+  Rocket,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
@@ -29,6 +30,7 @@ import { WalletBadge } from "@/components/marketplace/wallet-badge";
 
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
+  { href: "/deploy", label: "Deploy", icon: Rocket },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/providers", label: "Providers", icon: Building2 },

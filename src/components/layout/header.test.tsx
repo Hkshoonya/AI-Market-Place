@@ -51,6 +51,7 @@ vi.mock("lucide-react", () => ({
   Menu: (props: ComponentProps<"svg">) => <svg {...props} />,
   MessageSquare: (props: ComponentProps<"svg">) => <svg {...props} />,
   Newspaper: (props: ComponentProps<"svg">) => <svg {...props} />,
+  Rocket: (props: ComponentProps<"svg">) => <svg {...props} />,
   ShieldCheck: (props: ComponentProps<"svg">) => <svg {...props} />,
   ShoppingBag: (props: ComponentProps<"svg">) => <svg {...props} />,
   Sparkles: (props: ComponentProps<"svg">) => <svg {...props} />,
@@ -87,6 +88,7 @@ describe("Header", () => {
 
     render(<Header />);
 
+    expect(screen.getAllByRole("link", { name: /deploy/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /workspace/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /deployments/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /open wallet/i })).toHaveAttribute("href", "/wallet");

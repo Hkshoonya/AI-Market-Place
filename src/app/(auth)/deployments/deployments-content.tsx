@@ -291,7 +291,7 @@ export default function DeploymentsContent() {
             <Link href="/workspace">Open Workspace</Link>
           </Button>
           <Button asChild className="bg-neon text-background hover:bg-neon/90">
-            <Link href="/models?managed=true">Use on AI Market Cap</Link>
+            <Link href="/deploy">Use on AI Market Cap</Link>
           </Button>
         </div>
       </div>
@@ -344,7 +344,7 @@ export default function DeploymentsContent() {
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                <Link href="/models?managed=true">Find models hosted here</Link>
+                <Link href="/deploy">Find models hosted here</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/models?deployable=true">Browse all deployable models</Link>
