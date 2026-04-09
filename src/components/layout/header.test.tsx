@@ -46,6 +46,7 @@ vi.mock("lucide-react", () => ({
   Activity: (props: ComponentProps<"svg">) => <svg data-testid="activity-icon" {...props} />,
   BarChart3: (props: ComponentProps<"svg">) => <svg {...props} />,
   Building2: (props: ComponentProps<"svg">) => <svg {...props} />,
+  LayoutDashboard: (props: ComponentProps<"svg">) => <svg {...props} />,
   LogIn: (props: ComponentProps<"svg">) => <svg {...props} />,
   Menu: (props: ComponentProps<"svg">) => <svg {...props} />,
   MessageSquare: (props: ComponentProps<"svg">) => <svg {...props} />,
@@ -86,6 +87,8 @@ describe("Header", () => {
 
     render(<Header />);
 
+    expect(screen.getAllByRole("link", { name: /workspace/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /deployments/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /open wallet/i })).toHaveAttribute("href", "/wallet");
     expect(screen.getByRole("link", { name: /open admin dashboard/i })).toHaveAttribute("href", "/admin");
     expect(screen.getAllByTestId("auth-button").length).toBeGreaterThanOrEqual(2);

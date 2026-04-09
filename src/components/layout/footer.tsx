@@ -9,6 +9,8 @@ const FOOTER_LINKS = {
     { href: "/compare", label: "Compare" },
     { href: "/news", label: "News" },
     { href: "/marketplace", label: "Marketplace" },
+    { href: "/workspace", label: "Workspace" },
+    { href: "/deployments", label: "Deployments" },
     { href: "/discover", label: "Discover Watchlists" },
   ],
   Categories: CATEGORIES.slice(0, 5).map((c) => ({

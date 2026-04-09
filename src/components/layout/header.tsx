@@ -7,6 +7,7 @@ import {
   Activity,
   BarChart3,
   Building2,
+  LayoutDashboard,
   LogIn,
   Menu,
   MessageSquare,
@@ -74,6 +75,34 @@ export function Header() {
               </Link>
             );
           })}
+          {user && (
+            <>
+              <Link
+                href="/workspace"
+                className={cn(
+                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/workspace")
+                    ? "bg-neon/10 text-neon"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Workspace
+              </Link>
+              <Link
+                href="/deployments"
+                className={cn(
+                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/deployments")
+                    ? "bg-neon/10 text-neon"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Deployments
+              </Link>
+            </>
+          )}
           {profile?.is_admin && (
             <Link
               href="/admin"
@@ -97,6 +126,12 @@ export function Header() {
           <div className="hidden items-center gap-1 xl:flex 2xl:hidden">
             {user ? (
               <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/workspace">Workspace</Link>
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/deployments">Deployments</Link>
+                </Button>
                 <Button variant="ghost" size="icon" asChild>
                   <Link href="/wallet" aria-label="Open wallet">
                     <Wallet className="h-4 w-4" aria-hidden="true" />
@@ -166,6 +201,37 @@ export function Header() {
                     </Link>
                   );
                 })}
+                {user && (
+                  <>
+                    <div className="my-4 border-t border-border" />
+                    <Link
+                      href="/workspace"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname.startsWith("/workspace")
+                          ? "bg-neon/10 text-neon"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <LayoutDashboard className="h-5 w-5" />
+                      Workspace
+                    </Link>
+                    <Link
+                      href="/deployments"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname.startsWith("/deployments")
+                          ? "bg-neon/10 text-neon"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <LayoutDashboard className="h-5 w-5" />
+                      Deployments
+                    </Link>
+                  </>
+                )}
                 {profile?.is_admin && (
                   <>
                     <div className="my-4 border-t border-border" />
