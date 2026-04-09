@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,8 @@ export default function WalletContent() {
   const [page, setPage] = useState(1);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutPackSlug, setCheckoutPackSlug] = useState<string | null>(null);
   const deployIntent = searchParams.get("intent");
   const starterModel = searchParams.get("model");
   const starterModelSlug = searchParams.get("modelSlug");
@@ -128,6 +131,37 @@ export default function WalletContent() {
     starterAmount != null ? (wallet?.balance ?? 0) >= starterAmount : false;
 
   const error = generateError || (swrError ? (swrError instanceof Error ? swrError.message : "Something went wrong") : "");
+
+  const handleStripeCheckout = async (packSlug: string) => {
+    setCheckoutPackSlug(packSlug);
+    setCheckoutError("");
+
+    try {
+      const queryString = searchParams.toString();
+      const returnPath = queryString ? `${pathname}?${queryString}` : pathname;
+      const res = await fetch("/api/marketplace/wallet/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pack: packSlug,
+          return_path: returnPath,
+        }),
+      });
+
+      const body = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok || !body.url) {
+        throw new Error(body.error || "Unable to start Stripe checkout");
+      }
+
+      window.location.href = body.url;
+    } catch (err: unknown) {
+      setCheckoutError(err instanceof Error ? err.message : "Unable to start Stripe checkout");
+    } finally {
+      setCheckoutPackSlug(null);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -433,6 +467,38 @@ export default function WalletContent() {
               The simplest top-up packs are {formatWalletTopUpList()}. After that, spending draws
               down from the same balance.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {WALLET_TOP_UP_PACKS.map((pack) => (
+                <Button
+                  key={pack.slug}
+                  variant={starterPack?.slug === pack.slug ? "default" : "outline"}
+                  className={cn(
+                    starterPack?.slug === pack.slug &&
+                      "bg-neon text-background hover:bg-neon/90"
+                  )}
+                  disabled={checkoutPackSlug !== null}
+                  onClick={() => handleStripeCheckout(pack.slug)}
+                >
+                  {checkoutPackSlug === pack.slug ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Starting Checkout...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Pay {formatCurrency(pack.amount)} by Card
+                    </>
+                  )}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Card checkout adds credits to this wallet automatically after Stripe confirms payment.
+            </p>
+            {checkoutError ? (
+              <p className="mt-2 text-sm text-red-400">{checkoutError}</p>
+            ) : null}
           </div>
           <div className="rounded-xl border border-border/50 bg-card/30 p-4">
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -455,9 +521,9 @@ export default function WalletContent() {
               ))}
             </div>
             <ol className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li>1. Copy a deposit address below.</li>
-              <li>2. Send USDC on Solana, Base, or Polygon.</li>
-              <li>3. Wait for the balance to appear, then buy from any listing.</li>
+              <li>1. Pay by card for the fastest wallet top-up, or use deposit addresses below.</li>
+              <li>2. If you use chain funding, send USDC on Solana, Base, or Polygon.</li>
+              <li>3. Once the balance appears, spend from the same wallet across the site.</li>
             </ol>
           </div>
         </CardContent>
