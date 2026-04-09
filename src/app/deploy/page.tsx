@@ -35,6 +35,12 @@ export const revalidate = 300;
 
 const PAGE_SIZE = 24;
 
+function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "assistant_only") {
+  if (kind === "managed_api") return "Managed runtime";
+  if (kind === "hosted_external") return "Hosted backend";
+  return "Assistant only";
+}
+
 export default async function DeployPage({
   searchParams,
 }: {
@@ -95,6 +101,20 @@ export default async function DeployPage({
   const hostedBackendCount = launchableModels.filter(
     ({ provisioning }) => provisioning.deploymentKind === "hosted_external"
   ).length;
+  const sortedLaunchableModels = [...launchableModels].sort((left, right) => {
+    const leftRank = left.model.overall_rank ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = right.model.overall_rank ?? Number.MAX_SAFE_INTEGER;
+    return leftRank - rightRank;
+  });
+  const chatStarts = sortedLaunchableModels
+    .filter(({ model }) => model.category === "llm" || model.category === "multimodal")
+    .slice(0, 3);
+  const openModelStarts = sortedLaunchableModels
+    .filter(({ model }) => model.is_open_weights)
+    .slice(0, 3);
+  const fastestSetupStarts = sortedLaunchableModels
+    .filter(({ provisioning }) => provisioning.deploymentKind === "managed_api")
+    .slice(0, 3);
   const pagedModels = launchableModels.slice(from, to);
 
   return (
@@ -202,6 +222,62 @@ export default async function DeployPage({
             Open filter view
           </Link>
         </Button>
+      </div>
+
+      <div className="mt-6 grid gap-4 xl:grid-cols-3">
+        {[
+          {
+            title: "Best for chat",
+            summary: "Strong starting points if you want a general-purpose model running quickly.",
+            items: chatStarts,
+          },
+          {
+            title: "Best open models",
+            summary: "Open-weight models AI Market Cap can still launch here for you today.",
+            items: openModelStarts,
+          },
+          {
+            title: "Fastest setup",
+            summary: "Models already on the smoothest AI Market Cap-managed runtime path.",
+            items: fastestSetupStarts,
+          },
+        ].map((section) => (
+          <Card key={section.title} className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <h2 className="text-base font-semibold text-white">{section.title}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
+              <div className="mt-4 space-y-3">
+                {section.items.length === 0 ? (
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4 text-sm text-muted-foreground">
+                    No launchable models in this group yet.
+                  </div>
+                ) : (
+                  section.items.map(({ model, provisioning }) => (
+                    <Link
+                      key={`${section.title}-${model.id}`}
+                      href={`/models/${model.slug}`}
+                      className="block rounded-xl border border-border/50 bg-card/40 p-4 transition-colors hover:border-neon/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{model.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{model.provider}</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
+                        >
+                          {getProvisioningBadgeLabel(provisioning.deploymentKind)}
+                        </Badge>
+                      </div>
+                      <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {pagedModels.length === 0 ? (
