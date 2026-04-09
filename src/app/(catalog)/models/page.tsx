@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { z } from "zod";
@@ -36,6 +37,7 @@ import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execut
 import { getDeployabilityLabel } from "@/lib/models/deployability";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { resolveWorkspaceProvisioningHint } from "@/lib/workspace/external-deployment";
 
 export const metadata: Metadata = {
   title: "AI Models Directory",
@@ -326,10 +328,16 @@ export default async function ModelsPage({
     managedDeploymentModelIds = new Set(
       sortedUniqueModels
         .filter((model) => {
-          const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
-          if (!runtimeExecution.available) return false;
+          const provisioning = resolveWorkspaceProvisioningHint({
+            modelSlug: model.slug,
+            modelName: model.name,
+            provider: model.provider,
+            category: model.category,
+            hfModelId: model.hf_model_id,
+            runtimeExecution: resolveWorkspaceRuntimeExecution(model.slug),
+          });
 
-          return Boolean(getBestAccessOfferForModel(accessCatalog, model.id));
+          return provisioning.canCreate;
         })
         .map((model) => model.id)
     );
@@ -382,8 +390,31 @@ export default async function ModelsPage({
           </div>
         </div>
         {managedOnly && (
-          <div className="mt-4 rounded-xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-4 text-sm text-muted-foreground">
-            Showing only models that AI Market Cap can run directly for you on this site right now.
+          <div className="mt-4 rounded-2xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="text-sm font-semibold text-[#00d4aa]">Use on AI Market Cap</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  These are the models AI Market Cap can launch for you here with one click today.
+                  Some use our own managed runtime. Others use a hosted backend we provision and
+                  keep connected to your on-site chat, API, and usage tracking.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[#00d4aa]"
+                >
+                  {managedDeploymentModelIds.size} launchable here
+                </Badge>
+                <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                  <Link href="/workspace">Open Workspace</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/deployments">View Deployments</Link>
+                </Button>
+              </div>
+            </div>
           </div>
         )}
         {deployableOnly && (
@@ -526,7 +557,7 @@ export default async function ModelsPage({
                                 variant="outline"
                                 className="ml-2 border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
                               >
-                                Use on This Site
+                                Deploy on AI Market Cap
                               </Badge>
                             )}
                           </div>

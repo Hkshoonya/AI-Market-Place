@@ -84,6 +84,19 @@ interface ReplicateCatalogEntry {
   url?: string | null;
 }
 
+interface WorkspaceProvisioningHintInput {
+  modelSlug: string;
+  modelName: string;
+  provider: string;
+  category: string | null;
+  hfModelId?: string | null;
+  runtimeExecution: {
+    available: boolean;
+    label: string;
+    summary: string;
+  };
+}
+
 interface ReplicateModelCapability {
   hasChatInput: boolean;
 }
@@ -305,6 +318,69 @@ async function resolveReplicateTarget(
   return null;
 }
 
+export function resolveWorkspaceProvisioningHint(
+  input: WorkspaceProvisioningHintInput
+): WorkspaceProvisioningOption {
+  if (input.runtimeExecution.available) {
+    return {
+      canCreate: true,
+      deploymentKind: "managed_api",
+      label: input.runtimeExecution.label,
+      summary: input.runtimeExecution.summary,
+      target: null,
+    };
+  }
+
+  if (!isChatDeployableCategory(input.category)) {
+    return {
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "Workspace assistant only",
+      summary:
+        "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
+      target: null,
+    };
+  }
+
+  const bestStatic = REPLICATE_KNOWN_MODELS.filter((candidate) => candidate.category === "llm")
+    .map((candidate) => ({
+      owner: candidate.owner,
+      name: candidate.name,
+      score: scoreReplicateCandidate(
+        {
+          slug: input.modelSlug,
+          name: input.modelName,
+          provider: input.provider,
+          category: input.category,
+          parameter_count: null,
+          hf_model_id: input.hfModelId ?? null,
+        },
+        candidate
+      ),
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (bestStatic && bestStatic.score >= 5) {
+    return {
+      canCreate: true,
+      deploymentKind: "hosted_external",
+      label: "Replicate hosted deployment",
+      summary:
+        "AI Market Cap can create and manage a hosted deployment for this model, then keep chat, API access, and usage tracking on-site.",
+      target: toReplicateTarget(bestStatic),
+    };
+  }
+
+  return {
+    canCreate: false,
+    deploymentKind: "assistant_only",
+    label: "Workspace assistant only",
+    summary:
+      "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
+    target: null,
+  };
+}
+
 export function clearReplicateCatalogCacheForTests() {
   replicateCatalogCache = null;
   replicateCapabilityCache.clear();
@@ -319,16 +395,6 @@ export async function resolveWorkspaceProvisioningOption(input: {
     summary: string;
   };
 }): Promise<WorkspaceProvisioningOption> {
-  if (input.runtimeExecution.available) {
-    return {
-      canCreate: true,
-      deploymentKind: "managed_api",
-      label: input.runtimeExecution.label,
-      summary: input.runtimeExecution.summary,
-      target: null,
-    };
-  }
-
   const lookupClient = input.supabase as ModelLookupClient;
 
   const { data: model } = await lookupClient
@@ -338,14 +404,25 @@ export async function resolveWorkspaceProvisioningOption(input: {
     .single();
 
   if (!model) {
-    return {
-      canCreate: false,
-      deploymentKind: "assistant_only",
-      label: "Workspace assistant only",
-      summary:
-        "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
-      target: null,
-    };
+    return resolveWorkspaceProvisioningHint({
+      modelSlug: input.modelSlug,
+      modelName: input.modelSlug,
+      provider: "",
+      category: null,
+      runtimeExecution: input.runtimeExecution,
+    });
+  }
+
+  const staticHint = resolveWorkspaceProvisioningHint({
+    modelSlug: model.slug,
+    modelName: model.name,
+    provider: model.provider,
+    category: model.category,
+    hfModelId: model.hf_model_id,
+    runtimeExecution: input.runtimeExecution,
+  });
+  if (staticHint.canCreate && staticHint.deploymentKind === "managed_api") {
+    return staticHint;
   }
 
   const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
@@ -362,14 +439,7 @@ export async function resolveWorkspaceProvisioningOption(input: {
     };
   }
 
-  return {
-    canCreate: false,
-    deploymentKind: "assistant_only",
-    label: "Workspace assistant only",
-    summary:
-      "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
-    target: null,
-  };
+  return staticHint;
 }
 
 function buildReplicateHeaders() {

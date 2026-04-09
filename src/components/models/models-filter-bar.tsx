@@ -198,7 +198,7 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
             <>
               Showing <span className="font-medium text-foreground">{totalCount}</span>{" "}
               {currentManagedOnly
-                ? "models you can use on this site"
+                ? "models AI Market Cap can launch here"
                 : currentLifecycle === "all"
                   ? "tracked models"
                   : "active models"}

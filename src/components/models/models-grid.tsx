@@ -112,7 +112,7 @@ export function ModelsGrid({ models }: ModelsGridProps) {
                       variant="outline"
                       className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
                     >
-                      Use on This Site
+                      Deploy on AI Market Cap
                     </Badge>
                   </div>
                 ) : null}
