@@ -72,6 +72,10 @@ interface ReplicateCatalogEntry {
   url?: string | null;
 }
 
+interface ReplicateModelCapability {
+  hasChatInput: boolean;
+}
+
 function normalizeValue(value: string | null | undefined) {
   return (value ?? "")
     .toLowerCase()
@@ -86,6 +90,10 @@ function inferReplicateProviderAliases(provider: string) {
   if (normalized === "qwen") return new Set(["qwen", "qwenlm"]);
   if (normalized === "google") return new Set(["google", "google-deepmind", "prunaai"]);
   return new Set([normalized]);
+}
+
+function isChatDeployableCategory(category: string | null) {
+  return category === "llm" || category === "multimodal" || category === "code";
 }
 
 function scoreReplicateCandidate(
@@ -139,6 +147,8 @@ let replicateCatalogCache:
     }
   | null = null;
 
+const replicateCapabilityCache = new Map<string, ReplicateModelCapability>();
+
 async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
   const token = getOptionalEnv("REPLICATE_API_TOKEN");
   if (!token) return [];
@@ -186,9 +196,56 @@ async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
   return items;
 }
 
+function getReplicatePromptField(properties: Record<string, unknown>) {
+  if ("prompt" in properties) return "prompt";
+  if ("input" in properties) return "input";
+  if ("text" in properties) return "text";
+  return null;
+}
+
+async function loadReplicateModelCapability(input: {
+  owner: string;
+  name: string;
+}): Promise<ReplicateModelCapability> {
+  const cacheKey = `${input.owner}/${input.name}`;
+  const cached = replicateCapabilityCache.get(cacheKey);
+  if (cached) return cached;
+
+  const token = getOptionalEnv("REPLICATE_API_TOKEN");
+  if (!token) {
+    return { hasChatInput: false };
+  }
+
+  try {
+    const response = await fetch(
+      `${REPLICATE_API_BASE}/models/${input.owner}/${input.name}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        next: { revalidate: 3600 },
+      }
+    );
+    const raw = (await response.json().catch(() => null)) as ReplicateModelResponse | null;
+    const properties =
+      raw?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties ?? {};
+    const capability = {
+      hasChatInput: Boolean(getReplicatePromptField(properties)),
+    };
+    replicateCapabilityCache.set(cacheKey, capability);
+    return capability;
+  } catch {
+    return { hasChatInput: false };
+  }
+}
+
 async function resolveReplicateTarget(
   model: ModelProvisioningRecord
 ): Promise<ExternalDeploymentTarget | null> {
+  if (!isChatDeployableCategory(model.category)) {
+    return null;
+  }
+
   let bestStatic:
     | {
         owner: string;
@@ -205,26 +262,28 @@ async function resolveReplicateTarget(
   }
 
   if (bestStatic && bestStatic.score >= 5) {
-    return toReplicateTarget(bestStatic);
-  }
-
-  const catalog = await loadReplicateCatalog();
-  let bestCatalog:
-    | {
-        owner: string;
-        name: string;
-        score: number;
-      }
-    | null = null;
-  for (const candidate of catalog) {
-    const score = scoreReplicateCandidate(model, candidate);
-    if (score > (bestCatalog?.score ?? -1)) {
-      bestCatalog = { owner: candidate.owner, name: candidate.name, score };
+    const capability = await loadReplicateModelCapability(bestStatic);
+    if (capability.hasChatInput) {
+      return toReplicateTarget(bestStatic);
     }
   }
 
-  if (bestCatalog && bestCatalog.score >= 5) {
-    return toReplicateTarget(bestCatalog);
+  const catalog = await loadReplicateCatalog();
+  const rankedCatalog = catalog
+    .map((candidate) => ({
+      owner: candidate.owner,
+      name: candidate.name,
+      score: scoreReplicateCandidate(model, candidate),
+    }))
+    .filter((candidate) => candidate.score >= 5)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  for (const candidate of rankedCatalog) {
+    const capability = await loadReplicateModelCapability(candidate);
+    if (capability.hasChatInput) {
+      return toReplicateTarget(candidate);
+    }
   }
 
   return null;
@@ -232,6 +291,7 @@ async function resolveReplicateTarget(
 
 export function clearReplicateCatalogCacheForTests() {
   replicateCatalogCache = null;
+  replicateCapabilityCache.clear();
 }
 
 export async function resolveWorkspaceProvisioningOption(input: {
@@ -410,10 +470,7 @@ export async function runReplicateDeployment(input: {
   const properties =
     modelRaw.latest_version?.openapi_schema?.components?.schemas?.Input?.properties ?? {};
   const propertyKeys = Object.keys(properties);
-  let promptField: string | null = null;
-  if (propertyKeys.includes("prompt")) promptField = "prompt";
-  else if (propertyKeys.includes("input")) promptField = "input";
-  else if (propertyKeys.includes("text")) promptField = "text";
+  const promptField = getReplicatePromptField(properties);
 
   if (!promptField) {
     throw new Error("This hosted deployment does not expose a chat-style text input yet");

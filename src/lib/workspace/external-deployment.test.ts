@@ -59,6 +59,30 @@ describe("resolveWorkspaceProvisioningOption", () => {
 
   it("uses the static Replicate mapping for supported open-weight models", async () => {
     process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          owner: "meta",
+          name: "llama-3.3-70b-instruct",
+          latest_version: {
+            id: "version-1",
+            openapi_schema: {
+              components: {
+                schemas: {
+                  Input: {
+                    properties: {
+                      prompt: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
 
     const option = await resolveWorkspaceProvisioningOption({
       supabase: createSupabaseModelLookup({
@@ -80,25 +104,121 @@ describe("resolveWorkspaceProvisioningOption", () => {
     expect(option.canCreate).toBe(true);
     expect(option.deploymentKind).toBe("hosted_external");
     expect(option.target?.modelRef).toBe("meta/llama-3.3-70b-instruct");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to the live Replicate catalog for models outside the static list", async () => {
     process.env.REPLICATE_API_TOKEN = "test-token";
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: [
-            {
-              owner: "qwen",
-              name: "qwen3-tts",
-              url: "https://replicate.com/qwen/qwen3-tts",
-            },
-          ],
-          next: null,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                owner: "qwen",
+                name: "qwen3-32b",
+                url: "https://replicate.com/qwen/qwen3-32b",
+              },
+            ],
+            next: null,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
       )
-    );
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            owner: "qwen",
+            name: "qwen3-32b",
+            latest_version: {
+              id: "version-1",
+              openapi_schema: {
+                components: {
+                  schemas: {
+                    Input: {
+                      properties: {
+                        prompt: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const option = await resolveWorkspaceProvisioningOption({
+      supabase: createSupabaseModelLookup({
+        slug: "qwen-qwen3-32b",
+        name: "Qwen3 32B",
+        provider: "Qwen",
+        category: "llm",
+        parameter_count: null,
+        hf_model_id: "Qwen/Qwen3-32B",
+      }),
+      modelSlug: "qwen-qwen3-32b",
+      runtimeExecution: {
+        available: false,
+        label: "Unavailable",
+        summary: "Unavailable",
+      },
+    });
+
+    expect(option.canCreate).toBe(true);
+    expect(option.deploymentKind).toBe("hosted_external");
+    expect(option.target?.owner).toBe("qwen");
+    expect(option.target?.name).toBe("qwen3-32b");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects live catalog models that do not expose a chat-style text input", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                owner: "qwen",
+                name: "qwen3-tts",
+                url: "https://replicate.com/qwen/qwen3-tts",
+              },
+            ],
+            next: null,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            owner: "qwen",
+            name: "qwen3-tts",
+            latest_version: {
+              id: "version-1",
+              openapi_schema: {
+                components: {
+                  schemas: {
+                    Input: {
+                      properties: {
+                        text: { type: "string" },
+                        voice: { type: "string" },
+                        speaker: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
     vi.stubGlobal("fetch", mockFetch);
 
     const option = await resolveWorkspaceProvisioningOption({
@@ -106,7 +226,7 @@ describe("resolveWorkspaceProvisioningOption", () => {
         slug: "qwen-qwen3-tts",
         name: "Qwen3 TTS",
         provider: "Qwen",
-        category: "llm",
+        category: "speech_audio",
         parameter_count: null,
         hf_model_id: "Qwen/Qwen3-TTS",
       }),
@@ -118,11 +238,9 @@ describe("resolveWorkspaceProvisioningOption", () => {
       },
     });
 
-    expect(option.canCreate).toBe(true);
-    expect(option.deploymentKind).toBe("hosted_external");
-    expect(option.target?.owner).toBe("qwen");
-    expect(option.target?.name).toBe("qwen3-tts");
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(option.canCreate).toBe(false);
+    expect(option.deploymentKind).toBe("assistant_only");
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("returns assistant-only when neither managed nor hosted provisioning is available", async () => {
