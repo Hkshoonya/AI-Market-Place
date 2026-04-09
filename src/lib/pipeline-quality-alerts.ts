@@ -5,7 +5,8 @@ export type PipelineDataQualityAlert = {
     | "missing_trusted_benchmark_locators"
     | "official_metadata_completeness"
     | "official_discovery_readiness"
-    | "official_ranking_contamination";
+    | "official_ranking_contamination"
+    | "low_trust_discovery_ready";
   message: string;
   value: number;
   target: number;
@@ -21,6 +22,7 @@ type PublicMetadataCoverageSummaryInput = {
   officialCompleteDiscoveryMetadataPct: number;
   officialDefaultPublicSurfaceReadyPct: number;
   officialRankingContaminationCount: number;
+  lowTrustReadyCount: number;
 };
 
 export function computePipelineDataQualityAlerts(input: {
@@ -83,6 +85,17 @@ export function computePipelineDataQualityAlerts(input: {
       message:
         "Some official models still have public ranking fields despite failing discovery readiness.",
       value: input.publicMetadataCoverage.officialRankingContaminationCount,
+      target: 0,
+    });
+  }
+
+  if (input.publicMetadataCoverage.lowTrustReadyCount > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "low_trust_discovery_ready",
+      message:
+        "Low-trust community or wrapper rows are passing default public discovery readiness.",
+      value: input.publicMetadataCoverage.lowTrustReadyCount,
       target: 0,
     });
   }

@@ -138,6 +138,14 @@ export interface DataIntegrityReport {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyCount: number;
     defaultPublicSurfaceReadyPct: number;
+    trustTierCounts: {
+      official: number;
+      trusted_catalog: number;
+      community: number;
+      wrapper: number;
+    };
+    lowTrustActiveCount: number;
+    lowTrustReadyCount: number;
     topReadinessBlockers: Array<{
       reason: PublicSurfaceReadinessBlocker;
       count: number;
@@ -224,6 +232,13 @@ export interface DataIntegrityReport {
       category: string | null;
       releaseDate: string | null;
       reasons: PublicSurfaceReadinessBlocker[];
+    }>;
+    recentLowTrustModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      trustTier: "official" | "trusted_catalog" | "community" | "wrapper";
     }>;
   };
 }
@@ -894,6 +909,15 @@ export async function verifyDataIntegrity(
           releaseDate: model.release_date,
           reasons: model.reasons,
         })),
+      recentLowTrustModels: publicMetadataCoverage.recentLowTrustModels.map(
+        (model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          releaseDate: model.release_date,
+          trustTier: model.trust_tier,
+        })
+      ),
       official: {
         ...publicMetadataCoverage.official,
         recentIncompleteModels:

@@ -73,6 +73,14 @@ const PipelineHealthSummarySchema = z.object({
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
     defaultPublicSurfaceReadyPct: z.number(),
+    trustTierCounts: z.object({
+      official: z.number(),
+      trusted_catalog: z.number(),
+      community: z.number(),
+      wrapper: z.number(),
+    }),
+    lowTrustActiveCount: z.number(),
+    lowTrustReadyCount: z.number(),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
@@ -121,6 +129,14 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
     defaultPublicSurfaceReadyPct: z.number(),
+    trustTierCounts: z.object({
+      official: z.number(),
+      trusted_catalog: z.number(),
+      community: z.number(),
+      wrapper: z.number(),
+    }),
+    lowTrustActiveCount: z.number(),
+    lowTrustReadyCount: z.number(),
     topReadinessBlockers: z.array(
       z.object({
         reason: z.string(),
@@ -207,6 +223,15 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
         category: z.string().nullable(),
         release_date: z.string().nullable(),
         reasons: z.array(z.string()),
+      })
+    ),
+    recentLowTrustModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        trust_tier: z.enum(["official", "trusted_catalog", "community", "wrapper"]),
       })
     ),
   }),
@@ -328,6 +353,7 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.official.defaultPublicSurfaceReadyPct,
         officialRankingContaminationCount:
           publicMetadataCoverage.official.rankingContaminationCount,
+        lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
       },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
@@ -361,6 +387,9 @@ export async function GET(request: NextRequest) {
             publicMetadataCoverage.completeDiscoveryMetadataPct,
           defaultPublicSurfaceReadyPct:
             publicMetadataCoverage.defaultPublicSurfaceReadyPct,
+          trustTierCounts: publicMetadataCoverage.trustTierCounts,
+          lowTrustActiveCount: publicMetadataCoverage.lowTrustActiveCount,
+          lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
           topReadinessBlockers:
             publicMetadataCoverage.topReadinessBlockers.slice(0, 5),
           missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
@@ -407,6 +436,7 @@ export async function GET(request: NextRequest) {
             publicMetadataCoverage.recentRankingContaminationModels,
           recentRankingContaminationOfficialModels:
             publicMetadataCoverage.official.recentRankingContaminationModels,
+          recentLowTrustModels: publicMetadataCoverage.recentLowTrustModels,
         },
       });
       return NextResponse.json(detail);
@@ -426,6 +456,9 @@ export async function GET(request: NextRequest) {
           publicMetadataCoverage.completeDiscoveryMetadataPct,
         defaultPublicSurfaceReadyPct:
           publicMetadataCoverage.defaultPublicSurfaceReadyPct,
+        trustTierCounts: publicMetadataCoverage.trustTierCounts,
+        lowTrustActiveCount: publicMetadataCoverage.lowTrustActiveCount,
+        lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
         missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
         missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
         openWeightsMissingLicenseCount:

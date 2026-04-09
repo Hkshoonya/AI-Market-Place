@@ -8,16 +8,22 @@ import {
   hasOpenWeightLicense,
   isDefaultPublicSurfaceReady,
   needsContextWindowForCoverage,
-  OFFICIAL_PROVIDERS,
   type PublicSurfaceReadinessBlocker,
   isReleaseDateWrapperModel,
 } from "@/lib/models/public-surface-readiness";
+import {
+  getPublicSourceTrustTier,
+  isLowTrustPublicSourceTier,
+  type PublicSourceTrustTier,
+} from "@/lib/models/public-source-trust";
 
 const PAGE_SIZE = 1000;
 
 type ActiveModelPublicMetadataRow = {
   slug: string;
   provider: string;
+  hf_model_id?: string | null;
+  website_url?: string | null;
   name: string;
   category: string | null;
   release_date: string | null;
@@ -60,6 +66,16 @@ type RankingContaminationRow = {
   release_date: string | null;
   reasons: PublicSurfaceReadinessBlocker[];
 };
+
+type TrustTierRow = {
+  slug: string;
+  provider: string;
+  category: string | null;
+  release_date: string | null;
+  trust_tier: PublicSourceTrustTier;
+};
+
+type TrustTierCounts = Record<PublicSourceTrustTier, number>;
 
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<T[]>
@@ -181,15 +197,49 @@ function buildRecentRankingContaminationRows(
     .slice(0, 10);
 }
 
+function buildTrustTierCounts(
+  models: ActiveModelPublicMetadataRow[]
+): TrustTierCounts {
+  const counts: TrustTierCounts = {
+    official: 0,
+    trusted_catalog: 0,
+    community: 0,
+    wrapper: 0,
+  };
+
+  for (const model of models) {
+    counts[getPublicSourceTrustTier(model)] += 1;
+  }
+
+  return counts;
+}
+
+function buildRecentLowTrustRows(models: ActiveModelPublicMetadataRow[]): TrustTierRow[] {
+  return models
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+      release_date: model.release_date,
+      trust_tier: getPublicSourceTrustTier(model),
+    }))
+    .filter((model) => isLowTrustPublicSourceTier(model.trust_tier))
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 10);
+}
+
 export async function computePublicMetadataCoverage(
   supabase: TypedSupabaseClient
 ) {
   const models = await fetchAllRows<ActiveModelPublicMetadataRow>(
     async (from, to) => {
-      const { data, error } = await supabase
+        const { data, error } = await supabase
         .from("models")
         .select(
-          "slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
+          "slug, provider, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
         )
         .eq("status", "active")
         .range(from, to);
@@ -223,7 +273,7 @@ export async function computePublicMetadataCoverage(
     (model) => needsContextWindowForCoverage(model) && !model.context_window
   );
   const officialModels = effectiveModels.filter((model) =>
-    OFFICIAL_PROVIDERS.has(model.provider ?? "")
+    getPublicSourceTrustTier(model) === "official"
   );
   const officialMissingCategory = officialModels.filter((model) => !model.category);
   const officialMissingReleaseDate = officialModels.filter(
@@ -245,6 +295,15 @@ export async function computePublicMetadataCoverage(
   const officialRankingContaminationModels = officialModels.filter(
     (model) =>
       !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
+  );
+  const trustTierCounts = buildTrustTierCounts(effectiveModels);
+  const lowTrustActiveModels = effectiveModels.filter((model) =>
+    isLowTrustPublicSourceTier(getPublicSourceTrustTier(model))
+  );
+  const lowTrustReadyModels = effectiveModels.filter(
+    (model) =>
+      isLowTrustPublicSourceTier(getPublicSourceTrustTier(model)) &&
+      isDefaultPublicSurfaceReady(model)
   );
   const completeDiscoveryMetadataCount = models.filter(
     (_, index) => hasDiscoveryMetadata(effectiveModels[index]!)
@@ -313,6 +372,7 @@ export async function computePublicMetadataCoverage(
   const recentRankingContaminationModels = buildRecentRankingContaminationRows(
     rankingContaminationModels
   );
+  const recentLowTrustModels = buildRecentLowTrustRows(effectiveModels);
 
   const providerStats = new Map<
     string,
@@ -363,6 +423,9 @@ export async function computePublicMetadataCoverage(
     openWeightsMissingLicenseCount: openWeightsMissingLicense.length,
     llmMissingContextWindowCount: llmMissingContextWindow.length,
     rankingContaminationCount: rankingContaminationModels.length,
+    trustTierCounts,
+    lowTrustActiveCount: lowTrustActiveModels.length,
+    lowTrustReadyCount: lowTrustReadyModels.length,
     official: {
       activeModels: officialModels.length,
       completeDiscoveryMetadataCount: officialCompleteDiscoveryMetadataCount,
@@ -377,7 +440,9 @@ export async function computePublicMetadataCoverage(
       llmMissingContextWindowCount: officialLlmMissingContextWindow.length,
       rankingContaminationCount: officialRankingContaminationModels.length,
       providers: [...providerStats.entries()]
-        .filter(([provider]) => OFFICIAL_PROVIDERS.has(provider))
+        .filter(
+          ([provider]) => getPublicSourceTrustTier({ provider }) === "official"
+        )
         .map(([provider, stats]) => ({
           provider,
           total: stats.total,
@@ -447,5 +512,6 @@ export async function computePublicMetadataCoverage(
     recentIncompleteModels,
     recentNotReadyModels,
     recentRankingContaminationModels,
+    recentLowTrustModels,
   };
 }

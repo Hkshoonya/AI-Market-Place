@@ -177,6 +177,14 @@ const SAMPLE_REPORT = {
     openWeightsMissingLicenseCount: 1,
     llmMissingContextWindowCount: 2,
     rankingContaminationCount: 2,
+    trustTierCounts: {
+      official: 10,
+      trusted_catalog: 5,
+      community: 3,
+      wrapper: 2,
+    },
+    lowTrustActiveCount: 5,
+    lowTrustReadyCount: 0,
     official: {
       activeModels: 10,
       completeDiscoveryMetadataCount: 9,
@@ -252,6 +260,15 @@ const SAMPLE_REPORT = {
       },
     ],
     recentRankingContaminationModels: [],
+    recentLowTrustModels: [
+      {
+        slug: "community-wrapper-row",
+        provider: "Community Hub",
+        category: "llm",
+        releaseDate: "2026-03-01",
+        trustTier: "community",
+      },
+    ],
   },
 };
 

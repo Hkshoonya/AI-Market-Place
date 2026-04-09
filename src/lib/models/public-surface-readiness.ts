@@ -1,27 +1,16 @@
-export const OFFICIAL_PROVIDERS = new Set([
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "xAI",
-  "Z.ai",
-  "MiniMax",
-  "Microsoft",
-  "NVIDIA",
-  "Meta",
-  "Mistral AI",
-  "Moonshot AI",
-  "Qwen",
-  "DeepSeek",
-  "Black Forest Labs",
-  "Cohere",
-  "Amazon",
-  "Alibaba",
-  "Bytedance",
-]);
+import {
+  getPublicSourceTrustTier,
+  isPackagingVariantSlug,
+  isWrapperVariantSlug,
+} from "./public-source-trust";
+
+export { OFFICIAL_PROVIDERS } from "./public-source-trust";
 
 export interface PublicSurfaceReadinessModel {
   slug?: string | null;
   provider?: string | null;
+  hf_model_id?: string | null;
+  website_url?: string | null;
   name?: string | null;
   category?: string | null;
   release_date?: string | null;
@@ -57,19 +46,13 @@ export function needsContextWindow(model: Pick<PublicSurfaceReadinessModel, "cat
 export function isPackagingVariantModel(
   model: Pick<PublicSurfaceReadinessModel, "slug">
 ) {
-  return /(?:^|-)(?:gguf|bf16|fp8|int4|int8|nvfp4|awq)(?:-|$)/i.test(
-    String(model.slug ?? "")
-  );
+  return isPackagingVariantSlug(model.slug);
 }
 
 export function isReleaseDateWrapperModel(
   model: Pick<PublicSurfaceReadinessModel, "slug">
 ) {
-  return (
-    /(?:^|-)latest$/i.test(String(model.slug ?? "")) ||
-    /(?:^|-)(?:preview|exp|experimental)(?:-|$)/i.test(String(model.slug ?? "")) ||
-    /(?:^|-)(?:generate|image|video)-\d{3}(?:$|-)/i.test(String(model.slug ?? ""))
-  );
+  return isWrapperVariantSlug(model.slug);
 }
 
 export function needsContextWindowForCoverage(model: PublicSurfaceReadinessModel) {
@@ -135,10 +118,7 @@ export function getDefaultPublicSurfaceReadinessBlockers(
   }
   if (isPackagingVariantModel(model)) blockers.push("packaging_variant");
   if (isReleaseDateWrapperModel(model)) blockers.push("wrapper_variant");
-  if (
-    !OFFICIAL_PROVIDERS.has(model.provider ?? "") &&
-    !hasMeaningfulPublicSignals(model)
-  ) {
+  if (getPublicSourceTrustTier(model) === "community") {
     blockers.push("weak_signals");
   }
 

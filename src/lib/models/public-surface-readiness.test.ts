@@ -79,7 +79,6 @@ describe("public surface readiness", () => {
     ).toEqual([
       "missing_context_window",
       "wrapper_variant",
-      "weak_signals",
     ]);
   });
 });

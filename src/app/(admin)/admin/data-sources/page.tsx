@@ -216,6 +216,14 @@ interface PipelineHealthDetail {
   publicMetadataCoverage?: {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyPct: number;
+    trustTierCounts: {
+      official: number;
+      trusted_catalog: number;
+      community: number;
+      wrapper: number;
+    };
+    lowTrustActiveCount: number;
+    lowTrustReadyCount: number;
     topReadinessBlockers: Array<{
       reason: string;
       count: number;
@@ -334,6 +342,14 @@ interface DataIntegrityReport {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyCount: number;
     defaultPublicSurfaceReadyPct: number;
+    trustTierCounts: {
+      official: number;
+      trusted_catalog: number;
+      community: number;
+      wrapper: number;
+    };
+    lowTrustActiveCount: number;
+    lowTrustReadyCount: number;
     topReadinessBlockers: Array<{
       reason: string;
       count: number;
@@ -418,6 +434,13 @@ interface DataIntegrityReport {
       category: string | null;
       releaseDate: string | null;
       reasons: string[];
+    }>;
+    recentLowTrustModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      trustTier: "official" | "trusted_catalog" | "community" | "wrapper";
     }>;
   };
 }
@@ -978,6 +1001,12 @@ export default function AdminDataSourcesPage() {
             Official discovery-ready: {healthData.publicMetadataCoverage.officialDefaultPublicSurfaceReadyPct}% · metadata complete:{" "}
             {healthData.publicMetadataCoverage.officialCompleteDiscoveryMetadataPct}% · release gaps:{" "}
             {healthData.publicMetadataCoverage.officialMissingReleaseDateCount}
+          </Badge>
+        )}
+        {healthData?.publicMetadataCoverage && (
+          <Badge variant="outline" className="border-border/40 text-[10px]">
+            Low-trust rows: {healthData.publicMetadataCoverage.lowTrustActiveCount} · ready leaks:{" "}
+            {healthData.publicMetadataCoverage.lowTrustReadyCount}
           </Badge>
         )}
         {healthData?.dataQualityAlerts && healthData.dataQualityAlerts.length > 0 && (

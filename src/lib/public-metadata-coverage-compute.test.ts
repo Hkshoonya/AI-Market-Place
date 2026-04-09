@@ -19,6 +19,7 @@ describe("computePublicMetadataCoverage", () => {
       {
         slug: "google-gemma-4-31b-it",
         provider: "Google",
+        website_url: "https://ai.google.dev/gemma",
         name: "Gemma 4 31B IT",
         category: "multimodal",
         release_date: "2026-04-02",
@@ -30,6 +31,7 @@ describe("computePublicMetadataCoverage", () => {
       {
         slug: "x-ai-grok-4-20",
         provider: "xAI",
+        website_url: "https://x.ai/grok",
         name: "Grok 4.20",
         category: "llm",
         release_date: "2026-04-01",
@@ -41,6 +43,7 @@ describe("computePublicMetadataCoverage", () => {
       {
         slug: "zai-org-glm-5-1",
         provider: "Z.ai",
+        website_url: "https://z.ai/glm-5-1",
         name: "GLM-5.1",
         category: "llm",
         release_date: "2026-04-03",
@@ -52,6 +55,7 @@ describe("computePublicMetadataCoverage", () => {
       {
         slug: "z-ai-glm-5-1",
         provider: "Z.ai",
+        website_url: "https://z.ai/glm-5-1",
         name: "GLM-5.1",
         category: "llm",
         release_date: "2026-04-03",
@@ -102,11 +106,19 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.releaseDateExemptAliasCount).toBe(1);
     expect(coverage.openWeightsMissingLicenseCount).toBe(0);
     expect(coverage.llmMissingContextWindowCount).toBe(1);
-    expect(coverage.official.activeModels).toBe(5);
-    expect(coverage.official.completeDiscoveryMetadataCount).toBe(5);
+    expect(coverage.trustTierCounts).toEqual({
+      official: 4,
+      trusted_catalog: 0,
+      community: 1,
+      wrapper: 1,
+    });
+    expect(coverage.lowTrustActiveCount).toBe(2);
+    expect(coverage.lowTrustReadyCount).toBe(0);
+    expect(coverage.official.activeModels).toBe(4);
+    expect(coverage.official.completeDiscoveryMetadataCount).toBe(4);
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
     expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(3);
-    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(60);
+    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(75);
     expect(coverage.official.topReadinessBlockers).toEqual(
       expect.arrayContaining([{ reason: "missing_context_window", count: 1 }])
     );
@@ -118,11 +130,15 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.providers.map((provider) => provider.provider)).toEqual(
       expect.arrayContaining(["Google", "xAI"])
     );
-    expect(coverage.official.releaseDateExemptAliasCount).toBe(1);
+    expect(coverage.official.releaseDateExemptAliasCount).toBe(0);
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
     expect(coverage.recentNotReadyModels[0]?.slug).toBe("x-ai-grok-4-20");
     expect(coverage.recentNotReadyModels[0]?.reasons).toEqual([
       "missing_context_window",
     ]);
+    expect(coverage.recentLowTrustModels[0]?.slug).toBe("google-gemini-flash-latest");
+    expect(coverage.recentLowTrustModels[0]?.trust_tier).toBe("wrapper");
+    expect(coverage.recentLowTrustModels[1]?.slug).toBe("mystery-model");
+    expect(coverage.recentLowTrustModels[1]?.trust_tier).toBe("community");
   });
 });

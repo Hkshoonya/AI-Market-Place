@@ -69,6 +69,14 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
     openWeightsMissingLicenseCount: 2,
     llmMissingContextWindowCount: 4,
     rankingContaminationCount: 3,
+    trustTierCounts: {
+      official: 40,
+      trusted_catalog: 30,
+      community: 20,
+      wrapper: 10,
+    },
+    lowTrustActiveCount: 30,
+    lowTrustReadyCount: 0,
     official: {
       activeModels: 40,
       completeDiscoveryMetadataCount: 34,
@@ -112,6 +120,7 @@ vi.mock("@/lib/public-metadata-coverage-compute", () => ({
     recentIncompleteModels: [],
     recentNotReadyModels: [],
     recentRankingContaminationModels: [],
+    recentLowTrustModels: [],
   }),
 }));
 

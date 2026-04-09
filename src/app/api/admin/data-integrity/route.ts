@@ -116,6 +116,14 @@ const DataIntegrityReportSchema = z.object({
     completeDiscoveryMetadataPct: z.number(),
     defaultPublicSurfaceReadyCount: z.number(),
     defaultPublicSurfaceReadyPct: z.number(),
+    trustTierCounts: z.object({
+      official: z.number(),
+      trusted_catalog: z.number(),
+      community: z.number(),
+      wrapper: z.number(),
+    }),
+    lowTrustActiveCount: z.number(),
+    lowTrustReadyCount: z.number(),
     topReadinessBlockers: z.array(
       z.object({
         reason: z.string(),
@@ -221,6 +229,15 @@ const DataIntegrityReportSchema = z.object({
         category: z.string().nullable(),
         releaseDate: z.string().nullable(),
         reasons: z.array(z.string()),
+      })
+    ),
+    recentLowTrustModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+        trustTier: z.enum(["official", "trusted_catalog", "community", "wrapper"]),
       })
     ),
   }),
