@@ -36,6 +36,8 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 const PAGE_SIZE = 24;
+const DEPLOY_FOCUS_OPTIONS = ["all", "chat", "api", "open", "cost"] as const;
+type DeployFocus = (typeof DEPLOY_FOCUS_OPTIONS)[number];
 
 function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "assistant_only") {
   if (kind === "managed_api") return "Managed runtime";
@@ -65,9 +67,13 @@ export default async function DeployPage({
 }: {
   searchParams: Promise<{
     page?: string;
+    focus?: string;
   }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, focus: focusParam } = await searchParams;
+  const focus = DEPLOY_FOCUS_OPTIONS.includes((focusParam ?? "all") as DeployFocus)
+    ? ((focusParam ?? "all") as DeployFocus)
+    : "all";
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE;
@@ -176,7 +182,33 @@ export default async function DeployPage({
       return tierOrder[leftTier] - tierOrder[rightTier];
     })
     .slice(0, 3);
-  const pagedModels = launchableModels.slice(from, to);
+  const filteredLaunchableModels = (() => {
+    switch (focus) {
+      case "chat":
+        return sortedLaunchableModels.filter(
+          ({ model }) => model.category === "llm" || model.category === "multimodal"
+        );
+      case "api":
+        return sortedLaunchableModels.filter(
+          ({ provisioning }) => provisioning.deploymentKind === "managed_api"
+        );
+      case "open":
+        return sortedLaunchableModels.filter(({ model }) => model.is_open_weights);
+      case "cost":
+        return lowestCostStarts.length > 0
+          ? [
+              ...lowestCostStarts,
+              ...sortedLaunchableModels.filter(
+                ({ model }) => !lowestCostStarts.some((entry) => entry.model.id === model.id)
+              ),
+            ]
+          : sortedLaunchableModels;
+      case "all":
+      default:
+        return sortedLaunchableModels;
+    }
+  })();
+  const pagedModels = filteredLaunchableModels.slice(from, to);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -273,7 +305,7 @@ export default async function DeployPage({
       <div className="mt-8 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{launchableModels.length}</span>{" "}
+            Showing <span className="font-medium text-foreground">{filteredLaunchableModels.length}</span>{" "}
             models AI Market Cap can launch here
           </p>
         </div>
@@ -283,6 +315,31 @@ export default async function DeployPage({
             Open filter view
           </Link>
         </Button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          { value: "all" as const, label: "All launches" },
+          { value: "chat" as const, label: "Chat" },
+          { value: "api" as const, label: "API" },
+          { value: "open" as const, label: "Open-weight" },
+          { value: "cost" as const, label: "Lowest cost" },
+        ].map((option) => (
+          <Button
+            key={option.value}
+            variant={focus === option.value ? "default" : "outline"}
+            asChild
+            className={
+              focus === option.value
+                ? "bg-neon text-background hover:bg-neon/90"
+                : undefined
+            }
+          >
+            <Link href={option.value === "all" ? "/deploy" : `/deploy?focus=${option.value}`}>
+              {option.label}
+            </Link>
+          </Button>
+        ))}
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
@@ -403,7 +460,7 @@ export default async function DeployPage({
             }))}
           />
           <Pagination
-            totalCount={launchableModels.length}
+            totalCount={filteredLaunchableModels.length}
             pageSize={PAGE_SIZE}
             basePath="/deploy"
           />
