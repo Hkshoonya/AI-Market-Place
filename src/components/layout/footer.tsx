@@ -17,6 +17,7 @@ const FOOTER_LINKS = {
   })),
   Company: [
     { href: "/about", label: "About" },
+    { href: "/roadmap", label: "Roadmap" },
     { href: "/contact", label: "Contact" },
     { href: "/faq", label: "FAQ" },
     { href: "/providers", label: "Providers" },
