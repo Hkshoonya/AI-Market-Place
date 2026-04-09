@@ -81,6 +81,7 @@ const PipelineHealthSummarySchema = z.object({
     }),
     lowTrustActiveCount: z.number(),
     lowTrustReadyCount: z.number(),
+    signalContaminationCount: z.number(),
     missingCategoryCount: z.number(),
     missingReleaseDateCount: z.number(),
     openWeightsMissingLicenseCount: z.number(),
@@ -137,6 +138,7 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     }),
     lowTrustActiveCount: z.number(),
     lowTrustReadyCount: z.number(),
+    signalContaminationCount: z.number(),
     topReadinessBlockers: z.array(
       z.object({
         reason: z.string(),
@@ -226,6 +228,15 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
     recentLowTrustModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        release_date: z.string().nullable(),
+        trust_tier: z.enum(["official", "trusted_catalog", "community", "wrapper"]),
+      })
+    ),
+    recentSignalContaminationModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),
@@ -354,6 +365,7 @@ export async function GET(request: NextRequest) {
         officialRankingContaminationCount:
           publicMetadataCoverage.official.rankingContaminationCount,
         lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
+        signalContaminationCount: publicMetadataCoverage.signalContaminationCount,
       },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
@@ -390,6 +402,8 @@ export async function GET(request: NextRequest) {
           trustTierCounts: publicMetadataCoverage.trustTierCounts,
           lowTrustActiveCount: publicMetadataCoverage.lowTrustActiveCount,
           lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
+          signalContaminationCount:
+            publicMetadataCoverage.signalContaminationCount,
           topReadinessBlockers:
             publicMetadataCoverage.topReadinessBlockers.slice(0, 5),
           missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
@@ -437,6 +451,8 @@ export async function GET(request: NextRequest) {
           recentRankingContaminationOfficialModels:
             publicMetadataCoverage.official.recentRankingContaminationModels,
           recentLowTrustModels: publicMetadataCoverage.recentLowTrustModels,
+          recentSignalContaminationModels:
+            publicMetadataCoverage.recentSignalContaminationModels,
         },
       });
       return NextResponse.json(detail);
@@ -459,6 +475,8 @@ export async function GET(request: NextRequest) {
         trustTierCounts: publicMetadataCoverage.trustTierCounts,
         lowTrustActiveCount: publicMetadataCoverage.lowTrustActiveCount,
         lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
+        signalContaminationCount:
+          publicMetadataCoverage.signalContaminationCount,
         missingCategoryCount: publicMetadataCoverage.missingCategoryCount,
         missingReleaseDateCount: publicMetadataCoverage.missingReleaseDateCount,
         openWeightsMissingLicenseCount:

@@ -420,6 +420,8 @@ describe("upsertBatch", () => {
           quality_score: null,
           capability_score: null,
           popularity_score: null,
+          hf_downloads: null,
+          hf_likes: null,
           hf_trending_score: null,
         }),
         expect.objectContaining({
@@ -428,6 +430,49 @@ describe("upsertBatch", () => {
           quality_score: null,
           capability_score: null,
           popularity_score: null,
+          hf_downloads: null,
+          hf_likes: null,
+          hf_trending_score: null,
+        }),
+      ],
+      {
+        onConflict: "slug",
+        count: "exact",
+      }
+    );
+  });
+
+  it("strips raw public signal inputs from low-trust community rows", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "community-wrapper-row",
+          provider: "Community Hub",
+          name: "Community Wrapper Row",
+          category: "llm",
+          release_date: "2026-04-01",
+          context_window: 32768,
+          hf_downloads: 1200,
+          hf_likes: 40,
+          hf_trending_score: 9,
+        },
+      ],
+      "slug"
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          slug: "community-wrapper-row",
+          hf_downloads: null,
+          hf_likes: null,
           hf_trending_score: null,
         }),
       ],

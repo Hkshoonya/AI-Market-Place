@@ -18,6 +18,7 @@ describe("pipeline data quality alerts", () => {
         officialDefaultPublicSurfaceReadyPct: 97.2,
         officialRankingContaminationCount: 0,
         lowTrustReadyCount: 0,
+        signalContaminationCount: 0,
       },
     });
 
@@ -37,6 +38,7 @@ describe("pipeline data quality alerts", () => {
         officialDefaultPublicSurfaceReadyPct: 88,
         officialRankingContaminationCount: 2,
         lowTrustReadyCount: 1,
+        signalContaminationCount: 3,
       },
     });
 
@@ -47,6 +49,7 @@ describe("pipeline data quality alerts", () => {
       "official_discovery_readiness",
       "official_ranking_contamination",
       "low_trust_discovery_ready",
+      "low_trust_signal_contamination",
     ]);
     expect(computePipelineDataQualityStatus(alerts)).toBe("critical");
   });

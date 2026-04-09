@@ -62,20 +62,6 @@ export function isWrapperVariantSlug(slug: string | null | undefined) {
   );
 }
 
-function hasMeaningfulSignals(model: PublicSourceTrustModel) {
-  return (
-    Number(model.overall_rank ?? 0) > 0 ||
-    Number(model.quality_score ?? 0) > 0 ||
-    Number(model.capability_score ?? 0) > 0 ||
-    Number(model.popularity_score ?? 0) > 0 ||
-    Number(model.adoption_score ?? 0) > 0 ||
-    Number(model.economic_footprint_score ?? 0) > 0 ||
-    Number(model.hf_downloads ?? 0) > 0 ||
-    Number(model.hf_likes ?? 0) > 0 ||
-    Number(model.hf_trending_score ?? 0) > 0
-  );
-}
-
 export function getPublicSourceTrustTier(
   model: PublicSourceTrustModel
 ): PublicSourceTrustTier {
@@ -87,7 +73,7 @@ export function getPublicSourceTrustTier(
     return "official";
   }
 
-  if (model.hf_model_id || model.website_url || hasMeaningfulSignals(model)) {
+  if (model.hf_model_id || model.website_url) {
     return "trusted_catalog";
   }
 

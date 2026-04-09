@@ -224,6 +224,7 @@ interface PipelineHealthDetail {
     };
     lowTrustActiveCount: number;
     lowTrustReadyCount: number;
+    signalContaminationCount: number;
     topReadinessBlockers: Array<{
       reason: string;
       count: number;
@@ -350,6 +351,7 @@ interface DataIntegrityReport {
     };
     lowTrustActiveCount: number;
     lowTrustReadyCount: number;
+    signalContaminationCount: number;
     topReadinessBlockers: Array<{
       reason: string;
       count: number;
@@ -436,6 +438,13 @@ interface DataIntegrityReport {
       reasons: string[];
     }>;
     recentLowTrustModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      trustTier: "official" | "trusted_catalog" | "community" | "wrapper";
+    }>;
+    recentSignalContaminationModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -1007,6 +1016,11 @@ export default function AdminDataSourcesPage() {
           <Badge variant="outline" className="border-border/40 text-[10px]">
             Low-trust rows: {healthData.publicMetadataCoverage.lowTrustActiveCount} · ready leaks:{" "}
             {healthData.publicMetadataCoverage.lowTrustReadyCount}
+          </Badge>
+        )}
+        {healthData?.publicMetadataCoverage && (
+          <Badge variant="outline" className="border-border/40 text-[10px]">
+            Signal contamination: {healthData.publicMetadataCoverage.signalContaminationCount}
           </Badge>
         )}
         {healthData?.dataQualityAlerts && healthData.dataQualityAlerts.length > 0 && (

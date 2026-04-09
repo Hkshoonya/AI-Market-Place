@@ -1,6 +1,7 @@
 import type { TypedSupabaseClient } from "@/types/database";
 import { getPublicSurfaceSeriesKey } from "@/lib/models/public-families";
 import { hasPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
+import { hasPublicSignalInputs } from "@/lib/models/public-signal-inputs";
 import {
   getDefaultPublicSurfaceReadinessBlockers,
   hasCompletePublicMetadata,
@@ -76,6 +77,14 @@ type TrustTierRow = {
 };
 
 type TrustTierCounts = Record<PublicSourceTrustTier, number>;
+
+type SignalContaminationRow = {
+  slug: string;
+  provider: string;
+  category: string | null;
+  release_date: string | null;
+  trust_tier: PublicSourceTrustTier;
+};
 
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<T[]>
@@ -231,6 +240,24 @@ function buildRecentLowTrustRows(models: ActiveModelPublicMetadataRow[]): TrustT
     .slice(0, 10);
 }
 
+function buildRecentSignalContaminationRows(
+  models: ActiveModelPublicMetadataRow[]
+): SignalContaminationRow[] {
+  return models
+    .map((model) => ({
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+      release_date: model.release_date,
+      trust_tier: getPublicSourceTrustTier(model),
+    }))
+    .sort(
+      (left, right) =>
+        Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
+    )
+    .slice(0, 10);
+}
+
 export async function computePublicMetadataCoverage(
   supabase: TypedSupabaseClient
 ) {
@@ -295,6 +322,11 @@ export async function computePublicMetadataCoverage(
   const officialRankingContaminationModels = officialModels.filter(
     (model) =>
       !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
+  );
+  const signalContaminationModels = effectiveModels.filter(
+    (model) =>
+      isLowTrustPublicSourceTier(getPublicSourceTrustTier(model)) &&
+      hasPublicSignalInputs(model)
   );
   const trustTierCounts = buildTrustTierCounts(effectiveModels);
   const lowTrustActiveModels = effectiveModels.filter((model) =>
@@ -373,6 +405,9 @@ export async function computePublicMetadataCoverage(
     rankingContaminationModels
   );
   const recentLowTrustModels = buildRecentLowTrustRows(effectiveModels);
+  const recentSignalContaminationModels = buildRecentSignalContaminationRows(
+    signalContaminationModels
+  );
 
   const providerStats = new Map<
     string,
@@ -423,6 +458,7 @@ export async function computePublicMetadataCoverage(
     openWeightsMissingLicenseCount: openWeightsMissingLicense.length,
     llmMissingContextWindowCount: llmMissingContextWindow.length,
     rankingContaminationCount: rankingContaminationModels.length,
+    signalContaminationCount: signalContaminationModels.length,
     trustTierCounts,
     lowTrustActiveCount: lowTrustActiveModels.length,
     lowTrustReadyCount: lowTrustReadyModels.length,
@@ -513,5 +549,6 @@ export async function computePublicMetadataCoverage(
     recentNotReadyModels,
     recentRankingContaminationModels,
     recentLowTrustModels,
+    recentSignalContaminationModels,
   };
 }

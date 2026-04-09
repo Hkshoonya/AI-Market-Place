@@ -155,6 +155,7 @@ export interface DataIntegrityReport {
     openWeightsMissingLicenseCount: number;
     llmMissingContextWindowCount: number;
     rankingContaminationCount: number;
+    signalContaminationCount: number;
     official: {
       activeModels: number;
       completeDiscoveryMetadataCount: number;
@@ -234,6 +235,13 @@ export interface DataIntegrityReport {
       reasons: PublicSurfaceReadinessBlocker[];
     }>;
     recentLowTrustModels: Array<{
+      slug: string;
+      provider: string;
+      category: string | null;
+      releaseDate: string | null;
+      trustTier: "official" | "trusted_catalog" | "community" | "wrapper";
+    }>;
+    recentSignalContaminationModels: Array<{
       slug: string;
       provider: string;
       category: string | null;
@@ -918,6 +926,14 @@ export async function verifyDataIntegrity(
           trustTier: model.trust_tier,
         })
       ),
+      recentSignalContaminationModels:
+        publicMetadataCoverage.recentSignalContaminationModels.map((model) => ({
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+          releaseDate: model.release_date,
+          trustTier: model.trust_tier,
+        })),
       official: {
         ...publicMetadataCoverage.official,
         recentIncompleteModels:

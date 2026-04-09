@@ -185,6 +185,7 @@ const SAMPLE_REPORT = {
     },
     lowTrustActiveCount: 5,
     lowTrustReadyCount: 0,
+    signalContaminationCount: 2,
     official: {
       activeModels: 10,
       completeDiscoveryMetadataCount: 9,
@@ -261,6 +262,15 @@ const SAMPLE_REPORT = {
     ],
     recentRankingContaminationModels: [],
     recentLowTrustModels: [
+      {
+        slug: "community-wrapper-row",
+        provider: "Community Hub",
+        category: "llm",
+        releaseDate: "2026-03-01",
+        trustTier: "community",
+      },
+    ],
+    recentSignalContaminationModels: [
       {
         slug: "community-wrapper-row",
         provider: "Community Hub",

@@ -28,6 +28,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.ci.json",
     "audit:benchmark-coverage": "node --import tsx scripts/benchmark-coverage-audit.ts",
     "repair:public-ranking-inputs": "node --import tsx scripts/repair-public-ranking-inputs.ts",
+    "repair:low-trust-public-signals": "node --import tsx scripts/repair-low-trust-public-signals.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --no-file-parallelism",
     "test:component": "vitest run --project component --testTimeout 15000",

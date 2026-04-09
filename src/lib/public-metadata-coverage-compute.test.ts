@@ -106,6 +106,7 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.releaseDateExemptAliasCount).toBe(1);
     expect(coverage.openWeightsMissingLicenseCount).toBe(0);
     expect(coverage.llmMissingContextWindowCount).toBe(1);
+    expect(coverage.signalContaminationCount).toBe(0);
     expect(coverage.trustTierCounts).toEqual({
       official: 4,
       trusted_catalog: 0,
@@ -140,5 +141,6 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.recentLowTrustModels[0]?.trust_tier).toBe("wrapper");
     expect(coverage.recentLowTrustModels[1]?.slug).toBe("mystery-model");
     expect(coverage.recentLowTrustModels[1]?.trust_tier).toBe("community");
+    expect(coverage.recentSignalContaminationModels).toEqual([]);
   });
 });

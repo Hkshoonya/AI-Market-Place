@@ -124,6 +124,7 @@ const DataIntegrityReportSchema = z.object({
     }),
     lowTrustActiveCount: z.number(),
     lowTrustReadyCount: z.number(),
+    signalContaminationCount: z.number(),
     topReadinessBlockers: z.array(
       z.object({
         reason: z.string(),
@@ -232,6 +233,15 @@ const DataIntegrityReportSchema = z.object({
       })
     ),
     recentLowTrustModels: z.array(
+      z.object({
+        slug: z.string(),
+        provider: z.string(),
+        category: z.string().nullable(),
+        releaseDate: z.string().nullable(),
+        trustTier: z.enum(["official", "trusted_catalog", "community", "wrapper"]),
+      })
+    ),
+    recentSignalContaminationModels: z.array(
       z.object({
         slug: z.string(),
         provider: z.string(),

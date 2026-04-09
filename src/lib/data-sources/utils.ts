@@ -12,6 +12,8 @@ import type { TypedSupabaseClient } from "@/types/database";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { getDefaultPublicSurfaceReadinessBlockers } from "@/lib/models/public-surface-readiness";
 import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
+import { getPublicSourceTrustTier, isLowTrustPublicSourceTier } from "@/lib/models/public-source-trust";
+import { stripPublicSignalInputs } from "@/lib/models/public-signal-inputs";
 
 // --------------- Retry & Fetch ---------------
 
@@ -221,9 +223,13 @@ function normalizeProviderFields(
 function normalizeModelRankingInputs(
   record: Record<string, unknown>
 ): Record<string, unknown> {
-  const blockers = getDefaultPublicSurfaceReadinessBlockers({
+  const normalizedModel = {
     slug: typeof record.slug === "string" ? record.slug : null,
     provider: typeof record.provider === "string" ? record.provider : null,
+    hf_model_id:
+      typeof record.hf_model_id === "string" ? record.hf_model_id : null,
+    website_url:
+      typeof record.website_url === "string" ? record.website_url : null,
     name: typeof record.name === "string" ? record.name : null,
     category: typeof record.category === "string" ? record.category : null,
     release_date:
@@ -254,10 +260,17 @@ function normalizeModelRankingInputs(
     hf_likes: typeof record.hf_likes === "number" ? record.hf_likes : null,
     hf_trending_score:
       typeof record.hf_trending_score === "number" ? record.hf_trending_score : null,
-  });
+  };
+  const blockers = getDefaultPublicSurfaceReadinessBlockers(normalizedModel);
+  const trustTier = getPublicSourceTrustTier(normalizedModel);
+
+  let normalizedRecord = record;
+  if (isLowTrustPublicSourceTier(trustTier)) {
+    normalizedRecord = stripPublicSignalInputs(normalizedRecord);
+  }
 
   if (blockers.length === 0) {
-    return record;
+    return normalizedRecord;
   }
 
   if (
@@ -274,10 +287,10 @@ function normalizeModelRankingInputs(
       ].includes(blocker)
     )
   ) {
-    return record;
+    return normalizedRecord;
   }
 
-  return stripPublicRankingInputs(record);
+  return stripPublicRankingInputs(normalizedRecord);
 }
 
 function isTransientOperationError(error: unknown): boolean {

@@ -6,7 +6,8 @@ export type PipelineDataQualityAlert = {
     | "official_metadata_completeness"
     | "official_discovery_readiness"
     | "official_ranking_contamination"
-    | "low_trust_discovery_ready";
+    | "low_trust_discovery_ready"
+    | "low_trust_signal_contamination";
   message: string;
   value: number;
   target: number;
@@ -23,6 +24,7 @@ type PublicMetadataCoverageSummaryInput = {
   officialDefaultPublicSurfaceReadyPct: number;
   officialRankingContaminationCount: number;
   lowTrustReadyCount: number;
+  signalContaminationCount: number;
 };
 
 export function computePipelineDataQualityAlerts(input: {
@@ -96,6 +98,17 @@ export function computePipelineDataQualityAlerts(input: {
       message:
         "Low-trust community or wrapper rows are passing default public discovery readiness.",
       value: input.publicMetadataCoverage.lowTrustReadyCount,
+      target: 0,
+    });
+  }
+
+  if (input.publicMetadataCoverage.signalContaminationCount > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "low_trust_signal_contamination",
+      message:
+        "Low-trust community or wrapper rows still carry public signal fields that can contaminate scoring and discovery inputs.",
+      value: input.publicMetadataCoverage.signalContaminationCount,
       target: 0,
     });
   }
