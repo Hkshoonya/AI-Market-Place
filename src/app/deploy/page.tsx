@@ -15,6 +15,8 @@ import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { resolveWorkspaceProvisioningHint } from "@/lib/workspace/external-deployment";
+import { getPublicPricingSummary } from "@/lib/models/pricing";
+import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 
 export const metadata: Metadata = {
   title: "Deploy AI Models on AI Market Cap",
@@ -40,6 +42,23 @@ function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "as
   if (kind === "hosted_external") return "Hosted backend";
   return "Assistant only";
 }
+
+type LaunchableEntry = {
+  model: z.infer<typeof ModelBaseSchema> & {
+    model_pricing?: Array<{
+      provider_name?: string | null;
+      input_price_per_million: number | null;
+      source?: string | null;
+      output_price_per_million?: number | null;
+      currency?: string | null;
+    }>;
+  };
+  provisioning: ReturnType<typeof resolveWorkspaceProvisioningHint>;
+};
+
+type LowestCostLaunchableEntry = LaunchableEntry & {
+  pricing: ReturnType<typeof getPublicPricingSummary>;
+};
 
 export default async function DeployPage({
   searchParams,
@@ -81,7 +100,7 @@ export default async function DeployPage({
     12
   );
 
-  const launchableModels = candidateModels
+  const launchableModels: LaunchableEntry[] = candidateModels
     .map((model) => {
       const provisioning = resolveWorkspaceProvisioningHint({
         modelSlug: model.slug,
@@ -109,11 +128,53 @@ export default async function DeployPage({
   const chatStarts = sortedLaunchableModels
     .filter(({ model }) => model.category === "llm" || model.category === "multimodal")
     .slice(0, 3);
-  const openModelStarts = sortedLaunchableModels
-    .filter(({ model }) => model.is_open_weights)
-    .slice(0, 3);
-  const fastestSetupStarts = sortedLaunchableModels
+  const bestApiStarts = sortedLaunchableModels
     .filter(({ provisioning }) => provisioning.deploymentKind === "managed_api")
+    .slice(0, 3);
+  const lowestCostStarts: LowestCostLaunchableEntry[] = [...launchableModels]
+    .map((entry) => ({
+      ...entry,
+      pricing: getPublicPricingSummary(entry.model),
+    }))
+    .filter((entry) => entry.pricing.compactPrice != null)
+    .sort((left, right) => {
+      if (left.pricing.compactPrice == null || right.pricing.compactPrice == null) {
+        return 0;
+      }
+      return left.pricing.compactPrice - right.pricing.compactPrice;
+    })
+    .slice(0, 3);
+  const openWeightDeployStarts = sortedLaunchableModels
+    .filter(({ model }) => model.is_open_weights)
+    .sort((left, right) => {
+      const leftTier =
+        getSelfHostRequirements({
+          isOpenWeights: left.model.is_open_weights,
+          parameterCount: left.model.parameter_count,
+          contextWindow: left.model.context_window,
+          category: left.model.category,
+          name: left.model.name,
+          slug: left.model.slug,
+          modalities: left.model.modalities,
+        })?.tier ?? "high_memory_cloud";
+      const rightTier =
+        getSelfHostRequirements({
+          isOpenWeights: right.model.is_open_weights,
+          parameterCount: right.model.parameter_count,
+          contextWindow: right.model.context_window,
+          category: right.model.category,
+          name: right.model.name,
+          slug: right.model.slug,
+          modalities: right.model.modalities,
+        })?.tier ?? "high_memory_cloud";
+      const tierOrder = {
+        personal: 0,
+        desktop_gpu: 1,
+        cloud_gpu: 2,
+        high_memory_cloud: 3,
+      } as const;
+      return tierOrder[leftTier] - tierOrder[rightTier];
+    })
     .slice(0, 3);
   const pagedModels = launchableModels.slice(from, to);
 
@@ -227,19 +288,28 @@ export default async function DeployPage({
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
         {[
           {
+            kind: "standard" as const,
             title: "Best for chat",
             summary: "Strong starting points if you want a general-purpose model running quickly.",
             items: chatStarts,
           },
           {
-            title: "Best open models",
-            summary: "Open-weight models AI Market Cap can still launch here for you today.",
-            items: openModelStarts,
+            kind: "standard" as const,
+            title: "Best for API",
+            summary: "The smoothest picks if you want the cleanest AI Market Cap-managed API path.",
+            items: bestApiStarts,
           },
           {
-            title: "Fastest setup",
-            summary: "Models already on the smoothest AI Market Cap-managed runtime path.",
-            items: fastestSetupStarts,
+            kind: "lowest_cost" as const,
+            title: "Lowest cost to start",
+            summary: "Launchable models with the lightest verified starting price signals right now.",
+            items: lowestCostStarts,
+          },
+          {
+            kind: "standard" as const,
+            title: "Best open-weight deploys",
+            summary: "Open models AI Market Cap can launch here, with simpler hardware expectations where possible.",
+            items: openWeightDeployStarts,
           },
         ].map((section) => (
           <Card key={section.title} className="border-border/50 bg-card/60">
@@ -252,27 +322,54 @@ export default async function DeployPage({
                     No launchable models in this group yet.
                   </div>
                 ) : (
-                  section.items.map(({ model, provisioning }) => (
-                    <Link
-                      key={`${section.title}-${model.id}`}
-                      href={`/models/${model.slug}`}
-                      className="block rounded-xl border border-border/50 bg-card/40 p-4 transition-colors hover:border-neon/30"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-white">{model.name}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{model.provider}</p>
+                  section.items.map((entry) => {
+                    const model = entry.model;
+                    const provisioning = entry.provisioning;
+                    const pricing =
+                      section.kind === "lowest_cost"
+                        ? (entry as LowestCostLaunchableEntry).pricing.compactDisplay
+                        : null;
+                    const selfHost =
+                      section.title === "Best open-weight deploys"
+                        ? getSelfHostRequirements({
+                            isOpenWeights: model.is_open_weights,
+                            parameterCount: model.parameter_count,
+                            contextWindow: model.context_window,
+                            category: model.category,
+                            name: model.name,
+                            slug: model.slug,
+                            modalities: model.modalities,
+                          })?.shortLabel ?? null
+                        : null;
+
+                    return (
+                      <Link
+                        key={`${section.title}-${model.id}`}
+                        href={`/models/${model.slug}`}
+                        className="block rounded-xl border border-border/50 bg-card/40 p-4 transition-colors hover:border-neon/30"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-white">{model.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{model.provider}</p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
+                          >
+                            {getProvisioningBadgeLabel(provisioning.deploymentKind)}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
-                        >
-                          {getProvisioningBadgeLabel(provisioning.deploymentKind)}
-                        </Badge>
-                      </div>
-                      <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
-                    </Link>
-                  ))
+                        <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
+                        {pricing ? (
+                          <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
+                        ) : null}
+                        {selfHost ? (
+                          <p className="mt-2 text-xs text-amber-200">{selfHost}</p>
+                        ) : null}
+                      </Link>
+                    );
+                  })
                 )}
               </div>
             </CardContent>
