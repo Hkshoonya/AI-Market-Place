@@ -82,8 +82,16 @@ interface WorkspaceDeploymentSnapshot {
     status: "provisioning" | "ready" | "paused" | "failed";
     endpointSlug: string;
     endpointPath: string;
-    deploymentKind: "managed_api" | "assistant_only";
+    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
     deploymentLabel: string | null;
+    target: {
+      platformSlug: string;
+      provider: string;
+      owner: string | null;
+      name: string | null;
+      modelRef: string | null;
+      webUrl: string | null;
+    } | null;
     creditsBudget: number | null;
     monthlyPriceEstimate: number | null;
     totalRequests: number;
@@ -106,6 +114,20 @@ interface WorkspaceDeploymentSnapshot {
     };
   } | null;
   runtime: WorkspaceRuntimeSnapshot["runtime"];
+  provisioning: {
+    canCreate: boolean;
+    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+    label: string;
+    summary: string;
+    target: {
+      platformSlug: string;
+      provider: string;
+      owner: string | null;
+      name: string | null;
+      modelRef: string | null;
+      webUrl: string | null;
+    } | null;
+  } | null;
 }
 
 export default function WorkspaceContent() {
@@ -164,11 +186,13 @@ export default function WorkspaceContent() {
   const session = workspace.session;
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
+  const provisioning = deploymentSnapshot?.provisioning ?? null;
   const deploymentExecution = workspace.session?.modelSlug
     ? resolveWorkspaceRuntimeExecution(workspace.session.modelSlug)
     : null;
-  const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
-  const hasManagedDeployment = Boolean(deployment?.execution.available);
+  const canCreateManagedDeployment = Boolean(provisioning?.canCreate);
+  const hasManagedDeployment = Boolean(deployment);
+  const deploymentModeLabel = deployment?.deploymentLabel ?? provisioning?.label ?? "Deployment";
   const deploymentId = deployment?.id ?? null;
   const deploymentCreditsBudget = deployment?.creditsBudget ?? null;
   const isDeploymentPaused = deployment?.status === "paused";
@@ -313,7 +337,7 @@ export default function WorkspaceContent() {
     stepItems[2] = {
       label: "Managed deployment",
       done: false,
-      detail:
+      detail: provisioning?.summary ??
         "AI Market Cap cannot host this model directly yet, so use the verified provider path for actual model access.",
     };
   }
@@ -425,7 +449,8 @@ export default function WorkspaceContent() {
     if (!session.modelSlug || !session.model) return;
     if (!canCreateManagedDeployment) {
       setRuntimeError(
-        "Direct in-site deployment is not available for this model yet. Use the verified provider path instead."
+        provisioning?.summary ??
+          "A one-click deployment is not available for this model yet. Use the verified provider path instead."
       );
       return;
     }
@@ -455,9 +480,10 @@ export default function WorkspaceContent() {
 
       workspace.addWorkspaceEvent(
         "Deployment created",
-        session.model
-          ? `Created a managed in-site deployment for ${session.model}.`
-          : "Created a managed in-site deployment."
+        payload.activation?.message ??
+          (session.model
+            ? `Created a deployment for ${session.model}.`
+            : "Created a deployment.")
       );
 
       workspace.updateWorkspaceSession({
@@ -732,17 +758,22 @@ export default function WorkspaceContent() {
                       </p>
                       <p className="mt-1 text-sm font-medium text-white">
                         {hasManagedDeployment
-                          ? "Deployment created inside AI Market Cap"
+                          ? deployment?.deploymentKind === "hosted_external"
+                            ? "Hosted deployment connected"
+                            : "Deployment created inside AI Market Cap"
                           : canCreateManagedDeployment
                             ? "Not deployed yet"
                             : "Direct deployment not available"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {hasManagedDeployment
-                          ? "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
+                          ? deployment?.deploymentKind === "hosted_external"
+                            ? "This deployment is backed by an external hosted target, while AI Market Cap keeps the endpoint, usage, and workflow in one place."
+                            : "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
                           : canCreateManagedDeployment
-                            ? "Create the in-site deployment before deeper chat and API usage starts here."
-                            : "This model does not have a mapped in-site runtime yet, so keep using the verified provider path for real usage."}
+                            ? provisioning?.summary ?? "Create the in-site deployment before deeper chat and API usage starts here."
+                            : provisioning?.summary ??
+                              "This model does not have a mapped in-site runtime yet, so keep using the verified provider path for real usage."}
                       </p>
                     </div>
                     <Badge
@@ -762,21 +793,38 @@ export default function WorkspaceContent() {
                         Deployment mode
                       </p>
                       <p className="mt-1 text-sm font-medium text-white">
-                        {deployment?.execution.label}
+                        {deploymentModeLabel}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {deployment?.execution.summary}
+                        {deployment?.deploymentKind === "hosted_external"
+                          ? "This endpoint is routed through a hosted deployment target and can still be used from AI Market Cap."
+                          : deployment?.execution.summary}
                       </p>
                     </div>
                   ) : null}
-                  {!canCreateManagedDeployment && deploymentExecution ? (
+                  {!canCreateManagedDeployment && (provisioning || deploymentExecution) ? (
                     <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">
                         Why deployment is hidden
                       </p>
                       <p className="mt-1 text-xs text-amber-100/80">
-                        {deploymentExecution.summary}
+                        {provisioning?.summary ?? deploymentExecution?.summary}
                       </p>
+                    </div>
+                  ) : null}
+                  {deployment?.target?.webUrl ? (
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Hosted target
+                      </p>
+                      <a
+                        href={deployment.target.webUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block text-xs text-neon underline-offset-4 hover:underline"
+                      >
+                        {deployment.target.webUrl}
+                      </a>
                     </div>
                   ) : null}
                   {hasManagedDeployment ? (
@@ -831,7 +879,10 @@ export default function WorkspaceContent() {
                           ? "Creating..."
                           : hasManagedDeployment
                             ? "Refresh Deployment"
-                            : "Create Deployment"}
+                            : deployment?.deploymentKind === "hosted_external" ||
+                                provisioning?.deploymentKind === "hosted_external"
+                              ? "Create Hosted Deployment"
+                              : "Create Deployment"}
                       </Button>
                     ) : null}
                     {hasManagedDeployment ? (
@@ -1045,15 +1096,20 @@ export default function WorkspaceContent() {
                     <MessageSquare className="h-4 w-4 text-neon" />
                     <h2 className="text-lg font-semibold text-white">
                       {canCreateManagedDeployment
-                        ? "Create a deployment to run this model here"
+                        ? provisioning?.deploymentKind === "hosted_external"
+                          ? "Create a hosted deployment to run this model here"
+                          : "Create a deployment to run this model here"
                         : "Model runtime not mapped yet"}
                     </h2>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {hasManagedDeployment
-                      ? deployment?.execution.summary
+                      ? deployment?.deploymentKind === "hosted_external"
+                        ? "This model is routed through a hosted deployment target and remains usable from AI Market Cap."
+                        : deployment?.execution.summary
                       : canCreateManagedDeployment
-                        ? "This model supports a managed in-site runtime, but you need to create the deployment first."
+                        ? provisioning?.summary ??
+                          "This model supports a managed deployment path, but you need to create the deployment first."
                         : deploymentExecution?.summary ??
                           "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
                   </p>

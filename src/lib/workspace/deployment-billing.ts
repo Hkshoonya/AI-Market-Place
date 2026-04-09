@@ -1,5 +1,5 @@
 export interface WorkspaceDeploymentChargeInput {
-  deploymentKind: "managed_api" | "assistant_only";
+  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
   monthlyPriceEstimate: number | null | undefined;
 }
 
@@ -28,7 +28,7 @@ export function getWorkspaceDeploymentRequestCharge(
 }
 
 export function getWorkspaceDeploymentBudgetSummary(input: {
-  deploymentKind: "managed_api" | "assistant_only";
+  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
   monthlyPriceEstimate: number | null | undefined;
   creditsBudget: number | null | undefined;
   totalRequests: number | null | undefined;

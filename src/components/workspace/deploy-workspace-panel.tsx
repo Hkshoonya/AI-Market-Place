@@ -58,8 +58,16 @@ interface WorkspaceDeploymentSnapshot {
     status: "provisioning" | "ready" | "paused" | "failed";
     endpointSlug: string;
     endpointPath: string;
-    deploymentKind: "managed_api" | "assistant_only";
+    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
     deploymentLabel: string | null;
+    target: {
+      platformSlug: string;
+      provider: string;
+      owner: string | null;
+      name: string | null;
+      modelRef: string | null;
+      webUrl: string | null;
+    } | null;
     creditsBudget: number | null;
     monthlyPriceEstimate: number | null;
     totalRequests: number;
@@ -80,6 +88,20 @@ interface WorkspaceDeploymentSnapshot {
       budgetRemaining: number | null;
       budgetStatus: "untracked" | "healthy" | "low" | "exhausted";
     };
+  } | null;
+  provisioning: {
+    canCreate: boolean;
+    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+    label: string;
+    summary: string;
+    target: {
+      platformSlug: string;
+      provider: string;
+      owner: string | null;
+      name: string | null;
+      modelRef: string | null;
+      webUrl: string | null;
+    } | null;
   } | null;
 }
 
@@ -139,11 +161,12 @@ export function DeployWorkspacePanel() {
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
   const deployment = deploymentSnapshot?.deployment ?? null;
+  const provisioning = deploymentSnapshot?.provisioning ?? null;
   const deploymentExecution = session.modelSlug
     ? resolveWorkspaceRuntimeExecution(session.modelSlug)
     : null;
-  const canCreateManagedDeployment = Boolean(deploymentExecution?.available);
-  const hasManagedDeployment = Boolean(deployment?.execution.available);
+  const canCreateManagedDeployment = Boolean(provisioning?.canCreate);
+  const hasManagedDeployment = Boolean(deployment);
   const isDeploymentPaused = deployment?.status === "paused";
   const budgetStatusTone =
     deployment?.billing.budgetStatus === "healthy"
@@ -185,8 +208,9 @@ export function DeployWorkspacePanel() {
       detail: hasManagedDeployment
         ? "Use the managed in-site deployment endpoint for chat and API requests."
         : canCreateManagedDeployment
-          ? "Create the managed in-site deployment after funding and API setup are ready."
-          : "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
+          ? provisioning?.summary ?? "Create the managed in-site deployment after funding and API setup are ready."
+          : provisioning?.summary ??
+            "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
     },
   ];
 
@@ -256,7 +280,8 @@ export function DeployWorkspacePanel() {
     if (!session.modelSlug || !session.model || deploymentLoading) return;
     if (!canCreateManagedDeployment) {
       setDeploymentError(
-        "Direct in-site deployment is not available for this model yet. Use the verified provider path instead."
+        provisioning?.summary ??
+          "A one-click deployment is not available for this model yet. Use the verified provider path instead."
       );
       return;
     }
@@ -287,9 +312,8 @@ export function DeployWorkspacePanel() {
 
       workspace.addWorkspaceEvent(
         "Deployment created",
-        session.model
-          ? `Created a managed in-site deployment for ${session.model}.`
-          : "Created a managed in-site deployment."
+        payload.activation?.message ??
+          (session.model ? `Created a deployment for ${session.model}.` : "Created a deployment.")
       );
 
       workspace.updateWorkspaceSession({
@@ -516,7 +540,7 @@ export function DeployWorkspacePanel() {
                                 : "border-border/50 bg-card/40 text-muted-foreground"
                             )}
                           >
-                            {item.done ? "Done" : "Next"}
+                          {item.done ? "Done" : "Next"}
                           </Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>

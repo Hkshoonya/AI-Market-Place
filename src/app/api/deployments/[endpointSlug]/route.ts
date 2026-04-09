@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callAgentModel } from "@/lib/agents/provider-router";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
+import { runReplicateDeployment } from "@/lib/workspace/external-deployment";
 import {
   getWorkspaceDeploymentBudgetSummary,
   getWorkspaceDeploymentRequestCharge,
@@ -13,6 +14,9 @@ import {
 import { creditWallet, debitWallet, getWalletByOwner } from "@/lib/payments/wallet";
 
 export const dynamic = "force-dynamic";
+
+const DEPLOYMENT_SELECT =
+  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
 
 const RequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),
@@ -33,9 +37,7 @@ export async function GET(
     const admin = createAdminClient();
     const { data: deployment, error } = await admin
       .from("workspace_deployments")
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .eq("user_id", auth.userId)
       .eq("endpoint_slug", endpointSlug)
       .single();
@@ -56,6 +58,17 @@ export async function GET(
         endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
         deploymentKind: deployment.deployment_kind,
         deploymentLabel: deployment.deployment_label,
+        target:
+          deployment.external_platform_slug && deployment.external_provider
+            ? {
+                platformSlug: deployment.external_platform_slug,
+                provider: deployment.external_provider,
+                owner: deployment.external_owner,
+                name: deployment.external_name,
+                modelRef: deployment.external_model_ref,
+                webUrl: deployment.external_web_url,
+              }
+            : null,
         creditsBudget: deployment.credits_budget,
         monthlyPriceEstimate: deployment.monthly_price_estimate,
         totalRequests: deployment.total_requests,
@@ -98,9 +111,7 @@ export async function POST(
     const admin = createAdminClient();
     const { data: deployment, error } = await admin
       .from("workspace_deployments")
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .eq("user_id", auth.userId)
       .eq("endpoint_slug", endpointSlug)
       .single();
@@ -131,7 +142,7 @@ export async function POST(
       );
     }
 
-    if (deployment.status !== "ready" || !execution.available || !execution.provider || !execution.model) {
+    if (deployment.status !== "ready") {
       return NextResponse.json(
         { error: execution.summary, deployment: { status: deployment.status, execution, billing } },
         { status: 400 }
@@ -190,18 +201,39 @@ export async function POST(
     const startedAt = Date.now();
     let response;
     try {
-      response = await callAgentModel({
-        preferredProviders: [execution.provider],
-        providerModels: {
-          [execution.provider]: execution.model,
-        },
-        messages: [
-          ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
-          { role: "user", content: parsed.data.message },
-        ],
-        temperature: 0.2,
-        maxTokens: 2048,
-      });
+      if (deployment.deployment_kind === "hosted_external") {
+        if (
+          deployment.external_provider !== "replicate" ||
+          !deployment.external_owner ||
+          !deployment.external_name ||
+          !deployment.external_model_ref
+        ) {
+          throw new Error("Hosted deployment target is incomplete");
+        }
+        response = await runReplicateDeployment({
+          owner: deployment.external_owner,
+          name: deployment.external_name,
+          modelRef: deployment.external_model_ref,
+          message: parsed.data.message,
+          system: parsed.data.system,
+        });
+      } else {
+        if (!execution.available || !execution.provider || !execution.model) {
+          throw new Error(execution.summary);
+        }
+        response = await callAgentModel({
+          preferredProviders: [execution.provider],
+          providerModels: {
+            [execution.provider]: execution.model,
+          },
+          messages: [
+            ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
+            { role: "user", content: parsed.data.message },
+          ],
+          temperature: 0.2,
+          maxTokens: 2048,
+        });
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to run deployment request";

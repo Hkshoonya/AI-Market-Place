@@ -4,10 +4,12 @@ const getUser = vi.fn();
 const runtimeMaybeSingle = vi.fn();
 const deploymentMaybeSingle = vi.fn();
 const deploymentSingle = vi.fn();
+const modelSingle = vi.fn();
 const runtimeEqSecond = vi.fn();
 const runtimeEqFirst = vi.fn();
 const deploymentEqSecond = vi.fn();
 const deploymentEqFirst = vi.fn();
+const modelEq = vi.fn();
 const upsert = vi.fn();
 const upsertSelect = vi.fn();
 const update = vi.fn();
@@ -42,6 +44,9 @@ describe("workspace deployment API", () => {
     }));
     deploymentEqFirst.mockImplementation(() => ({
       eq: deploymentEqSecond,
+    }));
+    modelEq.mockImplementation(() => ({
+      single: modelSingle,
     }));
 
     const singleResolved = vi.fn().mockResolvedValue({
@@ -107,7 +112,20 @@ describe("workspace deployment API", () => {
         };
       }
 
+      if (table === "models") {
+        return {
+          select: () => ({
+            eq: modelEq,
+          }),
+        };
+      }
+
       throw new Error(`Unexpected table ${table}`);
+    });
+
+    modelSingle.mockResolvedValue({
+      data: null,
+      error: null,
     });
   });
 
@@ -164,7 +182,7 @@ describe("workspace deployment API", () => {
     expect(response.status).toBe(422);
     expect(upsert).not.toHaveBeenCalled();
     const body = await response.json();
-    expect(body.error).toMatch(/Direct in-site deployment is not available/i);
+    expect(body.error).toMatch(/one-click deployment is not available/i);
   });
 
   it("pauses an existing deployment", async () => {

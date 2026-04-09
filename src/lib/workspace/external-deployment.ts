@@ -1,0 +1,358 @@
+import { REPLICATE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/replicate";
+
+const REPLICATE_API_BASE = "https://api.replicate.com/v1";
+
+export interface ExternalDeploymentTarget {
+  platformSlug: "replicate";
+  platformName: string;
+  provider: "replicate";
+  owner: string;
+  name: string;
+  modelRef: string;
+  webUrl: string;
+}
+
+export interface WorkspaceProvisioningOption {
+  canCreate: boolean;
+  deploymentKind: "managed_api" | "hosted_external" | "assistant_only";
+  label: string;
+  summary: string;
+  target: ExternalDeploymentTarget | null;
+}
+
+interface ModelProvisioningRecord {
+  slug: string;
+  name: string;
+  provider: string;
+  category: string | null;
+  parameter_count: number | null;
+  hf_model_id?: string | null;
+}
+
+interface ModelLookupClient {
+  from: (table: string) => {
+    select: (query: string) => {
+      eq: (column: string, value: string) => {
+        single: () => PromiseLike<{ data: ModelProvisioningRecord | null; error: unknown }>;
+      };
+    };
+  };
+}
+
+interface ReplicateModelResponse {
+  owner: string;
+  name: string;
+  latest_version: {
+    id: string;
+    openapi_schema?: {
+      components?: {
+        schemas?: {
+          Input?: {
+            properties?: Record<string, unknown>;
+          };
+        };
+      };
+    };
+  } | null;
+}
+
+interface ReplicateDeploymentResponse {
+  owner: string;
+  name: string;
+  current_release?: {
+    model?: string;
+    version?: string;
+    created_at?: string;
+  } | null;
+}
+
+function normalizeValue(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function inferReplicateProviderAliases(provider: string) {
+  const normalized = normalizeValue(provider);
+  if (normalized === "meta") return new Set(["meta", "meta-llama"]);
+  if (normalized === "mistral-ai") return new Set(["mistralai", "mistral"]);
+  return new Set([normalized]);
+}
+
+function resolveReplicateTarget(model: ModelProvisioningRecord): ExternalDeploymentTarget | null {
+  const modelSlug = normalizeValue(model.slug);
+  const modelName = normalizeValue(model.name);
+  const hfModelId = normalizeValue(model.hf_model_id);
+  const providerAliases = inferReplicateProviderAliases(model.provider);
+
+  for (const candidate of REPLICATE_KNOWN_MODELS) {
+    if (candidate.category !== "llm") continue;
+
+    const candidateName = normalizeValue(candidate.name);
+    const candidateOwner = normalizeValue(candidate.owner);
+    if (!providerAliases.has(candidateOwner)) continue;
+
+    const directMatch =
+      modelSlug.includes(candidateName) ||
+      modelName.includes(candidateName) ||
+      (hfModelId.length > 0 && hfModelId.endsWith(candidateName));
+
+    if (!directMatch) continue;
+
+    return {
+      platformSlug: "replicate",
+      platformName: "Replicate",
+      provider: "replicate",
+      owner: candidate.owner,
+      name: candidate.name,
+      modelRef: `${candidate.owner}/${candidate.name}`,
+      webUrl: `https://replicate.com/${candidate.owner}/${candidate.name}`,
+    };
+  }
+
+  return null;
+}
+
+export async function resolveWorkspaceProvisioningOption(input: {
+  supabase: unknown;
+  modelSlug: string;
+  runtimeExecution: {
+    available: boolean;
+    label: string;
+    summary: string;
+  };
+}): Promise<WorkspaceProvisioningOption> {
+  if (input.runtimeExecution.available) {
+    return {
+      canCreate: true,
+      deploymentKind: "managed_api",
+      label: input.runtimeExecution.label,
+      summary: input.runtimeExecution.summary,
+      target: null,
+    };
+  }
+
+  const lookupClient = input.supabase as ModelLookupClient;
+
+  const { data: model } = await lookupClient
+    .from("models")
+    .select("slug, name, provider, category, parameter_count, hf_model_id")
+    .eq("slug", input.modelSlug)
+    .single();
+
+  if (!model) {
+    return {
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "Workspace assistant only",
+      summary:
+        "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
+      target: null,
+    };
+  }
+
+  const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
+    ? resolveReplicateTarget(model)
+    : null;
+  if (replicateTarget) {
+    return {
+      canCreate: true,
+      deploymentKind: "hosted_external",
+      label: "Replicate hosted deployment",
+      summary:
+        "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
+      target: replicateTarget,
+    };
+  }
+
+  return {
+    canCreate: false,
+    deploymentKind: "assistant_only",
+    label: "Workspace assistant only",
+    summary:
+      "A one-click hosted deployment is not available for this model yet, so keep using the verified provider path for now.",
+    target: null,
+  };
+}
+
+function buildReplicateHeaders() {
+  return {
+    Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function estimateReplicateHardware(input: { parameterCount: number | null; category: string | null }) {
+  if (input.category !== "llm") return "gpu-t4";
+  if ((input.parameterCount ?? 0) >= 20_000_000_000) return "gpu-a40-large";
+  return "gpu-t4";
+}
+
+function buildDeploymentName(modelSlug: string) {
+  const normalized = normalizeValue(modelSlug).slice(0, 44) || "aimarketcap-model";
+  const suffix =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return `aimc-${normalized}-${suffix}`;
+}
+
+export async function provisionReplicateDeployment(input: {
+  target: ExternalDeploymentTarget;
+  modelSlug: string;
+  category: string | null;
+  parameterCount: number | null;
+}) {
+  const accountResponse = await fetch(`${REPLICATE_API_BASE}/account`, {
+    headers: {
+      Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+    },
+  });
+  const accountRaw = await accountResponse.json().catch(() => null);
+  if (!accountResponse.ok || !accountRaw?.username) {
+    throw new Error("Replicate account lookup failed");
+  }
+
+  const modelResponse = await fetch(
+    `${REPLICATE_API_BASE}/models/${input.target.owner}/${input.target.name}`,
+    {
+      headers: {
+        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+      },
+    }
+  );
+  const modelRaw = (await modelResponse.json().catch(() => null)) as ReplicateModelResponse | null;
+  if (!modelResponse.ok || !modelRaw?.latest_version?.id) {
+    throw new Error("Replicate model details could not be loaded for deployment");
+  }
+
+  const deploymentName = buildDeploymentName(input.modelSlug);
+  const createResponse = await fetch(`${REPLICATE_API_BASE}/deployments`, {
+    method: "POST",
+    headers: buildReplicateHeaders(),
+    body: JSON.stringify({
+      name: deploymentName,
+      model: input.target.modelRef,
+      version: modelRaw.latest_version.id,
+      hardware: estimateReplicateHardware({
+        parameterCount: input.parameterCount,
+        category: input.category,
+      }),
+      min_instances: 0,
+      max_instances: 1,
+    }),
+  });
+  const createRaw = (await createResponse.json().catch(() => null)) as ReplicateDeploymentResponse | null;
+  if (!createResponse.ok || !createRaw?.owner || !createRaw?.name) {
+    const message =
+      createRaw && typeof createRaw === "object" && "detail" in createRaw
+        ? String((createRaw as { detail?: unknown }).detail)
+        : "Replicate deployment creation failed";
+    throw new Error(message);
+  }
+
+  return {
+    external_platform_slug: "replicate" as const,
+    external_provider: "replicate" as const,
+    external_owner: createRaw.owner,
+    external_name: createRaw.name,
+    external_model_ref: createRaw.current_release?.model ?? input.target.modelRef,
+    external_web_url: `https://replicate.com/${createRaw.owner}/${createRaw.name}`,
+  };
+}
+
+export async function runReplicateDeployment(input: {
+  owner: string;
+  name: string;
+  message: string;
+  system?: string;
+  modelRef: string;
+}) {
+  const modelRefParts = input.modelRef.split("/");
+  if (modelRefParts.length !== 2) {
+    throw new Error("Replicate deployment is missing a valid model reference");
+  }
+
+  const modelResponse = await fetch(
+    `${REPLICATE_API_BASE}/models/${modelRefParts[0]}/${modelRefParts[1]}`,
+    {
+      headers: {
+        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+      },
+    }
+  );
+  const modelRaw = (await modelResponse.json().catch(() => null)) as ReplicateModelResponse | null;
+  if (!modelResponse.ok || !modelRaw) {
+    throw new Error("Replicate model schema lookup failed");
+  }
+
+  const properties =
+    modelRaw.latest_version?.openapi_schema?.components?.schemas?.Input?.properties ?? {};
+  const propertyKeys = Object.keys(properties);
+  let promptField: string | null = null;
+  if (propertyKeys.includes("prompt")) promptField = "prompt";
+  else if (propertyKeys.includes("input")) promptField = "input";
+  else if (propertyKeys.includes("text")) promptField = "text";
+
+  if (!promptField) {
+    throw new Error("This hosted deployment does not expose a chat-style text input yet");
+  }
+
+  const requestInput: Record<string, unknown> = {
+    [promptField]: input.message,
+  };
+  if (input.system && propertyKeys.includes("system_prompt")) {
+    requestInput.system_prompt = input.system;
+  }
+  if (propertyKeys.includes("max_tokens")) {
+    requestInput.max_tokens = 1024;
+  }
+
+  const response = await fetch(
+    `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}/predictions`,
+    {
+      method: "POST",
+      headers: {
+        ...buildReplicateHeaders(),
+        Prefer: "wait",
+      },
+      body: JSON.stringify({
+        input: requestInput,
+      }),
+    }
+  );
+
+  const raw = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      raw && typeof raw === "object" && "detail" in raw
+        ? String((raw as { detail?: unknown }).detail)
+        : `Replicate returned HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  const output = raw && typeof raw === "object" ? (raw as { output?: unknown }).output : null;
+  const content = Array.isArray(output)
+    ? output.map((item) => (typeof item === "string" ? item : "")).join("\n").trim()
+    : typeof output === "string"
+      ? output
+      : raw && typeof raw === "object" && typeof (raw as { logs?: unknown }).logs === "string"
+        ? (raw as { logs: string }).logs
+        : "";
+
+  if (!content) {
+    throw new Error("Replicate deployment returned an empty response");
+  }
+
+  return {
+    content,
+    provider: "replicate" as const,
+    model: input.modelRef,
+    usage: null,
+    raw,
+  };
+}
+function getOptionalEnv(name: string) {
+  return process.env[name] ?? "";
+}

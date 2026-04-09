@@ -827,8 +827,14 @@ export interface WorkspaceDeploymentRecord {
   provider_name: string | null;
   status: "provisioning" | "ready" | "paused" | "failed";
   endpoint_slug: string;
-  deployment_kind: "managed_api" | "assistant_only";
+  deployment_kind: "managed_api" | "assistant_only" | "hosted_external";
   deployment_label: string | null;
+  external_platform_slug: string | null;
+  external_provider: string | null;
+  external_owner: string | null;
+  external_name: string | null;
+  external_model_ref: string | null;
+  external_web_url: string | null;
   credits_budget: number | null;
   monthly_price_estimate: number | null;
   total_requests: number;

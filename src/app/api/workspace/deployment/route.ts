@@ -15,6 +15,10 @@ import {
   toWorkspaceDeploymentResponse,
   type WorkspaceDeploymentRecord,
 } from "@/lib/workspace/deployment-summary";
+import {
+  provisionReplicateDeployment,
+  resolveWorkspaceProvisioningOption,
+} from "@/lib/workspace/external-deployment";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +80,9 @@ function toRuntimeResponse(runtime: {
   };
 }
 
+const DEPLOYMENT_SELECT =
+  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
+
 export async function GET(request: Request) {
   try {
     const auth = await requireUser();
@@ -84,14 +91,18 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const modelSlug = url.searchParams.get("modelSlug");
     if (!modelSlug) {
-      return NextResponse.json({ deployment: null, runtime: null });
+      return NextResponse.json({ deployment: null, runtime: null, provisioning: null });
     }
+
+    const provisioning = await resolveWorkspaceProvisioningOption({
+      supabase: auth.supabase,
+      modelSlug,
+      runtimeExecution: resolveWorkspaceRuntimeExecution(modelSlug),
+    });
 
     const { data: deployment, error: deploymentError } = await auth.supabase
       .from("workspace_deployments")
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .eq("user_id", auth.user.id)
       .eq("model_slug", modelSlug)
       .maybeSingle();
@@ -116,6 +127,7 @@ export async function GET(request: Request) {
         ? toWorkspaceDeploymentResponse(deployment as WorkspaceDeploymentRecord)
         : null,
       runtime,
+      provisioning,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");
@@ -136,12 +148,18 @@ export async function POST(request: Request) {
     }
 
     const execution = resolveWorkspaceRuntimeExecution(parsed.data.modelSlug);
-    if (!execution.available) {
+    const provisioning = await resolveWorkspaceProvisioningOption({
+      supabase: auth.supabase,
+      modelSlug: parsed.data.modelSlug,
+      runtimeExecution: execution,
+    });
+    if (!provisioning.canCreate) {
       return NextResponse.json(
         {
           error:
-            "Direct in-site deployment is not available for this model yet. Use the verified provider path instead.",
+            "A one-click deployment is not available for this model yet. Use the verified provider path instead.",
           execution,
+          provisioning,
         },
         { status: 422 }
       );
@@ -157,39 +175,82 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (existingRuntimeError) throw existingRuntimeError;
 
-    const runtimePayload = {
-      user_id: auth.user.id,
-      model_slug: parsed.data.modelSlug,
-      model_name: parsed.data.modelName,
-      provider_name: parsed.data.providerName ?? null,
-      workspace_conversation_id: parsed.data.conversationId ?? null,
-      status: "ready" as const,
-      endpoint_slug:
-        existingRuntime?.endpoint_slug ?? buildWorkspaceRuntimeEndpointSlug(parsed.data.modelSlug),
-    };
+    let runtimeData: {
+      id: string;
+      model_slug: string;
+      model_name: string;
+      provider_name: string | null;
+      status: string;
+      endpoint_slug: string;
+      total_requests: number;
+      total_tokens: number;
+      last_used_at: string | null;
+      updated_at: string;
+    } | null = null;
 
-    const { data: runtimeData, error: runtimeUpsertError } = await auth.supabase
-      .from("workspace_runtimes")
-      .upsert(runtimePayload, { onConflict: "user_id,model_slug" })
-      .select(
-        "id, model_slug, model_name, provider_name, status, endpoint_slug, total_requests, total_tokens, last_used_at, updated_at"
-      )
-      .single();
-    if (runtimeUpsertError) throw runtimeUpsertError;
+    if (provisioning.deploymentKind === "managed_api") {
+      const runtimePayload = {
+        user_id: auth.user.id,
+        model_slug: parsed.data.modelSlug,
+        model_name: parsed.data.modelName,
+        provider_name: parsed.data.providerName ?? null,
+        workspace_conversation_id: parsed.data.conversationId ?? null,
+        status: "ready" as const,
+        endpoint_slug:
+          existingRuntime?.endpoint_slug ?? buildWorkspaceRuntimeEndpointSlug(parsed.data.modelSlug),
+      };
+
+      const runtimeUpsertResult = await auth.supabase
+        .from("workspace_runtimes")
+        .upsert(runtimePayload, { onConflict: "user_id,model_slug" })
+        .select(
+          "id, model_slug, model_name, provider_name, status, endpoint_slug, total_requests, total_tokens, last_used_at, updated_at"
+        )
+        .single();
+      if (runtimeUpsertResult.error) throw runtimeUpsertResult.error;
+      runtimeData = runtimeUpsertResult.data;
+    }
 
     const { data: existingDeployment, error: existingDeploymentError } = await auth.supabase
       .from("workspace_deployments")
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .eq("user_id", auth.user.id)
       .eq("model_slug", parsed.data.modelSlug)
       .maybeSingle();
     if (existingDeploymentError) throw existingDeploymentError;
 
+    let externalFields = {
+      external_platform_slug: existingDeployment?.external_platform_slug ?? null,
+      external_provider: existingDeployment?.external_provider ?? null,
+      external_owner: existingDeployment?.external_owner ?? null,
+      external_name: existingDeployment?.external_name ?? null,
+      external_model_ref: existingDeployment?.external_model_ref ?? null,
+      external_web_url: existingDeployment?.external_web_url ?? null,
+    };
+
+    if (
+      provisioning.deploymentKind === "hosted_external" &&
+      provisioning.target?.provider === "replicate" &&
+      !externalFields.external_owner
+    ) {
+      const { data: modelMetadata, error: modelMetadataError } = await auth.supabase
+        .from("models")
+        .select("category, parameter_count")
+        .eq("slug", parsed.data.modelSlug)
+        .single();
+      if (modelMetadataError) throw modelMetadataError;
+
+      externalFields = await provisionReplicateDeployment({
+        target: provisioning.target,
+        modelSlug: parsed.data.modelSlug,
+        category: modelMetadata?.category ?? null,
+        parameterCount: modelMetadata?.parameter_count ?? null,
+      });
+    }
+
     const deploymentPayload = {
       user_id: auth.user.id,
-      runtime_id: runtimeData.id,
+      runtime_id: runtimeData?.id ?? null,
       model_slug: parsed.data.modelSlug,
       model_name: parsed.data.modelName,
       provider_name: parsed.data.providerName ?? null,
@@ -197,8 +258,9 @@ export async function POST(request: Request) {
       endpoint_slug:
         existingDeployment?.endpoint_slug ??
         buildWorkspaceDeploymentEndpointSlug(parsed.data.modelSlug),
-      deployment_kind: "managed_api" as const,
-      deployment_label: execution.label,
+      deployment_kind: provisioning.deploymentKind,
+      deployment_label: provisioning.label,
+      ...externalFields,
       credits_budget: parsed.data.creditsBudget ?? null,
       monthly_price_estimate: parsed.data.monthlyPriceEstimate ?? null,
     };
@@ -206,9 +268,7 @@ export async function POST(request: Request) {
     const { data: deploymentData, error: deploymentUpsertError } = await auth.supabase
       .from("workspace_deployments")
       .upsert(deploymentPayload, { onConflict: "user_id,model_slug" })
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .single();
     if (deploymentUpsertError) throw deploymentUpsertError;
 
@@ -222,11 +282,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       deployment: toWorkspaceDeploymentResponse(deploymentData as WorkspaceDeploymentRecord),
-      runtime: toRuntimeResponse(runtimeData),
+      runtime: runtimeData ? toRuntimeResponse(runtimeData) : null,
       activation: {
         message:
-          "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
+          provisioning.deploymentKind === "hosted_external"
+            ? "Hosted deployment created through Replicate. You can now use it through the AI Market Cap endpoint."
+            : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
+      provisioning,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");
@@ -248,9 +311,7 @@ export async function PATCH(request: Request) {
 
     const { data: deployment, error: deploymentError } = await auth.supabase
       .from("workspace_deployments")
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .eq("user_id", auth.user.id)
       .eq("model_slug", parsed.data.modelSlug)
       .single();
@@ -270,7 +331,7 @@ export async function PATCH(request: Request) {
     }
 
     if (parsed.data.action === "resume") {
-      if (!execution.available) {
+      if (deployment.deployment_kind === "managed_api" && !execution.available) {
         return NextResponse.json(
           {
             error:
@@ -290,9 +351,7 @@ export async function PATCH(request: Request) {
       .from("workspace_deployments")
       .update(updatePayload)
       .eq("id", deployment.id)
-      .select(
-        "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at"
-      )
+      .select(DEPLOYMENT_SELECT)
       .single();
 
     if (updateError) throw updateError;
