@@ -291,7 +291,7 @@ export default function DeploymentsContent() {
             <Link href="/workspace">Open Workspace</Link>
           </Button>
           <Button asChild className="bg-neon text-background hover:bg-neon/90">
-            <Link href="/models">Browse Models</Link>
+            <Link href="/models?managed=true">Use on AI Market Cap</Link>
           </Button>
         </div>
       </div>
@@ -338,12 +338,18 @@ export default function DeploymentsContent() {
             <div>
               <h2 className="text-xl font-semibold text-white">No deployments yet</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start from a supported model page and create a site-hosted model setup there.
+                Start with a model AI Market Cap can host here, or browse the wider set of models
+                with verified provider and self-host paths.
               </p>
             </div>
-            <Button asChild className="bg-neon text-background hover:bg-neon/90">
-              <Link href="/models">Find a model to deploy</Link>
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                <Link href="/models?managed=true">Find models hosted here</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/models?deployable=true">Browse all deployable models</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

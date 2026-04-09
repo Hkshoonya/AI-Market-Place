@@ -262,12 +262,16 @@ export default function WorkspaceContent() {
             </Badge>
             <h1 className="text-2xl font-semibold text-white">No active workspace yet</h1>
             <p className="text-sm text-muted-foreground">
-              Start from any model page and choose the verified deploy or access path. Your
-              in-site workspace will appear here and stay attached to your account.
+              Start with a model AI Market Cap can run here, or browse the wider set of models with
+              verified provider and self-host paths. Once you start, your workspace stays attached
+              to your account.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                <Link href="/models">Browse Models</Link>
+                <Link href="/models?managed=true">Use on AI Market Cap</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/models?deployable=true">More Ways to Use Models</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/deployments">View Deployments</Link>
