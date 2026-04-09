@@ -66,6 +66,12 @@ interface ReplicateDeploymentResponse {
   } | null;
 }
 
+interface ReplicateCatalogEntry {
+  owner: string;
+  name: string;
+  url?: string | null;
+}
+
 function normalizeValue(value: string | null | undefined) {
   return (value ?? "")
     .toLowerCase()
@@ -77,41 +83,155 @@ function inferReplicateProviderAliases(provider: string) {
   const normalized = normalizeValue(provider);
   if (normalized === "meta") return new Set(["meta", "meta-llama"]);
   if (normalized === "mistral-ai") return new Set(["mistralai", "mistral"]);
+  if (normalized === "qwen") return new Set(["qwen", "qwenlm"]);
+  if (normalized === "google") return new Set(["google", "google-deepmind", "prunaai"]);
   return new Set([normalized]);
 }
 
-function resolveReplicateTarget(model: ModelProvisioningRecord): ExternalDeploymentTarget | null {
+function scoreReplicateCandidate(
+  model: ModelProvisioningRecord,
+  candidate: { owner: string; name: string }
+) {
   const modelSlug = normalizeValue(model.slug);
   const modelName = normalizeValue(model.name);
   const hfModelId = normalizeValue(model.hf_model_id);
   const providerAliases = inferReplicateProviderAliases(model.provider);
+  const candidateName = normalizeValue(candidate.name);
+  const candidateOwner = normalizeValue(candidate.owner);
+  if (!providerAliases.has(candidateOwner)) return -1;
 
+  let score = 0;
+  if (modelSlug.includes(candidateName)) score += 5;
+  if (modelName.includes(candidateName)) score += 4;
+  if (hfModelId.length > 0 && hfModelId.endsWith(candidateName)) score += 4;
+
+  const candidateTokens = candidateName.split("-").filter(Boolean);
+  const matchedTokens = candidateTokens.filter(
+    (token) =>
+      token.length > 2 &&
+      (modelSlug.includes(token) || modelName.includes(token) || hfModelId.includes(token))
+  ).length;
+  score += matchedTokens;
+
+  if (/llama|mistral|mixtral|gemma|qwen|flux|sdxl|stable-diffusion|whisper|musicgen/i.test(candidateName)) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function toReplicateTarget(candidate: { owner: string; name: string }): ExternalDeploymentTarget {
+  return {
+    platformSlug: "replicate",
+    platformName: "Replicate",
+    provider: "replicate",
+    owner: candidate.owner,
+    name: candidate.name,
+    modelRef: `${candidate.owner}/${candidate.name}`,
+    webUrl: `https://replicate.com/${candidate.owner}/${candidate.name}`,
+  };
+}
+
+let replicateCatalogCache:
+  | {
+      expiresAt: number;
+      items: ReplicateCatalogEntry[];
+    }
+  | null = null;
+
+async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
+  const token = getOptionalEnv("REPLICATE_API_TOKEN");
+  if (!token) return [];
+
+  const now = Date.now();
+  if (replicateCatalogCache && replicateCatalogCache.expiresAt > now) {
+    return replicateCatalogCache.items;
+  }
+
+  const items: ReplicateCatalogEntry[] = [];
+  let nextUrl: string | null = `${REPLICATE_API_BASE}/models?limit=100`;
+
+  for (let page = 0; page < 8 && nextUrl; page += 1) {
+    let response: Response;
+    try {
+      response = await fetch(nextUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        next: { revalidate: 3600 },
+      });
+    } catch {
+      break;
+    }
+
+    const raw = (await response.json().catch(() => null)) as
+      | { results?: ReplicateCatalogEntry[]; next?: string | null }
+      | null;
+    if (!response.ok || !raw?.results) break;
+    items.push(
+      ...raw.results.map((entry) => ({
+        owner: entry.owner,
+        name: entry.name,
+        url: entry.url ?? null,
+      }))
+    );
+    nextUrl = raw.next ?? null;
+  }
+
+  replicateCatalogCache = {
+    expiresAt: now + 60 * 60 * 1000,
+    items,
+  };
+
+  return items;
+}
+
+async function resolveReplicateTarget(
+  model: ModelProvisioningRecord
+): Promise<ExternalDeploymentTarget | null> {
+  let bestStatic:
+    | {
+        owner: string;
+        name: string;
+        score: number;
+      }
+    | null = null;
   for (const candidate of REPLICATE_KNOWN_MODELS) {
     if (candidate.category !== "llm") continue;
+    const score = scoreReplicateCandidate(model, candidate);
+    if (score > (bestStatic?.score ?? -1)) {
+      bestStatic = { owner: candidate.owner, name: candidate.name, score };
+    }
+  }
 
-    const candidateName = normalizeValue(candidate.name);
-    const candidateOwner = normalizeValue(candidate.owner);
-    if (!providerAliases.has(candidateOwner)) continue;
+  if (bestStatic && bestStatic.score >= 5) {
+    return toReplicateTarget(bestStatic);
+  }
 
-    const directMatch =
-      modelSlug.includes(candidateName) ||
-      modelName.includes(candidateName) ||
-      (hfModelId.length > 0 && hfModelId.endsWith(candidateName));
+  const catalog = await loadReplicateCatalog();
+  let bestCatalog:
+    | {
+        owner: string;
+        name: string;
+        score: number;
+      }
+    | null = null;
+  for (const candidate of catalog) {
+    const score = scoreReplicateCandidate(model, candidate);
+    if (score > (bestCatalog?.score ?? -1)) {
+      bestCatalog = { owner: candidate.owner, name: candidate.name, score };
+    }
+  }
 
-    if (!directMatch) continue;
-
-    return {
-      platformSlug: "replicate",
-      platformName: "Replicate",
-      provider: "replicate",
-      owner: candidate.owner,
-      name: candidate.name,
-      modelRef: `${candidate.owner}/${candidate.name}`,
-      webUrl: `https://replicate.com/${candidate.owner}/${candidate.name}`,
-    };
+  if (bestCatalog && bestCatalog.score >= 5) {
+    return toReplicateTarget(bestCatalog);
   }
 
   return null;
+}
+
+export function clearReplicateCatalogCacheForTests() {
+  replicateCatalogCache = null;
 }
 
 export async function resolveWorkspaceProvisioningOption(input: {
@@ -153,7 +273,7 @@ export async function resolveWorkspaceProvisioningOption(input: {
   }
 
   const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
-    ? resolveReplicateTarget(model)
+    ? await resolveReplicateTarget(model)
     : null;
   if (replicateTarget) {
     return {
