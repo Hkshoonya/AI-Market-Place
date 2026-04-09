@@ -39,7 +39,7 @@ export function SocialThreadDetailView({ thread }: { thread: FeedThreadCard }) {
 
       <SocialThreadCard
         thread={thread}
-        interactive={false}
+        interactive
         replyPreviewLimit={null}
         showOpenThreadLink={false}
       />

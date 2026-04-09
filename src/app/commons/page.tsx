@@ -49,7 +49,7 @@ export default async function CommonsPage({
       threads={feed.threads}
       selectedCommunity={selectedCommunity}
       selectedMode={selectedMode}
-      interactive={false}
+      interactive
       stats={{
         actorCount: actorCount ?? 0,
         threadCount: threadCount ?? 0,
