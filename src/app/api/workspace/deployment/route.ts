@@ -16,6 +16,7 @@ import {
   type WorkspaceDeploymentRecord,
 } from "@/lib/workspace/deployment-summary";
 import {
+  deleteHostedDeployment,
   provisionHuggingFaceDeployment,
   provisionReplicateDeployment,
   refreshHostedDeploymentStatus,
@@ -38,6 +39,10 @@ const UpdateSchema = z.object({
   modelSlug: z.string().trim().min(1).max(160),
   action: z.enum(["pause", "resume", "set_budget"]),
   creditsBudget: z.number().finite().nonnegative().nullable().optional(),
+});
+
+const DeleteSchema = z.object({
+  modelSlug: z.string().trim().min(1).max(160),
 });
 
 async function requireUser() {
@@ -461,6 +466,63 @@ export async function PATCH(request: Request) {
               ? "Deployment resumed."
               : "Deployment budget updated.",
       },
+    });
+  } catch (error) {
+    return handleApiError(error, "api/workspace/deployment");
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const auth = await requireUser();
+    if ("error" in auth) return auth.error;
+
+    const parsed = DeleteSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 }
+      );
+    }
+
+    const { data: deployment, error: deploymentError } = await auth.supabase
+      .from("workspace_deployments")
+      .select(DEPLOYMENT_SELECT)
+      .eq("user_id", auth.user.id)
+      .eq("model_slug", parsed.data.modelSlug)
+      .single();
+
+    if (deploymentError || !deployment) {
+      return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+    }
+
+    if (deployment.deployment_kind === "hosted_external") {
+      await deleteHostedDeployment({
+        provider: deployment.external_provider,
+        owner: deployment.external_owner,
+        name: deployment.external_name,
+      });
+    }
+
+    const { error: deleteDeploymentError } = await auth.supabase
+      .from("workspace_deployments")
+      .delete()
+      .eq("id", deployment.id);
+    if (deleteDeploymentError) throw deleteDeploymentError;
+
+    if (deployment.runtime_id) {
+      const { error: deleteRuntimeError } = await auth.supabase
+        .from("workspace_runtimes")
+        .delete()
+        .eq("id", deployment.runtime_id)
+        .eq("user_id", auth.user.id);
+      if (deleteRuntimeError) throw deleteRuntimeError;
+    }
+
+    return NextResponse.json({
+      removed: true,
+      modelSlug: deployment.model_slug,
+      message: "Deployment removed from AI Market Cap.",
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");

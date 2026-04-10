@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearReplicateCatalogCacheForTests,
+  deleteHostedDeployment,
   refreshHostedDeploymentStatus,
   resolveWorkspaceProvisioningOption,
   runHuggingFaceDeployment,
@@ -420,6 +421,59 @@ describe("hosted deployment lifecycle helpers", () => {
         }),
       })
     );
+  });
+
+  it("deletes a Replicate deployment after scaling it down", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            owner: "meta",
+            name: "llama-3.3-70b-instruct",
+            current_release: {
+              model: "meta/llama-3.3-70b-instruct",
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await deleteHostedDeployment({
+      provider: "replicate",
+      owner: "meta",
+      name: "llama-3.3-70b-instruct",
+    });
+
+    expect(result).toEqual({
+      deleted: true,
+      externalWebUrl: "https://replicate.com/meta/llama-3.3-70b-instruct",
+      remoteManaged: true,
+    });
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.replicate.com/v1/deployments/meta/llama-3.3-70b-instruct",
+      expect.objectContaining({
+        method: "DELETE",
+      })
+    );
+  });
+
+  it("treats Hugging Face hosted deployment removal as local cleanup only", async () => {
+    const result = await deleteHostedDeployment({
+      provider: "huggingface",
+      owner: "Qwen",
+      name: "Qwen2.5-7B-Instruct",
+    });
+
+    expect(result).toEqual({
+      deleted: true,
+      externalWebUrl: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+      remoteManaged: false,
+    });
   });
 
   it("treats Hugging Face hosted inference as ready when inference is warm", async () => {

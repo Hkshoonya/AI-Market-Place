@@ -687,6 +687,74 @@ export async function updateHostedDeploymentScale(input: {
   };
 }
 
+export async function deleteHostedDeployment(input: {
+  provider: string | null;
+  owner: string | null;
+  name: string | null;
+}) {
+  if (input.provider === "huggingface" && input.owner && input.name) {
+    return {
+      deleted: true,
+      externalWebUrl: buildHuggingFaceModelWebUrl(`${input.owner}/${input.name}`),
+      remoteManaged: false,
+    };
+  }
+
+  if (input.provider !== "replicate" || !input.owner || !input.name) {
+    throw new Error("Hosted deployment target is incomplete");
+  }
+
+  try {
+    await updateHostedDeploymentScale({
+      provider: input.provider,
+      owner: input.owner,
+      name: input.name,
+      minInstances: 0,
+      maxInstances: 0,
+    });
+  } catch {
+    // Keep going so already-paused or already-missing deployments can still be removed.
+  }
+
+  const response = await fetch(
+    `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+      },
+    }
+  );
+
+  if (response.status === 404) {
+    return {
+      deleted: true,
+      externalWebUrl: buildReplicateDeploymentWebUrl(input.owner, input.name),
+      remoteManaged: true,
+    };
+  }
+
+  if (!response.ok) {
+    const raw = await response.json().catch(() => null);
+    const detail =
+      raw && typeof raw === "object" && "detail" in raw
+        ? String((raw as { detail?: unknown }).detail)
+        : null;
+    if (detail && /15\s*minutes?|offline|unused/i.test(detail)) {
+      throw new Error(
+        "AI Market Cap paused this hosted deployment, but the backend requires it to stay offline for about 15 minutes before removal. Try removing it again shortly."
+      );
+    }
+    throw new Error(detail || "Hosted deployment removal failed");
+  }
+
+  return {
+    deleted: true,
+    externalWebUrl: buildReplicateDeploymentWebUrl(input.owner, input.name),
+    remoteManaged: true,
+  };
+}
+
 function estimateReplicateHardware(input: { parameterCount: number | null; category: string | null }) {
   if (input.category !== "llm") return "gpu-t4";
   if ((input.parameterCount ?? 0) >= 20_000_000_000) return "gpu-a40-large";

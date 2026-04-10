@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, KeyRound, PauseCircle, PlayCircle, Server, Wallet } from "lucide-react";
+import { ArrowUpRight, KeyRound, PauseCircle, PlayCircle, Server, Trash2, Wallet } from "lucide-react";
 import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
@@ -259,6 +260,44 @@ export default function DeploymentsContent() {
     }
   };
 
+  const removeDeployment = async (modelSlug: string) => {
+    setPendingModelSlug(modelSlug);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/workspace/deployment", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          modelSlug,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to remove deployment");
+      }
+
+      setTestResults((current) => {
+        const next = { ...current };
+        delete next[modelSlug];
+        return next;
+      });
+      setBudgetDrafts((current) => {
+        const next = { ...current };
+        delete next[modelSlug];
+        return next;
+      });
+      await mutate();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Failed to remove deployment");
+    } finally {
+      setPendingModelSlug(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
@@ -444,6 +483,26 @@ export default function DeploymentsContent() {
                           </>
                         )}
                       </Button>
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-red-500/20 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                            disabled={pendingModelSlug === deployment.modelSlug}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Remove
+                          </Button>
+                        }
+                        title={`Remove ${deployment.modelName}?`}
+                        description="This removes the AI Market Cap deployment endpoint and its saved usage state. Hosted deployments will also be removed from the connected backend when possible."
+                        confirmLabel="Remove deployment"
+                        variant="destructive"
+                        onConfirm={() => {
+                          void removeDeployment(deployment.modelSlug);
+                        }}
+                      />
                     </div>
                   </div>
 

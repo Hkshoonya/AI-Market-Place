@@ -16,6 +16,9 @@ const upsertSelect = vi.fn();
 const update = vi.fn();
 const updateEq = vi.fn();
 const updateSelect = vi.fn();
+const deleteRows = vi.fn();
+const deleteEqFirst = vi.fn();
+const deleteEqSecond = vi.fn();
 const insert = vi.fn();
 const from = vi.fn();
 
@@ -84,6 +87,15 @@ describe("workspace deployment API", () => {
         select: updateSelect,
       })),
     }));
+    deleteRows.mockImplementation(() => ({
+      eq: deleteEqFirst,
+    }));
+    deleteEqFirst.mockImplementation(() =>
+      Object.assign(Promise.resolve({ error: null }), {
+        eq: deleteEqSecond,
+      })
+    );
+    deleteEqSecond.mockResolvedValue({ error: null });
     insert.mockResolvedValue({ error: null });
 
     from.mockImplementation((table: string) => {
@@ -94,6 +106,7 @@ describe("workspace deployment API", () => {
           }),
           upsert,
           update,
+          delete: deleteRows,
         };
       }
 
@@ -104,6 +117,7 @@ describe("workspace deployment API", () => {
           }),
           upsert,
           update,
+          delete: deleteRows,
         };
       }
 
@@ -326,5 +340,58 @@ describe("workspace deployment API", () => {
     expect(body.deployment.deploymentLabel).toBe("AI Market Cap hosted deployment");
     expect(body.deployment.target.provider).toBe("huggingface");
     expect(body.activation.message).toMatch(/AI Market Cap endpoint/i);
+  });
+
+  it("removes a managed deployment and its runtime", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    deploymentSingle.mockResolvedValue({
+      data: {
+        id: "deployment-1",
+        runtime_id: "runtime-1",
+        model_slug: "openai-gpt-4-1",
+        model_name: "GPT-4.1",
+        provider_name: "ChatGPT Plus",
+        status: "ready",
+        endpoint_slug: "openai-gpt-4-1-abc12345",
+        deployment_kind: "managed_api",
+        deployment_label: "OpenRouter-backed runtime",
+        credits_budget: 20,
+        monthly_price_estimate: 20,
+        total_requests: 0,
+        successful_requests: 0,
+        failed_requests: 0,
+        total_tokens: 0,
+        avg_response_latency_ms: null,
+        last_response_latency_ms: null,
+        last_used_at: null,
+        last_success_at: null,
+        last_error_at: null,
+        last_error_message: null,
+        updated_at: "2026-04-01T13:30:00.000Z",
+      },
+      error: null,
+    });
+    deleteEqFirst.mockResolvedValueOnce({ error: null });
+    deleteEqSecond.mockResolvedValueOnce({ error: null });
+
+    const { DELETE } = await import("./route");
+    const response = await DELETE(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelSlug: "openai-gpt-4-1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(deleteRows).toHaveBeenCalledTimes(2);
+    const body = await response.json();
+    expect(body.removed).toBe(true);
+    expect(body.message).toMatch(/removed/i);
   });
 });
