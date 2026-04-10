@@ -778,7 +778,7 @@ export function DeployWorkspacePanel() {
                       {runtimeResponse ? (
                         <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
                           <p className="font-medium text-white">
-                            {runtimeResponse.provider} · {runtimeResponse.model}
+                            AI Market Cap · {runtimeResponse.model}
                           </p>
                           <p className="mt-1 whitespace-pre-wrap">{runtimeResponse.content}</p>
                         </div>

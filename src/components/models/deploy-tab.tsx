@@ -259,12 +259,7 @@ export function DeployTab({
         summary: provisioning.summary,
         modeLabel:
           provisioning.deploymentKind === "hosted_external" ? "Hosted for you" : "Hosted for you",
-        providerLabel:
-          provisioning.deploymentKind === "hosted_external"
-            ? provisioning.target?.platformSlug === "huggingface"
-              ? "Hugging Face via AI Market Cap"
-              : "Replicate via AI Market Cap"
-            : "AI Market Cap",
+        providerLabel: "AI Market Cap",
       }
     : null;
   const primaryPlatformType = primaryDeployment?.platform.type ?? null;
@@ -475,14 +470,10 @@ export function DeployTab({
               <p className="mt-1 text-sm font-medium text-white">Chat, API, usage tracking</p>
             </div>
             <div className="rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Backed by</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Delivery</p>
               <p className="mt-1 text-sm font-medium text-white">
                 {provisioning?.deploymentKind === "hosted_external"
-                  ? provisioning.target?.platformSlug === "replicate"
-                    ? "Replicate hosted runtime"
-                    : provisioning.target?.platformSlug === "huggingface"
-                      ? "Hugging Face hosted inference"
-                      : "Hosted deployment target"
+                  ? "AI Market Cap hosted backend"
                   : "AI Market Cap managed runtime"}
               </p>
             </div>

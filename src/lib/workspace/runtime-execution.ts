@@ -28,35 +28,35 @@ const CATALOG_ROUTES: RuntimeCatalogRoute[] = [
     providerPrefixes: ["openai"],
     modelPrefix: "openai",
     keys: Object.keys(OPENAI_KNOWN_MODELS),
-    label: "OpenRouter-backed runtime",
+    label: "AI Market Cap managed runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["anthropic", "claude"],
     modelPrefix: "anthropic",
     keys: Object.keys(ANTHROPIC_KNOWN_MODELS),
-    label: "OpenRouter-backed runtime",
+    label: "AI Market Cap managed runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["google", "gemini"],
     modelPrefix: "google",
     keys: Object.keys(GOOGLE_KNOWN_MODELS).filter((key) => key.startsWith("gemini-")),
-    label: "OpenRouter-backed runtime",
+    label: "AI Market Cap managed runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["xai", "x-ai", "grok"],
     modelPrefix: "x-ai",
     keys: Object.keys(XAI_KNOWN_MODELS).filter((key) => !key.startsWith("grok-imagine-")),
-    label: "OpenRouter-backed runtime",
+    label: "AI Market Cap managed runtime",
   },
   {
     provider: "minimax",
     providerPrefixes: ["minimax"],
     modelPrefix: null,
     keys: Object.keys(MINIMAX_KNOWN_MODELS).filter((key) => key.startsWith("MiniMax-M")),
-    label: "MiniMax direct runtime",
+    label: "AI Market Cap managed runtime",
   },
 ];
 
@@ -105,10 +105,7 @@ export function resolveWorkspaceRuntimeExecution(modelSlug: string): WorkspaceRu
       provider: route.provider,
       model: route.modelPrefix ? `${route.modelPrefix}/${key}` : key,
       label: route.label,
-      summary:
-        route.provider === "minimax"
-          ? "This model can run through the in-site runtime using the configured MiniMax API."
-          : "This model can run through the in-site runtime using a configured OpenRouter route.",
+      summary: "This model can run through AI Market Cap's managed runtime on this site.",
     };
   }
 

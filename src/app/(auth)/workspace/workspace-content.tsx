@@ -186,6 +186,7 @@ export default function WorkspaceContent() {
       { ...SWR_TIERS.MEDIUM }
     );
   const session = workspace.session;
+  const showProviderLabel = Boolean(session?.provider && !session.provider.includes("AI Market Cap"));
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
@@ -760,7 +761,7 @@ export default function WorkspaceContent() {
                   <p className="mt-1 text-lg font-semibold text-white">
                     {session.action ?? "Continue setup"}
                   </p>
-                  {session.provider ? (
+                  {showProviderLabel ? (
                     <p className="text-sm text-muted-foreground">via {session.provider}</p>
                   ) : null}
                 </div>
@@ -792,7 +793,7 @@ export default function WorkspaceContent() {
                       <p className="mt-1 text-xs text-muted-foreground">
                         {hasManagedDeployment
                           ? deployment?.deploymentKind === "hosted_external"
-                            ? "This deployment is backed by an external hosted target, while AI Market Cap keeps the endpoint, usage, and workflow in one place."
+                            ? "AI Market Cap is routing this deployment through its hosted backend while keeping the endpoint, usage, and workflow in one place."
                             : "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
                           : canCreateManagedDeployment
                             ? provisioning?.summary ?? "Create the in-site deployment before deeper chat and API usage starts here."
@@ -836,19 +837,15 @@ export default function WorkspaceContent() {
                       </p>
                     </div>
                   ) : null}
-                  {deployment?.target?.webUrl ? (
+                  {deployment?.deploymentKind === "hosted_external" ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Hosted target
+                        Hosted connection
                       </p>
-                      <a
-                        href={deployment.target.webUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 block text-xs text-neon underline-offset-4 hover:underline"
-                      >
-                        {deployment.target.webUrl}
-                      </a>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        AI Market Cap is managing the upstream hosted runtime for this deployment.
+                        You can keep using the AI Market Cap endpoint below for chat and API access.
+                      </p>
                     </div>
                   ) : null}
                   {hasManagedDeployment ? (
@@ -1105,7 +1102,7 @@ export default function WorkspaceContent() {
                           {session.model ?? "Model"} response
                         </p>
                         <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          {runtimeResponse.provider} · {runtimeResponse.model}
+                          AI Market Cap · {runtimeResponse.model}
                         </span>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-muted-foreground">

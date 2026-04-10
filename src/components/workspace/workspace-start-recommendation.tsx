@@ -40,6 +40,7 @@ export function WorkspaceStartRecommendation({
   const suggestedPackDetails =
     WALLET_TOP_UP_PACKS.find((pack) => pack.slug === suggestedPackSlug) ?? null;
   const inferredPackLabel = suggestedPack ?? suggestedPackDetails?.label ?? null;
+  const showProviderBadge = provider != null && !provider.includes("AI Market Cap");
 
   return (
     <div className={cn("rounded-lg border border-border/40 bg-background/40 p-4", className)}>
@@ -57,7 +58,7 @@ export function WorkspaceStartRecommendation({
               : "This path was preloaded from the model you picked so you can launch faster and adjust later."}
           </p>
         </div>
-        {provider ? (
+        {showProviderBadge ? (
           <Badge variant="outline" className="border-border/50 bg-card/40">
             via {provider}
           </Badge>

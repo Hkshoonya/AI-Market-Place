@@ -58,9 +58,7 @@ function getHostedProviderLabel(entry: LaunchableEntry) {
     return "AI Market Cap";
   }
 
-  return entry.provisioning.target?.platformSlug === "huggingface"
-    ? "Hugging Face via AI Market Cap"
-    : "Replicate via AI Market Cap";
+  return "AI Market Cap";
 }
 
 function buildWorkspaceStartDefaults(entry: LaunchableEntry) {

@@ -462,7 +462,7 @@ export function resolveWorkspaceProvisioningHint(
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "Replicate hosted deployment",
+      label: "AI Market Cap hosted deployment",
       summary:
         "AI Market Cap can create and manage a hosted deployment for this model, then keep chat, API access, and usage tracking on-site.",
       target: toReplicateTarget(bestStatic),
@@ -512,9 +512,9 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "Replicate hosted deployment",
+      label: "AI Market Cap hosted deployment",
       summary:
-        "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
+        "AI Market Cap can create and manage a hosted deployment for this model, then keep chat, API access, and usage tracking on-site.",
       target: replicateTarget,
     };
   }
@@ -524,9 +524,9 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "Hugging Face hosted inference",
+      label: "AI Market Cap hosted deployment",
       summary:
-        "AI Market Cap can connect this model to Hugging Face hosted inference, then keep chat, API access, and usage tracking on-site.",
+        "AI Market Cap can connect this model to its hosted backend, then keep chat, API access, and usage tracking on-site.",
       target: huggingFaceTarget,
     };
   }
