@@ -18,11 +18,13 @@ describe("workspace session helpers", () => {
       modelSlug: "z-ai-glm-5",
       provider: "GLM Coding Plan",
       action: "Subscribe",
+      autoStartDeployment: true,
       suggestedPack: "Builder Pack",
       suggestedAmount: 40,
     });
 
     expect(session.model).toBe("GLM-5");
+    expect(session.autoStartDeployment).toBe(true);
     expect(session.suggestedPack).toBe("Builder Pack");
     expect(session.events).toHaveLength(1);
     expect(session.events[0]?.title).toBe("Workspace started");
@@ -73,6 +75,7 @@ describe("workspace session helpers", () => {
 
     expect(state?.activePanel).toBe("usage");
     expect(state?.session?.model).toBe("GLM-5");
+    expect(state?.session?.autoStartDeployment).toBe(false);
   });
 
   it("prefers the newest saved workspace state", () => {

@@ -12,6 +12,7 @@ interface WorkspaceStartButtonProps {
   modelSlug?: string | null;
   provider?: string | null;
   action?: string | null;
+  autoStartDeployment?: boolean | null;
   nextUrl?: string | null;
   sponsored?: boolean | null;
   suggestedPackSlug?: string | null;

@@ -29,6 +29,7 @@ interface OpenWorkspaceInput {
   modelSlug?: string | null;
   provider?: string | null;
   action?: string | null;
+  autoStartDeployment?: boolean | null;
   nextUrl?: string | null;
   conversationId?: string | null;
   sponsored?: boolean | null;
@@ -54,6 +55,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const autoStartInFlightRef = useRef(false);
   const [state, setState] = useState<WorkspaceState>(() => {
     if (typeof window === "undefined") {
       return createEmptyWorkspaceState();
@@ -144,6 +146,103 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [state, user?.id]);
 
+  useEffect(() => {
+    const session = state.session;
+    if (
+      !user?.id ||
+      !session?.autoStartDeployment ||
+      !session.modelSlug ||
+      !session.model ||
+      autoStartInFlightRef.current
+    ) {
+      return;
+    }
+
+    autoStartInFlightRef.current = true;
+    setState((current) => {
+      if (!current.session) return current;
+      return touchWorkspaceState({
+        ...current,
+        session: {
+          ...current.session,
+          autoStartDeployment: false,
+        },
+      });
+    });
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/workspace/deployment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            modelSlug: session.modelSlug,
+            modelName: session.model,
+            providerName: session.provider,
+            conversationId: session.conversationId,
+            creditsBudget: session.suggestedAmount,
+            monthlyPriceEstimate: session.suggestedAmount,
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to create deployment");
+        }
+
+        setState((current) => {
+          if (!current.session || current.session.modelSlug !== session.modelSlug) {
+            return current;
+          }
+
+          return touchWorkspaceState({
+            ...current,
+            activePanel: "usage",
+            session: appendWorkspaceEvent(
+              {
+                ...current.session,
+                runtimeId: payload.runtime?.id ?? null,
+                runtimeEndpointPath: payload.runtime?.endpointPath ?? null,
+                deploymentId: payload.deployment?.id ?? null,
+                deploymentEndpointPath: payload.deployment?.endpointPath ?? null,
+              },
+              createWorkspaceEvent(
+                "Deployment created",
+                payload.activation?.message ??
+                  (session.model
+                    ? `Created a deployment for ${session.model}.`
+                    : "Created a deployment.")
+              )
+            ),
+          });
+        });
+      } catch (error) {
+        setState((current) => {
+          if (!current.session || current.session.modelSlug !== session.modelSlug) {
+            return current;
+          }
+
+          return touchWorkspaceState({
+            ...current,
+            session: appendWorkspaceEvent(
+              current.session,
+              createWorkspaceEvent(
+                "Deployment start failed",
+                error instanceof Error
+                  ? error.message
+                  : "AI Market Cap could not start this deployment automatically."
+              )
+            ),
+          });
+        });
+      } finally {
+        autoStartInFlightRef.current = false;
+      }
+    })();
+  }, [state.session, user?.id]);
+
   const openWorkspace = useCallback((input: OpenWorkspaceInput) => {
     setState((current) => {
       const session =
@@ -152,7 +251,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         input.modelSlug &&
         current.session.modelSlug === input.modelSlug
           ? appendWorkspaceEvent(
-              current.session,
+              {
+                ...current.session,
+                provider: input.provider ?? current.session.provider,
+                action: input.action ?? current.session.action,
+                autoStartDeployment:
+                  input.autoStartDeployment != null
+                    ? Boolean(input.autoStartDeployment)
+                    : current.session.autoStartDeployment,
+                nextUrl: input.nextUrl ?? current.session.nextUrl,
+                sponsored:
+                  input.sponsored != null ? Boolean(input.sponsored) : current.session.sponsored,
+                suggestedPackSlug:
+                  input.suggestedPackSlug ?? current.session.suggestedPackSlug,
+                suggestedPack: input.suggestedPack ?? current.session.suggestedPack,
+                suggestedAmount: input.suggestedAmount ?? current.session.suggestedAmount,
+              },
               createWorkspaceEvent(
                 "Workspace resumed",
                 input.model
@@ -165,6 +279,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               modelSlug: input.modelSlug,
               provider: input.provider,
               action: input.action,
+              autoStartDeployment: input.autoStartDeployment,
               nextUrl: input.nextUrl,
               conversationId: input.conversationId,
               sponsored: input.sponsored,

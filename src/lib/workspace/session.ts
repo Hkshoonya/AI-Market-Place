@@ -11,6 +11,7 @@ export interface WorkspaceSession {
   modelSlug: string | null;
   provider: string | null;
   action: string | null;
+  autoStartDeployment: boolean;
   nextUrl: string | null;
   conversationId: string | null;
   runtimeId: string | null;
@@ -64,6 +65,7 @@ export function createWorkspaceSession(input: {
   modelSlug?: string | null;
   provider?: string | null;
   action?: string | null;
+  autoStartDeployment?: boolean | null;
   nextUrl?: string | null;
   conversationId?: string | null;
   runtimeId?: string | null;
@@ -80,6 +82,7 @@ export function createWorkspaceSession(input: {
     modelSlug: input.modelSlug ?? null,
     provider: input.provider ?? null,
     action: input.action ?? null,
+    autoStartDeployment: Boolean(input.autoStartDeployment),
     nextUrl: input.nextUrl ?? null,
     conversationId: input.conversationId ?? null,
     runtimeId: input.runtimeId ?? null,
@@ -145,6 +148,7 @@ function normalizeWorkspaceSession(
     modelSlug: typeof session.modelSlug === "string" ? session.modelSlug : null,
     provider: typeof session.provider === "string" ? session.provider : null,
     action: typeof session.action === "string" ? session.action : null,
+    autoStartDeployment: Boolean(session.autoStartDeployment),
     nextUrl: typeof session.nextUrl === "string" ? session.nextUrl : null,
     conversationId:
       typeof session.conversationId === "string" ? session.conversationId : null,

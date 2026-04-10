@@ -75,6 +75,7 @@ function buildWorkspaceStartDefaults(entry: LaunchableEntry) {
       entry.provisioning.deploymentKind === "hosted_external"
         ? "Deploy on AI Market Cap"
         : "Use on AI Market Cap",
+    autoStartDeployment: true,
     suggestedAmount,
     suggestedPackSlug: suggestedPack?.slug ?? null,
     suggestedPack: suggestedPack?.label ?? null,
@@ -486,6 +487,7 @@ export default async function DeployPage({
                             modelSlug={model.slug}
                             provider={startDefaults.provider}
                             action={startDefaults.action}
+                            autoStartDeployment={startDefaults.autoStartDeployment}
                             nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
                             suggestedAmount={startDefaults.suggestedAmount}
                             suggestedPackSlug={startDefaults.suggestedPackSlug}
@@ -568,6 +570,7 @@ export default async function DeployPage({
                         modelSlug={model.slug}
                         provider={startDefaults.provider}
                         action={startDefaults.action}
+                        autoStartDeployment={startDefaults.autoStartDeployment}
                         nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
                         suggestedAmount={startDefaults.suggestedAmount}
                         suggestedPackSlug={startDefaults.suggestedPackSlug}
