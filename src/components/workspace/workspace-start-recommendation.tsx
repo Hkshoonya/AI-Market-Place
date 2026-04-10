@@ -10,6 +10,7 @@ interface WorkspaceStartRecommendationProps {
   suggestedAmount?: number | null;
   suggestedPack?: string | null;
   suggestedPackSlug?: string | null;
+  onSuggestedAmountChange?: (amount: number | null) => void;
   compact?: boolean;
   className?: string;
 }
@@ -28,6 +29,7 @@ export function WorkspaceStartRecommendation({
   suggestedAmount,
   suggestedPack,
   suggestedPackSlug,
+  onSuggestedAmountChange,
   compact = false,
   className,
 }: WorkspaceStartRecommendationProps) {
@@ -75,6 +77,31 @@ export function WorkspaceStartRecommendation({
               ? "This becomes the initial deployment budget cap. You can change it before or after launch."
               : "This path does not need a preloaded wallet top-up right away."}
           </p>
+          {onSuggestedAmountChange ? (
+            <label className="mt-3 block">
+              <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Adjust before launch
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={suggestedAmount ?? ""}
+                onChange={(event) => {
+                  const rawValue = event.target.value.trim();
+                  if (!rawValue) {
+                    onSuggestedAmountChange(null);
+                    return;
+                  }
+                  const nextAmount = Number(rawValue);
+                  onSuggestedAmountChange(
+                    Number.isFinite(nextAmount) && nextAmount > 0 ? nextAmount : null
+                  );
+                }}
+                className="mt-1 w-full rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none focus:border-neon/30"
+              />
+            </label>
+          ) : null}
         </div>
         <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
           <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -89,6 +116,11 @@ export function WorkspaceStartRecommendation({
                 ? "This is the closest wallet pack to the recommended starting budget."
                 : "You can keep going without selecting a pack yet and decide at funding time.")}
           </p>
+          {onSuggestedAmountChange ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Changing the starting budget updates the suggested wallet pack automatically.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

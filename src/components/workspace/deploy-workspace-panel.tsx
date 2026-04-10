@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
@@ -177,6 +178,14 @@ export function DeployWorkspacePanel() {
         : deployment?.billing.budgetStatus === "exhausted"
           ? "border-red-500/20 bg-red-500/10 text-red-300"
           : "border-border/50 bg-card/40";
+  const updateSuggestedAmount = (nextAmount: number | null) => {
+    const nextPack = getWalletTopUpPackForAmount(nextAmount);
+    workspace.updateWorkspaceSession({
+      suggestedAmount: nextAmount,
+      suggestedPackSlug: nextPack?.slug ?? null,
+      suggestedPack: nextPack?.label ?? null,
+    });
+  };
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
@@ -502,6 +511,7 @@ export function DeployWorkspacePanel() {
               suggestedAmount={session.suggestedAmount}
               suggestedPack={session.suggestedPack}
               suggestedPackSlug={session.suggestedPackSlug}
+              onSuggestedAmountChange={updateSuggestedAmount}
               compact
             />
 
