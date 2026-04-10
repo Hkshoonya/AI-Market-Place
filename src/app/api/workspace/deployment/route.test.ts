@@ -342,6 +342,162 @@ describe("workspace deployment API", () => {
     expect(body.activation.message).toMatch(/AI Market Cap endpoint/i);
   });
 
+  it("creates a hosted deployment in provisioning state until the backend is ready", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    runtimeMaybeSingle.mockResolvedValue({ data: null, error: null });
+    deploymentMaybeSingle.mockResolvedValue({ data: null, error: null });
+    modelSingle.mockResolvedValue({
+      data: {
+        slug: "meta-llama-3-3-70b-instruct",
+        name: "Llama 3.3 70B Instruct",
+        provider: "Meta",
+        category: "llm",
+        parameter_count: 70_000_000_000,
+        hf_model_id: "meta-llama/Llama-3.3-70B-Instruct",
+      },
+      error: null,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              owner: "meta",
+              name: "llama-3.3-70b-instruct",
+              latest_version: {
+                id: "version-1",
+                openapi_schema: {
+                  components: {
+                    schemas: {
+                      Input: {
+                        properties: {
+                          prompt: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              username: "aimarketcap",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              owner: "meta",
+              name: "llama-3.3-70b-instruct",
+              latest_version: {
+                id: "version-1",
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              owner: "aimarketcap",
+              name: "aimc-meta-llama-3-3-70b-instruct-12345678",
+              current_release: {
+                configuration: {
+                  min_instances: 0,
+                  max_instances: 1,
+                },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              owner: "aimarketcap",
+              name: "aimc-meta-llama-3-3-70b-instruct-12345678",
+              current_release: {
+                configuration: {
+                  min_instances: 0,
+                  max_instances: 1,
+                },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        )
+    );
+
+    upsertSelect.mockImplementationOnce(() => ({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: "deployment-1",
+          runtime_id: null,
+          model_slug: "meta-llama-3-3-70b-instruct",
+          model_name: "Llama 3.3 70B Instruct",
+          provider_name: "Meta",
+          status: "provisioning",
+          endpoint_slug: "meta-llama-3-3-70b-instruct-abc12345",
+          deployment_kind: "hosted_external",
+          deployment_label: "AI Market Cap hosted deployment",
+          external_platform_slug: "replicate",
+          external_provider: "replicate",
+          external_owner: "aimarketcap",
+          external_name: "aimc-meta-llama-3-3-70b-instruct-12345678",
+          external_model_ref: null,
+          external_web_url: "https://replicate.com/aimarketcap/aimc-meta-llama-3-3-70b-instruct-12345678",
+          credits_budget: 20,
+          monthly_price_estimate: 20,
+          total_requests: 0,
+          successful_requests: 0,
+          failed_requests: 0,
+          total_tokens: 0,
+          avg_response_latency_ms: null,
+          last_response_latency_ms: null,
+          last_used_at: null,
+          last_success_at: null,
+          last_error_at: null,
+          last_error_message: null,
+          updated_at: "2026-04-01T13:30:00.000Z",
+        },
+        error: null,
+      }),
+    }));
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelSlug: "meta-llama-3-3-70b-instruct",
+          modelName: "Llama 3.3 70B Instruct",
+          providerName: "Meta",
+          creditsBudget: 20,
+          monthlyPriceEstimate: 20,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deployment.status).toBe("provisioning");
+    expect(body.activation.message).toMatch(/still provisioning/i);
+  });
+
   it("removes a managed deployment and its runtime", async () => {
     getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },

@@ -312,13 +312,38 @@ export async function POST(request: Request) {
       });
     }
 
+    let deploymentStatus: "ready" | "provisioning" = "ready";
+    if (
+      provisioning.deploymentKind === "hosted_external" &&
+      externalFields.external_provider &&
+      externalFields.external_owner &&
+      externalFields.external_name
+    ) {
+      const snapshot = await refreshHostedDeploymentStatus({
+        provider: externalFields.external_provider,
+        owner: externalFields.external_owner,
+        name: externalFields.external_name,
+      });
+      if (snapshot) {
+        deploymentStatus = snapshot.status === "ready" ? "ready" : "provisioning";
+        externalFields = {
+          ...externalFields,
+          external_web_url: snapshot.externalWebUrl,
+          external_model_ref:
+            snapshot.externalModelRef ?? externalFields.external_model_ref,
+        };
+      } else {
+        deploymentStatus = "provisioning";
+      }
+    }
+
     const deploymentPayload = {
       user_id: auth.user.id,
       runtime_id: runtimeData?.id ?? null,
       model_slug: parsed.data.modelSlug,
       model_name: parsed.data.modelName,
       provider_name: parsed.data.providerName ?? null,
-      status: "ready" as const,
+      status: deploymentStatus,
       endpoint_slug:
         existingDeployment?.endpoint_slug ??
         buildWorkspaceDeploymentEndpointSlug(parsed.data.modelSlug),
@@ -350,7 +375,9 @@ export async function POST(request: Request) {
       activation: {
         message:
           provisioning.deploymentKind === "hosted_external"
-            ? "Hosted deployment connected through AI Market Cap. You can now use it through the AI Market Cap endpoint."
+            ? deploymentStatus === "ready"
+              ? "Hosted deployment connected through AI Market Cap. You can now use it through the AI Market Cap endpoint."
+              : "AI Market Cap started the hosted deployment. It is still provisioning and will become usable here once the backend is ready."
             : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
       provisioning,

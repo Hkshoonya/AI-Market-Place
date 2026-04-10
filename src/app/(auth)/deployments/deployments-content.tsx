@@ -627,7 +627,10 @@ export default function DeploymentsContent() {
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={testLoadingSlug === deployment.modelSlug}
+                          disabled={
+                            testLoadingSlug === deployment.modelSlug ||
+                            deployment.status !== "ready"
+                          }
                           onClick={() => runTestCall(deployment)}
                         >
                           {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Test Call"}
