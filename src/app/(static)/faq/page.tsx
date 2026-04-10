@@ -97,6 +97,10 @@ const FAQ_SECTIONS = [
         a: "MCP (Model Context Protocol) servers available on the marketplace provide standardized interfaces for AI models to interact with external tools and data sources. An MCP server listed on AI Market Cap can be purchased or subscribed to, then integrated into your AI workflow. Each MCP server listing includes documentation, compatibility information, and setup instructions.",
       },
       {
+        q: "How does one-click deployment on AI Market Cap work?",
+        a: "When a model shows Deploy on AI Market Cap, we create and manage the launch path for you through AI Market Cap so you can use one endpoint for chat, API access, budgets, and usage tracking. Depending on the model, AI Market Cap may use managed runtime infrastructure or hosted backend providers behind the scenes. We keep that operational detail inside the platform so the main product flow stays consistent, and we only expose it in support and documentation when it matters.",
+      },
+      {
         q: "What are the API rate limits?",
         a: "Rate limits vary by plan. Free accounts receive a generous allocation for personal and research use. Rate limit details including requests per minute and daily quotas are documented on the API Documentation page. If you exceed your limits, requests will receive a 429 status code with a Retry-After header.",
       },

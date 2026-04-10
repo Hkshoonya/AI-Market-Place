@@ -158,6 +158,8 @@ describe("workspace deployment API", () => {
     expect(upsert).toHaveBeenCalled();
     const body = await response.json();
     expect(body.deployment.endpointPath).toBe("/api/deployments/openai-gpt-4-1-abc12345");
+    expect(body.deployment.providerName).toBe("AI Market Cap");
+    expect(body.deployment.deploymentLabel).toBe("AI Market Cap managed runtime");
   });
 
   it("rejects models without a mapped in-site runtime", async () => {
@@ -320,7 +322,9 @@ describe("workspace deployment API", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.deployment.deploymentKind).toBe("hosted_external");
+    expect(body.deployment.providerName).toBe("AI Market Cap");
+    expect(body.deployment.deploymentLabel).toBe("AI Market Cap hosted deployment");
     expect(body.deployment.target.provider).toBe("huggingface");
-    expect(body.activation.message).toMatch(/Hugging Face/i);
+    expect(body.activation.message).toMatch(/AI Market Cap endpoint/i);
   });
 });

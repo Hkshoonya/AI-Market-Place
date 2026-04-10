@@ -397,7 +397,10 @@ export default function DeploymentsContent() {
                       <div>
                         <h2 className="text-xl font-semibold text-white">{deployment.modelName}</h2>
                         <p className="text-sm text-muted-foreground">
-                          {deployment.providerName ?? "Unknown provider"} · {deployment.execution.summary}
+                          {deployment.providerName ?? "Unknown provider"} ·{" "}
+                          {deployment.deploymentKind === "hosted_external"
+                            ? "AI Market Cap hosted backend"
+                            : deployment.execution.summary}
                         </p>
                         {deployment.lastErrorMessage ? (
                           <p className="mt-2 text-sm text-red-300">{deployment.lastErrorMessage}</p>
@@ -597,7 +600,7 @@ export default function DeploymentsContent() {
                             {testResults[deployment.modelSlug]?.content}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {testResults[deployment.modelSlug]?.provider ?? "Unknown provider"} ·{" "}
+                            AI Market Cap ·{" "}
                             {testResults[deployment.modelSlug]?.model ?? "Unknown model"}
                           </p>
                         </div>

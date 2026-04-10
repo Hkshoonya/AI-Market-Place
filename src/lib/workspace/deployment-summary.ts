@@ -33,6 +33,26 @@ export interface WorkspaceDeploymentRecord {
   updated_at: string;
 }
 
+function getPublicDeploymentLabel(deployment: WorkspaceDeploymentRecord) {
+  if (deployment.deployment_kind === "hosted_external") {
+    return "AI Market Cap hosted deployment";
+  }
+  if (deployment.deployment_kind === "managed_api") {
+    return "AI Market Cap managed runtime";
+  }
+  return deployment.deployment_label;
+}
+
+function getPublicProviderName(deployment: WorkspaceDeploymentRecord) {
+  if (
+    deployment.deployment_kind === "hosted_external" ||
+    deployment.deployment_kind === "managed_api"
+  ) {
+    return "AI Market Cap";
+  }
+  return deployment.provider_name;
+}
+
 export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRecord) {
   const totalAttempts = deployment.successful_requests + deployment.failed_requests;
   const healthStatus =
@@ -49,12 +69,12 @@ export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRec
     runtimeId: deployment.runtime_id,
     modelSlug: deployment.model_slug,
     modelName: deployment.model_name,
-    providerName: deployment.provider_name,
+    providerName: getPublicProviderName(deployment),
     status: deployment.status,
     endpointSlug: deployment.endpoint_slug,
     endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
     deploymentKind: deployment.deployment_kind,
-    deploymentLabel: deployment.deployment_label,
+    deploymentLabel: getPublicDeploymentLabel(deployment),
     target:
       deployment.external_platform_slug && deployment.external_provider
         ? {

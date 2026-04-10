@@ -345,9 +345,7 @@ export async function POST(request: Request) {
       activation: {
         message:
           provisioning.deploymentKind === "hosted_external"
-            ? provisioning.target?.provider === "huggingface"
-              ? "Hosted inference connected through Hugging Face. You can now use it through the AI Market Cap endpoint."
-              : "Hosted deployment created through Replicate. You can now use it through the AI Market Cap endpoint."
+            ? "Hosted deployment connected through AI Market Cap. You can now use it through the AI Market Cap endpoint."
             : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
       provisioning,
