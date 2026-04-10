@@ -30,6 +30,15 @@ vi.mock("@/components/marketplace/wallet-badge", () => ({
   WalletBadge: () => <div data-testid="wallet-badge" />,
 }));
 
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <div />,
+}));
+
 vi.mock("@/components/ui/button", () => ({
   Button: ({ asChild, children, ...props }: ComponentProps<"button"> & { asChild?: boolean }) =>
     asChild ? <>{children}</> : <button {...props}>{children}</button>,
@@ -92,7 +101,7 @@ describe("Header", () => {
     expect(screen.getAllByRole("link", { name: /workspace/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /deployments/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /open wallet/i })).toHaveAttribute("href", "/wallet");
-    expect(screen.getByRole("link", { name: /open admin dashboard/i })).toHaveAttribute("href", "/admin");
+    expect(screen.getAllByRole("link", { name: /admin dashboard/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId("auth-button").length).toBeGreaterThanOrEqual(2);
   });
 });

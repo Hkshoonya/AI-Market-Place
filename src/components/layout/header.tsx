@@ -20,13 +20,20 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
 import { AuthButton } from "@/components/auth/auth-button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { WalletBadge } from "@/components/marketplace/wallet-badge";
 
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
@@ -77,76 +84,50 @@ export function Header() {
               </Link>
             );
           })}
-          {user && (
-            <>
-              <Link
-                href="/workspace"
-                className={cn(
-                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  pathname.startsWith("/workspace")
-                    ? "bg-neon/10 text-neon"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Workspace
-              </Link>
-              <Link
-                href="/deployments"
-                className={cn(
-                  "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  pathname.startsWith("/deployments")
-                    ? "bg-neon/10 text-neon"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Deployments
-              </Link>
-            </>
-          )}
-          {profile?.is_admin && (
-            <Link
-              href="/admin"
-              className={cn(
-                "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                pathname.startsWith("/admin")
-                  ? "bg-neon/10 text-neon"
-                  : "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
-              )}
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Admin
-            </Link>
-          )}
         </nav>
 
         {/* Right side */}
         <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
 
-          <div className="hidden items-center gap-1 xl:flex 2xl:hidden">
+          <div className="hidden items-center gap-1 xl:flex">
             {user ? (
               <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/workspace">Workspace</Link>
-                </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/deployments">Deployments</Link>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Workspace
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Signed-in tools</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/workspace">Open Workspace</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/deployments">View Deployments</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/wallet">Wallet</Link>
+                    </DropdownMenuItem>
+                    {profile?.is_admin ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin">Admin Dashboard</Link>
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" size="icon" asChild>
                   <Link href="/wallet" aria-label="Open wallet">
                     <Wallet className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>
                 <NotificationBell />
-                {profile?.is_admin && (
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href="/admin" aria-label="Open admin dashboard">
-                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                  </Button>
-                )}
                 <AuthButton />
               </>
             ) : (
@@ -157,21 +138,6 @@ export function Header() {
                 </Link>
               </Button>
             )}
-          </div>
-
-          {/* Wallet Badge */}
-          <div className="hidden 2xl:flex">
-            <WalletBadge />
-          </div>
-
-          {/* Notification Bell */}
-          <div className="hidden 2xl:flex">
-            <NotificationBell />
-          </div>
-
-          {/* Auth Button */}
-          <div className="hidden 2xl:flex">
-            <AuthButton />
           </div>
 
           {/* Mobile menu */}
