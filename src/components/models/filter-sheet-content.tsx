@@ -95,12 +95,12 @@ export function FilterSheetContent({
             className={currentManagedOnly ? "bg-neon text-black hover:bg-neon/90" : ""}
             onClick={() => updateParams({ managed: "true", deployable: null })}
           >
-            Use on This Site
+            Deploy on AI Market Cap
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
           `Ready to Use` includes all verified ways to start using a model.
-          `Use on This Site` only shows models AI Market Cap can run directly for you here.
+          `Deploy on AI Market Cap` opens the dedicated launch directory for models AI Market Cap can run directly for you here.
         </p>
       </div>
 

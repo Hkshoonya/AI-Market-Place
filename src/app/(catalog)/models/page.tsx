@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Activity, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,10 @@ export default async function ModelsPage({
   const apiFilter = p.api === "true";
   const licenseFilter = p.license ?? "";
   const lifecycleFilter = parseLifecycleFilter(p.lifecycle);
+
+  if (managedOnly) {
+    redirect("/deploy");
+  }
 
   const supabase = createPublicClient();
 
