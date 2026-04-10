@@ -13,6 +13,7 @@ import {
 import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { WorkspaceStartRecommendation } from "@/components/workspace/workspace-start-recommendation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -753,6 +754,14 @@ export default function WorkspaceContent() {
                     <p className="text-sm text-muted-foreground">via {session.provider}</p>
                   ) : null}
                 </div>
+
+                <WorkspaceStartRecommendation
+                  action={session.action}
+                  provider={session.provider}
+                  suggestedAmount={session.suggestedAmount}
+                  suggestedPack={session.suggestedPack}
+                  suggestedPackSlug={session.suggestedPackSlug}
+                />
 
                 <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <div className="flex items-center justify-between gap-3">

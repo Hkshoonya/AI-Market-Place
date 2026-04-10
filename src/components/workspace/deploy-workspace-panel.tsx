@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { WorkspaceStartRecommendation } from "./workspace-start-recommendation";
 import { useOptionalWorkspace } from "./workspace-provider";
 
 interface WorkspaceWalletSnapshot {
@@ -494,6 +495,15 @@ export function DeployWorkspacePanel() {
                 ))}
               </div>
             </div>
+
+            <WorkspaceStartRecommendation
+              action={session.action}
+              provider={session.provider}
+              suggestedAmount={session.suggestedAmount}
+              suggestedPack={session.suggestedPack}
+              suggestedPackSlug={session.suggestedPackSlug}
+              compact
+            />
 
             <Tabs
               value={activePanel}
