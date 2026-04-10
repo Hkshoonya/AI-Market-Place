@@ -78,6 +78,14 @@ Railway should deploy the service from:
 railway.json -> Dockerfile -> node server/custom-server.js
 ```
 
+The Railway in-process scheduler currently owns jobs such as:
+- tiered source sync
+- auction settlement
+- wallet deposit scan
+- deployment reconcile
+- score computation
+- resident-agent maintenance
+
 Build-time environment requirements:
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`

@@ -23,6 +23,11 @@ const CRON_JOBS = [
     path: "/api/webhooks/chain-deposits",
   },
   {
+    name: "Deployment Reconcile",
+    cron: "*/10 * * * *",
+    path: "/api/cron/deployments",
+  },
+  {
     name: "Compute Scores",
     cron: "45 */2 * * *",
     path: "/api/cron/compute-scores",
