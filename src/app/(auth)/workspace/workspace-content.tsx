@@ -22,6 +22,7 @@ import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { WORKSPACE_DEPLOYMENT_STARTED_EVENT } from "@/lib/workspace/session";
 
 interface WorkspaceWalletSnapshot {
   balance: number;
@@ -241,6 +242,31 @@ export default function WorkspaceContent() {
       deploymentEndpointPath: deployment.endpointPath,
     });
   }, [deployment?.endpointPath, deployment?.id, session, workspace]);
+
+  useEffect(() => {
+    if (!user || !workspace.session?.modelSlug) {
+      return;
+    }
+
+    const handleDeploymentStarted = (event: Event) => {
+      const detail = (event as CustomEvent<{ modelSlug?: string | null }>).detail;
+      if (detail?.modelSlug !== workspace.session?.modelSlug) {
+        return;
+      }
+
+      void Promise.all([mutateDeploymentSnapshot(), mutateRuntimeSnapshot()]);
+    };
+
+    window.addEventListener(WORKSPACE_DEPLOYMENT_STARTED_EVENT, handleDeploymentStarted);
+    return () => {
+      window.removeEventListener(WORKSPACE_DEPLOYMENT_STARTED_EVENT, handleDeploymentStarted);
+    };
+  }, [
+    mutateDeploymentSnapshot,
+    mutateRuntimeSnapshot,
+    user,
+    workspace.session?.modelSlug,
+  ]);
 
   useEffect(() => {
     if (!deploymentId) {

@@ -18,6 +18,7 @@ import {
   createWorkspaceSession,
   pickNewerWorkspaceState,
   parseWorkspaceState,
+  WORKSPACE_DEPLOYMENT_STARTED_EVENT,
   touchWorkspaceState,
   WORKSPACE_STORAGE_KEY,
   type WorkspaceSession,
@@ -218,6 +219,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ),
           });
         });
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent(WORKSPACE_DEPLOYMENT_STARTED_EVENT, {
+              detail: {
+                modelSlug: session.modelSlug,
+                deploymentId: payload.deployment?.id ?? null,
+                runtimeId: payload.runtime?.id ?? null,
+              },
+            })
+          );
+        }
       } catch (error) {
         setState((current) => {
           if (!current.session || current.session.modelSlug !== session.modelSlug) {

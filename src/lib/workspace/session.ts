@@ -36,6 +36,7 @@ export interface WorkspaceState {
 }
 
 export const WORKSPACE_STORAGE_KEY = "aimc-deploy-workspace";
+export const WORKSPACE_DEPLOYMENT_STARTED_EVENT = "aimc-workspace-deployment-started";
 const MAX_WORKSPACE_EVENTS = 200;
 
 function makeEventId() {

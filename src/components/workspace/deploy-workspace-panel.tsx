@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
   KeyRound,
@@ -21,6 +21,7 @@ import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { WORKSPACE_DEPLOYMENT_STARTED_EVENT } from "@/lib/workspace/session";
 import { WorkspaceStartRecommendation } from "./workspace-start-recommendation";
 import { useOptionalWorkspace } from "./workspace-provider";
 
@@ -143,6 +144,26 @@ export function DeployWorkspacePanel() {
         : null,
       { ...SWR_TIERS.MEDIUM }
     );
+
+  useEffect(() => {
+    if (!user || !workspace?.session?.modelSlug) {
+      return;
+    }
+
+    const handleDeploymentStarted = (event: Event) => {
+      const detail = (event as CustomEvent<{ modelSlug?: string | null }>).detail;
+      if (detail?.modelSlug !== workspace.session?.modelSlug) {
+        return;
+      }
+
+      void mutateDeploymentSnapshot();
+    };
+
+    window.addEventListener(WORKSPACE_DEPLOYMENT_STARTED_EVENT, handleDeploymentStarted);
+    return () => {
+      window.removeEventListener(WORKSPACE_DEPLOYMENT_STARTED_EVENT, handleDeploymentStarted);
+    };
+  }, [mutateDeploymentSnapshot, user, workspace?.session?.modelSlug]);
 
   if (!workspace?.session) return null;
 
