@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearReplicateCatalogCacheForTests } from "@/lib/workspace/external-deployment";
 
 const getUser = vi.fn();
 const runtimeMaybeSingle = vi.fn();
@@ -127,6 +128,7 @@ describe("workspace deployment API", () => {
       data: null,
       error: null,
     });
+    clearReplicateCatalogCacheForTests();
   });
 
   it("creates a deployment and paired runtime for a signed-in user", async () => {
@@ -227,5 +229,98 @@ describe("workspace deployment API", () => {
     expect(update).toHaveBeenCalledWith({ status: "paused" });
     const body = await response.json();
     expect(body.update.message).toMatch(/Deployment paused/i);
+  });
+
+  it("creates a hosted Hugging Face deployment when warm inference is available", async () => {
+    process.env.HUGGINGFACE_API_TOKEN = "hf-test-token";
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    runtimeMaybeSingle.mockResolvedValue({ data: null, error: null });
+    deploymentMaybeSingle.mockResolvedValue({ data: null, error: null });
+    modelSingle.mockResolvedValue({
+      data: {
+        slug: "qwen-qwen2-5-7b-instruct",
+        name: "Qwen2.5 7B Instruct",
+        provider: "Qwen",
+        category: "llm",
+        parameter_count: null,
+        hf_model_id: "Qwen/Qwen2.5-7B-Instruct",
+      },
+      error: null,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "Qwen/Qwen2.5-7B-Instruct",
+            inference: "warm",
+            pipeline_tag: "text-generation",
+            disabled: false,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+
+    upsertSelect.mockImplementationOnce(() => ({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: "deployment-1",
+          runtime_id: null,
+          model_slug: "qwen-qwen2-5-7b-instruct",
+          model_name: "Qwen2.5 7B Instruct",
+          provider_name: "Qwen",
+          status: "ready",
+          endpoint_slug: "qwen-qwen2-5-7b-instruct-abc12345",
+          deployment_kind: "hosted_external",
+          deployment_label: "Hugging Face hosted inference",
+          external_platform_slug: "huggingface",
+          external_provider: "huggingface",
+          external_owner: "Qwen",
+          external_name: "Qwen2.5-7B-Instruct",
+          external_model_ref: "Qwen/Qwen2.5-7B-Instruct",
+          external_web_url: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+          credits_budget: 20,
+          monthly_price_estimate: 20,
+          total_requests: 0,
+          successful_requests: 0,
+          failed_requests: 0,
+          total_tokens: 0,
+          avg_response_latency_ms: null,
+          last_response_latency_ms: null,
+          last_used_at: null,
+          last_success_at: null,
+          last_error_at: null,
+          last_error_message: null,
+          updated_at: "2026-04-01T13:30:00.000Z",
+        },
+        error: null,
+      }),
+    }));
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelSlug: "qwen-qwen2-5-7b-instruct",
+          modelName: "Qwen2.5 7B Instruct",
+          providerName: "Qwen",
+          creditsBudget: 20,
+          monthlyPriceEstimate: 20,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deployment.deploymentKind).toBe("hosted_external");
+    expect(body.deployment.target.provider).toBe("huggingface");
+    expect(body.activation.message).toMatch(/Hugging Face/i);
   });
 });

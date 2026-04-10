@@ -49,6 +49,16 @@ function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "as
   return "Assistant only";
 }
 
+function getHostedProviderLabel(entry: LaunchableEntry) {
+  if (entry.provisioning.deploymentKind !== "hosted_external") {
+    return "AI Market Cap";
+  }
+
+  return entry.provisioning.target?.platformSlug === "huggingface"
+    ? "Hugging Face via AI Market Cap"
+    : "Replicate via AI Market Cap";
+}
+
 function buildWorkspaceStartDefaults(entry: LaunchableEntry) {
   const pricing = getPublicPricingSummary(entry.model);
   const suggestedAmount =
@@ -58,10 +68,7 @@ function buildWorkspaceStartDefaults(entry: LaunchableEntry) {
   const suggestedPack = suggestedAmount != null ? getWalletTopUpPackForAmount(suggestedAmount) : null;
 
   return {
-    provider:
-      entry.provisioning.deploymentKind === "hosted_external"
-        ? "Replicate via AI Market Cap"
-        : "AI Market Cap",
+    provider: getHostedProviderLabel(entry),
     action:
       entry.provisioning.deploymentKind === "hosted_external"
         ? "Deploy on AI Market Cap"

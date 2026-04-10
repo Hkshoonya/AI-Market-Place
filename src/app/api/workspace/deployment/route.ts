@@ -16,6 +16,7 @@ import {
   type WorkspaceDeploymentRecord,
 } from "@/lib/workspace/deployment-summary";
 import {
+  provisionHuggingFaceDeployment,
   provisionReplicateDeployment,
   refreshHostedDeploymentStatus,
   resolveWorkspaceProvisioningOption,
@@ -296,6 +297,16 @@ export async function POST(request: Request) {
       });
     }
 
+    if (
+      provisioning.deploymentKind === "hosted_external" &&
+      provisioning.target?.provider === "huggingface" &&
+      !externalFields.external_owner
+    ) {
+      externalFields = await provisionHuggingFaceDeployment({
+        target: provisioning.target,
+      });
+    }
+
     const deploymentPayload = {
       user_id: auth.user.id,
       runtime_id: runtimeData?.id ?? null,
@@ -334,7 +345,9 @@ export async function POST(request: Request) {
       activation: {
         message:
           provisioning.deploymentKind === "hosted_external"
-            ? "Hosted deployment created through Replicate. You can now use it through the AI Market Cap endpoint."
+            ? provisioning.target?.provider === "huggingface"
+              ? "Hosted inference connected through Hugging Face. You can now use it through the AI Market Cap endpoint."
+              : "Hosted deployment created through Replicate. You can now use it through the AI Market Cap endpoint."
             : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
       provisioning,

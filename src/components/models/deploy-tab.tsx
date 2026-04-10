@@ -259,6 +259,12 @@ export function DeployTab({
         summary: provisioning.summary,
         modeLabel:
           provisioning.deploymentKind === "hosted_external" ? "Hosted for you" : "Hosted for you",
+        providerLabel:
+          provisioning.deploymentKind === "hosted_external"
+            ? provisioning.target?.platformSlug === "huggingface"
+              ? "Hugging Face via AI Market Cap"
+              : "Replicate via AI Market Cap"
+            : "AI Market Cap",
       }
     : null;
   const primaryPlatformType = primaryDeployment?.platform.type ?? null;
@@ -446,7 +452,7 @@ export function DeployTab({
                   model: modelName,
                   modelSlug,
                   action: aiMarketCapPlan.label,
-                  provider: "AI Market Cap",
+                  provider: aiMarketCapPlan.providerLabel,
                   nextUrl: `/models/${modelSlug}?tab=deploy#model-tabs`,
                   sponsored: false,
                   suggestedPackSlug: startPlan?.recommendedPack?.slug ?? null,
@@ -474,7 +480,9 @@ export function DeployTab({
                 {provisioning?.deploymentKind === "hosted_external"
                   ? provisioning.target?.platformSlug === "replicate"
                     ? "Replicate hosted runtime"
-                    : "Hosted deployment target"
+                    : provisioning.target?.platformSlug === "huggingface"
+                      ? "Hugging Face hosted inference"
+                      : "Hosted deployment target"
                   : "AI Market Cap managed runtime"}
               </p>
             </div>

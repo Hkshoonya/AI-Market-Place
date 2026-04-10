@@ -8,6 +8,7 @@ import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execut
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
 import {
   refreshHostedDeploymentStatus,
+  runHuggingFaceDeployment,
   runReplicateDeployment,
 } from "@/lib/workspace/external-deployment";
 import { type WorkspaceDeploymentRecord } from "@/lib/workspace/deployment-summary";
@@ -265,20 +266,27 @@ export async function POST(
     try {
       if (reconciledDeployment.deployment_kind === "hosted_external") {
         if (
-          reconciledDeployment.external_provider !== "replicate" ||
+          !reconciledDeployment.external_provider ||
           !reconciledDeployment.external_owner ||
           !reconciledDeployment.external_name ||
           !reconciledDeployment.external_model_ref
         ) {
           throw new Error("Hosted deployment target is incomplete");
         }
-        response = await runReplicateDeployment({
-          owner: reconciledDeployment.external_owner,
-          name: reconciledDeployment.external_name,
-          modelRef: reconciledDeployment.external_model_ref,
-          message: parsed.data.message,
-          system: parsed.data.system,
-        });
+        response =
+          reconciledDeployment.external_provider === "huggingface"
+            ? await runHuggingFaceDeployment({
+                modelRef: reconciledDeployment.external_model_ref,
+                message: parsed.data.message,
+                system: parsed.data.system,
+              })
+            : await runReplicateDeployment({
+                owner: reconciledDeployment.external_owner,
+                name: reconciledDeployment.external_name,
+                modelRef: reconciledDeployment.external_model_ref,
+                message: parsed.data.message,
+                system: parsed.data.system,
+              });
       } else {
         if (!execution.available || !execution.provider || !execution.model) {
           throw new Error(execution.summary);

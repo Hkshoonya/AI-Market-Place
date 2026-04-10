@@ -4,6 +4,7 @@ import {
   clearReplicateCatalogCacheForTests,
   refreshHostedDeploymentStatus,
   resolveWorkspaceProvisioningOption,
+  runHuggingFaceDeployment,
   updateHostedDeploymentScale,
 } from "./external-deployment";
 
@@ -269,6 +270,45 @@ describe("resolveWorkspaceProvisioningOption", () => {
       deploymentKind: "assistant_only",
     });
   });
+
+  it("uses Hugging Face hosted inference for warm HF-backed chat models", async () => {
+    process.env.HUGGINGFACE_API_TOKEN = "hf-test-token";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "Qwen/Qwen2.5-7B-Instruct",
+          inference: "warm",
+          pipeline_tag: "text-generation",
+          disabled: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const option = await resolveWorkspaceProvisioningOption({
+      supabase: createSupabaseModelLookup({
+        slug: "qwen-qwen2-5-7b-instruct",
+        name: "Qwen2.5 7B Instruct",
+        provider: "Qwen",
+        category: "llm",
+        parameter_count: null,
+        hf_model_id: "Qwen/Qwen2.5-7B-Instruct",
+      }),
+      modelSlug: "qwen-qwen2-5-7b-instruct",
+      runtimeExecution: {
+        available: false,
+        label: "Unavailable",
+        summary: "Unavailable",
+      },
+    });
+
+    expect(option.canCreate).toBe(true);
+    expect(option.deploymentKind).toBe("hosted_external");
+    expect(option.label).toMatch(/Hugging Face/i);
+    expect(option.target?.provider).toBe("huggingface");
+    expect(option.target?.modelRef).toBe("Qwen/Qwen2.5-7B-Instruct");
+  });
 });
 
 describe("hosted deployment lifecycle helpers", () => {
@@ -378,6 +418,72 @@ describe("hosted deployment lifecycle helpers", () => {
           min_instances: 0,
           max_instances: 0,
         }),
+      })
+    );
+  });
+
+  it("treats Hugging Face hosted inference as ready when inference is warm", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "Qwen/Qwen2.5-7B-Instruct",
+          inference: "warm",
+          pipeline_tag: "text-generation",
+          disabled: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const snapshot = await refreshHostedDeploymentStatus({
+      provider: "huggingface",
+      owner: "Qwen",
+      name: "Qwen2.5-7B-Instruct",
+    });
+
+    expect(snapshot).toEqual({
+      status: "ready",
+      externalWebUrl: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+      externalModelRef: "Qwen/Qwen2.5-7B-Instruct",
+      errorMessage: null,
+    });
+  });
+
+  it("runs a hosted Hugging Face deployment request", async () => {
+    process.env.HUGGINGFACE_API_TOKEN = "hf-test-token";
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "Qwen/Qwen2.5-7B-Instruct",
+            inference: "warm",
+            pipeline_tag: "text-generation",
+            disabled: false,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ generated_text: "Hello from Hugging Face" }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const response = await runHuggingFaceDeployment({
+      modelRef: "Qwen/Qwen2.5-7B-Instruct",
+      message: "Say hello",
+    });
+
+    expect(response.content).toBe("Hello from Hugging Face");
+    expect(response.provider).toBe("huggingface");
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      "https://api-inference.huggingface.co/models/Qwen%2FQwen2.5-7B-Instruct",
+      expect.objectContaining({
+        method: "POST",
       })
     );
   });

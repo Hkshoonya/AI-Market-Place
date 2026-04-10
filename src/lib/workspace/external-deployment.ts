@@ -1,11 +1,16 @@
 import { REPLICATE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/replicate";
 
 const REPLICATE_API_BASE = "https://api.replicate.com/v1";
+const HUGGING_FACE_API_BASE = "https://huggingface.co/api/models";
+const HUGGING_FACE_INFERENCE_BASE = "https://api-inference.huggingface.co/models";
+
+type ExternalPlatformSlug = "replicate" | "huggingface";
+type ExternalProviderSlug = "replicate" | "huggingface";
 
 export interface ExternalDeploymentTarget {
-  platformSlug: "replicate";
+  platformSlug: ExternalPlatformSlug;
   platformName: string;
-  provider: "replicate";
+  provider: ExternalProviderSlug;
   owner: string;
   name: string;
   modelRef: string;
@@ -101,6 +106,19 @@ interface ReplicateModelCapability {
   hasChatInput: boolean;
 }
 
+interface HuggingFaceModelCapability {
+  hasHostedInference: boolean;
+  task: string | null;
+}
+
+interface HuggingFaceModelResponse {
+  id?: string;
+  inference?: string | null;
+  pipeline_tag?: string | null;
+  disabled?: boolean;
+  gated?: boolean | string;
+}
+
 function normalizeValue(value: string | null | undefined) {
   return (value ?? "")
     .toLowerCase()
@@ -169,6 +187,19 @@ function buildReplicateDeploymentWebUrl(owner: string, name: string) {
   return `https://replicate.com/${owner}/${name}`;
 }
 
+function buildHuggingFaceModelWebUrl(modelRef: string) {
+  return `https://huggingface.co/${modelRef}`;
+}
+
+function splitModelRef(modelRef: string) {
+  const [owner, ...rest] = modelRef.split("/");
+  if (!owner || rest.length === 0) return null;
+  return {
+    owner,
+    name: rest.join("/"),
+  };
+}
+
 let replicateCatalogCache:
   | {
       expiresAt: number;
@@ -177,6 +208,7 @@ let replicateCatalogCache:
   | null = null;
 
 const replicateCapabilityCache = new Map<string, ReplicateModelCapability>();
+const huggingFaceCapabilityCache = new Map<string, HuggingFaceModelCapability>();
 
 async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
   const token = getOptionalEnv("REPLICATE_API_TOKEN");
@@ -318,6 +350,72 @@ async function resolveReplicateTarget(
   return null;
 }
 
+function isHuggingFaceHostedEligible(model: ModelProvisioningRecord) {
+  return isChatDeployableCategory(model.category) && Boolean(model.hf_model_id);
+}
+
+async function loadHuggingFaceModelCapability(
+  modelRef: string
+): Promise<HuggingFaceModelCapability> {
+  const cached = huggingFaceCapabilityCache.get(modelRef);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(
+      `${HUGGING_FACE_API_BASE}/${encodeURIComponent(modelRef)}?expand[]=inference&expand[]=pipeline_tag&expand[]=disabled&expand[]=gated`,
+      {
+        next: { revalidate: 3600 },
+      }
+    );
+    const raw = (await response.json().catch(() => null)) as HuggingFaceModelResponse | null;
+    const task = typeof raw?.pipeline_tag === "string" ? raw.pipeline_tag : null;
+    const capability = {
+      hasHostedInference:
+        Boolean(raw) &&
+        !raw?.disabled &&
+        (raw?.inference === "warm" || raw?.inference === "hot") &&
+        (task === "text-generation" ||
+          task === "text2text-generation" ||
+          task === "conversational"),
+      task,
+    };
+    huggingFaceCapabilityCache.set(modelRef, capability);
+    return capability;
+  } catch {
+    return { hasHostedInference: false, task: null };
+  }
+}
+
+async function resolveHuggingFaceTarget(
+  model: ModelProvisioningRecord
+): Promise<ExternalDeploymentTarget | null> {
+  if (
+    !isHuggingFaceHostedEligible(model) ||
+    !getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN")
+  ) {
+    return null;
+  }
+
+  const modelRef = model.hf_model_id ?? "";
+  const parts = splitModelRef(modelRef);
+  if (!parts) return null;
+
+  const capability = await loadHuggingFaceModelCapability(modelRef);
+  if (!capability.hasHostedInference) {
+    return null;
+  }
+
+  return {
+    platformSlug: "huggingface",
+    platformName: "Hugging Face",
+    provider: "huggingface",
+    owner: parts.owner,
+    name: parts.name,
+    modelRef,
+    webUrl: buildHuggingFaceModelWebUrl(modelRef),
+  };
+}
+
 export function resolveWorkspaceProvisioningHint(
   input: WorkspaceProvisioningHintInput
 ): WorkspaceProvisioningOption {
@@ -384,6 +482,7 @@ export function resolveWorkspaceProvisioningHint(
 export function clearReplicateCatalogCacheForTests() {
   replicateCatalogCache = null;
   replicateCapabilityCache.clear();
+  huggingFaceCapabilityCache.clear();
 }
 
 export async function resolveWorkspaceProvisioningOption(input: {
@@ -439,6 +538,18 @@ export async function resolveWorkspaceProvisioningOption(input: {
     };
   }
 
+  const huggingFaceTarget = await resolveHuggingFaceTarget(model);
+  if (huggingFaceTarget) {
+    return {
+      canCreate: true,
+      deploymentKind: "hosted_external",
+      label: "Hugging Face hosted inference",
+      summary:
+        "AI Market Cap can connect this model to Hugging Face hosted inference, then keep chat, API access, and usage tracking on-site.",
+      target: huggingFaceTarget,
+    };
+  }
+
   return staticHint;
 }
 
@@ -468,6 +579,19 @@ export async function refreshHostedDeploymentStatus(input: {
   owner: string | null;
   name: string | null;
 }): Promise<HostedDeploymentStatusSnapshot | null> {
+  if (input.provider === "huggingface" && input.owner && input.name) {
+    const modelRef = `${input.owner}/${input.name}`;
+    const capability = await loadHuggingFaceModelCapability(modelRef);
+    return {
+      status: capability.hasHostedInference ? "ready" : "failed",
+      externalWebUrl: buildHuggingFaceModelWebUrl(modelRef),
+      externalModelRef: capability.hasHostedInference ? modelRef : null,
+      errorMessage: capability.hasHostedInference
+        ? null
+        : "Hugging Face hosted inference is no longer available for this model.",
+    };
+  }
+
   if (input.provider !== "replicate" || !input.owner || !input.name) {
     return null;
   }
@@ -510,6 +634,14 @@ export async function updateHostedDeploymentScale(input: {
   minInstances: number;
   maxInstances: number;
 }) {
+  if (input.provider === "huggingface" && input.owner && input.name) {
+    const modelRef = `${input.owner}/${input.name}`;
+    return {
+      externalWebUrl: buildHuggingFaceModelWebUrl(modelRef),
+      externalModelRef: modelRef,
+    };
+  }
+
   if (input.provider !== "replicate" || !input.owner || !input.name) {
     throw new Error("Hosted deployment target is incomplete");
   }
@@ -620,6 +752,23 @@ export async function provisionReplicateDeployment(input: {
   };
 }
 
+export async function provisionHuggingFaceDeployment(input: {
+  target: ExternalDeploymentTarget;
+}) {
+  if (input.target.provider !== "huggingface") {
+    throw new Error("Hosted deployment target is incomplete");
+  }
+
+  return {
+    external_platform_slug: "huggingface" as const,
+    external_provider: "huggingface" as const,
+    external_owner: input.target.owner,
+    external_name: input.target.name,
+    external_model_ref: input.target.modelRef,
+    external_web_url: input.target.webUrl,
+  };
+}
+
 export async function runReplicateDeployment(input: {
   owner: string;
   name: string;
@@ -708,6 +857,87 @@ export async function runReplicateDeployment(input: {
     raw,
   };
 }
-function getOptionalEnv(name: string) {
-  return process.env[name] ?? "";
+
+export async function runHuggingFaceDeployment(input: {
+  modelRef: string;
+  message: string;
+  system?: string;
+}) {
+  const token = getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN");
+  if (!token) {
+    throw new Error("Hugging Face hosted inference is not configured");
+  }
+
+  const capability = await loadHuggingFaceModelCapability(input.modelRef);
+  if (!capability.hasHostedInference) {
+    throw new Error("This Hugging Face model is not available for hosted inference");
+  }
+
+  const prompt = input.system
+    ? `System: ${input.system}\n\nUser: ${input.message}\nAssistant:`
+    : input.message;
+  const response = await fetch(
+    `${HUGGING_FACE_INFERENCE_BASE}/${encodeURIComponent(input.modelRef)}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 1024,
+          return_full_text: false,
+          temperature: 0.2,
+        },
+        options: {
+          wait_for_model: true,
+          use_cache: false,
+        },
+      }),
+    }
+  );
+
+  const raw = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      raw && typeof raw === "object" && "error" in raw
+        ? String((raw as { error?: unknown }).error)
+        : `Hugging Face returned HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  const content = Array.isArray(raw)
+    ? raw
+        .map((item) =>
+          item && typeof item === "object" && "generated_text" in item
+            ? String((item as { generated_text?: unknown }).generated_text ?? "")
+            : ""
+        )
+        .join("\n")
+        .trim()
+    : raw && typeof raw === "object" && "generated_text" in raw
+      ? String((raw as { generated_text?: unknown }).generated_text ?? "").trim()
+      : typeof raw === "string"
+        ? raw.trim()
+        : "";
+
+  if (!content) {
+    throw new Error("Hugging Face hosted inference returned an empty response");
+  }
+
+  return {
+    content,
+    provider: "huggingface" as const,
+    model: input.modelRef,
+    usage: null,
+    raw,
+  };
+}
+function getOptionalEnv(...names: string[]) {
+  for (const name of names) {
+    if (process.env[name]) return process.env[name] as string;
+  }
+  return "";
 }
