@@ -4,7 +4,6 @@ import { Rocket, Server, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ModelsGrid } from "@/components/models/models-grid";
 import { Pagination } from "@/components/models/pagination";
 import { WorkspaceStartButton } from "@/components/workspace/workspace-start-button";
 import { SITE_URL } from "@/lib/constants/site";
@@ -465,17 +464,65 @@ export default async function DeployPage({
         </div>
       ) : (
         <>
-          <ModelsGrid
-            models={pagedModels.map(({ model }) => ({
-              ...model,
-              access_offer: null,
-              managed_deployment_available: true,
-              usage_mode_labels: ["Hosted for you"],
-              self_host_requirement_label: null,
-              recent_signal: null,
-              model_pricing: model.model_pricing,
-            }))}
-          />
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {pagedModels.map(({ model, provisioning }) => {
+              const pricing = getPublicPricingSummary(model).compactDisplay;
+              const selfHost = model.is_open_weights
+                ? getSelfHostRequirements({
+                    isOpenWeights: model.is_open_weights,
+                    parameterCount: model.parameter_count,
+                    contextWindow: model.context_window,
+                    category: model.category,
+                    name: model.name,
+                    slug: model.slug,
+                    modalities: model.modalities,
+                  })?.shortLabel ?? null
+                : null;
+
+              return (
+                <Card key={model.id} className="border-border/50 bg-card/70">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{model.name}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{model.provider}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
+                      >
+                        {getProvisioningBadgeLabel(provisioning.deploymentKind)}
+                      </Badge>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
+                    {pricing ? (
+                      <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
+                    ) : null}
+                    {selfHost ? (
+                      <p className="mt-2 text-xs text-amber-200">{selfHost}</p>
+                    ) : null}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <WorkspaceStartButton
+                        label="Deploy Now"
+                        size="sm"
+                        className="bg-neon text-background hover:bg-neon/90"
+                        model={model.name}
+                        modelSlug={model.slug}
+                        provider={model.provider}
+                        action="Deploy on AI Market Cap"
+                        nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
+                      />
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/models/${model.slug}?tab=deploy#model-tabs`}>
+                          Model Page
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
           <Pagination
             totalCount={filteredLaunchableModels.length}
             pageSize={PAGE_SIZE}
