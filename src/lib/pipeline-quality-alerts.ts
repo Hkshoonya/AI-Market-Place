@@ -7,7 +7,9 @@ export type PipelineDataQualityAlert = {
     | "official_discovery_readiness"
     | "official_ranking_contamination"
     | "low_trust_discovery_ready"
-    | "low_trust_signal_contamination";
+    | "low_trust_signal_contamination"
+    | "stuck_deployment_provisioning"
+    | "failed_deployments";
   message: string;
   value: number;
   target: number;
@@ -27,9 +29,15 @@ type PublicMetadataCoverageSummaryInput = {
   signalContaminationCount: number;
 };
 
+type DeploymentOperationsSummaryInput = {
+  staleProvisioningCount: number;
+  failedCount: number;
+};
+
 export function computePipelineDataQualityAlerts(input: {
   benchmarkCoverage: BenchmarkCoverageSummaryInput;
   publicMetadataCoverage: PublicMetadataCoverageSummaryInput;
+  deploymentOperations?: DeploymentOperationsSummaryInput;
 }) {
   const alerts: PipelineDataQualityAlert[] = [];
 
@@ -109,6 +117,30 @@ export function computePipelineDataQualityAlerts(input: {
       message:
         "Low-trust community or wrapper rows still carry public signal fields that can contaminate scoring and discovery inputs.",
       value: input.publicMetadataCoverage.signalContaminationCount,
+      target: 0,
+    });
+  }
+
+  if ((input.deploymentOperations?.staleProvisioningCount ?? 0) > 0) {
+    alerts.push({
+      severity:
+        (input.deploymentOperations?.staleProvisioningCount ?? 0) >= 3
+          ? "critical"
+          : "warning",
+      code: "stuck_deployment_provisioning",
+      message: "Some AI Market Cap deployments have been stuck in provisioning for too long.",
+      value: input.deploymentOperations?.staleProvisioningCount ?? 0,
+      target: 0,
+    });
+  }
+
+  if ((input.deploymentOperations?.failedCount ?? 0) > 0) {
+    alerts.push({
+      severity:
+        (input.deploymentOperations?.failedCount ?? 0) >= 5 ? "critical" : "warning",
+      code: "failed_deployments",
+      message: "Some AI Market Cap deployments are currently in a failed state.",
+      value: input.deploymentOperations?.failedCount ?? 0,
       target: 0,
     });
   }

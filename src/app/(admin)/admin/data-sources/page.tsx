@@ -213,6 +213,17 @@ interface PipelineHealthDetail {
     trustedLocatorCoveragePct: number;
     missingTrustedLocatorCount: number;
   };
+  deploymentOperations?: {
+    total: number;
+    managedCount: number;
+    hostedCount: number;
+    readyCount: number;
+    pausedCount: number;
+    provisioningCount: number;
+    staleProvisioningCount: number;
+    failedCount: number;
+    staleProvisioningThresholdMinutes: number;
+  };
   publicMetadataCoverage?: {
     completeDiscoveryMetadataPct: number;
     defaultPublicSurfaceReadyPct: number;
@@ -1003,6 +1014,14 @@ export default function AdminDataSourcesPage() {
           <Badge variant="outline" className="border-border/40 text-[10px]">
             Benchmark coverage: {healthData.benchmarkCoverage.coveragePct}% · gaps:{" "}
             {healthData.benchmarkCoverage.officialGapCount}
+          </Badge>
+        )}
+        {healthData?.deploymentOperations && (
+          <Badge variant="outline" className="border-border/40 text-[10px]">
+            Deployments: {healthData.deploymentOperations.total} · provisioning:{" "}
+            {healthData.deploymentOperations.provisioningCount} · stuck:{" "}
+            {healthData.deploymentOperations.staleProvisioningCount} · failed:{" "}
+            {healthData.deploymentOperations.failedCount}
           </Badge>
         )}
         {healthData?.publicMetadataCoverage && (

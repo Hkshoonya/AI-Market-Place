@@ -27,6 +27,7 @@ import {
 import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
+import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
 import {
   computePipelineDataQualityAlerts,
   computePipelineDataQualityStatus,
@@ -76,6 +77,17 @@ const PipelineHealthSummarySchema = z.object({
     officialGapCount: z.number(),
     trustedLocatorCoveragePct: z.number(),
     missingTrustedLocatorCount: z.number(),
+  }),
+  deploymentOperations: z.object({
+    total: z.number(),
+    managedCount: z.number(),
+    hostedCount: z.number(),
+    readyCount: z.number(),
+    pausedCount: z.number(),
+    provisioningCount: z.number(),
+    staleProvisioningCount: z.number(),
+    failedCount: z.number(),
+    staleProvisioningThresholdMinutes: z.number(),
   }),
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
@@ -131,6 +143,39 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
         provider: z.string(),
         category: z.string().nullable(),
         release_date: z.string().nullable(),
+      })
+    ),
+  }),
+  deploymentOperations: z.object({
+    total: z.number(),
+    managedCount: z.number(),
+    hostedCount: z.number(),
+    readyCount: z.number(),
+    pausedCount: z.number(),
+    provisioningCount: z.number(),
+    staleProvisioningCount: z.number(),
+    failedCount: z.number(),
+    staleProvisioningThresholdMinutes: z.number(),
+    recentStaleProvisioning: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        modelName: z.string(),
+        provider: z.string().nullable(),
+        deploymentKind: z.enum(["managed_api", "assistant_only", "hosted_external"]),
+        updatedAt: z.string(),
+        ageMinutes: z.number().nullable(),
+      })
+    ),
+    recentFailed: z.array(
+      z.object({
+        id: z.string(),
+        slug: z.string(),
+        modelName: z.string(),
+        provider: z.string().nullable(),
+        deploymentKind: z.enum(["managed_api", "assistant_only", "hosted_external"]),
+        updatedAt: z.string(),
+        errorMessage: z.string().nullable(),
       })
     ),
   }),
@@ -314,6 +359,7 @@ export async function GET(request: NextRequest) {
       benchmarkCoverage,
       benchmarkMetadataCoverage,
       publicMetadataCoverage,
+      deploymentRowsResult,
     ] = await Promise.all([
       adminSupabase
         .from("data_sources")
@@ -326,6 +372,13 @@ export async function GET(request: NextRequest) {
       computeBenchmarkCoverage(adminSupabase),
       computeBenchmarkMetadataCoverage(adminSupabase),
       computePublicMetadataCoverage(adminSupabase),
+      adminSupabase
+        .from("workspace_deployments")
+        .select(
+          "id, model_slug, model_name, provider_name, status, deployment_kind, created_at, updated_at, last_error_message"
+        )
+        .order("updated_at", { ascending: false })
+        .limit(1000),
     ]);
 
     if (dataSourcesResult.error) {
@@ -334,9 +387,15 @@ export async function GET(request: NextRequest) {
     if (pipelineHealthResult.error) {
       throw new Error(`Failed to fetch pipeline_health: ${pipelineHealthResult.error.message}`);
     }
+    if (deploymentRowsResult.error) {
+      throw new Error(`Failed to fetch workspace_deployments: ${deploymentRowsResult.error.message}`);
+    }
 
     const dataSources = dataSourcesResult.data ?? [];
     const healthRows = pipelineHealthResult.data ?? [];
+    const deploymentOperations = computeDeploymentOperationsSummary(
+      deploymentRowsResult.data ?? []
+    );
 
     // Build a lookup map from pipeline_health by source_slug
     const healthBySlug = new Map(
@@ -400,6 +459,10 @@ export async function GET(request: NextRequest) {
         lowTrustReadyCount: publicMetadataCoverage.lowTrustReadyCount,
         signalContaminationCount: publicMetadataCoverage.signalContaminationCount,
       },
+      deploymentOperations: {
+        staleProvisioningCount: deploymentOperations.totals.staleProvisioningCount,
+        failedCount: deploymentOperations.totals.failedCount,
+      },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
 
@@ -425,6 +488,11 @@ export async function GET(request: NextRequest) {
           benchmarkCoverage.recent_sparse_benchmark_expected_official.slice(0, 10),
         recentMissingTrustedLocators:
           benchmarkMetadataCoverage.recentMissingTrustedLocators,
+      },
+      deploymentOperations: {
+        ...deploymentOperations.totals,
+        recentStaleProvisioning: deploymentOperations.recentStaleProvisioning,
+        recentFailed: deploymentOperations.recentFailed,
       },
       publicMetadataCoverage: {
         completeDiscoveryMetadataPct:

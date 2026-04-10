@@ -20,6 +20,10 @@ describe("pipeline data quality alerts", () => {
         lowTrustReadyCount: 0,
         signalContaminationCount: 0,
       },
+      deploymentOperations: {
+        staleProvisioningCount: 0,
+        failedCount: 0,
+      },
     });
 
     expect(alerts).toEqual([]);
@@ -40,6 +44,10 @@ describe("pipeline data quality alerts", () => {
         lowTrustReadyCount: 1,
         signalContaminationCount: 3,
       },
+      deploymentOperations: {
+        staleProvisioningCount: 2,
+        failedCount: 6,
+      },
     });
 
     expect(alerts.map((alert) => alert.code)).toEqual([
@@ -50,6 +58,8 @@ describe("pipeline data quality alerts", () => {
       "official_ranking_contamination",
       "low_trust_discovery_ready",
       "low_trust_signal_contamination",
+      "stuck_deployment_provisioning",
+      "failed_deployments",
     ]);
     expect(computePipelineDataQualityStatus(alerts)).toBe("critical");
   });
