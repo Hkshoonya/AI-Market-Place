@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ModelsGrid } from "@/components/models/models-grid";
 import { Pagination } from "@/components/models/pagination";
+import { WorkspaceStartButton } from "@/components/workspace/workspace-start-button";
 import { SITE_URL } from "@/lib/constants/site";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultPartial } from "@/lib/schemas/parse";
@@ -400,10 +401,9 @@ export default async function DeployPage({
                         : null;
 
                     return (
-                      <Link
+                      <div
                         key={`${section.title}-${model.id}`}
-                        href={`/models/${model.slug}`}
-                        className="block rounded-xl border border-border/50 bg-card/40 p-4 transition-colors hover:border-neon/30"
+                        className="rounded-xl border border-border/50 bg-card/40 p-4 transition-colors hover:border-neon/30"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -424,7 +424,24 @@ export default async function DeployPage({
                         {selfHost ? (
                           <p className="mt-2 text-xs text-amber-200">{selfHost}</p>
                         ) : null}
-                      </Link>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <WorkspaceStartButton
+                            label="Deploy Now"
+                            size="sm"
+                            className="bg-neon text-background hover:bg-neon/90"
+                            model={model.name}
+                            modelSlug={model.slug}
+                            provider={model.provider}
+                            action="Deploy on AI Market Cap"
+                            nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
+                          />
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/models/${model.slug}?tab=deploy#model-tabs`}>
+                              Model Page
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
                     );
                   })
                 )}
