@@ -17,6 +17,10 @@ import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execut
 import { resolveWorkspaceProvisioningHint } from "@/lib/workspace/external-deployment";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
+import {
+  getRecommendedWalletTopUpAmount,
+  getWalletTopUpPackForAmount,
+} from "@/lib/constants/wallet";
 
 export const metadata: Metadata = {
   title: "Deploy AI Models on AI Market Cap",
@@ -43,6 +47,29 @@ function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "as
   if (kind === "managed_api") return "Managed runtime";
   if (kind === "hosted_external") return "Hosted backend";
   return "Assistant only";
+}
+
+function buildWorkspaceStartDefaults(entry: LaunchableEntry) {
+  const pricing = getPublicPricingSummary(entry.model);
+  const suggestedAmount =
+    pricing.compactPrice != null && pricing.compactPrice > 0
+      ? getRecommendedWalletTopUpAmount(pricing.compactPrice)
+      : null;
+  const suggestedPack = suggestedAmount != null ? getWalletTopUpPackForAmount(suggestedAmount) : null;
+
+  return {
+    provider:
+      entry.provisioning.deploymentKind === "hosted_external"
+        ? "Replicate via AI Market Cap"
+        : "AI Market Cap",
+    action:
+      entry.provisioning.deploymentKind === "hosted_external"
+        ? "Deploy on AI Market Cap"
+        : "Use on AI Market Cap",
+    suggestedAmount,
+    suggestedPackSlug: suggestedPack?.slug ?? null,
+    suggestedPack: suggestedPack?.label ?? null,
+  };
 }
 
 type LaunchableEntry = {
@@ -382,6 +409,7 @@ export default async function DeployPage({
                   section.items.map((entry) => {
                     const model = entry.model;
                     const provisioning = entry.provisioning;
+                    const startDefaults = buildWorkspaceStartDefaults(entry);
                     const pricing =
                       section.kind === "lowest_cost"
                         ? (entry as LowestCostLaunchableEntry).pricing.compactDisplay
@@ -430,9 +458,12 @@ export default async function DeployPage({
                             className="bg-neon text-background hover:bg-neon/90"
                             model={model.name}
                             modelSlug={model.slug}
-                            provider={model.provider}
-                            action="Deploy on AI Market Cap"
+                            provider={startDefaults.provider}
+                            action={startDefaults.action}
                             nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
+                            suggestedAmount={startDefaults.suggestedAmount}
+                            suggestedPackSlug={startDefaults.suggestedPackSlug}
+                            suggestedPack={startDefaults.suggestedPack}
                           />
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/models/${model.slug}?tab=deploy#model-tabs`}>
@@ -467,6 +498,7 @@ export default async function DeployPage({
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {pagedModels.map(({ model, provisioning }) => {
               const pricing = getPublicPricingSummary(model).compactDisplay;
+              const startDefaults = buildWorkspaceStartDefaults({ model, provisioning });
               const selfHost = model.is_open_weights
                 ? getSelfHostRequirements({
                     isOpenWeights: model.is_open_weights,
@@ -508,9 +540,12 @@ export default async function DeployPage({
                         className="bg-neon text-background hover:bg-neon/90"
                         model={model.name}
                         modelSlug={model.slug}
-                        provider={model.provider}
-                        action="Deploy on AI Market Cap"
+                        provider={startDefaults.provider}
+                        action={startDefaults.action}
                         nextUrl={`/models/${model.slug}?tab=deploy#model-tabs`}
+                        suggestedAmount={startDefaults.suggestedAmount}
+                        suggestedPackSlug={startDefaults.suggestedPackSlug}
+                        suggestedPack={startDefaults.suggestedPack}
                       />
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/models/${model.slug}?tab=deploy#model-tabs`}>
