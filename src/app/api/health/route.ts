@@ -46,7 +46,7 @@ const HealthPublicSchema = z.object({
   version: z.string(),
   timestamp: z.string(),
   release: z.object({
-    provider: z.enum(["railway", "vercel", "unknown"]),
+    provider: z.enum(["railway", "unknown"]),
     commitSha: z.string().nullable(),
     branch: z.string().nullable(),
     environment: z.string().nullable(),
@@ -117,9 +117,6 @@ function resolveReleaseMetadata() {
   const railwayCommitSha = normalizeEnvValue(process.env.RAILWAY_GIT_COMMIT_SHA);
   const railwayBranch = normalizeEnvValue(process.env.RAILWAY_GIT_BRANCH);
   const railwayEnvironment = normalizeEnvValue(process.env.RAILWAY_ENVIRONMENT_NAME);
-  const vercelCommitSha = normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_SHA);
-  const vercelBranch = normalizeEnvValue(process.env.VERCEL_GIT_COMMIT_REF);
-  const vercelEnvironment = normalizeEnvValue(process.env.VERCEL_ENV);
 
   if (railwayCommitSha || railwayBranch || railwayEnvironment) {
     return {
@@ -127,15 +124,6 @@ function resolveReleaseMetadata() {
       commitSha: railwayCommitSha,
       branch: railwayBranch,
       environment: railwayEnvironment,
-    };
-  }
-
-  if (vercelCommitSha || vercelBranch || vercelEnvironment) {
-    return {
-      provider: "vercel" as const,
-      commitSha: vercelCommitSha,
-      branch: vercelBranch,
-      environment: vercelEnvironment,
     };
   }
 

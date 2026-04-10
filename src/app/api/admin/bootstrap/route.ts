@@ -5,7 +5,7 @@ import type { OrchestratorResult } from "@/lib/data-sources/orchestrator";
 import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes (Vercel hobby limit)
+export const maxDuration = 300; // 5 minutes max for long-running bootstrap work
 
 // POST /api/admin/bootstrap
 // Runs all data pipeline tiers sequentially to populate an empty database.
@@ -35,9 +35,8 @@ export async function POST(_request: NextRequest) {
     }
 
     // 3. Run tiers 1 → 4 sequentially.
-    // Each tier is given up to the remaining Vercel execution budget; the
-    // per-adapter timeout inside the orchestrator (default 5 min) acts as
-    // the real guard per source.
+    // Each tier is bounded by the route maxDuration, while the per-adapter
+    // timeout inside the orchestrator remains the real guard per source.
     const results: Record<string, { status: string } & Partial<OrchestratorResult> & { error?: string }> = {};
 
     for (const tier of [1, 2, 3, 4] as const) {

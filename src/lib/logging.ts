@@ -31,7 +31,7 @@ interface LogEntry {
 async function writeLog(entry: LogEntry): Promise<string | null> {
   const { level, source, message, metadata } = entry;
 
-  // Always mirror to console for Vercel's log drain
+  // Always mirror to console so container platforms can capture application logs
   const consoleFn = level === "error" ? console.error : level === "warn" ? console.warn : console.info;
   consoleFn(`[${level.toUpperCase()}] [${source}] ${message}`, metadata ?? "");
 

@@ -128,8 +128,8 @@ export default function PrivacyPage() {
               hosting, authentication, and file storage
             </li>
             <li>
-              <strong className="text-foreground">Vercel</strong> — website
-              hosting, edge functions, and performance analytics
+              <strong className="text-foreground">Railway</strong> — website
+              hosting and application runtime infrastructure
             </li>
             <li>
               <strong className="text-foreground">
@@ -415,7 +415,7 @@ export default function PrivacyPage() {
             Your information may be transferred to and processed in the United
             States and other countries that may not provide the same level of
             data protection as your country of residence. Our service providers,
-            including Supabase and Vercel, operate infrastructure globally.
+            including Supabase and Railway, operate infrastructure globally.
           </p>
           <p className="mt-2">
             If you are located in the European Union or other regions with data

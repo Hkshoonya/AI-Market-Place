@@ -3,7 +3,7 @@ import { runSingleSync, runTierSync } from "@/lib/data-sources/orchestrator";
 import { trackCronRun } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes max (Vercel Pro)
+export const maxDuration = 300; // 5 minutes max for long-running cron syncs
 
 /**
  * Cron endpoint for data source sync.
