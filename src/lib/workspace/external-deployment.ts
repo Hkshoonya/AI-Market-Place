@@ -485,6 +485,55 @@ export function clearReplicateCatalogCacheForTests() {
   huggingFaceCapabilityCache.clear();
 }
 
+export async function resolveWorkspaceProvisioningForModel(input: {
+  model: ModelProvisioningRecord;
+  runtimeExecution: {
+    available: boolean;
+    label: string;
+    summary: string;
+  };
+}): Promise<WorkspaceProvisioningOption> {
+  const staticHint = resolveWorkspaceProvisioningHint({
+    modelSlug: input.model.slug,
+    modelName: input.model.name,
+    provider: input.model.provider,
+    category: input.model.category,
+    hfModelId: input.model.hf_model_id,
+    runtimeExecution: input.runtimeExecution,
+  });
+  if (staticHint.canCreate && staticHint.deploymentKind === "managed_api") {
+    return staticHint;
+  }
+
+  const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
+    ? await resolveReplicateTarget(input.model)
+    : null;
+  if (replicateTarget) {
+    return {
+      canCreate: true,
+      deploymentKind: "hosted_external",
+      label: "Replicate hosted deployment",
+      summary:
+        "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
+      target: replicateTarget,
+    };
+  }
+
+  const huggingFaceTarget = await resolveHuggingFaceTarget(input.model);
+  if (huggingFaceTarget) {
+    return {
+      canCreate: true,
+      deploymentKind: "hosted_external",
+      label: "Hugging Face hosted inference",
+      summary:
+        "AI Market Cap can connect this model to Hugging Face hosted inference, then keep chat, API access, and usage tracking on-site.",
+      target: huggingFaceTarget,
+    };
+  }
+
+  return staticHint;
+}
+
 export async function resolveWorkspaceProvisioningOption(input: {
   supabase: unknown;
   modelSlug: string;
@@ -512,45 +561,10 @@ export async function resolveWorkspaceProvisioningOption(input: {
     });
   }
 
-  const staticHint = resolveWorkspaceProvisioningHint({
-    modelSlug: model.slug,
-    modelName: model.name,
-    provider: model.provider,
-    category: model.category,
-    hfModelId: model.hf_model_id,
+  return resolveWorkspaceProvisioningForModel({
+    model,
     runtimeExecution: input.runtimeExecution,
   });
-  if (staticHint.canCreate && staticHint.deploymentKind === "managed_api") {
-    return staticHint;
-  }
-
-  const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
-    ? await resolveReplicateTarget(model)
-    : null;
-  if (replicateTarget) {
-    return {
-      canCreate: true,
-      deploymentKind: "hosted_external",
-      label: "Replicate hosted deployment",
-      summary:
-        "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
-      target: replicateTarget,
-    };
-  }
-
-  const huggingFaceTarget = await resolveHuggingFaceTarget(model);
-  if (huggingFaceTarget) {
-    return {
-      canCreate: true,
-      deploymentKind: "hosted_external",
-      label: "Hugging Face hosted inference",
-      summary:
-        "AI Market Cap can connect this model to Hugging Face hosted inference, then keep chat, API access, and usage tracking on-site.",
-      target: huggingFaceTarget,
-    };
-  }
-
-  return staticHint;
 }
 
 function buildReplicateHeaders() {

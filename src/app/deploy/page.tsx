@@ -14,7 +14,10 @@ import { z } from "zod";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
-import { resolveWorkspaceProvisioningHint } from "@/lib/workspace/external-deployment";
+import {
+  resolveWorkspaceProvisioningForModel,
+  resolveWorkspaceProvisioningHint,
+} from "@/lib/workspace/external-deployment";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import {
@@ -40,6 +43,7 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 const PAGE_SIZE = 24;
+const MAX_DEPLOY_PROVISIONING_CANDIDATES = 120;
 const DEPLOY_FOCUS_OPTIONS = ["all", "chat", "api", "open", "cost"] as const;
 type DeployFocus = (typeof DEPLOY_FOCUS_OPTIONS)[number];
 
@@ -140,19 +144,36 @@ export default async function DeployPage({
     12
   );
 
-  const launchableModels: LaunchableEntry[] = candidateModels
-    .map((model) => {
-      const provisioning = resolveWorkspaceProvisioningHint({
-        modelSlug: model.slug,
-        modelName: model.name,
-        provider: model.provider,
-        category: model.category,
-        hfModelId: model.hf_model_id,
-        runtimeExecution: resolveWorkspaceRuntimeExecution(model.slug),
-      });
-      return { model, provisioning };
-    })
-    .filter(({ provisioning }) => provisioning.canCreate);
+  const provisioningCandidates = candidateModels.slice(0, MAX_DEPLOY_PROVISIONING_CANDIDATES);
+  const launchableModels: LaunchableEntry[] = (
+    await Promise.all(
+      provisioningCandidates.map(async (model) => {
+        const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
+        const provisioning = runtimeExecution.available
+          ? resolveWorkspaceProvisioningHint({
+              modelSlug: model.slug,
+              modelName: model.name,
+              provider: model.provider,
+              category: model.category,
+              hfModelId: model.hf_model_id,
+              runtimeExecution,
+            })
+          : await resolveWorkspaceProvisioningForModel({
+              model: {
+                slug: model.slug,
+                name: model.name,
+                provider: model.provider,
+                category: model.category,
+                parameter_count: model.parameter_count,
+                hf_model_id: model.hf_model_id,
+              },
+              runtimeExecution,
+            });
+
+        return { model, provisioning };
+      })
+    )
+  ).filter(({ provisioning }) => provisioning.canCreate);
 
   const managedRuntimeCount = launchableModels.filter(
     ({ provisioning }) => provisioning.deploymentKind === "managed_api"
