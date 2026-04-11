@@ -34,40 +34,46 @@ function rankSignal(overallRank: number | null | undefined): number {
   return 101 - boundedRank;
 }
 
+function releaseAgeDays(
+  releaseDate: string | null | undefined,
+  now = Date.now()
+): number | null {
+  if (!releaseDate) return null;
+
+  const timestamp = Date.parse(releaseDate);
+  if (!Number.isFinite(timestamp)) return null;
+
+  return Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
+}
+
 function releaseFreshnessSignal(
   releaseDate: string | null | undefined,
   now = Date.now()
 ): number {
-  if (!releaseDate) return 45;
+  const ageDays = releaseAgeDays(releaseDate, now);
+  if (ageDays == null) return 40;
 
-  const timestamp = Date.parse(releaseDate);
-  if (!Number.isFinite(timestamp)) return 45;
-
-  const ageDays = Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
-
-  if (ageDays <= 120) return 100;
-  if (ageDays <= 240) return 85;
-  if (ageDays <= 365) return 70;
-  if (ageDays <= 540) return 45;
-  return 20;
+  if (ageDays <= 90) return 100;
+  if (ageDays <= 180) return 90;
+  if (ageDays <= 270) return 74;
+  if (ageDays <= 365) return 58;
+  if (ageDays <= 540) return 35;
+  return 16;
 }
 
 function releaseFreshnessMultiplier(
   releaseDate: string | null | undefined,
   now = Date.now()
 ): number {
-  if (!releaseDate) return 0.9;
+  const ageDays = releaseAgeDays(releaseDate, now);
+  if (ageDays == null) return 0.75;
 
-  const timestamp = Date.parse(releaseDate);
-  if (!Number.isFinite(timestamp)) return 0.9;
-
-  const ageDays = Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
-
-  if (ageDays <= 120) return 1;
-  if (ageDays <= 240) return 0.9;
-  if (ageDays <= 365) return 0.75;
-  if (ageDays <= 540) return 0.56;
-  return 0.4;
+  if (ageDays <= 90) return 1;
+  if (ageDays <= 180) return 0.9;
+  if (ageDays <= 270) return 0.76;
+  if (ageDays <= 365) return 0.58;
+  if (ageDays <= 540) return 0.38;
+  return 0.25;
 }
 
 function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
@@ -105,7 +111,8 @@ function homepageCandidateMultiplier(
   }
 
   if (isEfficiencyTierModel(model)) {
-    multiplier *= 0.84;
+    const ageDays = releaseAgeDays(model.release_date, now);
+    multiplier *= ageDays == null || ageDays > 240 ? 0.72 : 0.84;
   }
 
   const freshness = releaseFreshnessSignal(model.release_date, now);

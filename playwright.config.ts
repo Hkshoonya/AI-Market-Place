@@ -1,11 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT ?? "3000";
+const PLAYWRIGHT_PORT = process.env.PLAYWRIGHT_PORT ?? "3410";
 const PLAYWRIGHT_BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
 const PLAYWRIGHT_WEB_SERVER_COMMAND =
   process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ??
   `npm run dev -- --hostname 127.0.0.1 --port ${PLAYWRIGHT_PORT}`;
+const PLAYWRIGHT_WORKERS = Number(process.env.PLAYWRIGHT_WORKERS ?? 1);
 
 /**
  * Playwright configuration for AI Market Cap E2E tests.
@@ -20,7 +21,7 @@ export default defineConfig({
   outputDir: "playwright-results",
   reporter: process.env.CI ? "github" : "html",
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: Number.isFinite(PLAYWRIGHT_WORKERS) && PLAYWRIGHT_WORKERS > 0 ? PLAYWRIGHT_WORKERS : 1,
 
   use: {
     baseURL: PLAYWRIGHT_BASE_URL,
@@ -55,7 +56,7 @@ export default defineConfig({
   webServer: {
     command: PLAYWRIGHT_WEB_SERVER_COMMAND,
     url: PLAYWRIGHT_BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "true",
     timeout: 120_000,
     env: {
       // Dummy values so Next.js starts without "SUPABASE_URL is required" errors.

@@ -76,8 +76,7 @@ test.describe("Model detail page", () => {
   // ---------------------------------------------------------------------------
   test("model detail page renders page shell with tabs", async ({ page }) => {
     await setupModelInterceptors(page);
-    // Use default waitUntil ('load') — this waits for streaming SSR to complete
-    await page.goto(MODEL_URL);
+    await page.goto(MODEL_URL, { waitUntil: "domcontentloaded" });
 
     // MSW ensures the page renders with fixture data — no skip needed.
     // Wait for the main content area heading.

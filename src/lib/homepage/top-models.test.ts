@@ -280,6 +280,88 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("current-flagship");
   });
 
+  it("does not let stale free-provider rows outrank a current open-weight release on old adoption alone", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "stale-gemini-2-5-pro",
+          slug: "google-gemini-2-5-pro",
+          name: "Gemini 2.5 Pro",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 1,
+          economic_footprint_score: 95,
+          adoption_score: 96,
+          capability_score: 89,
+          quality_score: 88,
+          popularity_score: 74,
+          release_date: "2025-03-25",
+        },
+        {
+          id: "current-gemma-4",
+          slug: "google-gemma-4-31b-it",
+          name: "Gemma 4 31B IT",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 40,
+          economic_footprint_score: 68,
+          adoption_score: 68,
+          capability_score: 91,
+          quality_score: 90,
+          popularity_score: 58,
+          release_date: "2026-04-02",
+          is_open_weights: true,
+          license: "open_source",
+          license_name: "Apache 2.0",
+          context_window: 128000,
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-gemma-4");
+  });
+
+  it("keeps older efficiency tiers behind current frontier models even with inflated rank signals", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "old-gemini-2-5-flash",
+          slug: "google-gemini-2-5-flash",
+          name: "Gemini 2.5 Flash",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 2,
+          economic_footprint_score: 95,
+          adoption_score: 95,
+          capability_score: 86,
+          quality_score: 84,
+          popularity_score: 72,
+          release_date: "2025-05-20",
+        },
+        {
+          id: "current-frontier-release",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 35,
+          economic_footprint_score: 70,
+          adoption_score: 72,
+          capability_score: 90,
+          quality_score: 89,
+          popularity_score: 60,
+          release_date: "2026-03-25",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-frontier-release");
+  });
+
   it("collapses dated sibling variants to a single representative model", () => {
     const ids = selectHomepageTopModelIds(
       [
