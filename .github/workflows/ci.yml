@@ -74,6 +74,8 @@ jobs:
       - name: Run E2E tests
         run: npx playwright test
         env:
+          PLAYWRIGHT_PORT: '3000'
+          PLAYWRIGHT_BASE_URL: 'http://127.0.0.1:3000'
           PLAYWRIGHT_WEB_SERVER_COMMAND: PORT=3000 HOSTNAME=127.0.0.1 npm run start
       - uses: actions/upload-artifact@v7
         if: failure()
