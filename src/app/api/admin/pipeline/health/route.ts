@@ -28,6 +28,7 @@ import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
+import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 import {
   computePipelineDataQualityAlerts,
   computePipelineDataQualityStatus,
@@ -110,6 +111,15 @@ const PipelineHealthSummarySchema = z.object({
     officialDefaultPublicSurfaceReadyPct: z.number(),
     officialMissingReleaseDateCount: z.number(),
     officialRankingContaminationCount: z.number(),
+  }),
+  payments: z.object({
+    stripe: z.object({
+      status: z.enum(["ready", "partial", "disabled"]),
+      checkoutConfigured: z.boolean(),
+      webhookConfigured: z.boolean(),
+      publishableKeyConfigured: z.boolean(),
+      blockingIssues: z.array(z.string()),
+    }),
   }),
 });
 
@@ -299,6 +309,15 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       })
     ),
   }),
+  payments: z.object({
+    stripe: z.object({
+      status: z.enum(["ready", "partial", "disabled"]),
+      checkoutConfigured: z.boolean(),
+      webhookConfigured: z.boolean(),
+      publishableKeyConfigured: z.boolean(),
+      blockingIssues: z.array(z.string()),
+    }),
+  }),
 });
 
 function sanitizePipelineErrorMessage(error: string | null | undefined) {
@@ -436,6 +455,7 @@ export async function GET(request: NextRequest) {
       downCount > 0 ? "down" : degradedCount > 0 ? "degraded" : "healthy";
 
     const checkedAt = new Date().toISOString();
+    const stripePaymentsReadiness = getStripePaymentsReadiness();
     const benchmarkCoverageSummary = {
       coveragePct: benchmarkCoverage.totals.coverage_pct,
       coveredModels: benchmarkCoverage.totals.covered_models,
@@ -553,6 +573,9 @@ export async function GET(request: NextRequest) {
         recentLowTrustModels: publicMetadataCoverage.recentLowTrustModels,
         recentSignalContaminationModels:
           publicMetadataCoverage.recentSignalContaminationModels,
+      },
+      payments: {
+        stripe: stripePaymentsReadiness,
       },
     });
 

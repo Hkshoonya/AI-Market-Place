@@ -254,6 +254,15 @@ interface PipelineHealthDetail {
       count: number;
     }>;
   };
+  payments?: {
+    stripe: {
+      status: "ready" | "partial" | "disabled";
+      checkoutConfigured: boolean;
+      webhookConfigured: boolean;
+      publishableKeyConfigured: boolean;
+      blockingIssues: string[];
+    };
+  };
 }
 
 interface SyncJob {
@@ -1040,6 +1049,23 @@ export default function AdminDataSourcesPage() {
         {healthData?.publicMetadataCoverage && (
           <Badge variant="outline" className="border-border/40 text-[10px]">
             Signal contamination: {healthData.publicMetadataCoverage.signalContaminationCount}
+          </Badge>
+        )}
+        {healthData?.payments?.stripe && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "border-border/40 text-[10px]",
+              healthData.payments.stripe.status === "partial" &&
+                "border-loss/40 text-loss"
+            )}
+          >
+            Stripe payments: {healthData.payments.stripe.status}
+            {healthData.payments.stripe.status === "partial"
+              ? ` · ${healthData.payments.stripe.blockingIssues.length} blocking issue${
+                  healthData.payments.stripe.blockingIssues.length === 1 ? "" : "s"
+                }`
+              : ""}
           </Badge>
         )}
         {healthData?.dataQualityAlerts && healthData.dataQualityAlerts.length > 0 && (

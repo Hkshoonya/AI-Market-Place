@@ -53,6 +53,32 @@ const mockCreateAdminClient = vi.mocked(createAdminClient);
 // Test helpers
 // ---------------------------------------------------------------------------
 
+const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+function restoreStripeEnv() {
+  if (ORIGINAL_STRIPE_SECRET_KEY === undefined) delete process.env.STRIPE_SECRET_KEY;
+  else process.env.STRIPE_SECRET_KEY = ORIGINAL_STRIPE_SECRET_KEY;
+
+  if (ORIGINAL_STRIPE_WEBHOOK_SECRET === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+  else process.env.STRIPE_WEBHOOK_SECRET = ORIGINAL_STRIPE_WEBHOOK_SECRET;
+
+  if (ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === undefined) {
+    delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+      ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  }
+}
+
+function clearStripeEnv() {
+  delete process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+}
+
 function makeRequest(authHeader?: string): Request {
   const headers = new Headers();
   if (authHeader) headers.set("authorization", authHeader);
@@ -167,9 +193,11 @@ describe("GET /api/health", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.setSystemTime(NOW);
+    clearStripeEnv();
   });
 
   afterEach(() => {
+    restoreStripeEnv();
     vi.useRealTimers();
   });
 
@@ -375,6 +403,7 @@ describe("GET /api/health", () => {
       expect(body).toHaveProperty("release");
       expect(body).toHaveProperty("cron");
       expect(body).toHaveProperty("pipeline");
+      expect(body).toHaveProperty("payments");
 
       expect(typeof body.uptime).toBe("number");
       expect(body.database).toHaveProperty("connected");
@@ -394,9 +423,70 @@ describe("GET /api/health", () => {
       expect(body.pipeline).toHaveProperty("healthy");
       expect(body.pipeline).toHaveProperty("degraded");
       expect(body.pipeline).toHaveProperty("down");
+      expect(body.payments.stripe).toEqual({
+        status: "disabled",
+        checkoutConfigured: false,
+        webhookConfigured: false,
+        publishableKeyConfigured: false,
+        blockingIssues: [],
+      });
 
       process.env.CRON_SECRET = originalSecret;
       process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
+    });
+
+    it("marks authenticated health degraded when Stripe checkout is configured without the webhook secret", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.STRIPE_SECRET_KEY = "sk_test_configured";
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: {
+            data: makeDataSources([
+              { slug: "a1", last_sync_at: syncedAgo(0.5, 6), last_sync_records: 100 },
+            ]),
+            error: null,
+          },
+          pipeline_health: {
+            data: makePipelineHealth([
+              {
+                source_slug: "a1",
+                consecutive_failures: 0,
+                last_success_at: syncedAgo(0.5, 6),
+                expected_interval_hours: 6,
+              },
+            ]),
+            error: null,
+          },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "completed",
+                started_at: "2026-03-11T23:45:00.000Z",
+                created_at: "2026-03-11T23:45:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        }) as unknown as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe("degraded");
+      expect(body.payments.stripe.status).toBe("partial");
+      expect(body.payments.stripe.webhookConfigured).toBe(false);
+      expect(body.payments.stripe.blockingIssues).toContain(
+        "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
+      );
+
+      process.env.CRON_SECRET = originalSecret;
     });
 
     it("pipeline counts correct: 1 healthy, 1 degraded adapter", async () => {

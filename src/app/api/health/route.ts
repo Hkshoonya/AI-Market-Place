@@ -24,6 +24,7 @@ import {
   isCronSchedulerConfigured,
   resolveCronRunnerMode,
 } from "@/lib/cron-runtime";
+import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,15 @@ const HealthDetailSchema = HealthPublicSchema.extend({
     healthy: z.number(),
     degraded: z.number(),
     down: z.number(),
+  }),
+  payments: z.object({
+    stripe: z.object({
+      status: z.enum(["ready", "partial", "disabled"]),
+      checkoutConfigured: z.boolean(),
+      webhookConfigured: z.boolean(),
+      publishableKeyConfigured: z.boolean(),
+      blockingIssues: z.array(z.string()),
+    }),
   }),
 });
 
@@ -244,7 +254,12 @@ export async function GET(request: NextRequest) {
       const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
       const cronStale = schedulerConfigured && recentCronRuns.length === 0;
       const cronDegraded = cronStale || latestFailedJobs24h > 0;
-      overallStatus = overallStatus === "degraded" || cronDegraded ? "degraded" : "healthy";
+      const stripePaymentsReadiness = getStripePaymentsReadiness();
+      const paymentsDegraded = stripePaymentsReadiness.status === "partial";
+      overallStatus =
+        overallStatus === "degraded" || cronDegraded || paymentsDegraded
+          ? "degraded"
+          : "healthy";
       const body = HealthDetailSchema.parse({
         status: overallStatus,
         version,
@@ -267,6 +282,9 @@ export async function GET(request: NextRequest) {
           healthy: pipelineHealthy,
           degraded: pipelineDegraded,
           down: pipelineDown,
+        },
+        payments: {
+          stripe: stripePaymentsReadiness,
         },
       });
 

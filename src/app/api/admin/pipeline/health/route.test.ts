@@ -146,6 +146,32 @@ const mockCreateAdminClient = vi.mocked(createAdminClient);
 // Fixed "now" for deterministic staleness calculations
 const NOW = new Date("2026-03-12T00:00:00.000Z").getTime();
 
+const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+function restoreStripeEnv() {
+  if (ORIGINAL_STRIPE_SECRET_KEY === undefined) delete process.env.STRIPE_SECRET_KEY;
+  else process.env.STRIPE_SECRET_KEY = ORIGINAL_STRIPE_SECRET_KEY;
+
+  if (ORIGINAL_STRIPE_WEBHOOK_SECRET === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+  else process.env.STRIPE_WEBHOOK_SECRET = ORIGINAL_STRIPE_WEBHOOK_SECRET;
+
+  if (ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === undefined) {
+    delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+      ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  }
+}
+
+function clearStripeEnv() {
+  delete process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+}
+
 function syncedAgo(multiplier: number, intervalHours = 6): string {
   return new Date(NOW - multiplier * intervalHours * 60 * 60 * 1000).toISOString();
 }
@@ -265,9 +291,11 @@ describe("GET /api/admin/pipeline/health", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
+    clearStripeEnv();
   });
 
   afterEach(() => {
+    restoreStripeEnv();
     vi.useRealTimers();
   });
 
@@ -392,6 +420,14 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.publicMetadataCoverage).toHaveProperty(
       "recentNotReadyOfficialModels"
     );
+    expect(body).toHaveProperty("payments");
+    expect(body.payments.stripe).toEqual({
+      status: "disabled",
+      checkoutConfigured: false,
+      webhookConfigured: false,
+      publishableKeyConfigured: false,
+      blockingIssues: [],
+    });
 
     // Adapter fields
     const adapter = body.adapters[0];
@@ -404,6 +440,39 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(adapter).toHaveProperty("recordCount");
     expect(typeof adapter.recordCount).toBe("number");
     expect(adapter).toHaveProperty("error");
+  });
+
+  it("surfaces partial Stripe readiness when checkout is configured without webhook delivery", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_configured";
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    const adminClient = createMockAdminSupabase({
+      data_sources: { data: DEFAULT_DATA_SOURCES, error: null },
+      pipeline_health: { data: DEFAULT_PIPELINE_HEALTH, error: null },
+    });
+    mockCreateAdminClient.mockReturnValue(
+      adminClient as ReturnType<typeof createAdminClient>
+    );
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.payments.stripe.status).toBe("partial");
+    expect(body.payments.stripe.checkoutConfigured).toBe(true);
+    expect(body.payments.stripe.webhookConfigured).toBe(false);
+    expect(body.payments.stripe.blockingIssues).toContain(
+      "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
+    );
   });
 
   it("adapter with 1 failure is 'degraded' in response", async () => {
