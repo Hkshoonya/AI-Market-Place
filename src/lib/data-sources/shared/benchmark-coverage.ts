@@ -7,9 +7,14 @@ export interface BenchmarkExpectedModel {
 }
 
 const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
+  Alibaba: ["Qwen"],
+  DeepSeek: ["deepseek-ai"],
   Google: ["google"],
+  Meta: ["meta-llama"],
+  "Mistral AI": ["mistralai"],
   Microsoft: ["microsoft"],
   NVIDIA: ["nvidia"],
+  Qwen: ["Qwen"],
   "Z.ai": ["zai-org"],
   MiniMax: ["minimaxai"],
 };
@@ -19,6 +24,13 @@ const TRUSTED_BENCHMARK_WEBSITE_HOSTS: Record<string, string[]> = {
   Anthropic: ["anthropic.com"],
   Google: ["ai.google.dev", "blog.google", "cloud.google.com"],
   xAI: ["x.ai", "docs.x.ai", "data.x.ai"],
+  Meta: ["ai.meta.com", "llama.com", "meta.com"],
+  "Mistral AI": ["mistral.ai", "docs.mistral.ai"],
+  Qwen: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
+  Alibaba: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
+  DeepSeek: ["deepseek.com", "api-docs.deepseek.com"],
+  "Moonshot AI": ["moonshot.ai", "platform.moonshot.ai", "kimi.com", "www.kimi.com"],
+  Cohere: ["cohere.com", "docs.cohere.com"],
   "Z.ai": ["z.ai", "www.z.ai", "docs.z.ai"],
   MiniMax: ["minimax.io", "www.minimax.io", "platform.minimax.io"],
   Microsoft: ["microsoft.com", "azure.microsoft.com", "huggingface.co"],

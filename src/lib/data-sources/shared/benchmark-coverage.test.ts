@@ -55,6 +55,35 @@ describe("benchmark coverage helpers", () => {
     ).toBeNull();
   });
 
+  it("accepts official open-weight provider HF orgs for benchmark evidence", () => {
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "meta-llama-4-maverick",
+        provider: "Meta",
+        category: "llm",
+        hf_model_id: "meta-llama/Llama-4-Maverick",
+      })
+    ).toBe("https://huggingface.co/meta-llama/Llama-4-Maverick");
+
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "deepseek-r1",
+        provider: "DeepSeek",
+        category: "llm",
+        hf_model_id: "deepseek-ai/DeepSeek-R1",
+      })
+    ).toBe("https://huggingface.co/deepseek-ai/DeepSeek-R1");
+
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "qwen3-235b",
+        provider: "Qwen",
+        category: "llm",
+        hf_model_id: "Qwen/Qwen3-235B-A22B",
+      })
+    ).toBe("https://huggingface.co/Qwen/Qwen3-235B-A22B");
+  });
+
   it("accepts trusted official provider pages when HF model cards are unavailable", () => {
     expect(
       getTrustedBenchmarkWebsiteUrl({
@@ -82,5 +111,34 @@ describe("benchmark coverage helpers", () => {
         website_url: "https://example.com/grok",
       })
     ).toBeNull();
+  });
+
+  it("accepts official benchmark docs for more official providers", () => {
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "moonshot-kimi-k2",
+        provider: "Moonshot AI",
+        category: "llm",
+        website_url: "https://platform.moonshot.ai/blog/posts/K2_Vendor_Verifier_Newsletter",
+      })
+    ).toBe("https://platform.moonshot.ai/blog/posts/K2_Vendor_Verifier_Newsletter");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "mistral-large",
+        provider: "Mistral AI",
+        category: "llm",
+        website_url: "https://mistral.ai/news/frontier-model-update",
+      })
+    ).toBe("https://mistral.ai/news/frontier-model-update");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "deepseek-v3",
+        provider: "DeepSeek",
+        category: "llm",
+        website_url: "https://api-docs.deepseek.com/updates",
+      })
+    ).toBe("https://api-docs.deepseek.com/updates");
   });
 });

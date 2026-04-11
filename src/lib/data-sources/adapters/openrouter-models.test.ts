@@ -246,4 +246,23 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(false);
     expect(record.license).toBe("commercial");
   });
+
+  it("uses curated Moonshot metadata for Kimi models", () => {
+    const record = __testables.buildModelRecord({
+      id: "moonshotai/kimi-k2-thinking",
+      name: "Moonshot AI: Kimi K2 Thinking",
+      description: "Reasoning model from Moonshot AI.",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.provider).toBe("Moonshot AI");
+    expect(record.name).toBe("Kimi K2 Thinking");
+    expect(record.category).toBe("llm");
+    expect(record.context_window).toBe(256000);
+    expect(record.release_date).toBe("2025-11-06");
+    expect(record.is_open_weights).toBe(false);
+  });
 });

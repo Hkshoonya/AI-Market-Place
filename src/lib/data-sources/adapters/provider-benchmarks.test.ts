@@ -168,7 +168,7 @@ describe("provider-benchmarks helpers", () => {
     });
   });
 
-  it("auto-generates benchmark sources only for uncovered trusted HF models", () => {
+  it("auto-generates benchmark sources only for uncovered trusted model locators", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
         {
@@ -178,7 +178,7 @@ describe("provider-benchmarks helpers", () => {
           provider: "Google",
           category: "multimodal",
           hf_model_id: "google/gemma-4-31B-it",
-          website_url: null,
+          website_url: "https://ai.google.dev/gemma/docs/model_card_4",
           release_date: "2026-04-02",
         },
         {
@@ -207,16 +207,56 @@ describe("provider-benchmarks helpers", () => {
       10
     );
 
-    expect(sources).toHaveLength(1);
-    expect(sources[0]).toMatchObject({
-      id: "auto-hf-google-gemma-4-31b-it",
-      provider: "Google",
-      url: "https://huggingface.co/google/gemma-4-31B-it",
-      requiresBenchmarkSignal: true,
-      sourceType: "official_model_card",
-    });
+    expect(sources).toHaveLength(2);
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-hf-google-gemma-4-31b-it",
+          provider: "Google",
+          url: "https://huggingface.co/google/gemma-4-31B-it",
+          requiresBenchmarkSignal: true,
+          sourceType: "official_model_card",
+        }),
+        expect.objectContaining({
+          id: "auto-web-google-gemma-4-31b-it",
+          provider: "Google",
+          url: "https://ai.google.dev/gemma/docs/model_card_4",
+          requiresBenchmarkSignal: true,
+          sourceType: "official_provider_page",
+        }),
+      ])
+    );
     expect(sources[0].modelHints).toContain("Gemma 4 31B IT");
     expect(sources[0].modelHints).toContain("gemma-4-31B-it");
+  });
+
+  it("keeps refreshing existing auto sources for already-covered models", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "deepseek-r1",
+          name: "DeepSeek R1",
+          provider: "DeepSeek",
+          category: "llm",
+          hf_model_id: "deepseek-ai/DeepSeek-R1",
+          website_url: "https://api-docs.deepseek.com/updates",
+          release_date: "2026-01-20",
+        },
+      ],
+      new Set(["1"]),
+      new Set(["provider-benchmarks-auto-web-deepseek-r1"]),
+      10
+    );
+
+    expect(sources).toEqual([
+      expect.objectContaining({
+        id: "auto-web-deepseek-r1",
+        provider: "DeepSeek",
+        url: "https://api-docs.deepseek.com/updates",
+        sourceType: "official_provider_page",
+      }),
+    ]);
   });
 
   it("falls back to trusted official provider pages when HF cards are unavailable", () => {

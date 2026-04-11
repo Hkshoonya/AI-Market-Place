@@ -125,3 +125,7 @@ export const MOONSHOT_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
   },
 };
+
+export function resolveMoonshotKnownModelMeta(modelId: string): KnownModelMeta | undefined {
+  return MOONSHOT_KNOWN_MODELS[modelId] ?? MOONSHOT_KNOWN_MODELS[modelId.toLowerCase()];
+}

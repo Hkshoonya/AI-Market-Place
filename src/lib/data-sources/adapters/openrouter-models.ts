@@ -23,6 +23,7 @@ import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
 import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
+import { resolveMoonshotKnownModelMeta } from "../shared/known-models/moonshot";
 import { XAI_KNOWN_MODELS } from "../shared/known-models/xai";
 import { resolveZAIKnownModelMeta } from "../shared/known-models/zai";
 
@@ -53,6 +54,9 @@ const PROVIDER_NAMES: Record<string, string> = {
   "minimax": "MiniMax",
   "nvidia": "NVIDIA",
   "amazon": "Amazon",
+  "moonshotai": "Moonshot AI",
+  "moonshot": "Moonshot AI",
+  "kimi": "Moonshot AI",
   "inflection": "Inflection AI",
   "perplexity": "Perplexity",
   "together": "Together AI",
@@ -116,6 +120,9 @@ function resolveCuratedKnownMeta(id: string) {
   const [providerPrefix, modelPart = ""] = id.split("/");
   if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
   if (providerPrefix === "minimax") return resolveMiniMaxKnownModelMeta(modelPart);
+  if (providerPrefix === "moonshotai" || providerPrefix === "moonshot" || providerPrefix === "kimi") {
+    return resolveMoonshotKnownModelMeta(modelPart);
+  }
   if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
   if (providerPrefix === "z-ai") return resolveZAIKnownModelMeta(modelPart);
   return undefined;

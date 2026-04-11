@@ -462,6 +462,11 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
   },
 ];
 
+type AutoBenchmarkSourceCandidate = ProviderBenchmarkSource & {
+  sourceType: "official_model_card" | "official_provider_page";
+  releaseDate: string | null;
+};
+
 function stripHtml(value: string) {
   return value
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -878,41 +883,54 @@ function buildAutoBenchmarkSources(
   const curatedUrls = new Set(
     PROVIDER_BENCHMARK_SOURCES.map((source) => source.url)
   );
-  const candidates: Array<
-    ProviderBenchmarkSource & {
-      sourceType: "official_model_card" | "official_provider_page";
-      releaseDate: string | null;
-    }
-  > = [];
+  const candidates: AutoBenchmarkSourceCandidate[] = [];
 
   for (const model of models) {
     const hfSourceId = `provider-benchmarks-auto-hf-${makeSlug(model.slug)}`;
     const websiteSourceId = `provider-benchmarks-auto-web-${makeSlug(model.slug)}`;
+    const hasExistingAutoSource =
+      existingAutoSourceIds.has(hfSourceId) ||
+      existingAutoSourceIds.has(websiteSourceId);
     if (
       coveredModelIds.has(model.id) &&
-      !existingAutoSourceIds.has(hfSourceId) &&
-      !existingAutoSourceIds.has(websiteSourceId)
+      !hasExistingAutoSource
     ) {
       continue;
     }
 
     const trustedHfUrl = getTrustedBenchmarkHfUrl(model);
     const trustedWebsiteUrl = getTrustedBenchmarkWebsiteUrl(model);
-    const selectedUrl = trustedHfUrl ?? trustedWebsiteUrl;
-    if (!selectedUrl || curatedUrls.has(selectedUrl)) continue;
-    const isHfSource = selectedUrl === trustedHfUrl;
-    const sourceId = isHfSource ? hfSourceId : websiteSourceId;
+    const modelHints = buildAutoBenchmarkModelHints(model);
+    const locatorCandidates = [
+      {
+        url: trustedHfUrl,
+        sourceId: hfSourceId,
+        sourceType: "official_model_card" as const,
+      },
+      {
+        url: trustedWebsiteUrl,
+        sourceId: websiteSourceId,
+        sourceType: "official_provider_page" as const,
+      },
+    ];
 
-    candidates.push({
-      id: sourceId.replace("provider-benchmarks-", ""),
-      provider: model.provider,
-      url: selectedUrl,
-      titleHint: `${model.name} benchmark update`,
-      modelHints: buildAutoBenchmarkModelHints(model),
-      sourceType: isHfSource ? "official_model_card" : "official_provider_page",
-      requiresBenchmarkSignal: true,
-      releaseDate: model.release_date,
-    });
+    for (const locator of locatorCandidates) {
+      if (!locator.url || curatedUrls.has(locator.url)) continue;
+      if (coveredModelIds.has(model.id) && !existingAutoSourceIds.has(locator.sourceId)) {
+        continue;
+      }
+
+      candidates.push({
+        id: locator.sourceId.replace("provider-benchmarks-", ""),
+        provider: model.provider,
+        url: locator.url,
+        titleHint: `${model.name} benchmark update`,
+        modelHints,
+        sourceType: locator.sourceType,
+        requiresBenchmarkSignal: true,
+        releaseDate: model.release_date,
+      });
+    }
   }
 
   return candidates
