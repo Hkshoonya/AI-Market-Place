@@ -1,9 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AgentsContent from "./agents-content";
 
-const mockUseSWR = vi.fn();
+const mockUseSWR = vi.hoisted(() => vi.fn());
 
 vi.mock("swr", () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
@@ -24,6 +23,8 @@ vi.mock("lucide-react", () => {
     Save: Icon,
   };
 });
+
+import AgentsContent from "./agents-content";
 
 describe("AgentsContent", () => {
   beforeEach(() => {

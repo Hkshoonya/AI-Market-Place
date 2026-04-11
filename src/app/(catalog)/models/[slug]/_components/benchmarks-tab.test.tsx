@@ -3,6 +3,24 @@ import { describe, expect, it } from "vitest";
 
 import { BenchmarksTab } from "./benchmarks-tab";
 
+const arenaOnlyTracking = {
+  status: "arena_only" as const,
+  label: "Arena-only competitive signal",
+  badgeLabel: "Arena only",
+  summary:
+    "This model has live arena signal, but it does not have structured benchmark rows or provider benchmark evidence yet.",
+  showTrustAsterisk: false,
+};
+
+const providerReportedTracking = {
+  status: "provider_reported" as const,
+  label: "Provider-reported benchmark coverage",
+  badgeLabel: "Provider-reported*",
+  summary:
+    "This model has official provider benchmark evidence, but not a normalized independent benchmark table yet.",
+  showTrustAsterisk: true,
+};
+
 describe("BenchmarksTab", () => {
   it("collapses duplicate raw arena names into one canonical arena family", () => {
     render(
@@ -24,6 +42,7 @@ describe("BenchmarksTab", () => {
             snapshot_date: "2026-03-10T00:00:00.000Z",
           },
         ]}
+        benchmarkTracking={arenaOnlyTracking}
       />
     );
 
@@ -39,6 +58,7 @@ describe("BenchmarksTab", () => {
       <BenchmarksTab
         benchmarkScores={[]}
         eloRatings={[]}
+        benchmarkTracking={providerReportedTracking}
         recentBenchmarkEvidence={[
           {
             id: "bench-1",

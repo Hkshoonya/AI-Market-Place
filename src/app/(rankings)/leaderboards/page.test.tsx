@@ -201,6 +201,18 @@ describe("LeaderboardsPage", () => {
         };
       }
 
+      if (table === "deployment_platforms") {
+        return {
+          select: vi.fn(() => createQuery([])),
+        };
+      }
+
+      if (table === "model_deployments") {
+        return {
+          select: vi.fn(() => createQuery([])),
+        };
+      }
+
       if (table === "data_sources") {
         return {
           select: vi.fn(() => createQuery([{ last_sync_at: "2026-03-20T11:00:00.000Z" }])),
@@ -241,7 +253,7 @@ describe("LeaderboardsPage", () => {
       "pipeline sync"
     );
     expect(
-      screen.getByText(/public rankings stay active-first by default/i)
+      screen.getByText(/keep Active Only on for the cleanest public view/i)
     ).toBeInTheDocument();
   });
 });

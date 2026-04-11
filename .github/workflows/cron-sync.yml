@@ -1,23 +1,11 @@
-name: External Cron Triggers
+name: Manual Cron Recovery
 
-# GitHub Actions is used here only for lower-sensitivity scheduled jobs.
-# Critical 5-minute jobs like auctions and chain-deposits should stay on Railway.
+# Railway in-process cron is the production scheduler of record.
+# This workflow is kept only for manual recovery runs.
 # Endpoint failures are recorded by the app in cron_runs/admin surfaces; this
 # workflow avoids failing on those responses so GitHub does not spam failure emails.
 
 on:
-  schedule:
-    - cron: "0 */2 * * *"
-    - cron: "0 */4 * * *"
-    - cron: "0 */8 * * *"
-    - cron: "0 0 * * *"
-    - cron: "45 */2 * * *"
-    - cron: "55 */2 * * *"
-    - cron: "20 1 * * *"
-    - cron: "30 */2 * * *"
-    - cron: "15 */4 * * *"
-    - cron: "0 9 * * *"
-    - cron: "0 10 * * 1"
   workflow_dispatch:
     inputs:
       job:

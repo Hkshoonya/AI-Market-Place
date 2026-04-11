@@ -31,7 +31,7 @@
     "repair:low-trust-public-signals": "node --import tsx scripts/repair-low-trust-public-signals.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --no-file-parallelism",
-    "test:component": "vitest run --project component --testTimeout 15000",
+    "test:component": "node scripts/run-component-tests.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "supabase:auth-templates": "node scripts/push-supabase-auth-templates.mjs"

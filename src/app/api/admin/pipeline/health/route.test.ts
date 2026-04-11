@@ -170,6 +170,8 @@ function createMockAdminSupabase(tables: Record<string, TableMock>) {
       let currentData = Array.isArray(result.data) ? [...result.data] : result.data;
       const chain = {
         select: () => chain,
+        order: () => chain,
+        limit: () => chain,
         eq: (column: string, value: unknown) => {
           if (Array.isArray(currentData)) {
             currentData = currentData.filter((row) => row[column] === value);

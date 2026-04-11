@@ -23,6 +23,8 @@ describe("HeroSection", () => {
 
     expect(screen.getByTestId("hero-scene-slot")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /market cap/i })).toBeInTheDocument();
-    expect(screen.getByText(/real-time benchmarks, pricing intelligence, and a marketplace/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/structured benchmarks where available, provider-reported evidence, pricing intelligence, and a marketplace/i)
+    ).toBeInTheDocument();
   });
 });

@@ -141,14 +141,18 @@ test.describe("Leaderboard", () => {
       timeout: 15_000,
     });
 
-    // "All Models" badge is always rendered unconditionally as a Badge element
-    await expect(page.getByText("All Models")).toBeVisible();
+    // "All Models" can appear in responsive duplicates; target the nav link.
+    await expect(
+      page.getByRole("link", { name: "All Models" }).first()
+    ).toBeVisible();
 
     // At least one category shortLabel should be rendered in the quick-links
     // section. The category badges are inside <Link> wrappers linking to
     // /leaderboards/{slug}. Use a link-to-category pattern to avoid strict
     // mode violations (the text "LLMs" appears in multiple elements).
-    const lllmCategoryLink = page.locator('a[href*="/leaderboards/llm"]');
+    const lllmCategoryLink = page
+      .locator('a[href*="/leaderboards/llm"]')
+      .first();
     await expect(lllmCategoryLink).toBeVisible();
   });
 

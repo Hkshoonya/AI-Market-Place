@@ -145,6 +145,8 @@ function createMockSupabase(tables: Record<string, TableMock>) {
 
       const chain = {
         select: () => chain,
+        order: () => chain,
+        limit: () => chain,
         eq: (column: string, value: unknown) => {
           if (Array.isArray(currentData)) {
             currentData = currentData.filter((row) => row[column] === value);

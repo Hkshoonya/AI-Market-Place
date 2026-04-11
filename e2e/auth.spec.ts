@@ -1,5 +1,11 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { injectMockAuth } from "./helpers/auth";
+
+const visibleEmailInput = (page: Page) =>
+  page.locator('input[aria-label="Email address"]:visible');
+
+const visiblePasswordInput = (page: Page) =>
+  page.locator('input[aria-label="Password"]:visible');
 
 /**
  * Auth flow E2E tests.
@@ -25,21 +31,21 @@ test.describe("Auth flow", () => {
     await expect(
       page.getByRole("heading", { name: "Welcome back" })
     ).toBeVisible();
-    await expect(page.getByLabel("Email address")).toBeVisible();
-    await expect(page.getByLabel("Password")).toBeVisible();
+    const emailInput = visibleEmailInput(page);
+    const passwordInput = visiblePasswordInput(page);
+    await expect(emailInput).toBeVisible();
+    await expect(passwordInput).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Sign In" })
     ).toBeVisible();
 
     // Fill form — verifies inputs are interactive
-    await page.getByLabel("Email address").fill("test@example.com");
-    await page.getByLabel("Password").fill("testpassword123");
+    await emailInput.fill("test@example.com");
+    await passwordInput.fill("testpassword123");
 
     // Verify values were set
-    await expect(page.getByLabel("Email address")).toHaveValue(
-      "test@example.com"
-    );
-    await expect(page.getByLabel("Password")).toHaveValue("testpassword123");
+    await expect(emailInput).toHaveValue("test@example.com");
+    await expect(passwordInput).toHaveValue("testpassword123");
 
     // Submit triggers signInWithPassword — in offline mode this fails with
     // "Failed to fetch" which the form displays as an error alert
@@ -58,7 +64,7 @@ test.describe("Auth flow", () => {
 
     // Page renders with the redirect param preserved
     await expect(page).toHaveURL(/redirect=%2Fmodels|redirect=\/models/);
-    await expect(page.getByLabel("Email address")).toBeVisible();
+    await expect(visibleEmailInput(page)).toBeVisible();
 
     // OAuth buttons and email form are present
     await expect(
@@ -90,8 +96,8 @@ test.describe("Auth flow", () => {
 
     await page.goto("/login");
 
-    await page.getByLabel("Email address").fill("wrong@example.com");
-    await page.getByLabel("Password").fill("wrongpassword");
+    await visibleEmailInput(page).fill("wrong@example.com");
+    await visiblePasswordInput(page).fill("wrongpassword");
     await page.getByRole("button", { name: "Sign In" }).click();
 
     // In offline mode, signInWithPassword fails with a network error.

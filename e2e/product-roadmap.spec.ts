@@ -12,9 +12,14 @@ test.describe("Product roadmap surfaces", () => {
     await expect(
       page.getByRole("heading", { name: /revenue transparency/i })
     ).toBeVisible();
-    await expect(page.getByText(/50% Product Treasury/i)).toBeVisible();
+    const mainContent = page.locator("#main-content");
     await expect(
-      page.getByText(/first monthly revenue report will be published here/i)
+      mainContent.getByText(/50% Product Treasury/i).first()
+    ).toBeVisible();
+    await expect(
+      mainContent
+        .getByText(/first monthly revenue report will be published here/i)
+        .first()
     ).toBeVisible();
   });
 
@@ -35,10 +40,14 @@ test.describe("Product roadmap surfaces", () => {
     await expect(
       page.getByRole("heading", { name: /ai marketplace/i })
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/direct wallet deals/i)).toBeVisible();
-    await expect(page.getByText(/assisted escrow/i)).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /no platform fee/i })
+      page.getByRole("heading", { name: /direct wallet deals/i }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /assisted escrow/i }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /no platform fee/i }).first()
     ).toBeVisible();
   });
 

@@ -186,12 +186,14 @@ export default function AgentsContent() {
 
     setModelDrafts((current) => {
       const next = { ...current };
+      let changed = false;
       for (const provider of agentModelData.providerOrder ?? AGENT_PROVIDER_ORDER) {
         if (!(provider in current)) {
           next[provider] = agentModelData.overrides[provider] ?? "";
+          changed = true;
         }
       }
-      return next;
+      return changed ? next : current;
     });
   }, [agentModelData]);
 
