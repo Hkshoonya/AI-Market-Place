@@ -27,6 +27,7 @@ import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
+import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 import {
   computePipelineDataQualityAlerts,
   computePipelineDataQualityStatus,
@@ -108,6 +109,15 @@ const PipelineHealthSummarySchema = z.object({
 
 const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
   adapters: z.array(AdapterHealthSchema),
+  payments: z.object({
+    stripe: z.object({
+      status: z.enum(["ready", "partial", "disabled"]),
+      checkoutConfigured: z.boolean(),
+      webhookConfigured: z.boolean(),
+      publishableKeyConfigured: z.boolean(),
+      blockingIssues: z.array(z.string()),
+    }),
+  }),
   benchmarkCoverage: z.object({
     coveragePct: z.number(),
     coveredModels: z.number(),
@@ -434,6 +444,7 @@ export async function GET(request: NextRequest) {
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
 
     if (isAuthenticated) {
+      const stripePaymentsReadiness = getStripePaymentsReadiness();
       const detail = PipelineHealthDetailSchema.parse({
         status: topLevelStatus,
         dataQualityStatus,
@@ -443,6 +454,9 @@ export async function GET(request: NextRequest) {
         down: downCount,
         checkedAt,
         adapters: adapterStatuses,
+        payments: {
+          stripe: stripePaymentsReadiness,
+        },
         benchmarkCoverage: {
           ...benchmarkCoverageSummary,
           weakestOfficialProviders: benchmarkCoverage.official_providers

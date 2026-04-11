@@ -3,10 +3,10 @@
 Production target: `aimarketcap.tech`
 
 This repository is configured for:
-- Cloudflare in front of the site
 - Railway running the app container from `Dockerfile`
 - Supabase Cloud as the database
 - Railway in-process cron as the scheduler of record
+- GitHub Actions for CI/CD and manual cron recovery only
 
 ## Production contract
 
@@ -14,8 +14,8 @@ The live deployment should use exactly one primary scheduler.
 
 - Primary scheduler: Railway in-process cron through `server/custom-server.js`
 - App runtime: `CRON_RUNNER_MODE=internal`
-- GitHub Actions cron: disabled unless intentionally used for backup or manual recovery
-- External VPS cron: optional recovery path only, not the default
+- GitHub Actions cron: manual recovery only through `workflow_dispatch`
+- External cron: optional local/manual recovery path only, not the default
 
 The cron lock is designed to tolerate overlap during a cutover window, but overlap should not be the steady-state design.
 
@@ -38,10 +38,17 @@ ENABLE_MARKETPLACE_FEES=false
 Recommended compatibility and enforcement flags during rollout:
 
 ```env
-ENABLE_GITHUB_ACTIONS_CRON=false
 ENFORCE_WITHDRAW_SCOPE=false
 ENFORCE_SELLER_VERIFICATION=false
 BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY=false
+```
+
+Optional marketplace payment variables:
+
+```env
+STRIPE_SECRET_KEY=<stripe-server-secret>
+STRIPE_WEBHOOK_SECRET=<stripe-webhook-signing-secret>
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<stripe-publishable-key>
 ```
 
 Optional agent-provider routing variables:
@@ -64,7 +71,7 @@ BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY=true
 Important:
 - Railway deployments should run with `CRON_RUNNER_MODE=internal`.
 - If an old Railway env still says `CRON_RUNNER_MODE=external`, the runtime now coerces it back to `internal`.
-- Do not run an external VPS cron against the same Railway production app as steady state.
+- Do not run an external cron host against the same Railway production app as steady state.
 - Keep `RATE_LIMIT_BACKEND=database` in production so rate limits are shared across instances and cold starts.
 - Keep `ENABLE_MARKETPLACE_FEES=false` until you intentionally want marketplace escrow releases to deduct platform fees again.
 
@@ -111,13 +118,13 @@ https://aimarketcap.tech
 
 ## External cron setup
 
-External cron is no longer the recommended steady-state production scheduler. Keep this section only for manual recovery, migration windows, or non-Railway deployments.
+External cron is no longer the recommended steady-state production scheduler. Keep this section only for local/manual recovery or migration windows.
 
-Copy the helper script to the server:
+Copy the helper script to a temporary recovery host only when needed:
 
 ```bash
-scp scripts/cron-jobs.sh root@<VPS_IP>:/opt/aimc/scripts/cron-jobs.sh
-ssh root@<VPS_IP> "chmod +x /opt/aimc/scripts/cron-jobs.sh"
+scp scripts/cron-jobs.sh root@<RECOVERY_HOST>:/opt/aimc/scripts/cron-jobs.sh
+ssh root@<RECOVERY_HOST> "chmod +x /opt/aimc/scripts/cron-jobs.sh"
 ```
 
 Create the cron environment file:
@@ -129,7 +136,7 @@ CRON_SECRET=<same-secret-as-app>
 EOF
 ```
 
-If the cron runner lives on the same box as the app, you can use a private URL such as `http://localhost:3000`. If it runs on a separate VPS, point `AIMC_BASE_URL` at the public Railway/Cloudflare URL.
+If the cron runner lives on the same box as the app, you can use a private URL such as `http://localhost:3000`. If it runs outside the app host, point `AIMC_BASE_URL` at the public Railway URL.
 
 Install the crontab entries:
 
@@ -161,13 +168,29 @@ source /opt/aimc/.env && /opt/aimc/scripts/cron-jobs.sh sync-source arena-hard-a
 
 ## GitHub Actions cron
 
-`.github/workflows/cron-sync.yml` is a compatibility path, not the primary scheduler.
+`.github/workflows/cron-sync.yml` is a manual recovery path, not the primary scheduler.
 
-Use it in one of two ways:
-- Keep `ENABLE_GITHUB_ACTIONS_CRON=false` and use `workflow_dispatch` only for manual recovery.
-- Set `ENABLE_GITHUB_ACTIONS_CRON=true` only if you intentionally want GitHub Actions to own the schedule.
+Use it with `workflow_dispatch` only when Railway cron needs manual recovery.
 
-Do not run both GitHub Actions scheduled cron and VPS cron as steady-state production schedulers.
+Do not add scheduled GitHub Actions cron while Railway in-process cron is the scheduler of record.
+
+## Stripe webhook readiness
+
+Marketplace wallet checkout requires all three Stripe variables listed above. The webhook endpoint is:
+
+```text
+/api/webhooks/stripe
+```
+
+At minimum, Stripe should send `checkout.session.completed` and `payment_intent.succeeded`, which are the events used by the wallet deposit flow. After changes, verify private health:
+
+```text
+/api/health
+/api/pipeline/health
+/api/admin/pipeline/health
+```
+
+Authenticated responses expose `payments.stripe.status` as `ready`, `partial`, or `disabled`. `partial` means checkout or webhook delivery is not fully configured and wallet credits may not complete.
 
 ## Health checks
 
@@ -191,8 +214,8 @@ Safe deployment order:
 2. Deploy the app with `CRON_RUNNER_MODE=internal` and `CRON_SINGLE_RUN_LOCK=true`.
 3. Confirm the durable rate-limit migration is applied and `RATE_LIMIT_BACKEND=database` is present in the environment.
 4. Confirm `/api/health` shows internal cron mode and recent cron activity.
-5. Do not leave external VPS cron enabled against the same production app.
-6. Keep GitHub Actions scheduled cron off unless needed.
+5. Do not leave an external cron host enabled against the same production app.
+6. Keep GitHub Actions cron manual-only unless Railway cron ownership intentionally changes.
 7. After observing deprecated-path logs, enable the enforcement flags.
 
 ## Troubleshooting
@@ -203,4 +226,5 @@ Safe deployment order:
 - Health says `external` on Railway: remove the old override or redeploy; Railway now defaults to internal cron.
 - Nothing runs and health says `internal`: confirm the app is still using `server/custom-server.js` as the start command.
 - Build succeeds locally but Railway fails: confirm the deploy is building the latest `main` commit from `Dockerfile`, not a stale cached deployment.
-- GitHub Actions is still triggering jobs: make sure `ENABLE_GITHUB_ACTIONS_CRON=false`.
+- GitHub Actions is triggering cron jobs unexpectedly: confirm `.github/workflows/cron-sync.yml` still has only `workflow_dispatch`.
+- Stripe checkout opens but wallets are not credited: check authenticated health for `payments.stripe.status` and confirm the webhook signing secret is present in Railway.

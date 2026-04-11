@@ -180,6 +180,32 @@ const mockCreateAdminClient = vi.mocked(createAdminClient);
 // Test helpers
 // ---------------------------------------------------------------------------
 
+const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+function restoreStripeEnv() {
+  if (ORIGINAL_STRIPE_SECRET_KEY === undefined) delete process.env.STRIPE_SECRET_KEY;
+  else process.env.STRIPE_SECRET_KEY = ORIGINAL_STRIPE_SECRET_KEY;
+
+  if (ORIGINAL_STRIPE_WEBHOOK_SECRET === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+  else process.env.STRIPE_WEBHOOK_SECRET = ORIGINAL_STRIPE_WEBHOOK_SECRET;
+
+  if (ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === undefined) {
+    delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
+      ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  }
+}
+
+function clearStripeEnv() {
+  delete process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+}
+
 function makeRequest(authHeader?: string): Request {
   const headers = new Headers();
   if (authHeader) headers.set("authorization", authHeader);
@@ -242,9 +268,11 @@ describe("GET /api/pipeline/health", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.setSystemTime(NOW);
+    clearStripeEnv();
   });
 
   afterEach(() => {
+    restoreStripeEnv();
     vi.useRealTimers();
   });
 
@@ -297,6 +325,7 @@ describe("GET /api/pipeline/health", () => {
         "officialMissingReleaseDateCount"
       );
       expect(body.publicMetadataCoverage).not.toHaveProperty("weakestProviders");
+      expect(body).not.toHaveProperty("payments");
     });
 
     it("does NOT include adapters field in public response", async () => {
@@ -394,6 +423,14 @@ describe("GET /api/pipeline/health", () => {
       expect(body.publicMetadataCoverage).toHaveProperty(
         "recentNotReadyOfficialModels"
       );
+      expect(body).toHaveProperty("payments");
+      expect(body.payments.stripe).toEqual({
+        status: "disabled",
+        checkoutConfigured: false,
+        webhookConfigured: false,
+        publishableKeyConfigured: false,
+        blockingIssues: [],
+      });
 
       const adapter = body.adapters[0];
       expect(adapter).toHaveProperty("slug", "adapter-a");
@@ -402,6 +439,43 @@ describe("GET /api/pipeline/health", () => {
       expect(adapter).toHaveProperty("consecutiveFailures");
       expect(adapter).toHaveProperty("recordCount");
       expect(adapter).toHaveProperty("error");
+
+      process.env.CRON_SECRET = originalSecret;
+    });
+
+    it("surfaces partial Stripe readiness when checkout is configured without webhook delivery", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.STRIPE_SECRET_KEY = "sk_test_configured";
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            { slug: "adapter-a", last_sync_at: syncedAgo(0.5, 6), last_sync_records: 50 },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "adapter-a", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.payments.stripe.status).toBe("partial");
+      expect(body.payments.stripe.checkoutConfigured).toBe(true);
+      expect(body.payments.stripe.webhookConfigured).toBe(false);
+      expect(body.payments.stripe.blockingIssues).toContain(
+        "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
+      );
 
       process.env.CRON_SECRET = originalSecret;
     });

@@ -25,7 +25,7 @@
 
 set -euo pipefail
 
-# Use the public Railway/Cloudflare URL when the cron host is separate from the app host.
+# Use the public Railway URL when the cron host is separate from the app host.
 BASE_URL="${AIMC_BASE_URL:-http://localhost:3000}"
 CRON_SECRET="${CRON_SECRET:?Set CRON_SECRET environment variable}"
 LOG_DIR="/var/log/aimc"
