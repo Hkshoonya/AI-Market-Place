@@ -56,6 +56,48 @@ vi.mock("../../benchmark-metadata-coverage-compute", () => ({
   })),
 }));
 
+vi.mock("../../crawl-health", () => ({
+  checkCrawlerSurfaceHealth: vi.fn(async () => ({
+    healthy: false,
+    criticalFailures: 1,
+    warningCount: 2,
+    checkedAt: "2026-03-30T01:00:00.000Z",
+    routes: [
+      {
+        path: "/",
+        url: "https://aimarketcap.tech",
+        status: 200,
+        ok: true,
+        contentType: "text/html; charset=utf-8",
+        error: null,
+        warnings: ["challenge markers present in public HTML"],
+      },
+      {
+        path: "/robots.txt",
+        url: "https://aimarketcap.tech/robots.txt",
+        status: 200,
+        ok: true,
+        contentType: "text/plain; charset=utf-8",
+        error: null,
+        warnings: ["cloudflare managed robots content detected"],
+      },
+      {
+        path: "/sitemap.xml",
+        url: "https://aimarketcap.tech/sitemap.xml",
+        status: 503,
+        ok: false,
+        contentType: "text/plain; charset=utf-8",
+        error: null,
+        warnings: [],
+      },
+    ],
+    warnings: [
+      "/: challenge markers present in public HTML",
+      "/robots.txt: cloudflare managed robots content detected",
+    ],
+  })),
+}));
+
 vi.mock("../ledger", () => ({
   recordAgentIssue: vi.fn(async () => undefined),
   recordAgentIssueFailure: vi.fn(async () => undefined),
@@ -160,6 +202,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "benchmark_coverage_health",
         source: "benchmark-pipeline",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "crawler_surface_health",
+        source: "public-web",
       })
     );
   });

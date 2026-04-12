@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildUxIssueStateMap,
   isBenchmarkCoverageIssueResolved,
+  isCrawlerSurfaceIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
   isRuntimeIssueResolved,
@@ -172,6 +173,31 @@ describe("isBenchmarkCoverageIssueResolved", () => {
       isBenchmarkCoverageIssueResolved({
         officialGapCount: 0,
         missingTrustedLocatorCount: 2,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("isCrawlerSurfaceIssueResolved", () => {
+  it("resolves only when crawler-critical routes are healthy and warning-free", () => {
+    expect(
+      isCrawlerSurfaceIssueResolved({
+        healthy: true,
+        warningCount: 0,
+      })
+    ).toBe(true);
+
+    expect(
+      isCrawlerSurfaceIssueResolved({
+        healthy: false,
+        warningCount: 0,
+      })
+    ).toBe(false);
+
+    expect(
+      isCrawlerSurfaceIssueResolved({
+        healthy: true,
+        warningCount: 2,
       })
     ).toBe(false);
   });

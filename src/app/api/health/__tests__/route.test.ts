@@ -29,6 +29,45 @@ vi.mock("@/lib/logging", () => ({
   }),
 }));
 
+vi.mock("@/lib/crawl-health", () => ({
+  checkCrawlerSurfaceHealth: vi.fn(async () => ({
+    healthy: true,
+    criticalFailures: 0,
+    warningCount: 0,
+    checkedAt: "2026-03-12T00:00:00.000Z",
+    routes: [
+      {
+        path: "/",
+        url: "https://aimarketcap.tech",
+        status: 200,
+        ok: true,
+        contentType: "text/html; charset=utf-8",
+        error: null,
+        warnings: [],
+      },
+      {
+        path: "/robots.txt",
+        url: "https://aimarketcap.tech/robots.txt",
+        status: 200,
+        ok: true,
+        contentType: "text/plain; charset=utf-8",
+        error: null,
+        warnings: [],
+      },
+      {
+        path: "/sitemap.xml",
+        url: "https://aimarketcap.tech/sitemap.xml",
+        status: 200,
+        ok: true,
+        contentType: "application/xml",
+        error: null,
+        warnings: [],
+      },
+    ],
+    warnings: [],
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Supabase mock helpers
 // ---------------------------------------------------------------------------
@@ -45,9 +84,11 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkCrawlerSurfaceHealth } from "@/lib/crawl-health";
 import { GET } from "../route";
 
 const mockCreateAdminClient = vi.mocked(createAdminClient);
+const mockCheckCrawlerSurfaceHealth = vi.mocked(checkCrawlerSurfaceHealth);
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -194,6 +235,42 @@ describe("GET /api/health", () => {
     vi.clearAllMocks();
     vi.setSystemTime(NOW);
     clearStripeEnv();
+    mockCheckCrawlerSurfaceHealth.mockResolvedValue({
+      healthy: true,
+      criticalFailures: 0,
+      warningCount: 0,
+      checkedAt: "2026-03-12T00:00:00.000Z",
+      routes: [
+        {
+          path: "/",
+          url: "https://aimarketcap.tech",
+          status: 200,
+          ok: true,
+          contentType: "text/html; charset=utf-8",
+          error: null,
+          warnings: [],
+        },
+        {
+          path: "/robots.txt",
+          url: "https://aimarketcap.tech/robots.txt",
+          status: 200,
+          ok: true,
+          contentType: "text/plain; charset=utf-8",
+          error: null,
+          warnings: [],
+        },
+        {
+          path: "/sitemap.xml",
+          url: "https://aimarketcap.tech/sitemap.xml",
+          status: 200,
+          ok: true,
+          contentType: "application/xml",
+          error: null,
+          warnings: [],
+        },
+      ],
+      warnings: [],
+    });
   });
 
   afterEach(() => {
@@ -404,6 +481,7 @@ describe("GET /api/health", () => {
       expect(body).toHaveProperty("cron");
       expect(body).toHaveProperty("pipeline");
       expect(body).toHaveProperty("payments");
+      expect(body).toHaveProperty("crawl");
 
       expect(typeof body.uptime).toBe("number");
       expect(body.database).toHaveProperty("connected");
@@ -429,6 +507,42 @@ describe("GET /api/health", () => {
         webhookConfigured: false,
         publishableKeyConfigured: false,
         blockingIssues: [],
+      });
+      expect(body.crawl).toEqual({
+        healthy: true,
+        criticalFailures: 0,
+        warningCount: 0,
+        checkedAt: "2026-03-12T00:00:00.000Z",
+        routes: [
+          {
+            path: "/",
+            url: "https://aimarketcap.tech",
+            status: 200,
+            ok: true,
+            contentType: "text/html; charset=utf-8",
+            error: null,
+            warnings: [],
+          },
+          {
+            path: "/robots.txt",
+            url: "https://aimarketcap.tech/robots.txt",
+            status: 200,
+            ok: true,
+            contentType: "text/plain; charset=utf-8",
+            error: null,
+            warnings: [],
+          },
+          {
+            path: "/sitemap.xml",
+            url: "https://aimarketcap.tech/sitemap.xml",
+            status: 200,
+            ok: true,
+            contentType: "application/xml",
+            error: null,
+            warnings: [],
+          },
+        ],
+        warnings: [],
       });
 
       process.env.CRON_SECRET = originalSecret;
@@ -485,6 +599,86 @@ describe("GET /api/health", () => {
       expect(body.payments.stripe.blockingIssues).toContain(
         "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
       );
+
+      process.env.CRON_SECRET = originalSecret;
+    });
+
+    it("marks authenticated health degraded when crawler-critical routes are failing", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+      mockCheckCrawlerSurfaceHealth.mockResolvedValue({
+        healthy: false,
+        criticalFailures: 1,
+        warningCount: 2,
+        checkedAt: "2026-03-12T00:00:00.000Z",
+        routes: [
+          {
+            path: "/",
+            url: "https://aimarketcap.tech",
+            status: 200,
+            ok: true,
+            contentType: "text/html; charset=utf-8",
+            error: null,
+            warnings: ["challenge markers present in public HTML"],
+          },
+          {
+            path: "/robots.txt",
+            url: "https://aimarketcap.tech/robots.txt",
+            status: 200,
+            ok: true,
+            contentType: "text/plain; charset=utf-8",
+            error: null,
+            warnings: ["cloudflare managed robots content detected"],
+          },
+          {
+            path: "/sitemap.xml",
+            url: "https://aimarketcap.tech/sitemap.xml",
+            status: 503,
+            ok: false,
+            contentType: "text/plain; charset=utf-8",
+            error: null,
+            warnings: ["unexpected content type: text/plain; charset=utf-8"],
+          },
+        ],
+        warnings: [
+          "/: challenge markers present in public HTML",
+          "/robots.txt: cloudflare managed robots content detected",
+        ],
+      });
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: {
+            data: makeDataSources([{ slug: "a1", last_sync_at: syncedAgo(0.5, 6) }]),
+            error: null,
+          },
+          pipeline_health: {
+            data: makePipelineHealth([
+              { source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6) },
+            ]),
+            error: null,
+          },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "completed",
+                started_at: "2026-03-11T23:45:00.000Z",
+                created_at: "2026-03-11T23:45:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        }) as unknown as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe("degraded");
+      expect(body.crawl.healthy).toBe(false);
+      expect(body.crawl.criticalFailures).toBe(1);
 
       process.env.CRON_SECRET = originalSecret;
     });

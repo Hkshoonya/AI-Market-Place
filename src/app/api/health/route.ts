@@ -24,6 +24,7 @@ import {
   isCronSchedulerConfigured,
   resolveCronRunnerMode,
 } from "@/lib/cron-runtime";
+import { checkCrawlerSurfaceHealth } from "@/lib/crawl-health";
 import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,24 @@ const HealthDetailSchema = HealthPublicSchema.extend({
       publishableKeyConfigured: z.boolean(),
       blockingIssues: z.array(z.string()),
     }),
+  }),
+  crawl: z.object({
+    healthy: z.boolean(),
+    criticalFailures: z.number(),
+    warningCount: z.number(),
+    checkedAt: z.string(),
+    routes: z.array(
+      z.object({
+        path: z.string(),
+        url: z.string(),
+        status: z.number().nullable(),
+        ok: z.boolean(),
+        contentType: z.string().nullable(),
+        error: z.string().nullable(),
+        warnings: z.array(z.string()),
+      })
+    ),
+    warnings: z.array(z.string()),
   }),
 });
 
@@ -254,10 +273,14 @@ export async function GET(request: NextRequest) {
       const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
       const cronStale = schedulerConfigured && recentCronRuns.length === 0;
       const cronDegraded = cronStale || latestFailedJobs24h > 0;
-      const stripePaymentsReadiness = getStripePaymentsReadiness();
+      const [stripePaymentsReadiness, crawlSurface] = await Promise.all([
+        Promise.resolve(getStripePaymentsReadiness()),
+        checkCrawlerSurfaceHealth(),
+      ]);
       const paymentsDegraded = stripePaymentsReadiness.status === "partial";
+      const crawlDegraded = !crawlSurface.healthy;
       overallStatus =
-        overallStatus === "degraded" || cronDegraded || paymentsDegraded
+        overallStatus === "degraded" || cronDegraded || paymentsDegraded || crawlDegraded
           ? "degraded"
           : "healthy";
       const body = HealthDetailSchema.parse({
@@ -286,6 +309,7 @@ export async function GET(request: NextRequest) {
         payments: {
           stripe: stripePaymentsReadiness,
         },
+        crawl: crawlSurface,
       });
 
       return NextResponse.json(body);

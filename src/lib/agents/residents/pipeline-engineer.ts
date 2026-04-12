@@ -18,6 +18,7 @@ import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
+import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
@@ -293,6 +294,46 @@ const pipelineEngineer: ResidentAgent = {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`Failed to compute benchmark automation health: ${message}`);
         await log.error(`Benchmark automation health check failed: ${message}`);
+      }
+
+      // Step 4e: Track crawler-critical public routes so Search Console issues surface automatically.
+      try {
+        const crawlSurface = await checkCrawlerSurfaceHealth();
+        output.crawlSurface = crawlSurface;
+        const crawlIssueSlug = "pipeline-crawler-surface-health";
+        const crawlIssueOpen = !crawlSurface.healthy || crawlSurface.warningCount > 0;
+
+        if (crawlIssueOpen) {
+          await recordAgentIssue(sb, {
+            slug: crawlIssueSlug,
+            title: "Crawler surface health issues detected",
+            issueType: "crawler_surface_health",
+            source: "public-web",
+            severity: crawlSurface.criticalFailures > 0 ? "critical" : "high",
+            confidence: 0.9,
+            detectedBy: "pipeline-engineer",
+            playbook: "inspect_crawler_surface",
+            evidence: {
+              healthy: crawlSurface.healthy,
+              criticalFailures: crawlSurface.criticalFailures,
+              warningCount: crawlSurface.warningCount,
+              warnings: crawlSurface.warnings,
+              routes: crawlSurface.routes,
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, crawlIssueSlug, {
+            verifier: "pipeline-engineer",
+            reason: "crawler-critical public routes are healthy and warning-free",
+            healthy: crawlSurface.healthy,
+            criticalFailures: crawlSurface.criticalFailures,
+            warningCount: crawlSurface.warningCount,
+          }).catch(() => {});
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to compute crawler surface health: ${message}`);
+        await log.error(`Crawler surface health check failed: ${message}`);
       }
 
       // Step 5: Attempt repair of failed sources

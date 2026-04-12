@@ -22,6 +22,7 @@ import {
   getDescriptionCoverageThreshold,
   type ActiveModelSummary,
 } from "./ux-monitor";
+import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 
 interface AgentIssueRow {
   slug: string;
@@ -130,6 +131,13 @@ export function isBenchmarkCoverageIssueResolved(input: {
   missingTrustedLocatorCount: number;
 }): boolean {
   return input.officialGapCount === 0 && input.missingTrustedLocatorCount === 0;
+}
+
+export function isCrawlerSurfaceIssueResolved(input: {
+  healthy: boolean;
+  warningCount: number;
+}): boolean {
+  return input.healthy && input.warningCount === 0;
 }
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
@@ -347,6 +355,14 @@ const verifier: ResidentAgent = {
             officialGapCount: number;
             missingTrustedLocatorCount: number;
             trustedLocatorCoveragePct: number;
+          }
+        | null = null;
+      let crawlSurfaceHealth:
+        | {
+            healthy: boolean;
+            criticalFailures: number;
+            warningCount: number;
+            warnings: string[];
           }
         | null = null;
 
@@ -589,6 +605,45 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   reason: "benchmark coverage gaps or trusted locator gaps still remain",
                   ...benchmarkHealth,
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "crawler_surface_health") {
+            crawlSurfaceHealth ??= await (async () => {
+              const crawlSurface = await checkCrawlerSurfaceHealth();
+              return {
+                healthy: crawlSurface.healthy,
+                criticalFailures: crawlSurface.criticalFailures,
+                warningCount: crawlSurface.warningCount,
+                warnings: crawlSurface.warnings,
+              };
+            })();
+
+            const resolved = isCrawlerSurfaceIssueResolved(crawlSurfaceHealth);
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                reason: "crawler-critical public routes are healthy and warning-free",
+                ...crawlSurfaceHealth,
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  reason: "crawler-critical public routes still have failures or crawler warnings",
+                  ...crawlSurfaceHealth,
                 },
                 maxVerificationRetries
               );
