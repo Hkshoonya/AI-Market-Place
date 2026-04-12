@@ -141,4 +141,44 @@ describe("benchmark coverage helpers", () => {
       })
     ).toBe("https://api-docs.deepseek.com/updates");
   });
+
+  it("infers trusted official docs pages when the stored website_url is missing", () => {
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "openai-gpt-5-search-api",
+        provider: "OpenAI",
+        category: "llm",
+        website_url: null,
+      })
+    ).toBe("https://developers.openai.com/api/docs/models");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "google-gemma-3n",
+        provider: "Google",
+        category: "multimodal",
+        website_url: null,
+      })
+    ).toBe("https://deepmind.google/models/gemma/");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "minimax-minimax-m1",
+        provider: "MiniMax",
+        category: "llm",
+        website_url: null,
+      })
+    ).toBe("https://www.minimax.io/models/text");
+  });
+
+  it("infers approved HF locators for missing official open-weight rows", () => {
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "bytedance-ui-tars-1-5-7b",
+        provider: "Bytedance",
+        category: "multimodal",
+        hf_model_id: null,
+      })
+    ).toBe("https://huggingface.co/ByteDance-Seed/UI-TARS-1.5-7B");
+  });
 });

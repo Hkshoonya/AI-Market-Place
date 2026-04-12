@@ -14,6 +14,7 @@ import { getDefaultPublicSurfaceReadinessBlockers } from "@/lib/models/public-su
 import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 import { getPublicSourceTrustTier, isLowTrustPublicSourceTier } from "@/lib/models/public-source-trust";
 import { stripPublicSignalInputs } from "@/lib/models/public-signal-inputs";
+import { inferTrustedBenchmarkLocatorHints } from "@/lib/data-sources/shared/benchmark-coverage";
 
 // --------------- Retry & Fetch ---------------
 
@@ -223,13 +224,25 @@ function normalizeProviderFields(
 function normalizeModelRankingInputs(
   record: Record<string, unknown>
 ): Record<string, unknown> {
-  const normalizedModel = {
-    slug: typeof record.slug === "string" ? record.slug : null,
-    provider: typeof record.provider === "string" ? record.provider : null,
+  const inferredLocators = inferTrustedBenchmarkLocatorHints({
+    slug: typeof record.slug === "string" ? record.slug : "",
+    provider: typeof record.provider === "string" ? record.provider : "",
+    category: typeof record.category === "string" ? record.category : null,
     hf_model_id:
       typeof record.hf_model_id === "string" ? record.hf_model_id : null,
     website_url:
       typeof record.website_url === "string" ? record.website_url : null,
+    name: typeof record.name === "string" ? record.name : null,
+  });
+  const normalizedModel = {
+    slug: typeof record.slug === "string" ? record.slug : null,
+    provider: typeof record.provider === "string" ? record.provider : null,
+    hf_model_id:
+      (typeof record.hf_model_id === "string" ? record.hf_model_id : null) ??
+      inferredLocators.hf_model_id,
+    website_url:
+      (typeof record.website_url === "string" ? record.website_url : null) ??
+      inferredLocators.website_url,
     name: typeof record.name === "string" ? record.name : null,
     category: typeof record.category === "string" ? record.category : null,
     release_date:
@@ -261,10 +274,14 @@ function normalizeModelRankingInputs(
     hf_trending_score:
       typeof record.hf_trending_score === "number" ? record.hf_trending_score : null,
   };
+  let normalizedRecord = {
+    ...record,
+    hf_model_id: normalizedModel.hf_model_id,
+    website_url: normalizedModel.website_url,
+  };
   const blockers = getDefaultPublicSurfaceReadinessBlockers(normalizedModel);
   const trustTier = getPublicSourceTrustTier(normalizedModel);
 
-  let normalizedRecord = record;
   if (isLowTrustPublicSourceTier(trustTier)) {
     normalizedRecord = stripPublicSignalInputs(normalizedRecord);
   }

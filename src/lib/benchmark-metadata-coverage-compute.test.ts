@@ -126,18 +126,11 @@ describe("computeBenchmarkMetadataCoverage", () => {
 
     expect(coverage.benchmarkExpectedModels).toBe(2);
     expect(coverage.withTrustedHfLocator).toBe(1);
-    expect(coverage.withTrustedWebsiteLocator).toBe(0);
-    expect(coverage.withAnyTrustedBenchmarkLocator).toBe(1);
-    expect(coverage.missingTrustedLocatorCount).toBe(1);
-    expect(coverage.trustedLocatorCoveragePct).toBe(50);
-    expect(coverage.recentMissingTrustedLocators).toEqual([
-      {
-        slug: "openai-gpt-5-3",
-        provider: "OpenAI",
-        category: "llm",
-        release_date: "2026-02-10",
-      },
-    ]);
+    expect(coverage.withTrustedWebsiteLocator).toBe(2);
+    expect(coverage.withAnyTrustedBenchmarkLocator).toBe(2);
+    expect(coverage.missingTrustedLocatorCount).toBe(0);
+    expect(coverage.trustedLocatorCoveragePct).toBe(100);
+    expect(coverage.recentMissingTrustedLocators).toEqual([]);
   });
 
   it("treats existing benchmark evidence as a valid automated update path", async () => {

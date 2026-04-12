@@ -530,4 +530,52 @@ describe("upsertBatch", () => {
       }
     );
   });
+
+  it("persists inferred trusted benchmark locators for official models missing metadata", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "openai-gpt-5-search-api",
+          provider: "OpenAI",
+          name: "GPT-5 Search API",
+          category: "llm",
+          release_date: "2025-10-14",
+          context_window: 128000,
+        },
+        {
+          slug: "bytedance-ui-tars-1-5-7b",
+          provider: "Bytedance",
+          name: "UI-TARS 1.5 7B",
+          category: "multimodal",
+          release_date: "2025-07-22",
+          context_window: 32768,
+        },
+      ],
+      "slug"
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          slug: "openai-gpt-5-search-api",
+          website_url: "https://developers.openai.com/api/docs/models",
+        }),
+        expect.objectContaining({
+          slug: "bytedance-ui-tars-1-5-7b",
+          hf_model_id: "ByteDance-Seed/UI-TARS-1.5-7B",
+        }),
+      ],
+      {
+        onConflict: "slug",
+        count: "exact",
+      }
+    );
+  });
 });
