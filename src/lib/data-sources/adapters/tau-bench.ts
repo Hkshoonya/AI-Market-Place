@@ -1,38 +1,136 @@
-/**
- * TAU-Bench Adapter — Static Agent Benchmark Data
- *
- * Tool-Augmented Understanding benchmark scores.
- * Uses alias-family resolution to map model names to DB models.
- */
-
-import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
+import type {
+  DataSourceAdapter,
+  HealthCheckResult,
+  SyncContext,
+  SyncResult,
+} from "../types";
 import { registerAdapter } from "../registry";
+import { fetchWithRetry } from "../utils";
 import {
-  buildModelAliasIndex,
-  fetchAllActiveAliasModels,
-  resolveMatchedAliasFamilyModelIds,
-} from "../model-alias-resolver";
-import {
-  STATIC_BENCHMARK_ON_CONFLICT,
-  buildStaticBenchmarkScoreRecord,
-} from "./static-benchmark";
+  normalizeRemoteBenchmarkDate,
+  runRemoteBenchmarkHealthCheck,
+  syncRemoteBenchmarkEntries,
+  type RemoteBenchmarkEntry,
+} from "./remote-benchmark";
 
-const TAU_BENCH_MODELS: Array<{ name: string; score: number }> = [
-  { name: "o3", score: 82.5 },
-  { name: "Claude Opus 4.6", score: 76.3 },
-  { name: "GPT-4.1", score: 71.8 },
-  { name: "Claude 4 Opus", score: 74.1 },
-  { name: "Gemini 3.1 Pro", score: 68.7 },
-  { name: "o4-mini", score: 66.2 },
-  { name: "Claude 4 Sonnet", score: 63.5 },
-  { name: "GPT-4o", score: 55.8 },
-  { name: "DeepSeek R1-0528", score: 60.4 },
-  { name: "Gemini 2.5 Pro", score: 58.9 },
-  { name: "Grok 3", score: 52.3 },
-  { name: "Llama 4 Maverick", score: 45.7 },
-  { name: "Qwen 3 235B", score: 48.1 },
-  { name: "Mistral Large 2", score: 43.2 },
-];
+const TAU_BENCH_BASE_URL =
+  "https://sierra-tau-bench-public.s3.us-west-2.amazonaws.com/submissions";
+
+interface TauBenchManifest {
+  submissions?: string[];
+}
+
+interface TauBenchSubmission {
+  model_name?: string;
+  submission_date?: string;
+  submission_type?: string;
+  methodology?: {
+    verification?: {
+      modified_prompts?: boolean;
+      omitted_questions?: boolean;
+    };
+  };
+  results?: Record<
+    string,
+    {
+      pass_1?: number | null;
+    }
+  >;
+}
+
+function computeTauBenchOverallPass1(submission: TauBenchSubmission) {
+  const pass1Values = Object.values(submission.results ?? {})
+    .map((result) => result?.pass_1)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  if (pass1Values.length === 0) return null;
+  return Number(
+    (pass1Values.reduce((sum, value) => sum + value, 0) / pass1Values.length).toFixed(2)
+  );
+}
+
+function isVerifiedTauBenchSubmission(submission: TauBenchSubmission) {
+  return (
+    submission.submission_type === "standard" &&
+    submission.methodology?.verification?.modified_prompts === false &&
+    submission.methodology?.verification?.omitted_questions === false
+  );
+}
+
+export function extractTauBenchEntries(
+  submissions: TauBenchSubmission[]
+): RemoteBenchmarkEntry[] {
+  const bestByModel = new Map<string, RemoteBenchmarkEntry>();
+
+  for (const submission of submissions) {
+    if (!isVerifiedTauBenchSubmission(submission)) continue;
+
+    const modelName = submission.model_name?.trim() ?? "";
+    const score = computeTauBenchOverallPass1(submission);
+    const evaluationDate = normalizeRemoteBenchmarkDate(submission.submission_date);
+
+    if (!modelName || score == null) continue;
+
+    const current = bestByModel.get(modelName);
+    if (
+      !current ||
+      score > current.score ||
+      (score === current.score &&
+        (evaluationDate ?? "") > (current.evaluationDate ?? ""))
+    ) {
+      bestByModel.set(modelName, {
+        matchNames: [modelName],
+        score,
+        evaluationDate,
+      });
+    }
+  }
+
+  return [...bestByModel.values()].sort((left, right) => right.score - left.score);
+}
+
+async function fetchTauBenchManifest(signal?: AbortSignal) {
+  const res = await fetchWithRetry(
+    `${TAU_BENCH_BASE_URL}/manifest.json`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "AI-Market-Cap-Bot",
+      },
+      signal,
+    },
+    { signal }
+  );
+
+  if (!res.ok) {
+    throw new Error(`manifest returned HTTP ${res.status}`);
+  }
+
+  return (await res.json()) as TauBenchManifest;
+}
+
+async function fetchTauBenchSubmission(
+  submissionDir: string,
+  signal?: AbortSignal
+) {
+  const res = await fetchWithRetry(
+    `${TAU_BENCH_BASE_URL}/${submissionDir}/submission.json`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "AI-Market-Cap-Bot",
+      },
+      signal,
+    },
+    { signal }
+  );
+
+  if (!res.ok) {
+    throw new Error(`${submissionDir} returned HTTP ${res.status}`);
+  }
+
+  return (await res.json()) as TauBenchSubmission;
+}
 
 const adapter: DataSourceAdapter = {
   id: "tau-bench",
@@ -42,67 +140,88 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const supabase = ctx.supabase;
-    let recordsProcessed = 0;
-    let recordsCreated = 0;
-    const recordsUpdated = 0;
-    const errors: SyncError[] = [];
-
+    let manifest: TauBenchManifest;
     try {
-      const { data: benchmark } = await supabase
-        .from("benchmarks")
-        .select("id")
-        .eq("slug", "tau-bench")
-        .single();
-
-      if (!benchmark) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "tau-bench benchmark not found" }] };
-      }
-
-      const models = await fetchAllActiveAliasModels(supabase);
-      const modelAliasIndex = buildModelAliasIndex(models);
-
-      if (models.length === 0) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "No models found" }] };
-      }
-
-      for (const entry of TAU_BENCH_MODELS) {
-        recordsProcessed++;
-        const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, models, [entry.name]);
-        if (relatedIds.length === 0) {
-          errors.push({ message: `No match for: ${entry.name}` });
-          continue;
-        }
-
-        for (const relatedId of relatedIds) {
-          const { error } = await supabase
-            .from("benchmark_scores")
-            .upsert(
-              buildStaticBenchmarkScoreRecord({
-                modelId: relatedId,
-                benchmarkId: benchmark.id,
-                score: entry.score,
-                source: "tau-bench",
-              }),
-              { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
-            );
-
-          if (error) {
-            errors.push({ message: `Error upserting ${entry.name}/${relatedId}: ${error.message}` });
-          } else {
-            recordsCreated++;
-          }
-        }
-      }
-
-      return { success: true, recordsProcessed, recordsCreated, recordsUpdated, errors };
-    } catch (e) {
-      return { success: false, recordsProcessed, recordsCreated, recordsUpdated, errors: [{ message: String(e) }] };
+      manifest = await fetchTauBenchManifest(ctx.signal);
+    } catch (error) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch TAU-Bench manifest: ${error instanceof Error ? error.message : String(error)}`,
+            context: "network_error",
+          },
+        ],
+        metadata: { url: `${TAU_BENCH_BASE_URL}/manifest.json` },
+      };
     }
+
+    const submissionDirs = manifest.submissions ?? [];
+    const submissions: TauBenchSubmission[] = [];
+    const errors: { message: string; context?: string }[] = [];
+
+    for (const submissionDir of submissionDirs) {
+      try {
+        submissions.push(await fetchTauBenchSubmission(submissionDir, ctx.signal));
+      } catch (error) {
+        errors.push({
+          message: `Failed to fetch TAU-Bench submission ${submissionDir}: ${error instanceof Error ? error.message : String(error)}`,
+          context: "submission_error",
+        });
+      }
+    }
+
+    const entries = extractTauBenchEntries(submissions);
+    if (entries.length === 0) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          ...errors,
+          { message: "TAU-Bench returned no usable verified standard rows", context: "empty_response" },
+        ],
+        metadata: {
+          url: `${TAU_BENCH_BASE_URL}/manifest.json`,
+          submissions: submissionDirs.length,
+        },
+      };
+    }
+
+    const syncResult = await syncRemoteBenchmarkEntries(ctx, {
+      benchmarkSlug: "tau-bench",
+      source: "tau-bench",
+      entries,
+      metadata: {
+        url: `${TAU_BENCH_BASE_URL}/manifest.json`,
+        submissions: submissionDirs.length,
+        parsedEntries: entries.length,
+      },
+    });
+
+    return {
+      ...syncResult,
+      success: syncResult.success && errors.length === 0,
+      errors: [...errors, ...syncResult.errors],
+    };
   },
 
-  async healthCheck() {
-    return { healthy: true, latencyMs: 0, message: "Static data source" };
+  async healthCheck(): Promise<HealthCheckResult> {
+    return runRemoteBenchmarkHealthCheck(
+      `${TAU_BENCH_BASE_URL}/manifest.json`,
+      (body) => {
+        try {
+          const manifest = JSON.parse(body) as TauBenchManifest;
+          return manifest.submissions?.length ?? 0;
+        } catch {
+          return 0;
+        }
+      }
+    );
   },
 };
 

@@ -1,36 +1,74 @@
-/**
- * WebArena Adapter — Static Agent Benchmark Data
- *
- * Web-based agent benchmark scores.
- * Uses alias-family resolution to map model names to DB models.
- */
-
-import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
+import type {
+  DataSourceAdapter,
+  HealthCheckResult,
+  SyncContext,
+  SyncResult,
+} from "../types";
 import { registerAdapter } from "../registry";
+import { fetchWithRetry } from "../utils";
 import {
-  buildModelAliasIndex,
-  fetchAllActiveAliasModels,
-  resolveMatchedAliasFamilyModelIds,
-} from "../model-alias-resolver";
-import {
-  STATIC_BENCHMARK_ON_CONFLICT,
-  buildStaticBenchmarkScoreRecord,
-} from "./static-benchmark";
+  normalizeRemoteBenchmarkDate,
+  parseCsvRows,
+  runRemoteBenchmarkHealthCheck,
+  syncRemoteBenchmarkEntries,
+  type RemoteBenchmarkEntry,
+} from "./remote-benchmark";
 
-const WEBARENA_MODELS: Array<{ name: string; score: number }> = [
-  { name: "Claude 4 Opus", score: 45.2 },
-  { name: "GPT-4.1", score: 42.8 },
-  { name: "Gemini 3.1 Pro", score: 40.1 },
-  { name: "Claude Opus 4.6", score: 43.7 },
-  { name: "o3", score: 38.5 },
-  { name: "Claude 4 Sonnet", score: 36.2 },
-  { name: "GPT-4o", score: 30.8 },
-  { name: "Gemini 2.5 Pro", score: 33.5 },
-  { name: "DeepSeek-V3.2", score: 25.4 },
-  { name: "o4-mini", score: 35.1 },
-  { name: "Grok 3", score: 28.3 },
-  { name: "Llama 4 Maverick", score: 22.7 },
-];
+const WEBARENA_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1M801lEpBbKSNwP-vDBkC_pF7LdyGU1f_ufZb_NWNBZQ/export?format=csv";
+
+function isTrackableWebArenaModelLabel(label: string) {
+  const normalized = label.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes("+")) return false;
+
+  return /(gpt|claude|gemini|llama|qwen|deepseek|grok|mistral|kimi|\bo1\b|\bo3\b|\bo4\b)/.test(
+    normalized
+  );
+}
+
+export function parseWebArenaCsv(text: string): RemoteBenchmarkEntry[] {
+  const rows = parseCsvRows(text).filter((row) => row.some((cell) => cell.trim()));
+  if (rows.length === 0) return [];
+
+  const header = rows[0].map((cell) => cell.trim());
+  const dateIndex = header.indexOf("a");
+  const modelIndex = header.indexOf("Model");
+  const scoreIndex = header.indexOf("Success Rate (%)");
+
+  if (modelIndex === -1 || scoreIndex === -1) {
+    return [];
+  }
+
+  const bestByModel = new Map<string, RemoteBenchmarkEntry>();
+
+  for (const row of rows.slice(1)) {
+    const modelName = row[modelIndex]?.trim() ?? "";
+    const score = Number(row[scoreIndex] ?? "");
+    const evaluationDate =
+      dateIndex >= 0 ? normalizeRemoteBenchmarkDate(row[dateIndex]) : null;
+
+    if (!isTrackableWebArenaModelLabel(modelName) || !Number.isFinite(score)) {
+      continue;
+    }
+
+    const current = bestByModel.get(modelName);
+    if (
+      !current ||
+      score > current.score ||
+      (score === current.score &&
+        (evaluationDate ?? "") > (current.evaluationDate ?? ""))
+    ) {
+      bestByModel.set(modelName, {
+        matchNames: [modelName],
+        score,
+        evaluationDate,
+      });
+    }
+  }
+
+  return [...bestByModel.values()].sort((left, right) => right.score - left.score);
+}
 
 const adapter: DataSourceAdapter = {
   id: "webarena",
@@ -40,67 +78,73 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const supabase = ctx.supabase;
-    let recordsProcessed = 0;
-    let recordsCreated = 0;
-    const recordsUpdated = 0;
-    const errors: SyncError[] = [];
-
+    let csv: string;
     try {
-      const { data: benchmark } = await supabase
-        .from("benchmarks")
-        .select("id")
-        .eq("slug", "webarena")
-        .single();
-
-      if (!benchmark) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "webarena benchmark not found" }] };
+      const res = await fetchWithRetry(
+        WEBARENA_CSV_URL,
+        {
+          headers: {
+            Accept: "text/csv",
+            "User-Agent": "AI-Market-Cap-Bot",
+          },
+          signal: ctx.signal,
+        },
+        { signal: ctx.signal }
+      );
+      if (!res.ok) {
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [{ message: `WebArena returned HTTP ${res.status}`, context: "api_error" }],
+          metadata: { url: WEBARENA_CSV_URL },
+        };
       }
-
-      const models = await fetchAllActiveAliasModels(supabase);
-      const modelAliasIndex = buildModelAliasIndex(models);
-
-      if (models.length === 0) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "No models found" }] };
-      }
-
-      for (const entry of WEBARENA_MODELS) {
-        recordsProcessed++;
-        const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, models, [entry.name]);
-        if (relatedIds.length === 0) {
-          errors.push({ message: `No match for: ${entry.name}` });
-          continue;
-        }
-
-        for (const relatedId of relatedIds) {
-          const { error } = await supabase
-            .from("benchmark_scores")
-            .upsert(
-              buildStaticBenchmarkScoreRecord({
-                modelId: relatedId,
-                benchmarkId: benchmark.id,
-                score: entry.score,
-                source: "webarena",
-              }),
-              { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
-            );
-
-          if (error) {
-            errors.push({ message: `Error upserting ${entry.name}/${relatedId}: ${error.message}` });
-          } else {
-            recordsCreated++;
-          }
-        }
-      }
-
-      return { success: true, recordsProcessed, recordsCreated, recordsUpdated, errors };
-    } catch (e) {
-      return { success: false, recordsProcessed, recordsCreated, recordsUpdated, errors: [{ message: String(e) }] };
+      csv = await res.text();
+    } catch (error) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch WebArena leaderboard: ${error instanceof Error ? error.message : String(error)}`,
+            context: "network_error",
+          },
+        ],
+        metadata: { url: WEBARENA_CSV_URL },
+      };
     }
+
+    const entries = parseWebArenaCsv(csv);
+    if (entries.length === 0) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "WebArena returned no usable model rows", context: "empty_response" }],
+        metadata: { url: WEBARENA_CSV_URL },
+      };
+    }
+
+    return syncRemoteBenchmarkEntries(ctx, {
+      benchmarkSlug: "webarena",
+      source: "webarena",
+      entries,
+      metadata: {
+        url: WEBARENA_CSV_URL,
+        parsedEntries: entries.length,
+      },
+    });
   },
 
-  async healthCheck() {
-    return { healthy: true, latencyMs: 0, message: "Static data source" };
+  async healthCheck(): Promise<HealthCheckResult> {
+    return runRemoteBenchmarkHealthCheck(WEBARENA_CSV_URL, (body) =>
+      parseWebArenaCsv(body).length
+    );
   },
 };
 

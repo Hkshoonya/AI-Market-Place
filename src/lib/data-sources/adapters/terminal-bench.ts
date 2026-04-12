@@ -1,42 +1,60 @@
-/**
- * TerminalBench 2.0 Adapter — Static Agent Benchmark Data
- *
- * Curated terminal/CLI agent benchmark scores.
- * Uses alias-family resolution to map model names to DB models.
- */
-
-import type { DataSourceAdapter, SyncContext, SyncResult, SyncError } from "../types";
+import type {
+  DataSourceAdapter,
+  HealthCheckResult,
+  SyncContext,
+  SyncResult,
+} from "../types";
 import { registerAdapter } from "../registry";
+import { fetchWithRetry } from "../utils";
 import {
-  buildModelAliasIndex,
-  fetchAllActiveAliasModels,
-  resolveMatchedAliasFamilyModelIds,
-} from "../model-alias-resolver";
-import {
-  STATIC_BENCHMARK_ON_CONFLICT,
-  buildStaticBenchmarkScoreRecord,
-} from "./static-benchmark";
+  normalizeRemoteBenchmarkDate,
+  runRemoteBenchmarkHealthCheck,
+  stripHtml,
+  syncRemoteBenchmarkEntries,
+  type RemoteBenchmarkEntry,
+} from "./remote-benchmark";
 
-const TERMINAL_BENCH_MODELS: Array<{ name: string; score: number }> = [
-  { name: "GPT-5.3 Codex", score: 77.3 },
-  { name: "Claude Opus 4.6", score: 72.1 },
-  { name: "Gemini 3.1 Pro", score: 68.5 },
-  { name: "Claude 4 Opus", score: 65.8 },
-  { name: "GPT-4.1", score: 58.2 },
-  { name: "DeepSeek-V3.2", score: 54.7 },
-  { name: "Kimi K2.5", score: 51.3 },
-  { name: "o3", score: 70.9 },
-  { name: "o4-mini", score: 62.4 },
-  { name: "Claude 4 Sonnet", score: 59.1 },
-  { name: "Gemini 2.5 Pro", score: 55.8 },
-  { name: "Gemini 2.5 Flash", score: 48.2 },
-  { name: "GPT-4o", score: 42.6 },
-  { name: "Llama 4 Maverick", score: 39.8 },
-  { name: "DeepSeek R1-0528", score: 52.1 },
-  { name: "Qwen 3 235B", score: 45.3 },
-  { name: "Mistral Large 2", score: 38.7 },
-  { name: "Grok 3", score: 44.5 },
-];
+const TERMINAL_BENCH_URL = "https://www.tbench.ai/leaderboard/terminal-bench/2.0";
+
+function parseTerminalBenchRows(html: string) {
+  return [...html.matchAll(/<tr data-slot="table-row"[^>]*>([\s\S]*?)<\/tr>/g)]
+    .map((match) => match[1])
+    .filter((row) => row.includes("<td"));
+}
+
+export function parseTerminalBenchLeaderboardHtml(html: string): RemoteBenchmarkEntry[] {
+  const bestByModel = new Map<string, RemoteBenchmarkEntry>();
+
+  for (const row of parseTerminalBenchRows(html)) {
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((match) =>
+      stripHtml(match[1])
+    );
+
+    if (cells.length < 8) continue;
+
+    const modelName = cells[3];
+    const evaluationDate = normalizeRemoteBenchmarkDate(cells[4]);
+    const score = Number(cells[7].match(/(\d+(?:\.\d+)?)/)?.[1] ?? "");
+
+    if (!modelName || !Number.isFinite(score)) continue;
+
+    const current = bestByModel.get(modelName);
+    if (
+      !current ||
+      score > current.score ||
+      (score === current.score &&
+        (evaluationDate ?? "") > (current.evaluationDate ?? ""))
+    ) {
+      bestByModel.set(modelName, {
+        matchNames: [modelName],
+        score,
+        evaluationDate,
+      });
+    }
+  }
+
+  return [...bestByModel.values()].sort((left, right) => right.score - left.score);
+}
 
 const adapter: DataSourceAdapter = {
   id: "terminal-bench",
@@ -46,67 +64,73 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    const supabase = ctx.supabase;
-    let recordsProcessed = 0;
-    let recordsCreated = 0;
-    const recordsUpdated = 0;
-    const errors: SyncError[] = [];
-
+    let html: string;
     try {
-      const { data: benchmark } = await supabase
-        .from("benchmarks")
-        .select("id")
-        .eq("slug", "terminal-bench")
-        .single();
-
-      if (!benchmark) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "terminal-bench benchmark not found" }] };
+      const res = await fetchWithRetry(
+        TERMINAL_BENCH_URL,
+        {
+          headers: {
+            Accept: "text/html",
+            "User-Agent": "AI-Market-Cap-Bot",
+          },
+          signal: ctx.signal,
+        },
+        { signal: ctx.signal }
+      );
+      if (!res.ok) {
+        return {
+          success: false,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [{ message: `TerminalBench returned HTTP ${res.status}`, context: "api_error" }],
+          metadata: { url: TERMINAL_BENCH_URL },
+        };
       }
-
-      const models = await fetchAllActiveAliasModels(supabase);
-      const modelAliasIndex = buildModelAliasIndex(models);
-
-      if (models.length === 0) {
-        return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [{ message: "No models found" }] };
-      }
-
-      for (const entry of TERMINAL_BENCH_MODELS) {
-        recordsProcessed++;
-        const relatedIds = resolveMatchedAliasFamilyModelIds(modelAliasIndex, models, [entry.name]);
-        if (relatedIds.length === 0) {
-          errors.push({ message: `No match for: ${entry.name}` });
-          continue;
-        }
-
-        for (const relatedId of relatedIds) {
-          const { error } = await supabase
-            .from("benchmark_scores")
-            .upsert(
-              buildStaticBenchmarkScoreRecord({
-                modelId: relatedId,
-                benchmarkId: benchmark.id,
-                score: entry.score,
-                source: "terminal-bench",
-              }),
-              { onConflict: STATIC_BENCHMARK_ON_CONFLICT }
-            );
-
-          if (error) {
-            errors.push({ message: `Error upserting ${entry.name}/${relatedId}: ${error.message}` });
-          } else {
-            recordsCreated++;
-          }
-        }
-      }
-
-      return { success: true, recordsProcessed, recordsCreated, recordsUpdated, errors };
-    } catch (e) {
-      return { success: false, recordsProcessed, recordsCreated, recordsUpdated, errors: [{ message: String(e) }] };
+      html = await res.text();
+    } catch (error) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch TerminalBench leaderboard: ${error instanceof Error ? error.message : String(error)}`,
+            context: "network_error",
+          },
+        ],
+        metadata: { url: TERMINAL_BENCH_URL },
+      };
     }
+
+    const entries = parseTerminalBenchLeaderboardHtml(html);
+    if (entries.length === 0) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [{ message: "TerminalBench returned no usable model rows", context: "empty_response" }],
+        metadata: { url: TERMINAL_BENCH_URL },
+      };
+    }
+
+    return syncRemoteBenchmarkEntries(ctx, {
+      benchmarkSlug: "terminal-bench",
+      source: "terminal-bench",
+      entries,
+      metadata: {
+        url: TERMINAL_BENCH_URL,
+        parsedEntries: entries.length,
+      },
+    });
   },
 
-  async healthCheck() {
-    return { healthy: true, latencyMs: 0, message: "Static data source" };
+  async healthCheck(): Promise<HealthCheckResult> {
+    return runRemoteBenchmarkHealthCheck(TERMINAL_BENCH_URL, (body) =>
+      parseTerminalBenchLeaderboardHtml(body).length
+    );
   },
 };
 

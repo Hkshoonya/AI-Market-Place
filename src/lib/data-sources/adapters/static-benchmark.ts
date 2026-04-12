@@ -5,6 +5,7 @@ export function buildStaticBenchmarkScoreRecord(input: {
   benchmarkId: number;
   score: number;
   source: string;
+  evaluationDate?: string | null;
 }) {
   return {
     model_id: input.modelId,
@@ -13,6 +14,6 @@ export function buildStaticBenchmarkScoreRecord(input: {
     score_normalized: input.score,
     source: input.source,
     model_version: "",
-    evaluation_date: new Date().toISOString().split("T")[0],
+    evaluation_date: input.evaluationDate ?? new Date().toISOString().split("T")[0],
   };
 }
