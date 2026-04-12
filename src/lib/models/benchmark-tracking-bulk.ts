@@ -3,6 +3,7 @@ import {
   type BenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
 import { getNewsSignalType } from "@/lib/news/presentation";
+import { systemLog } from "@/lib/logging";
 
 type QueryClient = {
   from: (table: string) => {
@@ -24,6 +25,30 @@ type BenchmarkTrackingModel = {
   category: string | null;
 };
 
+type QueryResultRow = unknown;
+
+async function resolveTrackingQuery(
+  source: string,
+  query: Promise<{ data: QueryResultRow[] | null; error: { message: string } | null }>
+) {
+  try {
+    const result = await query;
+    if (result.error) {
+      void systemLog.warn("benchmark-tracking", `Failed to fetch ${source}`, {
+        error: result.error.message,
+      });
+      return [] as QueryResultRow[];
+    }
+
+    return result.data ?? [];
+  } catch (error) {
+    void systemLog.warn("benchmark-tracking", `Failed to fetch ${source}`, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [] as QueryResultRow[];
+  }
+}
+
 export async function buildBenchmarkTrackingSummaryMap(
   queryClient: QueryClient,
   models: BenchmarkTrackingModel[]
@@ -35,31 +60,30 @@ export async function buildBenchmarkTrackingSummaryMap(
     return summaries;
   }
 
-  const [scoresResult, arenaResult, benchmarkNewsResult] = await Promise.all([
-    queryClient.from("benchmark_scores").select("model_id").in?.("model_id", ids) ??
-      Promise.resolve({ data: [], error: null }),
-    queryClient.from("elo_ratings").select("model_id").in?.("model_id", ids) ??
-      Promise.resolve({ data: [], error: null }),
-    queryClient
-      .from("model_news")
-      .select("id, title, source, category, related_model_ids, metadata, published_at")
-      .overlaps?.("related_model_ids", ids)
-      .order("published_at", { ascending: false })
-      .limit(500) ?? Promise.resolve({ data: [], error: null }),
+  const [scoreRows, arenaRows, benchmarkNewsRows] = await Promise.all([
+    resolveTrackingQuery(
+      "benchmark scores",
+      queryClient.from("benchmark_scores").select("model_id").in?.("model_id", ids) ??
+        Promise.resolve({ data: [], error: null })
+    ),
+    resolveTrackingQuery(
+      "arena ratings",
+      queryClient.from("elo_ratings").select("model_id").in?.("model_id", ids) ??
+        Promise.resolve({ data: [], error: null })
+    ),
+    resolveTrackingQuery(
+      "benchmark news",
+      queryClient
+        .from("model_news")
+        .select("id, title, source, category, related_model_ids, metadata, published_at")
+        .overlaps?.("related_model_ids", ids)
+        .order("published_at", { ascending: false })
+        .limit(500) ?? Promise.resolve({ data: [], error: null })
+    ),
   ]);
 
-  if (scoresResult.error) {
-    throw new Error(`Failed to fetch benchmark scores: ${scoresResult.error.message}`);
-  }
-  if (arenaResult.error) {
-    throw new Error(`Failed to fetch arena ratings: ${arenaResult.error.message}`);
-  }
-  if (benchmarkNewsResult.error) {
-    throw new Error(`Failed to fetch benchmark news: ${benchmarkNewsResult.error.message}`);
-  }
-
   const scoreCounts = new Map<string, number>();
-  for (const row of scoresResult.data ?? []) {
+  for (const row of scoreRows) {
     const modelId =
       row && typeof row === "object" && "model_id" in row && typeof row.model_id === "string"
         ? row.model_id
@@ -69,7 +93,7 @@ export async function buildBenchmarkTrackingSummaryMap(
   }
 
   const arenaCounts = new Map<string, number>();
-  for (const row of arenaResult.data ?? []) {
+  for (const row of arenaRows) {
     const modelId =
       row && typeof row === "object" && "model_id" in row && typeof row.model_id === "string"
         ? row.model_id
@@ -79,7 +103,7 @@ export async function buildBenchmarkTrackingSummaryMap(
   }
 
   const benchmarkEvidenceCounts = new Map<string, number>();
-  for (const row of benchmarkNewsResult.data ?? []) {
+  for (const row of benchmarkNewsRows) {
     if (!row || typeof row !== "object") continue;
     const signalType = getNewsSignalType({
       id: "id" in row && typeof row.id === "string" ? row.id : null,
