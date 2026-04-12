@@ -165,4 +165,41 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.recentIncompleteModels[0]?.provider).toBe("Unknown");
     expect(coverage.recentLowTrustModels[0]?.provider).toBe("Unknown");
   });
+
+  it("shares family coverage across canonical provider aliases", async () => {
+    const supabase = createMockSupabase([
+      {
+        slug: "meta-llama-meta-llama-3-8b-instruct",
+        provider: "meta-llama",
+        hf_model_id: "meta-llama/Meta-Llama-3-8B-Instruct",
+        name: "Meta-Llama-3-8B-Instruct",
+        category: "llm",
+        release_date: "2024-04-17",
+        is_open_weights: false,
+        license: "commercial",
+        license_name: "proprietary",
+        context_window: null,
+        overall_rank: 100,
+        quality_score: 60,
+      },
+      {
+        slug: "meta-llama-llama-3-8b-instruct",
+        provider: "Meta",
+        website_url: "https://www.llama.com/",
+        name: "Llama 3 8B Instruct",
+        category: "llm",
+        release_date: "2024-04-18",
+        is_open_weights: false,
+        license: "commercial",
+        license_name: "proprietary",
+        context_window: 8192,
+      },
+    ]);
+
+    const coverage = await computePublicMetadataCoverage(supabase as never);
+
+    expect(coverage.official.rankingContaminationCount).toBe(0);
+    expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(2);
+    expect(coverage.official.topReadinessBlockers).toEqual([]);
+  });
 });

@@ -17,6 +17,7 @@ import {
   isLowTrustPublicSourceTier,
   type PublicSourceTrustTier,
 } from "@/lib/models/public-source-trust";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 const PAGE_SIZE = 1000;
 
@@ -87,8 +88,7 @@ type SignalContaminationRow = {
 };
 
 function normalizeProvider(provider: string | null | undefined) {
-  const trimmed = provider?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : "Unknown";
+  return getCanonicalProviderName(provider);
 }
 
 function getFamilySeriesKey(model: ActiveModelPublicMetadataRow) {

@@ -136,6 +136,7 @@ function providerlessSlugToSeriesKey(providerlessSlug: string) {
           )?.[1] ?? match
       )
       .replace(/-(?:e|a)?\d+b(?=-|$)/g, "")
+      .replace(/-litert-lm(?=-|$)/g, "")
       .replace(
         /-(?:it|instruct|preview|beta|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)(?=-|$)/g,
         ""
@@ -154,6 +155,7 @@ function displayNameToSeriesKey(name: string) {
       .replace(/\sv\d+$/i, " ")
       .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")
+      .replace(/\blitert[-\s]?lm\b/gi, " ")
       .replace(
         /\b(?:it|instruct|preview|beta|exacto|extended|older|gguf|fp8|bf16|int4|int8|nvfp4|awq|highspeed|fastest|multi-agent|multiagent)\b/gi,
         " "

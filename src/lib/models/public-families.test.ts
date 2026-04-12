@@ -166,6 +166,21 @@ describe("public model family dedupe", () => {
     expect(metaAlias).toBe(metaCanonical);
   });
 
+  it("collapses LiteRT packaging suffixes into the base public series", () => {
+    const litert = getPublicSurfaceSeriesKey({
+      slug: "google-gemma-3n-e4b-it-litert-lm",
+      name: "gemma-3n-E4B-it-litert-lm",
+      provider: "Google",
+    });
+    const base = getPublicSurfaceSeriesKey({
+      slug: "google-gemma-3n-e4b-it",
+      name: "Gemma 3n",
+      provider: "Google",
+    });
+
+    expect(litert).toBe(base);
+  });
+
   it("does not emit overlapping duplicate families when a late variant resolves back to an existing cluster", () => {
     const families = collapsePublicModelFamilies([
       {
