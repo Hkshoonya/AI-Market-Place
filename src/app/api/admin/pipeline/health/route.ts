@@ -31,7 +31,7 @@ import {
   computeDeploymentOperationsSummary,
   isMissingDeploymentOperationsTableError,
 } from "@/lib/deployment-operations-compute";
-import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
+import { getStripePaymentsHealth } from "@/lib/payments/stripe-health";
 import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
@@ -135,6 +135,17 @@ const PipelineHealthSummarySchema = z.object({
       webhookConfigured: z.boolean(),
       publishableKeyConfigured: z.boolean(),
       blockingIssues: z.array(z.string()),
+      webhookDelivery: z.object({
+        status: z.enum(["healthy", "degraded", "unknown"]),
+        tableAvailable: z.boolean().nullable(),
+        recentFailures24h: z.number(),
+        recentSuccesses24h: z.number(),
+        consecutiveFailures: z.number(),
+        latestEventAt: z.string().nullable(),
+        latestProcessedAt: z.string().nullable(),
+        latestFailedAt: z.string().nullable(),
+        warning: z.string().nullable(),
+      }),
     }),
   }),
 });
@@ -349,6 +360,17 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
       webhookConfigured: z.boolean(),
       publishableKeyConfigured: z.boolean(),
       blockingIssues: z.array(z.string()),
+      webhookDelivery: z.object({
+        status: z.enum(["healthy", "degraded", "unknown"]),
+        tableAvailable: z.boolean().nullable(),
+        recentFailures24h: z.number(),
+        recentSuccesses24h: z.number(),
+        consecutiveFailures: z.number(),
+        latestEventAt: z.string().nullable(),
+        latestProcessedAt: z.string().nullable(),
+        latestFailedAt: z.string().nullable(),
+        warning: z.string().nullable(),
+      }),
     }),
   }),
 });
@@ -513,7 +535,7 @@ export async function GET(request: NextRequest) {
           : "healthy";
 
     const checkedAt = new Date().toISOString();
-    const stripePaymentsReadiness = getStripePaymentsReadiness();
+    const stripePaymentsReadiness = await getStripePaymentsHealth(supabase);
     const benchmarkCoverageSummary = {
       coveragePct: benchmarkCoverage.totals.coverage_pct,
       coveredModels: benchmarkCoverage.totals.covered_models,

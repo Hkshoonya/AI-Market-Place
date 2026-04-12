@@ -443,6 +443,17 @@ describe("GET /api/pipeline/health", () => {
         webhookConfigured: false,
         publishableKeyConfigured: false,
         blockingIssues: [],
+        webhookDelivery: {
+          status: "unknown",
+          tableAvailable: null,
+          recentFailures24h: 0,
+          recentSuccesses24h: 0,
+          consecutiveFailures: 0,
+          latestEventAt: null,
+          latestProcessedAt: null,
+          latestFailedAt: null,
+          warning: null,
+        },
       });
 
       const adapter = body.adapters[0];
@@ -489,6 +500,7 @@ describe("GET /api/pipeline/health", () => {
       expect(body.payments.stripe.blockingIssues).toContain(
         "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
       );
+      expect(body.payments.stripe.webhookDelivery.status).toBe("unknown");
 
       process.env.CRON_SECRET = originalSecret;
     });

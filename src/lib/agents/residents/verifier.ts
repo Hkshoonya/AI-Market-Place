@@ -23,6 +23,7 @@ import {
   type ActiveModelSummary,
 } from "./ux-monitor";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
+import { getStripePaymentsHealth, type StripePaymentsHealth } from "../../payments/stripe-health";
 
 interface AgentIssueRow {
   slug: string;
@@ -138,6 +139,14 @@ export function isCrawlerSurfaceIssueResolved(input: {
   warningCount: number;
 }): boolean {
   return input.healthy && input.warningCount === 0;
+}
+
+export function isStripePaymentsIssueResolved(input: StripePaymentsHealth): boolean {
+  return (
+    input.status !== "partial" &&
+    input.webhookDelivery.status !== "degraded" &&
+    input.webhookDelivery.tableAvailable !== false
+  );
 }
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
@@ -350,14 +359,15 @@ const verifier: ResidentAgent = {
       let recentErrorMessages: string[] | null = null;
       let cronHealthByJob: Map<PipelineCronJobName, PipelineCronJobHealth> | null = null;
       let enabledSourceSlugs: Set<string> | null = null;
-      let benchmarkHealth:
-        | {
-            officialGapCount: number;
-            missingTrustedLocatorCount: number;
-            trustedLocatorCoveragePct: number;
-          }
-        | null = null;
-      let crawlSurfaceHealth:
+  let benchmarkHealth:
+    | {
+        officialGapCount: number;
+        missingTrustedLocatorCount: number;
+        trustedLocatorCoveragePct: number;
+      }
+    | null = null;
+  let stripePaymentsHealth: StripePaymentsHealth | null = null;
+  let crawlSurfaceHealth:
         | {
             healthy: boolean;
             criticalFailures: number;
@@ -644,6 +654,36 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   reason: "crawler-critical public routes still have failures or crawler warnings",
                   ...crawlSurfaceHealth,
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "payments_webhook_health") {
+            stripePaymentsHealth ??= await getStripePaymentsHealth(sb);
+            const resolved = isStripePaymentsIssueResolved(stripePaymentsHealth);
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                reason: "Stripe checkout configuration is complete and webhook delivery health is no longer degraded",
+                ...stripePaymentsHealth,
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  reason: "Stripe payment configuration or webhook delivery health still requires attention",
+                  ...stripePaymentsHealth,
                 },
                 maxVerificationRetries
               );

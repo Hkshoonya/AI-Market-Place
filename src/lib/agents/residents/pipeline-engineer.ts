@@ -19,6 +19,7 @@ import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "..
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
+import { getStripePaymentsHealth } from "../../payments/stripe-health";
 import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
@@ -334,6 +335,46 @@ const pipelineEngineer: ResidentAgent = {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`Failed to compute crawler surface health: ${message}`);
         await log.error(`Crawler surface health check failed: ${message}`);
+      }
+
+      // Step 4f: Track Stripe delivery readiness so checkout can not silently stop crediting wallets.
+      try {
+        const stripePaymentsHealth = await getStripePaymentsHealth(sb);
+        output.payments = {
+          stripe: stripePaymentsHealth,
+        };
+        const stripeIssueSlug = "pipeline-stripe-webhook-health";
+        const stripeIssueOpen =
+          stripePaymentsHealth.status === "partial" ||
+          stripePaymentsHealth.webhookDelivery.status === "degraded" ||
+          stripePaymentsHealth.webhookDelivery.tableAvailable === false;
+
+        if (stripeIssueOpen) {
+          await recordAgentIssue(sb, {
+            slug: stripeIssueSlug,
+            title: "Stripe payment health issues detected",
+            issueType: "payments_webhook_health",
+            source: "stripe",
+            severity:
+              stripePaymentsHealth.webhookDelivery.status === "degraded"
+                ? "critical"
+                : "high",
+            confidence: 0.95,
+            detectedBy: "pipeline-engineer",
+            playbook: "inspect_stripe_payments",
+            evidence: stripePaymentsHealth,
+          });
+        } else {
+          await resolveAgentIssue(sb, stripeIssueSlug, {
+            verifier: "pipeline-engineer",
+            reason: "Stripe checkout configuration and webhook delivery health are both healthy",
+            ...stripePaymentsHealth,
+          }).catch(() => {});
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to compute Stripe payment health: ${message}`);
+        await log.error(`Stripe payment health check failed: ${message}`);
       }
 
       // Step 5: Attempt repair of failed sources

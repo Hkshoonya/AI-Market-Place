@@ -439,6 +439,17 @@ describe("GET /api/admin/pipeline/health", () => {
       webhookConfigured: false,
       publishableKeyConfigured: false,
       blockingIssues: [],
+      webhookDelivery: {
+        status: "unknown",
+        tableAvailable: null,
+        recentFailures24h: 0,
+        recentSuccesses24h: 0,
+        consecutiveFailures: 0,
+        latestEventAt: null,
+        latestProcessedAt: null,
+        latestFailedAt: null,
+        warning: null,
+      },
     });
 
     // Adapter fields
@@ -485,6 +496,7 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.payments.stripe.blockingIssues).toContain(
       "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
     );
+    expect(body.payments.stripe.webhookDelivery.status).toBe("unknown");
   });
 
   it("adapter with 1 failure is 'degraded' in response", async () => {

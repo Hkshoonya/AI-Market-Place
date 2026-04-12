@@ -25,7 +25,7 @@ import {
   resolveCronRunnerMode,
 } from "@/lib/cron-runtime";
 import { checkCrawlerSurfaceHealth } from "@/lib/crawl-health";
-import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
+import { getStripePaymentsHealth } from "@/lib/payments/stripe-health";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +81,17 @@ const HealthDetailSchema = HealthPublicSchema.extend({
       webhookConfigured: z.boolean(),
       publishableKeyConfigured: z.boolean(),
       blockingIssues: z.array(z.string()),
+      webhookDelivery: z.object({
+        status: z.enum(["healthy", "degraded", "unknown"]),
+        tableAvailable: z.boolean().nullable(),
+        recentFailures24h: z.number(),
+        recentSuccesses24h: z.number(),
+        consecutiveFailures: z.number(),
+        latestEventAt: z.string().nullable(),
+        latestProcessedAt: z.string().nullable(),
+        latestFailedAt: z.string().nullable(),
+        warning: z.string().nullable(),
+      }),
     }),
   }),
   crawl: z.object({
@@ -273,11 +284,13 @@ export async function GET(request: NextRequest) {
       const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
       const cronStale = schedulerConfigured && recentCronRuns.length === 0;
       const cronDegraded = cronStale || latestFailedJobs24h > 0;
-      const [stripePaymentsReadiness, crawlSurface] = await Promise.all([
-        Promise.resolve(getStripePaymentsReadiness()),
+      const [stripePaymentsHealth, crawlSurface] = await Promise.all([
+        getStripePaymentsHealth(supabase),
         checkCrawlerSurfaceHealth(),
       ]);
-      const paymentsDegraded = stripePaymentsReadiness.status === "partial";
+      const paymentsDegraded =
+        stripePaymentsHealth.status === "partial" ||
+        stripePaymentsHealth.webhookDelivery.status === "degraded";
       const crawlDegraded = !crawlSurface.healthy;
       overallStatus =
         overallStatus === "degraded" || cronDegraded || paymentsDegraded || crawlDegraded
@@ -307,7 +320,7 @@ export async function GET(request: NextRequest) {
           down: pipelineDown,
         },
         payments: {
-          stripe: stripePaymentsReadiness,
+          stripe: stripePaymentsHealth,
         },
         crawl: crawlSurface,
       });

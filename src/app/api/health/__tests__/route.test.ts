@@ -507,6 +507,17 @@ describe("GET /api/health", () => {
         webhookConfigured: false,
         publishableKeyConfigured: false,
         blockingIssues: [],
+        webhookDelivery: {
+          status: "unknown",
+          tableAvailable: null,
+          recentFailures24h: 0,
+          recentSuccesses24h: 0,
+          consecutiveFailures: 0,
+          latestEventAt: null,
+          latestProcessedAt: null,
+          latestFailedAt: null,
+          warning: null,
+        },
       });
       expect(body.crawl).toEqual({
         healthy: true,
@@ -599,6 +610,74 @@ describe("GET /api/health", () => {
       expect(body.payments.stripe.blockingIssues).toContain(
         "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
       );
+      expect(body.payments.stripe.webhookDelivery.status).toBe("unknown");
+
+      process.env.CRON_SECRET = originalSecret;
+    });
+
+    it("marks authenticated health degraded when recent Stripe webhook deliveries are failing", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+      process.env.STRIPE_SECRET_KEY = "sk_test_configured";
+      process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_configured";
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+
+      mockCreateAdminClient.mockReturnValue(
+        createFullMockSupabase({
+          data_sources: {
+            data: makeDataSources([
+              { slug: "a1", last_sync_at: syncedAgo(0.5, 6), last_sync_records: 100 },
+            ]),
+            error: null,
+          },
+          pipeline_health: {
+            data: makePipelineHealth([
+              {
+                source_slug: "a1",
+                consecutive_failures: 0,
+                last_success_at: syncedAgo(0.5, 6),
+                expected_interval_hours: 6,
+              },
+            ]),
+            error: null,
+          },
+          cron_runs: {
+            data: [
+              {
+                job_name: "sync-tier-1",
+                status: "completed",
+                started_at: "2026-03-11T23:45:00.000Z",
+                created_at: "2026-03-11T23:45:00.000Z",
+              },
+            ],
+            error: null,
+          },
+          payment_webhook_events: {
+            data: [
+              {
+                provider: "stripe",
+                delivery_status: "failed",
+                created_at: "2026-03-12T00:00:00.000Z",
+              },
+              {
+                provider: "stripe",
+                delivery_status: "failed",
+                created_at: "2026-03-11T23:50:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        }) as unknown as ReturnType<typeof createAdminClient>
+      );
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.status).toBe("degraded");
+      expect(body.payments.stripe.status).toBe("ready");
+      expect(body.payments.stripe.webhookDelivery.status).toBe("degraded");
+      expect(body.payments.stripe.webhookDelivery.recentFailures24h).toBe(2);
 
       process.env.CRON_SECRET = originalSecret;
     });

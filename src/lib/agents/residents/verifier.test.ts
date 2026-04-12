@@ -6,6 +6,7 @@ import {
   isCrawlerSurfaceIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
+  isStripePaymentsIssueResolved,
   isRuntimeIssueResolved,
   isSourceIssueResolved,
   type UxIssueSnapshot,
@@ -198,6 +199,96 @@ describe("isCrawlerSurfaceIssueResolved", () => {
       isCrawlerSurfaceIssueResolved({
         healthy: true,
         warningCount: 2,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("isStripePaymentsIssueResolved", () => {
+  it("resolves when Stripe is either fully healthy or intentionally disabled", () => {
+    expect(
+      isStripePaymentsIssueResolved({
+        status: "ready",
+        checkoutConfigured: true,
+        webhookConfigured: true,
+        publishableKeyConfigured: true,
+        blockingIssues: [],
+        webhookDelivery: {
+          status: "healthy",
+          tableAvailable: true,
+          recentFailures24h: 0,
+          recentSuccesses24h: 1,
+          consecutiveFailures: 0,
+          latestEventAt: "2026-03-30T01:00:00.000Z",
+          latestProcessedAt: "2026-03-30T01:00:00.000Z",
+          latestFailedAt: null,
+          warning: null,
+        },
+      })
+    ).toBe(true);
+
+    expect(
+      isStripePaymentsIssueResolved({
+        status: "disabled",
+        checkoutConfigured: false,
+        webhookConfigured: false,
+        publishableKeyConfigured: false,
+        blockingIssues: [],
+        webhookDelivery: {
+          status: "unknown",
+          tableAvailable: null,
+          recentFailures24h: 0,
+          recentSuccesses24h: 0,
+          consecutiveFailures: 0,
+          latestEventAt: null,
+          latestProcessedAt: null,
+          latestFailedAt: null,
+          warning: null,
+        },
+      })
+    ).toBe(true);
+  });
+
+  it("does not resolve while Stripe is partially configured or webhook delivery is degraded", () => {
+    expect(
+      isStripePaymentsIssueResolved({
+        status: "partial",
+        checkoutConfigured: true,
+        webhookConfigured: false,
+        publishableKeyConfigured: true,
+        blockingIssues: ["missing webhook"],
+        webhookDelivery: {
+          status: "unknown",
+          tableAvailable: null,
+          recentFailures24h: 0,
+          recentSuccesses24h: 0,
+          consecutiveFailures: 0,
+          latestEventAt: null,
+          latestProcessedAt: null,
+          latestFailedAt: null,
+          warning: null,
+        },
+      })
+    ).toBe(false);
+
+    expect(
+      isStripePaymentsIssueResolved({
+        status: "ready",
+        checkoutConfigured: true,
+        webhookConfigured: true,
+        publishableKeyConfigured: true,
+        blockingIssues: [],
+        webhookDelivery: {
+          status: "degraded",
+          tableAvailable: true,
+          recentFailures24h: 2,
+          recentSuccesses24h: 0,
+          consecutiveFailures: 2,
+          latestEventAt: "2026-03-30T01:00:00.000Z",
+          latestProcessedAt: null,
+          latestFailedAt: "2026-03-30T01:00:00.000Z",
+          warning: null,
+        },
       })
     ).toBe(false);
   });

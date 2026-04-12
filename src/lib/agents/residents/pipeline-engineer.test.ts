@@ -98,6 +98,27 @@ vi.mock("../../crawl-health", () => ({
   })),
 }));
 
+vi.mock("../../payments/stripe-health", () => ({
+  getStripePaymentsHealth: vi.fn(async () => ({
+    status: "ready",
+    checkoutConfigured: true,
+    webhookConfigured: true,
+    publishableKeyConfigured: true,
+    blockingIssues: [],
+    webhookDelivery: {
+      status: "degraded",
+      tableAvailable: true,
+      recentFailures24h: 2,
+      recentSuccesses24h: 0,
+      consecutiveFailures: 2,
+      latestEventAt: "2026-03-30T01:00:00.000Z",
+      latestProcessedAt: null,
+      latestFailedAt: "2026-03-30T01:00:00.000Z",
+      warning: null,
+    },
+  })),
+}));
+
 vi.mock("../ledger", () => ({
   recordAgentIssue: vi.fn(async () => undefined),
   recordAgentIssueFailure: vi.fn(async () => undefined),
@@ -209,6 +230,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "crawler_surface_health",
         source: "public-web",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "payments_webhook_health",
+        source: "stripe",
       })
     );
   });

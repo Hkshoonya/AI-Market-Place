@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "@/lib/api-error";
 import { env } from "@/lib/env";
 import { getOrCreateWallet, creditWallet } from "@/lib/payments/wallet";
+import { recordStripeWebhookEvent } from "@/lib/payments/stripe-health";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ type StripeMetadata = Record<string, string>;
 type StripeEvent = {
   id: string;
   type: string;
+  livemode?: boolean;
   data?: {
     object?: Record<string, unknown>;
   };
@@ -81,11 +83,9 @@ async function resolveWalletId(metadata: StripeMetadata) {
       .eq("id", metadata.wallet_id)
       .single();
 
-    if (error || !data) {
-      throw new ApiError(404, "Stripe webhook wallet target not found");
+    if (!error && data) {
+      return String(data.id);
     }
-
-    return String(data.id);
   }
 
   if (metadata.owner_id) {
@@ -97,6 +97,21 @@ async function resolveWalletId(metadata: StripeMetadata) {
   }
 
   throw new ApiError(400, "Stripe webhook metadata is missing wallet target");
+}
+
+function extractStripeObjectId(value: unknown) {
+  if (typeof value === "string" && value) {
+    return value;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const id = (value as { id?: unknown }).id;
+    if (typeof id === "string" && id) {
+      return id;
+    }
+  }
+
+  return null;
 }
 
 function normalizeCurrency(currency: unknown) {
@@ -111,11 +126,7 @@ function getCheckoutFundingDetails(object: Record<string, unknown>) {
   const currency = normalizeCurrency(object.currency);
   const metadata = parseStripeMetadata(object.metadata);
   const paymentIntentId =
-    typeof object.payment_intent === "string" && object.payment_intent
-      ? object.payment_intent
-      : typeof object.id === "string"
-        ? object.id
-        : null;
+    extractStripeObjectId(object.payment_intent) ?? extractStripeObjectId(object.id);
 
   if (!paymentIntentId || amountTotal === null) {
     throw new ApiError(400, "Stripe checkout session is missing payment details");
@@ -162,6 +173,51 @@ function isDuplicateWalletCreditError(error: unknown) {
   );
 }
 
+function tryParseStripeEvent(payload: string): StripeEvent | null {
+  try {
+    const parsed = JSON.parse(payload) as StripeEvent;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildStripeWebhookAuditRecord(event: StripeEvent | null) {
+  const object =
+    event?.data?.object && typeof event.data.object === "object" && !Array.isArray(event.data.object)
+      ? event.data.object
+      : null;
+  const metadata = parseStripeMetadata(object?.metadata);
+  const amountMinorUnits =
+    typeof object?.amount_total === "number"
+      ? object.amount_total
+      : typeof object?.amount_received === "number"
+        ? object.amount_received
+        : typeof object?.amount === "number"
+          ? object.amount
+          : null;
+
+  return {
+    eventId: event?.id ?? null,
+    eventType: event?.type ?? null,
+    walletId: metadata.wallet_id ?? null,
+    referenceId:
+      extractStripeObjectId(object?.payment_intent) ?? extractStripeObjectId(object?.id),
+    amount: amountMinorUnits === null ? null : amountMinorUnits / 100,
+    currency: normalizeCurrency(object?.currency) || null,
+    livemode:
+      typeof event?.livemode === "boolean"
+        ? event.livemode
+        : typeof object?.livemode === "boolean"
+          ? object.livemode
+          : null,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  };
+}
+
 async function handleFundingEvent(object: Record<string, unknown>, type: string) {
   const details =
     type === "checkout.session.completed"
@@ -200,31 +256,55 @@ async function handleFundingEvent(object: Record<string, unknown>, type: string)
 }
 
 export async function POST(request: NextRequest) {
+  let parsedEvent: StripeEvent | null = null;
+
   try {
     if (!env.STRIPE_WEBHOOK_SECRET) {
       throw new ApiError(500, "Stripe webhook is not configured");
     }
 
     const payload = await request.text();
+    parsedEvent = tryParseStripeEvent(payload);
     verifyStripeSignature(
       payload,
       request.headers.get("stripe-signature"),
       env.STRIPE_WEBHOOK_SECRET
     );
 
-    const event = JSON.parse(payload) as StripeEvent;
+    const event = parsedEvent;
+    if (!event) {
+      throw new ApiError(400, "Invalid Stripe event payload");
+    }
     const object = event?.data?.object;
     if (!object || typeof object !== "object" || Array.isArray(object)) {
       throw new ApiError(400, "Invalid Stripe event payload");
     }
 
     const result = await handleFundingEvent(object, event.type);
+    const admin = createAdminClient();
+    const auditRecord = buildStripeWebhookAuditRecord(event);
+    await recordStripeWebhookEvent(admin, {
+      ...auditRecord,
+      deliveryStatus: result.ignored ? "ignored" : "processed",
+      duplicate: result.duplicate ?? false,
+      walletId: result.walletId ?? auditRecord.walletId,
+      amount: result.amount ?? auditRecord.amount,
+    }).catch(() => {});
+
     return NextResponse.json({
       received: true,
       type: event.type,
       ...result,
     });
   } catch (error) {
+    const admin = createAdminClient();
+    const auditRecord = buildStripeWebhookAuditRecord(parsedEvent);
+    await recordStripeWebhookEvent(admin, {
+      ...auditRecord,
+      deliveryStatus: "failed",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }).catch(() => {});
+
     return handleApiError(error, "api/webhooks/stripe");
   }
 }

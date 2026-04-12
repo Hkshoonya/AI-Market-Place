@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 const mockCreateAdminClient = vi.fn();
 const mockCreditWallet = vi.fn();
 const mockGetOrCreateWallet = vi.fn();
+const mockRecordStripeWebhookEvent = vi.fn();
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => mockCreateAdminClient(),
@@ -13,6 +14,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/payments/wallet", () => ({
   creditWallet: (...args: unknown[]) => mockCreditWallet(...args),
   getOrCreateWallet: (...args: unknown[]) => mockGetOrCreateWallet(...args),
+}));
+
+vi.mock("@/lib/payments/stripe-health", () => ({
+  recordStripeWebhookEvent: (...args: unknown[]) => mockRecordStripeWebhookEvent(...args),
 }));
 
 vi.mock("@/lib/logging", () => ({
@@ -77,6 +82,7 @@ describe("POST /api/webhooks/stripe", () => {
     mockCreateAdminClient.mockReturnValue(createWalletLookupStub());
     mockGetOrCreateWallet.mockResolvedValue({ id: "wallet-owner-1" });
     mockCreditWallet.mockResolvedValue("tx-1");
+    mockRecordStripeWebhookEvent.mockResolvedValue(undefined);
   });
 
   it("rejects requests without a valid Stripe signature", async () => {
@@ -177,6 +183,82 @@ describe("POST /api/webhooks/stripe", () => {
       "deposit",
       expect.objectContaining({
         txHash: "stripe:pi_owner",
+      })
+    );
+  });
+
+  it("falls back to owner metadata when the wallet id is stale", async () => {
+    const walletLookup = createWalletLookupStub();
+    const builder = walletLookup.from("wallets");
+    builder.single.mockResolvedValue({ data: null, error: { message: "not found" } });
+    mockCreateAdminClient.mockReturnValue(walletLookup);
+
+    const payload = {
+      id: "evt_owner_fallback",
+      type: "payment_intent.succeeded",
+      data: {
+        object: {
+          id: "pi_owner_fallback",
+          status: "succeeded",
+          amount_received: 5000,
+          currency: "usd",
+          metadata: {
+            wallet_id: "wallet-missing",
+            owner_id: "user-999",
+            owner_type: "user",
+          },
+        },
+      },
+    };
+    const signature = signStripePayload(JSON.stringify(payload), "whsec_test");
+
+    const { POST } = await import("./route");
+    const response = await POST(makeRequest(payload, signature));
+
+    expect(response.status).toBe(200);
+    expect(mockGetOrCreateWallet).toHaveBeenCalledWith("user-999", "user");
+    expect(mockCreditWallet).toHaveBeenCalledWith(
+      "wallet-owner-1",
+      50,
+      "deposit",
+      expect.objectContaining({
+        txHash: "stripe:pi_owner_fallback",
+      })
+    );
+  });
+
+  it("uses expanded payment_intent ids on checkout completion", async () => {
+    const payload = {
+      id: "evt_checkout_expanded",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_456",
+          payment_intent: {
+            id: "pi_expanded_456",
+          },
+          payment_status: "paid",
+          amount_total: 2500,
+          currency: "usd",
+          metadata: {
+            wallet_id: "wallet-1",
+          },
+        },
+      },
+    };
+    const signature = signStripePayload(JSON.stringify(payload), "whsec_test");
+
+    const { POST } = await import("./route");
+    const response = await POST(makeRequest(payload, signature));
+
+    expect(response.status).toBe(200);
+    expect(mockCreditWallet).toHaveBeenCalledWith(
+      "wallet-1",
+      25,
+      "deposit",
+      expect.objectContaining({
+        txHash: "stripe:pi_expanded_456",
+        referenceId: "pi_expanded_456",
       })
     );
   });

@@ -916,6 +916,25 @@ export interface WalletTransaction {
   created_at: string;
 }
 
+export type PaymentWebhookDeliveryStatus = "processed" | "ignored" | "failed";
+
+export interface PaymentWebhookEvent {
+  id: string;
+  provider: string;
+  event_id: string | null;
+  event_type: string | null;
+  delivery_status: PaymentWebhookDeliveryStatus;
+  wallet_id: string | null;
+  reference_id: string | null;
+  amount: number | null;
+  currency: string | null;
+  duplicate: boolean;
+  livemode: boolean | null;
+  error_message: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export interface EscrowHold {
   id: string;
   wallet_id: string;
@@ -1465,6 +1484,12 @@ export interface Database {
         Row: AsRow<WalletTransaction>;
         Insert: Partial<WalletTransaction> & Pick<WalletTransaction, 'wallet_id' | 'type' | 'amount' | 'net_amount'>;
         Update: Partial<WalletTransaction>;
+        Relationships: [];
+      };
+      payment_webhook_events: {
+        Row: AsRow<PaymentWebhookEvent>;
+        Insert: Partial<PaymentWebhookEvent> & Pick<PaymentWebhookEvent, "provider" | "delivery_status">;
+        Update: Partial<PaymentWebhookEvent>;
         Relationships: [];
       };
       escrow_holds: {
