@@ -23,6 +23,8 @@ interface HomepageTopModelCandidate {
   hf_trending_score?: number | null;
 }
 
+const PRIMARY_HOMEPAGE_CATEGORIES = new Set(["llm", "multimodal"]);
+
 function numeric(value: number | null | undefined): number {
   return value == null || !Number.isFinite(Number(value)) ? 0 : Number(value);
 }
@@ -94,6 +96,40 @@ function isSpecializedHomepageCandidate(model: HomepageTopModelCandidate): boole
 
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(image|transcribe|tts|speech|audio|embedding|embed|ocr)\b/.test(haystack);
+}
+
+function isPrimaryHomepageCategory(model: HomepageTopModelCandidate): boolean {
+  return PRIMARY_HOMEPAGE_CATEGORIES.has((model.category ?? "").toLowerCase());
+}
+
+function hasStrongHomepageCoreScores(model: HomepageTopModelCandidate): boolean {
+  const capability = numeric(model.capability_score);
+  const quality = numeric(model.quality_score);
+
+  if (capability >= 84 || quality >= 84) return true;
+  if (capability >= 80 && quality >= 66) return true;
+  if (capability >= 76 && quality >= 58) return true;
+  if (capability >= 72 && quality >= 72) return true;
+
+  return false;
+}
+
+function hasMeaningfulHomepageTraction(model: HomepageTopModelCandidate): boolean {
+  return (
+    numeric(model.adoption_score) >= 55 ||
+    numeric(model.economic_footprint_score) >= 50 ||
+    numeric(model.popularity_score) >= 52 ||
+    numeric(model.overall_rank) > 0
+  );
+}
+
+export function isHighConfidenceHomepageTopModelCandidate(
+  model: HomepageTopModelCandidate
+): boolean {
+  if (!isPrimaryHomepageCategory(model)) return false;
+  if (isSpecializedHomepageCandidate(model)) return false;
+
+  return hasStrongHomepageCoreScores(model) && hasMeaningfulHomepageTraction(model);
 }
 
 function homepageCandidateMultiplier(
@@ -171,24 +207,34 @@ export function selectHomepageTopModelIds<
     (model) => !familyCandidateIds.has(model.id)
   );
 
-  return [...familyRepresentatives, ...uncategorizedCandidates]
-    .filter((model) => {
-      return (
-        model.economic_footprint_score != null ||
-        model.adoption_score != null ||
-        model.capability_score != null
-      );
-    })
-    .sort((left, right) => {
-      const scoreDelta =
-        computeHomepageTopModelScore(right, now) - computeHomepageTopModelScore(left, now);
-      if (scoreDelta !== 0) return scoreDelta;
+  const rankedCandidates = [...familyRepresentatives, ...uncategorizedCandidates].filter((model) => {
+    return (
+      model.economic_footprint_score != null ||
+      model.adoption_score != null ||
+      model.capability_score != null
+    );
+  });
 
-      const rankDelta = rankSignal(right.overall_rank) - rankSignal(left.overall_rank);
-      if (rankDelta !== 0) return rankDelta;
+  const highConfidenceCandidates = rankedCandidates.filter((model) =>
+    isHighConfidenceHomepageTopModelCandidate(model)
+  );
+  const compareCandidates = (left: T, right: T) => {
+    const scoreDelta =
+      computeHomepageTopModelScore(right, now) - computeHomepageTopModelScore(left, now);
+    if (scoreDelta !== 0) return scoreDelta;
 
-      return numeric(right.capability_score) - numeric(left.capability_score);
-    })
+    const rankDelta = rankSignal(right.overall_rank) - rankSignal(left.overall_rank);
+    if (rankDelta !== 0) return rankDelta;
+
+    return numeric(right.capability_score) - numeric(left.capability_score);
+  };
+  const prioritizedHighConfidence = [...highConfidenceCandidates].sort(compareCandidates);
+  const highConfidenceIds = new Set(prioritizedHighConfidence.map((model) => model.id));
+  const prioritizedFallback = rankedCandidates
+    .filter((model) => !highConfidenceIds.has(model.id))
+    .sort(compareCandidates);
+
+  return [...prioritizedHighConfidence, ...prioritizedFallback]
     .slice(0, limit)
     .map((model) => model.id);
 }

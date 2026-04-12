@@ -508,4 +508,136 @@ describe("selectHomepageTopModelIds", () => {
 
     expect(ids).not.toContain("community-wrapper");
   });
+
+  it("keeps specialized rows out of the homepage shortlist when enough strong general-purpose models exist", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "specialized-agent-row",
+          slug: "deepseek-ai-deepseek-v3-1",
+          name: "deepseek-v3.1",
+          provider: "DeepSeek",
+          category: "specialized",
+          overall_rank: 12,
+          economic_footprint_score: 70,
+          adoption_score: 79,
+          capability_score: 81,
+          quality_score: 74,
+          popularity_score: 63,
+          release_date: "2026-03-03",
+        },
+        {
+          id: "strong-openai",
+          slug: "openai-gpt-4-1",
+          name: "GPT-4.1",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 14,
+          economic_footprint_score: 70,
+          adoption_score: 73,
+          capability_score: 76.2,
+          quality_score: 60.6,
+          popularity_score: 57,
+          release_date: "2025-04-14",
+        },
+        {
+          id: "strong-anthropic",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 18,
+          economic_footprint_score: 75.1,
+          adoption_score: 81.1,
+          capability_score: 80.3,
+          quality_score: 69.6,
+          popularity_score: 53.7,
+          release_date: "2025-12-12",
+          context_window: 200000,
+        },
+        {
+          id: "strong-qwen",
+          slug: "alibaba-qwen3-235b",
+          name: "Qwen3-235B",
+          provider: "Alibaba",
+          category: "llm",
+          overall_rank: 11,
+          economic_footprint_score: 58.1,
+          adoption_score: 76.4,
+          capability_score: 77.5,
+          quality_score: 80.9,
+          popularity_score: 66.8,
+          release_date: "2025-04-29",
+          is_open_weights: true,
+          license: "open_source",
+          license_name: "Apache 2.0",
+          context_window: 131072,
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids).not.toContain("specialized-agent-row");
+    expect(ids).toContain("strong-anthropic");
+    expect(ids).toContain("strong-qwen");
+  });
+
+  it("drops weak quality rows from the homepage shortlist when stronger benchmark-style peers exist", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "weak-commercial-row",
+          slug: "minimax-minimax-m2",
+          name: "MiniMax M2",
+          provider: "MiniMax",
+          category: "llm",
+          overall_rank: 10,
+          economic_footprint_score: 38.3,
+          adoption_score: 51,
+          capability_score: 74.4,
+          quality_score: 45.6,
+          popularity_score: 50.3,
+          release_date: "2025-10-23",
+        },
+        {
+          id: "strong-openai",
+          slug: "openai-o3-pro",
+          name: "o3",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 20,
+          economic_footprint_score: 83,
+          adoption_score: 73.1,
+          capability_score: 77.3,
+          quality_score: 59.5,
+          popularity_score: 55.1,
+          release_date: "2025-04-16",
+        },
+        {
+          id: "strong-qwen",
+          slug: "alibaba-qwen3-235b",
+          name: "Qwen3-235B",
+          provider: "Alibaba",
+          category: "llm",
+          overall_rank: 11,
+          economic_footprint_score: 58.1,
+          adoption_score: 76.4,
+          capability_score: 77.5,
+          quality_score: 80.9,
+          popularity_score: 66.8,
+          release_date: "2025-04-29",
+          is_open_weights: true,
+          license: "open_source",
+          license_name: "Apache 2.0",
+          context_window: 131072,
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids).not.toContain("weak-commercial-row");
+    expect(ids).toEqual(["strong-qwen", "strong-openai"]);
+  });
 });

@@ -256,6 +256,15 @@ export default async function HomePage() {
   const topModels = topModelIds
     .map((id) => topModelsById.get(id))
     .filter((model): model is NonNullable<typeof model> => Boolean(model));
+  const topModelsWithDirectEvidenceCount = topModels.filter((model) => {
+    const evidence = countMarketValueEvidence({
+      benchmarkScores: model.benchmark_scores,
+      eloRatings: model.elo_ratings,
+      pricingEntries: model.model_pricing,
+    });
+
+    return evidence.benchmarkCount > 0 || evidence.arenaFamilyCount > 0;
+  }).length;
 
   const newModels = buildHomepageLaunchSelections(
     (allActiveModels ?? []) as Parameters<typeof buildHomepageLaunchSelections>[0],
@@ -423,7 +432,10 @@ export default async function HomePage() {
           Ranked for enterprise traction, real-world adoption, economic footprint, and model quality.
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Start here if you want the short list of models that matter most right now.
+          This shortlist favors general-purpose models with stronger benchmark-backed quality signals, not every active model in the catalog.
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {topModelsWithDirectEvidenceCount} of {topModels.length || 0} shortlisted models currently show direct benchmark or arena evidence. Wider catalog coverage is still propagating.
         </p>
 
         <div className="mt-6 overflow-x-auto rounded-xl border border-border/50">
@@ -478,6 +490,8 @@ export default async function HomePage() {
                   eloRatings: model.elo_ratings,
                   pricingEntries: model.model_pricing,
                 });
+                const hasDirectBenchmarkEvidence =
+                  evidence.benchmarkCount > 0 || evidence.arenaFamilyCount > 0;
                 const deploymentLabel = getDeployabilityLabel({
                   isOpenWeights: model.is_open_weights,
                   accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
@@ -510,14 +524,26 @@ export default async function HomePage() {
                             <p className="text-xs text-muted-foreground line-clamp-1">
                               {model.provider}
                             </p>
-                            {deploymentLabel ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {deploymentLabel ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                                >
+                                  {deploymentLabel}
+                                </Badge>
+                              ) : null}
                               <Badge
                                 variant="outline"
-                                className="mt-1 border-cyan-500/30 bg-cyan-500/10 text-[10px] text-cyan-200"
+                                className={`text-[10px] ${
+                                  hasDirectBenchmarkEvidence
+                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                                    : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                                }`}
                               >
-                                {deploymentLabel}
+                                {hasDirectBenchmarkEvidence ? "Benchmark-backed" : "Signal-backed"}
                               </Badge>
-                            ) : null}
+                            </div>
                           </div>
                         </div>
                       </Link>
