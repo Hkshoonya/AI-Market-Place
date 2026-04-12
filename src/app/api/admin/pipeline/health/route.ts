@@ -27,7 +27,10 @@ import {
 import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
-import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
+import {
+  computeDeploymentOperationsSummary,
+  isMissingDeploymentOperationsTableError,
+} from "@/lib/deployment-operations-compute";
 import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 import { summarizePipelineCronHealth } from "@/lib/pipeline-cron-health";
 import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "@/lib/data-sources/manual-benchmark-sources";
@@ -437,7 +440,10 @@ export async function GET(request: NextRequest) {
     if (pipelineHealthResult.error) {
       throw new Error(`Failed to fetch pipeline_health: ${pipelineHealthResult.error.message}`);
     }
-    if (deploymentRowsResult.error) {
+    if (
+      deploymentRowsResult.error &&
+      !isMissingDeploymentOperationsTableError(deploymentRowsResult.error)
+    ) {
       throw new Error(`Failed to fetch workspace_deployments: ${deploymentRowsResult.error.message}`);
     }
     if (cronRunsResult.error) {
@@ -447,7 +453,7 @@ export async function GET(request: NextRequest) {
     const dataSources = dataSourcesResult.data ?? [];
     const healthRows = pipelineHealthResult.data ?? [];
     const deploymentOperations = computeDeploymentOperationsSummary(
-      deploymentRowsResult.data ?? []
+      deploymentRowsResult.error ? [] : deploymentRowsResult.data ?? []
     );
     const cronHealth = summarizePipelineCronHealth(cronRunsResult.data ?? []);
     const enabledManualBenchmarkSources = dataSources

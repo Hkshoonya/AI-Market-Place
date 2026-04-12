@@ -509,6 +509,44 @@ describe("GET /api/pipeline/health", () => {
       process.env.CRON_SECRET = originalSecret;
     });
 
+    it("degrades gracefully when workspace deployments table is unavailable", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            { slug: "adapter-a", last_sync_at: syncedAgo(0.5, 6), last_sync_records: 50 },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "adapter-a", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+        workspace_deployments: {
+          data: null,
+          error: {
+            message:
+              "Could not find the table 'public.workspace_deployments' in the schema cache",
+          },
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.deploymentOperations.total).toBe(0);
+      expect(body.deploymentOperations.failedCount).toBe(0);
+      expect(body.deploymentOperations.recentFailed).toEqual([]);
+
+      process.env.CRON_SECRET = originalSecret;
+    });
+
     it("sanitizes raw HTML from upstream adapter errors in detail responses", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";

@@ -721,6 +721,45 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.adapters[0].status).toBe("healthy");
   });
 
+  it("degrades gracefully when workspace deployments table is unavailable", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    const adminClient = createMockAdminSupabase({
+      data_sources: {
+        data: DEFAULT_DATA_SOURCES,
+        error: null,
+      },
+      pipeline_health: {
+        data: DEFAULT_PIPELINE_HEALTH,
+        error: null,
+      },
+      workspace_deployments: {
+        data: null,
+        error: {
+          message:
+            "Could not find the table 'public.workspace_deployments' in the schema cache",
+        },
+      },
+    });
+    mockCreateAdminClient.mockReturnValue(
+      adminClient as ReturnType<typeof createAdminClient>
+    );
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.deploymentOperations.total).toBe(0);
+    expect(body.deploymentOperations.failedCount).toBe(0);
+    expect(body.deploymentOperations.recentFailed).toEqual([]);
+  });
+
   it("ignores disabled data sources in admin health detail", async () => {
     const sessionClient = createMockSessionClient({
       user: { id: "admin-123" },

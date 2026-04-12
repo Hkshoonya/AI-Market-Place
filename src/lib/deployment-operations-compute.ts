@@ -12,6 +12,34 @@ type DeploymentOpsRow = {
   last_error_message: string | null;
 };
 
+export function isMissingDeploymentOperationsTableError(
+  error: { message?: string | null } | null | undefined
+) {
+  const message = error?.message ?? "";
+  return (
+    message.includes("workspace_deployments") &&
+    message.includes("schema cache")
+  );
+}
+
+export function createEmptyDeploymentOperationsSummary() {
+  return {
+    totals: {
+      total: 0,
+      managedCount: 0,
+      hostedCount: 0,
+      readyCount: 0,
+      pausedCount: 0,
+      provisioningCount: 0,
+      staleProvisioningCount: 0,
+      failedCount: 0,
+      staleProvisioningThresholdMinutes: STALE_PROVISIONING_MINUTES,
+    },
+    recentStaleProvisioning: [],
+    recentFailed: [],
+  };
+}
+
 function minutesSince(iso: string, nowMs: number) {
   const timestamp = Date.parse(iso);
   if (!Number.isFinite(timestamp)) return null;
@@ -22,6 +50,10 @@ export function computeDeploymentOperationsSummary(
   rows: DeploymentOpsRow[],
   now = new Date()
 ) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return createEmptyDeploymentOperationsSummary();
+  }
+
   const nowMs = now.getTime();
   const staleProvisioning = rows.filter((row) => {
     if (row.status !== "provisioning") return false;
