@@ -8,7 +8,6 @@ import {
   BarChart3,
   Building2,
   LayoutDashboard,
-  LogIn,
   Menu,
   MessageSquare,
   Newspaper,
@@ -128,16 +127,12 @@ export function Header() {
                   </Link>
                 </Button>
                 <NotificationBell />
-                <AuthButton />
               </>
-            ) : (
-              <Button variant="outline" size="sm" className="border-border/50" asChild>
-                <Link href="/login">
-                  <LogIn className="h-4 w-4" />
-                  Sign In
-                </Link>
-              </Button>
-            )}
+            ) : null}
+          </div>
+
+          <div className="hidden items-center xl:flex">
+            <AuthButton />
           </div>
 
           {/* Mobile menu */}
