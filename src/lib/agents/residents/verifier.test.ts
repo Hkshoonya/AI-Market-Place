@@ -136,19 +136,19 @@ describe("isManualBenchmarkSourceIssueResolved", () => {
   it("resolves when the manual benchmark source is no longer enabled", () => {
     expect(
       isManualBenchmarkSourceIssueResolved({
-        sourceSlug: "terminal-bench",
+        sourceSlug: "legacy-manual-benchmark",
         enabledSourceSlugs: new Set(["provider-news"]),
       })
     ).toBe(true);
   });
 
-  it("stays open while the manual benchmark source remains enabled", () => {
+  it("resolves when a source remains enabled but is no longer classified as manual", () => {
     expect(
       isManualBenchmarkSourceIssueResolved({
         sourceSlug: "terminal-bench",
-        enabledSourceSlugs: new Set(["terminal-bench"]),
+        enabledSourceSlugs: new Set(["terminal-bench", "provider-news"]),
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
