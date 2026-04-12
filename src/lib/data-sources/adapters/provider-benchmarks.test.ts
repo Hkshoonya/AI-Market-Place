@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { generateAliases } from "../model-matcher";
 import { __testables } from "./provider-benchmarks";
 
 const SAMPLE_HTML = `
@@ -306,5 +307,139 @@ describe("provider-benchmarks helpers", () => {
         }),
       ])
     );
+  });
+
+  it("combines curated hints with text-resolved model matches", () => {
+    const aliasModels = [
+      {
+        id: "gemma-family",
+        slug: "google-gemma-4",
+        name: "Gemma 4",
+        provider: "Google",
+      },
+      {
+        id: "gemma-31b-it",
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+      },
+    ];
+    const aliasIndex = __testables.buildModelAliasIndex(aliasModels);
+    const lookup = [
+      {
+        id: "gemma-31b-it",
+        slug: "google-gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+        provider: "Google",
+        aliases: generateAliases("Gemma 4 31B IT"),
+      },
+      {
+        id: "gemma-family",
+        slug: "google-gemma-4",
+        name: "Gemma 4",
+        provider: "Google",
+        aliases: generateAliases("Gemma 4"),
+      },
+    ];
+
+    const relatedModelIds = __testables.buildModelRelations(
+      {
+        id: "google-gemma-4-launch",
+        provider: "Google",
+        url: "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/",
+        titleHint: "Gemma 4 benchmark update",
+        modelHints: ["Gemma 4"],
+      },
+      "Gemma 4 benchmark update",
+      "Google reports benchmark gains for Gemma 4 31B IT.",
+      lookup,
+      aliasIndex
+    );
+
+    expect(relatedModelIds).toEqual(["gemma-family", "gemma-31b-it"]);
+  });
+
+  it("keeps exact hint matches when another hint is too broad", () => {
+    const exactModels = [
+      ["base", "openai-gpt-5-3", "GPT-5.3"],
+      ["codex", "openai-gpt-5-3-codex", "GPT-5.3"],
+      ["chat-latest", "openai-gpt-5-3-chat-latest", "GPT-5.3"],
+    ] as const;
+    const broadFamilyModels = [
+      ["gpt-5", "openai-gpt-5", "GPT-5"],
+      ["gpt-5-pro", "openai-gpt-5-pro", "GPT-5"],
+      ["gpt-5-codex", "openai-gpt-5-codex", "GPT-5"],
+      ["gpt-5-chat", "openai-gpt-5-chat-latest", "GPT-5"],
+      ["gpt-5-dated", "openai-gpt-5-2025-08-07", "GPT-5"],
+      ["gpt-5-pro-dated", "openai-gpt-5-pro-2025-10-06", "GPT-5"],
+    ] as const;
+    const aliasModels = [...exactModels, ...broadFamilyModels].map(
+      ([id, slug, name]) => ({
+        id,
+        slug,
+        name,
+        provider: "OpenAI",
+      })
+    );
+    const aliasIndex = __testables.buildModelAliasIndex(aliasModels);
+    const lookup = aliasModels.map((model) => ({
+      ...model,
+      aliases: generateAliases(model.name),
+    }));
+
+    const relatedModelIds = __testables.buildModelRelations(
+      {
+        id: "openai-gpt-5-3-instant",
+        provider: "OpenAI",
+        url: "https://deploymentsafety.openai.com/gpt-5-3-instant/gpt-5-3-instant.pdf",
+        titleHint: "GPT-5.3 Instant benchmark update",
+        modelHints: ["GPT-5.3", "GPT-5.3 Instant"],
+        contentType: "pdf",
+      },
+      "GPT-5.3 Instant System Card",
+      "OpenAI reports benchmark evaluations for GPT-5.3 Instant.",
+      lookup,
+      aliasIndex
+    );
+
+    expect(relatedModelIds).toEqual(["base", "codex", "chat-latest"]);
+  });
+
+  it("prefers curated hint matches when source text is noisy navigation", () => {
+    const aliasModels = [
+      {
+        id: "target",
+        slug: "z-ai-glm-5v-turbo",
+        name: "GLM-5V-Turbo",
+        provider: "Z.ai",
+      },
+      ...Array.from({ length: 9 }, (_, index) => ({
+        id: `noise-${index}`,
+        slug: `z-ai-glm-noise-${index}`,
+        name: `GLM Noise ${index}`,
+        provider: "Z.ai",
+      })),
+    ];
+    const aliasIndex = __testables.buildModelAliasIndex(aliasModels);
+    const lookup = aliasModels.map((model) => ({
+      ...model,
+      aliases: generateAliases(model.name),
+    }));
+
+    const relatedModelIds = __testables.buildModelRelations(
+      {
+        id: "zai-glm-5v-turbo",
+        provider: "Z.ai",
+        url: "https://docs.z.ai/guides/vlm/glm-5v-turbo",
+        titleHint: "GLM-5V-Turbo benchmark update",
+        modelHints: ["GLM-5V-Turbo"],
+      },
+      "GLM-5V-Turbo - Overview - Z.AI DEVELOPER DOCUMENT",
+      "Navigation Vision Language Models GLM-5V-Turbo GLM Noise 0 GLM Noise 1 GLM Noise 2 GLM Noise 3 GLM Noise 4 GLM Noise 5 GLM Noise 6 GLM Noise 7 GLM Noise 8 benchmark overview.",
+      lookup,
+      aliasIndex
+    );
+
+    expect(relatedModelIds).toEqual(["target"]);
   });
 });

@@ -86,6 +86,15 @@ type SignalContaminationRow = {
   trust_tier: PublicSourceTrustTier;
 };
 
+function orderBy<T extends { order?: (column: string, options: { ascending: boolean }) => T }>(
+  query: T,
+  column: string
+) {
+  return typeof query.order === "function"
+    ? query.order(column, { ascending: true })
+    : query;
+}
+
 async function fetchAllRows<T>(
   fetchPage: (from: number, to: number) => Promise<T[]>
 ) {
@@ -263,13 +272,13 @@ export async function computePublicMetadataCoverage(
 ) {
   const models = await fetchAllRows<ActiveModelPublicMetadataRow>(
     async (from, to) => {
-        const { data, error } = await supabase
+      const query = supabase
         .from("models")
         .select(
           "slug, provider, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
         )
-        .eq("status", "active")
-        .range(from, to);
+        .eq("status", "active");
+      const { data, error } = await orderBy(query, "slug").range(from, to);
 
       if (error) {
         throw new Error(

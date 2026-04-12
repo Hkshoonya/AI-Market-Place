@@ -98,6 +98,8 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       function_calling: true,
       streaming: true,
     },
+    website_url:
+      "https://deploymentsafety.openai.com/gpt-5-3-instant/gpt-5-3-instant.pdf",
   },
   "gpt-5.1": {
     name: "GPT-5.1",

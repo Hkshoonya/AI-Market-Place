@@ -66,6 +66,7 @@ const PROVIDER_PAGE_HEADERS = {
 const PROVIDER_FETCH_TIMEOUT_MS = 15000;
 const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_MODEL_PAGE_SIZE = 1000;
+const MAX_RELATED_BENCHMARK_MODELS = 8;
 
 const BENCHMARK_KEYWORDS = [
   "benchmark",
@@ -168,7 +169,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     provider: "OpenAI",
     url: "https://deploymentsafety.openai.com/gpt-5-3-instant/gpt-5-3-instant.pdf",
     titleHint: "GPT-5.3 Instant benchmark update",
-    modelHints: ["GPT-5.3", "GPT-5.3 Chat"],
+    modelHints: [
+      "GPT-5.3",
+      "GPT-5.3 Instant",
+      "gpt-5.3-instant",
+      "GPT-5.3 Chat",
+    ],
+    publishedAtHint: "2026-03-03T00:00:00.000Z",
     contentType: "pdf",
   },
   {
@@ -226,6 +233,15 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://blog.google/technology/google-deepmind/gemini-computer-use-model/",
     titleHint: "Gemini computer-use benchmark update",
     modelHints: ["Gemini 2.5 Pro", "Gemini 2.5 Flash"],
+  },
+  {
+    id: "google-gemini-3-1-flash-lite",
+    provider: "Google",
+    url: "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-lite/",
+    titleHint: "Gemini 3.1 Flash-Lite benchmark update",
+    modelHints: ["Gemini 3.1 Flash Lite", "Gemini 3.1 Flash-Lite"],
+    publishedAtHint: "2026-03-03T16:34:00.000Z",
+    requiresBenchmarkSignal: true,
   },
   {
     id: "google-gemma-4-launch",
@@ -717,6 +733,20 @@ function buildRequestSignal(
   return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 }
 
+function resolveBenchmarkHintModelIds(
+  hint: string,
+  aliasIndex: ReturnType<typeof buildModelAliasIndex>
+) {
+  const resolvedIds = resolveAliasFamilyModelIds(aliasIndex, {
+    slugCandidates: [hint],
+    nameCandidates: [hint],
+  });
+
+  return resolvedIds.length > MAX_RELATED_BENCHMARK_MODELS
+    ? []
+    : resolvedIds;
+}
+
 function buildModelRelations(
   source: ProviderBenchmarkSource,
   title: string,
@@ -732,20 +762,20 @@ function buildModelRelations(
   );
 
   const hintedIds = source.modelHints.flatMap((hint) =>
-    resolveAliasFamilyModelIds(aliasIndex, {
-      slugCandidates: [hint],
-      nameCandidates: [hint],
-    })
+    resolveBenchmarkHintModelIds(hint, aliasIndex)
   );
+  const hintedUniqueIds = [...new Set(hintedIds)];
+  const resolvedIds = [...new Set([...hintedUniqueIds, ...relation.modelIds])];
 
-  if (hintedIds.length > 0) {
-    return limitProviderScopedModelIds([...new Set(hintedIds)], 8);
+  if (
+    resolvedIds.length > MAX_RELATED_BENCHMARK_MODELS &&
+    hintedUniqueIds.length > 0 &&
+    hintedUniqueIds.length <= MAX_RELATED_BENCHMARK_MODELS
+  ) {
+    return hintedUniqueIds;
   }
 
-  return limitProviderScopedModelIds(
-    [...new Set(relation.modelIds)],
-    8
-  );
+  return limitProviderScopedModelIds(resolvedIds, MAX_RELATED_BENCHMARK_MODELS);
 }
 
 async function fetchBenchmarkCandidateModels(
@@ -1146,5 +1176,7 @@ export const __testables = {
   buildPdfFallbackRecord,
   buildAutoBenchmarkSources,
   buildAutoBenchmarkModelHints,
+  buildModelAliasIndex,
+  buildModelRelations,
   PROVIDER_PAGE_HEADERS,
 };

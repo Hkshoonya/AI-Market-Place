@@ -56,6 +56,15 @@ const EXPECTED_MINIMUMS: Record<SyncOutputType, number> = {
   rankings: 100,
 };
 
+function orderBy<T extends { order?: (column: string, options: { ascending: boolean }) => T }>(
+  query: T,
+  column: string
+) {
+  return typeof query.order === "function"
+    ? query.order(column, { ascending: true })
+    : query;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -535,11 +544,11 @@ async function fetchAllActiveModelMetadata(
 
   for (let from = 0; ; from += METADATA_PAGE_SIZE) {
     const to = from + METADATA_PAGE_SIZE - 1;
-    const { data, error } = await supabase
+    const query = supabase
       .from("models")
       .select("id, slug, provider, category, hf_model_id, website_url, release_date")
-      .eq("status", "active")
-      .range(from, to);
+      .eq("status", "active");
+    const { data, error } = await orderBy(query, "id").range(from, to);
 
     if (error) {
       throw new Error(`Failed to fetch active model metadata: ${error.message}`);
@@ -576,10 +585,10 @@ async function fetchAllBenchmarkScoreRows(
 
   for (let from = 0; ; from += METADATA_PAGE_SIZE) {
     const to = from + METADATA_PAGE_SIZE - 1;
-    const { data, error } = await supabase
+    const query = supabase
       .from("benchmark_scores")
-      .select("model_id")
-      .range(from, to);
+      .select("model_id");
+    const { data, error } = await orderBy(query, "model_id").range(from, to);
 
     if (error) {
       throw new Error(`Failed to fetch benchmark score coverage: ${error.message}`);
@@ -604,11 +613,11 @@ async function fetchAllBenchmarkNewsRows(
 
   for (let from = 0; ; from += METADATA_PAGE_SIZE) {
     const to = from + METADATA_PAGE_SIZE - 1;
-    const { data, error } = await supabase
+    const query = supabase
       .from("model_news")
       .select("related_model_ids")
-      .eq("category", "benchmark")
-      .range(from, to);
+      .eq("category", "benchmark");
+    const { data, error } = await orderBy(query, "id").range(from, to);
 
     if (error) {
       throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);

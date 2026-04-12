@@ -159,6 +159,8 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
+    website_url:
+      "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-lite/",
   },
 
   // ---- Gemini 2.5 series ----

@@ -44,6 +44,15 @@ type BenchmarkNewsCoverageRow = {
   related_model_ids: string[] | null;
 };
 
+function orderBy<T extends { order?: (column: string, options: { ascending: boolean }) => T }>(
+  query: T,
+  column: string
+) {
+  return typeof query.order === "function"
+    ? query.order(column, { ascending: true })
+    : query;
+}
+
 export function buildBenchmarkEvidenceModelIds(
   benchmarkRows: BenchmarkScoreCoverageRow[],
   benchmarkNewsRows: BenchmarkNewsCoverageRow[]
@@ -90,13 +99,13 @@ export async function computeBenchmarkMetadataCoverage(
 ) {
   const [models, benchmarkRows, benchmarkNewsRows] = await Promise.all([
     fetchAllRows<BenchmarkMetadataCoverageModel>(async (from, to) => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("models")
         .select(
           "id, slug, provider, category, hf_model_id, website_url, release_date"
         )
-        .eq("status", "active")
-        .range(from, to);
+        .eq("status", "active");
+      const { data, error } = await orderBy(query, "id").range(from, to);
 
       if (error) {
         throw new Error(
@@ -107,10 +116,10 @@ export async function computeBenchmarkMetadataCoverage(
       return (data ?? []) as BenchmarkMetadataCoverageModel[];
     }),
     fetchAllRows<BenchmarkScoreCoverageRow>(async (from, to) => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("benchmark_scores")
-        .select("model_id")
-        .range(from, to);
+        .select("model_id");
+      const { data, error } = await orderBy(query, "model_id").range(from, to);
 
       if (error) {
         throw new Error(
@@ -121,11 +130,11 @@ export async function computeBenchmarkMetadataCoverage(
       return (data ?? []) as BenchmarkScoreCoverageRow[];
     }),
     fetchAllRows<BenchmarkNewsCoverageRow>(async (from, to) => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("model_news")
         .select("related_model_ids")
-        .eq("category", "benchmark")
-        .range(from, to);
+        .eq("category", "benchmark");
+      const { data, error } = await orderBy(query, "id").range(from, to);
 
       if (error) {
         throw new Error(
