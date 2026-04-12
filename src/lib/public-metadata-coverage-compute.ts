@@ -22,7 +22,7 @@ const PAGE_SIZE = 1000;
 
 type ActiveModelPublicMetadataRow = {
   slug: string;
-  provider: string;
+  provider: string | null;
   hf_model_id?: string | null;
   website_url?: string | null;
   name: string;
@@ -86,6 +86,18 @@ type SignalContaminationRow = {
   trust_tier: PublicSourceTrustTier;
 };
 
+function normalizeProvider(provider: string | null | undefined) {
+  const trimmed = provider?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : "Unknown";
+}
+
+function getFamilySeriesKey(model: ActiveModelPublicMetadataRow) {
+  return getPublicSurfaceSeriesKey({
+    ...model,
+    provider: normalizeProvider(model.provider),
+  });
+}
+
 function orderBy<T extends { order?: (column: string, options: { ascending: boolean }) => T }>(
   query: T,
   column: string
@@ -117,7 +129,7 @@ function buildCoverageFamilyMap(models: ActiveModelPublicMetadataRow[]) {
   const families = new Map<string, CoverageFamilyAggregate>();
 
   for (const model of models) {
-    const familyKey = `${model.provider}::${getPublicSurfaceSeriesKey(model)}`;
+    const familyKey = `${normalizeProvider(model.provider)}::${getFamilySeriesKey(model)}`;
     const existing = families.get(familyKey);
     if (!existing) {
       families.set(familyKey, {
@@ -149,7 +161,7 @@ function applyFamilyCoverageFallback(
   families: Map<string, CoverageFamilyAggregate>
 ): ActiveModelPublicMetadataRow {
   const family = families.get(
-    `${model.provider}::${getPublicSurfaceSeriesKey(model)}`
+    `${normalizeProvider(model.provider)}::${getFamilySeriesKey(model)}`
   );
 
   if (!family) return model;
@@ -183,7 +195,7 @@ function buildRecentNotReadyRows(models: ActiveModelPublicMetadataRow[]): NotRea
   return models
     .map((model) => ({
       slug: model.slug,
-      provider: model.provider,
+      provider: normalizeProvider(model.provider),
       category: model.category,
       release_date: model.release_date,
       reasons: getDefaultPublicSurfaceReadinessBlockers(model),
@@ -202,7 +214,7 @@ function buildRecentRankingContaminationRows(
   return models
     .map((model) => ({
       slug: model.slug,
-      provider: model.provider,
+      provider: normalizeProvider(model.provider),
       category: model.category,
       release_date: model.release_date,
       reasons: getDefaultPublicSurfaceReadinessBlockers(model),
@@ -236,7 +248,7 @@ function buildRecentLowTrustRows(models: ActiveModelPublicMetadataRow[]): TrustT
   return models
     .map((model) => ({
       slug: model.slug,
-      provider: model.provider,
+      provider: normalizeProvider(model.provider),
       category: model.category,
       release_date: model.release_date,
       trust_tier: getPublicSourceTrustTier(model),
@@ -255,7 +267,7 @@ function buildRecentSignalContaminationRows(
   return models
     .map((model) => ({
       slug: model.slug,
-      provider: model.provider,
+      provider: normalizeProvider(model.provider),
       category: model.category,
       release_date: model.release_date,
       trust_tier: getPublicSourceTrustTier(model),
@@ -405,9 +417,9 @@ export async function computePublicMetadataCoverage(
     .slice(0, 10)
     .map((model) => ({
       slug: model.slug,
-      provider: model.provider,
-        category: model.category,
-        release_date: model.release_date,
+      provider: normalizeProvider(model.provider),
+      category: model.category,
+      release_date: model.release_date,
     }));
   const recentNotReadyModels = buildRecentNotReadyRows(effectiveModels);
   const recentRankingContaminationModels = buildRecentRankingContaminationRows(
@@ -431,7 +443,7 @@ export async function computePublicMetadataCoverage(
   >();
 
   for (const model of effectiveModels) {
-    const provider = model.provider ?? "Unknown";
+    const provider = normalizeProvider(model.provider);
     const stats = providerStats.get(provider) ?? {
       total: 0,
       complete: 0,
@@ -524,7 +536,7 @@ export async function computePublicMetadataCoverage(
         .slice(0, 10)
         .map((model) => ({
           slug: model.slug,
-          provider: model.provider,
+          provider: normalizeProvider(model.provider),
           category: model.category,
           release_date: model.release_date,
         })),

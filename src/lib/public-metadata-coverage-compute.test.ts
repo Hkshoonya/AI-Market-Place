@@ -143,4 +143,26 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.recentLowTrustModels[1]?.trust_tier).toBe("community");
     expect(coverage.recentSignalContaminationModels).toEqual([]);
   });
+
+  it("normalizes missing providers to Unknown so downstream health routes do not throw", async () => {
+    const supabase = createMockSupabase([
+      {
+        slug: "providerless-model",
+        provider: null,
+        name: "Providerless Model",
+        category: null,
+        release_date: null,
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: null,
+      },
+    ]);
+
+    const coverage = await computePublicMetadataCoverage(supabase as never);
+
+    expect(coverage.providers[0]?.provider).toBe("Unknown");
+    expect(coverage.recentIncompleteModels[0]?.provider).toBe("Unknown");
+    expect(coverage.recentLowTrustModels[0]?.provider).toBe("Unknown");
+  });
 });
