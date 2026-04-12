@@ -21,8 +21,13 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
+import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-badge";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
+import {
+  buildBenchmarkTrackingSummaryMap,
+} from "@/lib/models/benchmark-tracking-bulk";
+import type { BenchmarkTrackingSummary } from "@/lib/models/benchmark-status";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
@@ -155,6 +160,8 @@ export default async function SearchPage({
 
   const admin = createAdminClient();
   const supabase = createOptionalPublicClient() ?? admin;
+  const benchmarkTrackingClient =
+    supabase as unknown as Parameters<typeof buildBenchmarkTrackingSummaryMap>[0];
 
   let models: Array<{
     id: string;
@@ -186,6 +193,7 @@ export default async function SearchPage({
     }> | null;
     recent_signal?: ModelSignalSummary | null;
     self_host_requirement_label?: string | null;
+    benchmark_tracking_summary?: BenchmarkTrackingSummary | null;
   }> = [];
   let modelCount = 0;
   let modelAccessCatalog = buildAccessOffersCatalog({
@@ -357,11 +365,22 @@ export default async function SearchPage({
           economic_footprint_score: model.economic_footprint_score,
         })),
       });
+      const pagedModels = uniqueModels.slice(offset, offset + PAGE_SIZE);
+      const benchmarkTrackingByModelId = await buildBenchmarkTrackingSummaryMap(
+        benchmarkTrackingClient,
+        pagedModels.map((model) => ({
+          id: model.id,
+          slug: model.slug,
+          provider: model.provider,
+          category: model.category,
+        }))
+      );
 
-      models = uniqueModels.slice(offset, offset + PAGE_SIZE).map((model) => ({
+      models = pagedModels.map((model) => ({
         ...model,
         model_pricing: pricingByModelId.get(model.id) ?? [],
         recent_signal: modelSignals.get(model.id) ?? null,
+        benchmark_tracking_summary: benchmarkTrackingByModelId.get(model.id) ?? null,
       }));
       modelCount = uniqueModels.length > 0 ? uniqueModels.length : (count ?? 0);
     }
@@ -471,6 +490,11 @@ export default async function SearchPage({
             models if you want to compare AI systems, marketplace if you want something you can buy,
             deploy, or use right away.
           </div>
+          {activeTab === "models" && (
+            <div className="mb-6 rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
+              Search results include both fully benchmarked models and tracked models that are still supported mainly by provider evidence, arena signal, or other public signals. Use the benchmark badge on each row before treating two models as directly comparable.
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-1 mb-6">
@@ -546,6 +570,9 @@ export default async function SearchPage({
                                 {deployabilityLabel}
                               </Badge>
                             )}
+                            <BenchmarkTrackingBadge
+                              summary={model.benchmark_tracking_summary}
+                            />
                             {model.is_open_weights && (
                               <Badge variant="outline" className="text-[10px] border-gain/30 text-gain">
                                 Open

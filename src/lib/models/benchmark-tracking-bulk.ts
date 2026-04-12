@@ -8,10 +8,15 @@ import { systemLog } from "@/lib/logging";
 type QueryClient = {
   from: (table: string) => {
     select: (columns: string) => {
-      in?: (column: string, values: string[]) => Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+      in?: (
+        column: string,
+        values: string[]
+      ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
       overlaps?: (column: string, values: string[]) => {
         order: (column: string, options: { ascending: boolean }) => {
-          limit: (count: number) => Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+          limit: (
+            count: number
+          ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
         };
       };
     };
@@ -29,7 +34,7 @@ type QueryResultRow = unknown;
 
 async function resolveTrackingQuery(
   source: string,
-  query: Promise<{ data: QueryResultRow[] | null; error: { message: string } | null }>
+  query: PromiseLike<{ data: QueryResultRow[] | null; error: { message: string } | null }>
 ) {
   try {
     const result = await query;

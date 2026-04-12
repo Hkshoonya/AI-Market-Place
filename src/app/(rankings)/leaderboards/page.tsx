@@ -17,6 +17,7 @@ import { getProviderBrand } from "@/lib/constants/providers";
 import LeaderboardExplorer from "@/components/models/leaderboard-explorer";
 import { LeaderboardLensNav } from "@/components/models/leaderboard-lens-nav";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
+import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-badge";
 import QualityPriceFrontier from "@/components/charts/quality-price-frontier";
 import BenchmarkHeatmap from "@/components/charts/benchmark-heatmap";
 import RankTimeline from "@/components/charts/rank-timeline";
@@ -36,6 +37,7 @@ import {
   collapsePublicModelFamilies,
   dedupePublicModelFamilies,
 } from "@/lib/models/public-families";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import {
   getPublicLensLabel,
@@ -398,6 +400,17 @@ export default async function LeaderboardsPage({
     }>,
     models: leaderboardModels,
   });
+  const benchmarkTrackingClient =
+    supabase as unknown as Parameters<typeof buildBenchmarkTrackingSummaryMap>[0];
+  const benchmarkTrackingByModelId = await buildBenchmarkTrackingSummaryMap(
+    benchmarkTrackingClient,
+    rankedModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+    }))
+  );
 
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
     const scores = model.benchmark_scores;
@@ -499,6 +512,9 @@ export default async function LeaderboardsPage({
               Start with a lens above, keep Active Only on for the cleanest public view, and open deeper tables only when you want the supporting details.
             </p>
           </div>
+          <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
+            Benchmark badges show how directly comparable a row is. Structured means normalized benchmark rows, Provider-reported means official benchmark claims without a normalized table yet, Arena only means competitive signal without broad benchmark coverage, and Pending means the model is tracked but benchmark ingestion is still catching up.
+          </p>
         </div>
       </div>
 
@@ -795,6 +811,10 @@ export default async function LeaderboardsPage({
                                   {deploymentLabel}
                                 </UiBadge>
                               )}
+                              <BenchmarkTrackingBadge
+                                summary={benchmarkTrackingByModelId.get(model.id)}
+                                className="ml-2"
+                              />
                               {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                                 <UiBadge variant="outline" className="ml-2 text-[10px]">
                                   {lifecycleBadge.label}

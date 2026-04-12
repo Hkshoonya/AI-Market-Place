@@ -22,11 +22,13 @@ import {
   isSelfHostedDeployabilityLabel,
 } from "@/lib/models/deployability";
 import { ProviderLogo } from "@/components/shared/provider-logo";
+import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-badge";
 import type { Metadata } from "next";
 import type { z } from "zod";
 import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
+import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { SITE_URL } from "@/lib/constants/site";
@@ -231,6 +233,17 @@ export default async function CategoryLeaderboardPage({
       economic_footprint_score: model.economic_footprint_score,
     })),
   });
+  const benchmarkTrackingClient =
+    supabase as unknown as Parameters<typeof buildBenchmarkTrackingSummaryMap>[0];
+  const benchmarkTrackingByModelId = await buildBenchmarkTrackingSummaryMap(
+    benchmarkTrackingClient,
+    sortedModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+    }))
+  );
 
   const deploymentLabelsByModelId = new Map(
     sortedModels.map((model) => [
@@ -401,6 +414,10 @@ export default async function CategoryLeaderboardPage({
         </Card>
       </div>
 
+      <div className="mt-6 rounded-2xl border border-border/50 bg-card/50 p-4 text-xs text-muted-foreground">
+        This leaderboard still shows tracked models beyond the ones with full benchmark rows. Use the benchmark badge on each row to tell whether the model is Structured, Provider-reported, Arena only, or still Pending benchmark coverage.
+      </div>
+
       <div className="mt-8 flex flex-wrap gap-2">
         {CATEGORIES.map((categoryTab) => (
           <Link key={categoryTab.slug} href={`/leaderboards/${categoryTab.slug}?lens=${activeLens}${lifecycleFilter === "all" ? "&lifecycle=all" : ""}`}>
@@ -530,6 +547,10 @@ export default async function CategoryLeaderboardPage({
                                     {deployabilityLabel}
                                   </Badge>
                                 )}
+                                <BenchmarkTrackingBadge
+                                  summary={benchmarkTrackingByModelId.get(model.id)}
+                                  className="mt-1 mr-1"
+                                />
                                 {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
                                   <Badge variant="outline" className="mt-1 text-[10px]">
                                     {lifecycleBadge.label}
