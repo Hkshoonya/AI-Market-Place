@@ -129,6 +129,7 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
 function createPersistMockSupabase(options?: {
   failUpdateForId?: string;
   failSnapshot?: boolean;
+  failSnapshotTimesById?: Record<string, number>;
   snapshotCollector?: Array<Record<string, unknown>>;
   modelUpdateCollector?: Array<Record<string, unknown>>;
 }) {
@@ -164,9 +165,20 @@ function createPersistMockSupabase(options?: {
             if (options?.snapshotCollector && data && typeof data === "object") {
               options.snapshotCollector.push(data as Record<string, unknown>);
             }
-            const error = options?.failSnapshot
-              ? { message: "Snapshot failed" }
-              : null;
+            const modelId =
+              data && typeof data === "object" && "model_id" in data
+                ? String((data as { model_id: unknown }).model_id)
+                : null;
+            let error = options?.failSnapshot ? { message: "Snapshot failed" } : null;
+            if (
+              !error &&
+              modelId &&
+              options?.failSnapshotTimesById &&
+              (options.failSnapshotTimesById[modelId] ?? 0) > 0
+            ) {
+              options.failSnapshotTimesById[modelId] -= 1;
+              error = { message: "Transient snapshot failure" };
+            }
             return thenable({ error });
           },
         };
@@ -224,6 +236,22 @@ describe("persistResults", () => {
     expect(stats.errors).toBe(0);
     expect(stats.snapshotsCreated).toBe(0);
     expect(stats.snapshotErrors).toBe(2);
+  });
+
+  it("retries transient snapshot upsert failures before counting an error", async () => {
+    const modelIds = ["m1", "m2"];
+    const inputs = buildFixtureInputs(modelIds);
+    const results = buildFixtureResults(modelIds);
+    const supabase = createPersistMockSupabase({
+      failSnapshotTimesById: { m2: 2 },
+    });
+
+    const stats = await persistResults(supabase, inputs, results);
+
+    expect(stats.updated).toBe(2);
+    expect(stats.errors).toBe(0);
+    expect(stats.snapshotsCreated).toBe(2);
+    expect(stats.snapshotErrors).toBe(0);
   });
 
   it("returns PersistStats shape with correct keys", async () => {

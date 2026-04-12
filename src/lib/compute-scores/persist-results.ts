@@ -8,7 +8,15 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildSignalCoverage } from "@/lib/pipeline-health";
+import { createTaggedLogger } from "@/lib/logging";
 import type { ScoringInputs, ScoringResults, PersistStats } from "./types";
+
+const log = createTaggedLogger("compute-scores/persist-results");
+const SNAPSHOT_UPSERT_MAX_ATTEMPTS = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * Persist scoring results to the database.
@@ -142,6 +150,39 @@ export async function persistResults(
   let snapshotErrors = 0;
   const modelMap = new Map(models.map((m) => [m.id, m]));
 
+  async function upsertSnapshotWithRetry(snapshot: Record<string, unknown>, modelMeta: {
+    id: string;
+    slug: string;
+    name: string;
+  }) {
+    for (let attempt = 1; attempt <= SNAPSHOT_UPSERT_MAX_ATTEMPTS; attempt++) {
+      const { error } = await supabase
+        .from("model_snapshots")
+        .upsert(snapshot, { onConflict: "model_id,snapshot_date" });
+
+      if (!error) {
+        return { error: null };
+      }
+
+      if (attempt < SNAPSHOT_UPSERT_MAX_ATTEMPTS) {
+        await sleep(50 * attempt);
+        continue;
+      }
+
+      void log.warn("Model snapshot upsert failed after retries", {
+        modelId: modelMeta.id,
+        modelSlug: modelMeta.slug,
+        modelName: modelMeta.name,
+        snapshotDate: snapshot.snapshot_date,
+        attempts: attempt,
+        error: error.message,
+      });
+      return { error };
+    }
+
+    return { error: null };
+  }
+
   for (let i = 0; i < scoredModels.length; i += BATCH) {
     const batch = scoredModels.slice(i, i + BATCH);
 
@@ -161,28 +202,30 @@ export async function persistResults(
         hasPricing: cheapestPriceMap.has(sm.id),
       });
       const sourceCoverage = sourceCoverageMap.get(sm.id) ?? null;
+      const snapshot = {
+        model_id: sm.id,
+        snapshot_date: today,
+        quality_score: sm.qualityScore,
+        hf_downloads: m.hf_downloads,
+        hf_likes: m.hf_likes,
+        overall_rank: balRank?.overall ?? null,
+        popularity_score: popularityMap.get(sm.id) ?? null,
+        adoption_score: adoptionScoreMap.get(sm.id) ?? null,
+        economic_footprint_score: economicFootprintMap.get(sm.id) ?? null,
+        market_cap_estimate: marketCapMap.get(sm.id) ?? null,
+        agent_score: agentScoreMap.get(sm.id) ?? null,
+        capability_score: capabilityScoreMap.get(sm.id) ?? null,
+        usage_score: usageScoreMap.get(sm.id) ?? null,
+        expert_score: expertScoreMap.get(sm.id) ?? null,
+        signal_coverage: signalCoverage,
+        source_coverage: sourceCoverage,
+      };
 
-      return supabase.from("model_snapshots").upsert(
-        {
-          model_id: sm.id,
-          snapshot_date: today,
-          quality_score: sm.qualityScore,
-          hf_downloads: m.hf_downloads,
-          hf_likes: m.hf_likes,
-          overall_rank: balRank?.overall ?? null,
-          popularity_score: popularityMap.get(sm.id) ?? null,
-          adoption_score: adoptionScoreMap.get(sm.id) ?? null,
-          economic_footprint_score: economicFootprintMap.get(sm.id) ?? null,
-          market_cap_estimate: marketCapMap.get(sm.id) ?? null,
-          agent_score: agentScoreMap.get(sm.id) ?? null,
-          capability_score: capabilityScoreMap.get(sm.id) ?? null,
-          usage_score: usageScoreMap.get(sm.id) ?? null,
-          expert_score: expertScoreMap.get(sm.id) ?? null,
-          signal_coverage: signalCoverage,
-          source_coverage: sourceCoverage,
-        },
-        { onConflict: "model_id,snapshot_date" }
-      ).then(({ error }) => ({ error, skipped: false }));
+      return upsertSnapshotWithRetry(snapshot, {
+        id: m.id,
+        slug: m.slug,
+        name: m.name,
+      }).then(({ error }) => ({ error, skipped: false }));
     });
 
     const snapResults = await Promise.all(snapPromises);
