@@ -205,9 +205,9 @@ describe("DeployTab", () => {
         provisioning: {
           canCreate: true,
           deploymentKind: "hosted_external",
-          label: "Replicate hosted deployment",
+          label: "AI Market Cap dedicated runtime",
           summary:
-            "AI Market Cap can create and manage a hosted Replicate deployment for this model, then keep chat, API access, and usage tracking on-site.",
+            "AI Market Cap can launch a dedicated runtime for this model and keep chat, API access, and usage tracking in one place.",
           target: {
             platformSlug: "replicate",
             provider: "replicate",
@@ -237,8 +237,8 @@ describe("DeployTab", () => {
       screen.getByRole("button", { name: /Deploy on AI Market Cap/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/hosted Replicate deployment/i)
-    ).toBeInTheDocument();
+      screen.getAllByText(/dedicated runtime/i).length
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Chat, API, usage tracking/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Deploy on AI Market Cap/i })

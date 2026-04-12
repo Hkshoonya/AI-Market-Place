@@ -35,10 +35,10 @@ export interface WorkspaceDeploymentRecord {
 
 function getPublicDeploymentLabel(deployment: WorkspaceDeploymentRecord) {
   if (deployment.deployment_kind === "hosted_external") {
-    return "AI Market Cap hosted deployment";
+    return "AI Market Cap dedicated runtime";
   }
   if (deployment.deployment_kind === "managed_api") {
-    return "AI Market Cap managed runtime";
+    return "AI Market Cap in-site runtime";
   }
   return deployment.deployment_label;
 }

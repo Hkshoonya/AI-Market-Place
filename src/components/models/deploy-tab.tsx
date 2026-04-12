@@ -475,8 +475,8 @@ export function DeployTab({
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Delivery</p>
               <p className="mt-1 text-sm font-medium text-white">
                 {provisioning?.deploymentKind === "hosted_external"
-                  ? "AI Market Cap hosted backend"
-                  : "AI Market Cap managed runtime"}
+                  ? "AI Market Cap dedicated runtime"
+                  : "AI Market Cap in-site runtime"}
               </p>
             </div>
           </div>
@@ -742,7 +742,7 @@ export function DeployTab({
             </p>
             <div>
               <p className="font-medium text-white mb-1">Server runtime example</p>
-              <p className="mb-1 text-[11px] text-muted-foreground">Example with vLLM</p>
+              <p className="mb-1 text-[11px] text-muted-foreground">Example server-runtime command</p>
               <div className="flex items-center gap-1">
                 <code className="bg-black/50 rounded px-2 py-1 flex-1 overflow-auto font-mono">
                   docker run --gpus all -p 8000:8000 vllm/vllm-openai --model {modelName.toLowerCase().replace(/\s+/g, "-")}
@@ -757,7 +757,7 @@ export function DeployTab({
             </div>
             <div>
               <p className="font-medium text-white mb-1">Local runner example</p>
-              <p className="mb-1 text-[11px] text-muted-foreground">Example with Ollama</p>
+              <p className="mb-1 text-[11px] text-muted-foreground">Example local-runner command</p>
               <div className="flex items-center gap-1">
                 <code className="bg-black/50 rounded px-2 py-1 flex-1 font-mono">
                   ollama pull {modelName.toLowerCase().replace(/\s+/g, "-")}

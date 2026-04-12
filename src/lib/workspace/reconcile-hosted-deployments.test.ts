@@ -43,7 +43,7 @@ describe("reconcileHostedDeployments", () => {
       status: "provisioning",
       endpoint_slug: "slug",
       deployment_kind: "hosted_external",
-      deployment_label: "AI Market Cap hosted deployment",
+      deployment_label: "AI Market Cap dedicated runtime",
       external_platform_slug: "replicate",
       external_provider: "replicate",
       external_owner: "aimarketcap",

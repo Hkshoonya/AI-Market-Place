@@ -28,35 +28,35 @@ const CATALOG_ROUTES: RuntimeCatalogRoute[] = [
     providerPrefixes: ["openai"],
     modelPrefix: "openai",
     keys: Object.keys(OPENAI_KNOWN_MODELS),
-    label: "AI Market Cap managed runtime",
+    label: "AI Market Cap in-site runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["anthropic", "claude"],
     modelPrefix: "anthropic",
     keys: Object.keys(ANTHROPIC_KNOWN_MODELS),
-    label: "AI Market Cap managed runtime",
+    label: "AI Market Cap in-site runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["google", "gemini"],
     modelPrefix: "google",
     keys: Object.keys(GOOGLE_KNOWN_MODELS).filter((key) => key.startsWith("gemini-")),
-    label: "AI Market Cap managed runtime",
+    label: "AI Market Cap in-site runtime",
   },
   {
     provider: "openrouter",
     providerPrefixes: ["xai", "x-ai", "grok"],
     modelPrefix: "x-ai",
     keys: Object.keys(XAI_KNOWN_MODELS).filter((key) => !key.startsWith("grok-imagine-")),
-    label: "AI Market Cap managed runtime",
+    label: "AI Market Cap in-site runtime",
   },
   {
     provider: "minimax",
     providerPrefixes: ["minimax"],
     modelPrefix: null,
     keys: Object.keys(MINIMAX_KNOWN_MODELS).filter((key) => key.startsWith("MiniMax-M")),
-    label: "AI Market Cap managed runtime",
+    label: "AI Market Cap in-site runtime",
   },
 ];
 
@@ -105,7 +105,8 @@ export function resolveWorkspaceRuntimeExecution(modelSlug: string): WorkspaceRu
       provider: route.provider,
       model: route.modelPrefix ? `${route.modelPrefix}/${key}` : key,
       label: route.label,
-      summary: "This model can run through AI Market Cap's managed runtime on this site.",
+      summary:
+        "This model can run directly on AI Market Cap with chat, API access, and usage tracking in one place.",
     };
   }
 

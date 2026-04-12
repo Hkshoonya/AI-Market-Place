@@ -98,7 +98,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "How does one-click deployment on AI Market Cap work?",
-        a: "When a model shows Deploy on AI Market Cap, we create and manage the launch path for you through AI Market Cap so you can use one endpoint for chat, API access, budgets, and usage tracking. Depending on the model, AI Market Cap may use managed runtime infrastructure or hosted backend providers behind the scenes. We keep that operational detail inside the platform so the main product flow stays consistent, and we only expose it in support and documentation when it matters.",
+        a: "When a model shows Deploy on AI Market Cap, we create and manage the launch path for you through AI Market Cap so you can use one endpoint for chat, API access, budgets, and usage tracking. Some models run directly on AI Market Cap. Others use a dedicated runtime that AI Market Cap launches and keeps connected to your workspace. We keep those operational details inside the platform so the main product flow stays consistent, and we only expose them in support and documentation when they matter.",
       },
       {
         q: "What are the API rate limits?",

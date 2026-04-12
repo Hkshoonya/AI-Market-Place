@@ -401,8 +401,8 @@ export default async function ModelsPage({
                 <p className="text-sm font-semibold text-[#00d4aa]">Use on AI Market Cap</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   These are the models AI Market Cap can launch for you here with one click today.
-                  Some use our own managed runtime. Others use a hosted backend we provision and
-                  keep connected to your on-site chat, API, and usage tracking.
+                  Some run directly on AI Market Cap. Others use a dedicated runtime we launch for
+                  you while your chat, API access, and usage tracking stay here.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

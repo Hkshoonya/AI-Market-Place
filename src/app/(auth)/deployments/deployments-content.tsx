@@ -438,7 +438,7 @@ export default function DeploymentsContent() {
                         <p className="text-sm text-muted-foreground">
                           {deployment.providerName ?? "Unknown provider"} ·{" "}
                           {deployment.deploymentKind === "hosted_external"
-                            ? "AI Market Cap hosted backend"
+                            ? "AI Market Cap dedicated runtime"
                             : deployment.execution.summary}
                         </p>
                         {deployment.lastErrorMessage ? (

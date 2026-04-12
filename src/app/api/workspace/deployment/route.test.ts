@@ -173,7 +173,7 @@ describe("workspace deployment API", () => {
     const body = await response.json();
     expect(body.deployment.endpointPath).toBe("/api/deployments/openai-gpt-4-1-abc12345");
     expect(body.deployment.providerName).toBe("AI Market Cap");
-    expect(body.deployment.deploymentLabel).toBe("AI Market Cap managed runtime");
+    expect(body.deployment.deploymentLabel).toBe("AI Market Cap in-site runtime");
   });
 
   it("rejects models without a mapped in-site runtime", async () => {
@@ -337,7 +337,7 @@ describe("workspace deployment API", () => {
     const body = await response.json();
     expect(body.deployment.deploymentKind).toBe("hosted_external");
     expect(body.deployment.providerName).toBe("AI Market Cap");
-    expect(body.deployment.deploymentLabel).toBe("AI Market Cap hosted deployment");
+    expect(body.deployment.deploymentLabel).toBe("AI Market Cap dedicated runtime");
     expect(body.deployment.target.provider).toBe("huggingface");
     expect(body.activation.message).toMatch(/AI Market Cap endpoint/i);
   });
@@ -452,7 +452,7 @@ describe("workspace deployment API", () => {
           status: "provisioning",
           endpoint_slug: "meta-llama-3-3-70b-instruct-abc12345",
           deployment_kind: "hosted_external",
-          deployment_label: "AI Market Cap hosted deployment",
+          deployment_label: "AI Market Cap dedicated runtime",
           external_platform_slug: "replicate",
           external_provider: "replicate",
           external_owner: "aimarketcap",

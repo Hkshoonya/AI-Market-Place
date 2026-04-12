@@ -810,8 +810,8 @@ export default function WorkspaceContent() {
                       <p className="mt-1 text-sm font-medium text-white">
                         {hasManagedDeployment
                           ? deployment?.deploymentKind === "hosted_external"
-                            ? "Hosted deployment connected"
-                            : "Deployment created inside AI Market Cap"
+                            ? "Dedicated runtime connected"
+                            : "Runtime created inside AI Market Cap"
                           : canCreateManagedDeployment
                             ? "Not deployed yet"
                             : "Direct deployment not available"}
@@ -819,8 +819,8 @@ export default function WorkspaceContent() {
                       <p className="mt-1 text-xs text-muted-foreground">
                         {hasManagedDeployment
                           ? deployment?.deploymentKind === "hosted_external"
-                            ? "AI Market Cap is routing this deployment through its hosted backend while keeping the endpoint, usage, and workflow in one place."
-                            : "This deployment is the managed hosted endpoint for this model inside AI Market Cap, with usage and access attached to the same record."
+                            ? "AI Market Cap is routing this deployment through a dedicated runtime while keeping the endpoint, usage, and workflow in one place."
+                            : "This deployment runs directly on AI Market Cap, with usage and access attached to the same record."
                           : canCreateManagedDeployment
                             ? provisioning?.summary ?? "Create the in-site deployment before deeper chat and API usage starts here."
                             : provisioning?.summary ??
@@ -848,7 +848,7 @@ export default function WorkspaceContent() {
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {deployment?.deploymentKind === "hosted_external"
-                          ? "This endpoint is routed through a hosted deployment target and can still be used from AI Market Cap."
+                          ? "This endpoint is routed through a dedicated runtime and can still be used entirely from AI Market Cap."
                           : deployment?.execution.summary}
                       </p>
                     </div>
@@ -869,8 +869,8 @@ export default function WorkspaceContent() {
                         Hosted connection
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        AI Market Cap is managing the upstream hosted runtime for this deployment.
-                        You can keep using the AI Market Cap endpoint below for chat and API access.
+                        AI Market Cap is managing the connected runtime for this deployment. You
+                        keep using the AI Market Cap endpoint below for chat and API access.
                       </p>
                     </div>
                   ) : null}

@@ -306,7 +306,7 @@ describe("resolveWorkspaceProvisioningOption", () => {
 
     expect(option.canCreate).toBe(true);
     expect(option.deploymentKind).toBe("hosted_external");
-    expect(option.label).toBe("AI Market Cap hosted deployment");
+    expect(option.label).toBe("AI Market Cap dedicated runtime");
     expect(option.target?.provider).toBe("huggingface");
     expect(option.target?.modelRef).toBe("Qwen/Qwen2.5-7B-Instruct");
   });

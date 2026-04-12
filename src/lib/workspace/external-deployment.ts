@@ -462,9 +462,9 @@ export function resolveWorkspaceProvisioningHint(
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "AI Market Cap hosted deployment",
+      label: "AI Market Cap dedicated runtime",
       summary:
-        "AI Market Cap can create and manage a hosted deployment for this model, then keep chat, API access, and usage tracking on-site.",
+        "AI Market Cap can launch a dedicated runtime for this model and keep chat, API access, and usage tracking in one place.",
       target: toReplicateTarget(bestStatic),
     };
   }
@@ -512,9 +512,9 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "AI Market Cap hosted deployment",
+      label: "AI Market Cap dedicated runtime",
       summary:
-        "AI Market Cap can create and manage a hosted deployment for this model, then keep chat, API access, and usage tracking on-site.",
+        "AI Market Cap can launch a dedicated runtime for this model and keep chat, API access, and usage tracking in one place.",
       target: replicateTarget,
     };
   }
@@ -524,9 +524,9 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "AI Market Cap hosted deployment",
+      label: "AI Market Cap dedicated runtime",
       summary:
-        "AI Market Cap can connect this model to its hosted backend, then keep chat, API access, and usage tracking on-site.",
+        "AI Market Cap can connect this model to a dedicated runtime and keep chat, API access, and usage tracking in one place.",
       target: huggingFaceTarget,
     };
   }

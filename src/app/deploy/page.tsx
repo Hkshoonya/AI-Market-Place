@@ -48,9 +48,9 @@ const DEPLOY_FOCUS_OPTIONS = ["all", "chat", "api", "open", "cost"] as const;
 type DeployFocus = (typeof DEPLOY_FOCUS_OPTIONS)[number];
 
 function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "assistant_only") {
-  if (kind === "managed_api") return "Managed runtime";
-  if (kind === "hosted_external") return "Hosted backend";
-  return "Assistant only";
+  if (kind === "managed_api") return "Runs here";
+  if (kind === "hosted_external") return "Dedicated runtime";
+  return "Guided setup";
 }
 
 function getHostedProviderLabel(entry: LaunchableEntry) {
@@ -277,8 +277,8 @@ export default async function DeployPage({
             </h1>
             <p className="mt-3 text-sm text-muted-foreground sm:text-base">
               These are the models AI Market Cap can launch for you today. Some run through our own
-              managed runtime. Others use a hosted backend we provision and keep connected to your
-              on-site chat, API, budgets, and usage history.
+              in-site runtime. Others start in a dedicated runtime we launch for you while chat,
+              API access, budgets, and usage history stay on AI Market Cap.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -312,7 +312,7 @@ export default async function DeployPage({
               <div>
                 <p className="text-sm font-semibold text-white">Managed runtime</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {managedRuntimeCount} models run through AI Market Cap-managed execution.
+                  {managedRuntimeCount} models can run directly on AI Market Cap.
                 </p>
               </div>
             </CardContent>
@@ -321,9 +321,9 @@ export default async function DeployPage({
             <CardContent className="flex gap-3 p-4">
               <Server className="mt-0.5 h-5 w-5 text-neon" />
               <div>
-                <p className="text-sm font-semibold text-white">Hosted backend</p>
+                <p className="text-sm font-semibold text-white">Dedicated runtime</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {hostedBackendCount} models use a hosted backend that AI Market Cap provisions for
+                  {hostedBackendCount} models use a dedicated runtime AI Market Cap launches for
                   you.
                 </p>
               </div>
@@ -335,8 +335,8 @@ export default async function DeployPage({
           <div className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
             <p className="font-semibold text-foreground">What one click means here</p>
             <p className="mt-2">
-              You start the deployment on AI Market Cap, then keep using the model here through a
-              stable endpoint, workspace, and deployment history.
+              You start on AI Market Cap and keep using the model here through a stable endpoint,
+              workspace, budget controls, and deployment history.
             </p>
           </div>
           <div className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
