@@ -605,7 +605,7 @@ describe("GET /api/health", () => {
       process.env.RAILWAY_ENVIRONMENT = originalRailwayEnv;
     });
 
-    it("honors explicit external cron mode on Railway", async () => {
+    it("coerces explicit external cron mode back to internal on Railway", async () => {
       const originalSecret = process.env.CRON_SECRET;
       const originalMode = process.env.CRON_RUNNER_MODE;
       const originalRailwayEnv = process.env.RAILWAY_ENVIRONMENT;
@@ -629,7 +629,7 @@ describe("GET /api/health", () => {
       const response = await GET(makeRequest("Bearer test-secret") as never);
       const body = await response.json();
 
-      expect(body.cron.mode).toBe("external");
+      expect(body.cron.mode).toBe("internal");
       expect(body.cron.schedulerConfigured).toBe(true);
       expect(body.cron.stale).toBe(true);
       expect(body.status).toBe("degraded");

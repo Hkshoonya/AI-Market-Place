@@ -30,13 +30,11 @@ let lastCleanup = Date.now();
 const PROVIDER_IP_HEADERS = [
   "cf-connecting-ip",
   "fly-client-ip",
-  "x-vercel-forwarded-for",
   "x-real-ip",
 ] as const;
 
 const PROXY_HINT_HEADERS = [
   "cf-ray",
-  "x-vercel-id",
   "x-forwarded-host",
   "x-forwarded-proto",
   "x-forwarded-port",

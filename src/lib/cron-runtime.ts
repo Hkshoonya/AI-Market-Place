@@ -12,8 +12,12 @@ export function resolveCronRunnerMode(): CronRunnerMode {
   const rawMode = process.env.CRON_RUNNER_MODE?.trim().toLowerCase();
   const isRailway = isRailwayRuntime();
 
-  if (rawMode === "disabled" || rawMode === "internal" || rawMode === "external") {
+  if (rawMode === "disabled" || rawMode === "internal") {
     return rawMode;
+  }
+
+  if (rawMode === "external") {
+    return isRailway ? "internal" : "external";
   }
 
   return isRailway ? "internal" : "external";

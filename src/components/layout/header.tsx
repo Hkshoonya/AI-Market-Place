@@ -53,7 +53,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-4 px-4">
+      <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-4 px-4">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2 sm:gap-2.5" aria-label="AI Market Cap - Home">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neon/10">
@@ -90,7 +90,7 @@ export function Header() {
         <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
 
-          <div className="hidden items-center gap-1 xl:flex">
+          <div className="hidden items-center gap-1 2xl:flex">
             {user ? (
               <>
                 <DropdownMenu>

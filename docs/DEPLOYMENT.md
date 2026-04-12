@@ -202,7 +202,7 @@ Use:
 
 Behavior:
 - returns `503` when the app cannot reach the database
-- reports cron mode from `CRON_RUNNER_MODE`
+- reports the effective cron mode after Railway safety coercion
 - reports recent cron activity from `cron_runs`
 
 Authenticated health calls are more informative than anonymous ones.
@@ -223,7 +223,7 @@ Safe deployment order:
 - `401` from cron routes: `CRON_SECRET` does not match.
 - `202` from cron routes: another runner already holds the cron lock.
 - Rate limits reset unexpectedly across instances: `RATE_LIMIT_BACKEND` is missing or the durable rate-limit migration was not applied.
-- Health says `external` on Railway: remove the old override or redeploy; Railway now defaults to internal cron.
+- Health says `external` on Railway: Railway runtime markers are missing or the deployment is not running in the expected Railway environment.
 - Nothing runs and health says `internal`: confirm the app is still using `server/custom-server.js` as the start command.
 - Build succeeds locally but Railway fails: confirm the deploy is building the latest `main` commit from `Dockerfile`, not a stale cached deployment.
 - GitHub Actions is triggering cron jobs unexpectedly: confirm `.github/workflows/cron-sync.yml` still has only `workflow_dispatch`.
