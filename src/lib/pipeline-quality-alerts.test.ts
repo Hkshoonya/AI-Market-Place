@@ -24,6 +24,10 @@ describe("pipeline data quality alerts", () => {
         staleProvisioningCount: 0,
         failedCount: 0,
       },
+      manualBenchmarkSources: {
+        count: 0,
+        slugs: [],
+      },
     });
 
     expect(alerts).toEqual([]);
@@ -48,6 +52,14 @@ describe("pipeline data quality alerts", () => {
         staleProvisioningCount: 2,
         failedCount: 6,
       },
+      cronOperations: {
+        staleJobCount: 1,
+        latestFailedJobCount: 1,
+      },
+      manualBenchmarkSources: {
+        count: 2,
+        slugs: ["terminal-bench", "osworld"],
+      },
     });
 
     expect(alerts.map((alert) => alert.code)).toEqual([
@@ -60,6 +72,9 @@ describe("pipeline data quality alerts", () => {
       "low_trust_signal_contamination",
       "stuck_deployment_provisioning",
       "failed_deployments",
+      "stale_critical_pipeline_cron_jobs",
+      "failed_critical_pipeline_cron_jobs",
+      "manual_benchmark_sources_enabled",
     ]);
     expect(computePipelineDataQualityStatus(alerts)).toBe("critical");
   });

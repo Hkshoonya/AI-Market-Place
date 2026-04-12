@@ -29,6 +29,7 @@ import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-co
 import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
 import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
 import { summarizePipelineCronHealth } from "@/lib/pipeline-cron-health";
+import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "@/lib/data-sources/manual-benchmark-sources";
 import {
   computePipelineDataQualityAlerts,
   computePipelineDataQualityStatus,
@@ -407,6 +408,9 @@ export async function GET(request: NextRequest) {
       deploymentRowsResult.data ?? []
     );
     const cronHealth = summarizePipelineCronHealth(cronRunsResult.data ?? []);
+    const enabledManualBenchmarkSources = dataSources
+      .map((source) => source.slug)
+      .filter((slug) => MANUAL_BENCHMARK_SOURCE_SLUGS.has(slug));
 
     // Build a lookup map from pipeline_health by source_slug
     const healthBySlug = new Map(
@@ -481,6 +485,10 @@ export async function GET(request: NextRequest) {
       cronOperations: {
         staleJobCount: cronHealth.staleJobCount,
         latestFailedJobCount: cronHealth.latestFailedJobCount,
+      },
+      manualBenchmarkSources: {
+        count: enabledManualBenchmarkSources.length,
+        slugs: enabledManualBenchmarkSources,
       },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);

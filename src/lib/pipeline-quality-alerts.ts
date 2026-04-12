@@ -8,6 +8,7 @@ export type PipelineDataQualityAlert = {
     | "official_ranking_contamination"
     | "low_trust_discovery_ready"
     | "low_trust_signal_contamination"
+    | "manual_benchmark_sources_enabled"
     | "stale_critical_pipeline_cron_jobs"
     | "failed_critical_pipeline_cron_jobs"
     | "stuck_deployment_provisioning"
@@ -41,11 +42,17 @@ type CronOperationsSummaryInput = {
   latestFailedJobCount: number;
 };
 
+type ManualBenchmarkSourcesSummaryInput = {
+  count: number;
+  slugs: string[];
+};
+
 export function computePipelineDataQualityAlerts(input: {
   benchmarkCoverage: BenchmarkCoverageSummaryInput;
   publicMetadataCoverage: PublicMetadataCoverageSummaryInput;
   deploymentOperations?: DeploymentOperationsSummaryInput;
   cronOperations?: CronOperationsSummaryInput;
+  manualBenchmarkSources?: ManualBenchmarkSourcesSummaryInput;
 }) {
   const alerts: PipelineDataQualityAlert[] = [];
 
@@ -170,6 +177,16 @@ export function computePipelineDataQualityAlerts(input: {
       code: "failed_critical_pipeline_cron_jobs",
       message: "Critical data pipeline cron jobs most recently failed.",
       value: input.cronOperations?.latestFailedJobCount ?? 0,
+      target: 0,
+    });
+  }
+
+  if ((input.manualBenchmarkSources?.count ?? 0) > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "manual_benchmark_sources_enabled",
+      message: `Manual benchmark adapters are still enabled: ${input.manualBenchmarkSources?.slugs.join(", ")}`,
+      value: input.manualBenchmarkSources?.count ?? 0,
       target: 0,
     });
   }
