@@ -36,6 +36,7 @@ vi.mock("../ledger", () => ({
 
 import pipelineEngineer from "./pipeline-engineer";
 import { runSingleSync } from "../../data-sources/orchestrator";
+import { recordAgentIssue } from "../ledger";
 
 function createSupabaseMock() {
   return {
@@ -55,11 +56,27 @@ function createSupabaseMock() {
           { source: "provider-news", status: "failed", created_at: "2026-03-30T00:00:00.000Z" },
           { source: "arxiv", status: "failed", created_at: "2026-03-30T00:00:00.000Z" },
         ];
+      } else if (table === "cron_runs") {
+        rows = [
+          {
+            job_name: "sync-tier-1",
+            status: "completed",
+            started_at: "2026-03-30T00:00:00.000Z",
+            created_at: "2026-03-30T00:00:00.000Z",
+          },
+          {
+            job_name: "compute-scores",
+            status: "failed",
+            started_at: "2026-03-30T00:30:00.000Z",
+            created_at: "2026-03-30T00:30:00.000Z",
+          },
+        ];
       }
 
       const chain = {
         select: () => chain,
         eq: (_column?: string, _value?: unknown) => chain,
+        in: (_column?: string, _values?: unknown[]) => chain,
         gte: (_column?: string, _value?: unknown) => chain,
         order: (_column?: string, _options?: unknown) => chain,
         then: (resolve: (value: { data: unknown[]; error: null }) => void) =>
@@ -103,5 +120,12 @@ describe("pipelineEngineer", () => {
       "Found 1 failed sources in last 24h: provider-news"
     );
     expect(result.output.failedSources).toEqual(["provider-news"]);
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "pipeline_cron_health",
+        source: "compute-scores",
+      })
+    );
   });
 });

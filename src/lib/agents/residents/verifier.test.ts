@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildUxIssueStateMap,
+  isManualBenchmarkSourceIssueResolved,
+  isPipelineCronIssueResolved,
   isRuntimeIssueResolved,
   isSourceIssueResolved,
   type UxIssueSnapshot,
@@ -116,6 +118,35 @@ describe("isRuntimeIssueResolved", () => {
         ],
         "OpenRouter returned HTTP 503 for request 19"
       )
+    ).toBe(false);
+  });
+});
+
+describe("isPipelineCronIssueResolved", () => {
+  it("resolves only when the latest critical cron run completed and is fresh", () => {
+    expect(isPipelineCronIssueResolved({ status: "completed", stale: false })).toBe(true);
+    expect(isPipelineCronIssueResolved({ status: "failed", stale: false })).toBe(false);
+    expect(isPipelineCronIssueResolved({ status: "completed", stale: true })).toBe(false);
+    expect(isPipelineCronIssueResolved({ status: "running", stale: false })).toBe(false);
+  });
+});
+
+describe("isManualBenchmarkSourceIssueResolved", () => {
+  it("resolves when the manual benchmark source is no longer enabled", () => {
+    expect(
+      isManualBenchmarkSourceIssueResolved({
+        sourceSlug: "terminal-bench",
+        enabledSourceSlugs: new Set(["provider-news"]),
+      })
+    ).toBe(true);
+  });
+
+  it("stays open while the manual benchmark source remains enabled", () => {
+    expect(
+      isManualBenchmarkSourceIssueResolved({
+        sourceSlug: "terminal-bench",
+        enabledSourceSlugs: new Set(["terminal-bench"]),
+      })
     ).toBe(false);
   });
 });

@@ -12,9 +12,14 @@ import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { loadAllAdapters, getAdapter, listAdapters } from "../../data-sources/registry";
 import { runSingleSync } from "../../data-sources/orchestrator";
+import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "../../data-sources/manual-benchmark-sources";
 import { makeSlug, resolveSecrets } from "../../data-sources/utils";
 import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
+import {
+  PIPELINE_CRON_EXPECTATIONS,
+  summarizePipelineCronHealth,
+} from "../../pipeline-cron-health";
 
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
@@ -51,6 +56,9 @@ const pipelineEngineer: ResidentAgent = {
 
       const dataSources = (sources ?? []) as DataSourceRecord[];
       const enabledSourceSlugs = new Set(dataSources.map((source) => source.slug));
+      const enabledManualBenchmarkSources = dataSources
+        .map((source) => source.slug)
+        .filter((slug) => MANUAL_BENCHMARK_SOURCE_SLUGS.has(slug));
       await log.info(`Found ${dataSources.length} enabled data sources`);
 
       // Step 3: Health check all adapters
@@ -146,6 +154,87 @@ const pipelineEngineer: ResidentAgent = {
         await log.info("No failed sync jobs in last 24 hours");
       }
 
+      // Step 4b: Track critical cron health
+      const cronSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: cronRuns, error: cronRunsError } = await sb
+        .from("cron_runs")
+        .select("job_name, status, started_at, created_at")
+        .in("job_name", Object.keys(PIPELINE_CRON_EXPECTATIONS))
+        .gte("created_at", cronSince)
+        .order("created_at", { ascending: false });
+
+      if (cronRunsError) {
+        errors.push(`Failed to fetch cron runs: ${cronRunsError.message}`);
+      } else {
+        const cronHealth = summarizePipelineCronHealth(cronRuns ?? []);
+        output.cron = cronHealth;
+
+        for (const job of cronHealth.criticalJobs) {
+          const issueSlug = makeSlug(`pipeline-cron-${job.jobName}`);
+          const unhealthy = job.stale || job.status === "failed" || job.status === "missing";
+
+          if (unhealthy) {
+            await recordAgentIssue(sb, {
+              slug: issueSlug,
+              title: `Pipeline cron issue for ${job.jobName}`,
+              issueType: "pipeline_cron_health",
+              source: job.jobName,
+              severity: job.status === "failed" || job.status === "missing" ? "critical" : "high",
+              confidence: 0.98,
+              detectedBy: "pipeline-engineer",
+              playbook: "rerun_pipeline_cron",
+              evidence: {
+                jobName: job.jobName,
+                status: job.status,
+                stale: job.stale,
+                lastRunAt: job.lastRunAt,
+                expectedIntervalHours: job.expectedIntervalHours,
+              },
+            });
+          } else {
+            await resolveAgentIssue(sb, issueSlug, {
+              verifier: "pipeline-engineer",
+              reason: "critical cron job is running on schedule",
+              jobName: job.jobName,
+              status: job.status,
+              lastRunAt: job.lastRunAt,
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Step 4c: Track manual benchmark sources that still require operator-maintained updates.
+      output.manualBenchmarkSources = enabledManualBenchmarkSources;
+      for (const sourceSlug of MANUAL_BENCHMARK_SOURCE_SLUGS) {
+        const issueSlug = makeSlug(`manual-benchmark-source-${sourceSlug}`);
+        const enabled = enabledSourceSlugs.has(sourceSlug);
+
+        if (enabled) {
+          await recordAgentIssue(sb, {
+            slug: issueSlug,
+            title: `Manual benchmark source still enabled for ${sourceSlug}`,
+            issueType: "manual_benchmark_source",
+            source: sourceSlug,
+            severity: "high",
+            confidence: 0.99,
+            detectedBy: "pipeline-engineer",
+            playbook: "replace_manual_benchmark_source",
+            evidence: {
+              sourceSlug,
+              enabled: true,
+              automationRequired: true,
+              reason: "static benchmark adapter still depends on manual updates",
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, issueSlug, {
+            verifier: "pipeline-engineer",
+            reason: "manual benchmark source is no longer enabled",
+            sourceSlug,
+          }).catch(() => {});
+        }
+      }
+
       // Step 5: Attempt repair of failed sources
       const maxRepairs = (ctx.agent.config.max_repair_attempts as number) ?? 3;
       const maxVerificationRetries =
@@ -212,6 +301,7 @@ const pipelineEngineer: ResidentAgent = {
         healthyAdapters: healthyCount,
         unhealthyAdapters: dataSources.length - healthyCount,
         failedInLast24h: failedSources.size,
+        enabledManualBenchmarkSources: enabledManualBenchmarkSources.length,
         repairAttempts: repairAttempts.length,
         repairsSucceeded: repaired,
       };

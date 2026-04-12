@@ -2,6 +2,13 @@ import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { matchesAgentErrorPattern } from "../error-patterns";
+import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "../../data-sources/manual-benchmark-sources";
+import {
+  PIPELINE_CRON_EXPECTATIONS,
+  summarizePipelineCronHealth,
+  type PipelineCronJobHealth,
+  type PipelineCronJobName,
+} from "../../pipeline-cron-health";
 import {
   buildContentQualityMetrics,
   countStaleSellerListings,
@@ -98,6 +105,22 @@ export function isRuntimeIssueResolved(
   issuePattern: string
 ): boolean {
   return !recentErrorMessages.some((message) => matchesAgentErrorPattern(message, issuePattern));
+}
+
+export function isPipelineCronIssueResolved(
+  job: Pick<PipelineCronJobHealth, "status" | "stale">
+): boolean {
+  return job.status === "completed" && !job.stale;
+}
+
+export function isManualBenchmarkSourceIssueResolved(input: {
+  sourceSlug: string;
+  enabledSourceSlugs: Set<string>;
+}): boolean {
+  return (
+    !input.enabledSourceSlugs.has(input.sourceSlug) ||
+    !MANUAL_BENCHMARK_SOURCE_SLUGS.has(input.sourceSlug)
+  );
 }
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
@@ -308,6 +331,8 @@ const verifier: ResidentAgent = {
 
       let uxSnapshot: UxIssueSnapshot | null = null;
       let recentErrorMessages: string[] | null = null;
+      let cronHealthByJob: Map<PipelineCronJobName, PipelineCronJobHealth> | null = null;
+      let enabledSourceSlugs: Set<string> | null = null;
 
       for (const issue of issueRows) {
         try {
@@ -396,6 +421,113 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   snapshot: uxSnapshot,
                   reason: "ux metric threshold is still breached",
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "pipeline_cron_health") {
+            cronHealthByJob ??= await (async () => {
+              const cronSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+              const { data, error } = await sb
+                .from("cron_runs")
+                .select("job_name, status, started_at, created_at")
+                .in("job_name", Object.keys(PIPELINE_CRON_EXPECTATIONS))
+                .gte("created_at", cronSince);
+
+              if (error) {
+                throw new Error(`Failed to fetch cron run health: ${error.message}`);
+              }
+
+              return new Map(
+                summarizePipelineCronHealth(data ?? []).criticalJobs.map((job) => [
+                  job.jobName,
+                  job,
+                ])
+              );
+            })();
+
+            const jobName = issue.source as PipelineCronJobName | null;
+            const jobHealth = jobName ? cronHealthByJob.get(jobName) ?? null : null;
+            const resolved = jobHealth ? isPipelineCronIssueResolved(jobHealth) : false;
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                jobName,
+                status: jobHealth?.status ?? null,
+                stale: jobHealth?.stale ?? null,
+                lastRunAt: jobHealth?.lastRunAt ?? null,
+                reason: "critical cron job is completed and no longer stale",
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  jobName,
+                  status: jobHealth?.status ?? "missing",
+                  stale: jobHealth?.stale ?? true,
+                  lastRunAt: jobHealth?.lastRunAt ?? null,
+                  reason: "critical cron job is still failed, missing, running, or stale",
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "manual_benchmark_source") {
+            enabledSourceSlugs ??= await (async () => {
+              const { data, error } = await sb
+                .from("data_sources")
+                .select("slug")
+                .eq("is_enabled", true);
+
+              if (error) {
+                throw new Error(`Failed to fetch enabled data sources: ${error.message}`);
+              }
+
+              return new Set(
+                (data ?? [])
+                  .map((row) => row.slug)
+                  .filter((slug): slug is string => typeof slug === "string")
+              );
+            })();
+
+            const sourceSlug = issue.source ?? "";
+            const resolved = isManualBenchmarkSourceIssueResolved({
+              sourceSlug,
+              enabledSourceSlugs,
+            });
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                source: sourceSlug,
+                reason: "manual benchmark source is disabled or removed from the manual-source list",
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  source: sourceSlug,
+                  reason: "manual benchmark source is still enabled and still requires automation work",
                 },
                 maxVerificationRetries
               );
