@@ -31,7 +31,10 @@ import {
   isMissingDeploymentOperationsTableError,
 } from "@/lib/deployment-operations-compute";
 import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
-import { summarizePipelineCronHealth } from "@/lib/pipeline-cron-health";
+import {
+  PIPELINE_CRON_EXPECTATIONS,
+  summarizePipelineCronHealth,
+} from "@/lib/pipeline-cron-health";
 import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "@/lib/data-sources/manual-benchmark-sources";
 import {
   computePipelineDataQualityAlerts,
@@ -39,6 +42,8 @@ import {
 } from "@/lib/pipeline-quality-alerts";
 
 export const dynamic = "force-dynamic";
+
+const PIPELINE_CRON_LOOKBACK_DAYS = 7;
 
 // ---------------------------------------------------------------------------
 // Zod schemas
@@ -388,8 +393,13 @@ export async function GET(request: NextRequest) {
       supabase
         .from("cron_runs")
         .select("job_name, status, started_at, created_at")
+        .in("job_name", Object.keys(PIPELINE_CRON_EXPECTATIONS))
+        .gte(
+          "created_at",
+          new Date(Date.now() - PIPELINE_CRON_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString()
+        )
         .order("created_at", { ascending: false })
-        .limit(200),
+        .limit(1000),
     ]);
 
     if (dataSourcesResult.error) {

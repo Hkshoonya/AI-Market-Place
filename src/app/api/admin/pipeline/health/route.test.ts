@@ -199,6 +199,12 @@ function createMockAdminSupabase(tables: Record<string, TableMock>) {
         order: () => chain,
         limit: () => chain,
         gte: () => chain,
+        in: (column: string, values: unknown[]) => {
+          if (Array.isArray(currentData)) {
+            currentData = currentData.filter((row) => values.includes(row[column]));
+          }
+          return chain;
+        },
         eq: (column: string, value: unknown) => {
           if (Array.isArray(currentData)) {
             currentData = currentData.filter((row) => row[column] === value);
