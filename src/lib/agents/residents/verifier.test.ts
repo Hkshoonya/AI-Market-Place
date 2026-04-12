@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildUxIssueStateMap,
+  isBenchmarkCoverageIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
   isRuntimeIssueResolved,
@@ -146,6 +147,31 @@ describe("isManualBenchmarkSourceIssueResolved", () => {
       isManualBenchmarkSourceIssueResolved({
         sourceSlug: "terminal-bench",
         enabledSourceSlugs: new Set(["terminal-bench"]),
+      })
+    ).toBe(false);
+  });
+});
+
+describe("isBenchmarkCoverageIssueResolved", () => {
+  it("resolves only when both benchmark gap counts are zero", () => {
+    expect(
+      isBenchmarkCoverageIssueResolved({
+        officialGapCount: 0,
+        missingTrustedLocatorCount: 0,
+      })
+    ).toBe(true);
+
+    expect(
+      isBenchmarkCoverageIssueResolved({
+        officialGapCount: 1,
+        missingTrustedLocatorCount: 0,
+      })
+    ).toBe(false);
+
+    expect(
+      isBenchmarkCoverageIssueResolved({
+        officialGapCount: 0,
+        missingTrustedLocatorCount: 2,
       })
     ).toBe(false);
   });

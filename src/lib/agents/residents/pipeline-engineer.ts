@@ -16,6 +16,8 @@ import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "../../data-sources/manual-benchma
 import { makeSlug, resolveSecrets } from "../../data-sources/utils";
 import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
+import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
+import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
@@ -233,6 +235,64 @@ const pipelineEngineer: ResidentAgent = {
             sourceSlug,
           }).catch(() => {});
         }
+      }
+
+      // Step 4d: Track aggregate benchmark automation gaps so stale rankings do not go unnoticed.
+      try {
+        const [benchmarkCoverage, benchmarkMetadataCoverage] = await Promise.all([
+          computeBenchmarkCoverage(sb),
+          computeBenchmarkMetadataCoverage(sb),
+        ]);
+        const benchmarkIssueSlug = "pipeline-benchmark-automation-gap";
+        const officialGapCount =
+          benchmarkCoverage.recent_sparse_benchmark_expected_official.length;
+        const missingTrustedLocatorCount =
+          benchmarkMetadataCoverage.missingTrustedLocatorCount;
+        const benchmarkCoverageHealthy =
+          officialGapCount === 0 && missingTrustedLocatorCount === 0;
+
+        output.benchmarkCoverage = {
+          officialGapCount,
+          missingTrustedLocatorCount,
+          trustedLocatorCoveragePct: benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+        };
+
+        if (!benchmarkCoverageHealthy) {
+          await recordAgentIssue(sb, {
+            slug: benchmarkIssueSlug,
+            title: "Benchmark automation coverage gaps detected",
+            issueType: "benchmark_coverage_health",
+            source: "benchmark-pipeline",
+            severity:
+              missingTrustedLocatorCount > 0 ? "critical" : "high",
+            confidence: 0.99,
+            detectedBy: "pipeline-engineer",
+            playbook: "repair_benchmark_coverage",
+            evidence: {
+              officialGapCount,
+              missingTrustedLocatorCount,
+              trustedLocatorCoveragePct:
+                benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+              recentOfficialGaps:
+                benchmarkCoverage.recent_sparse_benchmark_expected_official,
+              recentMissingTrustedLocators:
+                benchmarkMetadataCoverage.recentMissingTrustedLocators,
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, benchmarkIssueSlug, {
+            verifier: "pipeline-engineer",
+            reason: "benchmark coverage and trusted benchmark locators are healthy",
+            officialGapCount,
+            missingTrustedLocatorCount,
+            trustedLocatorCoveragePct:
+              benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+          }).catch(() => {});
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to compute benchmark automation health: ${message}`);
+        await log.error(`Benchmark automation health check failed: ${message}`);
       }
 
       // Step 5: Attempt repair of failed sources

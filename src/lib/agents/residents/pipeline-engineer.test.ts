@@ -28,6 +28,34 @@ vi.mock("../../data-sources/orchestrator", () => ({
   })),
 }));
 
+vi.mock("../../benchmark-coverage-compute", () => ({
+  computeBenchmarkCoverage: vi.fn(async () => ({
+    recent_sparse_benchmark_expected_official: [
+      {
+        slug: "provider-news",
+        provider: "Provider News",
+        category: "llm",
+        release_date: "2026-03-30",
+      },
+    ],
+  })),
+}));
+
+vi.mock("../../benchmark-metadata-coverage-compute", () => ({
+  computeBenchmarkMetadataCoverage: vi.fn(async () => ({
+    missingTrustedLocatorCount: 1,
+    trustedLocatorCoveragePct: 50,
+    recentMissingTrustedLocators: [
+      {
+        slug: "provider-news",
+        provider: "Provider News",
+        category: "llm",
+        release_date: "2026-03-30",
+      },
+    ],
+  })),
+}));
+
 vi.mock("../ledger", () => ({
   recordAgentIssue: vi.fn(async () => undefined),
   recordAgentIssueFailure: vi.fn(async () => undefined),
@@ -125,6 +153,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "pipeline_cron_health",
         source: "compute-scores",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "benchmark_coverage_health",
+        source: "benchmark-pipeline",
       })
     );
   });

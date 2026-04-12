@@ -9,6 +9,8 @@ import {
   type PipelineCronJobHealth,
   type PipelineCronJobName,
 } from "../../pipeline-cron-health";
+import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
+import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import {
   buildContentQualityMetrics,
   countStaleSellerListings,
@@ -121,6 +123,13 @@ export function isManualBenchmarkSourceIssueResolved(input: {
     !input.enabledSourceSlugs.has(input.sourceSlug) ||
     !MANUAL_BENCHMARK_SOURCE_SLUGS.has(input.sourceSlug)
   );
+}
+
+export function isBenchmarkCoverageIssueResolved(input: {
+  officialGapCount: number;
+  missingTrustedLocatorCount: number;
+}): boolean {
+  return input.officialGapCount === 0 && input.missingTrustedLocatorCount === 0;
 }
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
@@ -333,6 +342,13 @@ const verifier: ResidentAgent = {
       let recentErrorMessages: string[] | null = null;
       let cronHealthByJob: Map<PipelineCronJobName, PipelineCronJobHealth> | null = null;
       let enabledSourceSlugs: Set<string> | null = null;
+      let benchmarkHealth:
+        | {
+            officialGapCount: number;
+            missingTrustedLocatorCount: number;
+            trustedLocatorCoveragePct: number;
+          }
+        | null = null;
 
       for (const issue of issueRows) {
         try {
@@ -528,6 +544,51 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   source: sourceSlug,
                   reason: "manual benchmark source is still enabled and still requires automation work",
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "benchmark_coverage_health") {
+            benchmarkHealth ??= await (async () => {
+              const [benchmarkCoverage, benchmarkMetadataCoverage] = await Promise.all([
+                computeBenchmarkCoverage(sb),
+                computeBenchmarkMetadataCoverage(sb),
+              ]);
+
+              return {
+                officialGapCount:
+                  benchmarkCoverage.recent_sparse_benchmark_expected_official.length,
+                missingTrustedLocatorCount:
+                  benchmarkMetadataCoverage.missingTrustedLocatorCount,
+                trustedLocatorCoveragePct:
+                  benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+              };
+            })();
+
+            const resolved = isBenchmarkCoverageIssueResolved(benchmarkHealth);
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                reason: "benchmark coverage gaps and trusted locator gaps are resolved",
+                ...benchmarkHealth,
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  reason: "benchmark coverage gaps or trusted locator gaps still remain",
+                  ...benchmarkHealth,
                 },
                 maxVerificationRetries
               );
