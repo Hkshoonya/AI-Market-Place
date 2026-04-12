@@ -39,17 +39,26 @@ const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
   { href: "/deploy", label: "Deploy", icon: Rocket },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
+  { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/providers", label: "Providers", icon: Building2 },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/commons", label: "Commons", icon: MessageSquare },
-  { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
+];
+
+const PRIMARY_NAV_ITEMS = NAV_ITEMS.slice(0, 4);
+const SECONDARY_NAV_ITEMS = [
+  ...NAV_ITEMS.slice(4),
+  { href: "/discover", label: "Discover", icon: Sparkles },
+  { href: "/compare", label: "Compare", icon: BarChart3 },
+  { href: "/roadmap", label: "Roadmap", icon: Rocket },
 ];
 
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, profile } = useAuth();
+  const desktopMoreActive = SECONDARY_NAV_ITEMS.some((item) => pathname.startsWith(item.href));
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -65,8 +74,8 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 2xl:flex" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => {
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex" aria-label="Main navigation">
+          {PRIMARY_NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
               <Link
@@ -84,28 +93,63 @@ export function Header() {
               </Link>
             );
           })}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "gap-2 px-3",
+                  desktopMoreActive
+                    ? "bg-neon/10 text-neon"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel>Browse</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {SECONDARY_NAV_ITEMS.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
+                  <Link href={item.href} className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* Right side */}
         <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
 
-          <div className="hidden items-center gap-1 2xl:flex">
-            {user ? (
+          <div className="hidden items-center gap-1 xl:flex">
+            {user && (
               <>
+                <Button
+                  variant={pathname.startsWith("/workspace") ? "secondary" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  asChild
+                >
+                  <Link href="/workspace">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Workspace
+                  </Link>
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <LayoutDashboard className="h-4 w-4" />
-                      Workspace
+                    <Button variant="ghost" size="sm">
+                      Tools
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Signed-in tools</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/workspace">Open Workspace</Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/deployments">View Deployments</Link>
                     </DropdownMenuItem>
@@ -129,13 +173,12 @@ export function Header() {
                 </Button>
                 <NotificationBell />
               </>
-            ) : null}
+            )}
+            {user && <AuthButton />}
           </div>
 
           <div className="hidden items-center xl:flex">
-            {user ? (
-              <AuthButton />
-            ) : (
+            {!user && (
               <Button variant="outline" size="sm" className="border-border/50" asChild>
                 <Link href="/login">
                   <LogIn className="h-4 w-4" />
