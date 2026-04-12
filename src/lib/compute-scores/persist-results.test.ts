@@ -195,6 +195,7 @@ describe("persistResults", () => {
     expect(stats.updated).toBe(2);
     expect(stats.errors).toBe(0);
     expect(stats.snapshotsCreated).toBe(2);
+    expect(stats.snapshotErrors).toBe(0);
   });
 
   it("counts errors from failed updates", async () => {
@@ -208,6 +209,21 @@ describe("persistResults", () => {
     expect(stats.updated).toBe(1);
     expect(stats.errors).toBe(1);
     expect(stats.snapshotsCreated).toBe(2);
+    expect(stats.snapshotErrors).toBe(0);
+  });
+
+  it("counts snapshot persistence failures separately", async () => {
+    const modelIds = ["m1", "m2"];
+    const inputs = buildFixtureInputs(modelIds);
+    const results = buildFixtureResults(modelIds);
+    const supabase = createPersistMockSupabase({ failSnapshot: true });
+
+    const stats = await persistResults(supabase, inputs, results);
+
+    expect(stats.updated).toBe(2);
+    expect(stats.errors).toBe(0);
+    expect(stats.snapshotsCreated).toBe(0);
+    expect(stats.snapshotErrors).toBe(2);
   });
 
   it("returns PersistStats shape with correct keys", async () => {
@@ -221,9 +237,11 @@ describe("persistResults", () => {
     expect(stats).toHaveProperty("updated");
     expect(stats).toHaveProperty("errors");
     expect(stats).toHaveProperty("snapshotsCreated");
+    expect(stats).toHaveProperty("snapshotErrors");
     expect(typeof stats.updated).toBe("number");
     expect(typeof stats.errors).toBe("number");
     expect(typeof stats.snapshotsCreated).toBe("number");
+    expect(typeof stats.snapshotErrors).toBe("number");
   });
 
   it("persists source_coverage into model snapshots", async () => {

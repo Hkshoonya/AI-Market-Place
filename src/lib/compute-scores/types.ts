@@ -68,4 +68,5 @@ export interface PersistStats {
   updated: number;
   errors: number;
   snapshotsCreated: number;
+  snapshotErrors: number;
 }

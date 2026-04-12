@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
     const inputs = await fetchInputs(supabase);
     const results = await computeAllLenses(inputs, supabase);
     const persistStats = await persistResults(supabase, inputs, results);
+    if (persistStats.errors > 0 || persistStats.snapshotErrors > 0) {
+      throw new Error(
+        `Score persistence incomplete: ${persistStats.errors} model update errors, ${persistStats.snapshotErrors} snapshot errors`
+      );
+    }
 
     return tracker.complete({
       totalModels: inputs.models.length,
@@ -54,6 +59,7 @@ export async function GET(request: NextRequest) {
       updated: persistStats.updated,
       errors: persistStats.errors,
       snapshotsCreated: persistStats.snapshotsCreated,
+      snapshotErrors: persistStats.snapshotErrors,
       modelsWithValueMetric: results.normalizedValueMap.size,
       modelsWithValueScore: results.normalizedValueMap.size,
       modelsWithAgentScore: results.agentScoreMap.size,

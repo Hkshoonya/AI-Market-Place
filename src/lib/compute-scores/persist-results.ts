@@ -16,7 +16,7 @@ import type { ScoringInputs, ScoringResults, PersistStats } from "./types";
  * @param supabase - Injected Supabase client (service role)
  * @param inputs   - ScoringInputs (needs models list for snapshot data and benchmark/elo/news maps)
  * @param results  - ScoringResults containing all computed scores and ranks
- * @returns PersistStats with updated, errors, and snapshotsCreated counts
+ * @returns PersistStats with model update and snapshot persistence counts
  */
 export async function persistResults(
   supabase: SupabaseClient,
@@ -139,6 +139,7 @@ export async function persistResults(
   // 8. Create model_snapshots for trend tracking (parallel batches)
   const today = new Date().toISOString().split("T")[0];
   let snapshotsCreated = 0;
+  let snapshotErrors = 0;
   const modelMap = new Map(models.map((m) => [m.id, m]));
 
   for (let i = 0; i < scoredModels.length; i += BATCH) {
@@ -187,8 +188,9 @@ export async function persistResults(
     const snapResults = await Promise.all(snapPromises);
     for (const r of snapResults) {
       if (!r.skipped && !r.error) snapshotsCreated++;
+      if (!r.skipped && r.error) snapshotErrors++;
     }
   }
 
-  return { updated, errors, snapshotsCreated };
+  return { updated, errors, snapshotsCreated, snapshotErrors };
 }
