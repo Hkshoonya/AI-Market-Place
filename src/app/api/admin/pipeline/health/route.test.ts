@@ -198,6 +198,7 @@ function createMockAdminSupabase(tables: Record<string, TableMock>) {
         select: () => chain,
         order: () => chain,
         limit: () => chain,
+        gte: () => chain,
         eq: (column: string, value: unknown) => {
           if (Array.isArray(currentData)) {
             currentData = currentData.filter((row) => row[column] === value);
@@ -389,6 +390,9 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(typeof body.down).toBe("number");
     expect(body).toHaveProperty("checkedAt");
     expect(typeof body.checkedAt).toBe("string");
+    expect(body).toHaveProperty("cron");
+    expect(body.cron).toHaveProperty("staleJobCount");
+    expect(body.cron).toHaveProperty("latestFailedJobCount");
     expect(body).toHaveProperty("benchmarkCoverage");
     expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
     expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
@@ -421,6 +425,8 @@ describe("GET /api/admin/pipeline/health", () => {
       "recentNotReadyOfficialModels"
     );
     expect(body).toHaveProperty("payments");
+    expect(body.cron).toHaveProperty("criticalJobs");
+    expect(body.cron).toHaveProperty("latestFailedJobs");
     expect(body.payments.stripe).toEqual({
       status: "disabled",
       checkoutConfigured: false,
@@ -522,6 +528,67 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.status).toBe("degraded");
     expect(body.adapters[0].status).toBe("degraded");
     expect(body.adapters[0].error).toBe("API error");
+  });
+
+  it("degrades admin pipeline health when compute-scores latest run failed", async () => {
+    const sessionClient = createMockSessionClient({
+      user: { id: "admin-123" },
+      isAdmin: true,
+    });
+    mockCreateClient.mockResolvedValue(
+      sessionClient as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+
+    const adminClient = createMockAdminSupabase({
+      data_sources: { data: DEFAULT_DATA_SOURCES, error: null },
+      pipeline_health: { data: DEFAULT_PIPELINE_HEALTH, error: null },
+      cron_runs: {
+        data: [
+          {
+            job_name: "compute-scores",
+            status: "failed",
+            started_at: syncedAgo(1, 6),
+            created_at: syncedAgo(1, 6),
+          },
+          {
+            job_name: "sync-tier-1",
+            status: "completed",
+            started_at: syncedAgo(0.5, 2),
+            created_at: syncedAgo(0.5, 2),
+          },
+          {
+            job_name: "sync-tier-2",
+            status: "completed",
+            started_at: syncedAgo(0.5, 4),
+            created_at: syncedAgo(0.5, 4),
+          },
+          {
+            job_name: "sync-tier-3",
+            status: "completed",
+            started_at: syncedAgo(0.5, 8),
+            created_at: syncedAgo(0.5, 8),
+          },
+          {
+            job_name: "sync-tier-4",
+            status: "completed",
+            started_at: syncedAgo(0.5, 24),
+            created_at: syncedAgo(0.5, 24),
+          },
+        ],
+        error: null,
+      },
+    });
+    mockCreateAdminClient.mockReturnValue(
+      adminClient as ReturnType<typeof createAdminClient>
+    );
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("degraded");
+    expect(body.cron.latestFailedJobCount).toBe(1);
+    expect(body.cron.latestFailedJobs).toEqual(["compute-scores"]);
   });
 
   it("sanitizes raw HTML from upstream adapter errors in admin detail", async () => {

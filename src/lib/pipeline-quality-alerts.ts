@@ -8,6 +8,8 @@ export type PipelineDataQualityAlert = {
     | "official_ranking_contamination"
     | "low_trust_discovery_ready"
     | "low_trust_signal_contamination"
+    | "stale_critical_pipeline_cron_jobs"
+    | "failed_critical_pipeline_cron_jobs"
     | "stuck_deployment_provisioning"
     | "failed_deployments";
   message: string;
@@ -34,10 +36,16 @@ type DeploymentOperationsSummaryInput = {
   failedCount: number;
 };
 
+type CronOperationsSummaryInput = {
+  staleJobCount: number;
+  latestFailedJobCount: number;
+};
+
 export function computePipelineDataQualityAlerts(input: {
   benchmarkCoverage: BenchmarkCoverageSummaryInput;
   publicMetadataCoverage: PublicMetadataCoverageSummaryInput;
   deploymentOperations?: DeploymentOperationsSummaryInput;
+  cronOperations?: CronOperationsSummaryInput;
 }) {
   const alerts: PipelineDataQualityAlert[] = [];
 
@@ -142,6 +150,26 @@ export function computePipelineDataQualityAlerts(input: {
       code: "failed_deployments",
       message: "Some AI Market Cap deployments are currently in a failed state.",
       value: input.deploymentOperations?.failedCount ?? 0,
+      target: 0,
+    });
+  }
+
+  if ((input.cronOperations?.staleJobCount ?? 0) > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "stale_critical_pipeline_cron_jobs",
+      message: "Critical data pipeline cron jobs are stale or missing recent runs.",
+      value: input.cronOperations?.staleJobCount ?? 0,
+      target: 0,
+    });
+  }
+
+  if ((input.cronOperations?.latestFailedJobCount ?? 0) > 0) {
+    alerts.push({
+      severity: "critical",
+      code: "failed_critical_pipeline_cron_jobs",
+      message: "Critical data pipeline cron jobs most recently failed.",
+      value: input.cronOperations?.latestFailedJobCount ?? 0,
       target: 0,
     });
   }

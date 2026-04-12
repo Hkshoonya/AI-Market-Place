@@ -28,6 +28,7 @@ import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-cover
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 import { computeDeploymentOperationsSummary } from "@/lib/deployment-operations-compute";
 import { getStripePaymentsReadiness } from "@/lib/payments/stripe-readiness";
+import { summarizePipelineCronHealth } from "@/lib/pipeline-cron-health";
 import {
   computePipelineDataQualityAlerts,
   computePipelineDataQualityStatus,
@@ -82,6 +83,12 @@ const PipelineHealthSummarySchema = z.object({
     staleProvisioningCount: z.number(),
     failedCount: z.number(),
     staleProvisioningThresholdMinutes: z.number(),
+  }),
+  cron: z.object({
+    recentFailures24h: z.number(),
+    latestFailedJobCount: z.number(),
+    staleJobCount: z.number(),
+    lastRunAt: z.string().nullable(),
   }),
   publicMetadataCoverage: z.object({
     completeDiscoveryMetadataPct: z.number(),
@@ -179,6 +186,23 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
         deploymentKind: z.enum(["managed_api", "assistant_only", "hosted_external"]),
         updatedAt: z.string(),
         errorMessage: z.string().nullable(),
+      })
+    ),
+  }),
+  cron: z.object({
+    recentFailures24h: z.number(),
+    latestFailedJobCount: z.number(),
+    staleJobCount: z.number(),
+    lastRunAt: z.string().nullable(),
+    latestFailedJobs: z.array(z.string()),
+    staleJobs: z.array(z.string()),
+    criticalJobs: z.array(
+      z.object({
+        jobName: z.string(),
+        expectedIntervalHours: z.number(),
+        lastRunAt: z.string().nullable(),
+        status: z.enum(["completed", "failed", "running", "missing"]),
+        stale: z.boolean(),
       })
     ),
   }),
@@ -337,6 +361,7 @@ export async function GET(request: NextRequest) {
       benchmarkMetadataCoverage,
       publicMetadataCoverage,
       deploymentRowsResult,
+      cronRunsResult,
     ] = await Promise.all([
       supabase
         .from("data_sources")
@@ -356,6 +381,11 @@ export async function GET(request: NextRequest) {
         )
         .order("updated_at", { ascending: false })
         .limit(1000),
+      supabase
+        .from("cron_runs")
+        .select("job_name, status, started_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
     if (dataSourcesResult.error) {
@@ -367,12 +397,16 @@ export async function GET(request: NextRequest) {
     if (deploymentRowsResult.error) {
       throw new Error(`Failed to fetch workspace_deployments: ${deploymentRowsResult.error.message}`);
     }
+    if (cronRunsResult.error) {
+      throw new Error(`Failed to fetch cron_runs: ${cronRunsResult.error.message}`);
+    }
 
     const dataSources = dataSourcesResult.data ?? [];
     const healthRows = pipelineHealthResult.data ?? [];
     const deploymentOperations = computeDeploymentOperationsSummary(
       deploymentRowsResult.data ?? []
     );
+    const cronHealth = summarizePipelineCronHealth(cronRunsResult.data ?? []);
 
     // Build a lookup map from pipeline_health by source_slug
     const healthBySlug = new Map(
@@ -410,7 +444,11 @@ export async function GET(request: NextRequest) {
 
     // Determine top-level status
     const topLevelStatus: "healthy" | "degraded" | "down" =
-      downCount > 0 ? "down" : degradedCount > 0 ? "degraded" : "healthy";
+      downCount > 0
+        ? "down"
+        : degradedCount > 0 || cronHealth.latestFailedJobCount > 0 || cronHealth.staleJobCount > 0
+          ? "degraded"
+          : "healthy";
 
     const checkedAt = new Date().toISOString();
     const benchmarkCoverageSummary = {
@@ -439,6 +477,10 @@ export async function GET(request: NextRequest) {
       deploymentOperations: {
         staleProvisioningCount: deploymentOperations.totals.staleProvisioningCount,
         failedCount: deploymentOperations.totals.failedCount,
+      },
+      cronOperations: {
+        staleJobCount: cronHealth.staleJobCount,
+        latestFailedJobCount: cronHealth.latestFailedJobCount,
       },
     });
     const dataQualityStatus = computePipelineDataQualityStatus(dataQualityAlerts);
@@ -476,6 +518,7 @@ export async function GET(request: NextRequest) {
           recentStaleProvisioning: deploymentOperations.recentStaleProvisioning,
           recentFailed: deploymentOperations.recentFailed,
         },
+        cron: cronHealth,
         publicMetadataCoverage: {
           completeDiscoveryMetadataPct:
             publicMetadataCoverage.completeDiscoveryMetadataPct,
@@ -550,6 +593,12 @@ export async function GET(request: NextRequest) {
       checkedAt,
       benchmarkCoverage: benchmarkCoverageSummary,
       deploymentOperations: deploymentOperations.totals,
+      cron: {
+        recentFailures24h: cronHealth.recentFailures24h,
+        latestFailedJobCount: cronHealth.latestFailedJobCount,
+        staleJobCount: cronHealth.staleJobCount,
+        lastRunAt: cronHealth.lastRunAt,
+      },
       publicMetadataCoverage: {
         completeDiscoveryMetadataPct:
           publicMetadataCoverage.completeDiscoveryMetadataPct,

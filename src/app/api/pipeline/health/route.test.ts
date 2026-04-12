@@ -147,6 +147,7 @@ function createMockSupabase(tables: Record<string, TableMock>) {
         select: () => chain,
         order: () => chain,
         limit: () => chain,
+        gte: () => chain,
         eq: (column: string, value: unknown) => {
           if (Array.isArray(currentData)) {
             currentData = currentData.filter((row) => row[column] === value);
@@ -309,6 +310,9 @@ describe("GET /api/pipeline/health", () => {
       expect(body).toHaveProperty("down");
       expect(body).toHaveProperty("checkedAt");
       expect(body).toHaveProperty("benchmarkCoverage");
+      expect(body).toHaveProperty("cron");
+      expect(body.cron).toHaveProperty("staleJobCount");
+      expect(body.cron).toHaveProperty("latestFailedJobCount");
       expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
       expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
       expect(body).toHaveProperty("publicMetadataCoverage");
@@ -424,6 +428,9 @@ describe("GET /api/pipeline/health", () => {
         "recentNotReadyOfficialModels"
       );
       expect(body).toHaveProperty("payments");
+      expect(body).toHaveProperty("cron");
+      expect(body.cron).toHaveProperty("criticalJobs");
+      expect(body.cron).toHaveProperty("latestFailedJobs");
       expect(body.payments.stripe).toEqual({
         status: "disabled",
         checkoutConfigured: false,
@@ -671,6 +678,66 @@ describe("GET /api/pipeline/health", () => {
       expect(body.status).toBe("healthy");
       expect(body.healthy).toBe(1);
       expect(body.down).toBe(0);
+    });
+
+    it("critical cron failures degrade the pipeline summary even when adapters are healthy", async () => {
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            { slug: "a1", sync_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "a1", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+        cron_runs: {
+          data: [
+            {
+              job_name: "compute-scores",
+              status: "failed",
+              started_at: syncedAgo(1, 6),
+              created_at: syncedAgo(1, 6),
+            },
+            {
+              job_name: "sync-tier-1",
+              status: "completed",
+              started_at: syncedAgo(0.5, 2),
+              created_at: syncedAgo(0.5, 2),
+            },
+            {
+              job_name: "sync-tier-2",
+              status: "completed",
+              started_at: syncedAgo(0.5, 4),
+              created_at: syncedAgo(0.5, 4),
+            },
+            {
+              job_name: "sync-tier-3",
+              status: "completed",
+              started_at: syncedAgo(0.5, 8),
+              created_at: syncedAgo(0.5, 8),
+            },
+            {
+              job_name: "sync-tier-4",
+              status: "completed",
+              started_at: syncedAgo(0.5, 24),
+              created_at: syncedAgo(0.5, 24),
+            },
+          ],
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(body.status).toBe("degraded");
+      expect(body.cron.latestFailedJobCount).toBe(1);
+      expect(body.cron.staleJobCount).toBe(0);
     });
   });
 
