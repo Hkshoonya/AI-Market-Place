@@ -1,3 +1,5 @@
+import { getCanonicalProviderName } from "@/lib/constants/providers";
+
 export interface BenchmarkExpectedModel {
   slug: string;
   provider: string;
@@ -75,7 +77,8 @@ export function getTrustedBenchmarkHfUrl(
   const [org] = hfModelId.split("/");
   if (!org) return null;
 
-  const allowedOrgs = AUTO_HF_BENCHMARK_PROVIDER_ORGS[model.provider] ?? [];
+  const provider = getCanonicalProviderName(model.provider);
+  const allowedOrgs = AUTO_HF_BENCHMARK_PROVIDER_ORGS[provider] ?? [];
   const normalizedOrg = org.toLowerCase();
   const isTrustedOrg = allowedOrgs.some(
     (allowedOrg) => allowedOrg.toLowerCase() === normalizedOrg
@@ -100,7 +103,8 @@ export function getTrustedBenchmarkWebsiteUrl(
     return null;
   }
 
-  const allowedHosts = TRUSTED_BENCHMARK_WEBSITE_HOSTS[model.provider] ?? [];
+  const provider = getCanonicalProviderName(model.provider);
+  const allowedHosts = TRUSTED_BENCHMARK_WEBSITE_HOSTS[provider] ?? [];
   const isTrustedHost = allowedHosts.some(
     (allowedHost) => host === allowedHost || host.endsWith(`.${allowedHost}`)
   );

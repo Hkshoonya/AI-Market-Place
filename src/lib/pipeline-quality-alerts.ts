@@ -56,7 +56,8 @@ export function computePipelineDataQualityAlerts(input: {
       severity:
         input.benchmarkCoverage.trustedLocatorCoveragePct < 95 ? "critical" : "warning",
       code: "missing_trusted_benchmark_locators",
-      message: "Some benchmark-expected models are still missing trusted benchmark locators.",
+      message:
+        "Some benchmark-expected models are still missing benchmark evidence or trusted update paths.",
       value: input.benchmarkCoverage.missingTrustedLocatorCount,
       target: 0,
     });

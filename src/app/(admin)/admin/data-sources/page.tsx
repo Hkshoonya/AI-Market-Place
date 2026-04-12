@@ -1312,7 +1312,7 @@ export default function AdminDataSourcesPage() {
                         {integrityData.benchmarkMetadata.trustedLocatorCoveragePct}%
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        Benchmark Locator Coverage · {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount} gaps
+                        Benchmark Update Path Coverage · {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocatorCount} gaps
                       </p>
                     </div>
                   </div>
@@ -1368,7 +1368,7 @@ export default function AdminDataSourcesPage() {
             {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-300">
-                  Benchmark locator gaps:{" "}
+                  Benchmark update path gaps:{" "}
                   {integrityData.benchmarkMetadata.missingTrustedBenchmarkLocator
                     .slice(0, 3)
                     .map((model) => model.slug)

@@ -13,9 +13,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncOutputType } from "@/lib/data-sources/types";
 import type { PublicSurfaceReadinessBlocker } from "@/lib/models/public-surface-readiness";
 import {
+  buildBenchmarkEvidenceModelIds,
+  isBenchmarkMetadataCoverageCandidate,
+} from "@/lib/benchmark-metadata-coverage-compute";
+import {
   getTrustedBenchmarkHfUrl,
   getTrustedBenchmarkWebsiteUrl,
-  isBenchmarkExpectedModel,
 } from "@/lib/data-sources/shared/benchmark-coverage";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 
@@ -404,12 +407,21 @@ interface ModelSnapshotCoverageRow {
 }
 
 interface ActiveModelMetadataRow {
+  id: string;
   slug: string;
   provider: string;
   category: string | null;
   hf_model_id: string | null;
   website_url: string | null;
   release_date: string | null;
+}
+
+interface BenchmarkScoreCoverageRow {
+  model_id: string | null;
+}
+
+interface BenchmarkNewsCoverageRow {
+  related_model_ids: string[] | null;
 }
 
 interface SyncDiagnostics {
@@ -525,7 +537,7 @@ async function fetchAllActiveModelMetadata(
     const to = from + METADATA_PAGE_SIZE - 1;
     const { data, error } = await supabase
       .from("models")
-      .select("slug, provider, category, hf_model_id, website_url, release_date")
+      .select("id, slug, provider, category, hf_model_id, website_url, release_date")
       .eq("status", "active")
       .range(from, to);
 
@@ -534,6 +546,75 @@ async function fetchAllActiveModelMetadata(
     }
 
     const page = (data ?? []) as ActiveModelMetadataRow[];
+    rows.push(...page);
+
+    if (page.length < METADATA_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return rows;
+}
+
+async function fetchBenchmarkEvidenceModelIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>
+) {
+  const [benchmarkRows, benchmarkNewsRows] = await Promise.all([
+    fetchAllBenchmarkScoreRows(supabase),
+    fetchAllBenchmarkNewsRows(supabase),
+  ]);
+
+  return buildBenchmarkEvidenceModelIds(benchmarkRows, benchmarkNewsRows);
+}
+
+async function fetchAllBenchmarkScoreRows(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>
+) {
+  const rows: BenchmarkScoreCoverageRow[] = [];
+
+  for (let from = 0; ; from += METADATA_PAGE_SIZE) {
+    const to = from + METADATA_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("benchmark_scores")
+      .select("model_id")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch benchmark score coverage: ${error.message}`);
+    }
+
+    const page = (data ?? []) as BenchmarkScoreCoverageRow[];
+    rows.push(...page);
+
+    if (page.length < METADATA_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return rows;
+}
+
+async function fetchAllBenchmarkNewsRows(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>
+) {
+  const rows: BenchmarkNewsCoverageRow[] = [];
+
+  for (let from = 0; ; from += METADATA_PAGE_SIZE) {
+    const to = from + METADATA_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("model_news")
+      .select("related_model_ids")
+      .eq("category", "benchmark")
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);
+    }
+
+    const page = (data ?? []) as BenchmarkNewsCoverageRow[];
     rows.push(...page);
 
     if (page.length < METADATA_PAGE_SIZE) {
@@ -821,12 +902,17 @@ export async function verifyDataIntegrity(
       : 0;
 
   const activeModelMetadata = await fetchAllActiveModelMetadata(supabase);
+  const benchmarkEvidenceModelIds = await fetchBenchmarkEvidenceModelIds(supabase);
   const publicMetadataCoverage = await computePublicMetadataCoverage(
     supabase as never
   );
   const benchmarkExpectedModels = activeModelMetadata.filter((model) =>
-    isBenchmarkExpectedModel(model)
+    isBenchmarkMetadataCoverageCandidate(model)
   );
+  const hasTrustedBenchmarkUpdatePath = (model: ActiveModelMetadataRow) =>
+    benchmarkEvidenceModelIds.has(model.id) ||
+    Boolean(getTrustedBenchmarkHfUrl(model)) ||
+    Boolean(getTrustedBenchmarkWebsiteUrl(model));
   const withTrustedHfLocator = benchmarkExpectedModels.filter((model) =>
     Boolean(getTrustedBenchmarkHfUrl(model))
   ).length;
@@ -834,8 +920,7 @@ export async function verifyDataIntegrity(
     Boolean(getTrustedBenchmarkWebsiteUrl(model))
   ).length;
   const missingTrustedBenchmarkLocatorRows = benchmarkExpectedModels.filter(
-    (model) =>
-      !getTrustedBenchmarkHfUrl(model) && !getTrustedBenchmarkWebsiteUrl(model)
+    (model) => !hasTrustedBenchmarkUpdatePath(model)
   );
   const missingTrustedBenchmarkLocator = missingTrustedBenchmarkLocatorRows
     .sort(
@@ -851,8 +936,9 @@ export async function verifyDataIntegrity(
     }));
   const missingTrustedBenchmarkLocatorCount =
     missingTrustedBenchmarkLocatorRows.length;
-  const withAnyTrustedBenchmarkLocator =
-    benchmarkExpectedModels.length - missingTrustedBenchmarkLocatorCount;
+  const withAnyTrustedBenchmarkLocator = benchmarkExpectedModels.filter(
+    hasTrustedBenchmarkUpdatePath
+  ).length;
   const trustedLocatorCoveragePct =
     benchmarkExpectedModels.length > 0
       ? Math.round(

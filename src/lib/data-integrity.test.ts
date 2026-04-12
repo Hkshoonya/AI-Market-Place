@@ -304,6 +304,7 @@ describe("verifyDataIntegrity", () => {
 
     const activeModels = [
       {
+        id: "gemma-4",
         slug: "google-gemma-4-31b-it",
         provider: "Google",
         name: "Gemma 4 31B IT",
@@ -327,6 +328,7 @@ describe("verifyDataIntegrity", () => {
         status: "active",
       },
       {
+        id: "grok-4-20",
         slug: "x-ai-grok-4-20",
         provider: "xAI",
         name: "Grok 4.20",
@@ -350,6 +352,7 @@ describe("verifyDataIntegrity", () => {
         status: "active",
       },
       {
+        id: "mystery-model",
         slug: "mystery-model",
         provider: "Unknown",
         name: "Mystery Model",
@@ -418,7 +421,7 @@ describe("verifyDataIntegrity", () => {
 
               if (
                 columns ===
-                "slug, provider, category, hf_model_id, website_url, release_date"
+                "id, slug, provider, category, hf_model_id, website_url, release_date"
               ) {
                 return {
                   eq: () => ({
@@ -442,6 +445,36 @@ describe("verifyDataIntegrity", () => {
               }
 
               return Promise.resolve({ data: activeModels, error: null });
+            },
+          };
+        }
+        if (table === "benchmark_scores") {
+          return {
+            select: (_columns?: string, options?: { count?: string; head?: boolean }) => {
+              if (options?.head) {
+                const count = overrides.tableCount ?? 100;
+                return Promise.resolve({ count, error: null });
+              }
+
+              return {
+                range: () => Promise.resolve({ data: [], error: null }),
+              };
+            },
+          };
+        }
+        if (table === "model_news") {
+          return {
+            select: (_columns?: string, options?: { count?: string; head?: boolean }) => {
+              if (options?.head) {
+                const count = overrides.tableCount ?? 100;
+                return Promise.resolve({ count, error: null });
+              }
+
+              return {
+                eq: () => ({
+                  range: () => Promise.resolve({ data: [], error: null }),
+                }),
+              };
             },
           };
         }

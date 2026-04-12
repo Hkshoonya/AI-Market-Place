@@ -1,4 +1,6 @@
-import { isBenchmarkExpectedModel } from "./data-sources/shared/benchmark-coverage";
+import { getCanonicalProviderName } from "./constants/providers";
+import { isBenchmarkMetadataCoverageCandidate } from "./benchmark-metadata-coverage-compute";
+import { OFFICIAL_PROVIDERS } from "./models/public-source-trust";
 import type { TypedSupabaseClient } from "@/types/database";
 
 type ProviderCoverage = {
@@ -19,32 +21,14 @@ type SparseCoverageEntry = {
 
 const PAGE_SIZE = 1000;
 const RECENT_RELEASE_CUTOFF = Date.parse("2025-12-01T00:00:00.000Z");
-const OFFICIAL_PROVIDERS = new Set([
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "xAI",
-  "Z.ai",
-  "MiniMax",
-  "Microsoft",
-  "NVIDIA",
-  "Meta",
-  "Mistral AI",
-  "Moonshot AI",
-  "Qwen",
-  "DeepSeek",
-  "Black Forest Labs",
-  "Cohere",
-  "Amazon",
-  "Alibaba",
-  "Bytedance",
-]);
 
 type ModelCoverageRow = {
   id: string;
   slug: string;
   provider: string;
   category: string | null;
+  hf_model_id: string | null;
+  website_url: string | null;
   release_date: string | null;
 };
 
@@ -81,7 +65,7 @@ export async function computeBenchmarkCoverage(
     fetchAllRows<ModelCoverageRow>(async (from, to) => {
       const { data, error } = await supabase
         .from("models")
-        .select("id, slug, provider, category, release_date")
+        .select("id, slug, provider, category, hf_model_id, website_url, release_date")
         .eq("status", "active")
         .range(from, to);
 
@@ -134,7 +118,7 @@ export async function computeBenchmarkCoverage(
   const recentSparseBenchmarkExpectedOfficial: SparseCoverageEntry[] = [];
 
   for (const model of models) {
-    const provider = model.provider ?? "Unknown";
+    const provider = getCanonicalProviderName(model.provider ?? "Unknown");
     const stats = providerStats.get(provider) ?? {
       total: 0,
       scored: 0,
@@ -154,8 +138,7 @@ export async function computeBenchmarkCoverage(
     } else if (
       model.release_date &&
       Date.parse(model.release_date) >= RECENT_RELEASE_CUTOFF &&
-      OFFICIAL_PROVIDERS.has(provider) &&
-      isBenchmarkExpectedModel(model)
+      isBenchmarkMetadataCoverageCandidate(model)
     ) {
       recentSparseBenchmarkExpectedOfficial.push({
         slug: model.slug,
@@ -179,7 +162,9 @@ export async function computeBenchmarkCoverage(
     .sort((left, right) => right.total - left.total);
 
   const officialProviders = providers
-    .filter((provider) => OFFICIAL_PROVIDERS.has(provider.provider))
+    .filter((provider) =>
+      OFFICIAL_PROVIDERS.has(getCanonicalProviderName(provider.provider))
+    )
     .sort(
       (left, right) =>
         left.coverage_pct - right.coverage_pct || right.total - left.total
