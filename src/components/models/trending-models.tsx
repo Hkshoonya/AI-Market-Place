@@ -79,7 +79,7 @@ export function TrendingModels({ category, limit = 10 }: TrendingModelsProps) {
     <div>
       <p className="mb-3 text-sm text-muted-foreground">
         Use <span className="font-medium text-foreground">Ways to Use</span> to find models that
-        just became easier to access, whether that means a hosted service, a provider plan, or a
+        just became easier to access, whether that means a managed runtime, a provider plan, or a
         setup path you run yourself.
       </p>
       <div className="mb-4 flex items-center gap-1 overflow-x-auto" role="group" aria-label="Trending model views">

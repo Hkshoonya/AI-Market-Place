@@ -65,14 +65,15 @@ describe("DeployTab", () => {
     expect(
       screen.getByText(/AI Market Cap cannot run this model directly yet/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/What deployment means here/i)).toBeInTheDocument();
+    expect(screen.getByText(/How to use this page/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted for you/i)).toBeInTheDocument();
     expect(screen.getByText(/Cloud server you control/i)).toBeInTheDocument();
     expect(
       screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /get api access on moonshot api/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /start with starter pack/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start with moonshot api/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get api access/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open AI Market Cap setup/i })).not.toBeInTheDocument();
   });
 
   it("shows official deployment evidence when the API returns it", () => {
@@ -133,7 +134,7 @@ describe("DeployTab", () => {
 
     expect(screen.getByText(/best way to start/i)).toBeInTheDocument();
     expect(screen.getByText(/If you just want the fastest verified path/i)).toBeInTheDocument();
-    expect(screen.getByText(/What deployment means here/i)).toBeInTheDocument();
+    expect(screen.getByText(/How to use this page/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Best when you want to start a managed deployment path without extra setup/i)
     ).toBeInTheDocument();
@@ -146,8 +147,8 @@ describe("DeployTab", () => {
     expect(screen.getByText(/These are official updates confirming new ways this model can be used/i)).toBeInTheDocument();
     expect(screen.getByText(/MiniMax M2.7 can now run on a cloud server you control/i)).toBeInTheDocument();
     expect(screen.getAllByText(/hosted for you/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByRole("button", { name: /start with starter pack/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Starter Pack/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("button", { name: /Open guided setup/i })).toBeInTheDocument();
+    expect(screen.getByText(/Start here first/i)).toBeInTheDocument();
   });
 
   it("explains cloud server requirements for open-weight models", () => {
@@ -236,14 +237,14 @@ describe("DeployTab", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Deploy on AI Market Cap/i })
+      screen.getByRole("button", { name: /Open AI Market Cap setup/i })
     ).toBeInTheDocument();
     expect(
       screen.getAllByText(/dedicated runtime/i).length
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Chat, API, usage tracking/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Deploy on AI Market Cap/i })
+      screen.getByRole("button", { name: /Open AI Market Cap setup/i })
     ).toBeInTheDocument();
   });
 });

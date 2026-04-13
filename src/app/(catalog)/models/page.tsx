@@ -377,7 +377,7 @@ export default async function ModelsPage({
         </p>
         <DeploymentMeaningLegend
           className="mt-4"
-          intro="Deployment here means the real path to start using a model: through a hosted service, on a rented server you control, or on your own machine."
+          intro="Deployment here means the real path to start using a model: through a managed runtime, on a rented server you control, or on your own machine."
         />
         {managedOnly && (
           <div className="mt-4 rounded-2xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-5">
