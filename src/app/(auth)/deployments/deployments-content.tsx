@@ -364,6 +364,25 @@ export default function DeploymentsContent() {
         </Card>
       </div>
 
+      <Card className="mb-6 border-cyan-500/30 bg-cyan-500/10">
+        <CardContent className="p-5">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+            How To Use This Page
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-white">
+            Start with the status badges, use the main action buttons, and open the detail sections only when you need them.
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge className="bg-emerald-500/10 text-emerald-200">Healthy means ready to use</Badge>
+            <Badge className="bg-amber-500/10 text-amber-100">Paused means no new requests</Badge>
+            <Badge className="bg-red-500/10 text-red-200">Error means check the message first</Badge>
+          </div>
+          <p className="mt-3 text-sm text-cyan-50/80">
+            Primary buttons change the deployment state. The expandable sections below are for API setup, billing, and recent activity.
+          </p>
+        </CardContent>
+      </Card>
+
       {error ? (
         <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
@@ -451,6 +470,17 @@ export default function DeploymentsContent() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        className="bg-cyan-500 text-background hover:bg-cyan-400"
+                        disabled={
+                          testLoadingSlug === deployment.modelSlug ||
+                          deployment.status !== "ready"
+                        }
+                        onClick={() => runTestCall(deployment)}
+                      >
+                        {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
+                      </Button>
                       <Button variant="outline" asChild>
                         <Link href={`/models/${deployment.modelSlug}`}>
                           Model Page
@@ -574,54 +604,76 @@ export default function DeploymentsContent() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-                    <div>
-                      <label
-                        htmlFor={`budget-${deployment.id}`}
-                        className="text-xs uppercase tracking-[0.14em] text-muted-foreground"
+                  <details className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <summary className="cursor-pointer list-none">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-white">Budget and billing controls</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Set or change the cap for this deployment without touching the runtime.
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={cn("capitalize", budgetStatusTone)}>
+                          {deployment.billing.budgetStatus}
+                        </Badge>
+                      </div>
+                    </summary>
+                    <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+                      <div>
+                        <label
+                          htmlFor={`budget-${deployment.id}`}
+                          className="text-xs uppercase tracking-[0.14em] text-muted-foreground"
+                        >
+                          Credits budget
+                        </label>
+                        <Input
+                          id={`budget-${deployment.id}`}
+                          inputMode="decimal"
+                          placeholder="Set budget cap"
+                          value={budgetDrafts[deployment.modelSlug] ?? ""}
+                          onChange={(event) =>
+                            setBudgetDrafts((current) => ({
+                              ...current,
+                              [deployment.modelSlug]: event.target.value,
+                            }))
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pendingModelSlug === deployment.modelSlug}
+                        onClick={() => updateDeployment(deployment.modelSlug, "set_budget")}
                       >
-                        Credits budget
-                      </label>
-                      <Input
-                        id={`budget-${deployment.id}`}
-                        inputMode="decimal"
-                        placeholder="Set budget cap"
-                        value={budgetDrafts[deployment.modelSlug] ?? ""}
-                        onChange={(event) =>
-                          setBudgetDrafts((current) => ({
-                            ...current,
-                            [deployment.modelSlug]: event.target.value,
-                          }))
-                        }
-                        className="mt-2"
-                      />
+                        <Wallet className="h-4 w-4" />
+                        Save Budget
+                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        Current cap: {formatCurrency(deployment.creditsBudget)}
+                      </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={pendingModelSlug === deployment.modelSlug}
-                      onClick={() => updateDeployment(deployment.modelSlug, "set_budget")}
-                    >
-                      <Wallet className="h-4 w-4" />
-                      Save Budget
-                    </Button>
-                    <div className="text-sm text-muted-foreground">
-                      Current cap: {formatCurrency(deployment.creditsBudget)}
-                    </div>
-                  </div>
+                  </details>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="h-4 w-4 text-neon" />
-                        <p className="text-sm font-medium text-white">API onboarding</p>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
+                    <details className="rounded-xl border border-border/50 bg-card/40 p-4" open>
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex items-center gap-2">
+                          <KeyRound className="h-4 w-4 text-neon" />
+                          <div>
+                            <p className="text-sm font-medium text-white">API setup and test</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Create a key, copy the example request, then run a quick test.
+                            </p>
+                          </div>
+                        </div>
+                      </summary>
+                      <p className="mt-3 text-sm text-muted-foreground">
                         Use an API key with `agent` scope for requests and `read` if you also want
                         to poll deployment status.
                       </p>
                       <code className="mt-3 block overflow-x-auto rounded-md border border-border/50 bg-background/60 px-3 py-2 text-xs text-foreground">
-                        {`curl -X POST ${deployment.endpointPath} \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Hello from AI Market Cap"}'`}
+{`curl -X POST ${deployment.endpointPath} \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Hello from AI Market Cap"}'`}
                       </code>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button
@@ -667,11 +719,21 @@ export default function DeploymentsContent() {
                           </p>
                         </div>
                       ) : null}
-                    </div>
+                    </details>
 
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <DeploymentActivity deployment={deployment} />
-                    </div>
+                    <details className="rounded-xl border border-border/50 bg-card/40 p-4">
+                      <summary className="cursor-pointer list-none">
+                        <div>
+                          <p className="text-sm font-medium text-white">Recent activity</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Open this when you want request history, charges, refunds, or recent failures.
+                          </p>
+                        </div>
+                      </summary>
+                      <div className="mt-3">
+                        <DeploymentActivity deployment={deployment} />
+                      </div>
+                    </details>
                   </div>
                 </CardContent>
               </Card>
