@@ -354,6 +354,38 @@ export default async function DeployPage({
             </p>
           </div>
         </div>
+
+        <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+            How To Start
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-white">
+            Pick a model, open the guided setup, then finish launch inside AI Market Cap.
+          </h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">1. Filter the list</Badge>
+              <p className="mt-3 text-sm text-white">Use `Chat`, `API`, `Open-weight`, or `Lowest cost`.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                That gets you closer to the real starting path you want instead of scanning every card.
+              </p>
+            </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">2. Open guided setup</Badge>
+              <p className="mt-3 text-sm text-white">Use the primary button on a model card.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The workspace opens with the model, launch path, and budget hint already filled in.
+              </p>
+            </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">3. Keep using it here</Badge>
+              <p className="mt-3 text-sm text-white">Finish in Workspace and monitor it in Deployments.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                That is where chat, API access, request history, and budget controls stay visible.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-8 flex items-center justify-between gap-4">
@@ -483,7 +515,7 @@ export default async function DeployPage({
                         ) : null}
                         <div className="mt-4 flex flex-wrap gap-2">
                           <WorkspaceStartButton
-                            label="Deploy Now"
+                            label="Open Guided Setup"
                             size="sm"
                             className="bg-neon text-background hover:bg-neon/90"
                             model={model.name}
@@ -569,7 +601,7 @@ export default async function DeployPage({
                     ) : null}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <WorkspaceStartButton
-                        label="Deploy Now"
+                        label="Open Guided Setup"
                         size="sm"
                         className="bg-neon text-background hover:bg-neon/90"
                         model={model.name}

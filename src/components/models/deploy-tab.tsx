@@ -276,13 +276,10 @@ export function DeployTab({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border/50 bg-card/20 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">What deployment means here</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white">How to use this page</h3>
         <p className="text-sm text-muted-foreground">
-          On this page, deployment means the real way you can start using this model. That might
-          mean a hosted service, a provider plan, your own computer, or a cloud server you rent
-          and manage yourself. When a model has open weights, we also estimate the usual hardware
-          needed so you can tell whether it belongs on your computer or on a rented GPU server.
-          Start with the verified rows first because they are the clearest model-specific options.
+          Start with the highlighted setup card first. It shows the clearest starting path for this model.
+          Everything below that is supporting detail: comparison rows, self-host guidance, and broader related options.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-md border border-border/40 bg-card/30 p-3">
@@ -303,6 +300,14 @@ export function DeployTab({
               It runs locally, but larger models may still need a strong GPU.
             </p>
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded-full border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2.5 py-1 text-xs text-[#00d4aa]">
+            Start here first
+          </span>
+          <span className="rounded-full border border-border/40 bg-card/30 px-2.5 py-1 text-xs text-muted-foreground">
+            Comparison and reference below
+          </span>
         </div>
       </div>
 
@@ -342,7 +347,7 @@ export function DeployTab({
                   }
                   className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
                 >
-                  {startPlan.label} on {primaryDeployment.platform.name}
+                  Start with {primaryDeployment.platform.name}
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               ) : (
@@ -365,7 +370,7 @@ export function DeployTab({
                   }}
                   className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-sm font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
                 >
-                  {startPlan.label}
+                  Open guided setup
                 </button>
               )
             ) : null}
@@ -460,7 +465,7 @@ export function DeployTab({
               }}
               className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-neon/15 px-3 py-2 text-sm font-medium text-neon transition-colors hover:bg-neon/25"
             >
-              {aiMarketCapPlan.label}
+              Open AI Market Cap setup
             </button>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -484,9 +489,12 @@ export function DeployTab({
         </div>
       ) : null}
 
-      {/* Pricing Comparison Table */}
       {deployments.length > 0 && (
-        <div>
+        <details className="rounded-lg border border-border/50 bg-card/20 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            Compare verified usage options
+          </summary>
+          <div className="mt-4">
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-[#00d4aa]" />
             Choose how to use this model
@@ -568,11 +576,16 @@ export function DeployTab({
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </details>
       )}
 
       {deploymentEvidence.length > 0 && (
-        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
+        <details className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            Official availability updates
+          </summary>
+          <div className="mt-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
             <ShieldCheck className="h-4 w-4 text-[#00d4aa]" />
             Official availability updates
@@ -612,11 +625,16 @@ export function DeployTab({
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </details>
       )}
 
       {selfHostRequirements ? (
-        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
+        <details className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            Self-host hardware guide
+          </summary>
+          <div className="mt-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
             <Server className="h-4 w-4 text-[#00d4aa]" />
             What you need to run it yourself
@@ -653,7 +671,8 @@ export function DeployTab({
               <li key={note}>• {note}</li>
             ))}
           </ul>
-        </div>
+          </div>
+        </details>
       ) : null}
 
       {relatedPlatforms.length > 0 && (
@@ -663,9 +682,12 @@ export function DeployTab({
         </p>
       )}
 
-      {/* Related platform categories */}
       {Array.from(grouped.entries()).map(([type, typePlatforms]) => (
-        <div key={type}>
+        <details key={type} className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            {TYPE_LABELS[type] || type} related options
+          </summary>
+          <div className="mt-4">
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             {TYPE_ICONS[type]}
             {TYPE_LABELS[type] || type} <span className="text-xs text-muted-foreground font-normal">Related options</span>
@@ -734,55 +756,60 @@ export function DeployTab({
               );
             })}
           </div>
-        </div>
+          </div>
+        </details>
       ))}
 
-      {/* Self-Hosting Guide for Open-Weight Models */}
       {isOpenWeights && (
-        <div className="rounded-lg border border-border/50 p-4 bg-card/20">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Server className="h-4 w-4 text-[#00d4aa]" />
-            Common self-host options
-          </h3>
-          <div className="space-y-3 text-xs text-muted-foreground">
-            <p className="text-sm text-muted-foreground">
-              This model has open weights. That usually means you can run it privately if you have
-              the right hardware. If you want an API-style setup, use a server runtime. If you
-              want the simplest private setup, use a local runner on your own computer. The examples
-              below are starting points, not the only valid tools.
-            </p>
-            <div>
-              <p className="font-medium text-white mb-1">Server runtime example</p>
-              <p className="mb-1 text-[11px] text-muted-foreground">Example server-runtime command</p>
-              <div className="flex items-center gap-1">
-                <code className="bg-black/50 rounded px-2 py-1 flex-1 overflow-auto font-mono">
-                  docker run --gpus all -p 8000:8000 vllm/vllm-openai --model {modelName.toLowerCase().replace(/\s+/g, "-")}
-                </code>
-                <button
-                  onClick={() => copyToClipboard(`docker run --gpus all -p 8000:8000 vllm/vllm-openai --model ${modelName.toLowerCase().replace(/\s+/g, "-")}`, "vllm")}
-                  className="p-1 text-muted-foreground hover:text-white shrink-0"
-                >
-                  {copiedId === "vllm" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                </button>
+        <details className="rounded-lg border border-border/50 p-4 bg-card/20">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            Common self-host tools
+          </summary>
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Server className="h-4 w-4 text-[#00d4aa]" />
+              Common self-host options
+            </h3>
+            <div className="space-y-3 text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
+                This model has open weights. That usually means you can run it privately if you have
+                the right hardware. If you want an API-style setup, use a server runtime. If you
+                want the simplest private setup, use a local runner on your own computer. The examples
+                below are starting points, not the only valid tools.
+              </p>
+              <div>
+                <p className="font-medium text-white mb-1">Server runtime example</p>
+                <p className="mb-1 text-[11px] text-muted-foreground">Example server-runtime command</p>
+                <div className="flex items-center gap-1">
+                  <code className="bg-black/50 rounded px-2 py-1 flex-1 overflow-auto font-mono">
+                    docker run --gpus all -p 8000:8000 vllm/vllm-openai --model {modelName.toLowerCase().replace(/\s+/g, "-")}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(`docker run --gpus all -p 8000:8000 vllm/vllm-openai --model ${modelName.toLowerCase().replace(/\s+/g, "-")}`, "vllm")}
+                    className="p-1 text-muted-foreground hover:text-white shrink-0"
+                  >
+                    {copiedId === "vllm" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="font-medium text-white mb-1">Local runner example</p>
-              <p className="mb-1 text-[11px] text-muted-foreground">Example local-runner command</p>
-              <div className="flex items-center gap-1">
-                <code className="bg-black/50 rounded px-2 py-1 flex-1 font-mono">
-                  ollama pull {modelName.toLowerCase().replace(/\s+/g, "-")}
-                </code>
-                <button
-                  onClick={() => copyToClipboard(`ollama pull ${modelName.toLowerCase().replace(/\s+/g, "-")}`, "ollama-cmd")}
-                  className="p-1 text-muted-foreground hover:text-white shrink-0"
-                >
-                  {copiedId === "ollama-cmd" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                </button>
+              <div>
+                <p className="font-medium text-white mb-1">Local runner example</p>
+                <p className="mb-1 text-[11px] text-muted-foreground">Example local-runner command</p>
+                <div className="flex items-center gap-1">
+                  <code className="bg-black/50 rounded px-2 py-1 flex-1 font-mono">
+                    ollama pull {modelName.toLowerCase().replace(/\s+/g, "-")}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(`ollama pull ${modelName.toLowerCase().replace(/\s+/g, "-")}`, "ollama-cmd")}
+                    className="p-1 text-muted-foreground hover:text-white shrink-0"
+                  >
+                    {copiedId === "ollama-cmd" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </details>
       )}
 
       {deployments.length === 0 && relatedPlatforms.length === 0 && deploymentEvidence.length === 0 && (
