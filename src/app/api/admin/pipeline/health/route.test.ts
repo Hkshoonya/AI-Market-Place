@@ -403,6 +403,12 @@ describe("GET /api/admin/pipeline/health", () => {
     expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
     expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
     expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
+    expect(body.benchmarkCoverage).toHaveProperty("benchmarkSourceCount");
+    expect(body.benchmarkCoverage).toHaveProperty("healthyBenchmarkSources");
+    expect(body.benchmarkCoverage).toHaveProperty("degradedBenchmarkSources");
+    expect(body.benchmarkCoverage).toHaveProperty("downBenchmarkSources");
+    expect(body.benchmarkCoverage).toHaveProperty("lastBenchmarkSourceSyncAt");
+    expect(body.benchmarkCoverage).toHaveProperty("sources");
     expect(body).toHaveProperty("publicMetadataCoverage");
     expect(body.publicMetadataCoverage).toHaveProperty(
       "completeDiscoveryMetadataPct"

@@ -321,6 +321,11 @@ describe("GET /api/pipeline/health", () => {
       expect(body.cron).toHaveProperty("latestFailedJobCount");
       expect(body.benchmarkCoverage).toHaveProperty("trustedLocatorCoveragePct");
       expect(body.benchmarkCoverage).toHaveProperty("missingTrustedLocatorCount");
+      expect(body.benchmarkCoverage).toHaveProperty("benchmarkSourceCount");
+      expect(body.benchmarkCoverage).toHaveProperty("healthyBenchmarkSources");
+      expect(body.benchmarkCoverage).toHaveProperty("degradedBenchmarkSources");
+      expect(body.benchmarkCoverage).toHaveProperty("downBenchmarkSources");
+      expect(body.benchmarkCoverage).toHaveProperty("lastBenchmarkSourceSyncAt");
       expect(body).toHaveProperty("publicMetadataCoverage");
       expect(body.publicMetadataCoverage).toHaveProperty(
         "completeDiscoveryMetadataPct"
@@ -419,6 +424,7 @@ describe("GET /api/pipeline/health", () => {
       expect(Array.isArray(body.adapters)).toBe(true);
       expect(body.adapters).toHaveLength(1);
       expect(body.benchmarkCoverage).toHaveProperty("recentMissingTrustedLocators");
+      expect(body.benchmarkCoverage).toHaveProperty("sources");
       expect(body.publicMetadataCoverage).toHaveProperty("weakestProviders");
       expect(body.publicMetadataCoverage).toHaveProperty("weakestOfficialProviders");
       expect(body.publicMetadataCoverage).toHaveProperty("topReadinessBlockers");
@@ -597,6 +603,48 @@ describe("GET /api/pipeline/health", () => {
       expect(response.status).toBe(200);
       expect(body.adapters[0].error).toBe(
         "Failed to fetch GAIA public results: GAIA validation returned HTTP 429:"
+      );
+
+      process.env.CRON_SECRET = originalSecret;
+    });
+
+    it("summarizes benchmark-source adapter health separately from generic adapters", async () => {
+      const originalSecret = process.env.CRON_SECRET;
+      process.env.CRON_SECRET = "test-secret";
+
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([
+            { slug: "terminal-bench", sync_interval_hours: 24, last_sync_at: syncedAgo(0.5, 24) },
+            { slug: "webarena", sync_interval_hours: 24, last_sync_at: syncedAgo(3, 24) },
+            { slug: "adapter-a", sync_interval_hours: 6, last_sync_at: syncedAgo(0.5, 6) },
+          ]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            { source_slug: "terminal-bench", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 24), expected_interval_hours: 24 },
+            { source_slug: "webarena", consecutive_failures: 1, last_success_at: syncedAgo(3, 24), expected_interval_hours: 24 },
+            { source_slug: "adapter-a", consecutive_failures: 0, last_success_at: syncedAgo(0.5, 6), expected_interval_hours: 6 },
+          ]),
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest("Bearer test-secret") as never);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.benchmarkCoverage.benchmarkSourceCount).toBe(2);
+      expect(body.benchmarkCoverage.healthyBenchmarkSources).toBe(1);
+      expect(body.benchmarkCoverage.degradedBenchmarkSources).toBe(1);
+      expect(body.benchmarkCoverage.downBenchmarkSources).toBe(0);
+      expect(body.benchmarkCoverage.sources).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ slug: "terminal-bench", status: "healthy" }),
+          expect.objectContaining({ slug: "webarena", status: "degraded" }),
+        ])
       );
 
       process.env.CRON_SECRET = originalSecret;

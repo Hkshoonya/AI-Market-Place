@@ -25,6 +25,7 @@ import {
   resolveEffectiveHealthRow,
 } from "@/lib/pipeline-health-compute";
 import { computeBenchmarkCoverage } from "@/lib/benchmark-coverage-compute";
+import { summarizeBenchmarkSourceHealth } from "@/lib/benchmark-source-health";
 import { computeBenchmarkMetadataCoverage } from "@/lib/benchmark-metadata-coverage-compute";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
 import {
@@ -88,6 +89,11 @@ const PipelineHealthSummarySchema = z.object({
     officialGapCount: z.number(),
     trustedLocatorCoveragePct: z.number(),
     missingTrustedLocatorCount: z.number(),
+    benchmarkSourceCount: z.number(),
+    healthyBenchmarkSources: z.number(),
+    degradedBenchmarkSources: z.number(),
+    downBenchmarkSources: z.number(),
+    lastBenchmarkSourceSyncAt: z.string().nullable(),
   }),
   deploymentOperations: z.object({
     total: z.number(),
@@ -159,6 +165,11 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
     officialGapCount: z.number(),
     trustedLocatorCoveragePct: z.number(),
     missingTrustedLocatorCount: z.number(),
+    benchmarkSourceCount: z.number(),
+    healthyBenchmarkSources: z.number(),
+    degradedBenchmarkSources: z.number(),
+    downBenchmarkSources: z.number(),
+    lastBenchmarkSourceSyncAt: z.string().nullable(),
     weakestOfficialProviders: z.array(
       z.object({
         provider: z.string(),
@@ -180,6 +191,16 @@ const PipelineHealthDetailSchema = PipelineHealthSummarySchema.extend({
         provider: z.string(),
         category: z.string().nullable(),
         release_date: z.string().nullable(),
+      })
+    ),
+    sources: z.array(
+      z.object({
+        slug: z.string(),
+        status: z.enum(["healthy", "degraded", "down"]),
+        lastSync: z.string().nullable(),
+        consecutiveFailures: z.number(),
+        recordCount: z.number(),
+        error: z.string().nullable(),
       })
     ),
   }),
@@ -547,6 +568,7 @@ export async function GET(request: NextRequest) {
       missingTrustedLocatorCount:
         benchmarkMetadataCoverage.missingTrustedLocatorCount,
     };
+    const benchmarkSourceHealth = summarizeBenchmarkSourceHealth(adapterStatuses);
     const dataQualityAlerts = computePipelineDataQualityAlerts({
       benchmarkCoverage: benchmarkCoverageSummary,
       publicMetadataCoverage: {
@@ -585,6 +607,11 @@ export async function GET(request: NextRequest) {
       adapters: adapterStatuses,
       benchmarkCoverage: {
         ...benchmarkCoverageSummary,
+        benchmarkSourceCount: benchmarkSourceHealth.total,
+        healthyBenchmarkSources: benchmarkSourceHealth.healthy,
+        degradedBenchmarkSources: benchmarkSourceHealth.degraded,
+        downBenchmarkSources: benchmarkSourceHealth.down,
+        lastBenchmarkSourceSyncAt: benchmarkSourceHealth.lastSyncAt,
         weakestOfficialProviders: benchmarkCoverage.official_providers
           .slice(0, 5)
           .map((provider) => ({
@@ -596,6 +623,7 @@ export async function GET(request: NextRequest) {
           benchmarkCoverage.recent_sparse_benchmark_expected_official.slice(0, 10),
         recentMissingTrustedLocators:
           benchmarkMetadataCoverage.recentMissingTrustedLocators,
+        sources: benchmarkSourceHealth.sources,
       },
       deploymentOperations: {
         ...deploymentOperations.totals,
