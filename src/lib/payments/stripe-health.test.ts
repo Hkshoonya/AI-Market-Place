@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getStripePaymentsHealth,
@@ -9,6 +9,12 @@ const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const NOW = new Date("2026-04-12T12:00:00.000Z").getTime();
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
 
 afterEach(() => {
   if (ORIGINAL_STRIPE_SECRET_KEY === undefined) delete process.env.STRIPE_SECRET_KEY;
@@ -23,6 +29,8 @@ afterEach(() => {
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
       ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   }
+
+  vi.useRealTimers();
 });
 
 type MockRow = Record<string, unknown>;
