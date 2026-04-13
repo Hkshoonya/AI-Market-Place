@@ -547,7 +547,7 @@ export default async function ModelsPage({
                                 variant="outline"
                                 className="ml-2 border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[10px] text-[#00d4aa]"
                               >
-                                Deploy on AI Market Cap
+                                Guided setup here
                               </Badge>
                             )}
                           </div>
