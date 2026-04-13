@@ -18,12 +18,17 @@ import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
+import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import { getStripePaymentsHealth } from "../../payments/stripe-health";
 import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
 } from "../../pipeline-cron-health";
+import {
+  computeStatus,
+  resolveEffectiveHealthRow,
+} from "../../pipeline-health-compute";
 
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
@@ -156,6 +161,74 @@ const pipelineEngineer: ResidentAgent = {
         );
       } else {
         await log.info("No failed sync jobs in last 24 hours");
+      }
+
+      // Step 4a: Track benchmark-source freshness/failure health using the same
+      // status rules as the public pipeline health endpoints.
+      const { data: pipelineHealthRows, error: pipelineHealthError } = await sb
+        .from("pipeline_health")
+        .select(
+          "source_slug, consecutive_failures, last_success_at, expected_interval_hours"
+        );
+
+      if (pipelineHealthError) {
+        errors.push(`Failed to fetch pipeline health rows: ${pipelineHealthError.message}`);
+      } else {
+        const pipelineHealthBySource = new Map(
+          (pipelineHealthRows ?? []).map((row) => [row.source_slug, row])
+        );
+        const benchmarkSourceHealth = summarizeBenchmarkSourceHealth(
+          dataSources.map((source) => {
+            const effectiveRow = resolveEffectiveHealthRow(
+              source,
+              pipelineHealthBySource.get(source.slug)
+            );
+            return {
+              slug: source.slug,
+              status: computeStatus(effectiveRow),
+              lastSync: effectiveRow.last_success_at,
+              consecutiveFailures: effectiveRow.consecutive_failures,
+              recordCount: source.last_sync_records ?? 0,
+              error: source.last_error_message ?? null,
+            };
+          })
+        );
+
+        output.benchmarkSourceHealth = benchmarkSourceHealth;
+
+        for (const source of benchmarkSourceHealth.sources) {
+          const issueSlug = makeSlug(`benchmark-source-health-${source.slug}`);
+          const unhealthy = source.status !== "healthy";
+
+          if (unhealthy) {
+            await recordAgentIssue(sb, {
+              slug: issueSlug,
+              title: `Benchmark source health issue for ${source.slug}`,
+              issueType: "benchmark_source_health",
+              source: source.slug,
+              severity: source.status === "down" ? "critical" : "high",
+              confidence: 0.97,
+              detectedBy: "pipeline-engineer",
+              playbook: "repair_benchmark_source_sync",
+              evidence: {
+                sourceSlug: source.slug,
+                status: source.status,
+                lastSync: source.lastSync,
+                consecutiveFailures: source.consecutiveFailures,
+                recordCount: source.recordCount,
+                error: source.error,
+              },
+            });
+          } else {
+            await resolveAgentIssue(sb, issueSlug, {
+              verifier: "pipeline-engineer",
+              reason: "benchmark source sync is fresh and healthy",
+              sourceSlug: source.slug,
+              status: source.status,
+              lastSync: source.lastSync,
+            }).catch(() => {});
+          }
+        }
       }
 
       // Step 4b: Track critical cron health

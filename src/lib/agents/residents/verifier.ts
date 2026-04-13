@@ -4,11 +4,20 @@ import { recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { matchesAgentErrorPattern } from "../error-patterns";
 import { MANUAL_BENCHMARK_SOURCE_SLUGS } from "../../data-sources/manual-benchmark-sources";
 import {
+  BENCHMARK_SOURCE_SLUGS,
+  summarizeBenchmarkSourceHealth,
+  type BenchmarkSourceHealthAdapter,
+} from "../../benchmark-source-health";
+import {
   PIPELINE_CRON_EXPECTATIONS,
   summarizePipelineCronHealth,
   type PipelineCronJobHealth,
   type PipelineCronJobName,
 } from "../../pipeline-cron-health";
+import {
+  computeStatus,
+  resolveEffectiveHealthRow,
+} from "../../pipeline-health-compute";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import {
@@ -37,10 +46,20 @@ interface AgentIssueRow {
 interface DataSourceHealthRow {
   slug: string;
   is_enabled?: boolean | null;
+  sync_interval_hours?: number | null;
+  last_sync_records?: number | null;
+  last_error_message?: string | null;
   quarantined_at?: string | null;
   last_sync_status: string | null;
   last_success_at: string | null;
   last_sync_at: string | null;
+}
+
+interface PipelineHealthSourceRow {
+  source_slug: string | null;
+  consecutive_failures: number | null;
+  last_success_at: string | null;
+  expected_interval_hours: number | null;
 }
 
 interface ModelCoverageRow {
@@ -132,6 +151,22 @@ export function isBenchmarkCoverageIssueResolved(input: {
   missingTrustedLocatorCount: number;
 }): boolean {
   return input.officialGapCount === 0 && input.missingTrustedLocatorCount === 0;
+}
+
+export function isBenchmarkSourceIssueResolved(input: {
+  sourceSlug: string;
+  enabledSourceSlugs: Set<string>;
+  benchmarkSourceHealthBySlug: Map<string, BenchmarkSourceHealthAdapter>;
+}): boolean {
+  if (!input.enabledSourceSlugs.has(input.sourceSlug)) {
+    return true;
+  }
+
+  if (!BENCHMARK_SOURCE_SLUGS.has(input.sourceSlug)) {
+    return true;
+  }
+
+  return input.benchmarkSourceHealthBySlug.get(input.sourceSlug)?.status === "healthy";
 }
 
 export function isCrawlerSurfaceIssueResolved(input: {
@@ -359,15 +394,16 @@ const verifier: ResidentAgent = {
       let recentErrorMessages: string[] | null = null;
       let cronHealthByJob: Map<PipelineCronJobName, PipelineCronJobHealth> | null = null;
       let enabledSourceSlugs: Set<string> | null = null;
-  let benchmarkHealth:
-    | {
-        officialGapCount: number;
-        missingTrustedLocatorCount: number;
-        trustedLocatorCoveragePct: number;
-      }
-    | null = null;
-  let stripePaymentsHealth: StripePaymentsHealth | null = null;
-  let crawlSurfaceHealth:
+      let benchmarkSourceHealthBySlug: Map<string, BenchmarkSourceHealthAdapter> | null = null;
+      let benchmarkHealth:
+        | {
+            officialGapCount: number;
+            missingTrustedLocatorCount: number;
+            trustedLocatorCoveragePct: number;
+          }
+        | null = null;
+      let stripePaymentsHealth: StripePaymentsHealth | null = null;
+      let crawlSurfaceHealth:
         | {
             healthy: boolean;
             criticalFailures: number;
@@ -570,6 +606,129 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   source: sourceSlug,
                   reason: "manual benchmark source is still enabled and still requires automation work",
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "benchmark_source_health") {
+            enabledSourceSlugs ??= await (async () => {
+              const { data, error } = await sb
+                .from("data_sources")
+                .select("slug")
+                .eq("is_enabled", true);
+
+              if (error) {
+                throw new Error(`Failed to fetch enabled data sources: ${error.message}`);
+              }
+
+              return new Set(
+                (data ?? [])
+                  .map((row) => row.slug)
+                  .filter((slug): slug is string => typeof slug === "string")
+              );
+            })();
+
+            benchmarkSourceHealthBySlug ??= await (async () => {
+              const [{ data: sourceRows, error: sourceError }, { data: healthRows, error: healthError }] =
+                await Promise.all([
+                  sb
+                    .from("data_sources")
+                    .select(
+                      "slug, is_enabled, sync_interval_hours, last_success_at, last_sync_at, last_sync_records, last_error_message"
+                    )
+                    .eq("is_enabled", true),
+                  sb
+                    .from("pipeline_health")
+                    .select(
+                      "source_slug, consecutive_failures, last_success_at, expected_interval_hours"
+                    ),
+                ]);
+
+              if (sourceError) {
+                throw new Error(
+                  `Failed to fetch benchmark source rows: ${sourceError.message}`
+                );
+              }
+
+              if (healthError) {
+                throw new Error(
+                  `Failed to fetch benchmark source health rows: ${healthError.message}`
+                );
+              }
+
+              const healthBySource = new Map(
+                ((healthRows ?? []) as PipelineHealthSourceRow[])
+                  .filter(
+                    (row): row is PipelineHealthSourceRow & { source_slug: string } =>
+                      typeof row.source_slug === "string"
+                  )
+                  .map((row) => [row.source_slug, row])
+              );
+
+              const summary = summarizeBenchmarkSourceHealth(
+                ((sourceRows ?? []) as DataSourceHealthRow[]).map((source) => {
+                  const healthRow = healthBySource.get(source.slug);
+                  const effectiveRow = resolveEffectiveHealthRow(
+                    source,
+                    healthRow
+                      ? {
+                          consecutive_failures: healthRow.consecutive_failures ?? 0,
+                          last_success_at: healthRow.last_success_at ?? null,
+                          expected_interval_hours:
+                            healthRow.expected_interval_hours ?? 0,
+                        }
+                      : null
+                  );
+
+                  return {
+                    slug: source.slug,
+                    status: computeStatus(effectiveRow),
+                    lastSync: effectiveRow.last_success_at,
+                    consecutiveFailures: effectiveRow.consecutive_failures,
+                    recordCount: source.last_sync_records ?? 0,
+                    error: source.last_error_message ?? null,
+                  };
+                })
+              );
+
+              return new Map(summary.sources.map((source) => [source.slug, source]));
+            })();
+
+            const sourceSlug = issue.source ?? "";
+            const resolved = isBenchmarkSourceIssueResolved({
+              sourceSlug,
+              enabledSourceSlugs,
+              benchmarkSourceHealthBySlug,
+            });
+            const sourceHealth = benchmarkSourceHealthBySlug.get(sourceSlug) ?? null;
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                source: sourceSlug,
+                status: sourceHealth?.status ?? "healthy",
+                lastSync: sourceHealth?.lastSync ?? null,
+                reason: "benchmark source sync is healthy or no longer relevant",
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  source: sourceSlug,
+                  status: sourceHealth?.status ?? "down",
+                  lastSync: sourceHealth?.lastSync ?? null,
+                  consecutiveFailures: sourceHealth?.consecutiveFailures ?? null,
+                  reason: "benchmark source sync is still stale, degraded, or failing",
                 },
                 maxVerificationRetries
               );

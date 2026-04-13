@@ -140,6 +140,22 @@ function createSupabaseMock() {
             adapter_type: "provider-news",
             secret_env_keys: [],
             is_enabled: true,
+            sync_interval_hours: 6,
+            last_success_at: "2026-03-30T00:00:00.000Z",
+            last_sync_at: "2026-03-30T00:00:00.000Z",
+            last_sync_records: 3,
+            last_error_message: null,
+          },
+          {
+            slug: "terminal-bench",
+            adapter_type: "terminal-bench",
+            secret_env_keys: [],
+            is_enabled: true,
+            sync_interval_hours: 24,
+            last_success_at: "2026-03-30T00:00:00.000Z",
+            last_sync_at: "2026-03-30T00:00:00.000Z",
+            last_sync_records: 0,
+            last_error_message: "upstream timeout",
           },
         ];
       } else if (table === "sync_jobs") {
@@ -160,6 +176,21 @@ function createSupabaseMock() {
             status: "failed",
             started_at: "2026-03-30T00:30:00.000Z",
             created_at: "2026-03-30T00:30:00.000Z",
+          },
+        ];
+      } else if (table === "pipeline_health") {
+        rows = [
+          {
+            source_slug: "provider-news",
+            consecutive_failures: 0,
+            last_success_at: "2026-03-30T00:00:00.000Z",
+            expected_interval_hours: 6,
+          },
+          {
+            source_slug: "terminal-bench",
+            consecutive_failures: 2,
+            last_success_at: "2026-03-30T00:00:00.000Z",
+            expected_interval_hours: 24,
           },
         ];
       }
@@ -216,6 +247,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "pipeline_cron_health",
         source: "compute-scores",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "benchmark_source_health",
+        source: "terminal-bench",
       })
     );
     expect(recordAgentIssue).toHaveBeenCalledWith(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildUxIssueStateMap,
   isBenchmarkCoverageIssueResolved,
+  isBenchmarkSourceIssueResolved,
   isCrawlerSurfaceIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
@@ -174,6 +175,70 @@ describe("isBenchmarkCoverageIssueResolved", () => {
       isBenchmarkCoverageIssueResolved({
         officialGapCount: 0,
         missingTrustedLocatorCount: 2,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("isBenchmarkSourceIssueResolved", () => {
+  it("resolves when the benchmark source is healthy", () => {
+    expect(
+      isBenchmarkSourceIssueResolved({
+        sourceSlug: "terminal-bench",
+        enabledSourceSlugs: new Set(["terminal-bench"]),
+        benchmarkSourceHealthBySlug: new Map([
+          [
+            "terminal-bench",
+            {
+              slug: "terminal-bench",
+              status: "healthy",
+              lastSync: "2026-03-30T00:00:00.000Z",
+              consecutiveFailures: 0,
+              recordCount: 10,
+              error: null,
+            },
+          ],
+        ]),
+      })
+    ).toBe(true);
+  });
+
+  it("resolves when the source is disabled or no longer classified as a benchmark source", () => {
+    expect(
+      isBenchmarkSourceIssueResolved({
+        sourceSlug: "terminal-bench",
+        enabledSourceSlugs: new Set(["provider-news"]),
+        benchmarkSourceHealthBySlug: new Map(),
+      })
+    ).toBe(true);
+
+    expect(
+      isBenchmarkSourceIssueResolved({
+        sourceSlug: "provider-news",
+        enabledSourceSlugs: new Set(["provider-news"]),
+        benchmarkSourceHealthBySlug: new Map(),
+      })
+    ).toBe(true);
+  });
+
+  it("keeps the issue open when the benchmark source is still degraded or down", () => {
+    expect(
+      isBenchmarkSourceIssueResolved({
+        sourceSlug: "terminal-bench",
+        enabledSourceSlugs: new Set(["terminal-bench"]),
+        benchmarkSourceHealthBySlug: new Map([
+          [
+            "terminal-bench",
+            {
+              slug: "terminal-bench",
+              status: "degraded",
+              lastSync: "2026-03-28T00:00:00.000Z",
+              consecutiveFailures: 1,
+              recordCount: 0,
+              error: "timeout",
+            },
+          ],
+        ]),
       })
     ).toBe(false);
   });
