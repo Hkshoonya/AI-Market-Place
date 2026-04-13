@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
   KeyRound,
   Maximize2,
   MessageSquare,
@@ -116,6 +118,7 @@ export function DeployWorkspacePanel() {
   const [deploymentLoading, setDeploymentLoading] = useState(false);
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [runtimeDraft, setRuntimeDraft] = useState("");
+  const [workflowGuideCollapsed, setWorkflowGuideCollapsed] = useState(false);
   const [runtimeResponse, setRuntimeResponse] = useState<{
     content: string;
     provider: string;
@@ -183,6 +186,7 @@ export function DeployWorkspacePanel() {
 
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
+  const isSponsoredSession = session.sponsored === true;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
   const deploymentExecution = session.modelSlug
@@ -227,23 +231,41 @@ export function DeployWorkspacePanel() {
       detail: session.suggestedPack
         ? `Use ${session.suggestedPack} if you still need balance.`
         : "Open wallet funding only if this path still needs credits.",
+      ctaLabel: "Wallet",
+      href: walletHref,
+      external: false,
     },
     {
       label: "API Access",
       done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
       detail: "Create account-side API keys without losing the workspace session.",
+      ctaLabel: "API keys",
+      href: apiHref,
+      external: false,
     },
     {
-      label: "Deployment",
-      done: hasManagedDeployment,
-      detail: hasManagedDeployment
-        ? "Use the managed in-site deployment endpoint for chat and API requests."
-        : canCreateManagedDeployment
-          ? provisioning?.summary ?? "Create the managed in-site deployment after funding and API setup are ready."
+      label: canCreateManagedDeployment ? "Start on this site" : "Use provider path",
+      done: canCreateManagedDeployment ? hasManagedDeployment : false,
+      detail: canCreateManagedDeployment
+        ? hasManagedDeployment
+          ? "Your saved site setup is ready. Use the AI Market Cap endpoint for requests."
           : provisioning?.summary ??
-            "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
+            "Create the site-hosted setup after funding and API access are ready."
+        : provisioning?.summary ??
+          "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
+      ctaLabel: canCreateManagedDeployment
+        ? hasManagedDeployment
+          ? "Refresh site setup"
+          : "Create site setup"
+        : session.nextUrl
+          ? "Open provider"
+          : undefined,
+      href: canCreateManagedDeployment ? undefined : session.nextUrl ?? undefined,
+      external: !canCreateManagedDeployment,
+      onClick: canCreateManagedDeployment ? createDeployment : undefined,
     },
   ];
+  const nextStepIndex = stepItems.findIndex((item) => !item.done);
 
   const canAddNote = noteDraft.trim().length > 0;
   const canSendAssistant = assistantDraft.trim().length > 0 && !assistantLoading;
@@ -307,8 +329,10 @@ export function DeployWorkspacePanel() {
     }
   };
 
-  const createDeployment = async () => {
-    if (!session.modelSlug || !session.model || deploymentLoading) return;
+  async function createDeployment() {
+    const activeSession = session;
+    const activeWorkspace = workspace;
+    if (!activeSession || !activeWorkspace || !activeSession.modelSlug || !activeSession.model || deploymentLoading) return;
     if (!canCreateManagedDeployment) {
       setDeploymentError(
         provisioning?.summary ??
@@ -327,12 +351,12 @@ export function DeployWorkspacePanel() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          modelSlug: session.modelSlug,
-          modelName: session.model,
-          providerName: session.provider,
-          conversationId: session.conversationId,
-          creditsBudget: session.suggestedAmount,
-          monthlyPriceEstimate: session.suggestedAmount,
+          modelSlug: activeSession.modelSlug,
+          modelName: activeSession.model,
+          providerName: activeSession.provider,
+          conversationId: activeSession.conversationId,
+          creditsBudget: activeSession.suggestedAmount,
+          monthlyPriceEstimate: activeSession.suggestedAmount,
         }),
       });
 
@@ -341,13 +365,15 @@ export function DeployWorkspacePanel() {
         throw new Error(payload.error ?? "Failed to create deployment");
       }
 
-      workspace.addWorkspaceEvent(
+      activeWorkspace.addWorkspaceEvent(
         "Deployment created",
         payload.activation?.message ??
-          (session.model ? `Created a deployment for ${session.model}.` : "Created a deployment.")
+          (activeSession.model
+            ? `Created a deployment for ${activeSession.model}.`
+            : "Created a deployment.")
       );
 
-      workspace.updateWorkspaceSession({
+      activeWorkspace.updateWorkspaceSession({
         runtimeId: payload.runtime?.id ?? null,
         runtimeEndpointPath: payload.runtime?.endpointPath ?? null,
         deploymentId: payload.deployment?.id ?? null,
@@ -360,7 +386,7 @@ export function DeployWorkspacePanel() {
     } finally {
       setDeploymentLoading(false);
     }
-  };
+  }
 
   const updateDeployment = async (action: "pause" | "resume") => {
     if (!session.modelSlug || deploymentLoading) return;
@@ -440,7 +466,7 @@ export function DeployWorkspacePanel() {
           onClick={workspace.expandWorkspace}
           className="rounded-full bg-neon px-4 text-background hover:bg-neon/90"
         >
-          {session.model ? `Resume ${session.model}` : "Resume Workspace"}
+          {session.model ? `Open ${session.model} workflow` : "Open workspace workflow"}
         </Button>
       </div>
     );
@@ -503,8 +529,9 @@ export function DeployWorkspacePanel() {
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon-sm" onClick={workspace.minimizeWorkspace}>
+              <Button variant="ghost" size="sm" onClick={workspace.minimizeWorkspace}>
                 <Minimize2 className="h-4 w-4" />
+                Minimize
               </Button>
               <Button variant="ghost" size="icon-sm" onClick={workspace.closeWorkspace}>
                 <X className="h-4 w-4" />
@@ -543,10 +570,34 @@ export function DeployWorkspacePanel() {
               }
               className={cn(maximized ? "min-h-0 flex-1" : "")}
             >
-              <TabsList variant="line" className="w-full">
-                <TabsTrigger value="setup">Setup</TabsTrigger>
-                <TabsTrigger value="assistant">Assistant</TabsTrigger>
-                <TabsTrigger value="usage">Usage</TabsTrigger>
+              <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
+                <TabsTrigger
+                  value="setup"
+                  className="rounded-lg data-[state=active]:border-cyan-500/30 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-100"
+                >
+                  <span className="flex flex-col items-start leading-tight">
+                    <span>Setup</span>
+                    <span className="text-[10px] text-muted-foreground">Take actions</span>
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="assistant"
+                  className="rounded-lg data-[state=active]:border-neon/30 data-[state=active]:bg-neon/10 data-[state=active]:text-neon"
+                >
+                  <span className="flex flex-col items-start leading-tight">
+                    <span>Assistant</span>
+                    <span className="text-[10px] text-muted-foreground">Ask what next</span>
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="usage"
+                  className="rounded-lg data-[state=active]:border-emerald-500/30 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-200"
+                >
+                  <span className="flex flex-col items-start leading-tight">
+                    <span>Usage</span>
+                    <span className="text-[10px] text-muted-foreground">Check activity</span>
+                  </span>
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent
@@ -554,39 +605,138 @@ export function DeployWorkspacePanel() {
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Workflow Guide
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-white">
+                        Setup changes access. Assistant explains choices. Usage confirms spend and requests.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setWorkflowGuideCollapsed((current) => !current)}
+                    >
+                      {workflowGuideCollapsed ? (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          Show
+                        </>
+                      ) : (
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          Hide
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {!workflowGuideCollapsed ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Badge className="bg-cyan-500/10 text-cyan-100">Do now</Badge>
+                      <Badge className="bg-emerald-500/10 text-emerald-200">Done</Badge>
+                      <Badge className="bg-amber-500/10 text-amber-100">Provider step</Badge>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-white">Progress</p>
+                    <div>
+                      <p className="text-sm font-medium text-white">Actionable workflow</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Each step opens the exact action you need next.
+                      </p>
+                    </div>
                     <Badge variant="outline" className="border-border/50 bg-card/40">
                       {stepItems.filter((item) => item.done).length}/{stepItems.length} complete
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    {stepItems.map((item) => (
+                    {stepItems.map((item, index) => {
+                      const isCurrent = !item.done && nextStepIndex === index;
+                      const isProviderStep = Boolean(item.external && !item.done);
+                      const toneClass = item.done
+                        ? "border-emerald-500/20 bg-emerald-500/10"
+                        : isProviderStep
+                          ? "border-amber-500/30 bg-amber-500/10"
+                          : isCurrent
+                            ? "border-cyan-500/30 bg-cyan-500/10"
+                            : "border-border/40 bg-card/30";
+                      const badgeClass = item.done
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                        : isProviderStep
+                          ? "border-amber-500/20 bg-amber-500/10 text-amber-100"
+                          : isCurrent
+                            ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-100"
+                            : "border-border/50 bg-card/40 text-muted-foreground";
+
+                      return (
                       <div
                         key={item.label}
-                        className={cn(
-                          "rounded-md border px-3 py-3",
-                          item.done
-                            ? "border-emerald-500/20 bg-emerald-500/10"
-                            : "border-border/40 bg-card/30"
-                        )}
+                        className={cn("rounded-md border px-3 py-3", toneClass)}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-medium text-white">{item.label}</p>
+                          <div>
+                            <p className="text-sm font-medium text-white">{item.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                          </div>
                           <Badge
                             variant="outline"
-                            className={cn(
-                              item.done
-                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                                : "border-border/50 bg-card/40 text-muted-foreground"
-                            )}
+                            className={badgeClass}
                           >
-                          {item.done ? "Done" : "Next"}
+                            {item.done
+                              ? "Done"
+                              : isProviderStep
+                                ? "Provider step"
+                                : isCurrent
+                                  ? "Do now"
+                                  : "Later"}
                           </Badge>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                        {item.href ? (
+                          <div className="mt-3">
+                            {item.external ? (
+                              <Button type="button" asChild variant="outline" size="sm">
+                                <a
+                                  href={item.href}
+                                  target="_blank"
+                                  rel={
+                                    isSponsoredSession
+                                      ? "noopener noreferrer sponsored nofollow"
+                                      : "noopener noreferrer"
+                                  }
+                                >
+                                  <ArrowUpRight className="h-4 w-4" />
+                                  {item.ctaLabel}
+                                </a>
+                              </Button>
+                            ) : (
+                              <Button type="button" asChild variant="outline" size="sm">
+                                <Link href={item.href}>{item.ctaLabel}</Link>
+                              </Button>
+                            )}
+                          </div>
+                        ) : item.onClick && item.ctaLabel ? (
+                          <div className="mt-3">
+                            <Button
+                              type="button"
+                              variant={isCurrent ? "default" : "outline"}
+                              size="sm"
+                              className={cn(
+                                isCurrent && "bg-cyan-500 text-background hover:bg-cyan-400"
+                              )}
+                              onClick={item.onClick}
+                              disabled={deploymentLoading}
+                            >
+                              {deploymentLoading && isCurrent ? "Working..." : item.ctaLabel}
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -650,7 +800,7 @@ export function DeployWorkspacePanel() {
                       <a
                         href={session.nextUrl}
                         target="_blank"
-                        rel={session.sponsored ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
+                        rel={isSponsoredSession ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
                       >
                         <ArrowUpRight className="h-4 w-4" />
                         Continue to Provider

@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   KeyRound,
   MessageSquare,
+  Minimize2,
   Wallet,
 } from "lucide-react";
 import useSWR from "swr";
@@ -146,6 +149,7 @@ export default function WorkspaceContent() {
   const [runtimeLoading, setRuntimeLoading] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [budgetDraft, setBudgetDraft] = useState("");
+  const [workflowGuideCollapsed, setWorkflowGuideCollapsed] = useState(false);
   const [runtimeResponse, setRuntimeResponse] = useState<{
     content: string;
     provider: string;
@@ -339,6 +343,7 @@ export default function WorkspaceContent() {
 
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
+  const isSponsoredSession = session.sponsored === true;
   const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
@@ -358,31 +363,40 @@ export default function WorkspaceContent() {
       detail: session.suggestedPack
         ? `Use ${session.suggestedPack} if this path still needs balance.`
         : "Top up the wallet only if this access path is paid.",
+      ctaLabel: "Open wallet",
+      href: walletHref,
+      external: false,
     },
     {
       label: "Prepare API access",
       done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
       detail: "Create account-side API keys and keep them attached to the same workspace.",
+      ctaLabel: "Open API keys",
+      href: apiHref,
+      external: false,
     },
     {
-      label: "Activate runtime record",
-      done: runtime?.status === "ready",
-      detail: "Prepare one stable in-site runtime record so chat, API keys, and future usage logs attach to the same model session.",
-    },
-    {
-      label: "Continue to runtime",
-      done: events.some((event) => /provider/i.test(`${event.title} ${event.detail}`)),
-      detail: "Open the verified provider/runtime path only after setup is ready.",
+      label: canCreateManagedDeployment ? "Start on this site" : "Use provider path",
+      done: canCreateManagedDeployment ? hasManagedDeployment : false,
+      detail: canCreateManagedDeployment
+        ? hasManagedDeployment
+          ? "Your saved in-site setup is ready. Keep using the site endpoint below for chat and API requests."
+          : "Create one saved site setup so budget, usage, and requests stay attached to this workspace."
+        : provisioning?.summary ??
+          "This model still needs its verified provider/runtime path instead of a direct in-site launch.",
+      ctaLabel: canCreateManagedDeployment
+        ? hasManagedDeployment
+          ? "Refresh site setup"
+          : "Create site setup"
+        : session.nextUrl
+          ? "Open provider"
+          : undefined,
+      href: canCreateManagedDeployment ? undefined : session.nextUrl ?? undefined,
+      external: !canCreateManagedDeployment,
+      onClick: canCreateManagedDeployment ? createDeployment : undefined,
     },
   ];
-  if (!canCreateManagedDeployment) {
-    stepItems[2] = {
-      label: "Managed deployment",
-      done: false,
-      detail: provisioning?.summary ??
-        "AI Market Cap cannot host this model directly yet, so use the verified provider path for actual model access.",
-    };
-  }
+  const nextStepIndex = stepItems.findIndex((item) => !item.done);
 
   const saveNote = () => {
     const trimmed = noteDraft.trim();
@@ -487,8 +501,9 @@ export default function WorkspaceContent() {
     }
   };
 
-  const createDeployment = async () => {
-    if (!session.modelSlug || !session.model) return;
+  async function createDeployment() {
+    const activeSession = session;
+    if (!activeSession || !activeSession.modelSlug || !activeSession.model) return;
     if (!canCreateManagedDeployment) {
       setRuntimeError(
         provisioning?.summary ??
@@ -506,12 +521,12 @@ export default function WorkspaceContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          modelSlug: session.modelSlug,
-          modelName: session.model,
-          providerName: session.provider,
-          conversationId: session.conversationId,
-          creditsBudget: session.suggestedAmount,
-          monthlyPriceEstimate: session.suggestedAmount,
+          modelSlug: activeSession.modelSlug,
+          modelName: activeSession.model,
+          providerName: activeSession.provider,
+          conversationId: activeSession.conversationId,
+          creditsBudget: activeSession.suggestedAmount,
+          monthlyPriceEstimate: activeSession.suggestedAmount,
         }),
       });
 
@@ -523,8 +538,8 @@ export default function WorkspaceContent() {
       workspace.addWorkspaceEvent(
         "Deployment created",
         payload.activation?.message ??
-          (session.model
-            ? `Created a deployment for ${session.model}.`
+          (activeSession.model
+            ? `Created a deployment for ${activeSession.model}.`
             : "Created a deployment.")
       );
 
@@ -541,7 +556,7 @@ export default function WorkspaceContent() {
     } finally {
       setRuntimeLoading(false);
     }
-  };
+  }
 
   const updateDeployment = async (input: {
     action: "pause" | "resume" | "set_budget";
@@ -677,7 +692,8 @@ export default function WorkspaceContent() {
             <Link href="/deployments">Deployments</Link>
           </Button>
           <Button variant="outline" onClick={workspace.minimizeWorkspace}>
-            Minimize Panel
+            <Minimize2 className="h-4 w-4" />
+            Hide Floating Console
           </Button>
           <Button
             variant="outline"
@@ -734,46 +750,173 @@ export default function WorkspaceContent() {
       </div>
 
       <Tabs defaultValue="runtime" className="mt-8">
-        <TabsList variant="line" className="w-full">
-          <TabsTrigger value="runtime">Runtime</TabsTrigger>
-          <TabsTrigger value="assistant">Assistant</TabsTrigger>
-          <TabsTrigger value="usage">Usage</TabsTrigger>
+        <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
+          <TabsTrigger
+            value="runtime"
+            className="rounded-lg data-[state=active]:border-cyan-500/30 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-100"
+          >
+            <span className="flex flex-col items-start leading-tight">
+              <span>Setup</span>
+              <span className="text-[10px] text-muted-foreground">Fund, connect, launch</span>
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="assistant"
+            className="rounded-lg data-[state=active]:border-neon/30 data-[state=active]:bg-neon/10 data-[state=active]:text-neon"
+          >
+            <span className="flex flex-col items-start leading-tight">
+              <span>Assistant</span>
+              <span className="text-[10px] text-muted-foreground">Ask what to do next</span>
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="usage"
+            className="rounded-lg data-[state=active]:border-emerald-500/30 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-200"
+          >
+            <span className="flex flex-col items-start leading-tight">
+              <span>Usage</span>
+              <span className="text-[10px] text-muted-foreground">Spend, tokens, requests</span>
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="runtime" className="mt-6 space-y-6">
+          <Card className="border-border/50 bg-card/60">
+            <CardContent className="p-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Workflow Guide
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-white">
+                    Setup is where you take action. Assistant is where you ask questions. Usage is where you confirm spend and activity.
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                    Green means already done. Blue means do this now. Amber means the next step happens on an external provider path.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setWorkflowGuideCollapsed((current) => !current)}
+                >
+                  {workflowGuideCollapsed ? (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Show workflow guide
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Hide workflow guide
+                    </>
+                  )}
+                </Button>
+              </div>
+              {!workflowGuideCollapsed ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge className="bg-cyan-500/10 text-cyan-100">Do now</Badge>
+                  <Badge className="bg-emerald-500/10 text-emerald-200">Done</Badge>
+                  <Badge className="bg-amber-500/10 text-amber-100">Provider step</Badge>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <Card className="border-border/50 bg-card/60">
               <CardContent className="p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-white">Setup progress</h2>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Actionable workflow</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Each step opens the exact action you need next.
+                    </p>
+                  </div>
                   <Badge variant="outline" className="border-border/50 bg-card/40">
                     {stepItems.filter((item) => item.done).length}/{stepItems.length} complete
                   </Badge>
                 </div>
                 <div className="space-y-3">
-                  {stepItems.map((item) => (
-                    <div
-                      key={item.label}
-                      className={cn(
-                        "rounded-lg border px-4 py-3",
-                        item.done
-                          ? "border-emerald-500/20 bg-emerald-500/10"
-                          : "border-border/40 bg-card/30"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-white">{item.label}</p>
-                        {item.done ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                        ) : (
-                          <Badge variant="outline" className="border-border/50 bg-card/40">
-                            Next
-                          </Badge>
-                        )}
+                  {stepItems.map((item, index) => {
+                    const isCurrent = !item.done && nextStepIndex === index;
+                    const isProviderStep = Boolean(item.external && !item.done);
+                    const toneClass = item.done
+                      ? "border-emerald-500/20 bg-emerald-500/10"
+                      : isProviderStep
+                        ? "border-amber-500/30 bg-amber-500/10"
+                        : isCurrent
+                          ? "border-cyan-500/30 bg-cyan-500/10"
+                          : "border-border/40 bg-card/30";
+                    const badgeClass = item.done
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : isProviderStep
+                        ? "border-amber-500/20 bg-amber-500/10 text-amber-100"
+                        : isCurrent
+                          ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-100"
+                          : "border-border/50 bg-card/40 text-muted-foreground";
+
+                    return (
+                      <div key={item.label} className={cn("rounded-xl border px-4 py-4", toneClass)}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-white">{item.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {item.done ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : null}
+                            <Badge variant="outline" className={badgeClass}>
+                              {item.done
+                                ? "Done"
+                                : isProviderStep
+                                  ? "Provider step"
+                                  : isCurrent
+                                    ? "Do now"
+                                    : "Later"}
+                            </Badge>
+                          </div>
+                        </div>
+                        {item.href ? (
+                          <div className="mt-3">
+                            {item.external ? (
+                              <Button type="button" asChild variant="outline">
+                                <a
+                                  href={item.href}
+                                  target="_blank"
+                                  rel={
+                                    isSponsoredSession
+                                      ? "noopener noreferrer sponsored nofollow"
+                                      : "noopener noreferrer"
+                                  }
+                                >
+                                  <ArrowUpRight className="h-4 w-4" />
+                                  {item.ctaLabel}
+                                </a>
+                              </Button>
+                            ) : (
+                              <Button type="button" asChild variant="outline">
+                                <Link href={item.href}>{item.ctaLabel}</Link>
+                              </Button>
+                            )}
+                          </div>
+                        ) : item.onClick && item.ctaLabel ? (
+                          <div className="mt-3">
+                            <Button
+                              type="button"
+                              variant={isCurrent ? "default" : "outline"}
+                              className={cn(
+                                isCurrent && "bg-cyan-500 text-background hover:bg-cyan-400"
+                              )}
+                              onClick={item.onClick}
+                              disabled={runtimeLoading}
+                            >
+                              {runtimeLoading && isCurrent ? "Working..." : item.ctaLabel}
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -1076,7 +1219,7 @@ export default function WorkspaceContent() {
                       <a
                         href={session.nextUrl}
                         target="_blank"
-                        rel={session.sponsored ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
+                        rel={isSponsoredSession ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
                       >
                         <ArrowUpRight className="h-4 w-4" />
                         Continue to Provider
