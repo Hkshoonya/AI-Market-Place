@@ -280,8 +280,9 @@ export function DeployTab({
         <p className="text-sm text-muted-foreground">
           On this page, deployment means the real way you can start using this model. That might
           mean a hosted service, a provider plan, your own computer, or a cloud server you rent
-          and manage yourself. Start with the verified rows first because they are the clearest
-          model-specific options.
+          and manage yourself. When a model has open weights, we also estimate the usual hardware
+          needed so you can tell whether it belongs on your computer or on a rented GPU server.
+          Start with the verified rows first because they are the clearest model-specific options.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-md border border-border/40 bg-card/30 p-3">
@@ -626,18 +627,28 @@ export function DeployTab({
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-md border border-border/40 bg-card/30 p-3">
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Best fit</p>
-              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.setup}</p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {selfHostRequirements.bestFitLabel}
+              </p>
             </div>
             <div className="rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Hardware guide</p>
-              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.hardware}</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Typical GPU memory
+              </p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {selfHostRequirements.gpuMemoryLabel}
+              </p>
             </div>
             <div className="rounded-md border border-border/40 bg-card/30 p-3">
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Model size</p>
-              <p className="mt-1 text-sm font-medium text-white">{selfHostRequirements.sizeLabel ?? "Check model card"}</p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {selfHostRequirements.sizeLabel ?? "Check model card"}
+              </p>
             </div>
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">{selfHostRequirements.setup}</p>
           <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+            <li>• {selfHostRequirements.hardware}</li>
             {selfHostRequirements.notes.map((note) => (
               <li key={note}>• {note}</li>
             ))}

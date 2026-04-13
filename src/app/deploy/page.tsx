@@ -451,7 +451,7 @@ export default async function DeployPage({
                             name: model.name,
                             slug: model.slug,
                             modalities: model.modalities,
-                          })?.shortLabel ?? null
+                          })
                         : null;
 
                     return (
@@ -476,7 +476,10 @@ export default async function DeployPage({
                           <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
                         ) : null}
                         {selfHost ? (
-                          <p className="mt-2 text-xs text-amber-200">{selfHost}</p>
+                          <div className="mt-2 space-y-1 text-xs text-amber-200">
+                            <p>Best fit: {selfHost.bestFitLabel}</p>
+                            <p>Typical GPU memory: {selfHost.gpuMemoryLabel}</p>
+                          </div>
                         ) : null}
                         <div className="mt-4 flex flex-wrap gap-2">
                           <WorkspaceStartButton
@@ -536,7 +539,7 @@ export default async function DeployPage({
                     name: model.name,
                     slug: model.slug,
                     modalities: model.modalities,
-                  })?.shortLabel ?? null
+                  })
                 : null;
 
               return (
@@ -559,7 +562,10 @@ export default async function DeployPage({
                       <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
                     ) : null}
                     {selfHost ? (
-                      <p className="mt-2 text-xs text-amber-200">{selfHost}</p>
+                      <div className="mt-2 space-y-1 text-xs text-amber-200">
+                        <p>Best fit: {selfHost.bestFitLabel}</p>
+                        <p>Typical GPU memory: {selfHost.gpuMemoryLabel}</p>
+                      </div>
                     ) : null}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <WorkspaceStartButton

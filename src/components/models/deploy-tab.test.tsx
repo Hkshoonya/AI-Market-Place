@@ -189,11 +189,13 @@ describe("DeployTab", () => {
     );
 
     expect(screen.getByText(/What you need to run it yourself/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/^48GB\+ GPU memory$/i)).toBeInTheDocument();
     expect(screen.getByText(/A strong GPU or rented cloud server is usually needed/i)).toBeInTheDocument();
-    expect(screen.getByText(/roughly 48GB\+ GPU memory/i)).toBeInTheDocument();
+    expect(screen.getByText(/roughly 48GB\+ GPU memory for a smooth setup/i)).toBeInTheDocument();
     expect(screen.getByText(/31B parameters/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/On your computer/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/On your computer/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows AI Market Cap hosted deploy when provisioning is available", () => {

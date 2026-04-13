@@ -14,6 +14,8 @@ export interface SelfHostRequirementsSummary {
   sizeLabel: string | null;
   notes: string[];
   shortLabel: string;
+  bestFitLabel: string;
+  gpuMemoryLabel: string;
   tier: "personal" | "desktop_gpu" | "cloud_gpu" | "high_memory_cloud";
 }
 
@@ -70,6 +72,8 @@ export function getSelfHostRequirements(
   let hardware =
     "Start with the simplest local runtime above and move to cloud hardware only if it feels slow.";
   let shortLabel = "Can likely run on your own machine";
+  let bestFitLabel = "On your own computer";
+  let gpuMemoryLabel = "CPU or a small consumer GPU";
   let tier: SelfHostRequirementsSummary["tier"] = "personal";
 
   if (isVideo) {
@@ -77,27 +81,37 @@ export function getSelfHostRequirements(
     hardware =
       "Video models usually need high-memory cloud GPUs and are rarely comfortable on a normal laptop.";
     shortLabel = "Likely needs a high-memory cloud GPU";
+    bestFitLabel = "High-memory cloud GPU";
+    gpuMemoryLabel = "80GB+ GPU memory";
     tier = "high_memory_cloud";
   } else if (parameterBillions != null && parameterBillions >= 60) {
     setup = "A rented cloud GPU server is strongly recommended.";
     hardware =
       "Plan for roughly 80GB+ GPU memory, and some variants may need more than one GPU.";
     shortLabel = "Likely needs a high-memory cloud GPU";
+    bestFitLabel = "High-memory cloud GPU";
+    gpuMemoryLabel = "80GB+ GPU memory";
     tier = "high_memory_cloud";
   } else if (parameterBillions != null && parameterBillions >= 20) {
     setup = "A strong GPU or rented cloud server is usually needed.";
     hardware = "Plan for roughly 48GB+ GPU memory for a smooth setup.";
     shortLabel = "Likely needs a rented cloud GPU";
+    bestFitLabel = "Cloud server you control";
+    gpuMemoryLabel = "48GB+ GPU memory";
     tier = "cloud_gpu";
   } else if (parameterBillions != null && parameterBillions >= 8) {
     setup = "A good desktop GPU or small cloud GPU is usually enough.";
     hardware = "Plan for roughly 16GB to 24GB of GPU memory.";
     shortLabel = "Desktop GPU should be enough";
+    bestFitLabel = "Desktop GPU or small cloud GPU";
+    gpuMemoryLabel = "16GB to 24GB GPU memory";
     tier = "desktop_gpu";
   } else if (parameterBillions != null && parameterBillions >= 3) {
     setup = "A consumer GPU is usually enough.";
     hardware = "Plan for roughly 8GB to 16GB of GPU memory.";
     shortLabel = "Consumer GPU should be enough";
+    bestFitLabel = "On your own computer";
+    gpuMemoryLabel = "8GB to 16GB GPU memory";
     tier = "desktop_gpu";
   }
 
@@ -118,6 +132,8 @@ export function getSelfHostRequirements(
     sizeLabel: formatParameterCountCompact(parameterCount),
     notes,
     shortLabel,
+    bestFitLabel,
+    gpuMemoryLabel,
     tier,
   };
 }
