@@ -16,6 +16,10 @@ const TRUSTED_STRUCTURED_BENCHMARK_SOURCES = new Set<string>([
   "webarena",
 ]);
 
+type BenchmarkScoreSourceRow = {
+  source?: string | null;
+};
+
 function getBenchmarkScoreSource(row: unknown) {
   if (!row || typeof row !== "object" || !("source" in row)) {
     return null;
@@ -41,12 +45,20 @@ export function countTrustedStructuredBenchmarkScores(rows: unknown) {
   return count;
 }
 
-export function filterTrustedStructuredBenchmarkScores<T>(rows: T[] | null | undefined): T[] {
+export function filterTrustedStructuredBenchmarkScores<T extends BenchmarkScoreSourceRow>(
+  rows: T[] | null | undefined
+): T[];
+export function filterTrustedStructuredBenchmarkScores(
+  rows: unknown
+): BenchmarkScoreSourceRow[];
+export function filterTrustedStructuredBenchmarkScores<T extends BenchmarkScoreSourceRow>(
+  rows: T[] | null | undefined | unknown
+): T[] {
   if (!Array.isArray(rows)) return [];
 
   return rows.filter((row) =>
     isTrustedStructuredBenchmarkSource(getBenchmarkScoreSource(row))
-  );
+  ) as T[];
 }
 
 export function getTrustedStructuredBenchmarkModelIds(rows: unknown) {

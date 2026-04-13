@@ -9,7 +9,10 @@ import {
   countProviderReportedBenchmarkEvidence,
   getBenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
-import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
+import {
+  countTrustedStructuredBenchmarkScores,
+  filterTrustedStructuredBenchmarkScores,
+} from "@/lib/models/benchmark-score-trust";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const dynamic = "force-dynamic";
@@ -95,19 +98,33 @@ export async function GET(
       modelNews.filter((item) => getNewsSignalType(item) === "benchmark"),
       6
     );
+    const trustedBenchmarkScores = filterTrustedStructuredBenchmarkScores(
+      Array.isArray(data.benchmark_scores)
+        ? (data.benchmark_scores as Array<{
+            benchmark_id?: number | null;
+            score?: number | null;
+            score_normalized?: number | null;
+            source?: string | null;
+            benchmarks?: {
+              slug?: string | null;
+              name?: string | null;
+              category?: string | null;
+            } | null;
+          }>)
+        : []
+    );
     const benchmark_tracking = getBenchmarkTrackingSummary({
       slug: data.slug,
       provider: data.provider,
       category: data.category,
-      trustedBenchmarkScoreCount: countTrustedStructuredBenchmarkScores(
-        data.benchmark_scores
-      ),
+      trustedBenchmarkScoreCount: countTrustedStructuredBenchmarkScores(data.benchmark_scores),
       benchmarkEvidenceCount: countProviderReportedBenchmarkEvidence(benchmark_news),
       arenaSignalCount: eloRatings.length,
     });
 
     return NextResponse.json({
       ...data,
+      benchmark_scores: trustedBenchmarkScores,
       elo_ratings: collapseArenaRatings(eloRatings),
       benchmark_news,
       benchmark_tracking,

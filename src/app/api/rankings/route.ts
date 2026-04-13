@@ -10,6 +10,7 @@ import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
+import { filterTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
         usage_score, usage_rank, expert_score, expert_rank, balanced_rank,
         popularity_score, popularity_rank, market_cap_estimate, agent_score, agent_rank,
         value_score,
-        benchmark_scores(score_normalized, benchmarks(slug, name)),
+        benchmark_scores(score_normalized, source, benchmarks(slug, name)),
         model_pricing(input_price_per_million, output_price_per_million, provider_name, median_output_tokens_per_second, source, currency, effective_date, updated_at),
         elo_ratings(elo_score, arena_name)
       `)
@@ -129,6 +130,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       data: uniqueModels.map((model) => ({
         ...model,
+        benchmark_scores: filterTrustedStructuredBenchmarkScores(
+          Array.isArray(model.benchmark_scores)
+            ? (model.benchmark_scores as Array<{
+                score_normalized?: number | null;
+                source?: string | null;
+                benchmarks?: {
+                  slug?: string | null;
+                  name?: string | null;
+                } | null;
+              }>)
+            : []
+        ),
         elo_ratings: collapseArenaRatings(Array.isArray(model.elo_ratings) ? model.elo_ratings : []),
         benchmark_tracking: benchmarkTracking.get(String(model.id)) ?? null,
       })),

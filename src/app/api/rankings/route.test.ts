@@ -83,7 +83,18 @@ describe("GET /api/rankings", () => {
                   agent_rank: 1,
                   value_score: 72,
                   status: "active",
-                  benchmark_scores: [],
+                  benchmark_scores: [
+                    {
+                      score_normalized: 88,
+                      source: "provider-blog",
+                      benchmarks: { slug: "mmlu", name: "MMLU" },
+                    },
+                    {
+                      score_normalized: 93,
+                      source: "livebench",
+                      benchmarks: { slug: "mmlu", name: "MMLU" },
+                    },
+                  ],
                   model_pricing: [],
                   elo_ratings: [
                     {
@@ -172,6 +183,13 @@ describe("GET /api/rankings", () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0].slug).toBe("openai-o3");
     expect(body.data[0]).toHaveProperty("benchmark_tracking");
+    expect(body.data[0].benchmark_scores).toEqual([
+      expect.objectContaining({
+        score_normalized: 93,
+        source: "livebench",
+        benchmarks: expect.objectContaining({ slug: "mmlu" }),
+      }),
+    ]);
     expect(body.data[0].elo_ratings).toEqual([
       expect.objectContaining({
         displayName: "Chatbot Arena",
