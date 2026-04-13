@@ -30,6 +30,7 @@ import {
   buildBenchmarkTrackingSummaryMap,
 } from "@/lib/models/benchmark-tracking-bulk";
 import type { BenchmarkTrackingSummary } from "@/lib/models/benchmark-status";
+import { summarizeBenchmarkTrackingCoverage } from "@/lib/models/benchmark-status";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
@@ -198,6 +199,7 @@ export default async function SearchPage({
     benchmark_tracking_summary?: BenchmarkTrackingSummary | null;
   }> = [];
   let modelCount = 0;
+  let modelBenchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage([]);
   let modelAccessCatalog = buildAccessOffersCatalog({
     platforms: [],
     deployments: [],
@@ -377,6 +379,9 @@ export default async function SearchPage({
           category: model.category,
         }))
       );
+      modelBenchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage(
+        pagedModels.map((model) => benchmarkTrackingByModelId.get(model.id) ?? null)
+      );
 
       models = pagedModels.map((model) => ({
         ...model,
@@ -479,6 +484,34 @@ export default async function SearchPage({
           {activeTab === "models" && (
             <div className="mb-6 rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
               Search results include both fully benchmarked models and tracked models that are still supported mainly by provider evidence, arena signal, or other public signals. Use the benchmark badge on each row before treating two models as directly comparable.
+            </div>
+          )}
+          {activeTab === "models" && modelCount > 0 && (
+            <div className="mb-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
+                <p className="text-lg font-semibold text-foreground">
+                  {modelBenchmarkCoverageSummary.comparable}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Structured benchmark-backed results
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
+                <p className="text-lg font-semibold text-foreground">
+                  {modelBenchmarkCoverageSummary.signalBacked}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Signal-backed results without full normalized tables
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
+                <p className="text-lg font-semibold text-foreground">
+                  {modelBenchmarkCoverageSummary.pending}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Benchmark-expected results still catching up
+                </p>
+              </div>
             </div>
           )}
 

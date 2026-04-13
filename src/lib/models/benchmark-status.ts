@@ -16,6 +16,17 @@ export interface BenchmarkTrackingSummary {
   showTrustAsterisk: boolean;
 }
 
+export interface BenchmarkTrackingCoverageSummary {
+  total: number;
+  structured: number;
+  providerReported: number;
+  arenaOnly: number;
+  pending: number;
+  notStandardized: number;
+  comparable: number;
+  signalBacked: number;
+}
+
 interface BenchmarkStatusInput {
   slug: string;
   provider: string;
@@ -92,4 +103,47 @@ export function countProviderReportedBenchmarkEvidence(
   recentBenchmarkEvidence: LaunchRadarItem[]
 ) {
   return recentBenchmarkEvidence.length;
+}
+
+export function summarizeBenchmarkTrackingCoverage(
+  summaries: Array<BenchmarkTrackingSummary | null | undefined>
+): BenchmarkTrackingCoverageSummary {
+  const totals: BenchmarkTrackingCoverageSummary = {
+    total: 0,
+    structured: 0,
+    providerReported: 0,
+    arenaOnly: 0,
+    pending: 0,
+    notStandardized: 0,
+    comparable: 0,
+    signalBacked: 0,
+  };
+
+  for (const summary of summaries) {
+    if (!summary) continue;
+    totals.total += 1;
+
+    switch (summary.status) {
+      case "structured":
+        totals.structured += 1;
+        totals.comparable += 1;
+        break;
+      case "provider_reported":
+        totals.providerReported += 1;
+        totals.signalBacked += 1;
+        break;
+      case "arena_only":
+        totals.arenaOnly += 1;
+        totals.signalBacked += 1;
+        break;
+      case "pending":
+        totals.pending += 1;
+        break;
+      case "not_standardized":
+        totals.notStandardized += 1;
+        break;
+    }
+  }
+
+  return totals;
 }

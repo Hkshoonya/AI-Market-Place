@@ -197,7 +197,7 @@ describe("LeaderboardsPage", () => {
 
       if (table === "benchmark_scores") {
         return {
-          select: vi.fn(() => createQuery([])),
+          select: vi.fn(() => createQuery([{ model_id: "model-1" }])),
         };
       }
 
@@ -264,6 +264,8 @@ describe("LeaderboardsPage", () => {
       "data-detail",
       "pipeline sync"
     );
+    expect(screen.getByText(/Structured benchmark-backed rows/i)).toBeInTheDocument();
+    expect(screen.getByText(/Signal-backed rows without full normalized tables/i)).toBeInTheDocument();
     expect(
       screen.getByText(/keep Active Only on for the cleanest public view/i)
     ).toBeInTheDocument();

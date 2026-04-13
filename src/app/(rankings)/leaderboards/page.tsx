@@ -40,6 +40,7 @@ import {
 import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
+import { summarizeBenchmarkTrackingCoverage } from "@/lib/models/benchmark-status";
 import {
   getPublicLensLabel,
   getPublicLensSort,
@@ -415,6 +416,9 @@ export default async function LeaderboardsPage({
       category: model.category,
     }))
   );
+  const leaderboardCoverageSummary = summarizeBenchmarkTrackingCoverage(
+    rankedModels.map((model) => benchmarkTrackingByModelId.get(model.id) ?? null)
+  );
 
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
     const scores = model.benchmark_scores;
@@ -515,6 +519,26 @@ export default async function LeaderboardsPage({
             <p className="max-w-2xl text-xs text-muted-foreground">
               Start with a lens above, keep Active Only on for the cleanest public view, and open deeper tables only when you want the supporting details.
             </p>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+              <p className="text-lg font-semibold text-foreground">
+                {leaderboardCoverageSummary.comparable}
+              </p>
+              <p className="text-xs text-muted-foreground">Structured benchmark-backed rows</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+              <p className="text-lg font-semibold text-foreground">
+                {leaderboardCoverageSummary.signalBacked}
+              </p>
+              <p className="text-xs text-muted-foreground">Signal-backed rows without full normalized tables</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+              <p className="text-lg font-semibold text-foreground">
+                {leaderboardCoverageSummary.pending}
+              </p>
+              <p className="text-xs text-muted-foreground">Benchmark-expected rows still catching up</p>
+            </div>
           </div>
           <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
             Benchmark badges show how directly comparable a row is. Structured means normalized benchmark rows, Provider-reported means official benchmark claims without a normalized table yet, Arena only means competitive signal without broad benchmark coverage, and Pending means the model is tracked but benchmark ingestion is still catching up.

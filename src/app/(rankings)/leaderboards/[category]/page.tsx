@@ -29,6 +29,7 @@ import { getLifecycleBadge, getLifecycleStatuses, parseLifecycleFilter } from "@
 import { getPublicLensLabel, parsePublicRankingLens, type PublicRankingLens } from "@/lib/models/public-lenses";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
+import { summarizeBenchmarkTrackingCoverage } from "@/lib/models/benchmark-status";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
@@ -248,6 +249,9 @@ export default async function CategoryLeaderboardPage({
       category: model.category,
     }))
   );
+  const benchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage(
+    sortedModels.map((model) => benchmarkTrackingByModelId.get(model.id) ?? null)
+  );
 
   const deploymentLabelsByModelId = new Map(
     sortedModels.map((model) => [
@@ -419,6 +423,26 @@ export default async function CategoryLeaderboardPage({
       </div>
 
       <div className="mt-6 rounded-2xl border border-border/50 bg-card/50 p-4 text-xs text-muted-foreground">
+        <div className="mb-3 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+            <p className="text-lg font-semibold text-foreground">
+              {benchmarkCoverageSummary.comparable}
+            </p>
+            <p className="text-xs text-muted-foreground">Structured benchmark-backed rows</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+            <p className="text-lg font-semibold text-foreground">
+              {benchmarkCoverageSummary.signalBacked}
+            </p>
+            <p className="text-xs text-muted-foreground">Signal-backed rows without full normalized tables</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card/40 p-3">
+            <p className="text-lg font-semibold text-foreground">
+              {benchmarkCoverageSummary.pending}
+            </p>
+            <p className="text-xs text-muted-foreground">Benchmark-expected rows still catching up</p>
+          </div>
+        </div>
         This leaderboard still shows tracked models beyond the ones with full benchmark rows. Use the benchmark badge on each row to tell whether the model is Structured, Provider-reported, Arena only, or still Pending benchmark coverage.
       </div>
 
