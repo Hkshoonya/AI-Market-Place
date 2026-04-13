@@ -41,6 +41,7 @@ import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-trackin
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import { summarizeBenchmarkTrackingCoverage } from "@/lib/models/benchmark-status";
+import { filterTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 import {
   getPublicLensLabel,
   getPublicLensSort,
@@ -421,7 +422,7 @@ export default async function LeaderboardsPage({
   );
 
   function getBenchmarkScore(model: RankedModel, benchmarkSlug: string): number | null {
-    const scores = model.benchmark_scores;
+    const scores = filterTrustedStructuredBenchmarkScores(model.benchmark_scores);
     const found = scores?.find((bs) => bs.benchmarks?.slug === benchmarkSlug);
     return found ? Number(found.score_normalized) : null;
   }

@@ -24,7 +24,7 @@ import { OverviewTable } from "./_components/overview-table";
 import { BenchmarksTable } from "./_components/benchmarks-table";
 import { PricingTable } from "./_components/pricing-table";
 import { VisualComparison } from "./_components/visual-comparison";
-import type { BenchmarkScoreWithBenchmarks } from "./_components/compare-helpers";
+import { getTrustedBenchmarkScores } from "./_components/compare-helpers";
 import type { CompareAccessOffer } from "./_components/compare-helpers";
 
 interface CompareClientProps {
@@ -222,9 +222,7 @@ export function CompareClient({
   const allBenchmarks: { name: string; slug: string; category: string }[] = [];
   const seenBenchmarks = new Set<string>();
   for (const m of models) {
-    for (const bs of (m.benchmark_scores as
-      | BenchmarkScoreWithBenchmarks[]
-      | undefined) ?? []) {
+    for (const bs of getTrustedBenchmarkScores(m)) {
       const bm = bs.benchmarks;
       if (bm && !seenBenchmarks.has(bm.slug)) {
         seenBenchmarks.add(bm.slug);

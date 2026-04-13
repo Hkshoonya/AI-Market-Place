@@ -79,9 +79,10 @@ describe("market value helpers", () => {
     expect(
       countMarketValueEvidence({
         benchmarkScores: [
-          { benchmark_id: 1, benchmarks: { slug: "mmlu" } },
-          { benchmark_id: 2, benchmarks: { slug: "humaneval" } },
-          { benchmark_id: 2, benchmarks: { slug: "humaneval" } },
+          { benchmark_id: 1, source: "livebench", benchmarks: { slug: "mmlu" } },
+          { benchmark_id: 2, source: "provider-blog", benchmarks: { slug: "humaneval" } },
+          { benchmark_id: 2, source: "swe-bench", benchmarks: { slug: "humaneval" } },
+          { benchmark_id: 3, source: null, benchmarks: { slug: "math" } },
         ],
         eloRatings: [{ arena_name: "chatbot-arena" }, { arena_name: "vision-arena" }],
         pricingEntries: [

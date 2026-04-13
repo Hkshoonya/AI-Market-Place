@@ -1,6 +1,7 @@
 import type { ModelWithDetails, BenchmarkScore, ModelPricing, Benchmark } from "@/types/database";
 import type { ModelSignalSummary } from "@/lib/news/model-signals";
 import { getDeployabilityLabel } from "@/lib/models/deployability";
+import { filterTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 /** Supabase joins benchmark_scores with benchmarks table using plural name */
 export type BenchmarkScoreWithBenchmarks = BenchmarkScore & {
@@ -22,11 +23,19 @@ export function getBenchmarkScore(
   model: ModelWithDetails,
   benchSlug: string
 ): number | null {
-  const scores = model.benchmark_scores ?? [];
-  const match = (scores as BenchmarkScoreWithBenchmarks[]).find(
+  const scores = filterTrustedStructuredBenchmarkScores(
+    (model.benchmark_scores as BenchmarkScoreWithBenchmarks[] | undefined) ?? []
+  );
+  const match = scores.find(
     (s) => s.benchmarks?.slug === benchSlug
   );
   return match ? Number(match.score) : null;
+}
+
+export function getTrustedBenchmarkScores(model: ModelWithDetails): BenchmarkScoreWithBenchmarks[] {
+  return filterTrustedStructuredBenchmarkScores(
+    (model.benchmark_scores as BenchmarkScoreWithBenchmarks[] | undefined) ?? []
+  );
 }
 
 export function getCheapestPrice(model: ModelWithDetails): number | null {

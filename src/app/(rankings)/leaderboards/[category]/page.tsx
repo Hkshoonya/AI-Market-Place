@@ -33,6 +33,7 @@ import { summarizeBenchmarkTrackingCoverage } from "@/lib/models/benchmark-statu
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
+import { filterTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 3600;
@@ -143,7 +144,9 @@ export default async function CategoryLeaderboardPage({
 
   const benchmarkMap = new Map<string, { name: string; slug: string }>();
   for (const model of sortedModels) {
-    for (const benchmarkScore of model.benchmark_scores ?? []) {
+    for (const benchmarkScore of filterTrustedStructuredBenchmarkScores(
+      model.benchmark_scores ?? []
+    )) {
       const benchmark = benchmarkScore.benchmarks;
       if (benchmark && !benchmarkMap.has(benchmark.slug)) {
         benchmarkMap.set(benchmark.slug, {
@@ -275,7 +278,7 @@ export default async function CategoryLeaderboardPage({
     model: CategoryModel,
     benchmarkSlug: string
   ): number | null {
-    const scores = model.benchmark_scores ?? [];
+    const scores = filterTrustedStructuredBenchmarkScores(model.benchmark_scores ?? []);
     const match = scores.find((score) => score.benchmarks?.slug === benchmarkSlug);
     return match ? Number(match.score_normalized) : null;
   }

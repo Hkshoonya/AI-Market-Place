@@ -1,4 +1,5 @@
 import { canonicalizeArenaFamily } from "@/lib/models/arena-family";
+import { filterTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -62,12 +63,16 @@ export function formatMarketValue(value: number | null): string {
 }
 
 export function countMarketValueEvidence(input: {
-  benchmarkScores?: Array<{ benchmark_id?: number | null; benchmarks?: { slug?: string | null } | null }> | null;
+  benchmarkScores?: Array<{
+    benchmark_id?: number | null;
+    source?: string | null;
+    benchmarks?: { slug?: string | null } | null;
+  }> | null;
   eloRatings?: Array<{ arena_name?: string | null }> | null;
   pricingEntries?: Array<{ provider_name?: string | null; input_price_per_million?: number | null }> | null;
 }): Pick<MarketValueInputs, "benchmarkCount" | "arenaFamilyCount" | "pricingSourceCount"> {
   const benchmarkCount = new Set(
-    (input.benchmarkScores ?? [])
+    filterTrustedStructuredBenchmarkScores(input.benchmarkScores ?? [])
       .map((score) => score.benchmarks?.slug ?? score.benchmark_id?.toString() ?? null)
       .filter((value): value is string => Boolean(value))
   ).size;

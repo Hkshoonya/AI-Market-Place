@@ -24,6 +24,7 @@ export const RankedModelSchema = z.object({
   is_open_weights: z.boolean().nullable(),
   benchmark_scores: z.array(z.object({
     score_normalized: z.coerce.number(),
+    source: z.string().nullable().optional(),
     benchmark_id: z.coerce.number().nullable().optional(),
     benchmarks: z.object({
       slug: z.string(),
@@ -110,6 +111,7 @@ export const CategoryModelSchema = z.object({
   parameter_count: z.coerce.number().nullable(),
   benchmark_scores: z.array(z.object({
     score_normalized: z.coerce.number().nullable(),
+    source: z.string().nullable().optional(),
     benchmarks: z.object({
       slug: z.string(),
       name: z.string(),

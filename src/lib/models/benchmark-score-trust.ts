@@ -41,6 +41,14 @@ export function countTrustedStructuredBenchmarkScores(rows: unknown) {
   return count;
 }
 
+export function filterTrustedStructuredBenchmarkScores<T>(rows: T[] | null | undefined): T[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.filter((row) =>
+    isTrustedStructuredBenchmarkSource(getBenchmarkScoreSource(row))
+  );
+}
+
 export function getTrustedStructuredBenchmarkModelIds(rows: unknown) {
   const modelIds = new Set<string>();
   if (!Array.isArray(rows)) return modelIds;

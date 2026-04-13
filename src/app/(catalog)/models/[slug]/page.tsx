@@ -50,7 +50,10 @@ import {
   countProviderReportedBenchmarkEvidence,
   getBenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
-import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
+import {
+  countTrustedStructuredBenchmarkScores,
+  filterTrustedStructuredBenchmarkScores,
+} from "@/lib/models/benchmark-score-trust";
 
 export const revalidate = 300;
 
@@ -166,7 +169,7 @@ export default async function ModelDetailPage({
   const displayDescription = getModelDisplayDescription(model);
   const lifecycleBadge = getLifecycleBadge(model.status);
   const parameterDisplay = getParameterDisplay(model);
-  const benchmarkScores = model.benchmark_scores ?? [];
+  const benchmarkScores = filterTrustedStructuredBenchmarkScores(model.benchmark_scores ?? []);
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
   const pricingData = (model.model_pricing ?? []) as PricingEntry[];
   const deploymentPlatforms = (platformsResponse.data ?? []).map((platform) => {

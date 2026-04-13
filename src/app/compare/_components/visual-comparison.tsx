@@ -6,7 +6,7 @@ import { PriceComparison } from "@/components/charts/price-comparison";
 import { SpeedCostScatter } from "@/components/charts/speed-cost-scatter";
 import { getProviderBrand } from "@/lib/constants/providers";
 import type { ModelWithDetails, ModelPricing } from "@/types/database";
-import type { BenchmarkScoreWithBenchmarks } from "./compare-helpers";
+import { getTrustedBenchmarkScores } from "./compare-helpers";
 
 interface VisualComparisonProps {
   models: ModelWithDetails[];
@@ -16,7 +16,7 @@ const CHART_COLORS = ["#00d4aa", "#f59e0b", "#ec4899", "#6366f1", "#ef4444"];
 
 export function VisualComparison({ models }: VisualComparisonProps) {
   const hasBenchmarks = models.some(
-    (m) => (m.benchmark_scores ?? []).length > 0
+    (m) => getTrustedBenchmarkScores(m).length > 0
   );
   const hasPricing = models.some(
     (m) => (m.model_pricing ?? []).length > 0
@@ -41,13 +41,11 @@ export function VisualComparison({ models }: VisualComparisonProps) {
             <CardContent className="pt-4">
               <BenchmarkRadarOverlay
                 models={models
-                  .filter((m) => (m.benchmark_scores ?? []).length > 0)
+                  .filter((m) => getTrustedBenchmarkScores(m).length > 0)
                   .map((m, i) => ({
                     modelName: m.name,
                     color: CHART_COLORS[i % CHART_COLORS.length],
-                    scores: (
-                      (m.benchmark_scores ?? []) as BenchmarkScoreWithBenchmarks[]
-                    ).map((bs) => ({
+                    scores: getTrustedBenchmarkScores(m).map((bs) => ({
                       benchmark: bs.benchmarks?.name ?? "Unknown",
                       score: Number(bs.score),
                       maxScore: Number(bs.benchmarks?.max_score) || 100,

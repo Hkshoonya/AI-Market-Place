@@ -1,67 +1,46 @@
 import { describe, expect, it } from "vitest";
 
-import { getCompareAccessLabel, getCompareDeploymentLabel } from "./compare-helpers";
+import { getBenchmarkScore, getTrustedBenchmarkScores } from "./compare-helpers";
 
-describe("compare deployability helpers", () => {
-  it("prefers explicit self-host and deploy signals over generic open-weight status", () => {
-    expect(
-      getCompareDeploymentLabel({
-        model: { is_open_weights: true },
-        signal: {
-          title: "MiniMax self-host release",
-          signalType: "open_source",
-          signalLabel: "Open Source",
-          signalImportance: "high",
-          publishedAt: "2026-03-31T00:00:00.000Z",
-          source: "provider-deployment-signals",
-          relatedProvider: "MiniMax",
-        },
-        accessOffer: null,
-      })
-    ).toBe("Self-Host");
+describe("compare benchmark helpers", () => {
+  const model = {
+    benchmark_scores: [
+      {
+        score: 84.1,
+        source: "provider-blog",
+        benchmarks: { slug: "mmlu", name: "MMLU" },
+      },
+      {
+        score: 91.3,
+        source: "livebench",
+        benchmarks: { slug: "mmlu", name: "MMLU" },
+      },
+      {
+        score: 72.8,
+        source: "swe-bench",
+        benchmarks: { slug: "swe-bench-verified", name: "SWE-bench Verified" },
+      },
+    ],
+  };
 
-    expect(
-      getCompareDeploymentLabel({
-        model: { is_open_weights: false },
-        signal: {
-          title: "Now on Ollama Cloud",
-          signalType: "api",
-          signalLabel: "API",
-          signalImportance: "medium",
-          publishedAt: "2026-03-31T00:00:00.000Z",
-          source: "ollama-library",
-          relatedProvider: "Z.ai",
-        },
-        accessOffer: null,
-      })
-    ).toBe("Ready to Use");
+  it("returns only trusted structured benchmark rows", () => {
+    expect(getTrustedBenchmarkScores(model as never)).toEqual([
+      {
+        score: 91.3,
+        source: "livebench",
+        benchmarks: { slug: "mmlu", name: "MMLU" },
+      },
+      {
+        score: 72.8,
+        source: "swe-bench",
+        benchmarks: { slug: "swe-bench-verified", name: "SWE-bench Verified" },
+      },
+    ]);
   });
 
-  it("falls back to access offers and open-weight status", () => {
-    expect(
-      getCompareDeploymentLabel({
-        model: { is_open_weights: false },
-        signal: null,
-        accessOffer: { actionLabel: "Deploy", monthlyPriceLabel: "Custom" },
-      })
-    ).toBe("Ready to Use");
-
-    expect(
-      getCompareDeploymentLabel({
-        model: { is_open_weights: true },
-        signal: null,
-        accessOffer: null,
-      })
-    ).toBe("Open Weights");
-  });
-
-  it("formats access labels for compare tables", () => {
-    expect(
-      getCompareAccessLabel({
-        actionLabel: "Deploy",
-        monthlyPriceLabel: "Custom",
-      })
-    ).toBe("Deploy · Custom");
-    expect(getCompareAccessLabel(null)).toBeNull();
+  it("reads benchmark values from trusted rows only", () => {
+    expect(getBenchmarkScore(model as never, "mmlu")).toBe(91.3);
+    expect(getBenchmarkScore(model as never, "swe-bench-verified")).toBe(72.8);
+    expect(getBenchmarkScore(model as never, "unknown-benchmark")).toBeNull();
   });
 });
