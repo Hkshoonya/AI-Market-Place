@@ -879,11 +879,24 @@ export default function WorkspaceContent() {
                         : isCurrent
                           ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-100"
                           : "border-border/50 bg-card/40 text-muted-foreground";
+                    const actionClassName = cn(
+                      "w-full justify-between",
+                      item.done
+                        ? "border-border/50 bg-card/30 text-muted-foreground"
+                        : isProviderStep
+                          ? "border-amber-500/30 bg-amber-500/15 text-amber-50 hover:bg-amber-500/20"
+                          : isCurrent
+                            ? "bg-cyan-500 text-background hover:bg-cyan-400"
+                            : "border-border/50 bg-card/30"
+                    );
 
                     return (
                       <div key={item.label} className={cn("rounded-xl border px-4 py-4", toneClass)}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                              Step {index + 1}
+                            </p>
                             <p className="text-sm font-medium text-white">{item.label}</p>
                             <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
                           </div>
@@ -903,7 +916,7 @@ export default function WorkspaceContent() {
                         {item.href ? (
                           <div className="mt-3">
                             {item.external ? (
-                              <Button type="button" asChild variant="outline">
+                              <Button type="button" asChild variant="outline" className={actionClassName}>
                                 <a
                                   href={item.href}
                                   target="_blank"
@@ -918,7 +931,7 @@ export default function WorkspaceContent() {
                                 </a>
                               </Button>
                             ) : (
-                              <Button type="button" asChild variant="outline">
+                              <Button type="button" asChild variant="outline" className={actionClassName}>
                                 <Link href={item.href}>{item.ctaLabel}</Link>
                               </Button>
                             )}
@@ -928,9 +941,7 @@ export default function WorkspaceContent() {
                             <Button
                               type="button"
                               variant={isCurrent ? "default" : "outline"}
-                              className={cn(
-                                isCurrent && "bg-cyan-500 text-background hover:bg-cyan-400"
-                              )}
+                              className={actionClassName}
                               onClick={item.onClick}
                               disabled={runtimeLoading}
                             >

@@ -671,6 +671,16 @@ export function DeployWorkspacePanel() {
                           : isCurrent
                             ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-100"
                             : "border-border/50 bg-card/40 text-muted-foreground";
+                      const actionClassName = cn(
+                        "w-full justify-between",
+                        item.done
+                          ? "border-border/50 bg-card/30 text-muted-foreground"
+                          : isProviderStep
+                            ? "border-amber-500/30 bg-amber-500/15 text-amber-50 hover:bg-amber-500/20"
+                            : isCurrent
+                              ? "bg-cyan-500 text-background hover:bg-cyan-400"
+                              : "border-border/50 bg-card/30"
+                      );
 
                       return (
                       <div
@@ -679,6 +689,9 @@ export function DeployWorkspacePanel() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div>
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                              Step {index + 1}
+                            </p>
                             <p className="text-sm font-medium text-white">{item.label}</p>
                             <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
                           </div>
@@ -698,7 +711,7 @@ export function DeployWorkspacePanel() {
                         {item.href ? (
                           <div className="mt-3">
                             {item.external ? (
-                              <Button type="button" asChild variant="outline" size="sm">
+                              <Button type="button" asChild variant="outline" size="sm" className={actionClassName}>
                                 <a
                                   href={item.href}
                                   target="_blank"
@@ -713,7 +726,7 @@ export function DeployWorkspacePanel() {
                                 </a>
                               </Button>
                             ) : (
-                              <Button type="button" asChild variant="outline" size="sm">
+                              <Button type="button" asChild variant="outline" size="sm" className={actionClassName}>
                                 <Link href={item.href}>{item.ctaLabel}</Link>
                               </Button>
                             )}
@@ -724,9 +737,7 @@ export function DeployWorkspacePanel() {
                               type="button"
                               variant={isCurrent ? "default" : "outline"}
                               size="sm"
-                              className={cn(
-                                isCurrent && "bg-cyan-500 text-background hover:bg-cyan-400"
-                              )}
+                              className={actionClassName}
                               onClick={item.onClick}
                               disabled={deploymentLoading}
                             >
