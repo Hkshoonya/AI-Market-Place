@@ -287,8 +287,8 @@ describe("GET /api/search", () => {
           display_description: expect.stringMatching(/Google llm model/i),
           deployability_label: "Ready to Use",
           benchmark_tracking: expect.objectContaining({
-            status: "structured",
-            badgeLabel: "Structured",
+            status: "provider_reported",
+            badgeLabel: "Provider-reported*",
           }),
         })
       );

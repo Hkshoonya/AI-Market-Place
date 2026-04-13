@@ -486,8 +486,8 @@ describe("GET /api/trending", () => {
       .toEqual(
         expect.objectContaining({
           benchmark_tracking: expect.objectContaining({
-            status: "structured",
-            badgeLabel: "Structured",
+            status: "provider_reported",
+            badgeLabel: "Provider-reported*",
           }),
         })
       );
