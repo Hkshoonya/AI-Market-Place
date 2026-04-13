@@ -25,6 +25,7 @@ import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-b
 import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
+import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import {
   buildBenchmarkTrackingSummaryMap,
 } from "@/lib/models/benchmark-tracking-bulk";
@@ -45,7 +46,7 @@ import { SITE_URL } from "@/lib/constants/site";
 export const revalidate = 0;
 
 const SEARCH_MODEL_SELECT =
-  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, economic_footprint_score, popularity_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
+  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, economic_footprint_score, popularity_score, release_date, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count, preview_manifest, mcp_manifest, agent_config, agent_id";
 
@@ -228,9 +229,9 @@ export default async function SearchPage({
     if (activeTab === "models") {
       // Search models
       const { data, count } = await searchModelsWithFallback(supabase, safeQuery);
-      const uniqueModels = rankModelsForSearch(
-        dedupePublicModelFamilies(data ?? []),
-        safeQuery
+      const uniqueModels = selectPublicRankingPool(
+        rankModelsForSearch(dedupePublicModelFamilies(data ?? []), safeQuery),
+        Math.min(PAGE_SIZE, 5)
       );
       const [
         { data: newsRaw },

@@ -39,6 +39,7 @@ import {
 } from "@/lib/models/public-families";
 import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import {
   getPublicLensLabel,
   getPublicLensSort,
@@ -171,8 +172,11 @@ export default async function LeaderboardsPage({
     expert_rank: m.expert_rank,
     balanced_rank: m.balanced_rank,
   }));
-  const explorerModels = preferDefaultPublicSurfaceReady(
-    dedupePublicModelFamilies(parsedExplorerModels),
+  const explorerModels = selectPublicRankingPool(
+    preferDefaultPublicSurfaceReady(
+      dedupePublicModelFamilies(parsedExplorerModels),
+      20
+    ),
     20
   ).sort((left, right) => {
     const leftValue = getLensSortValue(left as Record<string, unknown>);

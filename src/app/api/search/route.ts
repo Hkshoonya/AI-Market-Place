@@ -12,6 +12,7 @@ import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
@@ -30,7 +31,7 @@ import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 export const dynamic = "force-dynamic";
 
 const SEARCH_MODEL_SELECT =
-  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, is_open_weights, parameter_count, short_description, market_cap_estimate";
+  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, release_date, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
 
@@ -43,6 +44,10 @@ interface SearchModelRow {
   overall_rank?: number | null;
   quality_score?: number | null;
   capability_score?: number | null;
+  adoption_score?: number | null;
+  popularity_score?: number | null;
+  economic_footprint_score?: number | null;
+  release_date?: string | null;
   is_open_weights?: boolean | null;
   parameter_count?: number | null;
   short_description?: string | null;
@@ -209,8 +214,12 @@ export async function GET(request: NextRequest) {
       dedupePublicModelFamilies(models ?? []),
       safeQuery
     );
+    const confidenceRankedModels = selectPublicRankingPool(
+      rankedModels,
+      Math.min(limit, 5)
+    );
     const uniqueModels = collapseSearchSurfaceSeries(
-      preferDefaultPublicSurfaceReady(rankedModels, Math.min(limit, 3)),
+      preferDefaultPublicSurfaceReady(confidenceRankedModels, Math.min(limit, 3)),
       limit
     );
     const [

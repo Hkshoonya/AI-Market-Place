@@ -47,4 +47,38 @@ describe("search ranking helpers", () => {
 
     expect(ranked[0]?.slug).toBe("openai-gpt-4-1-nano");
   });
+
+  it("uses public confidence to break close search ties before weak popularity signals", () => {
+    const ranked = rankModelsForSearch(
+      [
+        {
+          slug: "provider-model-pro",
+          name: "Provider Model Pro",
+          provider: "Provider",
+          popularity_score: 40,
+          overall_rank: 18,
+          quality_score: 88,
+          capability_score: 90,
+          adoption_score: 62,
+          economic_footprint_score: 50,
+          release_date: "2026-02-10",
+        },
+        {
+          slug: "provider-model-mini",
+          name: "Provider Model Mini",
+          provider: "Provider",
+          popularity_score: 75,
+          overall_rank: 12,
+          quality_score: 54,
+          capability_score: 58,
+          adoption_score: 18,
+          economic_footprint_score: 12,
+          release_date: "2024-01-10",
+        },
+      ],
+      "provider model"
+    );
+
+    expect(ranked[0]?.slug).toBe("provider-model-pro");
+  });
 });

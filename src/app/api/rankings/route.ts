@@ -8,6 +8,7 @@ import { collapseArenaRatings } from "@/lib/models/arena-family";
 import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import { getLifecycleStatuses, parseLifecycleFilter } from "@/lib/models/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +100,10 @@ export async function GET(request: NextRequest) {
         ? data ?? []
         : preferDefaultPublicSurfaceReady(data ?? [], Math.min(limit, 10));
 
-    const uniqueModels = dedupePublicModelFamilies(rankingPool)
+    const uniqueModels = selectPublicRankingPool(
+      dedupePublicModelFamilies(rankingPool),
+      Math.min(limit, 10)
+    )
       .sort((left, right) => {
         const leftValue = getSortMetric(left as Record<string, unknown>);
         const rightValue = getSortMetric(right as Record<string, unknown>);

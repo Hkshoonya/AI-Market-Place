@@ -1,3 +1,5 @@
+import { computePublicRankingConfidenceScore } from "@/lib/models/public-ranking-confidence";
+
 interface SearchableModel {
   slug: string;
   name: string;
@@ -6,6 +8,11 @@ interface SearchableModel {
   short_description?: string | null;
   popularity_score?: number | null;
   overall_rank?: number | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  adoption_score?: number | null;
+  economic_footprint_score?: number | null;
+  release_date?: string | null;
 }
 
 function normalize(value: string | null | undefined): string {
@@ -46,8 +53,9 @@ export function getModelSearchRelevance(
     model.overall_rank != null && model.overall_rank > 0
       ? Math.max(0, 80 - model.overall_rank)
       : 0;
+  const confidenceBoost = computePublicRankingConfidenceScore(model) * 2;
 
-  return score + popularity + rankBoost;
+  return score + popularity + rankBoost + confidenceBoost;
 }
 
 export function rankModelsForSearch<T extends SearchableModel>(
@@ -58,6 +66,11 @@ export function rankModelsForSearch<T extends SearchableModel>(
     const relevanceDelta =
       getModelSearchRelevance(right, rawQuery) - getModelSearchRelevance(left, rawQuery);
     if (relevanceDelta !== 0) return relevanceDelta;
+
+    const confidenceDelta =
+      computePublicRankingConfidenceScore(right) -
+      computePublicRankingConfidenceScore(left);
+    if (confidenceDelta !== 0) return confidenceDelta;
 
     const popularityDelta = Number(right.popularity_score ?? 0) - Number(left.popularity_score ?? 0);
     if (popularityDelta !== 0) return popularityDelta;

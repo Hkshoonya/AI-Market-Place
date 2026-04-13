@@ -31,6 +31,7 @@ import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-tracking-bulk";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import { SITE_URL } from "@/lib/constants/site";
 
 export const revalidate = 3600;
@@ -99,13 +100,16 @@ export default async function CategoryLeaderboardPage({
   const modelsResponse = await modelsQuery;
 
   type CategoryModel = z.infer<typeof CategoryModelSchema>;
-  const models = preferDefaultPublicSurfaceReady(
-    dedupePublicModelFamilies(
-      parseQueryResult(
-        modelsResponse,
-        CategoryModelSchema,
-        "CategoryModel"
-      )
+  const models = selectPublicRankingPool(
+    preferDefaultPublicSurfaceReady(
+      dedupePublicModelFamilies(
+        parseQueryResult(
+          modelsResponse,
+          CategoryModelSchema,
+          "CategoryModel"
+        )
+      ),
+      10
     ),
     10
   );
