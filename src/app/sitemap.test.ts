@@ -31,6 +31,8 @@ describe("sitemap", () => {
         expect.objectContaining({ url: SITE_URL }),
         expect.objectContaining({ url: `${SITE_URL}/models` }),
         expect.objectContaining({ url: `${SITE_URL}/marketplace` }),
+        expect.objectContaining({ url: `${SITE_URL}/commons/actors` }),
+        expect.objectContaining({ url: `${SITE_URL}/commons/communities` }),
       ])
     );
   });

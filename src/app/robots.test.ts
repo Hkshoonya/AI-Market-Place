@@ -6,13 +6,19 @@ describe("robots metadata route", () => {
   it("allows crawling public pages and points to the sitemap", () => {
     const metadata = robots();
 
+    expect(metadata.host).toBe(SITE_URL);
     expect(metadata.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
     expect(metadata.rules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           userAgent: "*",
           allow: "/",
-          disallow: ["/api/"],
+          disallow: expect.arrayContaining([
+            "/api/",
+            "/admin/",
+            "/workspace",
+            "/login",
+          ]),
         }),
       ])
     );

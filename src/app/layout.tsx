@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { DeployWorkspacePanel } from "@/components/workspace/deploy-workspace-panel";
 import { Toaster } from "sonner";
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
+import { buildRootMetadata } from "@/lib/seo/root-metadata";
 import { LazyAmbientScene } from "@/components/three/lazy-ambient-scene";
 import { PHProvider, SWRProvider } from "./providers";
 
@@ -35,47 +35,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export const metadata: Metadata = {
-  title: {
-    default: SITE_NAME,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  metadataBase: new URL(SITE_URL),
-  manifest: "/manifest.json",
-  icons: {
-    icon: [{ url: "/icon", type: "image/png" }],
-    apple: [{ url: "/apple-icon", type: "image/png" }],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: SITE_NAME,
-  },
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-    url: SITE_URL,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-};
+export const metadata: Metadata = buildRootMetadata();
 
 export default function RootLayout({
   children,

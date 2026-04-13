@@ -23,6 +23,11 @@ type ListingSitemapRow = Pick<
   Database["public"]["Tables"]["marketplace_listings"]["Row"],
   "slug" | "updated_at"
 >;
+type AuctionTimestampRow = Pick<Database["public"]["Tables"]["auctions"]["Row"], "updated_at">;
+type AuctionSitemapRow = Pick<
+  Database["public"]["Tables"]["auctions"]["Row"],
+  "id" | "updated_at" | "status"
+>;
 type ProviderSitemapRow = Pick<Database["public"]["Tables"]["models"]["Row"], "provider">;
 type NewsSitemapRow = Pick<Database["public"]["Tables"]["model_news"]["Row"], "published_at">;
 
@@ -43,6 +48,13 @@ function buildStaticRoutes(lastModified: Date): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: "monthly", priority: 0.2 },
     { url: `${SITE_URL}/news`, lastModified, changeFrequency: "weekly", priority: 0.5 },
     { url: `${SITE_URL}/commons`, lastModified, changeFrequency: "daily", priority: 0.7 },
+    { url: `${SITE_URL}/commons/actors`, lastModified, changeFrequency: "weekly", priority: 0.5 },
+    {
+      url: `${SITE_URL}/commons/communities`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.5,
+    },
     { url: `${SITE_URL}/faq`, lastModified, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/contact`, lastModified, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/api-docs`, lastModified, changeFrequency: "weekly", priority: 0.5 },
@@ -77,56 +89,82 @@ async function loadDynamicRoutes(
   supabase: PublicSupabaseClient,
   fallbackDate: Date
 ): Promise<MetadataRoute.Sitemap> {
-  const [latestModels, latestListings, latestNews, models, listings, providerRows] =
-    await Promise.all([
-      safeQuery<ModelTimestampRow>(() =>
-        supabase
-          .from("models")
-          .select("updated_at")
-          .eq("status", "active")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-      ),
-      safeQuery<ListingTimestampRow>(() =>
-        supabase
-          .from("marketplace_listings")
-          .select("updated_at")
-          .eq("status", "active")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-      ),
-      safeQuery<NewsSitemapRow>(() =>
-        supabase
-          .from("model_news")
-          .select("published_at")
-          .order("published_at", { ascending: false })
-          .limit(1)
-      ),
-      safeQuery<ModelSitemapRow>(() =>
-        supabase
-          .from("models")
-          .select("slug, updated_at")
-          .eq("status", "active")
-          .order("overall_rank", { ascending: true })
-      ),
-      safeQuery<ListingSitemapRow>(() =>
-        supabase
-          .from("marketplace_listings")
-          .select("slug, updated_at")
-          .eq("status", "active")
-      ),
-      safeQuery<ProviderSitemapRow>(() =>
-        supabase
-          .from("models")
-          .select("provider")
-          .eq("status", "active")
-      ),
-    ]);
+  const [
+    latestModels,
+    latestListings,
+    latestAuctions,
+    latestNews,
+    models,
+    listings,
+    auctions,
+    providerRows,
+  ] = await Promise.all([
+    safeQuery<ModelTimestampRow>(() =>
+      supabase
+        .from("models")
+        .select("updated_at")
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+    ),
+    safeQuery<ListingTimestampRow>(() =>
+      supabase
+        .from("marketplace_listings")
+        .select("updated_at")
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+    ),
+    safeQuery<AuctionTimestampRow>(() =>
+      supabase
+        .from("auctions")
+        .select("updated_at")
+        .in("status", ["upcoming", "active", "ended", "settled"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
+    ),
+    safeQuery<NewsSitemapRow>(() =>
+      supabase
+        .from("model_news")
+        .select("published_at")
+        .order("published_at", { ascending: false })
+        .limit(1)
+    ),
+    safeQuery<ModelSitemapRow>(() =>
+      supabase
+        .from("models")
+        .select("slug, updated_at")
+        .eq("status", "active")
+        .order("overall_rank", { ascending: true })
+    ),
+    safeQuery<ListingSitemapRow>(() =>
+      supabase
+        .from("marketplace_listings")
+        .select("slug, updated_at")
+        .eq("status", "active")
+    ),
+    safeQuery<AuctionSitemapRow>(() =>
+      supabase
+        .from("auctions")
+        .select("id, updated_at, status")
+        .in("status", ["upcoming", "active", "ended", "settled"])
+    ),
+    safeQuery<ProviderSitemapRow>(() =>
+      supabase
+        .from("models")
+        .select("provider")
+        .eq("status", "active")
+    ),
+  ]);
 
   const latestModelModified = toLastModified(latestModels[0]?.updated_at, fallbackDate);
   const latestListingModified = toLastModified(
     latestListings[0]?.updated_at,
     latestModelModified
+  );
+  const latestAuctionModified = toLastModified(
+    latestAuctions[0]?.updated_at,
+    latestListingModified
   );
   const latestNewsModified = toLastModified(
     latestNews[0]?.published_at,
@@ -141,7 +179,7 @@ async function loadDynamicRoutes(
       return { ...route, lastModified: latestListingModified };
     }
     if (route.url === `${SITE_URL}/marketplace/auctions`) {
-      return { ...route, lastModified: latestListingModified };
+      return { ...route, lastModified: latestAuctionModified };
     }
     if (route.url === `${SITE_URL}/sell`) {
       return { ...route, lastModified: latestListingModified };
@@ -180,6 +218,15 @@ async function loadDynamicRoutes(
       priority: 0.6,
     }));
 
+  const auctionRoutes: MetadataRoute.Sitemap = auctions
+    .filter((auction) => typeof auction.id === "string" && auction.id.length > 0)
+    .map((auction) => ({
+      url: `${SITE_URL}/marketplace/auctions/${auction.id}`,
+      lastModified: toLastModified(auction.updated_at, latestAuctionModified),
+      changeFrequency: auction.status === "active" ? "hourly" : "weekly",
+      priority: auction.status === "active" ? 0.6 : 0.4,
+    }));
+
   const providerRoutes: MetadataRoute.Sitemap = [...new Set(
     providerRows
       .map((row) => row.provider)
@@ -198,6 +245,7 @@ async function loadDynamicRoutes(
     ...leaderboardRoutes,
     ...modelRoutes,
     ...listingRoutes,
+    ...auctionRoutes,
     ...providerRoutes,
   ];
 }
