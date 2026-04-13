@@ -8,6 +8,7 @@ import {
   getPublicSourceTrustTier,
   OFFICIAL_PROVIDERS,
 } from "@/lib/models/public-source-trust";
+import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
 import type { TypedSupabaseClient } from "@/types/database";
 
 const PAGE_SIZE = 1000;
@@ -38,6 +39,7 @@ export function isBenchmarkMetadataCoverageCandidate(
 
 type BenchmarkScoreCoverageRow = {
   model_id: string | null;
+  source?: string | null;
 };
 
 type BenchmarkNewsCoverageRow = {
@@ -57,13 +59,7 @@ export function buildBenchmarkEvidenceModelIds(
   benchmarkRows: BenchmarkScoreCoverageRow[],
   benchmarkNewsRows: BenchmarkNewsCoverageRow[]
 ) {
-  const modelIds = new Set<string>();
-
-  for (const row of benchmarkRows) {
-    if (typeof row.model_id === "string") {
-      modelIds.add(row.model_id);
-    }
-  }
+  const modelIds = getTrustedStructuredBenchmarkModelIds(benchmarkRows);
 
   for (const row of benchmarkNewsRows) {
     for (const modelId of row.related_model_ids ?? []) {
@@ -118,7 +114,7 @@ export async function computeBenchmarkMetadataCoverage(
     fetchAllRows<BenchmarkScoreCoverageRow>(async (from, to) => {
       const query = supabase
         .from("benchmark_scores")
-        .select("model_id");
+        .select("model_id, source");
       const { data, error } = await orderBy(query, "model_id").range(from, to);
 
       if (error) {

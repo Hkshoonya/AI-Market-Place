@@ -41,3 +41,16 @@ export function countTrustedStructuredBenchmarkScores(rows: unknown) {
   return count;
 }
 
+export function getTrustedStructuredBenchmarkModelIds(rows: unknown) {
+  const modelIds = new Set<string>();
+  if (!Array.isArray(rows)) return modelIds;
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    if (!("model_id" in row) || typeof row.model_id !== "string") continue;
+    if (!isTrustedStructuredBenchmarkSource(getBenchmarkScoreSource(row))) continue;
+    modelIds.add(row.model_id);
+  }
+
+  return modelIds;
+}

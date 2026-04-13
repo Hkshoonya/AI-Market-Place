@@ -77,7 +77,10 @@ describe("computeBenchmarkCoverage", () => {
           release_date: "2025-09-23",
         },
       ],
-      scores: [{ model_id: "qwen-covered" }],
+      scores: [
+        { model_id: "qwen-covered", source: "livebench" },
+        { model_id: "gpt-5-3", source: "unknown-feed" },
+      ],
     });
 
     const coverage = await computeBenchmarkCoverage(supabase as never);

@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
+import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score-trust";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
@@ -70,11 +71,12 @@ export async function GET(request: NextRequest) {
     const ScoreWithBenchmarkSchema = z.object({
       model_id: z.string(),
       score_normalized: z.number().nullable(),
+      source: z.string().nullable().optional(),
       benchmarks: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
     });
     const scoresResponse = await supabase
       .from("benchmark_scores")
-      .select("model_id, score_normalized, benchmarks(slug, name)")
+      .select("model_id, score_normalized, source, benchmarks(slug, name)")
       .in("model_id", modelIds);
 
     // Get all benchmarks that have scores
@@ -88,7 +90,13 @@ export async function GET(request: NextRequest) {
     const scoreMap = new Map<string, Map<string, number>>();
     for (const s of validatedScores) {
       const benchSlug = s.benchmarks?.slug;
-      if (!benchSlug || s.score_normalized == null) continue;
+      if (
+        !benchSlug ||
+        s.score_normalized == null ||
+        !isTrustedStructuredBenchmarkSource(s.source)
+      ) {
+        continue;
+      }
 
       if (!scoreMap.has(s.model_id)) scoreMap.set(s.model_id, new Map());
       scoreMap.get(s.model_id)!.set(benchSlug, Number(s.score_normalized));

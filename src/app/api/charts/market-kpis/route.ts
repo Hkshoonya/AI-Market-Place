@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { handleApiError } from "@/lib/api-error";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
@@ -83,13 +84,34 @@ export async function GET() {
     }
 
     // Benchmark coverage stats
-    const { count: modelsWithBenchmarks } = await supabase
+    const { data: benchmarkRows, error: benchmarkRowsError } = await supabase
       .from("benchmark_scores")
-      .select("model_id", { count: "exact", head: true });
+      .select("model_id, source");
 
-    const { count: modelsWithElo } = await supabase
+    if (benchmarkRowsError) {
+      return NextResponse.json({ error: benchmarkRowsError.message }, { status: 500 });
+    }
+
+    const { data: eloRows, error: eloRowsError } = await supabase
       .from("elo_ratings")
-      .select("model_id", { count: "exact", head: true });
+      .select("model_id");
+
+    if (eloRowsError) {
+      return NextResponse.json({ error: eloRowsError.message }, { status: 500 });
+    }
+
+    const modelsWithBenchmarks = getTrustedStructuredBenchmarkModelIds(
+      benchmarkRows ?? []
+    ).size;
+    const modelsWithElo = new Set(
+      (eloRows ?? [])
+        .map((row) =>
+          row && typeof row === "object" && "model_id" in row && typeof row.model_id === "string"
+            ? row.model_id
+            : null
+        )
+        .filter((value): value is string => typeof value === "string")
+    ).size;
 
     return NextResponse.json(
       {
@@ -100,8 +122,8 @@ export async function GET() {
           openWeightCount,
           openWeightPercent: Math.round((openWeightCount / totalModels) * 1000) / 10,
           totalDownloads,
-          modelsWithBenchmarks: modelsWithBenchmarks ?? 0,
-          modelsWithElo: modelsWithElo ?? 0,
+          modelsWithBenchmarks,
+          modelsWithElo,
         },
         providerDistribution,
         categoryDistribution,

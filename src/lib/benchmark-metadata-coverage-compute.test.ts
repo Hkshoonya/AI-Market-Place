@@ -144,9 +144,9 @@ describe("computeBenchmarkMetadataCoverage", () => {
                   Promise.resolve({
                     data: [
                       {
-                        slug: "openai-gpt-5-3",
-                        id: "openai-gpt-5-3",
-                        provider: "OpenAI",
+                        slug: "anthropic-claude-next",
+                        id: "anthropic-claude-next",
+                        provider: "Anthropic",
                         category: "llm",
                         hf_model_id: null,
                         website_url: null,
@@ -162,7 +162,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
             return {
               range: () =>
                 Promise.resolve({
-                  data: [{ model_id: "openai-gpt-5-3" }],
+                  data: [{ model_id: "anthropic-claude-next", source: "livebench" }],
                   error: null,
                 }),
             };
@@ -184,5 +184,57 @@ describe("computeBenchmarkMetadataCoverage", () => {
     expect(coverage.missingTrustedLocatorCount).toBe(0);
     expect(coverage.trustedLocatorCoveragePct).toBe(100);
     expect(coverage.recentMissingTrustedLocators).toEqual([]);
+  });
+
+  it("does not treat untrusted benchmark rows as a trusted update path", async () => {
+    const supabase = {
+      from: (table: string) => ({
+        select: () => {
+          if (table === "models") {
+            return {
+              eq: () => ({
+                range: () =>
+                  Promise.resolve({
+                    data: [
+                      {
+                        slug: "anthropic-claude-next",
+                        id: "anthropic-claude-next",
+                        provider: "Anthropic",
+                        category: "llm",
+                        hf_model_id: null,
+                        website_url: null,
+                        release_date: "2026-02-10",
+                      },
+                    ],
+                    error: null,
+                  }),
+              }),
+            };
+          }
+          if (table === "benchmark_scores") {
+            return {
+              range: () =>
+                Promise.resolve({
+                  data: [{ model_id: "anthropic-claude-next", source: "unknown-feed" }],
+                  error: null,
+                }),
+            };
+          }
+
+          return {
+            eq: () => ({
+              range: () => Promise.resolve({ data: [], error: null }),
+            }),
+          };
+        },
+      }),
+    };
+
+    const coverage = await computeBenchmarkMetadataCoverage(supabase as never);
+
+    expect(coverage.benchmarkExpectedModels).toBe(1);
+    expect(coverage.withAnyTrustedBenchmarkLocator).toBe(0);
+    expect(coverage.missingTrustedLocatorCount).toBe(1);
+    expect(coverage.trustedLocatorCoveragePct).toBe(0);
   });
 });
