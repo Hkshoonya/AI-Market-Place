@@ -6,8 +6,10 @@ import DeploymentsContent from "./deployments-content";
 
 const mockUseSWR = vi.fn();
 const mockUseAuth = vi.fn();
+const mockUseWorkspace = vi.fn();
 const mockPush = vi.fn();
 const mockFetch = vi.fn();
+const mockOpenWorkspace = vi.fn();
 
 vi.mock("swr", () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
@@ -20,6 +22,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/auth/auth-provider", () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+vi.mock("@/components/workspace/workspace-provider", () => ({
+  useWorkspace: () => mockUseWorkspace(),
 }));
 
 vi.mock("@/components/ui/confirm-dialog", () => ({
@@ -62,11 +68,15 @@ describe("DeploymentsContent", () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockFetch.mockReset();
+    mockOpenWorkspace.mockReset();
     global.fetch = mockFetch as typeof fetch;
 
     mockUseAuth.mockReturnValue({
       user: { id: "user_123" },
       loading: false,
+    });
+    mockUseWorkspace.mockReturnValue({
+      openWorkspace: mockOpenWorkspace,
     });
   });
 
@@ -89,8 +99,8 @@ describe("DeploymentsContent", () => {
     render(<DeploymentsContent />);
 
     expect(screen.getByText(/No deployments yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Find models hosted here/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse all deployable models/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Start guided setup/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /Browse all deployable models/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
   });
 
@@ -136,11 +146,25 @@ describe("DeploymentsContent", () => {
 
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Run Quick Test/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open in Workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pause/i })).toBeInTheDocument();
     expect(screen.getByText(/Budget and billing controls/i)).toBeInTheDocument();
     expect(screen.getByText(/API setup and test/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Recent activity/i).length).toBeGreaterThanOrEqual(1);
+
+    await user.click(screen.getByRole("button", { name: /Open in Workspace/i }));
+
+    expect(mockOpenWorkspace).toHaveBeenCalledWith({
+      model: baseDeployment.modelName,
+      modelSlug: baseDeployment.modelSlug,
+      provider: baseDeployment.providerName,
+      action: "Use live deployment",
+      nextUrl: `/models/${baseDeployment.modelSlug}?tab=deploy#model-tabs`,
+      autoStartDeployment: false,
+      suggestedAmount: baseDeployment.creditsBudget,
+    });
 
     await user.click(screen.getByRole("button", { name: /Run Quick Test/i }));
 

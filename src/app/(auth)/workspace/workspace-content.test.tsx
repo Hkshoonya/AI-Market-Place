@@ -79,6 +79,13 @@ describe("WorkspaceContent", () => {
         return { data: undefined, mutate: vi.fn() };
       }
 
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: { deployments: [] },
+          mutate: vi.fn(),
+        };
+      }
+
       if (key.startsWith("/api/workspace/deployment")) {
         return {
           data: {
@@ -142,9 +149,52 @@ describe("WorkspaceContent", () => {
     render(<WorkspaceContent />);
 
     expect(screen.getByText(/No active workspace yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Use on AI Market Cap/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /More Ways to Use Models/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start guided setup/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse deployable models/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View Deployments/i })).toBeInTheDocument();
+  });
+
+  it("prioritizes saved deployments when the user has no active workspace session", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user_123" },
+      loading: false,
+    });
+    mockUseWorkspace.mockReturnValue(
+      createWorkspaceValue({
+        session: null,
+      })
+    );
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (!key) {
+        return { data: undefined, mutate: vi.fn() };
+      }
+
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: {
+            deployments: [
+              {
+                id: "dep_123",
+                modelSlug: "kimi-k2",
+                modelName: "Kimi K2",
+                status: "ready",
+              },
+            ],
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      return { data: undefined, mutate: vi.fn() };
+    });
+
+    render(<WorkspaceContent />);
+
+    expect(screen.getByText(/You already have saved deployments/i)).toBeInTheDocument();
+    expect(screen.getByText(/You already have 1 managed deployment attached to your account/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Go to Deployments/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse deployable models/i })).toBeInTheDocument();
   });
 
   it("renders explicit full-page workflow controls and lets the guide collapse", async () => {

@@ -78,6 +78,15 @@ interface WorkspaceRuntimeSnapshot {
   } | null;
 }
 
+interface DeploymentListSnapshot {
+  deployments: Array<{
+    id: string;
+    modelSlug: string;
+    modelName: string;
+    status: "provisioning" | "ready" | "paused" | "failed";
+  }>;
+}
+
 interface WorkspaceDeploymentSnapshot {
   deployment: {
     id: string;
@@ -163,6 +172,10 @@ export default function WorkspaceContent() {
     }
   }, [loading, pathname, router, user]);
 
+  const { data: deploymentsSnapshot } = useSWR<DeploymentListSnapshot>(
+    user ? "/api/workspace/deployments" : null,
+    { ...SWR_TIERS.MEDIUM }
+  );
   const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
     user && workspace.session ? "/api/marketplace/wallet?limit=1" : null,
     { ...SWR_TIERS.MEDIUM }
@@ -191,6 +204,9 @@ export default function WorkspaceContent() {
       { ...SWR_TIERS.MEDIUM }
     );
   const session = workspace.session;
+  const savedDeployments = deploymentsSnapshot?.deployments ?? [];
+  const savedDeploymentCount = savedDeployments.length;
+  const hasSavedDeployments = savedDeploymentCount > 0;
   const showProviderLabel = Boolean(session?.provider && !session.provider.includes("AI Market Cap"));
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
@@ -302,21 +318,35 @@ export default function WorkspaceContent() {
             <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
               Workspace
             </Badge>
-            <h1 className="text-2xl font-semibold text-white">No active workspace yet</h1>
+            <h1 className="text-2xl font-semibold text-white">
+              {hasSavedDeployments ? "You already have saved deployments" : "No active workspace yet"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Start with a model AI Market Cap can run here, or browse the wider set of models with
-              verified provider and self-host paths. Once you start, your workspace stays attached
-              to your account.
+              {hasSavedDeployments
+                ? `You already have ${savedDeploymentCount} managed deployment${savedDeploymentCount === 1 ? "" : "s"} attached to your account. Open deployments to run a quick test, resume paused traffic, or jump back into a specific model workflow.`
+                : "Start with a model this site can run here, or browse the wider set of models with verified provider and self-host paths. Once you start, your workspace stays attached to your account."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                <Link href="/deploy">Use on AI Market Cap</Link>
-              </Button>
+              {hasSavedDeployments ? (
+                <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                  <Link href="/deployments">Go to Deployments</Link>
+                </Button>
+              ) : (
+                <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                  <Link href="/deploy">Start guided setup</Link>
+                </Button>
+              )}
+              {hasSavedDeployments ? (
+                <Button variant="outline" asChild>
+                  <Link href="/deploy">Start another guided setup</Link>
+                </Button>
+              ) : (
+                <Button variant="outline" asChild>
+                  <Link href="/deployments">View Deployments</Link>
+                </Button>
+              )}
               <Button variant="outline" asChild>
-                <Link href="/models?deployable=true">More Ways to Use Models</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/deployments">View Deployments</Link>
+                <Link href="/models?deployable=true">Browse deployable models</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/marketplace">Open Marketplace</Link>

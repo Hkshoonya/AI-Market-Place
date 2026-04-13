@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight, KeyRound, PauseCircle, PlayCircle, Server, Trash2, Wallet } from "lucide-react";
 import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,10 +130,77 @@ function formatCurrency(value: number | null) {
   return `$${value.toFixed(2)}`;
 }
 
+function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
+  if (deployment.status === "failed" || deployment.healthStatus === "error") {
+    return {
+      title: "Review the last error",
+      detail:
+        deployment.lastErrorMessage ??
+        "Open this model in workspace and review the last deployment error before retrying requests.",
+      tone: "border-red-500/20 bg-red-500/10",
+      workspaceLabel: "Review in Workspace",
+      workspaceAction: "Review deployment error",
+    };
+  }
+
+  if (deployment.status === "provisioning") {
+    return {
+      title: "Wait for setup to finish",
+      detail:
+        "This deployment is still being prepared. Come back when it turns ready, then run a quick test.",
+      tone: "border-cyan-500/20 bg-cyan-500/10",
+      workspaceLabel: "Open setup in Workspace",
+      workspaceAction: "Watch deployment setup",
+    };
+  }
+
+  if (deployment.status === "paused") {
+    return {
+      title: "Resume before sending requests",
+      detail:
+        "This deployment is paused. Resume it first, then run a quick test or continue from workspace.",
+      tone: "border-amber-500/20 bg-amber-500/10",
+      workspaceLabel: "Open in Workspace",
+      workspaceAction: "Resume deployment workflow",
+    };
+  }
+
+  if (deployment.billing.budgetStatus === "exhausted") {
+    return {
+      title: "Add budget before more traffic",
+      detail:
+        "This deployment has no tracked budget remaining. Update the budget, then run a quick test.",
+      tone: "border-red-500/20 bg-red-500/10",
+      workspaceLabel: "Fix in Workspace",
+      workspaceAction: "Fix deployment budget",
+    };
+  }
+
+  if (deployment.billing.budgetStatus === "low") {
+    return {
+      title: "Top up budget soon",
+      detail:
+        "Budget is getting low. Keep the endpoint healthy by topping up before new traffic spikes.",
+      tone: "border-amber-500/20 bg-amber-500/10",
+      workspaceLabel: "Open in Workspace",
+      workspaceAction: "Check deployment budget",
+    };
+  }
+
+  return {
+    title: "Ready for traffic",
+    detail: "Run a quick test, then use this endpoint directly or continue from workspace.",
+    tone: "border-emerald-500/20 bg-emerald-500/10",
+    workspaceLabel: "Open in Workspace",
+    workspaceAction: "Use live deployment",
+  };
+}
+
 export default function DeploymentsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  const workspace = useWorkspace();
   const [pendingModelSlug, setPendingModelSlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
@@ -327,10 +395,10 @@ export default function DeploymentsContent() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href="/workspace">Open Workspace</Link>
+            <Link href="/models?deployable=true">Browse all deployable models</Link>
           </Button>
           <Button asChild className="bg-neon text-background hover:bg-neon/90">
-            <Link href="/deploy">Use on AI Market Cap</Link>
+            <Link href="/deploy">Start guided setup</Link>
           </Button>
         </div>
       </div>
@@ -396,13 +464,13 @@ export default function DeploymentsContent() {
             <div>
               <h2 className="text-xl font-semibold text-white">No deployments yet</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start with a model AI Market Cap can host here, or browse the wider set of models
-                with verified provider and self-host paths.
+                Start with a guided setup for a model this site can run here, or browse the wider
+                set of models with verified provider and self-host paths.
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                <Link href="/deploy">Find models hosted here</Link>
+                <Link href="/deploy">Start guided setup</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/models?deployable=true">Browse all deployable models</Link>
@@ -421,6 +489,7 @@ export default function DeploymentsContent() {
                   : deployment.billing.budgetStatus === "exhausted"
                     ? "border-red-500/20 bg-red-500/10 text-red-300"
                     : "border-border/50 bg-card/40 text-muted-foreground";
+            const nextStep = getDeploymentNextStep(deployment);
 
             return (
               <Card key={deployment.id} className="border-border/50 bg-card/70">
@@ -467,6 +536,13 @@ export default function DeploymentsContent() {
                       <code className="block text-xs text-foreground">
                         {deployment.endpointPath}
                       </code>
+                      <div className={cn("rounded-xl border px-3 py-3", nextStep.tone)}>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Next step
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">{nextStep.title}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{nextStep.detail}</p>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -487,8 +563,23 @@ export default function DeploymentsContent() {
                           <ArrowUpRight className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" asChild>
-                        <Link href="/workspace">Workspace</Link>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          workspace.openWorkspace({
+                            model: deployment.modelName,
+                            modelSlug: deployment.modelSlug,
+                            provider: deployment.providerName,
+                            action: nextStep.workspaceAction,
+                            nextUrl: `/models/${deployment.modelSlug}?tab=deploy#model-tabs`,
+                            autoStartDeployment: false,
+                            suggestedAmount:
+                              deployment.creditsBudget ?? deployment.monthlyPriceEstimate ?? null,
+                          })
+                        }
+                      >
+                        {nextStep.workspaceLabel}
                       </Button>
                       <Button
                         type="button"
