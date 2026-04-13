@@ -195,6 +195,18 @@ describe("LeaderboardsPage", () => {
         };
       }
 
+      if (table === "benchmark_scores") {
+        return {
+          select: vi.fn(() => createQuery([])),
+        };
+      }
+
+      if (table === "elo_ratings") {
+        return {
+          select: vi.fn(() => createQuery([])),
+        };
+      }
+
       if (table === "model_news") {
         return {
           select: vi.fn(() => createQuery([{ published_at: "2026-03-20T12:00:00.000Z" }])),
