@@ -749,6 +749,30 @@ export default function WorkspaceContent() {
         </Card>
       </div>
 
+      <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+              Floating Console
+            </p>
+            <p className="mt-1 text-sm font-medium text-white">
+              Want more room on the full page?
+            </p>
+            <p className="mt-1 text-xs text-cyan-50/80">
+              Hide the floating console any time. You can reopen it later from the bottom-right corner.
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="bg-cyan-500 text-background hover:bg-cyan-400"
+            onClick={workspace.minimizeWorkspace}
+          >
+            <Minimize2 className="h-4 w-4" />
+            Minimize Floating Console
+          </Button>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="runtime" className="mt-8">
         <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
           <TabsTrigger
