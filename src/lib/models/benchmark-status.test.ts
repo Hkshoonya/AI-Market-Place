@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { summarizeBenchmarkTrackingCoverage } from "./benchmark-status";
+import {
+  getBenchmarkTrackingSummary,
+  summarizeBenchmarkTrackingCoverage,
+} from "./benchmark-status";
 
 describe("summarizeBenchmarkTrackingCoverage", () => {
   it("counts structured, signal-backed, and pending coverage states", () => {
@@ -52,5 +55,29 @@ describe("summarizeBenchmarkTrackingCoverage", () => {
       comparable: 1,
       signalBacked: 2,
     });
+  });
+
+  it("only treats trusted structured benchmark rows as comparable coverage", () => {
+    expect(
+      getBenchmarkTrackingSummary({
+        slug: "provider-model",
+        provider: "Provider",
+        category: "llm",
+        trustedBenchmarkScoreCount: 1,
+        benchmarkEvidenceCount: 0,
+        arenaSignalCount: 0,
+      }).status
+    ).toBe("structured");
+
+    expect(
+      getBenchmarkTrackingSummary({
+        slug: "provider-model",
+        provider: "Provider",
+        category: "llm",
+        trustedBenchmarkScoreCount: 0,
+        benchmarkEvidenceCount: 0,
+        arenaSignalCount: 0,
+      }).status
+    ).toBe("pending");
   });
 });

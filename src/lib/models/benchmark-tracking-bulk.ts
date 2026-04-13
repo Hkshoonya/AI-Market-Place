@@ -2,6 +2,7 @@ import {
   getBenchmarkTrackingSummary,
   type BenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
+import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score-trust";
 import { getNewsSignalType } from "@/lib/news/presentation";
 import { systemLog } from "@/lib/logging";
 
@@ -68,7 +69,10 @@ export async function buildBenchmarkTrackingSummaryMap(
   const [scoreRows, arenaRows, benchmarkNewsRows] = await Promise.all([
     resolveTrackingQuery(
       "benchmark scores",
-      queryClient.from("benchmark_scores").select("model_id").in?.("model_id", ids) ??
+      queryClient
+        .from("benchmark_scores")
+        .select("model_id, source")
+        .in?.("model_id", ids) ??
         Promise.resolve({ data: [], error: null })
     ),
     resolveTrackingQuery(
@@ -87,14 +91,19 @@ export async function buildBenchmarkTrackingSummaryMap(
     ),
   ]);
 
-  const scoreCounts = new Map<string, number>();
+  const trustedScoreCounts = new Map<string, number>();
   for (const row of scoreRows) {
     const modelId =
       row && typeof row === "object" && "model_id" in row && typeof row.model_id === "string"
         ? row.model_id
         : null;
     if (!modelId) continue;
-    scoreCounts.set(modelId, (scoreCounts.get(modelId) ?? 0) + 1);
+    const source =
+      row && typeof row === "object" && "source" in row && typeof row.source === "string"
+        ? row.source
+        : null;
+    if (!isTrustedStructuredBenchmarkSource(source)) continue;
+    trustedScoreCounts.set(modelId, (trustedScoreCounts.get(modelId) ?? 0) + 1);
   }
 
   const arenaCounts = new Map<string, number>();
@@ -151,7 +160,7 @@ export async function buildBenchmarkTrackingSummaryMap(
         slug: model.slug,
         provider: model.provider,
         category: model.category,
-        benchmarkScoreCount: scoreCounts.get(model.id) ?? 0,
+        trustedBenchmarkScoreCount: trustedScoreCounts.get(model.id) ?? 0,
         benchmarkEvidenceCount: benchmarkEvidenceCounts.get(model.id) ?? 0,
         arenaSignalCount: arenaCounts.get(model.id) ?? 0,
       })

@@ -9,6 +9,7 @@ import {
   countProviderReportedBenchmarkEvidence,
   getBenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
+import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 
 export const dynamic = "force-dynamic";
@@ -98,9 +99,9 @@ export async function GET(
       slug: data.slug,
       provider: data.provider,
       category: data.category,
-      benchmarkScoreCount: Array.isArray(data.benchmark_scores)
-        ? data.benchmark_scores.length
-        : 0,
+      trustedBenchmarkScoreCount: countTrustedStructuredBenchmarkScores(
+        data.benchmark_scores
+      ),
       benchmarkEvidenceCount: countProviderReportedBenchmarkEvidence(benchmark_news),
       arenaSignalCount: eloRatings.length,
     });

@@ -1,4 +1,5 @@
 import { hasDiscoveryMetadata, type PublicSurfaceReadinessModel } from "@/lib/models/public-surface-readiness";
+import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 export interface PublicRankingConfidenceModel extends PublicSurfaceReadinessModel {
   benchmark_scores?: unknown;
@@ -7,10 +8,6 @@ export interface PublicRankingConfidenceModel extends PublicSurfaceReadinessMode
 
 function numeric(value: number | null | undefined): number {
   return value == null || !Number.isFinite(Number(value)) ? 0 : Number(value);
-}
-
-function listCount(value: unknown): number {
-  return Array.isArray(value) ? value.length : 0;
 }
 
 function releaseAgeDays(releaseDate: string | null | undefined): number | null {
@@ -73,8 +70,8 @@ function tractionConfidence(model: PublicRankingConfidenceModel) {
 }
 
 function benchmarkConfidence(model: PublicRankingConfidenceModel) {
-  const benchmarkCount = listCount(model.benchmark_scores);
-  const arenaCount = listCount(model.elo_ratings);
+  const benchmarkCount = countTrustedStructuredBenchmarkScores(model.benchmark_scores);
+  const arenaCount = Array.isArray(model.elo_ratings) ? model.elo_ratings.length : 0;
 
   if (benchmarkCount > 0) return 16;
   if (arenaCount > 0) return 6;

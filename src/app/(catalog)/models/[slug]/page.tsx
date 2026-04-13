@@ -50,6 +50,7 @@ import {
   countProviderReportedBenchmarkEvidence,
   getBenchmarkTrackingSummary,
 } from "@/lib/models/benchmark-status";
+import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 export const revalidate = 300;
 
@@ -250,7 +251,7 @@ export default async function ModelDetailPage({
     slug: model.slug,
     provider: model.provider,
     category: model.category,
-    benchmarkScoreCount: benchmarkScores.length,
+    trustedBenchmarkScoreCount: countTrustedStructuredBenchmarkScores(benchmarkScores),
     benchmarkEvidenceCount: countProviderReportedBenchmarkEvidence(
       recentBenchmarkEvidence
     ),

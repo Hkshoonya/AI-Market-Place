@@ -90,4 +90,68 @@ describe("buildBenchmarkTrackingSummaryMap", () => {
       })
     );
   });
+
+  it("ignores benchmark rows from untrusted sources when building structured coverage", async () => {
+    const queryClient = {
+      from: (table: string) => {
+        if (table === "benchmark_scores") {
+          return {
+            select: () => ({
+              in: async () => ({
+                data: [
+                  { model_id: "model-1", source: "unknown-feed" },
+                  { model_id: "model-1", source: "livebench" },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "elo_ratings") {
+          return {
+            select: () => ({
+              in: async () => ({
+                data: [],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "model_news") {
+          return {
+            select: () => ({
+              overlaps: () => ({
+                order: () => ({
+                  limit: async () => ({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const summaries = await buildBenchmarkTrackingSummaryMap(queryClient, [
+      {
+        id: "model-1",
+        slug: "provider-model",
+        provider: "Provider",
+        category: "llm",
+      },
+    ]);
+
+    expect(summaries.get("model-1")).toEqual(
+      expect.objectContaining({
+        status: "structured",
+        badgeLabel: "Structured",
+      })
+    );
+  });
 });

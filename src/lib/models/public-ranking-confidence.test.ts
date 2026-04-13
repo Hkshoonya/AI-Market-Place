@@ -20,7 +20,7 @@ describe("public ranking confidence", () => {
       adoption_score: 75,
       popularity_score: 72,
       economic_footprint_score: 68,
-      benchmark_scores: [{ id: "bench-1" }],
+      benchmark_scores: [{ id: "bench-1", source: "livebench" }],
     });
     const weak = computePublicRankingConfidenceScore({
       slug: "provider-model-mini",
@@ -49,7 +49,7 @@ describe("public ranking confidence", () => {
       adoption_score: 75,
       popularity_score: 72,
       economic_footprint_score: 68,
-      benchmark_scores: [{ id: "bench-1" }],
+      benchmark_scores: [{ id: "bench-1", source: "livebench" }],
     })).toBe("high");
   });
 
@@ -65,7 +65,7 @@ describe("public ranking confidence", () => {
           capability_score: 90,
           quality_score: 88,
           adoption_score: 70,
-          benchmark_scores: [{ id: "bench-1" }],
+          benchmark_scores: [{ id: "bench-1", source: "artificial-analysis" }],
         },
         {
           slug: "medium-b",
@@ -92,5 +92,30 @@ describe("public ranking confidence", () => {
     );
 
     expect(selected.map((model) => model.slug)).toEqual(["high-a", "medium-b"]);
+  });
+
+  it("does not give full benchmark credit to rows without trusted source provenance", () => {
+    const trusted = computePublicRankingConfidenceScore({
+      slug: "trusted-model",
+      name: "Trusted Model",
+      provider: "Provider",
+      category: "llm",
+      release_date: "2026-02-20",
+      capability_score: 74,
+      quality_score: 70,
+      benchmark_scores: [{ id: "bench-1", source: "livebench" }],
+    });
+    const untrusted = computePublicRankingConfidenceScore({
+      slug: "untrusted-model",
+      name: "Untrusted Model",
+      provider: "Provider",
+      category: "llm",
+      release_date: "2026-02-20",
+      capability_score: 74,
+      quality_score: 70,
+      benchmark_scores: [{ id: "bench-1", source: "unknown-feed" }],
+    });
+
+    expect(trusted).toBeGreaterThan(untrusted);
   });
 });

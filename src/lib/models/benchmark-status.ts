@@ -31,7 +31,7 @@ interface BenchmarkStatusInput {
   slug: string;
   provider: string;
   category: string | null;
-  benchmarkScoreCount: number;
+  trustedBenchmarkScoreCount: number;
   benchmarkEvidenceCount: number;
   arenaSignalCount: number;
 }
@@ -39,7 +39,7 @@ interface BenchmarkStatusInput {
 export function getBenchmarkTrackingSummary(
   input: BenchmarkStatusInput
 ): BenchmarkTrackingSummary {
-  if (input.benchmarkScoreCount > 0) {
+  if (input.trustedBenchmarkScoreCount > 0) {
     return {
       status: "structured",
       label: "Structured benchmark coverage",
