@@ -570,7 +570,11 @@ export async function GET(request: NextRequest) {
     };
     const benchmarkSourceHealth = summarizeBenchmarkSourceHealth(adapterStatuses);
     const dataQualityAlerts = computePipelineDataQualityAlerts({
-      benchmarkCoverage: benchmarkCoverageSummary,
+      benchmarkCoverage: {
+        ...benchmarkCoverageSummary,
+        degradedBenchmarkSources: benchmarkSourceHealth.degraded,
+        downBenchmarkSources: benchmarkSourceHealth.down,
+      },
       publicMetadataCoverage: {
         officialCompleteDiscoveryMetadataPct:
           publicMetadataCoverage.official.completeDiscoveryMetadataPct,

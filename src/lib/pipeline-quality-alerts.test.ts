@@ -12,6 +12,8 @@ describe("pipeline data quality alerts", () => {
         officialGapCount: 0,
         trustedLocatorCoveragePct: 100,
         missingTrustedLocatorCount: 0,
+        degradedBenchmarkSources: 0,
+        downBenchmarkSources: 0,
       },
       publicMetadataCoverage: {
         officialCompleteDiscoveryMetadataPct: 99.5,
@@ -40,6 +42,8 @@ describe("pipeline data quality alerts", () => {
         officialGapCount: 2,
         trustedLocatorCoveragePct: 92,
         missingTrustedLocatorCount: 4,
+        degradedBenchmarkSources: 1,
+        downBenchmarkSources: 1,
       },
       publicMetadataCoverage: {
         officialCompleteDiscoveryMetadataPct: 96.5,
@@ -64,6 +68,7 @@ describe("pipeline data quality alerts", () => {
 
     expect(alerts.map((alert) => alert.code)).toEqual([
       "benchmark_official_gaps",
+      "benchmark_sources_unhealthy",
       "missing_trusted_benchmark_locators",
       "official_metadata_completeness",
       "official_discovery_readiness",
@@ -77,5 +82,33 @@ describe("pipeline data quality alerts", () => {
       "manual_benchmark_sources_enabled",
     ]);
     expect(computePipelineDataQualityStatus(alerts)).toBe("critical");
+  });
+
+  it("returns a warning when benchmark sources are degraded but none are down", () => {
+    const alerts = computePipelineDataQualityAlerts({
+      benchmarkCoverage: {
+        officialGapCount: 0,
+        trustedLocatorCoveragePct: 100,
+        missingTrustedLocatorCount: 0,
+        degradedBenchmarkSources: 2,
+        downBenchmarkSources: 0,
+      },
+      publicMetadataCoverage: {
+        officialCompleteDiscoveryMetadataPct: 99.5,
+        officialDefaultPublicSurfaceReadyPct: 97.2,
+        officialRankingContaminationCount: 0,
+        lowTrustReadyCount: 0,
+        signalContaminationCount: 0,
+      },
+    });
+
+    expect(alerts).toEqual([
+      expect.objectContaining({
+        code: "benchmark_sources_unhealthy",
+        severity: "warning",
+        value: 2,
+      }),
+    ]);
+    expect(computePipelineDataQualityStatus(alerts)).toBe("warning");
   });
 });

@@ -2,6 +2,7 @@ export type PipelineDataQualityAlert = {
   severity: "warning" | "critical";
   code:
     | "benchmark_official_gaps"
+    | "benchmark_sources_unhealthy"
     | "missing_trusted_benchmark_locators"
     | "official_metadata_completeness"
     | "official_discovery_readiness"
@@ -22,6 +23,8 @@ type BenchmarkCoverageSummaryInput = {
   officialGapCount: number;
   trustedLocatorCoveragePct: number;
   missingTrustedLocatorCount: number;
+  degradedBenchmarkSources?: number;
+  downBenchmarkSources?: number;
 };
 
 type PublicMetadataCoverageSummaryInput = {
@@ -62,6 +65,21 @@ export function computePipelineDataQualityAlerts(input: {
       code: "benchmark_official_gaps",
       message: "Official benchmark-expected models still have benchmark coverage gaps.",
       value: input.benchmarkCoverage.officialGapCount,
+      target: 0,
+    });
+  }
+
+  const unhealthyBenchmarkSources =
+    (input.benchmarkCoverage.degradedBenchmarkSources ?? 0) +
+    (input.benchmarkCoverage.downBenchmarkSources ?? 0);
+
+  if (unhealthyBenchmarkSources > 0) {
+    alerts.push({
+      severity: (input.benchmarkCoverage.downBenchmarkSources ?? 0) > 0 ? "critical" : "warning",
+      code: "benchmark_sources_unhealthy",
+      message:
+        "Benchmark source adapters are stale, degraded, or failing, so benchmark updates may stop propagating.",
+      value: unhealthyBenchmarkSources,
       target: 0,
     });
   }
