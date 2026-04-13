@@ -14,9 +14,16 @@ export const ComparisonRow = memo(function ComparisonRow({
   values,
   highlight,
 }: ComparisonRowProps) {
-  const numValues = values.map((v) =>
-    typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : null
-  );
+  const parseComparableNumber = (value: string | number | null): number | null => {
+    if (typeof value === "number") return value;
+    if (typeof value !== "string") return null;
+    const match = value.match(/-?\d+(\.\d+)?/);
+    if (!match) return null;
+    const parsed = Number(match[0]);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const numValues = values.map((v) => parseComparableNumber(v));
 
   let bestIdx = -1;
   if (highlight && numValues.some((v) => v !== null && !isNaN(v))) {
