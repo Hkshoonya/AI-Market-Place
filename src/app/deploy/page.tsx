@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/models/pagination";
 import { WorkspaceStartButton } from "@/components/workspace/workspace-start-button";
+import { DeployAccountSummary } from "@/components/workspace/deploy-account-summary";
 import { SITE_URL } from "@/lib/constants/site";
 import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResultPartial } from "@/lib/schemas/parse";
@@ -293,6 +294,8 @@ export default async function DeployPage({
             </Button>
           </div>
         </div>
+
+        <DeployAccountSummary />
 
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           <Card className="border-border/50 bg-card/60">

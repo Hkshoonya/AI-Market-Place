@@ -53,6 +53,10 @@ vi.mock("@/components/workspace/workspace-start-button", () => ({
   ),
 }));
 
+vi.mock("@/components/workspace/deploy-account-summary", () => ({
+  DeployAccountSummary: () => <div data-testid="deploy-account-summary" />,
+}));
+
 vi.mock("@/components/models/pagination", () => ({
   Pagination: () => <div data-testid="pagination" />,
 }));
@@ -151,6 +155,7 @@ describe("DeployPage", () => {
     );
 
     expect(screen.getByText(/Launch AI models on AI Market Cap/i)).toBeInTheDocument();
+    expect(screen.getByTestId("deploy-account-summary")).toBeInTheDocument();
     expect(screen.getByText(/How To Start/i)).toBeInTheDocument();
     expect(screen.getByText(/1\. Filter the list/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Open guided setup/i)).toBeInTheDocument();
