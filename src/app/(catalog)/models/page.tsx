@@ -28,6 +28,7 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
+import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { Pagination } from "@/components/models/pagination";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import type { Metadata } from "next";
@@ -374,26 +375,10 @@ export default async function ModelsPage({
         <p className="mt-2 text-muted-foreground">
           Browse, search, and compare AI models from providers worldwide.
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">Hosted for you</p>
-            <p className="mt-1">
-              You can start using it through a managed service without setting up your own server.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">Cloud server you control</p>
-            <p className="mt-1">
-              You rent the machine, install the model, and manage the running costs yourself.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">On your computer</p>
-            <p className="mt-1">
-              It can run locally, but larger open models may still need a strong desktop GPU.
-            </p>
-          </div>
-        </div>
+        <DeploymentMeaningLegend
+          className="mt-4"
+          intro="Deployment here means the real path to start using a model: through a hosted service, on a rented server you control, or on your own machine."
+        />
         {managedOnly && (
           <div className="mt-4 rounded-2xl border border-[#00d4aa]/30 bg-[#00d4aa]/5 p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

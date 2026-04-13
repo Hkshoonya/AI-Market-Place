@@ -22,6 +22,7 @@ import { getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-signals";
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-badge";
+import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import {
@@ -455,26 +456,10 @@ export default async function SearchPage({
         </div>
       </form>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-          <p className="font-semibold text-foreground">Hosted for you</p>
-          <p className="mt-1">
-            You can start through a managed service without setting up your own server.
-          </p>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-          <p className="font-semibold text-foreground">Cloud server you control</p>
-          <p className="mt-1">
-            You rent the machine, install the model, and handle the running cost yourself.
-          </p>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-          <p className="font-semibold text-foreground">On your computer</p>
-          <p className="mt-1">
-            It can run locally, but larger open models may still need a strong desktop GPU.
-          </p>
-        </div>
-      </div>
+      <DeploymentMeaningLegend
+        className="mb-6"
+        intro="Deployment here means the real way to start using a model after you find it, not just a tool name or mention."
+      />
 
       {!query ? (
         <div className="py-16 text-center">

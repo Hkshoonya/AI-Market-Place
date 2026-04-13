@@ -25,6 +25,7 @@ import { formatNumber } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
+import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
@@ -796,26 +797,10 @@ export default async function HomePage() {
             use on AI Market Cap, a new provider option, or a new way to run it yourself.
           </p>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-              <p className="font-semibold text-foreground">Hosted for you</p>
-              <p className="mt-1">
-                You can start through a managed service without setting up your own server.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-              <p className="font-semibold text-foreground">Cloud server you control</p>
-              <p className="mt-1">
-                You rent the machine, install the model, and manage the running cost yourself.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/50 bg-card/60 p-4 text-sm text-muted-foreground">
-              <p className="font-semibold text-foreground">On your computer</p>
-              <p className="mt-1">
-                It can run locally, but larger open models may still need a strong desktop GPU.
-              </p>
-            </div>
-          </div>
+          <DeploymentMeaningLegend
+            className="mt-4"
+            intro="Deployment here means a model gained a real way to be used, whether that is on this site, through a provider, on a rented server, or on your own machine."
+          />
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {newDeploymentPaths.map(({ model, surfacedAt, title, summary, source, signalType }) => {
