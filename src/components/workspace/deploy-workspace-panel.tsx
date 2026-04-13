@@ -526,6 +526,8 @@ export function DeployWorkspacePanel() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={maximized ? workspace.restoreWorkspace : workspace.maximizeWorkspace}
+                aria-label={maximized ? "Restore workflow panel" : "Maximize workflow panel"}
+                title={maximized ? "Restore workflow panel" : "Maximize workflow panel"}
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
@@ -533,7 +535,13 @@ export function DeployWorkspacePanel() {
                 <Minimize2 className="h-4 w-4" />
                 Minimize
               </Button>
-              <Button variant="ghost" size="icon-sm" onClick={workspace.closeWorkspace}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={workspace.closeWorkspace}
+                aria-label="Close workflow panel"
+                title="Close workflow panel"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -623,12 +631,12 @@ export function DeployWorkspacePanel() {
                       {workflowGuideCollapsed ? (
                         <>
                           <ChevronDown className="h-4 w-4" />
-                          Show
+                          Show workflow guide
                         </>
                       ) : (
                         <>
                           <ChevronUp className="h-4 w-4" />
-                          Hide
+                          Hide workflow guide
                         </>
                       )}
                     </Button>
