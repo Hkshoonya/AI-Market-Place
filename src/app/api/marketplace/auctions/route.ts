@@ -36,7 +36,21 @@ const createAuctionSchema = z.object({
 export const dynamic = "force-dynamic";
 
 type AuctionWithListing = Record<string, unknown>;
-type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled" | "settled";
+type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled";
+
+const PUBLIC_AUCTION_STATUSES = ["upcoming", "active", "ended", "cancelled"] as const;
+
+function normalizeAuctionStatusParam(status: string | null): AuctionStatus | "all" {
+  if (!status) return "active";
+
+  const normalized = status.toLowerCase();
+  if (normalized === "all") return "all";
+  if (normalized === "settled") return "ended";
+
+  return PUBLIC_AUCTION_STATUSES.includes(normalized as AuctionStatus)
+    ? (normalized as AuctionStatus)
+    : "active";
+}
 
 /**
  * GET /api/marketplace/auctions
@@ -61,14 +75,14 @@ export async function GET(request: NextRequest) {
 
   const auctionType =
     searchParams.get("auction_type") || searchParams.get("type");
-  const status = searchParams.get("status") || "active";
+  const status = normalizeAuctionStatusParam(searchParams.get("status"));
   const listingType = searchParams.get("listing_type");
   const sort = searchParams.get("sort") || "ending_soon";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
 
   const statusFilter: AuctionStatus[] =
-    status === "all" ? ["upcoming", "active", "ended"] : [status as AuctionStatus];
+    status === "all" ? [...PUBLIC_AUCTION_STATUSES] : [status];
 
   // Sorting
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
