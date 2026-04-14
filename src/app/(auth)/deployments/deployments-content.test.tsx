@@ -234,14 +234,19 @@ describe("DeploymentsContent", () => {
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run Quick Test/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Open in Workspace/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Run Quick Test/i }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("link", { name: /Manage Budget/i })).toHaveAttribute(
+      "href",
+      `#deployment-budget-${baseDeployment.id}`
+    );
+    expect(screen.getByRole("button", { name: /Copy Endpoint/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open deployment workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pause/i })).toBeInTheDocument();
     expect(screen.getByText(/Budget and billing controls/i)).toBeInTheDocument();
     expect(screen.getByText(/API setup and test/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Recent activity/i).length).toBeGreaterThanOrEqual(1);
 
-    await user.click(screen.getByRole("button", { name: /Open in Workspace/i }));
+    await user.click(screen.getByRole("button", { name: /Open deployment workflow/i }));
 
     expect(mockOpenWorkspace).toHaveBeenCalledWith({
       model: baseDeployment.modelName,
@@ -253,7 +258,7 @@ describe("DeploymentsContent", () => {
       suggestedAmount: baseDeployment.creditsBudget,
     });
 
-    await user.click(screen.getByRole("button", { name: /Run Quick Test/i }));
+    await user.click(screen.getAllByRole("button", { name: /Run Quick Test/i })[0]);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(

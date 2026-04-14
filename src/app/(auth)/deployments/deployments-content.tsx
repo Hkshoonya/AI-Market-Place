@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, KeyRound, PauseCircle, PlayCircle, Server, Trash2, Wallet } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  Copy,
+  KeyRound,
+  PauseCircle,
+  PlayCircle,
+  Server,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
@@ -138,7 +148,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
         deployment.lastErrorMessage ??
         "Open this model in workspace and review the last deployment error before retrying requests.",
       tone: "border-red-500/20 bg-red-500/10",
-      workspaceLabel: "Review in Workspace",
+      workspaceLabel: "Open deployment workflow",
       workspaceAction: "Review deployment error",
     };
   }
@@ -149,7 +159,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
       detail:
         "This deployment is still being prepared. Come back when it turns ready, then run a quick test.",
       tone: "border-cyan-500/20 bg-cyan-500/10",
-      workspaceLabel: "Open setup in Workspace",
+      workspaceLabel: "Open deployment workflow",
       workspaceAction: "Watch deployment setup",
     };
   }
@@ -160,7 +170,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
       detail:
         "This deployment is paused. Resume it first, then run a quick test or continue from workspace.",
       tone: "border-amber-500/20 bg-amber-500/10",
-      workspaceLabel: "Open in Workspace",
+      workspaceLabel: "Open deployment workflow",
       workspaceAction: "Resume deployment workflow",
     };
   }
@@ -171,7 +181,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
       detail:
         "This deployment has no tracked budget remaining. Update the budget, then run a quick test.",
       tone: "border-red-500/20 bg-red-500/10",
-      workspaceLabel: "Fix in Workspace",
+      workspaceLabel: "Open deployment workflow",
       workspaceAction: "Fix deployment budget",
     };
   }
@@ -182,7 +192,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
       detail:
         "Budget is getting low. Keep the endpoint healthy by topping up before new traffic spikes.",
       tone: "border-amber-500/20 bg-amber-500/10",
-      workspaceLabel: "Open in Workspace",
+      workspaceLabel: "Open deployment workflow",
       workspaceAction: "Check deployment budget",
     };
   }
@@ -191,7 +201,7 @@ function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
     title: "Ready for traffic",
     detail: "Run a quick test, then use this endpoint directly or continue from workspace.",
     tone: "border-emerald-500/20 bg-emerald-500/10",
-    workspaceLabel: "Open in Workspace",
+    workspaceLabel: "Open deployment workflow",
     workspaceAction: "Use live deployment",
   };
 }
@@ -205,6 +215,7 @@ export default function DeploymentsContent() {
   const [error, setError] = useState<string | null>(null);
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
   const [testLoadingSlug, setTestLoadingSlug] = useState<string | null>(null);
+  const [copiedEndpointSlug, setCopiedEndpointSlug] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<
     Record<string, { content?: string; error?: string; provider?: string; model?: string }>
   >({});
@@ -353,6 +364,20 @@ export default function DeploymentsContent() {
       }));
     } finally {
       setTestLoadingSlug(null);
+    }
+  };
+
+  const copyEndpoint = async (deployment: WorkspaceDeploymentResponse) => {
+    try {
+      await navigator.clipboard.writeText(deployment.endpointPath);
+      setCopiedEndpointSlug(deployment.modelSlug);
+      window.setTimeout(() => {
+        setCopiedEndpointSlug((current) =>
+          current === deployment.modelSlug ? null : current
+        );
+      }, 1600);
+    } catch {
+      setError("Failed to copy deployment endpoint");
     }
   };
 
@@ -638,6 +663,28 @@ export default function DeploymentsContent() {
                         {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
                       </Button>
                       <Button variant="outline" asChild>
+                        <a href={`#deployment-budget-${deployment.id}`}>Manage Budget</a>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          void copyEndpoint(deployment);
+                        }}
+                      >
+                        {copiedEndpointSlug === deployment.modelSlug ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Endpoint Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Copy Endpoint
+                          </>
+                        )}
+                      </Button>
+                      <Button variant="outline" asChild>
                         <Link href={`/models/${deployment.modelSlug}`}>
                           Model Page
                           <ArrowUpRight className="h-4 w-4" />
@@ -775,7 +822,10 @@ export default function DeploymentsContent() {
                     </div>
                   </div>
 
-                  <details className="rounded-xl border border-border/50 bg-card/40 p-4">
+                  <details
+                    id={`deployment-budget-${deployment.id}`}
+                    className="rounded-xl border border-border/50 bg-card/40 p-4 scroll-mt-24"
+                  >
                     <summary className="cursor-pointer list-none">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -856,7 +906,7 @@ export default function DeploymentsContent() {
                           }
                           onClick={() => runTestCall(deployment)}
                         >
-                          {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Test Call"}
+                          {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
                         </Button>
                         <Button variant="outline" asChild>
                           <Link
