@@ -1674,7 +1674,7 @@ export interface Database {
           listing_id: string;
           seller_id: string;
           auction_type: "english" | "dutch" | "batch";
-          status: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          status: "upcoming" | "active" | "ended" | "cancelled";
           start_price: number;
           reserve_price: number | null;
           floor_price: number | null;
@@ -1698,7 +1698,7 @@ export interface Database {
           listing_id: string;
           seller_id: string;
           auction_type: "english" | "dutch" | "batch";
-          status?: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          status?: "upcoming" | "active" | "ended" | "cancelled";
           start_price: number;
           reserve_price?: number | null;
           floor_price?: number | null;
@@ -1722,7 +1722,7 @@ export interface Database {
           listing_id?: string;
           seller_id?: string;
           auction_type?: "english" | "dutch" | "batch";
-          status?: "upcoming" | "active" | "ended" | "cancelled" | "settled";
+          status?: "upcoming" | "active" | "ended" | "cancelled";
           start_price?: number;
           reserve_price?: number | null;
           floor_price?: number | null;

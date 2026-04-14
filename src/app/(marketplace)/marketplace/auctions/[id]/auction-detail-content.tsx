@@ -6,14 +6,12 @@ import Image from "next/image";
 import useSWR from "swr";
 import {
   ArrowLeft,
-  Gavel,
-  TrendingDown,
-  Layers,
   AlertCircle,
   Loader2,
   Wallet,
   Clock,
   User,
+  Layers,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +21,11 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { useAuth } from "@/components/auth/auth-provider";
 import { SWR_TIERS } from "@/lib/swr/config";
 import type { Auction } from "@/types/auction";
+import {
+  AUCTION_STATUS_BADGE_STYLES,
+  AUCTION_TYPE_BADGE_STYLES,
+  AUCTION_TYPE_ICONS,
+} from "@/lib/marketplace/auctions/presentation";
 import { useAuctionTimer } from "@/hooks/use-auction-timer";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { BidHistoryTable } from "@/components/marketplace/bid-history-table";
@@ -33,25 +36,6 @@ import { WalletDepositPanel } from "@/components/marketplace/wallet-deposit-pane
 // ────────────────────────────────────────────────────────────
 // Constants
 // ────────────────────────────────────────────────────────────
-
-const TYPE_BADGE_STYLES: Record<string, string> = {
-  english: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  dutch: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  batch: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-};
-
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  upcoming: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  ended: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
-  cancelled: "bg-red-500/10 text-red-400 border-red-500/30",
-};
-
-const TYPE_ICONS: Record<string, typeof Gavel> = {
-  english: Gavel,
-  dutch: TrendingDown,
-  batch: Layers,
-};
 
 // ────────────────────────────────────────────────────────────
 // Main Component
@@ -110,7 +94,7 @@ export default function AuctionDetailContent({
     );
   }
 
-  const TypeIcon = TYPE_ICONS[auction.auction_type] || Gavel;
+  const TypeIcon = AUCTION_TYPE_ICONS[auction.auction_type];
   const englishMinimumBid =
     (auction.current_price ?? auction.start_price) + (auction.bid_increment || 1);
   const minimumActionAmount =
@@ -145,7 +129,7 @@ export default function AuctionDetailContent({
                 variant="outline"
                 className={cn(
                   "text-xs",
-                  TYPE_BADGE_STYLES[auction.auction_type]
+                  AUCTION_TYPE_BADGE_STYLES[auction.auction_type]
                 )}
               >
                 <TypeIcon className="mr-1 h-3 w-3" />
@@ -157,8 +141,7 @@ export default function AuctionDetailContent({
                 variant="outline"
                 className={cn(
                   "text-xs",
-                  STATUS_BADGE_STYLES[auction.status] ||
-                    STATUS_BADGE_STYLES.ended
+                  AUCTION_STATUS_BADGE_STYLES[auction.status]
                 )}
               >
                 {auction.status.charAt(0).toUpperCase() +

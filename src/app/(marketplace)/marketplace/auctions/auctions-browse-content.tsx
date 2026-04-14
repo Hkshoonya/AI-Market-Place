@@ -4,13 +4,11 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import {
-  Gavel,
-  TrendingDown,
-  Layers,
   Clock,
   ArrowRight,
   Package,
   Loader2,
+  Gavel,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +17,11 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { SWR_TIERS } from "@/lib/swr/config";
 import type { AuctionStatus } from "@/lib/marketplace/auctions/status";
+import {
+  AUCTION_STATUS_BADGE_STYLES,
+  AUCTION_TYPE_BADGE_STYLES,
+  AUCTION_TYPE_ICONS,
+} from "@/lib/marketplace/auctions/presentation";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -60,9 +63,9 @@ interface Auction {
 
 const AUCTION_TYPE_TABS = [
   { value: "all", label: "All" },
-  { value: "english", label: "English", icon: Gavel },
-  { value: "dutch", label: "Dutch", icon: TrendingDown },
-  { value: "batch", label: "Batch", icon: Layers },
+  { value: "english", label: "English", icon: AUCTION_TYPE_ICONS.english },
+  { value: "dutch", label: "Dutch", icon: AUCTION_TYPE_ICONS.dutch },
+  { value: "batch", label: "Batch", icon: AUCTION_TYPE_ICONS.batch },
 ] as const;
 
 const SORT_OPTIONS = [
@@ -74,19 +77,6 @@ const SORT_OPTIONS = [
 
 type AuctionTypeFilter = (typeof AUCTION_TYPE_TABS)[number]["value"];
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
-
-const TYPE_BADGE_STYLES: Record<string, string> = {
-  english: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  dutch: "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  batch: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-};
-
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  upcoming: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  ended: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30",
-  cancelled: "bg-red-500/10 text-red-400 border-red-500/30",
-};
 
 // ────────────────────────────────────────────────────────────
 // Helpers
@@ -138,6 +128,7 @@ function AuctionCard({
       ? dutchPrice
       : getDisplayPrice(auction);
 
+  const TypeIcon = AUCTION_TYPE_ICONS[auction.auction_type];
   const startPrice = auction.start_price;
   const priceChanged = Math.abs(price - startPrice) > 0.001;
   const timeStr = formatTimeRemaining(auction.ends_at);
@@ -159,17 +150,9 @@ function AuctionCard({
           <div className="flex items-center justify-between gap-2">
             <Badge
               variant="outline"
-              className={cn("text-[11px]", TYPE_BADGE_STYLES[auction.auction_type])}
+              className={cn("text-[11px]", AUCTION_TYPE_BADGE_STYLES[auction.auction_type])}
             >
-              {auction.auction_type === "english" && (
-                <Gavel className="mr-1 h-3 w-3" />
-              )}
-              {auction.auction_type === "dutch" && (
-                <TrendingDown className="mr-1 h-3 w-3" />
-              )}
-              {auction.auction_type === "batch" && (
-                <Layers className="mr-1 h-3 w-3" />
-              )}
+              <TypeIcon className="mr-1 h-3 w-3" />
               {auction.auction_type.charAt(0).toUpperCase() +
                 auction.auction_type.slice(1)}
             </Badge>
@@ -177,8 +160,7 @@ function AuctionCard({
               variant="outline"
               className={cn(
                 "text-[10px]",
-                STATUS_BADGE_STYLES[auction.status] ||
-                  STATUS_BADGE_STYLES.ended
+                AUCTION_STATUS_BADGE_STYLES[auction.status]
               )}
             >
               {auction.status.charAt(0).toUpperCase() +
