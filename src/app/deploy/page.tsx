@@ -285,7 +285,7 @@ export default async function DeployPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild className="bg-neon text-background hover:bg-neon/90">
-              <Link href="/workspace">Open Workspace</Link>
+              <Link href="/deploy#deploy-directory">Browse launch directory</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/deployments">View Deployments</Link>

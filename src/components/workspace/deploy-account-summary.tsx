@@ -62,7 +62,7 @@ export function DeployAccountSummary() {
             <Link href="/deployments">Go to Deployments</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/workspace">Open Workspace</Link>
+            <Link href="/deploy">Start another guided setup</Link>
           </Button>
         </div>
       </CardContent>

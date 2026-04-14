@@ -173,9 +173,13 @@ describe("DeployPage", () => {
     expect(screen.getByText(/1\. Filter the list/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Open guided setup/i)).toBeInTheDocument();
     expect(screen.getByText(/3\. Keep using it here/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open Workspace/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Browse launch directory/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /View Deployments/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse launch directory/i })).toHaveAttribute("href", "/deploy#deploy-directory");
+    expect(
+      screen
+        .getAllByRole("link", { name: /Browse launch directory/i })
+        .every((link) => link.getAttribute("href") === "/deploy#deploy-directory")
+    ).toBe(true);
     expect(screen.getByRole("link", { name: /Lowest cost/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Open Guided Setup/i }).length).toBeGreaterThanOrEqual(1);
     expect(

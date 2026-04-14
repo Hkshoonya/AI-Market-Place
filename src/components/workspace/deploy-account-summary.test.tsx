@@ -57,6 +57,6 @@ describe("DeployAccountSummary", () => {
     expect(screen.getByText(/1 paused/i)).toBeInTheDocument();
     expect(screen.getByText(/1 need attention/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Go to Deployments/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open Workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
   });
 });
