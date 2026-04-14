@@ -64,6 +64,46 @@ const baseDeployment = {
   lastResponseLatencyMs: 390,
 };
 
+
+const failedDeployment = {
+  ...baseDeployment,
+  id: "dep_failed",
+  modelSlug: "grok-4",
+  modelName: "Grok 4",
+  status: "failed",
+  healthStatus: "error",
+  endpointPath: "/api/deployments/grok-4",
+  endpointSlug: "grok-4",
+  billing: {
+    ...baseDeployment.billing,
+    budgetStatus: "exhausted",
+    budgetRemaining: 0,
+  },
+  lastErrorMessage: "Provider returned a 500 during the last request.",
+};
+
+const pausedDeployment = {
+  ...baseDeployment,
+  id: "dep_paused",
+  modelSlug: "claude-opus-4-6",
+  modelName: "Claude Opus 4.6",
+  status: "paused",
+  healthStatus: "paused",
+  endpointPath: "/api/deployments/claude-opus-4-6",
+  endpointSlug: "claude-opus-4-6",
+};
+
+const provisioningDeployment = {
+  ...baseDeployment,
+  id: "dep_provisioning",
+  modelSlug: "gemini-2-5-pro",
+  modelName: "Gemini 2.5 Pro",
+  status: "provisioning",
+  healthStatus: "idle",
+  endpointPath: "/api/deployments/gemini-2-5-pro",
+  endpointSlug: "gemini-2-5-pro",
+};
+
 describe("DeploymentsContent", () => {
   beforeEach(() => {
     mockPush.mockReset();
@@ -102,6 +142,53 @@ describe("DeploymentsContent", () => {
     expect(screen.getAllByRole("link", { name: /Start guided setup/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /Browse all deployable models/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Action queue/i)).not.toBeInTheDocument();
+  });
+
+  it("surfaces an action queue when deployments need review, resume, or setup follow-up", () => {
+    const deploymentSnapshot = {
+      deployments: [failedDeployment, pausedDeployment, provisioningDeployment],
+    };
+
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: deploymentSnapshot,
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key?.includes("/activity")) {
+        return {
+          data: { activity: [], events: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      return {
+        data: undefined,
+        mutate: vi.fn(),
+      };
+    });
+
+    render(<DeploymentsContent />);
+
+    expect(screen.getByText(/Action queue/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 deployment needs attention right now/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 paused deployment is waiting to be resumed/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 deployment is still being prepared/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review attention first/i })).toHaveAttribute(
+      "href",
+      "#deployment-grok-4"
+    );
+    expect(screen.getByRole("link", { name: /Resume paused deployment/i })).toHaveAttribute(
+      "href",
+      "#deployment-claude-opus-4-6"
+    );
+    expect(screen.getByRole("link", { name: /Watch setup in progress/i })).toHaveAttribute(
+      "href",
+      "#deployment-gemini-2-5-pro"
+    );
   });
 
   it("renders deployment controls and records a quick test response", async () => {

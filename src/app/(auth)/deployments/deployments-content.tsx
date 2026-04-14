@@ -238,11 +238,39 @@ export default function DeploymentsContent() {
   const summary = useMemo(() => {
     const ready = deployments.filter((deployment) => deployment.status === "ready").length;
     const paused = deployments.filter((deployment) => deployment.status === "paused").length;
+    const provisioning = deployments.filter(
+      (deployment) => deployment.status === "provisioning"
+    ).length;
+    const attention = deployments.filter(
+      (deployment) =>
+        deployment.status === "failed" ||
+        deployment.healthStatus === "error" ||
+        deployment.billing.budgetStatus === "exhausted"
+    ).length;
     const totalSpend = deployments.reduce(
       (sum, deployment) => sum + deployment.billing.estimatedSpend,
       0
     );
-    return { ready, paused, totalSpend };
+    const firstAttention =
+      deployments.find(
+        (deployment) =>
+          deployment.status === "failed" ||
+          deployment.healthStatus === "error" ||
+          deployment.billing.budgetStatus === "exhausted"
+      ) ?? null;
+    const firstPaused = deployments.find((deployment) => deployment.status === "paused") ?? null;
+    const firstProvisioning =
+      deployments.find((deployment) => deployment.status === "provisioning") ?? null;
+    return {
+      ready,
+      paused,
+      provisioning,
+      attention,
+      totalSpend,
+      firstAttention,
+      firstPaused,
+      firstProvisioning,
+    };
   }, [deployments]);
 
   const updateDeployment = async (
@@ -403,7 +431,7 @@ export default function DeploymentsContent() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/50 bg-card/70">
           <CardContent className="p-5">
             <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
@@ -419,6 +447,17 @@ export default function DeploymentsContent() {
             </p>
             <p className="mt-2 text-2xl font-semibold text-white">{summary.ready}</p>
             <p className="mt-1 text-xs text-muted-foreground">{summary.paused} paused</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/70">
+          <CardContent className="p-5">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              Needs attention
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-white">{summary.attention}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {summary.provisioning} provisioning · {summary.paused} paused
+            </p>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-card/70">
@@ -450,6 +489,47 @@ export default function DeploymentsContent() {
           </p>
         </CardContent>
       </Card>
+
+      {summary.attention > 0 || summary.paused > 0 || summary.provisioning > 0 ? (
+        <Card className="mb-6 border-amber-500/30 bg-amber-500/10">
+          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-amber-200/80">
+                Action queue
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                Review problem deployments first, then return to live traffic.
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm text-amber-50/80">
+                {summary.attention > 0
+                  ? `${summary.attention} deployment${summary.attention === 1 ? " needs" : "s need"} attention right now.`
+                  : "No deployments are currently broken."} {summary.paused > 0
+                  ? `${summary.paused} paused deployment${summary.paused === 1 ? " is" : "s are"} waiting to be resumed.`
+                  : ""} {summary.provisioning > 0
+                  ? `${summary.provisioning} deployment${summary.provisioning === 1 ? " is" : "s are"} still being prepared.`
+                  : ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {summary.firstAttention ? (
+                <Button asChild className="bg-amber-400 text-background hover:bg-amber-300">
+                  <a href={`#deployment-${summary.firstAttention.modelSlug}`}>Review attention first</a>
+                </Button>
+              ) : null}
+              {summary.firstPaused ? (
+                <Button variant="outline" asChild>
+                  <a href={`#deployment-${summary.firstPaused.modelSlug}`}>Resume paused deployment</a>
+                </Button>
+              ) : null}
+              {summary.firstProvisioning ? (
+                <Button variant="outline" asChild>
+                  <a href={`#deployment-${summary.firstProvisioning.modelSlug}`}>Watch setup in progress</a>
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -492,7 +572,7 @@ export default function DeploymentsContent() {
             const nextStep = getDeploymentNextStep(deployment);
 
             return (
-              <Card key={deployment.id} className="border-border/50 bg-card/70">
+              <Card id={`deployment-${deployment.modelSlug}`} key={deployment.id} className="border-border/50 bg-card/70 scroll-mt-24">
                 <CardContent className="space-y-5 p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
