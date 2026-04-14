@@ -197,6 +197,118 @@ describe("WorkspaceContent", () => {
     expect(screen.getByRole("link", { name: /Browse deployable models/i })).toBeInTheDocument();
   });
 
+  it("shows the broader deployment portfolio when the signed-in workspace already has saved deployments", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user_123" },
+      loading: false,
+    });
+    mockUseWorkspace.mockReturnValue(createWorkspaceValue());
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (!key) {
+        return { data: undefined, mutate: vi.fn() };
+      }
+
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: {
+            deployments: [
+              {
+                id: "dep_1",
+                modelSlug: "kimi-k2",
+                modelName: "Kimi K2",
+                status: "ready",
+              },
+              {
+                id: "dep_2",
+                modelSlug: "claude-opus-4-6",
+                modelName: "Claude Opus 4.6",
+                status: "paused",
+              },
+              {
+                id: "dep_3",
+                modelSlug: "grok-4",
+                modelName: "Grok 4",
+                status: "failed",
+              },
+              {
+                id: "dep_4",
+                modelSlug: "gemini-2-5-pro",
+                modelName: "Gemini 2.5 Pro",
+                status: "provisioning",
+              },
+            ],
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/deployment")) {
+        return {
+          data: {
+            deployment: null,
+            runtime: null,
+            provisioning: {
+              canCreate: true,
+              deploymentKind: "hosted_external",
+              label: "AI Market Cap dedicated runtime",
+              summary:
+                "Create one saved site setup so budget, usage, and requests stay attached to this workspace.",
+              target: null,
+            },
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/runtime")) {
+        return {
+          data: { runtime: null },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/chat")) {
+        return {
+          data: { messages: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key === "/api/api-keys") {
+        return {
+          data: { keys: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/marketplace/wallet")) {
+        return {
+          data: { balance: 0 },
+          mutate: vi.fn(),
+        };
+      }
+
+      return { data: undefined, mutate: vi.fn() };
+    });
+
+    render(<WorkspaceContent />);
+
+    expect(screen.getByText(/Deployment portfolio/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/This workspace is part of your broader deployment account/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Kimi K2 already has a saved deployment with status ready/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 need attention/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 provisioning/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 other workflows/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Go to Deployments/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
+  });
+
   it("renders explicit full-page workflow controls and lets the guide collapse", async () => {
     const user = userEvent.setup();
     const workspaceValue = createWorkspaceValue();

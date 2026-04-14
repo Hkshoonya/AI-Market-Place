@@ -207,6 +207,18 @@ export default function WorkspaceContent() {
   const savedDeployments = deploymentsSnapshot?.deployments ?? [];
   const savedDeploymentCount = savedDeployments.length;
   const hasSavedDeployments = savedDeploymentCount > 0;
+  const readyDeploymentCount = savedDeployments.filter((item) => item.status === "ready").length;
+  const pausedDeploymentCount = savedDeployments.filter((item) => item.status === "paused").length;
+  const attentionDeploymentCount = savedDeployments.filter((item) => item.status === "failed").length;
+  const provisioningDeploymentCount = savedDeployments.filter(
+    (item) => item.status === "provisioning"
+  ).length;
+  const currentSavedDeployment = session?.modelSlug
+    ? savedDeployments.find((item) => item.modelSlug === session.modelSlug) ?? null
+    : null;
+  const otherDeploymentCount = currentSavedDeployment
+    ? Math.max(savedDeploymentCount - 1, 0)
+    : savedDeploymentCount;
   const showProviderLabel = Boolean(session?.provider && !session.provider.includes("AI Market Cap"));
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
@@ -778,6 +790,55 @@ export default function WorkspaceContent() {
           </CardContent>
         </Card>
       </div>
+
+      {hasSavedDeployments ? (
+        <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
+          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                Deployment portfolio
+              </p>
+              <p className="mt-1 text-lg font-semibold text-white">
+                This workspace is part of your broader deployment account.
+              </p>
+              <p className="mt-2 max-w-3xl text-sm text-cyan-50/80">
+                {currentSavedDeployment
+                  ? `${session.model ?? currentSavedDeployment.modelName} already has a saved deployment with status ${currentSavedDeployment.status}. Use Deployments to run a quick test, resume traffic, or switch to another model workflow.`
+                  : `You already have ${savedDeploymentCount} saved deployment${savedDeploymentCount === 1 ? "" : "s"} on this account. Use Deployments to run quick tests, pause traffic, adjust budgets, or jump into another model workflow.`}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge className="bg-emerald-500/10 text-emerald-200">
+                  {readyDeploymentCount} ready
+                </Badge>
+                <Badge className="bg-amber-500/10 text-amber-100">
+                  {pausedDeploymentCount} paused
+                </Badge>
+                <Badge className="bg-red-500/10 text-red-200">
+                  {attentionDeploymentCount} need attention
+                </Badge>
+                {provisioningDeploymentCount > 0 ? (
+                  <Badge className="bg-cyan-500/10 text-cyan-100">
+                    {provisioningDeploymentCount} provisioning
+                  </Badge>
+                ) : null}
+                {otherDeploymentCount > 0 ? (
+                  <Badge variant="outline" className="border-cyan-300/20 bg-card/40 text-cyan-50">
+                    {otherDeploymentCount} other workflow{otherDeploymentCount === 1 ? "" : "s"}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                <Link href="/deployments">Go to Deployments</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/deploy">Start another guided setup</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
         <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
