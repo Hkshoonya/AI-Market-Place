@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { SWR_TIERS } from "@/lib/swr/config";
+import type { AuctionStatus } from "@/lib/marketplace/auctions/status";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -27,7 +28,7 @@ interface Auction {
   id: string;
   listing_id: string;
   auction_type: "english" | "dutch" | "batch";
-  status: "active" | "upcoming" | "ended" | "cancelled";
+  status: AuctionStatus;
   start_price: number;
   current_price: number | null;
   floor_price: number | null;

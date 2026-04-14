@@ -17,6 +17,11 @@ import {
 import { calculateDutchPrice } from "@/lib/marketplace/auctions/dutch";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import {
+  PUBLIC_AUCTION_STATUSES,
+  normalizeAuctionStatusParam,
+  type AuctionStatus,
+} from "@/lib/marketplace/auctions/status";
 
 const createAuctionSchema = z.object({
   listing_id: z.string().uuid(),
@@ -36,21 +41,6 @@ const createAuctionSchema = z.object({
 export const dynamic = "force-dynamic";
 
 type AuctionWithListing = Record<string, unknown>;
-type AuctionStatus = "upcoming" | "active" | "ended" | "cancelled";
-
-const PUBLIC_AUCTION_STATUSES = ["upcoming", "active", "ended", "cancelled"] as const;
-
-function normalizeAuctionStatusParam(status: string | null): AuctionStatus | "all" {
-  if (!status) return "active";
-
-  const normalized = status.toLowerCase();
-  if (normalized === "all") return "all";
-  if (normalized === "settled") return "ended";
-
-  return PUBLIC_AUCTION_STATUSES.includes(normalized as AuctionStatus)
-    ? (normalized as AuctionStatus)
-    : "active";
-}
 
 /**
  * GET /api/marketplace/auctions

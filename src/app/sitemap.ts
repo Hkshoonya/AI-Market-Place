@@ -3,6 +3,7 @@ import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { SITE_URL } from "@/lib/constants/site";
 import { getProviderSlug } from "@/lib/constants/providers";
+import { PUBLIC_AUCTION_STATUSES } from "@/lib/marketplace/auctions/status";
 import type { Database } from "@/types/database";
 
 type PublicSupabaseClient = NonNullable<ReturnType<typeof createOptionalPublicClient>>;
@@ -30,8 +31,6 @@ type AuctionSitemapRow = Pick<
 >;
 type ProviderSitemapRow = Pick<Database["public"]["Tables"]["models"]["Row"], "provider">;
 type NewsSitemapRow = Pick<Database["public"]["Tables"]["model_news"]["Row"], "published_at">;
-
-const PUBLIC_AUCTION_SITEMAP_STATUSES = ["upcoming", "active", "ended", "cancelled"] as const;
 
 function buildStaticRoutes(lastModified: Date): MetadataRoute.Sitemap {
   return [
@@ -121,7 +120,7 @@ async function loadDynamicRoutes(
       supabase
         .from("auctions")
         .select("updated_at")
-        .in("status", PUBLIC_AUCTION_SITEMAP_STATUSES)
+        .in("status", PUBLIC_AUCTION_STATUSES)
         .order("updated_at", { ascending: false })
         .limit(1)
     ),
@@ -149,7 +148,7 @@ async function loadDynamicRoutes(
       supabase
         .from("auctions")
         .select("id, updated_at, status")
-        .in("status", PUBLIC_AUCTION_SITEMAP_STATUSES)
+        .in("status", PUBLIC_AUCTION_STATUSES)
     ),
     safeQuery<ProviderSitemapRow>(() =>
       supabase
