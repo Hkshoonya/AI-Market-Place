@@ -438,9 +438,9 @@ export default async function DeployPage({
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/models?managed=true">
+          <Link href="/deploy#deploy-directory">
             <Sparkles className="h-4 w-4" />
-            Open filter view
+            Browse launch directory
           </Link>
         </Button>
       </div>

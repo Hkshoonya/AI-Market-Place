@@ -175,6 +175,7 @@ describe("DeployPage", () => {
     expect(screen.getByText(/3\. Keep using it here/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View Deployments/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse launch directory/i })).toHaveAttribute("href", "/deploy#deploy-directory");
     expect(screen.getByRole("link", { name: /Lowest cost/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Open Guided Setup/i }).length).toBeGreaterThanOrEqual(1);
     expect(
