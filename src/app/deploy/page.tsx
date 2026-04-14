@@ -181,6 +181,7 @@ export default async function DeployPage({
   const hostedBackendCount = launchableModels.filter(
     ({ provisioning }) => provisioning.deploymentKind === "hosted_external"
   ).length;
+  const openWeightLaunchCount = launchableModels.filter(({ model }) => model.is_open_weights).length;
   const sortedLaunchableModels = [...launchableModels].sort((left, right) => {
     const leftRank = left.model.overall_rank ?? Number.MAX_SAFE_INTEGER;
     const rightRank = right.model.overall_rank ?? Number.MAX_SAFE_INTEGER;
@@ -358,6 +359,44 @@ export default async function DeployPage({
           </div>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-amber-100/80">
+            Choose Your Launch Path
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-white">
+            Start with the path that matches how you want to use the model, not just the model name.
+          </h2>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="rounded-xl border border-amber-500/20 bg-background/30 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-white">Runs fully here</p>
+              <p className="mt-2">
+                {managedRuntimeCount} models run directly on AI Market Cap. This is the cleanest path when you want the simplest API and workspace flow.
+              </p>
+              <Button variant="outline" size="sm" asChild className="mt-4">
+                <Link href="/deploy?focus=api">Show direct AI Market Cap launches</Link>
+              </Button>
+            </div>
+            <div className="rounded-xl border border-amber-500/20 bg-background/30 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-white">Dedicated runtime for you</p>
+              <p className="mt-2">
+                {hostedBackendCount} models start in a dedicated runtime AI Market Cap launches for you, while endpoint access and usage tracking still stay here.
+              </p>
+              <Button variant="outline" size="sm" asChild className="mt-4">
+                <Link href="/deploy#deploy-directory">Browse dedicated-runtime options</Link>
+              </Button>
+            </div>
+            <div className="rounded-xl border border-amber-500/20 bg-background/30 p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-white">Open-weight launch options</p>
+              <p className="mt-2">
+                {openWeightLaunchCount} launchable models are open-weight. Use this when you want a guided AI Market Cap start now and clearer hardware expectations for private deployment later.
+              </p>
+              <Button variant="outline" size="sm" asChild className="mt-4">
+                <Link href="/deploy?focus=open">Show open-weight launches</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5">
           <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
             How To Start
@@ -391,7 +430,7 @@ export default async function DeployPage({
         </div>
       </div>
 
-      <div className="mt-8 flex items-center justify-between gap-4">
+      <div id="deploy-directory" className="mt-8 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
             Showing <span className="font-medium text-foreground">{filteredLaunchableModels.length}</span>{" "}

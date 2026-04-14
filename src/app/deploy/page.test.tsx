@@ -156,6 +156,19 @@ describe("DeployPage", () => {
 
     expect(screen.getByText(/Launch AI models on AI Market Cap/i)).toBeInTheDocument();
     expect(screen.getByTestId("deploy-account-summary")).toBeInTheDocument();
+    expect(screen.getByText(/Choose Your Launch Path/i)).toBeInTheDocument();
+    expect(screen.getByText(/Runs fully here/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dedicated runtime for you/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open-weight launch options/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Show direct AI Market Cap launches/i })
+    ).toHaveAttribute("href", "/deploy?focus=api");
+    expect(
+      screen.getByRole("link", { name: /Browse dedicated-runtime options/i })
+    ).toHaveAttribute("href", "/deploy#deploy-directory");
+    expect(
+      screen.getByRole("link", { name: /Show open-weight launches/i })
+    ).toHaveAttribute("href", "/deploy?focus=open");
     expect(screen.getByText(/How To Start/i)).toBeInTheDocument();
     expect(screen.getByText(/1\. Filter the list/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Open guided setup/i)).toBeInTheDocument();
