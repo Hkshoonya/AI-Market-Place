@@ -64,12 +64,12 @@ describe("ModelsFilterBar", () => {
     expect(mockPush).toHaveBeenLastCalledWith("/models?sort=rank&view=list&lifecycle=all&deployable=true", { scroll: false });
 
     await user.click(screen.getByRole("button", { name: /Grid view/i }));
-    expect(mockPush).toHaveBeenLastCalledWith("/models?managed=true&sort=rank&view=grid&lifecycle=all", { scroll: false });
+    expect(mockPush).toHaveBeenLastCalledWith("/deploy", { scroll: false });
 
     await user.click(screen.getByRole("button", { name: /Sort by Quality/i }));
-    expect(mockPush).toHaveBeenLastCalledWith("/models?managed=true&sort=quality&view=list&lifecycle=all", { scroll: false });
+    expect(mockPush).toHaveBeenLastCalledWith("/deploy", { scroll: false });
 
     await user.click(screen.getByRole("button", { name: /Show active models only/i }));
-    expect(mockPush).toHaveBeenLastCalledWith("/models?managed=true&sort=rank&view=list", { scroll: false });
+    expect(mockPush).toHaveBeenLastCalledWith("/deploy", { scroll: false });
   });
 });

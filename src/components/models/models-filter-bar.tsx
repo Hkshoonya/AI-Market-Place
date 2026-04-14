@@ -63,6 +63,12 @@ export function ModelsFilterBar({ totalCount }: ModelsFilterBarProps) {
         if (value === null || value === "") { params.delete(key); } else { params.set(key, value); }
       });
       if (!("page" in updates) && !("view" in updates)) { params.delete("page"); }
+
+      if (params.get("managed") === "true") {
+        startTransition(() => { router.push("/deploy", { scroll: false }); });
+        return;
+      }
+
       startTransition(() => { router.push(`/models?${params.toString()}`, { scroll: false }); });
     },
     [router, searchParams]
