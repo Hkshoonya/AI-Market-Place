@@ -309,6 +309,170 @@ describe("WorkspaceContent", () => {
     expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
   });
 
+  it("surfaces top-level live deployment controls when the workspace deployment is already active", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user_123" },
+      loading: false,
+    });
+    mockUseWorkspace.mockReturnValue(createWorkspaceValue());
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (!key) {
+        return { data: undefined, mutate: vi.fn() };
+      }
+
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: {
+            deployments: [
+              {
+                id: "dep_live",
+                modelSlug: "kimi-k2",
+                modelName: "Kimi K2",
+                status: "ready",
+              },
+            ],
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/deployment")) {
+        return {
+          data: {
+            deployment: {
+              id: "dep_live",
+              runtimeId: "rt_123",
+              modelSlug: "kimi-k2",
+              modelName: "Kimi K2",
+              providerName: "Moonshot",
+              status: "ready",
+              endpointSlug: "kimi-k2-live",
+              endpointPath: "/api/deployments/kimi-k2-live",
+              deploymentKind: "hosted_external",
+              deploymentLabel: "Dedicated runtime",
+              target: null,
+              creditsBudget: 40,
+              monthlyPriceEstimate: 40,
+              totalRequests: 17,
+              totalTokens: 4100,
+              lastUsedAt: null,
+              updatedAt: "2026-04-13T00:00:00.000Z",
+              execution: {
+                available: true,
+                mode: "native_model",
+                provider: "Moonshot",
+                model: "Kimi K2",
+                label: "Dedicated runtime",
+                summary: "Runs from a dedicated runtime while staying usable from AI Market Cap.",
+              },
+              billing: {
+                requestCharge: 0.12,
+                estimatedSpend: 3.4,
+                budgetRemaining: 21.5,
+                budgetStatus: "healthy",
+              },
+            },
+            runtime: {
+              id: "rt_123",
+              modelSlug: "kimi-k2",
+              modelName: "Kimi K2",
+              providerName: "Moonshot",
+              status: "ready",
+              endpointSlug: "kimi-k2-runtime",
+              endpointPath: "/api/runtime/kimi-k2-runtime",
+              assistantPath: "/api/runtime/kimi-k2-runtime/assistant",
+              totalRequests: 17,
+              totalTokens: 4100,
+              lastUsedAt: null,
+              updatedAt: "2026-04-13T00:00:00.000Z",
+              execution: {
+                available: true,
+                mode: "native_model",
+                provider: "Moonshot",
+                model: "Kimi K2",
+                label: "Dedicated runtime",
+                summary: "Runs from a dedicated runtime while staying usable from AI Market Cap.",
+              },
+            },
+            provisioning: {
+              canCreate: true,
+              deploymentKind: "hosted_external",
+              label: "Dedicated runtime",
+              summary: "Create one saved site setup so budget, usage, and requests stay attached to this workspace.",
+              target: null,
+            },
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/runtime")) {
+        return {
+          data: {
+            runtime: {
+              id: "rt_123",
+              modelSlug: "kimi-k2",
+              modelName: "Kimi K2",
+              providerName: "Moonshot",
+              status: "ready",
+              endpointSlug: "kimi-k2-runtime",
+              endpointPath: "/api/runtime/kimi-k2-runtime",
+              assistantPath: "/api/runtime/kimi-k2-runtime/assistant",
+              totalRequests: 17,
+              totalTokens: 4100,
+              lastUsedAt: null,
+              updatedAt: "2026-04-13T00:00:00.000Z",
+              execution: {
+                available: true,
+                mode: "native_model",
+                provider: "Moonshot",
+                model: "Kimi K2",
+                label: "Dedicated runtime",
+                summary: "Runs from a dedicated runtime while staying usable from AI Market Cap.",
+              },
+            },
+          },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/workspace/chat")) {
+        return {
+          data: { messages: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key === "/api/api-keys") {
+        return {
+          data: { keys: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key.startsWith("/api/marketplace/wallet")) {
+        return {
+          data: { balance: 25 },
+          mutate: vi.fn(),
+        };
+      }
+
+      return { data: undefined, mutate: vi.fn() };
+    });
+
+    render(<WorkspaceContent />);
+
+    expect(screen.getByText(/Live deployment controls/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Endpoint, quick test, budget, and traffic controls are active/i)
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("/api/deployments/kimi-k2-live").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("link", { name: /Run quick test/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Manage budget/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pause deployment now/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/\$21\.50 left/i).length).toBeGreaterThanOrEqual(1);
+  });
+
   it("renders explicit full-page workflow controls and lets the guide collapse", async () => {
     const user = userEvent.setup();
     const workspaceValue = createWorkspaceValue();

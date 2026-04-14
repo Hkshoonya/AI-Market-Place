@@ -938,6 +938,65 @@ export default function WorkspaceContent() {
             </CardContent>
           </Card>
 
+          {hasManagedDeployment ? (
+            <Card className="border-cyan-500/30 bg-cyan-500/10">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                      Live deployment controls
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold text-white">
+                      Endpoint, quick test, budget, and traffic controls are active.
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm text-cyan-50/80">
+                      Use these direct actions first when this workspace is already live. You do not need to scroll through the full setup flow every time.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-emerald-500/10 text-emerald-200">{deployment?.status}</Badge>
+                    <Badge variant="outline" className="border-cyan-300/20 bg-card/40 text-cyan-50">
+                      {deploymentModeLabel}
+                    </Badge>
+                    <Badge variant="outline" className={budgetStatusTone}>
+                      {deployment?.billing.budgetRemaining != null
+                        ? `$${deployment.billing.budgetRemaining.toFixed(2)} left`
+                        : "No budget cap"}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="rounded-md border border-cyan-300/20 bg-background/50 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Live endpoint
+                  </p>
+                  <code className="mt-1 block text-xs text-foreground">{deployment?.endpointPath}</code>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                    <a href="#workspace-quick-test">Run quick test</a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="#workspace-budget-billing">Manage budget</a>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => updateDeployment({ action: isDeploymentPaused ? "resume" : "pause" })}
+                    disabled={runtimeLoading}
+                  >
+                    {runtimeLoading
+                      ? "Updating..."
+                      : isDeploymentPaused
+                        ? "Resume deployment now"
+                        : "Pause deployment now"}
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/deployments">Open deployments</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <Card className="border-border/50 bg-card/60">
               <CardContent className="p-5">
@@ -1070,7 +1129,7 @@ export default function WorkspaceContent() {
                   onSuggestedAmountChange={updateSuggestedAmount}
                 />
 
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                <div id="workspace-runtime-record" className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1220,7 +1279,7 @@ export default function WorkspaceContent() {
                 </div>
 
                 {hasManagedDeployment ? (
-                  <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+                  <div id="workspace-budget-billing" className="rounded-lg border border-border/40 bg-card/30 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1357,7 +1416,7 @@ export default function WorkspaceContent() {
             </Card>
           </div>
 
-          <Card className="border-border/50 bg-card/60">
+          <Card id="workspace-quick-test" className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               {hasManagedDeployment ? (
                 <>
