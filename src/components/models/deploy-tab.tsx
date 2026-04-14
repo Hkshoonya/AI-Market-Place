@@ -311,6 +311,104 @@ export function DeployTab({
         </div>
       </div>
 
+      {aiMarketCapPlan || primaryDeployment || selfHostRequirements ? (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+          <h3 className="text-sm font-semibold text-white">Choose your path for this model</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pick the path that matches what you want right now: simplest on-site launch, verified provider access, or private self-hosting research.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {aiMarketCapPlan ? (
+              <div className="rounded-md border border-amber-500/20 bg-background/30 p-3">
+                <p className="text-xs font-semibold text-white">Start on AI Market Cap</p>
+                <p className="mt-1 text-xs text-muted-foreground">{aiMarketCapPlan.summary}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openWorkspace({
+                      model: modelName,
+                      modelSlug,
+                      action: aiMarketCapPlan.label,
+                      provider: aiMarketCapPlan.providerLabel,
+                      autoStartDeployment: true,
+                      nextUrl: `/models/${modelSlug}?tab=deploy#model-tabs`,
+                      sponsored: false,
+                      suggestedPackSlug: startPlan?.recommendedPack?.slug ?? null,
+                      suggestedPack: startPlan?.recommendedPack?.label ?? null,
+                      suggestedAmount: startPlan?.recommendedAmount ?? primaryDeployment?.deployment?.price_per_unit ?? 20,
+                    });
+                  }}
+                  className="mt-3 inline-flex items-center justify-center rounded-md bg-neon/15 px-3 py-2 text-xs font-medium text-neon transition-colors hover:bg-neon/25"
+                >
+                  Start on AI Market Cap
+                </button>
+              </div>
+            ) : null}
+            {startPlan ? (
+              <div className="rounded-md border border-amber-500/20 bg-background/30 p-3">
+                <p className="text-xs font-semibold text-white">Use verified provider path</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Start with {primaryDeployment?.platform.name} when you want the fastest confirmed external path for this model.
+                </p>
+                {startPlan.external ? (
+                  <a
+                    href={startPlan.href}
+                    target="_blank"
+                    rel={
+                      startPlan.sponsored
+                        ? "noopener noreferrer sponsored nofollow"
+                        : primaryDeployment
+                          ? getLinkRel(primaryDeployment.platform)
+                          : "noopener noreferrer"
+                    }
+                    className="mt-3 inline-flex items-center justify-center gap-1 rounded-md bg-[#00d4aa]/15 px-3 py-2 text-xs font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
+                  >
+                    Open verified provider path
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!startPlan.workspace) return;
+                      openWorkspace({
+                        model: startPlan.workspace.model,
+                        modelSlug: startPlan.workspace.modelSlug,
+                        provider: startPlan.workspace.provider,
+                        action: startPlan.workspace.action,
+                        autoStartDeployment: true,
+                        nextUrl: startPlan.workspace.nextUrl,
+                        sponsored: startPlan.workspace.sponsored,
+                        suggestedPackSlug: startPlan.workspace.suggestedPackSlug,
+                        suggestedPack: startPlan.workspace.suggestedPack,
+                        suggestedAmount: startPlan.workspace.suggestedAmount,
+                      });
+                    }}
+                    className="mt-3 inline-flex items-center justify-center rounded-md bg-[#00d4aa]/15 px-3 py-2 text-xs font-medium text-[#00d4aa] transition-colors hover:bg-[#00d4aa]/25"
+                  >
+                    Open verified provider path
+                  </button>
+                )}
+              </div>
+            ) : null}
+            {selfHostRequirements ? (
+              <div className="rounded-md border border-amber-500/20 bg-background/30 p-3">
+                <p className="text-xs font-semibold text-white">Review self-host requirements</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  This model has open weights. Check the hardware expectations before choosing a local tool or a cloud server you control.
+                </p>
+                <a
+                  href="#self-host-hardware"
+                  className="mt-3 inline-flex items-center justify-center rounded-md border border-border/40 bg-card/30 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-card/50"
+                >
+                  Review self-host requirements
+                </a>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {primaryDeployment && quickStart && (
         <div className="rounded-lg border border-[#00d4aa]/20 bg-[#00d4aa]/5 p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -630,7 +728,7 @@ export function DeployTab({
       )}
 
       {selfHostRequirements ? (
-        <details className="rounded-lg border border-border/50 p-4 bg-card/20">
+        <details id="self-host-hardware" className="rounded-lg border border-border/50 p-4 bg-card/20">
           <summary className="cursor-pointer text-sm font-semibold text-white">
             Self-host hardware guide
           </summary>

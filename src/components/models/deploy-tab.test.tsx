@@ -65,13 +65,16 @@ describe("DeployTab", () => {
     expect(
       screen.getByText(/AI Market Cap cannot run this model directly yet/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/How to use this page/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start with moonshot api/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open verified provider path/i })).toBeInTheDocument();
+    expect(screen.getByText(/Choose your path for this model/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted for you/i)).toBeInTheDocument();
     expect(screen.getByText(/Cloud server you control/i)).toBeInTheDocument();
     expect(
       screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /start with moonshot api/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open verified provider path/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /get api access/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Open AI Market Cap setup/i })).not.toBeInTheDocument();
   });
@@ -189,6 +192,8 @@ describe("DeployTab", () => {
       />
     );
 
+    expect(screen.getByText(/Choose your path for this model/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review self-host requirements/i })).toHaveAttribute("href", "#self-host-hardware");
     expect(screen.getByText(/What you need to run it yourself/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/^48GB\+ GPU memory$/i)).toBeInTheDocument();
@@ -236,6 +241,10 @@ describe("DeployTab", () => {
       />
     );
 
+    expect(screen.getByText(/Choose your path for this model/i)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /Start on AI Market Cap/i }).length
+    ).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByRole("button", { name: /Open AI Market Cap setup/i })
     ).toBeInTheDocument();
