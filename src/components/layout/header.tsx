@@ -144,17 +144,23 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm">
-                      Tools
+                      Account
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Signed-in tools</DropdownMenuLabel>
+                    <DropdownMenuLabel>Workspace and account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/deployments">View Deployments</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/wallet">Wallet</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">Profile</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings">Settings</Link>
                     </DropdownMenuItem>
                     {profile?.is_admin ? (
                       <>
@@ -166,11 +172,6 @@ export function Header() {
                     ) : null}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href="/wallet" aria-label="Open wallet">
-                    <Wallet className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </Button>
                 <NotificationBell />
               </>
             )}
@@ -191,7 +192,7 @@ export function Header() {
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 2xl:hidden" aria-label="Open navigation menu">
+              <Button variant="ghost" size="icon" className="h-9 w-9 xl:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>

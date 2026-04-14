@@ -89,7 +89,7 @@ describe("Header", () => {
     expect(modelsLink).toHaveClass("whitespace-nowrap");
   });
 
-  it("keeps wallet and admin access visible in the compact desktop state for signed-in admins", () => {
+  it("keeps account links accessible while reducing signed-in header crowding", () => {
     mockUseAuth.mockReturnValue({
       user: { id: "user-1", email: "admin@example.com" },
       profile: { is_admin: true },
@@ -99,9 +99,12 @@ describe("Header", () => {
 
     expect(screen.getAllByRole("link", { name: /deploy/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /workspace/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole("link", { name: /deployments/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("link", { name: /open wallet/i })).toHaveAttribute("href", "/wallet");
+    expect(screen.getByRole("button", { name: /account/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /wallet/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /profile/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /admin dashboard/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("button", { name: /open navigation menu/i })).toHaveClass("xl:hidden");
     expect(screen.getAllByTestId("auth-button").length).toBeGreaterThanOrEqual(2);
   });
 });
