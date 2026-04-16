@@ -65,6 +65,17 @@ vi.mock("@/lib/data-sources/registry", () => ({
   loadAllAdapters: (...args: unknown[]) => mockLoadAllAdapters(...args),
 }));
 
+const mockAcquireCronLock = vi.fn().mockResolvedValue({
+  acquired: true,
+  mode: "locked",
+  token: "test-lock",
+  release: vi.fn().mockResolvedValue(undefined),
+});
+
+vi.mock("@/lib/cron-lock", () => ({
+  acquireCronLock: (...args: unknown[]) => mockAcquireCronLock(...args),
+}));
+
 // ── Mock Supabase ──────────────────────────────────────────────────────────────
 
 const _mockUpsertFn = vi.fn().mockResolvedValue({ error: null });
@@ -408,5 +419,27 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
         adapter: "test-adapter",
       })
     );
+  });
+
+  it("skips an adapter when another sync already holds its source lock", async () => {
+    mockAcquireCronLock.mockResolvedValueOnce({
+      acquired: false,
+      mode: "locked",
+      token: null,
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { runTierSync } = await import("./orchestrator");
+    const result = await runTierSync(1);
+
+    expect(result.details[0]).toEqual(
+      expect.objectContaining({
+        source: "test-adapter",
+        status: "skipped",
+        recordsProcessed: 0,
+        errors: [{ message: "Adapter sync already running for test-adapter" }],
+      })
+    );
+    expect(mockAdapter.sync).not.toHaveBeenCalled();
   });
 });

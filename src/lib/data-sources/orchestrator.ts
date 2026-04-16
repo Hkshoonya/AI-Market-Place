@@ -19,6 +19,7 @@ import { getAdapter, loadAllAdapters } from "./registry";
 import { hasPermanentSyncError, resolveSecrets, needsSync } from "./utils";
 import { recordSyncSuccess, recordSyncFailure } from "@/lib/pipeline-health";
 import { systemLog } from "@/lib/logging";
+import { acquireCronLock } from "@/lib/cron-lock";
 
 interface SourceDetail {
   source: string;
@@ -78,9 +79,21 @@ async function executeAdapter(
   source: DataSourceRecord,
   trigger: "scheduled" | "manual"
 ): Promise<SourceDetail> {
+  const sourceLock = await acquireCronLock(`sync-adapter-${source.slug}`);
+  if (!sourceLock.acquired) {
+    return {
+      source: source.slug,
+      status: "skipped",
+      recordsProcessed: 0,
+      errors: [{ message: `Adapter sync already running for ${source.slug}` }],
+      durationMs: 0,
+    };
+  }
+
   const adapter = getAdapter(source.adapter_type);
 
   if (!adapter) {
+    await sourceLock.release();
     return {
       source: source.slug,
       status: "failed",
@@ -152,6 +165,7 @@ async function executeAdapter(
     };
   } finally {
     clearTimeout(timeout);
+    await sourceLock.release();
   }
 
   const durationMs = Date.now() - startTime;

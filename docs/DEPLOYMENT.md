@@ -8,6 +8,8 @@ This repository is configured for:
 - Railway in-process cron as the scheduler of record
 - GitHub Actions for CI/CD and manual cron recovery only
 
+This guide now supports one optional supplemental Railway cron service for fast launch-signal pickup. It is not a second primary scheduler.
+
 ## Production contract
 
 The live deployment should use exactly one primary scheduler.
@@ -18,6 +20,8 @@ The live deployment should use exactly one primary scheduler.
 - External cron: optional local/manual recovery path only, not the default
 
 The cron lock is designed to tolerate overlap during a cutover window, but overlap should not be the steady-state design.
+
+The only supported steady-state exception is a small supplemental launch-signal cron service that runs source-specific syncs for `x-announcements` and `provider-news`. Those runs are protected by per-source adapter locks so they do not overlap unsafely with the primary tier sync.
 
 ## Required environment variables
 
@@ -92,6 +96,43 @@ The Railway in-process scheduler currently owns jobs such as:
 - deployment reconcile
 - score computation
 - resident-agent maintenance
+
+## Optional Railway launch-signal cron service
+
+Use this only if you want faster pickup for official provider/X launch chatter without increasing the cadence of the full pipeline.
+
+Railway supports separate cron services whose start command runs on schedule and exits. Configure an additional service in the same project with:
+
+```text
+Start command: npm run cron:launch-signals
+Schedule: 0 * * * *        # hourly low-cost default
+```
+
+If you want slightly faster pickup, use:
+
+```text
+Schedule: */30 * * * *     # every 30 minutes
+```
+
+Service guidance:
+- same repository and environment as the main app
+- no public domain
+- no healthcheck path
+- not always-on
+
+What it does:
+- runs only `x-announcements`
+- runs only `provider-news`
+- records runs into `cron_runs`
+- reuses the same sync internals as the app
+- exits after completion
+
+What it does not do:
+- does not run the full tier pipeline
+- does not recompute rankings
+- does not replace the main Railway in-process scheduler
+
+This is the recommended low-cost way to improve launch freshness on Railway without adding a permanently running worker.
 
 Build-time environment requirements:
 - `NEXT_PUBLIC_SITE_URL`

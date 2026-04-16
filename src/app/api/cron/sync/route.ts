@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runSingleSync, runTierSync } from "@/lib/data-sources/orchestrator";
-import { trackCronRun } from "@/lib/cron-tracker";
+import { executeTrackedSyncCronJob } from "@/lib/data-sources/cron-sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for long-running cron syncs
@@ -32,33 +31,5 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const tracker = await trackCronRun(source ? `sync-source-${source}` : `sync-tier-${tier}`);
-  if (tracker.shouldSkip) {
-    return tracker.skip();
-  }
-
-  try {
-    const result = source ? await runSingleSync(source) : await runTierSync(tier);
-
-    const hasFailed = result.sourcesFailed > 0;
-
-    const summary = {
-      tier: result.tier,
-      sourcesRun: result.sourcesRun,
-      sourcesSucceeded: result.sourcesSucceeded,
-      sourcesFailed: result.sourcesFailed,
-      details: result.details.map((d) => ({
-        source: d.source,
-        status: d.status,
-        records: d.recordsProcessed,
-        durationMs: d.durationMs,
-        errors: d.errors.map((e) => e.message),
-      })),
-      overallStatus: hasFailed ? "partial" : "success",
-    };
-
-    return tracker.complete(summary);
-  } catch (err) {
-    return tracker.fail(err);
-  }
+  return executeTrackedSyncCronJob({ source: source ?? undefined, tier });
 }

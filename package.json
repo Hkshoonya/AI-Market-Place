@@ -29,6 +29,7 @@
     "audit:benchmark-coverage": "node --import tsx scripts/benchmark-coverage-audit.ts",
     "repair:public-ranking-inputs": "node --import tsx scripts/repair-public-ranking-inputs.ts",
     "repair:low-trust-public-signals": "node --import tsx scripts/repair-low-trust-public-signals.ts",
+    "cron:launch-signals": "node --import tsx scripts/run-launch-signals-cron.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --no-file-parallelism",
     "test:component": "node scripts/run-component-tests.mjs",
