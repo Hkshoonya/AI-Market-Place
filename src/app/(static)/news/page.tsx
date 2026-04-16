@@ -321,7 +321,7 @@ export default async function NewsPage() {
               ))}
             </div>
           ) : (
-            <EmptyState message="No social posts yet. Twitter feeds sync daily via RSSHub." />
+            <EmptyState message="No social posts yet. Provider and X feeds sync throughout the day via official feeds and syndication bridges." />
           )}
         </TabsContent>
 

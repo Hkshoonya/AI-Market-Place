@@ -609,6 +609,7 @@ export function DeployWorkspacePanel() {
               </TabsList>
 
               <TabsContent
+                forceMount
                 value="setup"
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >
@@ -926,6 +927,7 @@ export function DeployWorkspacePanel() {
               </TabsContent>
 
               <TabsContent
+                forceMount
                 value="assistant"
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >
@@ -1067,6 +1069,7 @@ export function DeployWorkspacePanel() {
               </TabsContent>
 
               <TabsContent
+                forceMount
                 value="usage"
                 className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
               >

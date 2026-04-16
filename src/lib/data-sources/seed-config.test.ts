@@ -54,4 +54,17 @@ describe("benchmark seed configuration", () => {
     expect(seed.sync_interval_hours).toBe(4);
     expect(seed.is_enabled).toBe(true);
   });
+
+  it("promotes provider launch feeds onto the fastest sync tier", () => {
+    const providerNews = getSeed("provider-news");
+    const xAnnouncements = getSeed("x-announcements");
+
+    expect(providerNews.tier).toBe(1);
+    expect(providerNews.sync_interval_hours).toBe(2);
+    expect(providerNews.is_enabled).toBe(true);
+
+    expect(xAnnouncements.tier).toBe(1);
+    expect(xAnnouncements.sync_interval_hours).toBe(2);
+    expect(xAnnouncements.is_enabled).toBe(true);
+  });
 });

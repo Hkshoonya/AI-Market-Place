@@ -895,7 +895,7 @@ export default function WorkspaceContent() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="runtime" className="mt-6 space-y-6">
+        <TabsContent forceMount value="runtime" className="mt-6 space-y-6">
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1519,7 +1519,7 @@ export default function WorkspaceContent() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="assistant" className="mt-6 space-y-6">
+        <TabsContent forceMount value="assistant" className="mt-6 space-y-6">
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="mb-3 flex items-center gap-2">
@@ -1604,7 +1604,7 @@ export default function WorkspaceContent() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="usage" className="mt-6">
+        <TabsContent forceMount value="usage" className="mt-6">
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="mb-4 flex items-center gap-2">

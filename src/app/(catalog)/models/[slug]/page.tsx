@@ -451,7 +451,7 @@ export default async function ModelDetailPage({
           />
         </TabsContent>
 
-        <TabsContent value="deploy" className="mt-6">
+        <TabsContent forceMount value="deploy" className="mt-6">
           <DeployTab
             modelSlug={model.slug}
             modelName={model.name}

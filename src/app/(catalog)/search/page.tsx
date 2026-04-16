@@ -3,7 +3,6 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 import {
   ArrowLeft,
-  Box,
   Search,
   ShoppingBag,
   Star,
@@ -43,6 +42,7 @@ import {
 } from "@/lib/marketplace/presentation";
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { SITE_URL } from "@/lib/constants/site";
+import { SearchResultsTabs } from "./search-results-tabs";
 
 export const revalidate = 0;
 
@@ -50,6 +50,61 @@ const SEARCH_MODEL_SELECT =
   "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, economic_footprint_score, popularity_score, release_date, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count, preview_manifest, mcp_manifest, agent_config, agent_id";
+
+type SearchModelItem = {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
+  category: string;
+  overall_rank: number | null;
+  quality_score: number | null;
+  capability_score?: number | null;
+  economic_footprint_score?: number | null;
+  popularity_score: number | null;
+  is_open_weights: boolean | null;
+  parameter_count: number | null;
+  short_description: string | null;
+  description?: string | null;
+  market_cap_estimate?: number | null;
+  model_pricing?: Array<{
+    provider_name?: string | null;
+    input_price_per_million?: number | null;
+    output_price_per_million?: number | null;
+    price_per_call?: number | null;
+    price_per_gpu_second?: number | null;
+    subscription_monthly?: number | null;
+    source?: string | null;
+    currency?: string | null;
+    effective_date?: string | null;
+    updated_at?: string | null;
+  }> | null;
+  recent_signal?: ModelSignalSummary | null;
+  self_host_requirement_label?: string | null;
+  benchmark_tracking_summary?: BenchmarkTrackingSummary | null;
+};
+
+type SearchMarketplaceItem = {
+  id: string;
+  slug: string;
+  title: string;
+  listing_type: string;
+  price: number | null;
+  avg_rating: number | null;
+  short_description: string | null;
+  pricing_type: string;
+  review_count: number | null;
+  purchase_mode?: string | null;
+  autonomy_mode?: string | null;
+  preview_manifest?: Record<string, unknown> | null;
+  mcp_manifest?: Record<string, unknown> | null;
+  agent_config?: Record<string, unknown> | null;
+  agent_id?: string | null;
+};
+
+type SearchQueryClient =
+  | Exclude<ReturnType<typeof createOptionalPublicClient>, null>
+  | ReturnType<typeof createAdminClient>;
 
 async function searchModelsWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
@@ -129,6 +184,199 @@ async function searchMarketplaceWithFallback(
   };
 }
 
+async function loadSearchModelResults(
+  supabase: SearchQueryClient,
+  benchmarkTrackingClient: Parameters<typeof buildBenchmarkTrackingSummaryMap>[0],
+  safeQuery: string,
+  offset: number,
+  pageSize: number
+) {
+  const { data, count } = await searchModelsWithFallback(supabase, safeQuery);
+  const uniqueModels = selectPublicRankingPool(
+    rankModelsForSearch(dedupePublicModelFamilies(data ?? []), safeQuery),
+    Math.min(pageSize, 5)
+  );
+  const [
+    { data: newsRaw },
+    { data: pricingRaw },
+    { data: deploymentPlatformsRaw },
+    { data: modelDeploymentsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("model_news")
+      .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
+      .order("published_at", { ascending: false })
+      .limit(200),
+    uniqueModels.length > 0
+      ? supabase
+          .from("model_pricing")
+          .select(
+            "model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at"
+          )
+          .in("model_id", uniqueModels.map((model) => model.id))
+      : Promise.resolve({ data: [], error: null }),
+    uniqueModels.length > 0
+      ? supabase.from("deployment_platforms").select("*").order("name")
+      : Promise.resolve({ data: [], error: null }),
+    uniqueModels.length > 0
+      ? supabase
+          .from("model_deployments")
+          .select(
+            "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+          )
+          .in("model_id", uniqueModels.map((model) => model.id))
+          .eq("status", "available")
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const modelSignals = pickBestModelSignals(
+    uniqueModels,
+    (newsRaw ?? []).map((item) => ({
+      id: typeof item.id === "string" ? item.id : null,
+      title: typeof item.title === "string" ? item.title : null,
+      source: typeof item.source === "string" ? item.source : null,
+      related_provider:
+        typeof item.related_provider === "string" ? item.related_provider : null,
+      related_model_ids: Array.isArray(item.related_model_ids)
+        ? item.related_model_ids.filter((value): value is string => typeof value === "string")
+        : null,
+      published_at:
+        typeof item.published_at === "string" ? item.published_at : null,
+      metadata:
+        item.metadata && typeof item.metadata === "object"
+          ? (item.metadata as Record<string, unknown>)
+          : null,
+    }))
+  );
+  const pricingByModelId = new Map<
+    string,
+    Array<{
+      provider_name?: string | null;
+      input_price_per_million?: number | null;
+      output_price_per_million?: number | null;
+      price_per_call?: number | null;
+      price_per_gpu_second?: number | null;
+      subscription_monthly?: number | null;
+      source?: string | null;
+      currency?: string | null;
+      effective_date?: string | null;
+      updated_at?: string | null;
+    }>
+  >();
+
+  for (const entry of pricingRaw ?? []) {
+    if (typeof entry.model_id !== "string") continue;
+    const existing = pricingByModelId.get(entry.model_id) ?? [];
+    existing.push({
+      provider_name:
+        typeof entry.provider_name === "string" ? entry.provider_name : null,
+      input_price_per_million:
+        typeof entry.input_price_per_million === "number"
+          ? entry.input_price_per_million
+          : null,
+      output_price_per_million:
+        typeof entry.output_price_per_million === "number"
+          ? entry.output_price_per_million
+          : null,
+      price_per_call:
+        typeof entry.price_per_call === "number" ? entry.price_per_call : null,
+      price_per_gpu_second:
+        typeof entry.price_per_gpu_second === "number"
+          ? entry.price_per_gpu_second
+          : null,
+      subscription_monthly:
+        typeof entry.subscription_monthly === "number"
+          ? entry.subscription_monthly
+          : null,
+      source: typeof entry.source === "string" ? entry.source : null,
+      currency: typeof entry.currency === "string" ? entry.currency : null,
+      effective_date:
+        typeof entry.effective_date === "string" ? entry.effective_date : null,
+      updated_at: typeof entry.updated_at === "string" ? entry.updated_at : null,
+    });
+    pricingByModelId.set(entry.model_id, existing);
+  }
+
+  const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
+    const platformRecord = platform as Record<string, unknown>;
+    return {
+      id: platform.id,
+      slug: platform.slug,
+      name: platform.name,
+      type: platform.type,
+      base_url: platform.base_url,
+      has_affiliate: platform.has_affiliate,
+      affiliate_url:
+        typeof platformRecord.affiliate_url === "string"
+          ? platformRecord.affiliate_url
+          : platform.affiliate_url_template,
+      affiliate_tag:
+        typeof platformRecord.affiliate_tag === "string"
+          ? platformRecord.affiliate_tag
+          : null,
+    };
+  });
+
+  const modelAccessCatalog = buildAccessOffersCatalog({
+    platforms: deploymentPlatforms,
+    deployments: modelDeploymentsRaw ?? [],
+    models: uniqueModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      name: model.name,
+      provider: model.provider,
+      category: model.category,
+      quality_score: model.quality_score,
+      capability_score: model.capability_score,
+      economic_footprint_score: model.economic_footprint_score,
+    })),
+  });
+  const pagedModels = uniqueModels.slice(offset, offset + pageSize);
+  const benchmarkTrackingByModelId = await buildBenchmarkTrackingSummaryMap(
+    benchmarkTrackingClient,
+    pagedModels.map((model) => ({
+      id: model.id,
+      slug: model.slug,
+      provider: model.provider,
+      category: model.category,
+    }))
+  );
+  const modelBenchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage(
+    pagedModels.map((model) => benchmarkTrackingByModelId.get(model.id) ?? null)
+  );
+
+  return {
+    models: pagedModels.map((model) => ({
+      ...model,
+      model_pricing: pricingByModelId.get(model.id) ?? [],
+      recent_signal: modelSignals.get(model.id) ?? null,
+      benchmark_tracking_summary: benchmarkTrackingByModelId.get(model.id) ?? null,
+    })) as SearchModelItem[],
+    modelCount: uniqueModels.length > 0 ? uniqueModels.length : (count ?? 0),
+    modelBenchmarkCoverageSummary,
+    modelAccessCatalog,
+  };
+}
+
+async function loadSearchMarketplaceResults(
+  supabase: SearchQueryClient,
+  admin: ReturnType<typeof createAdminClient>,
+  safeQuery: string,
+  offset: number,
+  pageSize: number
+) {
+  const { data, count } = await searchMarketplaceWithFallback(
+    supabase,
+    safeQuery,
+    offset,
+    pageSize
+  );
+
+  return {
+    marketplace: (await attachListingPolicies(admin, data ?? [])) as SearchMarketplaceItem[],
+    marketplaceCount: count ?? 0,
+  };
+}
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -166,38 +414,7 @@ export default async function SearchPage({
   const benchmarkTrackingClient =
     supabase as unknown as Parameters<typeof buildBenchmarkTrackingSummaryMap>[0];
 
-  let models: Array<{
-    id: string;
-    slug: string;
-    name: string;
-    provider: string;
-    category: string;
-    overall_rank: number | null;
-    quality_score: number | null;
-    capability_score?: number | null;
-    economic_footprint_score?: number | null;
-    popularity_score: number | null;
-    is_open_weights: boolean | null;
-    parameter_count: number | null;
-    short_description: string | null;
-    description?: string | null;
-    market_cap_estimate?: number | null;
-    model_pricing?: Array<{
-      provider_name?: string | null;
-      input_price_per_million?: number | null;
-      output_price_per_million?: number | null;
-      price_per_call?: number | null;
-      price_per_gpu_second?: number | null;
-      subscription_monthly?: number | null;
-      source?: string | null;
-      currency?: string | null;
-      effective_date?: string | null;
-      updated_at?: string | null;
-    }> | null;
-    recent_signal?: ModelSignalSummary | null;
-    self_host_requirement_label?: string | null;
-    benchmark_tracking_summary?: BenchmarkTrackingSummary | null;
-  }> = [];
+  let models: SearchModelItem[] = [];
   let modelCount = 0;
   let modelBenchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage([]);
   let modelAccessCatalog = buildAccessOffersCatalog({
@@ -205,225 +422,30 @@ export default async function SearchPage({
     deployments: [],
     models: [],
   });
-  let marketplace: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    listing_type: string;
-    price: number | null;
-    avg_rating: number | null;
-    short_description: string | null;
-    pricing_type: string;
-    review_count: number | null;
-    purchase_mode?: string | null;
-    autonomy_mode?: string | null;
-    preview_manifest?: Record<string, unknown> | null;
-    mcp_manifest?: Record<string, unknown> | null;
-    agent_config?: Record<string, unknown> | null;
-    agent_id?: string | null;
-  }> = [];
+  let marketplace: SearchMarketplaceItem[] = [];
   let marketplaceCount = 0;
 
   if (query.length >= 2) {
     const safeQuery = sanitizeFilterValue(query);
     const offset = (page - 1) * PAGE_SIZE;
-
-    if (activeTab === "models") {
-      // Search models
-      const { data, count } = await searchModelsWithFallback(supabase, safeQuery);
-      const uniqueModels = selectPublicRankingPool(
-        rankModelsForSearch(dedupePublicModelFamilies(data ?? []), safeQuery),
-        Math.min(PAGE_SIZE, 5)
-      );
-      const [
-        { data: newsRaw },
-        { data: pricingRaw },
-        { data: deploymentPlatformsRaw },
-        { data: modelDeploymentsRaw },
-      ] = await Promise.all([
-        supabase
-          .from("model_news")
-          .select("id, title, source, related_provider, related_model_ids, published_at, metadata")
-          .order("published_at", { ascending: false })
-          .limit(200),
-        uniqueModels.length > 0
-          ? supabase
-              .from("model_pricing")
-              .select(
-                "model_id, provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, currency, effective_date, updated_at"
-              )
-              .in("model_id", uniqueModels.map((model) => model.id))
-          : Promise.resolve({ data: [], error: null }),
-        uniqueModels.length > 0
-          ? supabase.from("deployment_platforms").select("*").order("name")
-          : Promise.resolve({ data: [], error: null }),
-        uniqueModels.length > 0
-          ? supabase
-              .from("model_deployments")
-              .select(
-                "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
-              )
-              .in("model_id", uniqueModels.map((model) => model.id))
-              .eq("status", "available")
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-      const modelSignals = pickBestModelSignals(
-        uniqueModels,
-        (newsRaw ?? []).map((item) => ({
-          id: typeof item.id === "string" ? item.id : null,
-          title: typeof item.title === "string" ? item.title : null,
-          source: typeof item.source === "string" ? item.source : null,
-          related_provider:
-            typeof item.related_provider === "string" ? item.related_provider : null,
-          related_model_ids: Array.isArray(item.related_model_ids)
-            ? item.related_model_ids.filter((value): value is string => typeof value === "string")
-            : null,
-          published_at:
-            typeof item.published_at === "string" ? item.published_at : null,
-          metadata:
-            item.metadata && typeof item.metadata === "object"
-              ? (item.metadata as Record<string, unknown>)
-              : null,
-        }))
-      );
-      const pricingByModelId = new Map<
-        string,
-        Array<{
-          provider_name?: string | null;
-          input_price_per_million?: number | null;
-          output_price_per_million?: number | null;
-          price_per_call?: number | null;
-          price_per_gpu_second?: number | null;
-          subscription_monthly?: number | null;
-          source?: string | null;
-          currency?: string | null;
-          effective_date?: string | null;
-          updated_at?: string | null;
-        }>
-      >();
-
-      for (const entry of pricingRaw ?? []) {
-        if (typeof entry.model_id !== "string") continue;
-        const existing = pricingByModelId.get(entry.model_id) ?? [];
-        existing.push({
-          provider_name:
-            typeof entry.provider_name === "string" ? entry.provider_name : null,
-          input_price_per_million:
-            typeof entry.input_price_per_million === "number"
-              ? entry.input_price_per_million
-              : null,
-          output_price_per_million:
-            typeof entry.output_price_per_million === "number"
-              ? entry.output_price_per_million
-              : null,
-          price_per_call:
-            typeof entry.price_per_call === "number" ? entry.price_per_call : null,
-          price_per_gpu_second:
-            typeof entry.price_per_gpu_second === "number"
-              ? entry.price_per_gpu_second
-              : null,
-          subscription_monthly:
-            typeof entry.subscription_monthly === "number"
-              ? entry.subscription_monthly
-              : null,
-          source: typeof entry.source === "string" ? entry.source : null,
-          currency: typeof entry.currency === "string" ? entry.currency : null,
-          effective_date:
-            typeof entry.effective_date === "string" ? entry.effective_date : null,
-          updated_at: typeof entry.updated_at === "string" ? entry.updated_at : null,
-        });
-        pricingByModelId.set(entry.model_id, existing);
-      }
-
-      const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
-        const platformRecord = platform as Record<string, unknown>;
-        return {
-          id: platform.id,
-          slug: platform.slug,
-          name: platform.name,
-          type: platform.type,
-          base_url: platform.base_url,
-          has_affiliate: platform.has_affiliate,
-          affiliate_url:
-            typeof platformRecord.affiliate_url === "string"
-              ? platformRecord.affiliate_url
-              : platform.affiliate_url_template,
-          affiliate_tag:
-            typeof platformRecord.affiliate_tag === "string"
-              ? platformRecord.affiliate_tag
-              : null,
-        };
-      });
-
-      modelAccessCatalog = buildAccessOffersCatalog({
-        platforms: deploymentPlatforms,
-        deployments: modelDeploymentsRaw ?? [],
-        models: uniqueModels.map((model) => ({
-          id: model.id,
-          slug: model.slug,
-          name: model.name,
-          provider: model.provider,
-          category: model.category,
-          quality_score: model.quality_score,
-          capability_score: model.capability_score,
-          economic_footprint_score: model.economic_footprint_score,
-        })),
-      });
-      const pagedModels = uniqueModels.slice(offset, offset + PAGE_SIZE);
-      const benchmarkTrackingByModelId = await buildBenchmarkTrackingSummaryMap(
-        benchmarkTrackingClient,
-        pagedModels.map((model) => ({
-          id: model.id,
-          slug: model.slug,
-          provider: model.provider,
-          category: model.category,
-        }))
-      );
-      modelBenchmarkCoverageSummary = summarizeBenchmarkTrackingCoverage(
-        pagedModels.map((model) => benchmarkTrackingByModelId.get(model.id) ?? null)
-      );
-
-      models = pagedModels.map((model) => ({
-        ...model,
-        model_pricing: pricingByModelId.get(model.id) ?? [],
-        recent_signal: modelSignals.get(model.id) ?? null,
-        benchmark_tracking_summary: benchmarkTrackingByModelId.get(model.id) ?? null,
-      }));
-      modelCount = uniqueModels.length > 0 ? uniqueModels.length : (count ?? 0);
-    }
-
-    if (activeTab === "marketplace") {
-      // Search marketplace
-      const { data, count } = await searchMarketplaceWithFallback(
+    const [modelResults, marketplaceResults] = await Promise.all([
+      loadSearchModelResults(
         supabase,
+        benchmarkTrackingClient,
         safeQuery,
         offset,
         PAGE_SIZE
-      );
-      marketplace = await attachListingPolicies(admin, data ?? []);
-      marketplaceCount = count ?? 0;
-    }
+      ),
+      loadSearchMarketplaceResults(supabase, admin, safeQuery, offset, PAGE_SIZE),
+    ]);
 
-    // Get counts for both tabs
-    if (activeTab === "models") {
-      const { count } = await supabase
-        .from("marketplace_listings")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active")
-        .or(`title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`);
-      marketplaceCount = count ?? 0;
-    } else {
-      const { count } = await supabase
-        .from("models")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active")
-        .or(`name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`);
-      modelCount = count ?? 0;
-    }
+    models = modelResults.models;
+    modelCount = modelResults.modelCount;
+    modelBenchmarkCoverageSummary = modelResults.modelBenchmarkCoverageSummary;
+    modelAccessCatalog = modelResults.modelAccessCatalog;
+    marketplace = marketplaceResults.marketplace;
+    marketplaceCount = marketplaceResults.marketplaceCount;
   }
-
-  const totalCount = activeTab === "models" ? modelCount : marketplaceCount;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -442,7 +464,7 @@ export default async function SearchPage({
           <h1 className="text-2xl font-bold">Search Results</h1>
           {query && (
             <p className="text-sm text-muted-foreground">
-              {totalCount} results for &ldquo;{query}&rdquo;
+              {modelCount} model results and {marketplaceCount} marketplace results for &ldquo;{query}&rdquo;
             </p>
           )}
         </div>
@@ -476,278 +498,195 @@ export default async function SearchPage({
         </div>
       ) : (
         <>
-          <div className="mb-6 rounded-xl border border-border/50 bg-secondary/15 p-4 text-sm text-muted-foreground">
-            Start with the tab that matches your goal:
-            models if you want to compare AI systems, marketplace if you want something you can buy,
-            deploy, or use right away.
-          </div>
-          {activeTab === "models" && (
-            <div className="mb-6 rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
-              Search results include both fully benchmarked models and tracked models that are still supported mainly by provider evidence, arena signal, or other public signals. Use the benchmark badge on each row before treating two models as directly comparable.
-            </div>
-          )}
-          {activeTab === "models" && modelCount > 0 && (
-            <div className="mb-6 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
-                <p className="text-lg font-semibold text-foreground">
-                  {modelBenchmarkCoverageSummary.comparable}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Structured benchmark-backed results
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
-                <p className="text-lg font-semibold text-foreground">
-                  {modelBenchmarkCoverageSummary.signalBacked}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Signal-backed results without full normalized tables
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/50 bg-card/60 p-4">
-                <p className="text-lg font-semibold text-foreground">
-                  {modelBenchmarkCoverageSummary.pending}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Benchmark-expected results still catching up
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex gap-1 mb-6">
-            <Link
-              href={`/search?q=${encodeURIComponent(query)}&tab=models`}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "models"
-                  ? "bg-neon/10 text-neon"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              }`}
-            >
-              <Box className="h-4 w-4" />
-              Models ({modelCount})
-            </Link>
-            <Link
-              href={`/search?q=${encodeURIComponent(query)}&tab=marketplace`}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === "marketplace"
-                  ? "bg-neon/10 text-neon"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              }`}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Marketplace ({marketplaceCount})
-            </Link>
-          </div>
-
-          {/* Results */}
-          {activeTab === "models" ? (
-            <div className="space-y-2">
-              {models.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  No models matched &ldquo;{query}&rdquo;.
-                </div>
-              ) : (
-                models.map((model) => (
-                  (() => {
-                    const capabilityValue = getCapabilityMetricValue(model);
-                    const pricingSummary = getPublicPricingSummary(model);
-                    const accessOffer = getBestAccessOfferForModel(modelAccessCatalog, model.id);
-                    const displayDescription = getModelDisplayDescription(model).text;
-                    const deployabilityLabel = getDeployabilityLabel({
-                      signal: model.recent_signal ?? null,
-                      isOpenWeights: model.is_open_weights,
-                      accessOffer,
-                    });
-                    const selfHostRequirementLabel =
-                      model.self_host_requirement_label ??
-                      getSelfHostRequirements({
+          <SearchResultsTabs
+            query={query}
+            page={page}
+            pageSize={PAGE_SIZE}
+            initialTab={activeTab}
+            modelCount={modelCount}
+            marketplaceCount={marketplaceCount}
+            modelBenchmarkCoverageSummary={modelBenchmarkCoverageSummary}
+            modelsContent={
+              <div className="space-y-2">
+                {models.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    No models matched &ldquo;{query}&rdquo;.
+                  </div>
+                ) : (
+                  models.map((model) => (
+                    (() => {
+                      const capabilityValue = getCapabilityMetricValue(model);
+                      const pricingSummary = getPublicPricingSummary(model);
+                      const accessOffer = getBestAccessOfferForModel(modelAccessCatalog, model.id);
+                      const displayDescription = getModelDisplayDescription(model).text;
+                      const deployabilityLabel = getDeployabilityLabel({
+                        signal: model.recent_signal ?? null,
                         isOpenWeights: model.is_open_weights,
-                        parameterCount: model.parameter_count,
-                        name: model.name,
-                        slug: model.slug,
-                        category: model.category,
-                      })?.shortLabel ??
-                      null;
+                        accessOffer,
+                      });
+                      const selfHostRequirementLabel =
+                        model.self_host_requirement_label ??
+                        getSelfHostRequirements({
+                          isOpenWeights: model.is_open_weights,
+                          parameterCount: model.parameter_count,
+                          name: model.name,
+                          slug: model.slug,
+                          category: model.category,
+                        })?.shortLabel ??
+                        null;
 
-                    return (
-                      <Link
-                        key={model.id}
-                        href={`/models/${model.slug}`}
-                        className="flex items-center gap-4 rounded-xl border border-border/50 bg-card p-4 transition-colors hover:bg-secondary/20"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
-                          {model.overall_rank ? `#${model.overall_rank}` : "—"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{model.name}</span>
-                            <span className="text-xs text-muted-foreground">{model.provider}</span>
-                            {deployabilityLabel && (
-                              <Badge variant="outline" className="text-[10px] border-cyan-500/20 text-cyan-200">
-                                {deployabilityLabel}
-                              </Badge>
-                            )}
-                            <BenchmarkTrackingBadge
-                              summary={model.benchmark_tracking_summary}
-                            />
-                            {model.is_open_weights && (
-                              <Badge variant="outline" className="text-[10px] border-gain/30 text-gain">
-                                Open
-                              </Badge>
-                            )}
+                      return (
+                        <Link
+                          key={model.id}
+                          href={`/models/${model.slug}`}
+                          className="flex items-center gap-4 rounded-xl border border-border/50 bg-card p-4 transition-colors hover:bg-secondary/20"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-muted-foreground">
+                            {model.overall_rank ? `#${model.overall_rank}` : "—"}
                           </div>
-                          {displayDescription ? (
-                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                              {displayDescription}
-                            </p>
-                          ) : null}
-                          {selfHostRequirementLabel ? (
-                            <p className="mt-1 text-[11px] text-amber-200">
-                              {selfHostRequirementLabel}
-                            </p>
-                          ) : null}
-                          {model.recent_signal ? (
-                            <div className="mt-2">
-                              <ModelSignalBadge signal={model.recent_signal} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{model.name}</span>
+                              <span className="text-xs text-muted-foreground">{model.provider}</span>
+                              {deployabilityLabel && (
+                                <Badge variant="outline" className="text-[10px] border-cyan-500/20 text-cyan-200">
+                                  {deployabilityLabel}
+                                </Badge>
+                              )}
+                              <BenchmarkTrackingBadge
+                                summary={model.benchmark_tracking_summary}
+                              />
+                              {model.is_open_weights && (
+                                <Badge variant="outline" className="text-[10px] border-gain/30 text-gain">
+                                  Open
+                                </Badge>
+                              )}
                             </div>
-                          ) : null}
-                          <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
-                            <span>
-                              {CATEGORY_MAP[model.category as keyof typeof CATEGORY_MAP]?.shortLabel ||
-                                model.category}
-                            </span>
-                            {model.parameter_count && (
-                              <span>{formatNumber(model.parameter_count)} params</span>
-                            )}
-                            {capabilityValue != null && (
-                              <span className="flex items-center gap-0.5">
-                                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
-                                {capabilityValue.toFixed(1)} cap
+                            {displayDescription ? (
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                {displayDescription}
+                              </p>
+                            ) : null}
+                            {selfHostRequirementLabel ? (
+                              <p className="mt-1 text-[11px] text-amber-200">
+                                {selfHostRequirementLabel}
+                              </p>
+                            ) : null}
+                            {model.recent_signal ? (
+                              <div className="mt-2">
+                                <ModelSignalBadge signal={model.recent_signal} />
+                              </div>
+                            ) : null}
+                            <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                              <span>
+                                {CATEGORY_MAP[model.category as keyof typeof CATEGORY_MAP]?.shortLabel ||
+                                  model.category}
                               </span>
-                            )}
-                            {(accessOffer || pricingSummary.compactDisplay) && (
-                              <span className="flex items-center gap-0.5">
-                                <Zap className="h-2.5 w-2.5 text-neon" />
-                                {accessOffer ? accessOffer.monthlyPriceLabel : pricingSummary.compactDisplay}
-                              </span>
-                            )}
-                            {model.market_cap_estimate != null && (
-                              <span>Value {formatMarketValue(model.market_cap_estimate)}</span>
-                            )}
+                              {model.parameter_count && (
+                                <span>{formatNumber(model.parameter_count)} params</span>
+                              )}
+                              {capabilityValue != null && (
+                                <span className="flex items-center gap-0.5">
+                                  <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                  {capabilityValue.toFixed(1)} cap
+                                </span>
+                              )}
+                              {(accessOffer || pricingSummary.compactDisplay) && (
+                                <span className="flex items-center gap-0.5">
+                                  <Zap className="h-2.5 w-2.5 text-neon" />
+                                  {accessOffer ? accessOffer.monthlyPriceLabel : pricingSummary.compactDisplay}
+                                </span>
+                              )}
+                              {model.market_cap_estimate != null && (
+                                <span>Value {formatMarketValue(model.market_cap_estimate)}</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </Link>
-                    );
-                  })()
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {marketplace.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  No marketplace listings matched &ldquo;{query}&rdquo;.
-                </div>
-              ) : (
-                marketplace.map((item) => (
-                  (() => {
-                    const commerceSignals = getListingCommerceSignals(item);
-
-                    return (
-                      <Link
-                        key={item.id}
-                        href={`/marketplace/${item.slug}`}
-                        className="flex items-center gap-4 rounded-xl border border-border/50 bg-card p-4 transition-colors hover:bg-secondary/20"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon/10">
-                          <ShoppingBag className="h-5 w-5 text-neon" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium">{item.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
-                              {item.listing_type?.replace(/_/g, " ")}
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] ${getListingPillClasses(commerceSignals.autonomy.tone)}`}
-                            >
-                              {commerceSignals.autonomy.label}
-                            </Badge>
-                          </div>
-                          {item.short_description && (
-                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                              {item.short_description}
-                            </p>
-                          )}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] ${getListingPillClasses(commerceSignals.manifest.tone)}`}
-                            >
-                              {commerceSignals.manifest.label}
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] ${getListingPillClasses(commerceSignals.seller.tone)}`}
-                            >
-                              {commerceSignals.seller.label}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-                            {item.price != null && (
-                              <span className="font-medium text-foreground">${item.price}</span>
-                            )}
-                            {item.pricing_type === "free" && (
-                              <span className="text-gain font-medium">Free</span>
-                            )}
-                            {item.avg_rating != null && (
-                              <span className="flex items-center gap-0.5">
-                                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
-                                {item.avg_rating.toFixed(1)}
-                              </span>
-                            )}
-                            {(item.review_count ?? 0) > 0 && (
-                              <span>{item.review_count} reviews</span>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })()
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/search?q=${encodeURIComponent(query)}&tab=${activeTab}&page=${page - 1}`}
-                    className="rounded-lg border border-border/50 px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
-                  >
-                    Previous
-                  </Link>
-                )}
-                {page < totalPages && (
-                  <Link
-                    href={`/search?q=${encodeURIComponent(query)}&tab=${activeTab}&page=${page + 1}`}
-                    className="rounded-lg border border-border/50 px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
-                  >
-                    Next
-                  </Link>
+                        </Link>
+                      );
+                    })()
+                  ))
                 )}
               </div>
-            </div>
-          )}
+            }
+            marketplaceContent={
+              <div className="space-y-2">
+                {marketplace.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    No marketplace listings matched &ldquo;{query}&rdquo;.
+                  </div>
+                ) : (
+                  marketplace.map((item) => (
+                    (() => {
+                      const commerceSignals = getListingCommerceSignals(item);
+
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/marketplace/${item.slug}`}
+                          className="flex items-center gap-4 rounded-xl border border-border/50 bg-card p-4 transition-colors hover:bg-secondary/20"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon/10">
+                            <ShoppingBag className="h-5 w-5 text-neon" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{item.title}</span>
+                              <Badge variant="outline" className="text-[10px]">
+                                {item.listing_type?.replace(/_/g, " ")}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${getListingPillClasses(commerceSignals.autonomy.tone)}`}
+                              >
+                                {commerceSignals.autonomy.label}
+                              </Badge>
+                            </div>
+                            {item.short_description && (
+                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                {item.short_description}
+                              </p>
+                            )}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${getListingPillClasses(commerceSignals.manifest.tone)}`}
+                              >
+                                {commerceSignals.manifest.label}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${getListingPillClasses(commerceSignals.seller.tone)}`}
+                              >
+                                {commerceSignals.seller.label}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                              {item.price != null && (
+                                <span className="font-medium text-foreground">${item.price}</span>
+                              )}
+                              {item.pricing_type === "free" && (
+                                <span className="text-gain font-medium">Free</span>
+                              )}
+                              {item.avg_rating != null && (
+                                <span className="flex items-center gap-0.5">
+                                  <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                  {item.avg_rating.toFixed(1)}
+                                </span>
+                              )}
+                              {(item.review_count ?? 0) > 0 && (
+                                <span>{item.review_count} reviews</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })()
+                  ))
+                )}
+              </div>
+            }
+          />
         </>
       )}
     </div>

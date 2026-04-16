@@ -35,7 +35,7 @@ export interface SeedEntry {
  * Priorities sourced from migration 002_enable_free_pipeline.sql.
  */
 export const DATA_SOURCE_SEEDS: SeedEntry[] = [
-  // ── Tier 1 (every 2h): Provider model catalogs ─────────────────────────
+  // ── Tier 1 (every 2h): Provider model catalogs + launch signals ────────
   {
     slug: "openrouter-models",
     name: "OpenRouter Models",
@@ -89,6 +89,34 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     output_types: ["models"],
     is_enabled: true,
     config: {},
+  },
+  {
+    slug: "provider-news",
+    name: "Provider News",
+    adapter_type: "provider-news",
+    description:
+      "Scrapes AI company blogs for model announcements and updates",
+    tier: 1,
+    sync_interval_hours: 2,
+    priority: 55,
+    secret_env_keys: [],
+    output_types: ["news"],
+    is_enabled: true,
+    config: {},
+  },
+  {
+    slug: "x-announcements",
+    name: "X.com Model Announcements",
+    adapter_type: "x-announcements",
+    description:
+      "Monitors AI company X/Twitter accounts for model announcements via RSS",
+    tier: 1,
+    sync_interval_hours: 2,
+    priority: 60,
+    secret_env_keys: [],
+    output_types: ["news"],
+    is_enabled: true,
+    config: { maxTweetsPerAccount: 10 },
   },
   {
     slug: "z-ai-models",
@@ -259,20 +287,6 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
   {
-    slug: "provider-news",
-    name: "Provider News",
-    adapter_type: "provider-news",
-    description:
-      "Scrapes AI company blogs for model announcements and updates",
-    tier: 2,
-    sync_interval_hours: 4,
-    priority: 5,
-    secret_env_keys: [],
-    output_types: ["news"],
-    is_enabled: true,
-    config: {},
-  },
-  {
     slug: "provider-benchmarks",
     name: "Provider Benchmarks",
     adapter_type: "provider-benchmarks",
@@ -299,20 +313,6 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     output_types: ["news"],
     is_enabled: true,
     config: {},
-  },
-  {
-    slug: "x-announcements",
-    name: "X.com Model Announcements",
-    adapter_type: "x-announcements",
-    description:
-      "Monitors AI company X/Twitter accounts for model announcements via RSS",
-    tier: 2,
-    sync_interval_hours: 4,
-    priority: 15,
-    secret_env_keys: [],
-    output_types: ["news"],
-    is_enabled: true,
-    config: { maxTweetsPerAccount: 10 },
   },
   {
     slug: "deployment-pricing",
