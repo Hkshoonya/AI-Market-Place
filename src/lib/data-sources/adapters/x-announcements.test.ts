@@ -103,6 +103,7 @@ describe("x-announcements parser", () => {
   it("marks fragile social accounts as optional coverage when other sources already cover them", () => {
     expect(__testables.monitoredAccounts).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ handle: "claudeai", provider: "Anthropic" }),
         expect.objectContaining({ handle: "MiniMax__AI", provider: "MiniMax", optional: true }),
         expect.objectContaining({ handle: "huggingface", provider: "Hugging Face", optional: true }),
         expect.objectContaining({ handle: "Zai_org", provider: "Z.ai" }),

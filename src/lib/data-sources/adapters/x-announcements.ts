@@ -44,6 +44,7 @@ interface MonitoredAccount {
 
 const MONITORED_ACCOUNTS: MonitoredAccount[] = [
   { handle: "OpenAI", provider: "OpenAI" },
+  { handle: "claudeai", provider: "Anthropic" },
   { handle: "AnthropicAI", provider: "Anthropic" },
   { handle: "GoogleDeepMind", provider: "Google" },
   { handle: "GoogleAI", provider: "Google" },
