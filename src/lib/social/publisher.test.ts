@@ -174,6 +174,7 @@ describe("social signal publisher", () => {
 
     const threadUpdates: Array<{ values: Record<string, unknown>; id: string }> = [];
     const mediaInsert = vi.fn(async () => ({ error: null }));
+    const recentPublishedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const createdActorId = "actor-pipeline";
     let createdThreadCount = 0;
     let createdPostCount = 0;
@@ -280,7 +281,7 @@ describe("social signal publisher", () => {
                         category: "pricing",
                         related_provider: "OpenAI",
                         related_model_ids: ["model-1"],
-                        published_at: "2026-04-08T11:00:00.000Z",
+                        published_at: recentPublishedAt,
                         metadata: {},
                       },
                     ],
