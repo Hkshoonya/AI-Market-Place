@@ -146,10 +146,10 @@ describe("DeploymentsContent", () => {
         link.getAttribute("href") === "/deploy#deploy-directory"
       )
     ).toBe(true);
-    expect(screen.getByText(/Operate in 3 steps/i)).toBeInTheDocument();
-    expect(screen.getByText(/1\. Check the state/i)).toBeInTheDocument();
-    expect(screen.getByText(/2\. Use the top actions/i)).toBeInTheDocument();
-    expect(screen.getByText(/3\. Open details only if needed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deployment operations/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Check state$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Use top actions$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Open details if needed$/i)).toBeInTheDocument();
     expect(screen.queryByText(/Action queue/i)).not.toBeInTheDocument();
   });
 
@@ -240,9 +240,9 @@ describe("DeploymentsContent", () => {
     render(<DeploymentsContent />);
 
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
-    expect(screen.getByText(/Operate in 3 steps/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deployment operations/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Check the state, use the top actions, then open details only when needed\./i)
+      screen.getByText(/Check state first, then use the top actions before opening deeper details\./i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getByText(/Next step/i)).toBeInTheDocument();
@@ -252,6 +252,7 @@ describe("DeploymentsContent", () => {
     expect(screen.getByText(baseDeployment.endpointPath)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Run Quick Test/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Needs attention/i })).toBeInTheDocument();
+    expect(screen.getByText(/Deployment filters/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Search deployments/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage Budget/i })).toHaveAttribute(
       "href",

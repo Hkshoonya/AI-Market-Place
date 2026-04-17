@@ -539,8 +539,7 @@ export default function DeploymentsContent() {
           </Badge>
           <h1 className="mt-3 text-3xl font-semibold text-white">Managed model deployments</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            A deployment is a saved way to run a model on AI Market Cap with its own endpoint,
-            budget, and usage history. Keep track of every model setup you created here.
+            Each saved deployment keeps its own endpoint, budget, and usage record.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -554,57 +553,56 @@ export default function DeploymentsContent() {
       </div>
 
       <Card className="mb-4 border-border/50 bg-card/70">
-        <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Total deployments
-            </p>
-            <p className="mt-1 text-xl font-semibold text-white">{deployments.length}</p>
+        <CardContent className="space-y-4 p-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Total deployments
+              </p>
+              <p className="mt-1 text-xl font-semibold text-white">{deployments.length}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Ready now
+              </p>
+              <p className="mt-1 text-xl font-semibold text-white">{summary.ready}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{summary.paused} paused</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Needs attention
+              </p>
+              <p className="mt-1 text-xl font-semibold text-white">{summary.attention}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summary.provisioning} provisioning · {summary.paused} paused
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Estimated spend
+              </p>
+              <p className="mt-1 text-xl font-semibold text-white">${summary.totalSpend.toFixed(2)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Across all deployment requests</p>
+            </div>
           </div>
-          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Ready now
-            </p>
-            <p className="mt-1 text-xl font-semibold text-white">{summary.ready}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{summary.paused} paused</p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Needs attention
-            </p>
-            <p className="mt-1 text-xl font-semibold text-white">{summary.attention}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {summary.provisioning} provisioning · {summary.paused} paused
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Estimated spend
-            </p>
-            <p className="mt-1 text-xl font-semibold text-white">${summary.totalSpend.toFixed(2)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Across all deployment requests</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-4 border-cyan-500/30 bg-cyan-500/10">
-        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-              Operate in 3 steps
-            </p>
-            <h2 className="mt-1 text-base font-semibold text-white">
-              Check the state, use the top actions, then open details only when needed.
-            </h2>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <Badge className="bg-cyan-500/10 text-cyan-100">1. Check the state</Badge>
-            <Badge className="bg-cyan-500/10 text-cyan-100">2. Use the top actions</Badge>
-            <Badge className="bg-cyan-500/10 text-cyan-100">3. Open details only if needed</Badge>
-            <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
-            <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
-            <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
-            <Badge className="bg-red-500/10 text-red-200">Needs repair</Badge>
+          <div className="flex flex-col gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                Deployment operations
+              </p>
+              <p className="mt-1 text-sm font-medium text-white">
+                Check state first, then use the top actions before opening deeper details.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <Badge className="bg-cyan-500/10 text-cyan-100">Check state</Badge>
+              <Badge className="bg-cyan-500/10 text-cyan-100">Use top actions</Badge>
+              <Badge className="bg-cyan-500/10 text-cyan-100">Open details if needed</Badge>
+              <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
+              <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
+              <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
+              <Badge className="bg-red-500/10 text-red-200">Needs repair</Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -656,9 +654,9 @@ export default function DeploymentsContent() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  View deployments
+                  Deployment filters
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Showing {filteredDeployments.length} of {deployments.length} deployment
                   {deployments.length === 1 ? "" : "s"}.
                 </p>
