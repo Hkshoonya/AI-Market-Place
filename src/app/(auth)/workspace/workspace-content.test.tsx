@@ -551,6 +551,7 @@ describe("WorkspaceContent", () => {
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Usage/i })).toHaveAttribute("data-state", "active")
     );
+    expect(screen.getByText(/Recent snapshot/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Workflow guide$/i }));
     await waitFor(() =>

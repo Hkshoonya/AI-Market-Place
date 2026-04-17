@@ -1651,9 +1651,14 @@ export default function WorkspaceContent() {
 
           <Card id="workspace-usage-history" className="border-border/50 bg-card/60">
             <CardContent className="p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-neon" />
-                <h2 className="text-lg font-semibold text-white">Transcript</h2>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <h2 className="text-lg font-semibold text-white">Transcript</h2>
+                </div>
+                <Badge variant="outline" className="border-border/50 bg-card/40">
+                  {chatMessages.length} messages
+                </Badge>
               </div>
               <div className="space-y-3">
                 {chatMessages.length > 0 ? (
@@ -1683,7 +1688,7 @@ export default function WorkspaceContent() {
                   ))
                 ) : (
                   <div className="rounded-lg border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-                    No assistant transcript yet. Ask a question to start the workspace conversation.
+                    No transcript yet. Ask the assistant to start the workspace conversation.
                   </div>
                 )}
               </div>
@@ -1694,51 +1699,46 @@ export default function WorkspaceContent() {
         <TabsContent forceMount value="usage" className="mt-6">
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-neon" />
-                <h2 className="text-lg font-semibold text-white">Session history</h2>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <h2 className="text-lg font-semibold text-white">Session history</h2>
+                </div>
+                <Badge variant="outline" className="border-border/50 bg-card/40">
+                  {session.events.length} events
+                </Badge>
               </div>
-              <div className="mb-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deployment status</p>
-                  <p className="mt-1 text-sm font-medium text-white">{deployment?.status ?? runtime?.status ?? "draft"}</p>
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Per request</p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Budget left</p>
-                  <p className="mt-1 text-sm font-medium text-white">
+              <div className="mb-4 rounded-lg border border-border/40 bg-background/40 p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Recent snapshot
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
+                    {deployment?.status ?? runtime?.status ?? "draft"}
+                  </Badge>
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
+                    ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}/request
+                  </Badge>
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
                     {deployment?.billing.budgetRemaining != null
-                      ? `$${deployment.billing.budgetRemaining.toFixed(2)}`
-                      : "Not tracked"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Estimated spend</p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    ${deployment?.billing.estimatedSpend.toFixed(2) ?? "0.00"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Updated</p>
-                  <p className="mt-1 text-sm font-medium text-white">
+                      ? `$${deployment.billing.budgetRemaining.toFixed(2)} left`
+                      : "Budget not tracked"}
+                  </Badge>
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
+                    ${deployment?.billing.estimatedSpend.toFixed(2) ?? "0.00"} spend
+                  </Badge>
+                  <Badge variant="outline" className="border-border/50 bg-card/40">
                     {deployment?.updatedAt || runtime?.updatedAt
-                      ? new Date(deployment?.updatedAt ?? runtime?.updatedAt ?? "").toLocaleString([], {
+                      ? `Updated ${new Date(
+                          deployment?.updatedAt ?? runtime?.updatedAt ?? ""
+                        ).toLocaleString([], {
                           month: "short",
                           day: "numeric",
                           hour: "numeric",
                           minute: "2-digit",
-                        })
-                          : "Not prepared"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Session events</p>
-                  <p className="mt-1 text-sm font-medium text-white">{session.events.length}</p>
+                        })}`
+                      : "Not prepared"}
+                  </Badge>
                 </div>
               </div>
               <div className="space-y-3">
