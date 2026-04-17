@@ -1579,26 +1579,25 @@ export default function WorkspaceContent() {
 
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-neon" />
-                <h2 className="text-lg font-semibold text-white">Session note</h2>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-neon" />
+                  <h2 className="text-lg font-semibold text-white">Session note</h2>
+                </div>
+                <Button variant="outline" disabled={noteDraft.trim().length === 0} onClick={saveNote}>
+                  Save note
+                </Button>
               </div>
-              <p className="mb-3 text-sm text-muted-foreground">
-                Keep brief context here. It stays attached to this saved workspace session and
-                remains visible in the full history.
+              <p className="mb-3 text-xs text-muted-foreground">
+                Keep one short working note attached to this workspace.
               </p>
               <textarea
                 value={noteDraft}
                 onChange={(event) => setNoteDraft(event.target.value)}
-                rows={4}
+                rows={3}
                 placeholder="Add a note about what you want to do with this model or what happened during setup."
                 className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
               />
-              <div className="mt-3 flex justify-end">
-                <Button variant="outline" disabled={noteDraft.trim().length === 0} onClick={saveNote}>
-                  Save Note
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1610,9 +1609,8 @@ export default function WorkspaceContent() {
                 <MessageSquare className="h-4 w-4 text-neon" />
                 <h2 className="text-lg font-semibold text-white">Workspace assistant</h2>
               </div>
-              <p className="mb-3 text-sm text-muted-foreground">
-                Ask what to do next for this model. The assistant stays tied to the same workspace
-                conversation and transcript.
+              <p className="mb-3 text-xs text-muted-foreground">
+                Ask for the next action without leaving this workspace.
               </p>
               <textarea
                 value={assistantDraft}
@@ -1621,22 +1619,27 @@ export default function WorkspaceContent() {
                 placeholder="Example: What should I do next to start using this model here?"
                 className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
               />
-              <div className="mt-3 flex flex-wrap gap-2">
-                {[
-                  "What should I do first?",
-                  "Do I need credits for this path?",
-                  "How do I prepare API access?",
-                ].map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => setAssistantDraft(prompt)}
-                    className="rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-neon/30 hover:text-foreground"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              <details className="mt-3 rounded-md border border-border/40 bg-background/40 px-3 py-3">
+                <summary className="cursor-pointer list-none text-sm font-medium text-white">
+                  Quick prompts
+                </summary>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    "What should I do first?",
+                    "Do I need credits for this path?",
+                    "How do I prepare API access?",
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => setAssistantDraft(prompt)}
+                      className="rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-neon/30 hover:text-foreground"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </details>
               {assistantError ? <p className="mt-3 text-xs text-red-400">{assistantError}</p> : null}
               <div className="mt-3 flex justify-end">
                 <Button variant="outline" disabled={assistantDraft.trim().length === 0 || assistantLoading} onClick={askAssistant}>

@@ -545,6 +545,7 @@ describe("WorkspaceContent", () => {
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Assistant/i })).toHaveAttribute("data-state", "active")
     );
+    expect(screen.getByText(/Quick prompts/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Open usage history/i }));
     await waitFor(() =>
@@ -555,5 +556,6 @@ describe("WorkspaceContent", () => {
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Setup/i })).toHaveAttribute("data-state", "active")
     );
+    expect(screen.getByRole("button", { name: /Save note/i })).toBeInTheDocument();
   });
 });
