@@ -158,7 +158,7 @@ describe("WorkspaceContent", () => {
 
     expect(screen.getByText(/No active workspace yet/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Start guided setup/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse deployable models/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse launch directory/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View Deployments/i })).toBeInTheDocument();
   });
 
@@ -202,7 +202,7 @@ describe("WorkspaceContent", () => {
     expect(screen.getByText(/You already have 1 managed deployment attached to your account/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Go to Deployments/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse deployable models/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse launch directory/i })).toBeInTheDocument();
   });
 
   it("shows the broader deployment portfolio when the signed-in workspace already has saved deployments", () => {

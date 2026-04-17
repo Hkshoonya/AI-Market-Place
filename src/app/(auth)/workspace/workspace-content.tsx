@@ -377,7 +377,7 @@ export default function WorkspaceContent() {
                 </Button>
               )}
               <Button variant="outline" asChild>
-                <Link href="/models?deployable=true">Browse deployable models</Link>
+                <Link href="/deploy#deploy-directory">Browse launch directory</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/marketplace">Open Marketplace</Link>
@@ -1020,9 +1020,11 @@ export default function WorkspaceContent() {
                 Budget
               </Button>
             ) : null}
-            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-quick-test")}>
-              Quick test
-            </Button>
+            {!hasManagedDeployment ? (
+              <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-quick-test")}>
+                Quick test
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("assistant", "workspace-assistant")}>
               Open assistant view
             </Button>
