@@ -47,6 +47,7 @@ import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
+import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
 
 const TopMovers = dynamic(() => import("@/components/charts/top-movers"), {
@@ -126,10 +127,15 @@ export default async function HomePage() {
   // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
   const now = Date.now();
 
+  const allActiveModels = supabase
+    ? await fetchAllHomepageActiveModels(
+        supabase as unknown as Parameters<typeof fetchAllHomepageActiveModels>[0]
+      )
+    : [];
+
   const [
     { count: modelCount },
     { count: benchmarkCount },
-    { data: allActiveModels },
     { data: deploymentPlatformsRaw },
     { data: modelDeploymentsRaw },
     { data: latestSignalNewsRaw },
@@ -140,12 +146,6 @@ export default async function HomePage() {
     ? await Promise.all([
         supabase.from("models").select("*", { count: "exact", head: true }),
         supabase.from("benchmarks").select("*", { count: "exact", head: true }),
-        supabase
-          .from("models")
-          .select(
-            "id, slug, name, provider, category, overall_rank, quality_score, capability_score, capability_rank, popularity_score, popularity_rank, adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank, market_cap_estimate, agent_score, hf_downloads, hf_likes, release_date, created_at, parameter_count, short_description, description, context_window, is_open_weights"
-          )
-          .eq("status", "active"),
         supabase
           .from("deployment_platforms")
           .select("*")
@@ -196,11 +196,12 @@ export default async function HomePage() {
         { data: [] },
         { data: [] },
         { data: [] },
-        { data: [] },
       ];
 
+  const homepageActiveModels =
+    (allActiveModels ?? []) as unknown as Parameters<typeof dedupePublicModelFamilies>[0];
   const activeModels = preferDefaultPublicSurfaceReady(
-    dedupePublicModelFamilies(allActiveModels ?? []),
+    dedupePublicModelFamilies(homepageActiveModels),
     12
   );
   const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
@@ -226,7 +227,7 @@ export default async function HomePage() {
   const accessOffers = buildAccessOffersCatalog({
     platforms: deploymentPlatforms,
     deployments: modelDeploymentsRaw ?? [],
-    models: activeModels,
+    models: activeModels as Parameters<typeof buildAccessOffersCatalog>[0]["models"],
   });
   const latestLaunchSignalAt =
     typeof latestSignalNewsRaw?.[0]?.published_at === "string"
@@ -268,7 +269,9 @@ export default async function HomePage() {
   }).length;
 
   const newModels = buildHomepageLaunchSelections(
-    (allActiveModels ?? []) as Parameters<typeof buildHomepageLaunchSelections>[0],
+    ((allActiveModels ?? []) as unknown as Parameters<
+      typeof buildHomepageLaunchSelections
+    >[0]),
     ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
       source: typeof item.source === "string" ? item.source : null,
       published_at: typeof item.published_at === "string" ? item.published_at : null,
@@ -287,7 +290,9 @@ export default async function HomePage() {
     now
   );
   const newDeploymentPaths = buildHomepageDeploymentSelections(
-    (allActiveModels ?? []) as Parameters<typeof buildHomepageDeploymentSelections>[0],
+    ((allActiveModels ?? []) as unknown as Parameters<
+      typeof buildHomepageDeploymentSelections
+    >[0]),
     ((recentDeploymentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
       title: typeof item.title === "string" ? item.title : null,
       summary: typeof item.summary === "string" ? item.summary : null,

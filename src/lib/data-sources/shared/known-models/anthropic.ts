@@ -10,7 +10,28 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
-  // ---- Claude 4.6 series (latest) ----
+  // ---- Claude 4.7 series (latest) ----
+  "claude-opus-4-7": {
+    name: "Claude Opus 4.7",
+    description:
+      "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering, long-running task reliability, self-verification, and high-resolution vision while keeping the same pricing.",
+    context_window: 200000,
+    release_date: "2026-04-16",
+    architecture: "Transformer",
+    status: "active",
+    website_url: "https://www.anthropic.com/news/claude-opus-4-7",
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      extended_thinking: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+  },
+
+  // ---- Claude 4.6 series ----
   "claude-opus-4-6": {
     name: "Claude Opus 4.6",
     description:
@@ -243,6 +264,8 @@ export function resolveAnthropicKnownModelMeta(
   ]);
 
   const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-opus-4-7(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-7"],
+    [/^claude-4-7(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-7"],
     [/^claude-opus-4-1(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-1"],
     [/^claude-(opus|sonnet|haiku)-4-5(?:-v\d+)?$/, "claude-4-5-$1"],
     [/^claude-(opus|sonnet)-4-6(?:-v\d+)?$/, "claude-$1-4-6"],

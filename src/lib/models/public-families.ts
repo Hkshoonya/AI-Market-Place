@@ -21,6 +21,13 @@ export interface PublicModelFamilyCandidate {
   adoption_score?: number | null;
   economic_footprint_score?: number | null;
   hf_downloads?: number | null;
+  hf_likes?: number | null;
+  hf_trending_score?: number | null;
+  release_date?: string | null;
+  context_window?: number | null;
+  is_open_weights?: boolean | null;
+  license?: string | null;
+  license_name?: string | null;
 }
 
 export interface PublicModelFamily<T extends PublicModelFamilyCandidate> {

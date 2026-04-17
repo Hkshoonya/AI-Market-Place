@@ -79,13 +79,15 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-3.1-pro": {
     name: "Gemini 3.1 Pro",
     description:
-      "Updated Gemini 3.1 flagship model for complex reasoning, coding, and long-context multimodal work.",
+      "Updated Gemini 3.1 flagship model for complex reasoning, coding, and long-context multimodal work. Improves on Gemini 2.5 Pro with stronger state-of-the-art performance and broad availability across the Gemini API and Vertex AI.",
     category: "multimodal",
     context_window: 1000000,
-    release_date: "2026-03-24",
+    release_date: "2026-02-19",
     architecture: "Transformer",
     status: "active",
     modalities: ["text", "image", "audio", "video"],
+    website_url:
+      "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/",
     capabilities: {
       reasoning: true,
       coding: true,
@@ -105,10 +107,12 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       "Low-latency Gemini 3.1 live model for real-time multimodal conversations, streaming assistance, and interactive agent workflows.",
     category: "multimodal",
     context_window: 1000000,
-    release_date: "2026-03-24",
+    release_date: "2026-03-26",
     architecture: "Transformer",
     status: "active",
     modalities: ["text", "image", "audio", "video"],
+    website_url:
+      "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-live/",
     capabilities: {
       reasoning: true,
       coding: true,
@@ -123,13 +127,15 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-3.1-flash-image": {
     name: "Gemini 3.1 Flash Image",
     description:
-      "Gemini 3.1 image-focused model for prompt-following image generation and multimodal creative workflows.",
+      "Gemini 3.1 image-focused model for high-fidelity prompt-following image generation and faster advanced editing. Brings Nano Banana Pro-level quality and reasoning to the faster Flash tier.",
     category: "image_generation",
     context_window: 1000000,
-    release_date: "2026-03-24",
+    release_date: "2026-02-26",
     architecture: "Transformer",
     status: "active",
     modalities: ["text", "image"],
+    website_url:
+      "https://blog.google/innovation-and-ai/technology/developers-tools/build-with-nano-banana-2/",
     capabilities: {
       image_generation: true,
       image_editing: true,
@@ -143,10 +149,10 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-3.1-flash-lite": {
     name: "Gemini 3.1 Flash Lite",
     description:
-      "Lower-cost Gemini 3.1 Flash Lite model for high-throughput multimodal assistant workloads with the latest Gemini 3.1 family improvements.",
+      "Lower-cost Gemini 3.1 Flash Lite model for high-throughput multimodal assistant workloads. Outperforms Gemini 2.5 Flash on high-volume workloads while delivering faster time-to-first-token and output speed.",
     category: "multimodal",
     context_window: 1000000,
-    release_date: "2026-03-24",
+    release_date: "2026-03-03",
     architecture: "Transformer",
     status: "active",
     modalities: ["text", "image", "audio", "video"],

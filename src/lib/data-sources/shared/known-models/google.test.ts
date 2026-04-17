@@ -3,6 +3,30 @@ import { describe, expect, it } from "vitest";
 import { resolveGoogleKnownModelMeta } from "./google";
 
 describe("resolveGoogleKnownModelMeta", () => {
+  it("returns current Gemini 3.1 release metadata for official latest model pages", () => {
+    expect(resolveGoogleKnownModelMeta("gemini-3.1-pro")).toMatchObject({
+      name: "Gemini 3.1 Pro",
+      release_date: "2026-02-19",
+      website_url:
+        "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/",
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-lite")).toMatchObject({
+      name: "Gemini 3.1 Flash Lite",
+      release_date: "2026-03-03",
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-live")).toMatchObject({
+      name: "Gemini 3.1 Flash Live",
+      release_date: "2026-03-26",
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-image")).toMatchObject({
+      name: "Gemini 3.1 Flash Image",
+      release_date: "2026-02-26",
+    });
+  });
+
   it("returns exact Gemma 4 variant metadata when present", () => {
     const meta = resolveGoogleKnownModelMeta("gemma-4-31b-it");
 

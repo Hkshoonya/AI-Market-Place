@@ -75,10 +75,12 @@ function createMockSupabase({
   latestSignalAt,
   latestPipelineSyncAt,
   recentLaunchNews = [],
+  activeModels = [],
 }: {
   latestSignalAt?: string | null;
   latestPipelineSyncAt?: string | null;
   recentLaunchNews?: Array<Record<string, unknown>>;
+  activeModels?: Array<Record<string, unknown>>;
 }) {
   return {
     from: (table: string) => {
@@ -89,10 +91,11 @@ function createMockSupabase({
               return Promise.resolve({ count: 0, error: null });
             }
 
-            return {
-              eq: () =>
+            const chain = {
+              eq: () => chain,
+              range: () =>
                 Promise.resolve({
-                  data: [],
+                  data: activeModels,
                   error: null,
                 }),
               in: () =>
@@ -101,6 +104,8 @@ function createMockSupabase({
                   error: null,
                 }),
             };
+
+            return chain;
           },
         };
       }
