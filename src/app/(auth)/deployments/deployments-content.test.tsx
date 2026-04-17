@@ -146,10 +146,12 @@ describe("DeploymentsContent", () => {
         link.getAttribute("href") === "/deploy#deploy-directory"
       )
     ).toBe(true);
-    expect(screen.getByText(/Deployment operations/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Check state$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Use top actions$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Open details if needed$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Operations flow/i)).toBeInTheDocument();
+    expect(screen.getByText(/State first, top actions next, details only when needed\./i)).toBeInTheDocument();
+    expect(screen.getByText(/^Ready$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Paused$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Provisioning$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Needs repair$/i)).toBeInTheDocument();
     expect(screen.queryByText(/Action queue/i)).not.toBeInTheDocument();
   });
 
@@ -243,9 +245,9 @@ describe("DeploymentsContent", () => {
     render(<DeploymentsContent />);
 
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
-    expect(screen.getByText(/Deployment operations/i)).toBeInTheDocument();
+    expect(screen.getByText(/Operations flow/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Check state first, then use the top actions before opening deeper details\./i)
+      screen.getByText(/State first, top actions next, details only when needed\./i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getByText(/Next step/i)).toBeInTheDocument();

@@ -539,7 +539,7 @@ export default function DeploymentsContent() {
           </Badge>
           <h1 className="mt-3 text-3xl font-semibold text-white">Managed model deployments</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Each saved deployment keeps its own endpoint, budget, and usage record.
+            Operate saved endpoints, budget, and traffic from one place.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -588,16 +588,13 @@ export default function DeploymentsContent() {
           <div className="flex flex-col gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-                Deployment operations
+                Operations flow
               </p>
               <p className="mt-1 text-sm font-medium text-white">
-                Check state first, then use the top actions before opening deeper details.
+                State first, top actions next, details only when needed.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
-              <Badge className="bg-cyan-500/10 text-cyan-100">Check state</Badge>
-              <Badge className="bg-cyan-500/10 text-cyan-100">Use top actions</Badge>
-              <Badge className="bg-cyan-500/10 text-cyan-100">Open details if needed</Badge>
               <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
               <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
               <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
