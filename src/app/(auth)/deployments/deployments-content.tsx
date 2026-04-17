@@ -835,10 +835,33 @@ export default function DeploymentsContent() {
                         <p className="mt-1 text-sm text-muted-foreground">{nextStep.detail}</p>
                       </div>
                       <div className="rounded-lg border border-border/50 bg-card/40 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Endpoint
-                        </p>
-                        <code className="mt-1 block text-xs text-foreground">{deployment.endpointPath}</code>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Endpoint
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              void copyEndpoint(deployment);
+                            }}
+                          >
+                            {copiedEndpointSlug === deployment.modelSlug ? (
+                              <>
+                                <Check className="h-3.5 w-3.5" />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" />
+                                Copy
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <code className="mt-2 block text-xs text-foreground">{deployment.endpointPath}</code>
                       </div>
                     </div>
 
@@ -887,25 +910,6 @@ export default function DeploymentsContent() {
                           Secondary actions
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              void copyEndpoint(deployment);
-                            }}
-                          >
-                            {copiedEndpointSlug === deployment.modelSlug ? (
-                              <>
-                                <Check className="h-4 w-4" />
-                                Endpoint Copied
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-4 w-4" />
-                                Copy Endpoint
-                              </>
-                            )}
-                          </Button>
                           <Button variant="outline" asChild>
                             <Link href={`/models/${deployment.modelSlug}`}>
                               Model Page
@@ -1117,9 +1121,9 @@ export default function DeploymentsContent() {
                         <div className="flex items-center gap-2">
                           <KeyRound className="h-4 w-4 text-neon" />
                           <div>
-                            <p className="text-sm font-medium text-white">API setup and test</p>
+                            <p className="text-sm font-medium text-white">API access details</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Open this only when you need the curl example, API key path, or test controls.
+                              Open this only when you need the curl example, API key path, or docs.
                             </p>
                           </div>
                         </div>
@@ -1132,17 +1136,6 @@ export default function DeploymentsContent() {
 {`curl -X POST ${deployment.endpointPath} \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Hello from AI Market Cap"}'`}
                       </code>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={
-                            testLoadingSlug === deployment.modelSlug ||
-                            deployment.status !== "ready"
-                          }
-                          onClick={() => runTestCall(deployment)}
-                        >
-                          {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
-                        </Button>
                         <Button variant="outline" asChild>
                           <Link
                             href={`/settings/api-keys?intent=deploy&model=${encodeURIComponent(
