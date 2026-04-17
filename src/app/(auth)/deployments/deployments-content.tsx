@@ -611,20 +611,28 @@ export default function DeploymentsContent() {
         <Card className="mb-6 border-amber-500/30 bg-amber-500/10">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-amber-200/80">
-                Action queue
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-white">
-                Review problem deployments first, then return to live traffic.
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm text-amber-50/80">
-                {summary.attention > 0
-                  ? `${summary.attention} deployment${summary.attention === 1 ? " needs" : "s need"} attention right now.`
-                  : "No deployments are currently broken."} {summary.paused > 0
-                  ? `${summary.paused} paused deployment${summary.paused === 1 ? " is" : "s are"} waiting to be resumed.`
-                  : ""} {summary.provisioning > 0
-                  ? `${summary.provisioning} deployment${summary.provisioning === 1 ? " is" : "s are"} still being prepared.`
-                  : ""}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-amber-200/80">
+                  Action queue
+                </p>
+                {summary.attention > 0 ? (
+                  <Badge className="bg-red-500/10 text-red-200">
+                    {summary.attention} attention
+                  </Badge>
+                ) : null}
+                {summary.paused > 0 ? (
+                  <Badge className="bg-amber-500/10 text-amber-100">
+                    {summary.paused} paused
+                  </Badge>
+                ) : null}
+                {summary.provisioning > 0 ? (
+                  <Badge className="bg-cyan-500/10 text-cyan-100">
+                    {summary.provisioning} provisioning
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="mt-2 text-sm font-medium text-white">
+                Triage broken, paused, or still-preparing deployments before returning to live traffic.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

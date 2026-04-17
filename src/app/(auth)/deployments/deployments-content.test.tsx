@@ -182,9 +182,12 @@ describe("DeploymentsContent", () => {
     render(<DeploymentsContent />);
 
     expect(screen.getByText(/Action queue/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 deployment needs attention right now/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 paused deployment is waiting to be resumed/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 deployment is still being prepared/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 attention/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/1 paused/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/1 provisioning/i).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(/Triage broken, paused, or still-preparing deployments before returning to live traffic\./i)
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Review attention first/i })).toHaveAttribute(
       "href",
       "#deployment-grok-4"
