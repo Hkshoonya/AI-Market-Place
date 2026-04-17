@@ -242,7 +242,7 @@ describe("DeploymentsContent", () => {
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
     expect(screen.getByText(/Operate in 3 steps/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Check the state, use the main action buttons, then open detail sections only when you need budget, API, or activity history\./i)
+      screen.getByText(/Check the state, use the top actions, then open details only when needed\./i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getByText(/Important now/i)).toBeInTheDocument();

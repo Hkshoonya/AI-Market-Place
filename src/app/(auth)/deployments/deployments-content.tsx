@@ -551,76 +551,58 @@ export default function DeploymentsContent() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/50 bg-card/70">
-          <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+      <Card className="mb-4 border-border/50 bg-card/70">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Total deployments
             </p>
-            <p className="mt-2 text-2xl font-semibold text-white">{deployments.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/70">
-          <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="mt-1 text-xl font-semibold text-white">{deployments.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Ready now
             </p>
-            <p className="mt-2 text-2xl font-semibold text-white">{summary.ready}</p>
+            <p className="mt-1 text-xl font-semibold text-white">{summary.ready}</p>
             <p className="mt-1 text-xs text-muted-foreground">{summary.paused} paused</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/70">
-          <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Needs attention
             </p>
-            <p className="mt-2 text-2xl font-semibold text-white">{summary.attention}</p>
+            <p className="mt-1 text-xl font-semibold text-white">{summary.attention}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {summary.provisioning} provisioning · {summary.paused} paused
             </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/70">
-          <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/30 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Estimated spend
             </p>
-            <p className="mt-2 text-2xl font-semibold text-white">${summary.totalSpend.toFixed(2)}</p>
+            <p className="mt-1 text-xl font-semibold text-white">${summary.totalSpend.toFixed(2)}</p>
             <p className="mt-1 text-xs text-muted-foreground">Across all deployment requests</p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <Card className="mb-6 border-cyan-500/30 bg-cyan-500/10">
-        <CardContent className="p-5">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-            Operate in 3 steps
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-white">
-            Check the state, use the main action buttons, then open detail sections only when you need budget, API, or activity history.
-          </h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">1. Check the state</Badge>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
-                <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
-                <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
-                <Badge className="bg-red-500/10 text-red-200">Needs repair</Badge>
-              </div>
-            </div>
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">2. Use the top actions</Badge>
-              <p className="mt-3 text-sm text-white">
-                Run Quick Test, Manage Budget, Copy Endpoint, or open the deployment workflow.
-              </p>
-            </div>
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">3. Open details only if needed</Badge>
-              <p className="mt-3 text-sm text-white">
-                API setup, billing controls, and recent activity stay available without crowding the main controls.
-              </p>
-            </div>
+      <Card className="mb-4 border-cyan-500/30 bg-cyan-500/10">
+        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+              Operate in 3 steps
+            </p>
+            <h2 className="mt-1 text-base font-semibold text-white">
+              Check the state, use the top actions, then open details only when needed.
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge className="bg-cyan-500/10 text-cyan-100">1. Check the state</Badge>
+            <Badge className="bg-cyan-500/10 text-cyan-100">2. Use the top actions</Badge>
+            <Badge className="bg-cyan-500/10 text-cyan-100">3. Open details only if needed</Badge>
+            <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
+            <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
+            <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
+            <Badge className="bg-red-500/10 text-red-200">Needs repair</Badge>
           </div>
         </CardContent>
       </Card>
@@ -668,15 +650,12 @@ export default function DeploymentsContent() {
 
       {deployments.length > 0 ? (
         <Card className="mb-6 border-border/50 bg-card/70">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                   View deployments
                 </p>
-                <h2 className="mt-1 text-lg font-semibold text-white">
-                  Focus on the deployments that need action now.
-                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Showing {filteredDeployments.length} of {deployments.length} deployment
                   {deployments.length === 1 ? "" : "s"}.
