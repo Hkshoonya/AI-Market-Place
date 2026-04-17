@@ -145,11 +145,14 @@ interface WorkspaceDeploymentSnapshot {
   } | null;
 }
 
+type WorkspaceTab = "runtime" | "assistant" | "usage";
+
 export default function WorkspaceContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const workspace = useWorkspace();
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("runtime");
   const [noteDraft, setNoteDraft] = useState("");
   const [assistantDraft, setAssistantDraft] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -165,6 +168,16 @@ export default function WorkspaceContent() {
     model: string;
     usage: { totalTokens: number | null } | null;
   } | null>(null);
+
+  const jumpToWorkspaceSection = (tab: WorkspaceTab, sectionId?: string) => {
+    setActiveTab(tab);
+    if (!sectionId) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -864,7 +877,55 @@ export default function WorkspaceContent() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="runtime" className="mt-8">
+      <Card className="mt-6 border-border/50 bg-card/60">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Workspace navigator
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                Jump straight to the part you need instead of scanning the full page.
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                Use setup for launch work, assistant for next-step help, and usage for spend and history.
+              </p>
+            </div>
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              {activeTab === "runtime" ? "Setup view" : activeTab === "assistant" ? "Assistant view" : "Usage view"}
+            </Badge>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-workflow-guide")}>
+              Workflow guide
+            </Button>
+            {hasManagedDeployment ? (
+              <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-live-controls")}>
+                Live controls
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-runtime-record")}>
+              Runtime record
+            </Button>
+            {hasManagedDeployment ? (
+              <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-budget-billing")}>
+                Budget
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-quick-test")}>
+              Quick test
+            </Button>
+            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("assistant", "workspace-assistant")}>
+              Open assistant view
+            </Button>
+            <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("usage", "workspace-usage-history")}>
+              Open usage history
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WorkspaceTab)} className="mt-8">
         <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
           <TabsTrigger
             value="runtime"
@@ -896,7 +957,7 @@ export default function WorkspaceContent() {
         </TabsList>
 
         <TabsContent forceMount value="runtime" className="mt-6 space-y-6">
-          <Card className="border-border/50 bg-card/60">
+          <Card id="workspace-workflow-guide" className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -939,7 +1000,7 @@ export default function WorkspaceContent() {
           </Card>
 
           {hasManagedDeployment ? (
-            <Card className="border-cyan-500/30 bg-cyan-500/10">
+            <Card id="workspace-live-controls" className="border-cyan-500/30 bg-cyan-500/10">
               <CardContent className="space-y-4 p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -1520,7 +1581,7 @@ export default function WorkspaceContent() {
         </TabsContent>
 
         <TabsContent forceMount value="assistant" className="mt-6 space-y-6">
-          <Card className="border-border/50 bg-card/60">
+          <Card id="workspace-assistant" className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-neon" />
@@ -1562,7 +1623,7 @@ export default function WorkspaceContent() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-card/60">
+          <Card id="workspace-usage-history" className="border-border/50 bg-card/60">
             <CardContent className="p-5">
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-neon" />

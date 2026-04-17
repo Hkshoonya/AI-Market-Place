@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -73,6 +73,14 @@ function createWorkspaceValue(overrides?: Record<string, unknown>) {
 describe("WorkspaceContent", () => {
   beforeEach(() => {
     mockPush.mockReset();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
 
     mockUseSWR.mockImplementation((key: string | null) => {
       if (!key) {
@@ -488,6 +496,11 @@ describe("WorkspaceContent", () => {
     expect(screen.getByRole("button", { name: /Hide Floating Console/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Open Floating Console/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Minimize Floating Console/i })).toBeInTheDocument();
+    expect(screen.getByText(/Workspace navigator/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Workflow guide$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Quick test$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open assistant view/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open usage history/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText("Step 1")).toBeInTheDocument();
     expect(screen.getByText("Step 2")).toBeInTheDocument();
@@ -505,5 +518,34 @@ describe("WorkspaceContent", () => {
 
     await user.click(screen.getByRole("button", { name: /Hide workflow guide/i }));
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
+  });
+
+  it("lets the workspace navigator switch directly between setup, assistant, and usage views", async () => {
+    const user = userEvent.setup();
+
+    mockUseAuth.mockReturnValue({
+      user: { id: "user_123" },
+      loading: false,
+    });
+    mockUseWorkspace.mockReturnValue(createWorkspaceValue());
+
+    render(<WorkspaceContent />);
+
+    expect(screen.getByRole("tab", { name: /Setup/i })).toHaveAttribute("data-state", "active");
+
+    await user.click(screen.getByRole("button", { name: /Open assistant view/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /Assistant/i })).toHaveAttribute("data-state", "active")
+    );
+
+    await user.click(screen.getByRole("button", { name: /Open usage history/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /Usage/i })).toHaveAttribute("data-state", "active")
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Workflow guide$/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /Setup/i })).toHaveAttribute("data-state", "active")
+    );
   });
 });
