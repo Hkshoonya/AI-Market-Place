@@ -894,10 +894,7 @@ export default function WorkspaceContent() {
         <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Workspace snapshot
-            </p>
-            <p className="mt-1 text-sm font-medium text-white">
-              Wallet, keys, assistant usage, tokens, and deployment traffic in one strip.
+              Account snapshot
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -978,9 +975,6 @@ export default function WorkspaceContent() {
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 Workspace navigator
               </p>
-              <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
-                Jump directly to the active control surface.
-              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="border-border/50 bg-card/40">
@@ -994,15 +988,15 @@ export default function WorkspaceContent() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-workflow-guide")}>
-              Workflow guide
+              Guide
             </Button>
             {hasManagedDeployment ? (
               <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-live-controls")}>
-                Live controls
+                Live
               </Button>
             ) : null}
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-runtime-record")}>
-              Runtime record
+              Runtime
             </Button>
             {hasManagedDeployment ? (
               <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-budget-billing")}>
@@ -1011,14 +1005,14 @@ export default function WorkspaceContent() {
             ) : null}
             {!hasManagedDeployment ? (
               <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-quick-test")}>
-                Quick test
+                Test
               </Button>
             ) : null}
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("assistant", "workspace-assistant")}>
-              Open assistant view
+              Assistant
             </Button>
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("usage", "workspace-usage-history")}>
-              Open usage history
+              Usage
             </Button>
           </div>
         </CardContent>

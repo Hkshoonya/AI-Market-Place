@@ -480,7 +480,7 @@ describe("WorkspaceContent", () => {
     expect(screen.queryByText(/Live operations/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/17 requests/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/4100 tokens/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Workspace snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/Account snapshot/i)).toBeInTheDocument();
     expect(screen.getByText(/Maintenance actions/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Pause Deployment$/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open deployments/i }).length).toBeGreaterThanOrEqual(1);
@@ -504,10 +504,10 @@ describe("WorkspaceContent", () => {
     expect(screen.getByRole("button", { name: /Open Floating Console/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Minimize Floating Console/i })).toBeInTheDocument();
     expect(screen.getByText(/Workspace navigator/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Workflow guide$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Quick test$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Open assistant view/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Open usage history/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Test$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Assistant$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Usage$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText("Step 1")).toBeInTheDocument();
     expect(screen.getByText("Step 2")).toBeInTheDocument();
@@ -540,19 +540,19 @@ describe("WorkspaceContent", () => {
 
     expect(screen.getByRole("tab", { name: /Setup/i })).toHaveAttribute("data-state", "active");
 
-    await user.click(screen.getByRole("button", { name: /Open assistant view/i }));
+    await user.click(screen.getByRole("button", { name: /^Assistant$/i }));
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Assistant/i })).toHaveAttribute("data-state", "active")
     );
     expect(screen.getByText(/Quick prompts/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Open usage history/i }));
+    await user.click(screen.getByRole("button", { name: /^Usage$/i }));
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Usage/i })).toHaveAttribute("data-state", "active")
     );
     expect(screen.getByText(/Recent snapshot/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^Workflow guide$/i }));
+    await user.click(screen.getByRole("button", { name: /^Guide$/i }));
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: /Setup/i })).toHaveAttribute("data-state", "active")
     );
