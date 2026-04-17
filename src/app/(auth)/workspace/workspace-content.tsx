@@ -853,30 +853,6 @@ export default function WorkspaceContent() {
         </Card>
       ) : null}
 
-      <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
-        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-              Floating Console
-            </p>
-            <p className="mt-1 text-sm font-medium text-white">
-              Want more room on the full page?
-            </p>
-            <p className="mt-1 text-xs text-cyan-50/80">
-              Hide the floating console any time. You can reopen it later from the bottom-right corner.
-            </p>
-          </div>
-          <Button
-            type="button"
-            className="bg-cyan-500 text-background hover:bg-cyan-400"
-            onClick={workspace.minimizeWorkspace}
-          >
-            <Minimize2 className="h-4 w-4" />
-            Minimize Floating Console
-          </Button>
-        </CardContent>
-      </Card>
-
       <Card className="mt-6 border-border/50 bg-card/60">
         <CardContent className="p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -884,16 +860,19 @@ export default function WorkspaceContent() {
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 Workspace navigator
               </p>
-              <h2 className="mt-1 text-lg font-semibold text-white">
-                Jump straight to the part you need instead of scanning the full page.
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                Use setup for launch work, assistant for next-step help, and usage for spend and history.
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                Jump straight to setup, assistant, or usage instead of scanning the full page.
               </p>
             </div>
-            <Badge variant="outline" className="border-border/50 bg-card/40">
-              {activeTab === "runtime" ? "Setup view" : activeTab === "assistant" ? "Assistant view" : "Usage view"}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-border/50 bg-card/40">
+                {activeTab === "runtime" ? "Setup view" : activeTab === "assistant" ? "Assistant view" : "Usage view"}
+              </Badge>
+              <Button type="button" variant="outline" onClick={workspace.minimizeWorkspace}>
+                <Minimize2 className="h-4 w-4" />
+                Minimize Floating Console
+              </Button>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => jumpToWorkspaceSection("runtime", "workspace-workflow-guide")}>
@@ -925,7 +904,7 @@ export default function WorkspaceContent() {
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WorkspaceTab)} className="mt-8">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WorkspaceTab)} className="mt-6">
         <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
           <TabsTrigger
             value="runtime"
