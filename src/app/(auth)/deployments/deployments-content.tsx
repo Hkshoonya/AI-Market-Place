@@ -10,6 +10,7 @@ import {
   KeyRound,
   PauseCircle,
   PlayCircle,
+  Search,
   Server,
   Trash2,
   Wallet,
@@ -54,6 +55,13 @@ interface DeploymentActivitySnapshot {
     createdAt: string | null;
   }>;
 }
+
+type DeploymentViewFilter =
+  | "all"
+  | "attention"
+  | "ready"
+  | "paused"
+  | "provisioning";
 
 function DeploymentActivity({ deployment }: { deployment: WorkspaceDeploymentResponse }) {
   const { data } = useSWR<DeploymentActivitySnapshot>(
@@ -216,6 +224,8 @@ export default function DeploymentsContent() {
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
   const [testLoadingSlug, setTestLoadingSlug] = useState<string | null>(null);
   const [copiedEndpointSlug, setCopiedEndpointSlug] = useState<string | null>(null);
+  const [viewFilter, setViewFilter] = useState<DeploymentViewFilter>("all");
+  const [deploymentQuery, setDeploymentQuery] = useState("");
   const [testResults, setTestResults] = useState<
     Record<string, { content?: string; error?: string; provider?: string; model?: string }>
   >({});
@@ -283,6 +293,63 @@ export default function DeploymentsContent() {
       firstProvisioning,
     };
   }, [deployments]);
+
+  const filterCounts = useMemo(
+    () => ({
+      all: deployments.length,
+      attention: deployments.filter(
+        (deployment) =>
+          deployment.status === "failed" ||
+          deployment.healthStatus === "error" ||
+          deployment.billing.budgetStatus === "exhausted"
+      ).length,
+      ready: deployments.filter((deployment) => deployment.status === "ready").length,
+      paused: deployments.filter((deployment) => deployment.status === "paused").length,
+      provisioning: deployments.filter((deployment) => deployment.status === "provisioning")
+        .length,
+    }),
+    [deployments]
+  );
+
+  const filteredDeployments = useMemo(() => {
+    const normalizedQuery = deploymentQuery.trim().toLowerCase();
+
+    return deployments.filter((deployment) => {
+      const matchesFilter =
+        viewFilter === "all"
+          ? true
+          : viewFilter === "attention"
+            ? deployment.status === "failed" ||
+              deployment.healthStatus === "error" ||
+              deployment.billing.budgetStatus === "exhausted"
+            : viewFilter === "ready"
+              ? deployment.status === "ready"
+              : viewFilter === "paused"
+                ? deployment.status === "paused"
+                : deployment.status === "provisioning";
+
+      if (!matchesFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        deployment.modelName,
+        deployment.modelSlug,
+        deployment.providerName,
+        deployment.endpointSlug,
+        deployment.deploymentLabel,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [deploymentQuery, deployments, viewFilter]);
 
   const updateDeployment = async (
     modelSlug: string,
@@ -556,6 +623,74 @@ export default function DeploymentsContent() {
         </Card>
       ) : null}
 
+      {deployments.length > 0 ? (
+        <Card className="mb-6 border-border/50 bg-card/70">
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  View deployments
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-white">
+                  Focus on the deployments that need action now.
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Showing {filteredDeployments.length} of {deployments.length} deployment
+                  {deployments.length === 1 ? "" : "s"}.
+                </p>
+              </div>
+              <div className="relative w-full max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={deploymentQuery}
+                  onChange={(event) => setDeploymentQuery(event.target.value)}
+                  placeholder="Search by model, provider, or endpoint"
+                  className="pl-9"
+                  aria-label="Search deployments"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "all", label: "All" },
+                { key: "attention", label: "Needs attention" },
+                { key: "ready", label: "Ready" },
+                { key: "paused", label: "Paused" },
+                { key: "provisioning", label: "Provisioning" },
+              ].map((item) => {
+                const key = item.key as DeploymentViewFilter;
+                return (
+                  <Button
+                    key={key}
+                    type="button"
+                    variant={viewFilter === key ? "default" : "outline"}
+                    className={cn(
+                      viewFilter === key
+                        ? "bg-neon text-background hover:bg-neon/90"
+                        : "border-border/50 bg-card/40"
+                    )}
+                    onClick={() => setViewFilter(key)}
+                  >
+                    {item.label}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "ml-2",
+                        viewFilter === key
+                          ? "border-background/20 bg-background/10 text-background"
+                          : "border-border/50 bg-background/40"
+                      )}
+                    >
+                      {filterCounts[key]}
+                    </Badge>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {error ? (
         <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
@@ -583,9 +718,33 @@ export default function DeploymentsContent() {
             </div>
           </CardContent>
         </Card>
+      ) : filteredDeployments.length === 0 ? (
+        <Card className="border-border/50 bg-card/70">
+          <CardContent className="space-y-4 p-8 text-center">
+            <Server className="mx-auto h-10 w-10 text-neon" />
+            <div>
+              <h2 className="text-xl font-semibold text-white">No deployments match this view</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Try another status filter or clear the search text to bring deployments back into view.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                type="button"
+                className="bg-neon text-background hover:bg-neon/90"
+                onClick={() => {
+                  setViewFilter("all");
+                  setDeploymentQuery("");
+                }}
+              >
+                Show all deployments
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
-          {deployments.map((deployment) => {
+          {filteredDeployments.map((deployment) => {
             const budgetStatusTone =
               deployment.billing.budgetStatus === "healthy"
                 ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"

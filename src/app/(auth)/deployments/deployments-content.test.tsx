@@ -233,15 +233,18 @@ describe("DeploymentsContent", () => {
 
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
+    expect(screen.getByText(/Focus on the deployments that need action now\./i)).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Run Quick Test/i }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("button", { name: /Needs attention/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Search deployments/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage Budget/i })).toHaveAttribute(
       "href",
       `#deployment-budget-${baseDeployment.id}`
     );
     expect(screen.getByRole("button", { name: /Copy Endpoint/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Open deployment workflow/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Pause/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
     expect(screen.getByText(/Budget and billing controls/i)).toBeInTheDocument();
     expect(screen.getByText(/API setup and test/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Recent activity/i).length).toBeGreaterThanOrEqual(1);
@@ -272,5 +275,57 @@ describe("DeploymentsContent", () => {
     expect(await screen.findByText(/Latest test response/i)).toBeInTheDocument();
     expect(screen.getByText(/Deployment for Kimi K2 is working\./i)).toBeInTheDocument();
     expect(mutate).toHaveBeenCalled();
+  });
+
+  it("filters deployments by status and search query", async () => {
+    const user = userEvent.setup();
+    const deploymentSnapshot = {
+      deployments: [baseDeployment, failedDeployment, pausedDeployment],
+    };
+
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (key === "/api/workspace/deployments") {
+        return {
+          data: deploymentSnapshot,
+          mutate: vi.fn(),
+        };
+      }
+
+      if (key?.includes("/activity")) {
+        return {
+          data: { activity: [], events: [] },
+          mutate: vi.fn(),
+        };
+      }
+
+      return {
+        data: undefined,
+        mutate: vi.fn(),
+      };
+    });
+
+    render(<DeploymentsContent />);
+
+    await user.click(screen.getByRole("button", { name: /Needs attention/i }));
+
+    expect(screen.getByText("Grok 4")).toBeInTheDocument();
+    expect(screen.queryByText("Kimi K2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Claude Opus 4.6")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Paused/i }));
+
+    expect(screen.getByText("Claude Opus 4.6")).toBeInTheDocument();
+    expect(screen.queryByText("Grok 4")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByRole("textbox", { name: /Search deployments/i }));
+    await user.type(screen.getByRole("textbox", { name: /Search deployments/i }), "grok");
+
+    expect(screen.getByText(/No deployments match this view/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Show all deployments/i }));
+
+    expect(screen.getByText("Kimi K2")).toBeInTheDocument();
+    expect(screen.getByText("Grok 4")).toBeInTheDocument();
+    expect(screen.getByText("Claude Opus 4.6")).toBeInTheDocument();
   });
 });
