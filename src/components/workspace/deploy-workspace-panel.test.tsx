@@ -135,6 +135,7 @@ describe("DeployWorkspacePanel", () => {
     render(<DeployWorkspacePanel />);
 
     expect(screen.getByRole("button", { name: /Maximize workflow panel/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Minimize workflow panel/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Close workflow panel/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText("Step 1")).toBeInTheDocument();
@@ -147,5 +148,18 @@ describe("DeployWorkspacePanel", () => {
     await user.click(screen.getByRole("button", { name: /Hide workflow guide/i }));
 
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
+  });
+
+  it("keeps a dedicated minimize rail visible in maximized mode", () => {
+    mockUseOptionalWorkspace.mockReturnValue(
+      createWorkspaceValue({
+        maximized: true,
+      })
+    );
+
+    render(<DeployWorkspacePanel />);
+
+    expect(screen.getAllByRole("button", { name: /Minimize workflow panel/i }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole("button", { name: /Restore workflow panel/i })).toBeInTheDocument();
   });
 });

@@ -477,13 +477,32 @@ export function DeployWorkspacePanel() {
       className={cn(
         "fixed z-[140]",
         maximized
-          ? "inset-x-4 bottom-4 top-20"
+          ? "left-4 right-4 bottom-4 top-20 xl:left-auto xl:right-4 xl:w-[min(42rem,calc(100vw-2rem))]"
           : "right-4 bottom-4 w-[min(26rem,calc(100vw-2rem))]"
       )}
     >
+      {maximized ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={workspace.minimizeWorkspace}
+          aria-label="Minimize workflow panel"
+          title="Minimize workflow panel"
+          className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/60 bg-background/95 shadow-lg xl:left-auto xl:right-20 xl:translate-x-0"
+        >
+          <Minimize2 className="h-4 w-4" />
+          Minimize workflow
+        </Button>
+      ) : null}
       <Card className="border-neon/20 bg-background/95 shadow-2xl backdrop-blur">
         <CardContent className={cn("p-0", maximized ? "flex h-full flex-col" : "")}>
-          <div className="flex items-start justify-between gap-3 border-b border-border/50 p-4">
+          <div
+            className={cn(
+              "flex items-start justify-between gap-3 border-b border-border/50 p-4",
+              maximized ? "sticky top-0 z-[1] bg-background/95 backdrop-blur" : ""
+            )}
+          >
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
@@ -531,7 +550,13 @@ export function DeployWorkspacePanel() {
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={workspace.minimizeWorkspace}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={workspace.minimizeWorkspace}
+                aria-label="Minimize workflow panel"
+                title="Minimize workflow panel"
+              >
                 <Minimize2 className="h-4 w-4" />
                 Minimize
               </Button>
