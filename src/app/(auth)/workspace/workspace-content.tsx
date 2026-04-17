@@ -321,6 +321,12 @@ export default function WorkspaceContent() {
     setBudgetDraft(deploymentCreditsBudget != null ? String(deploymentCreditsBudget) : "");
   }, [deploymentCreditsBudget, deploymentId]);
 
+  useEffect(() => {
+    if (hasManagedDeployment) {
+      setWorkflowGuideCollapsed(true);
+    }
+  }, [hasManagedDeployment]);
+
   if (loading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -690,6 +696,129 @@ export default function WorkspaceContent() {
     }
   };
 
+  const workflowGuideCard = (
+    <Card id="workspace-workflow-guide" className="border-border/50 bg-card/60">
+      <CardContent className="p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Workflow Guide
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-white">
+              Setup is where you take action. Assistant is where you ask questions. Usage is where you confirm spend and activity.
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Green means already done. Blue means do this now. Amber means the next step happens on an external provider path.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setWorkflowGuideCollapsed((current) => !current)}
+          >
+            {workflowGuideCollapsed ? (
+              <>
+                <ChevronDown className="h-4 w-4" />
+                Show workflow guide
+              </>
+            ) : (
+              <>
+                <ChevronUp className="h-4 w-4" />
+                Hide workflow guide
+              </>
+            )}
+          </Button>
+        </div>
+        {!workflowGuideCollapsed ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge className="bg-cyan-500/10 text-cyan-100">Do now</Badge>
+            <Badge className="bg-emerald-500/10 text-emerald-200">Done</Badge>
+            <Badge className="bg-amber-500/10 text-amber-100">Provider step</Badge>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+
+  const quickTestCard = (
+    <Card id="workspace-quick-test" className="border-border/50 bg-card/60">
+      <CardContent className="p-5">
+        {hasManagedDeployment ? (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-neon" />
+              <h2 className="text-lg font-semibold text-white">Run selected model</h2>
+            </div>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Send a real prompt through the prepared in-site runtime for this selected model.
+            </p>
+            {isDeploymentPaused ? (
+              <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/80">
+                This deployment is paused. Resume it before sending more model requests.
+              </div>
+            ) : null}
+            <textarea
+              value={runtimeDraft}
+              onChange={(event) => setRuntimeDraft(event.target.value)}
+              rows={4}
+              placeholder={`Example: Give me a short overview of ${session.model ?? "this model"}.`}
+              className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
+            />
+            {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="outline"
+                disabled={runtimeDraft.trim().length === 0 || runtimeLoading || isDeploymentPaused}
+                onClick={runSelectedModel}
+              >
+                {runtimeLoading ? "Running..." : isDeploymentPaused ? "Deployment Paused" : "Run Model"}
+              </Button>
+            </div>
+            {runtimeResponse ? (
+              <div className="mt-4 rounded-lg border border-border/40 bg-card/30 px-4 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium text-white">
+                    {session.model ?? "Model"} response
+                  </p>
+                  <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                    AI Market Cap · {runtimeResponse.model}
+                  </span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                  {runtimeResponse.content}
+                </p>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-neon" />
+              <h2 className="text-lg font-semibold text-white">
+                {canCreateManagedDeployment
+                  ? provisioning?.deploymentKind === "hosted_external"
+                    ? "Create a hosted deployment to run this model here"
+                    : "Create a deployment to run this model here"
+                  : "Model runtime not mapped yet"}
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {hasManagedDeployment
+                ? deployment?.deploymentKind === "hosted_external"
+                  ? "This model is routed through a hosted deployment target and remains usable from AI Market Cap."
+                  : deployment?.execution.summary
+                : canCreateManagedDeployment
+                  ? provisioning?.summary ??
+                    "This model supports a managed deployment path, but you need to create the deployment first."
+                  : deploymentExecution?.summary ??
+                    "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -936,47 +1065,7 @@ export default function WorkspaceContent() {
         </TabsList>
 
         <TabsContent forceMount value="runtime" className="mt-6 space-y-6">
-          <Card id="workspace-workflow-guide" className="border-border/50 bg-card/60">
-            <CardContent className="p-5">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Workflow Guide
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold text-white">
-                    Setup is where you take action. Assistant is where you ask questions. Usage is where you confirm spend and activity.
-                  </h2>
-                  <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                    Green means already done. Blue means do this now. Amber means the next step happens on an external provider path.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setWorkflowGuideCollapsed((current) => !current)}
-                >
-                  {workflowGuideCollapsed ? (
-                    <>
-                      <ChevronDown className="h-4 w-4" />
-                      Show workflow guide
-                    </>
-                  ) : (
-                    <>
-                      <ChevronUp className="h-4 w-4" />
-                      Hide workflow guide
-                    </>
-                  )}
-                </Button>
-              </div>
-              {!workflowGuideCollapsed ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge className="bg-cyan-500/10 text-cyan-100">Do now</Badge>
-                  <Badge className="bg-emerald-500/10 text-emerald-200">Done</Badge>
-                  <Badge className="bg-amber-500/10 text-amber-100">Provider step</Badge>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+          {!hasManagedDeployment ? workflowGuideCard : null}
 
           {hasManagedDeployment ? (
             <Card id="workspace-live-controls" className="border-cyan-500/30 bg-cyan-500/10">
@@ -1037,8 +1126,10 @@ export default function WorkspaceContent() {
             </Card>
           ) : null}
 
+          {hasManagedDeployment ? quickTestCard : null}
+
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <Card className="border-border/50 bg-card/60">
+            <Card className="order-2 border-border/50 bg-card/60 lg:order-1">
               <CardContent className="p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
@@ -1146,7 +1237,7 @@ export default function WorkspaceContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 bg-card/60">
+            <Card className="order-1 border-border/50 bg-card/60 lg:order-2">
               <CardContent className="space-y-4 p-5">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1456,82 +1547,8 @@ export default function WorkspaceContent() {
             </Card>
           </div>
 
-          <Card id="workspace-quick-test" className="border-border/50 bg-card/60">
-            <CardContent className="p-5">
-              {hasManagedDeployment ? (
-                <>
-                  <div className="mb-3 flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-neon" />
-                    <h2 className="text-lg font-semibold text-white">Run selected model</h2>
-                  </div>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Send a real prompt through the prepared in-site runtime for this selected model.
-                  </p>
-                  {isDeploymentPaused ? (
-                    <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/80">
-                      This deployment is paused. Resume it before sending more model requests.
-                    </div>
-                  ) : null}
-                  <textarea
-                    value={runtimeDraft}
-                    onChange={(event) => setRuntimeDraft(event.target.value)}
-                    rows={4}
-                    placeholder={`Example: Give me a short overview of ${session.model ?? "this model"}.`}
-                    className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-neon/30"
-                  />
-                  {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
-                  <div className="mt-3 flex justify-end">
-                    <Button
-                      variant="outline"
-                      disabled={runtimeDraft.trim().length === 0 || runtimeLoading || isDeploymentPaused}
-                      onClick={runSelectedModel}
-                    >
-                      {runtimeLoading ? "Running..." : isDeploymentPaused ? "Deployment Paused" : "Run Model"}
-                    </Button>
-                  </div>
-                  {runtimeResponse ? (
-                    <div className="mt-4 rounded-lg border border-border/40 bg-card/30 px-4 py-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-medium text-white">
-                          {session.model ?? "Model"} response
-                        </p>
-                        <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          AI Market Cap · {runtimeResponse.model}
-                        </span>
-                      </div>
-                      <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
-                        {runtimeResponse.content}
-                      </p>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-neon" />
-                    <h2 className="text-lg font-semibold text-white">
-                      {canCreateManagedDeployment
-                        ? provisioning?.deploymentKind === "hosted_external"
-                          ? "Create a hosted deployment to run this model here"
-                          : "Create a deployment to run this model here"
-                        : "Model runtime not mapped yet"}
-                    </h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {hasManagedDeployment
-                      ? deployment?.deploymentKind === "hosted_external"
-                        ? "This model is routed through a hosted deployment target and remains usable from AI Market Cap."
-                        : deployment?.execution.summary
-                      : canCreateManagedDeployment
-                        ? provisioning?.summary ??
-                          "This model supports a managed deployment path, but you need to create the deployment first."
-                        : deploymentExecution?.summary ??
-                          "This workspace is still using the assistant/setup path until a direct in-site runtime route is mapped for the selected model."}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {hasManagedDeployment ? workflowGuideCard : null}
+          {!hasManagedDeployment ? quickTestCard : null}
 
           <Card className="border-border/50 bg-card/60">
             <CardContent className="p-5">
