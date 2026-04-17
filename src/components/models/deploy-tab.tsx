@@ -265,6 +265,7 @@ export function DeployTab({
   const primaryPlatformType = primaryDeployment?.platform.type ?? null;
   const showApiCostWarning = primaryPlatformType === "api";
   const showSubscriptionCostHint = primaryPlatformType === "subscription";
+  const showBestExternalPath = Boolean(primaryDeployment && quickStart && !aiMarketCapPlan);
   const selfHostRequirements = getSelfHostRequirements({
     isOpenWeights,
     parameterCount,
@@ -417,7 +418,7 @@ export function DeployTab({
         </div>
       ) : null}
 
-      {primaryDeployment && quickStart && (
+      {showBestExternalPath && primaryDeployment && quickStart && (
         <div className="rounded-lg border border-[#00d4aa]/20 bg-[#00d4aa]/5 p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
@@ -515,34 +516,39 @@ export function DeployTab({
             </p>
           ) : null}
           {startPlan ? (
-            <div className="mt-4 rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            <details className="mt-4 rounded-md border border-border/40 bg-card/30 p-3">
+              <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 What you get
-              </p>
-              <p className="mt-1 text-sm font-medium text-white">
-                {startPlan.experience.destinationLabel}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {startPlan.experience.destinationSummary}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {startPlan.experience.unlocks.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-border/40 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground"
-                  >
-                    {item}
-                  </span>
-                ))}
+              </summary>
+              <div className="mt-3">
+                <p className="text-sm font-medium text-white">
+                  {startPlan.experience.destinationLabel}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {startPlan.experience.destinationSummary}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {startPlan.experience.unlocks.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-border/40 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            </details>
           ) : null}
         </div>
       )}
 
       {aiMarketCapPlan ? (
-        <div className="rounded-lg border border-neon/20 bg-neon/5 p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <details className="rounded-lg border border-neon/20 bg-neon/5 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-white">
+            What AI Market Cap setup includes
+          </summary>
+          <div className="mt-4 space-y-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-neon" />
@@ -553,46 +559,26 @@ export function DeployTab({
                 This keeps deployment, chat, API access, and usage tracking on this site.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                openWorkspace({
-                  model: modelName,
-                  modelSlug,
-                  action: aiMarketCapPlan.label,
-                  provider: aiMarketCapPlan.providerLabel,
-                  autoStartDeployment: true,
-                  nextUrl: `/models/${modelSlug}?tab=deploy#model-tabs`,
-                  sponsored: false,
-                  suggestedPackSlug: startPlan?.recommendedPack?.slug ?? null,
-                  suggestedPack: startPlan?.recommendedPack?.label ?? null,
-                  suggestedAmount: startPlan?.recommendedAmount ?? primaryDeployment?.deployment?.price_per_unit ?? 20,
-                });
-              }}
-              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-neon/15 px-3 py-2 text-sm font-medium text-neon transition-colors hover:bg-neon/25"
-            >
-              Open AI Market Cap setup
-            </button>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Use it as</p>
-              <p className="mt-1 text-sm font-medium text-white">{aiMarketCapPlan.modeLabel}</p>
-            </div>
-            <div className="rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">What you get</p>
-              <p className="mt-1 text-sm font-medium text-white">Chat, API, usage tracking</p>
-            </div>
-            <div className="rounded-md border border-border/40 bg-card/30 p-3">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Delivery</p>
-              <p className="mt-1 text-sm font-medium text-white">
-                {provisioning?.deploymentKind === "hosted_external"
-                  ? "AI Market Cap dedicated runtime"
-                  : "AI Market Cap in-site runtime"}
-              </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-border/40 bg-card/30 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Use it as</p>
+                <p className="mt-1 text-sm font-medium text-white">{aiMarketCapPlan.modeLabel}</p>
+              </div>
+              <div className="rounded-md border border-border/40 bg-card/30 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">What you get</p>
+                <p className="mt-1 text-sm font-medium text-white">Chat, API, usage tracking</p>
+              </div>
+              <div className="rounded-md border border-border/40 bg-card/30 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Delivery</p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  {provisioning?.deploymentKind === "hosted_external"
+                    ? "AI Market Cap dedicated runtime"
+                    : "AI Market Cap in-site runtime"}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </details>
       ) : null}
 
       {deployments.length > 0 && (

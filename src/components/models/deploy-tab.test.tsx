@@ -245,15 +245,13 @@ describe("DeployTab", () => {
     expect(
       screen.getAllByRole("button", { name: /Start on AI Market Cap/i }).length
     ).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByRole("button", { name: /Open AI Market Cap setup/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/What AI Market Cap setup includes/i)).toBeInTheDocument();
     expect(
       screen.getAllByText(/dedicated runtime/i).length
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Chat, API, usage tracking/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Open AI Market Cap setup/i })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /Open AI Market Cap setup/i })
+    ).not.toBeInTheDocument();
   });
 });
