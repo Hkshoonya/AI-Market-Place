@@ -479,6 +479,9 @@ describe("WorkspaceContent", () => {
     expect(screen.getByRole("link", { name: /Manage budget/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pause deployment now/i })).toBeInTheDocument();
     expect(screen.getAllByText(/\$21\.50 left/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/Live operations/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/17 requests/i)).toBeInTheDocument();
+    expect(screen.getByText(/4100 tokens/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText(/Run selected model/i)).toBeInTheDocument();
   });

@@ -1241,54 +1241,7 @@ export default function WorkspaceContent() {
 
             <Card className="order-1 border-border/50 bg-card/60 lg:order-2">
               <CardContent className="space-y-4 p-5">
-                {hasManagedDeployment ? (
-                  <div className="rounded-lg border border-border/40 bg-background/40 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Live operations
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-white">
-                          Use this workspace as the control surface for the live deployment.
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Runtime status, budget, testing, and API access are all attached to this saved deployment.
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="border-border/50 bg-card/40">
-                        {deploymentModeLabel}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Requests
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          {deployment?.totalRequests ?? runtime?.totalRequests ?? 0}
-                        </p>
-                      </div>
-                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Tokens
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          {deployment?.totalTokens ?? runtime?.totalTokens ?? 0}
-                        </p>
-                      </div>
-                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Budget left
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-white">
-                          {deployment?.billing.budgetRemaining != null
-                            ? `$${deployment.billing.budgetRemaining.toFixed(2)}`
-                            : "Not tracked"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                {hasManagedDeployment ? null : (
                   <>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1350,6 +1303,24 @@ export default function WorkspaceContent() {
                       {hasManagedDeployment ? deployment?.status : canCreateManagedDeployment ? "draft" : "external"}
                     </Badge>
                   </div>
+                  {hasManagedDeployment ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Badge variant="outline" className="border-border/50 bg-card/40">
+                        {deploymentModeLabel}
+                      </Badge>
+                      <Badge variant="outline" className="border-border/50 bg-card/40">
+                        {deployment?.totalRequests ?? runtime?.totalRequests ?? 0} requests
+                      </Badge>
+                      <Badge variant="outline" className="border-border/50 bg-card/40">
+                        {deployment?.totalTokens ?? runtime?.totalTokens ?? 0} tokens
+                      </Badge>
+                      <Badge variant="outline" className={budgetStatusTone}>
+                        {deployment?.billing.budgetRemaining != null
+                          ? `$${deployment.billing.budgetRemaining.toFixed(2)} left`
+                          : "Budget not tracked"}
+                      </Badge>
+                    </div>
+                  ) : null}
                   {hasManagedDeployment ? (
                     <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
