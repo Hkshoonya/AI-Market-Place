@@ -68,13 +68,13 @@ describe("DeployTab", () => {
     expect(screen.getByRole("link", { name: /start with moonshot api/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open verified provider path/i })).toBeInTheDocument();
     expect(screen.getByText(/Choose your path for this model/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted for you/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cloud server you control/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start with the path chooser below/i)).toBeInTheDocument();
+    expect(screen.getByText(/See what each path means/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hosted for you/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Cloud server you control/i).length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByText(/metered API access\. Heavy usage can cost more than a flat subscription/i)
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /start with moonshot api/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open verified provider path/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /get api access/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Open AI Market Cap setup/i })).not.toBeInTheDocument();
   });
@@ -137,7 +137,7 @@ describe("DeployTab", () => {
 
     expect(screen.getByText(/best way to start/i)).toBeInTheDocument();
     expect(screen.getByText(/If you just want the fastest verified path/i)).toBeInTheDocument();
-    expect(screen.getByText(/How to use this page/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start with the path chooser below/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Best when you want to start a managed deployment path without extra setup/i)
     ).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe("DeployTab", () => {
     expect(screen.getByText(/MiniMax M2.7 can now run on a cloud server you control/i)).toBeInTheDocument();
     expect(screen.getAllByText(/hosted for you/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /Open guided setup/i })).toBeInTheDocument();
-    expect(screen.getByText(/Start here first/i)).toBeInTheDocument();
+    expect(screen.getByText(/See what each path means/i)).toBeInTheDocument();
   });
 
   it("explains cloud server requirements for open-weight models", () => {

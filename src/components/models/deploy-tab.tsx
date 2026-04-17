@@ -276,38 +276,46 @@ export function DeployTab({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-border/50 bg-card/20 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-white">How to use this page</h3>
-        <p className="text-sm text-muted-foreground">
-          Start with the highlighted setup card first. It shows the clearest starting path for this model.
-          Everything below that is supporting detail: comparison rows, self-host guidance, and broader related options.
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-md border border-border/40 bg-card/30 p-3">
-            <p className="text-xs font-semibold text-white">Hosted for you</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              You can start without setting up your own server.
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <h3 className="text-sm font-semibold text-white">Start with the path chooser below</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pick the path that matches how you want to run this model right now, then use the
+              deeper comparison and self-host details only if you need them.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2.5 py-1 text-xs text-[#00d4aa]">
+                Hosted for you
+              </span>
+              <span className="rounded-full border border-border/40 bg-card/30 px-2.5 py-1 text-xs text-muted-foreground">
+                Cloud server you control
+              </span>
+              <span className="rounded-full border border-border/40 bg-card/30 px-2.5 py-1 text-xs text-muted-foreground">
+                On your computer
+              </span>
+            </div>
           </div>
-          <div className="rounded-md border border-border/40 bg-card/30 p-3">
-            <p className="text-xs font-semibold text-white">Cloud server you control</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              You rent the machine and manage the setup yourself.
-            </p>
-          </div>
-          <div className="rounded-md border border-border/40 bg-card/30 p-3">
-            <p className="text-xs font-semibold text-white">On your computer</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              It runs locally, but larger models may still need a strong GPU.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#00d4aa]/30 bg-[#00d4aa]/10 px-2.5 py-1 text-xs text-[#00d4aa]">
-            Start here first
-          </span>
-          <span className="rounded-full border border-border/40 bg-card/30 px-2.5 py-1 text-xs text-muted-foreground">
-            Comparison and reference below
-          </span>
+          <details className="rounded-md border border-border/40 bg-card/30 p-3 lg:max-w-sm">
+            <summary className="cursor-pointer text-xs font-semibold text-white">
+              See what each path means
+            </summary>
+            <div className="mt-3 space-y-3 text-xs text-muted-foreground">
+              <div>
+                <p className="font-semibold text-white">Hosted for you</p>
+                <p className="mt-1">You can start without setting up your own server.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Cloud server you control</p>
+                <p className="mt-1">You rent the machine and manage the setup yourself.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">On your computer</p>
+                <p className="mt-1">
+                  It runs locally, but larger models may still need a strong GPU.
+                </p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 

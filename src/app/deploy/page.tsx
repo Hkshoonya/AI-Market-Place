@@ -335,30 +335,6 @@ export default async function DeployPage({
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-3 lg:grid-cols-3">
-          <div className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">What one click means here</p>
-            <p className="mt-2">
-              You start on AI Market Cap and keep using the model here through a stable endpoint,
-              workspace, budget controls, and deployment history.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">What it does not mean</p>
-            <p className="mt-2">
-              Not every tracked model can be launched here yet. Models outside this list still show
-              verified provider, cloud-server, or self-host paths instead.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">What you keep on-site</p>
-            <p className="mt-2">
-              Workspace chat, endpoint access, budget controls, request history, and deployment
-              status all stay inside AI Market Cap.
-            </p>
-          </div>
-        </div>
-
         <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
           <p className="text-[11px] uppercase tracking-[0.14em] text-amber-100/80">
             Choose Your Launch Path
@@ -398,34 +374,61 @@ export default async function DeployPage({
         </div>
 
         <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-            How To Start
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-white">
-            Pick a model, open the guided setup, then finish launch inside AI Market Cap.
-          </h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">1. Filter the list</Badge>
-              <p className="mt-3 text-sm text-white">Use `Chat`, `API`, `Open-weight`, or `Lowest cost`.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                That gets you closer to the real starting path you want instead of scanning every card.
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex-1">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                Start in 3 steps
               </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                Filter the list, open guided setup, then keep operating the model here.
+              </h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+                  <Badge className="bg-cyan-500/10 text-cyan-100">1. Filter the list</Badge>
+                  <p className="mt-3 text-sm text-white">
+                    Use `Chat`, `API`, `Open-weight`, or `Lowest cost`.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    That gets you to the right launch path faster than scanning every card.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+                  <Badge className="bg-cyan-500/10 text-cyan-100">2. Open guided setup</Badge>
+                  <p className="mt-3 text-sm text-white">Use the primary button on a model card.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The workspace opens with the model, launch path, and budget hint already filled in.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+                  <Badge className="bg-cyan-500/10 text-cyan-100">3. Keep using it here</Badge>
+                  <p className="mt-3 text-sm text-white">
+                    Finish in Workspace and monitor it in Deployments.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    That is where chat, API access, request history, and budget controls stay visible.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">2. Open guided setup</Badge>
-              <p className="mt-3 text-sm text-white">Use the primary button on a model card.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                The workspace opens with the model, launch path, and budget hint already filled in.
-              </p>
-            </div>
-            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
-              <Badge className="bg-cyan-500/10 text-cyan-100">3. Keep using it here</Badge>
-              <p className="mt-3 text-sm text-white">Finish in Workspace and monitor it in Deployments.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                That is where chat, API access, request history, and budget controls stay visible.
-              </p>
-            </div>
+            <details className="rounded-xl border border-cyan-500/20 bg-background/30 p-4 xl:max-w-sm">
+              <summary className="cursor-pointer text-sm font-semibold text-white">
+                What one click means here
+              </summary>
+              <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <p>
+                  You start on AI Market Cap and keep the workspace, endpoint access, budget
+                  controls, request history, and deployment record here.
+                </p>
+                <p>
+                  Some models run directly on AI Market Cap. Others start in a dedicated runtime AI
+                  Market Cap launches for you.
+                </p>
+                <p>
+                  Models outside this list still show verified provider or self-host paths instead
+                  of a fake launch button.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
       </div>

@@ -169,7 +169,8 @@ describe("DeployPage", () => {
     expect(
       screen.getByRole("link", { name: /Show open-weight launches/i })
     ).toHaveAttribute("href", "/deploy?focus=open");
-    expect(screen.getByText(/How To Start/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start in 3 steps/i)).toBeInTheDocument();
+    expect(screen.getByText(/What one click means here/i)).toBeInTheDocument();
     expect(screen.getByText(/1\. Filter the list/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Open guided setup/i)).toBeInTheDocument();
     expect(screen.getByText(/3\. Keep using it here/i)).toBeInTheDocument();
