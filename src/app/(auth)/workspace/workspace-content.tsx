@@ -1239,26 +1239,77 @@ export default function WorkspaceContent() {
 
             <Card className="order-1 border-border/50 bg-card/60 lg:order-2">
               <CardContent className="space-y-4 p-5">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    Best path right now
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-white">
-                    {session.action ?? "Continue setup"}
-                  </p>
-                  {showProviderLabel ? (
-                    <p className="text-sm text-muted-foreground">via {session.provider}</p>
-                  ) : null}
-                </div>
+                {hasManagedDeployment ? (
+                  <div className="rounded-lg border border-border/40 bg-background/40 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Live operations
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-white">
+                          Use this workspace as the control surface for the live deployment.
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Runtime status, budget, testing, and API access are all attached to this saved deployment.
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-border/50 bg-card/40">
+                        {deploymentModeLabel}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Requests
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {deployment?.totalRequests ?? runtime?.totalRequests ?? 0}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Tokens
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {deployment?.totalTokens ?? runtime?.totalTokens ?? 0}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border/40 bg-card/30 px-3 py-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Budget left
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-white">
+                          {deployment?.billing.budgetRemaining != null
+                            ? `$${deployment.billing.budgetRemaining.toFixed(2)}`
+                            : "Not tracked"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Best path right now
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {session.action ?? "Continue setup"}
+                      </p>
+                      {showProviderLabel ? (
+                        <p className="text-sm text-muted-foreground">via {session.provider}</p>
+                      ) : null}
+                    </div>
 
-                <WorkspaceStartRecommendation
-                  action={session.action}
-                  provider={session.provider}
-                  suggestedAmount={session.suggestedAmount}
-                  suggestedPack={session.suggestedPack}
-                  suggestedPackSlug={session.suggestedPackSlug}
-                  onSuggestedAmountChange={updateSuggestedAmount}
-                />
+                    <WorkspaceStartRecommendation
+                      action={session.action}
+                      provider={session.provider}
+                      suggestedAmount={session.suggestedAmount}
+                      suggestedPack={session.suggestedPack}
+                      suggestedPackSlug={session.suggestedPackSlug}
+                      onSuggestedAmountChange={updateSuggestedAmount}
+                    />
+                  </>
+                )}
 
                 <div id="workspace-runtime-record" className="rounded-lg border border-border/40 bg-card/30 p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -1333,42 +1384,49 @@ export default function WorkspaceContent() {
                       </p>
                     </div>
                   ) : null}
-                  {hasManagedDeployment ? (
-                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Deployment status endpoint
-                      </p>
-                      <code className="mt-1 block text-xs text-foreground">{deployment?.endpointPath}</code>
-                    </div>
-                  ) : null}
-                  {runtime ? (
-                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Runtime record endpoint
-                      </p>
-                      <code className="mt-1 block text-xs text-foreground">{runtime.endpointPath}</code>
-                    </div>
-                  ) : null}
-                  {runtime ? (
-                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Assistant API endpoint
-                      </p>
-                      <code className="mt-1 block text-xs text-foreground">{runtime.assistantPath}</code>
-                    </div>
-                  ) : null}
-                  {hasManagedDeployment ? (
-                    <div className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Example request
-                      </p>
-                      <pre className="mt-2 overflow-x-auto text-[11px] leading-relaxed text-foreground">
+                  {(hasManagedDeployment || runtime) ? (
+                    <details className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-3">
+                      <summary className="cursor-pointer list-none text-sm font-medium text-white">
+                        Technical details
+                      </summary>
+                      {hasManagedDeployment ? (
+                        <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Deployment status endpoint
+                          </p>
+                          <code className="mt-1 block text-xs text-foreground">{deployment?.endpointPath}</code>
+                        </div>
+                      ) : null}
+                      {runtime ? (
+                        <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Runtime record endpoint
+                          </p>
+                          <code className="mt-1 block text-xs text-foreground">{runtime.endpointPath}</code>
+                        </div>
+                      ) : null}
+                      {runtime ? (
+                        <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Assistant API endpoint
+                          </p>
+                          <code className="mt-1 block text-xs text-foreground">{runtime.assistantPath}</code>
+                        </div>
+                      ) : null}
+                      {hasManagedDeployment ? (
+                        <div className="mt-3 rounded-md border border-border/40 bg-card/30 px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Example request
+                          </p>
+                          <pre className="mt-2 overflow-x-auto text-[11px] leading-relaxed text-foreground">
 {`curl -X POST ${deployment?.endpointPath} \\
   -H "Authorization: Bearer aimk_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{"message":"Say hello from AI Market Cap"}'`}
-                      </pre>
-                    </div>
+                          </pre>
+                        </div>
+                      ) : null}
+                    </details>
                   ) : null}
                   {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
                   <div className="mt-3">
@@ -1486,63 +1544,54 @@ export default function WorkspaceContent() {
                       API requests are metered. Heavy usage can outgrow flat subscription pricing,
                       so keep an explicit budget on managed deployments.
                     </p>
-                  </div>
-                ) : null}
-
-                {hasManagedDeployment ? (
-                  <div className="rounded-lg border border-border/40 bg-card/30 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                      Next actions
-                    </p>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
-                        <p className="text-sm font-medium text-white">1. Create a scoped API key</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Use a runtime-ready key before sharing or scripting against this deployment.
-                        </p>
-                      </div>
-                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
-                        <p className="text-sm font-medium text-white">2. Send a low-cost test prompt</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Start with one short request to confirm output, latency, and per-request cost.
-                        </p>
-                      </div>
-                      <div className="rounded-md border border-border/40 bg-background/40 p-3">
-                        <p className="text-sm font-medium text-white">3. Watch budget and status</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Pause the deployment if you are not using it or the budget falls low.
-                        </p>
-                      </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                        <Link href={apiHref}>
+                          <KeyRound className="h-4 w-4" />
+                          Open API Keys
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href={walletHref}>
+                          <Wallet className="h-4 w-4" />
+                          Open Wallet
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href="/deployments">Open Deployments</Link>
+                      </Button>
                     </div>
                   </div>
                 ) : null}
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                    <Link href={walletHref}>
-                      <Wallet className="h-4 w-4" />
-                      Wallet
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href={apiHref}>
-                      <KeyRound className="h-4 w-4" />
-                      API Keys
-                    </Link>
-                  </Button>
-                  {session.nextUrl ? (
-                    <Button asChild variant="outline" className="sm:col-span-2">
-                      <a
-                        href={session.nextUrl}
-                        target="_blank"
-                        rel={isSponsoredSession ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
-                      >
-                        <ArrowUpRight className="h-4 w-4" />
-                        Continue to Provider
-                      </a>
+                {!hasManagedDeployment ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                      <Link href={walletHref}>
+                        <Wallet className="h-4 w-4" />
+                        Wallet
+                      </Link>
                     </Button>
-                  ) : null}
-                </div>
+                    <Button asChild variant="outline">
+                      <Link href={apiHref}>
+                        <KeyRound className="h-4 w-4" />
+                        API Keys
+                      </Link>
+                    </Button>
+                    {session.nextUrl ? (
+                      <Button asChild variant="outline" className="sm:col-span-2">
+                        <a
+                          href={session.nextUrl}
+                          target="_blank"
+                          rel={isSponsoredSession ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                          Continue to Provider
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>
