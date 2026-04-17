@@ -863,28 +863,30 @@ export default function WorkspaceContent() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/deployments">Deployments</Link>
-          </Button>
+        <div className="flex flex-col gap-2 lg:items-end">
           <Button variant="outline" onClick={workspace.minimizeWorkspace}>
             <Minimize2 className="h-4 w-4" />
             Hide Floating Console
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              workspace.maximizeWorkspace();
-              workspace.setActivePanel("setup");
-            }}
-          >
-            Open Floating Console
-          </Button>
-          {session.modelSlug ? (
-            <Button variant="outline" asChild>
-              <Link href={`/models/${session.modelSlug}?tab=deploy#model-tabs`}>Back to Model</Link>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                workspace.maximizeWorkspace();
+                workspace.setActivePanel("setup");
+              }}
+            >
+              Open Floating Console
             </Button>
-          ) : null}
+            <Button variant="outline" asChild>
+              <Link href="/deployments">Deployments</Link>
+            </Button>
+            {session.modelSlug ? (
+              <Button variant="outline" asChild>
+                <Link href={`/models/${session.modelSlug}?tab=deploy#model-tabs`}>Back to Model</Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
