@@ -160,6 +160,22 @@ describe("DeployPage", () => {
     expect(screen.getByText(/Runs fully here/i)).toBeInTheDocument();
     expect(screen.getByText(/Dedicated runtime for you/i)).toBeInTheDocument();
     expect(screen.getByText(/Open-weight launch options/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View all chat launches/i })).toHaveAttribute(
+      "href",
+      "/deploy?focus=chat"
+    );
+    expect(screen.getByRole("link", { name: /View all API launches/i })).toHaveAttribute(
+      "href",
+      "/deploy?focus=api"
+    );
+    expect(screen.getByRole("link", { name: /View all low-cost launches/i })).toHaveAttribute(
+      "href",
+      "/deploy?focus=cost"
+    );
+    expect(screen.getByRole("link", { name: /View all open-weight launches/i })).toHaveAttribute(
+      "href",
+      "/deploy?focus=open"
+    );
     expect(
       screen.getByRole("link", { name: /Show direct AI Market Cap launches/i })
     ).toHaveAttribute("href", "/deploy?focus=api");

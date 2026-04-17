@@ -480,30 +480,45 @@ export default async function DeployPage({
             title: "Best for chat",
             summary: "Strong starting points if you want a general-purpose model running quickly.",
             items: chatStarts,
+            href: "/deploy?focus=chat",
+            cta: "View all chat launches",
           },
           {
             kind: "standard" as const,
             title: "Best for API",
             summary: "The smoothest picks if you want the cleanest AI Market Cap-managed API path.",
             items: bestApiStarts,
+            href: "/deploy?focus=api",
+            cta: "View all API launches",
           },
           {
             kind: "lowest_cost" as const,
             title: "Lowest cost to start",
             summary: "Launchable models with the lightest verified starting price signals right now.",
             items: lowestCostStarts,
+            href: "/deploy?focus=cost",
+            cta: "View all low-cost launches",
           },
           {
             kind: "standard" as const,
             title: "Best open-weight deploys",
             summary: "Open models AI Market Cap can launch here, with simpler hardware expectations where possible.",
             items: openWeightDeployStarts,
+            href: "/deploy?focus=open",
+            cta: "View all open-weight launches",
           },
         ].map((section) => (
           <Card key={section.title} className="border-border/50 bg-card/60">
             <CardContent className="p-5">
-              <h2 className="text-base font-semibold text-white">{section.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-white">{section.title}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
+                </div>
+                <Button variant="ghost" size="sm" asChild className="shrink-0 px-0 text-neon hover:text-neon/80">
+                  <Link href={section.href}>{section.cta}</Link>
+                </Button>
+              </div>
               <div className="mt-4 space-y-3">
                 {section.items.length === 0 ? (
                   <div className="rounded-xl border border-border/50 bg-card/40 p-4 text-sm text-muted-foreground">
@@ -548,11 +563,11 @@ export default async function DeployPage({
                             {getProvisioningBadgeLabel(provisioning.deploymentKind)}
                           </Badge>
                         </div>
-                        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                           {provisioning.summary}
                         </p>
                         {(pricing || selfHost) ? (
-                          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                             {pricing ? (
                               <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
                                 Verified starting price: {pricing}
@@ -570,7 +585,7 @@ export default async function DeployPage({
                             ) : null}
                           </div>
                         ) : null}
-                        <div className="mt-4 flex flex-wrap gap-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           <WorkspaceStartButton
                             label="Open Guided Setup"
                             size="sm"
@@ -587,7 +602,7 @@ export default async function DeployPage({
                           />
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/models/${model.slug}?tab=deploy#model-tabs`}>
-                              Model Page
+                              Details
                             </Link>
                           </Button>
                         </div>
