@@ -245,7 +245,7 @@ describe("DeploymentsContent", () => {
       screen.getByText(/Check the state, use the top actions, then open details only when needed\./i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Important now/i)).toBeInTheDocument();
+    expect(screen.getByText(/Next step/i)).toBeInTheDocument();
     expect(screen.getByText(/Primary actions/i)).toBeInTheDocument();
     expect(screen.getByText(/Secondary actions/i)).toBeInTheDocument();
     expect(screen.getAllByText(/^Ready$/i).length).toBeGreaterThanOrEqual(1);

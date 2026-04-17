@@ -322,6 +322,8 @@ export default function DeploymentsContent() {
     };
   }, [deployments]);
 
+  const showActionQueue = summary.attention > 0 || summary.paused > 0 || summary.provisioning > 0;
+
   const filterCounts = useMemo(
     () => ({
       all: deployments.length,
@@ -607,7 +609,7 @@ export default function DeploymentsContent() {
         </CardContent>
       </Card>
 
-      {summary.attention > 0 || summary.paused > 0 || summary.provisioning > 0 ? (
+      {showActionQueue ? (
         <Card className="mb-6 border-amber-500/30 bg-amber-500/10">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -807,11 +809,15 @@ export default function DeploymentsContent() {
                         ) : null}
                       </div>
                       <div className={cn("rounded-xl border px-3 py-3", nextStep.tone)}>
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Important now
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-white">{nextStep.title}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{nextStep.detail}</p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Next step
+                          </p>
+                          <p className="text-sm font-medium text-white">{nextStep.title}</p>
+                        </div>
+                        {!showActionQueue ? (
+                          <p className="mt-2 text-sm text-muted-foreground">{nextStep.detail}</p>
+                        ) : null}
                       </div>
                       <div className="rounded-lg border border-border/50 bg-card/40 px-3 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
