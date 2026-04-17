@@ -257,7 +257,9 @@ describe("DeploymentsContent", () => {
     expect(screen.getByText(baseDeployment.endpointPath)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Run Quick Test/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Needs attention/i })).toBeInTheDocument();
-    expect(screen.getByText(/Deployment filters/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Filters$/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 shown/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 total/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Search deployments/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage Budget/i })).toHaveAttribute(
       "href",

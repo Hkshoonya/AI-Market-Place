@@ -659,12 +659,16 @@ export default function DeploymentsContent() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Deployment filters
+                  Filters
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Showing {filteredDeployments.length} of {deployments.length} deployment
-                  {deployments.length === 1 ? "" : "s"}.
-                </p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <Badge variant="outline" className="border-border/50 bg-background/40 text-xs">
+                    {filteredDeployments.length} shown
+                  </Badge>
+                  <Badge variant="outline" className="border-border/50 bg-background/40 text-xs">
+                    {deployments.length} total
+                  </Badge>
+                </div>
               </div>
               <div className="relative w-full max-w-sm">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
