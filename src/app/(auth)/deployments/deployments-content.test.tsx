@@ -140,7 +140,7 @@ describe("DeploymentsContent", () => {
 
     expect(screen.getByText(/No deployments yet/i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Start guided setup/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole("link", { name: /Browse launch directory/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /Browse launch directory/i }).length).toBeGreaterThanOrEqual(2);
     expect(
       screen.getAllByRole("link", { name: /Browse launch directory/i }).every((link) =>
         link.getAttribute("href") === "/deploy#deploy-directory"
@@ -341,7 +341,12 @@ describe("DeploymentsContent", () => {
 
     expect(screen.getByText(/No deployments match this view/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Show all deployments/i }));
+    expect(screen.getByRole("link", { name: /Start another guided setup/i })).toHaveAttribute(
+      "href",
+      "/deploy#deploy-directory"
+    );
+
+    await user.click(screen.getByRole("button", { name: /Clear search and filters/i }));
 
     expect(screen.getByText("Kimi K2")).toBeInTheDocument();
     expect(screen.getByText("Grok 4")).toBeInTheDocument();

@@ -737,7 +737,7 @@ export default function DeploymentsContent() {
                 <Link href="/deploy">Start guided setup</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/models?deployable=true">Browse all deployable models</Link>
+                <Link href="/deploy#deploy-directory">Browse launch directory</Link>
               </Button>
             </div>
           </CardContent>
@@ -761,7 +761,10 @@ export default function DeploymentsContent() {
                   setDeploymentQuery("");
                 }}
               >
-                Show all deployments
+                Clear search and filters
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/deploy#deploy-directory">Start another guided setup</Link>
               </Button>
             </div>
           </CardContent>
