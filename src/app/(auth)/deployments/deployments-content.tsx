@@ -543,7 +543,7 @@ export default function DeploymentsContent() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href="/models?deployable=true">Browse all deployable models</Link>
+            <Link href="/deploy#deploy-directory">Browse launch directory</Link>
           </Button>
           <Button asChild className="bg-neon text-background hover:bg-neon/90">
             <Link href="/deploy">Start guided setup</Link>
@@ -594,19 +594,34 @@ export default function DeploymentsContent() {
       <Card className="mb-6 border-cyan-500/30 bg-cyan-500/10">
         <CardContent className="p-5">
           <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-            How To Use This Page
+            Operate in 3 steps
           </p>
           <h2 className="mt-1 text-lg font-semibold text-white">
-            Start with the status badges, use the main action buttons, and open the detail sections only when you need them.
+            Check the state, use the main action buttons, then open detail sections only when you need budget, API, or activity history.
           </h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Badge className="bg-emerald-500/10 text-emerald-200">Healthy means ready to use</Badge>
-            <Badge className="bg-amber-500/10 text-amber-100">Paused means no new requests</Badge>
-            <Badge className="bg-red-500/10 text-red-200">Error means check the message first</Badge>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">1. Check the state</Badge>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge className="bg-emerald-500/10 text-emerald-200">Ready</Badge>
+                <Badge className="bg-amber-500/10 text-amber-100">Paused</Badge>
+                <Badge className="bg-cyan-500/10 text-cyan-100">Provisioning</Badge>
+                <Badge className="bg-red-500/10 text-red-200">Needs repair</Badge>
+              </div>
+            </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">2. Use the top actions</Badge>
+              <p className="mt-3 text-sm text-white">
+                Run Quick Test, Manage Budget, Copy Endpoint, or open the deployment workflow.
+              </p>
+            </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-background/30 p-4">
+              <Badge className="bg-cyan-500/10 text-cyan-100">3. Open details only if needed</Badge>
+              <p className="mt-3 text-sm text-white">
+                API setup, billing controls, and recent activity stay available without crowding the main controls.
+              </p>
+            </div>
           </div>
-          <p className="mt-3 text-sm text-cyan-50/80">
-            Primary buttons change the deployment state. The expandable sections below are for API setup, billing, and recent activity.
-          </p>
         </CardContent>
       </Card>
 

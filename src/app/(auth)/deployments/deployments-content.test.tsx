@@ -140,8 +140,16 @@ describe("DeploymentsContent", () => {
 
     expect(screen.getByText(/No deployments yet/i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Start guided setup/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole("link", { name: /Browse all deployable models/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Browse launch directory/i }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByRole("link", { name: /Browse launch directory/i }).every((link) =>
+        link.getAttribute("href") === "/deploy#deploy-directory"
+      )
+    ).toBe(true);
+    expect(screen.getByText(/Operate in 3 steps/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\. Check the state/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\. Use the top actions/i)).toBeInTheDocument();
+    expect(screen.getByText(/3\. Open details only if needed/i)).toBeInTheDocument();
     expect(screen.queryByText(/Action queue/i)).not.toBeInTheDocument();
   });
 
@@ -232,8 +240,10 @@ describe("DeploymentsContent", () => {
     render(<DeploymentsContent />);
 
     expect(screen.getByText(/Managed model deployments/i)).toBeInTheDocument();
-    expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
-    expect(screen.getByText(/Focus on the deployments that need action now\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Operate in 3 steps/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Check the state, use the main action buttons, then open detail sections only when you need budget, API, or activity history\./i)
+    ).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
     expect(screen.getByText(/Important now/i)).toBeInTheDocument();
     expect(screen.getByText(/Primary actions/i)).toBeInTheDocument();
