@@ -148,6 +148,34 @@ function formatCurrency(value: number | null) {
   return `$${value.toFixed(2)}`;
 }
 
+function getDeploymentStatePresentation(deployment: WorkspaceDeploymentResponse) {
+  if (deployment.status === "failed" || deployment.healthStatus === "error") {
+    return {
+      label: "Needs repair",
+      className: "border-red-500/20 bg-red-500/10 text-red-300",
+    };
+  }
+
+  if (deployment.status === "paused") {
+    return {
+      label: "Paused",
+      className: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+    };
+  }
+
+  if (deployment.status === "provisioning") {
+    return {
+      label: "Provisioning",
+      className: "border-cyan-500/20 bg-cyan-500/10 text-cyan-200",
+    };
+  }
+
+  return {
+    label: "Ready",
+    className: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  };
+}
+
 function getDeploymentNextStep(deployment: WorkspaceDeploymentResponse) {
   if (deployment.status === "failed" || deployment.healthStatus === "error") {
     return {
@@ -754,6 +782,7 @@ export default function DeploymentsContent() {
                     ? "border-red-500/20 bg-red-500/10 text-red-300"
                     : "border-border/50 bg-card/40 text-muted-foreground";
             const nextStep = getDeploymentNextStep(deployment);
+            const statePresentation = getDeploymentStatePresentation(deployment);
 
             return (
               <Card id={`deployment-${deployment.modelSlug}`} key={deployment.id} className="border-border/50 bg-card/70 scroll-mt-24">
@@ -764,25 +793,11 @@ export default function DeploymentsContent() {
                         <Badge variant="outline" className="border-neon/20 bg-neon/10 text-neon">
                           {deployment.deploymentLabel ?? "Managed deployment"}
                         </Badge>
+                        <Badge variant="outline" className={statePresentation.className}>
+                          {statePresentation.label}
+                        </Badge>
                         <Badge variant="outline" className={cn("capitalize", budgetStatusTone)}>
                           {deployment.billing.budgetStatus}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            deployment.healthStatus === "healthy"
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                              : deployment.healthStatus === "error"
-                                ? "border-red-500/20 bg-red-500/10 text-red-300"
-                                : deployment.healthStatus === "paused"
-                                  ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
-                                  : "border-border/50 bg-card/40 text-muted-foreground"
-                          )}
-                        >
-                          {deployment.healthStatus}
-                        </Badge>
-                        <Badge variant="outline" className="border-border/50 bg-card/40 capitalize">
-                          {deployment.status}
                         </Badge>
                       </div>
                       <div>
@@ -797,119 +812,136 @@ export default function DeploymentsContent() {
                           <p className="mt-2 text-sm text-red-300">{deployment.lastErrorMessage}</p>
                         ) : null}
                       </div>
-                      <code className="block text-xs text-foreground">
-                        {deployment.endpointPath}
-                      </code>
                       <div className={cn("rounded-xl border px-3 py-3", nextStep.tone)}>
                         <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Next step
+                          Important now
                         </p>
                         <p className="mt-1 text-sm font-medium text-white">{nextStep.title}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{nextStep.detail}</p>
                       </div>
+                      <div className="rounded-lg border border-border/50 bg-card/40 px-3 py-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Endpoint
+                        </p>
+                        <code className="mt-1 block text-xs text-foreground">{deployment.endpointPath}</code>
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        className="bg-cyan-500 text-background hover:bg-cyan-400"
-                        disabled={
-                          testLoadingSlug === deployment.modelSlug ||
-                          deployment.status !== "ready"
-                        }
-                        onClick={() => runTestCall(deployment)}
-                      >
-                        {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
-                      </Button>
-                      <Button variant="outline" asChild>
-                        <a href={`#deployment-budget-${deployment.id}`}>Manage Budget</a>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          void copyEndpoint(deployment);
-                        }}
-                      >
-                        {copiedEndpointSlug === deployment.modelSlug ? (
-                          <>
-                            <Check className="h-4 w-4" />
-                            Endpoint Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4" />
-                            Copy Endpoint
-                          </>
-                        )}
-                      </Button>
-                      <Button variant="outline" asChild>
-                        <Link href={`/models/${deployment.modelSlug}`}>
-                          Model Page
-                          <ArrowUpRight className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          workspace.openWorkspace({
-                            model: deployment.modelName,
-                            modelSlug: deployment.modelSlug,
-                            provider: deployment.providerName,
-                            action: nextStep.workspaceAction,
-                            nextUrl: `/models/${deployment.modelSlug}?tab=deploy#model-tabs`,
-                            autoStartDeployment: false,
-                            suggestedAmount:
-                              deployment.creditsBudget ?? deployment.monthlyPriceEstimate ?? null,
-                          })
-                        }
-                      >
-                        {nextStep.workspaceLabel}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={pendingModelSlug === deployment.modelSlug}
-                        onClick={() =>
-                          updateDeployment(
-                            deployment.modelSlug,
-                            deployment.status === "paused" ? "resume" : "pause"
-                          )
-                        }
-                      >
-                        {deployment.status === "paused" ? (
-                          <>
-                            <PlayCircle className="h-4 w-4" />
-                            Resume
-                          </>
-                        ) : (
-                          <>
-                            <PauseCircle className="h-4 w-4" />
-                            Pause
-                          </>
-                        )}
-                      </Button>
-                      <ConfirmDialog
-                        trigger={
+                    <div className="space-y-3 lg:w-[22rem] lg:flex-none">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Primary actions
+                        </p>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            className="bg-cyan-500 text-background hover:bg-cyan-400 sm:col-span-2"
+                            disabled={
+                              testLoadingSlug === deployment.modelSlug ||
+                              deployment.status !== "ready"
+                            }
+                            onClick={() => runTestCall(deployment)}
+                          >
+                            {testLoadingSlug === deployment.modelSlug ? "Testing..." : "Run Quick Test"}
+                          </Button>
+                          <Button variant="outline" asChild>
+                            <a href={`#deployment-budget-${deployment.id}`}>Manage Budget</a>
+                          </Button>
                           <Button
                             type="button"
                             variant="outline"
-                            className="border-red-500/20 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-                            disabled={pendingModelSlug === deployment.modelSlug}
+                            onClick={() =>
+                              workspace.openWorkspace({
+                                model: deployment.modelName,
+                                modelSlug: deployment.modelSlug,
+                                provider: deployment.providerName,
+                                action: nextStep.workspaceAction,
+                                nextUrl: `/models/${deployment.modelSlug}?tab=deploy#model-tabs`,
+                                autoStartDeployment: false,
+                                suggestedAmount:
+                                  deployment.creditsBudget ?? deployment.monthlyPriceEstimate ?? null,
+                              })
+                            }
                           >
-                            <Trash2 className="h-4 w-4" />
-                            Remove
+                            {nextStep.workspaceLabel}
                           </Button>
-                        }
-                        title={`Remove ${deployment.modelName}?`}
-                        description="This removes the AI Market Cap deployment endpoint and its saved usage state. Hosted deployments will also be removed from the connected backend when possible."
-                        confirmLabel="Remove deployment"
-                        variant="destructive"
-                        onConfirm={() => {
-                          void removeDeployment(deployment.modelSlug);
-                        }}
-                      />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Secondary actions
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              void copyEndpoint(deployment);
+                            }}
+                          >
+                            {copiedEndpointSlug === deployment.modelSlug ? (
+                              <>
+                                <Check className="h-4 w-4" />
+                                Endpoint Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-4 w-4" />
+                                Copy Endpoint
+                              </>
+                            )}
+                          </Button>
+                          <Button variant="outline" asChild>
+                            <Link href={`/models/${deployment.modelSlug}`}>
+                              Model Page
+                              <ArrowUpRight className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={pendingModelSlug === deployment.modelSlug}
+                            onClick={() =>
+                              updateDeployment(
+                                deployment.modelSlug,
+                                deployment.status === "paused" ? "resume" : "pause"
+                              )
+                            }
+                          >
+                            {deployment.status === "paused" ? (
+                              <>
+                                <PlayCircle className="h-4 w-4" />
+                                Resume
+                              </>
+                            ) : (
+                              <>
+                                <PauseCircle className="h-4 w-4" />
+                                Pause
+                              </>
+                            )}
+                          </Button>
+                          <ConfirmDialog
+                            trigger={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="border-red-500/20 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                                disabled={pendingModelSlug === deployment.modelSlug}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Remove
+                              </Button>
+                            }
+                            title={`Remove ${deployment.modelName}?`}
+                            description="This removes the AI Market Cap deployment endpoint and its saved usage state. Hosted deployments will also be removed from the connected backend when possible."
+                            confirmLabel="Remove deployment"
+                            variant="destructive"
+                            onConfirm={() => {
+                              void removeDeployment(deployment.modelSlug);
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 

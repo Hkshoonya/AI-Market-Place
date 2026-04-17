@@ -235,6 +235,11 @@ describe("DeploymentsContent", () => {
     expect(screen.getByText(/How To Use This Page/i)).toBeInTheDocument();
     expect(screen.getByText(/Focus on the deployments that need action now\./i)).toBeInTheDocument();
     expect(screen.getByText(/Run a quick test, then use this endpoint directly or continue from workspace\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Important now/i)).toBeInTheDocument();
+    expect(screen.getByText(/Primary actions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Secondary actions/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Ready$/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(baseDeployment.endpointPath)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Run Quick Test/i }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /Needs attention/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Search deployments/i })).toBeInTheDocument();
