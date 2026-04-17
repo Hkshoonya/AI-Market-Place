@@ -945,6 +945,30 @@ export default function DeploymentsContent() {
                     </div>
                   </div>
 
+                  {testResults[deployment.modelSlug]?.error ? (
+                    <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-red-200/80">
+                        Latest test response
+                      </p>
+                      <p className="mt-2 text-sm text-red-200">
+                        {testResults[deployment.modelSlug]?.error}
+                      </p>
+                    </div>
+                  ) : null}
+                  {testResults[deployment.modelSlug]?.content ? (
+                    <div className="rounded-lg border border-border/50 bg-background/60 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                        Latest test response
+                      </p>
+                      <p className="mt-2 text-sm text-white">
+                        {testResults[deployment.modelSlug]?.content}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        AI Market Cap · {testResults[deployment.modelSlug]?.model ?? "Unknown model"}
+                      </p>
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                     <div className="rounded-lg border border-border/50 bg-card/40 p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
@@ -1068,14 +1092,14 @@ export default function DeploymentsContent() {
                   </details>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <details className="rounded-xl border border-border/50 bg-card/40 p-4" open>
+                    <details className="rounded-xl border border-border/50 bg-card/40 p-4">
                       <summary className="cursor-pointer list-none">
                         <div className="flex items-center gap-2">
                           <KeyRound className="h-4 w-4 text-neon" />
                           <div>
                             <p className="text-sm font-medium text-white">API setup and test</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Create a key, copy the example request, then run a quick test.
+                              Open this only when you need the curl example, API key path, or test controls.
                             </p>
                           </div>
                         </div>
@@ -1112,25 +1136,6 @@ export default function DeploymentsContent() {
                           <Link href="/api-docs">API Docs</Link>
                         </Button>
                       </div>
-                      {testResults[deployment.modelSlug]?.error ? (
-                        <p className="mt-3 text-xs text-red-300">
-                          {testResults[deployment.modelSlug]?.error}
-                        </p>
-                      ) : null}
-                      {testResults[deployment.modelSlug]?.content ? (
-                        <div className="mt-3 rounded-md border border-border/50 bg-background/60 px-3 py-2">
-                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                            Latest test response
-                          </p>
-                          <p className="mt-2 text-sm text-white">
-                            {testResults[deployment.modelSlug]?.content}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            AI Market Cap ·{" "}
-                            {testResults[deployment.modelSlug]?.model ?? "Unknown model"}
-                          </p>
-                        </div>
-                      ) : null}
                     </details>
 
                     <details className="rounded-xl border border-border/50 bg-card/40 p-4">
