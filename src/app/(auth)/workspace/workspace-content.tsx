@@ -1058,14 +1058,11 @@ export default function WorkspaceContent() {
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-                      Live deployment controls
+                      Live controls
                     </p>
                     <h2 className="mt-1 text-lg font-semibold text-white">
-                      Endpoint, quick test, budget, and traffic controls are active.
+                      Endpoint, test, budget, and traffic are live.
                     </h2>
-                    <p className="mt-2 max-w-3xl text-sm text-cyan-50/80">
-                      Use these direct actions first when this workspace is already live. You do not need to scroll through the full setup flow every time.
-                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge className="bg-emerald-500/10 text-emerald-200">{deployment?.status}</Badge>
@@ -1118,10 +1115,7 @@ export default function WorkspaceContent() {
               <CardContent className="p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-white">Actionable workflow</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Each step opens the exact action you need next.
-                    </p>
+                    <h2 className="text-lg font-semibold text-white">Workflow</h2>
                   </div>
                   <Badge variant="outline" className="border-border/50 bg-card/40">
                     {stepItems.filter((item) => item.done).length}/{stepItems.length} complete

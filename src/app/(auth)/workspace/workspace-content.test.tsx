@@ -468,9 +468,9 @@ describe("WorkspaceContent", () => {
 
     render(<WorkspaceContent />);
 
-    expect(screen.getByText(/Live deployment controls/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Live controls$/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Endpoint, quick test, budget, and traffic controls are active/i)
+      screen.getByText(/Endpoint, test, budget, and traffic are live/i)
     ).toBeInTheDocument();
     expect(screen.getAllByText("/api/deployments/kimi-k2-live").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("link", { name: /Run quick test/i })).toBeInTheDocument();
@@ -481,6 +481,7 @@ describe("WorkspaceContent", () => {
     expect(screen.getAllByText(/17 requests/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/4100 tokens/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Account snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Workflow$/i)).toBeInTheDocument();
     expect(screen.getByText(/Maintenance actions/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Pause Deployment$/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open deployments/i }).length).toBeGreaterThanOrEqual(1);
