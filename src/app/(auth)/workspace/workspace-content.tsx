@@ -1512,26 +1512,32 @@ export default function WorkspaceContent() {
                         Save Budget
                       </Button>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      API requests are metered. Heavy usage can outgrow flat subscription pricing,
-                      so keep an explicit budget on managed deployments.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                        <Link href={apiHref}>
-                          <KeyRound className="h-4 w-4" />
-                          Open API Keys
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline">
-                        <Link href={walletHref}>
-                          <Wallet className="h-4 w-4" />
-                          Open Wallet
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline">
-                        <Link href="/deployments">Open Deployments</Link>
-                      </Button>
+                    <div className="mt-3 rounded-md border border-border/40 bg-background/40 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Spend control
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        API usage is metered. Keep a budget cap here and use account shortcuts only when you need to top up or rotate keys.
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Account shortcuts
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                          <Link href={apiHref}>
+                            <KeyRound className="h-4 w-4" />
+                            API keys
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline">
+                          <Link href={walletHref}>
+                            <Wallet className="h-4 w-4" />
+                            Wallet
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : null}

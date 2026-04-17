@@ -484,6 +484,7 @@ describe("WorkspaceContent", () => {
     expect(screen.getByText(/4100 tokens/i)).toBeInTheDocument();
     expect(screen.getByText(/Maintenance actions/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Pause Deployment$/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Open deployments/i })).toHaveLength(1);
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText(/Run selected model/i)).toBeInTheDocument();
   });
