@@ -937,16 +937,21 @@ export default function WorkspaceContent() {
         <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-                Deployment portfolio
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
+                  Deployment portfolio
+                </p>
+                <Badge variant="outline" className="border-cyan-300/20 bg-card/40 text-cyan-50">
+                  {savedDeploymentCount} saved
+                </Badge>
+              </div>
               <p className="mt-1 text-lg font-semibold text-white">
-                This workspace is part of your broader deployment account.
+                Account-wide deployment status
               </p>
               <p className="mt-2 max-w-3xl text-sm text-cyan-50/80">
                 {currentSavedDeployment
-                  ? `${session.model ?? currentSavedDeployment.modelName} already has a saved deployment with status ${currentSavedDeployment.status}. Use Deployments to run a quick test, resume traffic, or switch to another model workflow.`
-                  : `You already have ${savedDeploymentCount} saved deployment${savedDeploymentCount === 1 ? "" : "s"} on this account. Use Deployments to run quick tests, pause traffic, adjust budgets, or jump into another model workflow.`}
+                  ? `${session.model ?? currentSavedDeployment.modelName} is already saved here with status ${currentSavedDeployment.status}.`
+                  : `You already have ${savedDeploymentCount} saved deployment${savedDeploymentCount === 1 ? "" : "s"} on this account.`}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge className="bg-emerald-500/10 text-emerald-200">
@@ -989,8 +994,8 @@ export default function WorkspaceContent() {
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 Workspace navigator
               </p>
-              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                Jump straight to setup, assistant, or usage instead of scanning the full page.
+              <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+                Jump directly to the active control surface.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

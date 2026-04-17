@@ -303,11 +303,12 @@ describe("WorkspaceContent", () => {
 
     expect(screen.getByText(/Deployment portfolio/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/This workspace is part of your broader deployment account/i)
+      screen.getByText(/Account-wide deployment status/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Kimi K2 already has a saved deployment with status ready/i)
+      screen.getByText(/Kimi K2 is already saved here with status ready/i)
     ).toBeInTheDocument();
+    expect(screen.getByText(/4 saved/i)).toBeInTheDocument();
     expect(screen.getByText(/1 ready/i)).toBeInTheDocument();
     expect(screen.getByText(/1 paused/i)).toBeInTheDocument();
     expect(screen.getByText(/1 need attention/i)).toBeInTheDocument();
