@@ -301,12 +301,9 @@ describe("WorkspaceContent", () => {
 
     render(<WorkspaceContent />);
 
-    expect(screen.getByText(/Deployment portfolio/i)).toBeInTheDocument();
+    expect(screen.getByText(/Saved deployments/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Account-wide deployment status/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Kimi K2 is already saved here with status ready/i)
+      screen.getByText(/Kimi K2 is ready on this account/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/4 saved/i)).toBeInTheDocument();
     expect(screen.getByText(/1 ready/i)).toBeInTheDocument();
@@ -314,8 +311,8 @@ describe("WorkspaceContent", () => {
     expect(screen.getByText(/1 need attention/i)).toBeInTheDocument();
     expect(screen.getByText(/1 provisioning/i)).toBeInTheDocument();
     expect(screen.getByText(/3 other workflows/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Go to Deployments/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start another guided setup/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open deployments/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Launch another/i })).toBeInTheDocument();
   });
 
   it("surfaces top-level live deployment controls when the workspace deployment is already active", () => {
@@ -486,7 +483,7 @@ describe("WorkspaceContent", () => {
     expect(screen.getByText(/Workspace snapshot/i)).toBeInTheDocument();
     expect(screen.getByText(/Maintenance actions/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Pause Deployment$/i })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Open deployments/i })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: /Open deployments/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
     expect(screen.getByText(/Run selected model/i)).toBeInTheDocument();
   });

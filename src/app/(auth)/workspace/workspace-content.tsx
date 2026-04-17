@@ -926,19 +926,16 @@ export default function WorkspaceContent() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100/80">
-                  Deployment portfolio
+                  Saved deployments
                 </p>
                 <Badge variant="outline" className="border-cyan-300/20 bg-card/40 text-cyan-50">
                   {savedDeploymentCount} saved
                 </Badge>
               </div>
-              <p className="mt-1 text-lg font-semibold text-white">
-                Account-wide deployment status
-              </p>
-              <p className="mt-2 max-w-3xl text-sm text-cyan-50/80">
+              <p className="mt-2 max-w-3xl text-sm font-medium text-cyan-50">
                 {currentSavedDeployment
-                  ? `${session.model ?? currentSavedDeployment.modelName} is already saved here with status ${currentSavedDeployment.status}.`
-                  : `You already have ${savedDeploymentCount} saved deployment${savedDeploymentCount === 1 ? "" : "s"} on this account.`}
+                  ? `${session.model ?? currentSavedDeployment.modelName} is ${currentSavedDeployment.status} on this account.`
+                  : `${savedDeploymentCount} saved deployment${savedDeploymentCount === 1 ? "" : "s"} already exist on this account.`}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge className="bg-emerald-500/10 text-emerald-200">
@@ -964,10 +961,10 @@ export default function WorkspaceContent() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                <Link href="/deployments">Go to Deployments</Link>
+                <Link href="/deployments">Open deployments</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/deploy">Start another guided setup</Link>
+                <Link href="/deploy">Launch another</Link>
               </Button>
             </div>
           </CardContent>
