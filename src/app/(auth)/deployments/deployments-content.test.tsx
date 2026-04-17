@@ -260,6 +260,10 @@ describe("DeploymentsContent", () => {
     expect(screen.getByRole("button", { name: /Copy Endpoint/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Open deployment workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Pause$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Live snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/Performance details/i)).toBeInTheDocument();
+    expect(screen.getByText(/Requests: 18/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tokens: 3200/i)).toBeInTheDocument();
     expect(screen.getByText(/Budget and billing controls/i)).toBeInTheDocument();
     expect(screen.getByText(/API setup and test/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Recent activity/i).length).toBeGreaterThanOrEqual(1);

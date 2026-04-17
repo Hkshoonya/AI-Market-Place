@@ -984,71 +984,76 @@ export default function DeploymentsContent() {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Requests
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">{deployment.totalRequests}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Tokens
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">{deployment.totalTokens}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Per request
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {formatCurrency(deployment.billing.requestCharge)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Budget remaining
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {formatCurrency(deployment.billing.budgetRemaining)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Last success
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-white">
-                        {deployment.lastSuccessAt
-                          ? new Date(deployment.lastSuccessAt).toLocaleString()
-                          : "No successful request yet"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Success rate
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {deployment.successRate != null ? `${deployment.successRate}%` : "N/A"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {deployment.successfulRequests} ok / {deployment.failedRequests} failed
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-card/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                        Avg latency
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {deployment.avgResponseLatencyMs != null
-                          ? `${deployment.avgResponseLatencyMs}ms`
-                          : "N/A"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Last:{" "}
-                        {deployment.lastResponseLatencyMs != null
-                          ? `${deployment.lastResponseLatencyMs}ms`
-                          : "N/A"}
-                      </p>
+                  <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Live snapshot
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                          <span className="rounded-full border border-border/50 bg-background/40 px-2.5 py-1 text-foreground">
+                            Requests: {deployment.totalRequests}
+                          </span>
+                          <span className="rounded-full border border-border/50 bg-background/40 px-2.5 py-1 text-foreground">
+                            Tokens: {deployment.totalTokens}
+                          </span>
+                          <span className="rounded-full border border-border/50 bg-background/40 px-2.5 py-1 text-foreground">
+                            Budget left: {formatCurrency(deployment.billing.budgetRemaining)}
+                          </span>
+                          <span className="rounded-full border border-border/50 bg-background/40 px-2.5 py-1 text-foreground">
+                            Avg latency:{" "}
+                            {deployment.avgResponseLatencyMs != null
+                              ? `${deployment.avgResponseLatencyMs}ms`
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                      <details className="rounded-lg border border-border/50 bg-background/40 p-3 lg:max-w-md">
+                        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Performance details
+                        </summary>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                              Per request
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              {formatCurrency(deployment.billing.requestCharge)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                              Success rate
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              {deployment.successRate != null ? `${deployment.successRate}%` : "N/A"}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {deployment.successfulRequests} ok / {deployment.failedRequests} failed
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                              Last success
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              {deployment.lastSuccessAt
+                                ? new Date(deployment.lastSuccessAt).toLocaleString()
+                                : "No successful request yet"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                              Last latency
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-white">
+                              {deployment.lastResponseLatencyMs != null
+                                ? `${deployment.lastResponseLatencyMs}ms`
+                                : "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                      </details>
                     </div>
                   </div>
 
