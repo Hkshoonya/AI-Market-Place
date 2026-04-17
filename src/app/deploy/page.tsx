@@ -548,14 +548,26 @@ export default async function DeployPage({
                             {getProvisioningBadgeLabel(provisioning.deploymentKind)}
                           </Badge>
                         </div>
-                        <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
-                        {pricing ? (
-                          <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
-                        ) : null}
-                        {selfHost ? (
-                          <div className="mt-2 space-y-1 text-xs text-amber-200">
-                            <p>Best fit: {selfHost.bestFitLabel}</p>
-                            <p>Typical GPU memory: {selfHost.gpuMemoryLabel}</p>
+                        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                          {provisioning.summary}
+                        </p>
+                        {(pricing || selfHost) ? (
+                          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                            {pricing ? (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
+                                Verified starting price: {pricing}
+                              </span>
+                            ) : null}
+                            {selfHost ? (
+                              <>
+                                <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+                                  Best fit: {selfHost.bestFitLabel}
+                                </span>
+                                <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+                                  GPU: {selfHost.gpuMemoryLabel}
+                                </span>
+                              </>
+                            ) : null}
                           </div>
                         ) : null}
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -634,14 +646,26 @@ export default async function DeployPage({
                         {getProvisioningBadgeLabel(provisioning.deploymentKind)}
                       </Badge>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">{provisioning.summary}</p>
-                    {pricing ? (
-                      <p className="mt-2 text-xs text-emerald-300">Verified starting price: {pricing}</p>
-                    ) : null}
-                    {selfHost ? (
-                      <div className="mt-2 space-y-1 text-xs text-amber-200">
-                        <p>Best fit: {selfHost.bestFitLabel}</p>
-                        <p>Typical GPU memory: {selfHost.gpuMemoryLabel}</p>
+                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                      {provisioning.summary}
+                    </p>
+                    {(pricing || selfHost) ? (
+                      <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                        {pricing ? (
+                          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
+                            Verified starting price: {pricing}
+                          </span>
+                        ) : null}
+                        {selfHost ? (
+                          <>
+                            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+                              Best fit: {selfHost.bestFitLabel}
+                            </span>
+                            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+                              GPU: {selfHost.gpuMemoryLabel}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
                     <div className="mt-4 flex flex-wrap gap-2">
