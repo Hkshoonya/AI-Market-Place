@@ -1402,42 +1402,41 @@ export default function WorkspaceContent() {
                     </details>
                   ) : null}
                   {runtimeError ? <p className="mt-3 text-xs text-red-400">{runtimeError}</p> : null}
-                  <div className="mt-3">
-                    <Button variant="outline" onClick={activateRuntime} disabled={runtimeLoading}>
-                      {runtimeLoading
-                        ? "Preparing..."
-                        : runtime
-                          ? "Refresh Runtime Setup"
-                          : "Activate Runtime"}
-                    </Button>
-                    {canCreateManagedDeployment ? (
-                      <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
+                  {hasManagedDeployment ? (
+                    <details className="mt-3 rounded-md border border-border/40 bg-background/50 px-3 py-3">
+                      <summary className="cursor-pointer list-none text-sm font-medium text-white">
+                        Maintenance actions
+                      </summary>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={activateRuntime} disabled={runtimeLoading}>
+                          {runtimeLoading ? "Preparing..." : "Refresh runtime record"}
+                        </Button>
+                        <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
+                          {runtimeLoading ? "Creating..." : "Refresh deployment record"}
+                        </Button>
+                      </div>
+                    </details>
+                  ) : (
+                    <div className="mt-3">
+                      <Button variant="outline" onClick={activateRuntime} disabled={runtimeLoading}>
                         {runtimeLoading
-                          ? "Creating..."
-                          : hasManagedDeployment
-                            ? "Refresh Deployment"
+                          ? "Preparing..."
+                          : runtime
+                            ? "Refresh Runtime Setup"
+                            : "Activate Runtime"}
+                      </Button>
+                      {canCreateManagedDeployment ? (
+                        <Button variant="outline" onClick={createDeployment} disabled={runtimeLoading}>
+                          {runtimeLoading
+                            ? "Creating..."
                             : deployment?.deploymentKind === "hosted_external" ||
                                 provisioning?.deploymentKind === "hosted_external"
                               ? "Create Hosted Deployment"
                               : "Create Deployment"}
-                      </Button>
-                    ) : null}
-                    {hasManagedDeployment ? (
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          updateDeployment({ action: isDeploymentPaused ? "resume" : "pause" })
-                        }
-                        disabled={runtimeLoading}
-                      >
-                        {runtimeLoading
-                          ? "Updating..."
-                          : isDeploymentPaused
-                            ? "Resume Deployment"
-                            : "Pause Deployment"}
-                      </Button>
-                    ) : null}
-                  </div>
+                        </Button>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
 
                 {hasManagedDeployment ? (
