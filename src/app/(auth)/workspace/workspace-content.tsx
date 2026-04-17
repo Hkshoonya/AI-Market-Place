@@ -858,16 +858,8 @@ export default function WorkspaceContent() {
               {session.model ? `${session.model} workspace` : "Model workspace"}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Stay inside AI Market Cap while you fund, prepare access, chat through the setup,
-              and keep a usable history of what happened for this model.
+              Run setup, live controls, assistant help, and usage history from one place.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {["Chat UI", "API access", "Usage tracking"].map((item) => (
-              <Badge key={item} variant="outline" className="border-neon/20 bg-neon/10 text-neon">
-                {item}
-              </Badge>
-            ))}
           </div>
         </div>
 
@@ -896,42 +888,35 @@ export default function WorkspaceContent() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Wallet</p>
-            <p className="mt-1 text-xl font-semibold text-white">
-              {typeof walletSnapshot?.balance === "number" ? `$${walletSnapshot.balance.toFixed(2)}` : "—"}
+      <Card className="border-border/50 bg-card/60">
+        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Workspace snapshot
             </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">API Keys</p>
-            <p className="mt-1 text-xl font-semibold text-white">{activeApiKeys}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Assistant Turns</p>
-            <p className="mt-1 text-xl font-semibold text-white">{assistantUsage.turns}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="p-4">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Tracked Tokens</p>
-            <p className="mt-1 text-xl font-semibold text-white">
-              {runtime?.totalTokens ?? assistantUsage.totalTokens}
+            <p className="mt-1 text-sm font-medium text-white">
+              Wallet, keys, assistant usage, tokens, and deployment traffic in one strip.
             </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card/60">
-          <CardContent className="p-4">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Deployment Requests</p>
-              <p className="mt-1 text-xl font-semibold text-white">{deployment?.totalRequests ?? runtime?.totalRequests ?? 0}</p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              Wallet {typeof walletSnapshot?.balance === "number" ? `$${walletSnapshot.balance.toFixed(2)}` : "—"}
+            </Badge>
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              {activeApiKeys} API key{activeApiKeys === 1 ? "" : "s"}
+            </Badge>
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              {assistantUsage.turns} assistant turn{assistantUsage.turns === 1 ? "" : "s"}
+            </Badge>
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              {runtime?.totalTokens ?? assistantUsage.totalTokens} tokens
+            </Badge>
+            <Badge variant="outline" className="border-border/50 bg-card/40">
+              {deployment?.totalRequests ?? runtime?.totalRequests ?? 0} requests
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {hasSavedDeployments ? (
         <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
