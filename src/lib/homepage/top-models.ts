@@ -122,6 +122,22 @@ function hasLeadershipUpgradeLanguage(model: HomepageTopModelCandidate): boolean
   );
 }
 
+function hasRecentLeadershipReadinessSignals(model: HomepageTopModelCandidate): boolean {
+  const capability = numeric(model.capability_score);
+  const quality = numeric(model.quality_score);
+  const adoption = numeric(model.adoption_score);
+  const economic = numeric(model.economic_footprint_score);
+  const popularity = numeric(model.popularity_score);
+
+  return (
+    quality >= 50 ||
+    (adoption >= 58 && economic >= 45) ||
+    (quality >= 46 && capability >= 62 && adoption >= 52) ||
+    (capability >= 62 && economic >= 50) ||
+    (capability >= 68 && popularity >= 52)
+  );
+}
+
 function isRecentLeadershipHomepageCandidate(
   model: HomepageTopModelCandidate,
   now = Date.now()
@@ -139,6 +155,7 @@ function isRecentLeadershipHomepageCandidate(
   const quality = numeric(model.quality_score);
 
   if (capability < 44 && quality < 44) return false;
+  if (!hasRecentLeadershipReadinessSignals(model)) return false;
 
   return hasMeaningfulHomepageTraction(model);
 }
@@ -192,6 +209,9 @@ export function isHighConfidenceHomepageTopModelCandidate(
 ): boolean {
   if (!isPrimaryHomepageCategory(model)) return false;
   if (isSpecializedHomepageCandidate(model)) return false;
+  if (hasLifecycleWarningLanguage(model)) return false;
+  if (isPreviewLikeModel(model)) return false;
+  if (isEfficiencyTierModel(model)) return false;
 
   return (
     hasStrongHomepageCoreScores(model) || isRecentLeadershipHomepageCandidate(model, now)

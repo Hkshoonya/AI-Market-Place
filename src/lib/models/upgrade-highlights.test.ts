@@ -9,7 +9,7 @@ describe("getModelUpgradeHighlight", () => {
         description:
           "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and self-verification.",
       })
-    ).toContain("Improves on Opus 4.6");
+    ).toBe("Improves on Opus 4.6 for advanced software engineering and self-verification.");
   });
 
   it("returns lifecycle summaries for previous-generation descriptions", () => {
@@ -18,7 +18,18 @@ describe("getModelUpgradeHighlight", () => {
         description:
           "Previous full o-series reasoning model. Later o3 and o4 releases are the newer frontier generation.",
       })
-    ).toContain("Previous full o-series");
+    ).toBe("Previous full o-series reasoning model.");
+  });
+
+  it("falls back to the flagship sentence when that is the only meaningful upgrade cue", () => {
+    expect(
+      getModelUpgradeHighlight({
+        description:
+          "OpenAI's latest GPT-5 generation model with stronger reasoning, coding, and instruction-following than prior GPT-5 releases.",
+      })
+    ).toBe(
+      "OpenAI's latest GPT-5 generation model with stronger reasoning, coding, and instruction-following than prior GPT-5 releases."
+    );
   });
 
   it("ignores generic descriptions without upgrade or lifecycle language", () => {

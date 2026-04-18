@@ -249,6 +249,49 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("recent-flagship-upgrade");
   });
 
+  it("requires stronger readiness signals before a fresh flagship row outranks proven frontier peers", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "low-evidence-fresh-flagship",
+          slug: "minimax-minimax-m2-1",
+          name: "MiniMax M2.1",
+          provider: "MiniMax",
+          category: "llm",
+          overall_rank: 15,
+          economic_footprint_score: 37.5,
+          adoption_score: 50.3,
+          capability_score: 75.3,
+          quality_score: 44.8,
+          popularity_score: 47.4,
+          release_date: "2025-12-23",
+          description:
+            "MiniMax-M2.1 is a lightweight, state-of-the-art large language model optimized for coding, agentic workflows, and modern application development.",
+        },
+        {
+          id: "proven-current-flagship",
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 130,
+          economic_footprint_score: 31.7,
+          adoption_score: 52.5,
+          capability_score: 69.4,
+          quality_score: 56.6,
+          popularity_score: 44.3,
+          release_date: "2026-02-19",
+          description:
+            "Updated Gemini 3.1 flagship model for complex reasoning, coding, and long-context multimodal work. Improves on Gemini 2.5 Pro with stronger state-of-the-art performance and broad availability across the Gemini API and Vertex AI.",
+        },
+      ],
+      2,
+      Date.parse("2026-04-17T12:00:00Z")
+    );
+
+    expect(ids[0]).toBe("proven-current-flagship");
+  });
+
   it("keeps specialized image and audio variants from crowding out mainstream top models", () => {
     const ids = selectHomepageTopModelIds(
       [
