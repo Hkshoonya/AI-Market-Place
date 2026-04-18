@@ -251,13 +251,9 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   },
 };
 
-export function resolveAnthropicKnownModelMeta(
-  modelId: string
-): KnownModelMeta | undefined {
-  const direct = ANTHROPIC_KNOWN_MODELS[modelId];
-  if (direct) return direct;
-
+export function canonicalizeAnthropicModelId(modelId: string): string {
   const candidates = new Set<string>([
+    modelId,
     modelId.replace(/-v\d+$/, ""),
     modelId.replace(/-\d{8}(?:-v\d+)?$/, ""),
     modelId.replace(/-(202\d{5})(?:-v\d+)?$/, ""),
@@ -282,9 +278,15 @@ export function resolveAnthropicKnownModelMeta(
 
   for (const candidate of candidates) {
     if (candidate && ANTHROPIC_KNOWN_MODELS[candidate]) {
-      return ANTHROPIC_KNOWN_MODELS[candidate];
+      return candidate;
     }
   }
 
-  return undefined;
+  return modelId;
+}
+
+export function resolveAnthropicKnownModelMeta(
+  modelId: string
+): KnownModelMeta | undefined {
+  return ANTHROPIC_KNOWN_MODELS[canonicalizeAnthropicModelId(modelId)];
 }

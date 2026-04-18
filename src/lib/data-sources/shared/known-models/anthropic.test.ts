@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveAnthropicKnownModelMeta } from "./anthropic";
+import {
+  canonicalizeAnthropicModelId,
+  resolveAnthropicKnownModelMeta,
+} from "./anthropic";
 
 describe("resolveAnthropicKnownModelMeta", () => {
   it("resolves Claude Opus 4.7 canonical and generic aliases to the latest release metadata", () => {
@@ -15,6 +18,13 @@ describe("resolveAnthropicKnownModelMeta", () => {
     });
     expect(genericAlias?.release_date).toBe("2026-04-16");
     expect(datedAlias?.release_date).toBe("2026-04-16");
+  });
+
+  it("canonicalizes generic Anthropic aliases to the flagship model id", () => {
+    expect(canonicalizeAnthropicModelId("claude-4-7")).toBe("claude-opus-4-7");
+    expect(canonicalizeAnthropicModelId("claude-opus-4-7-20260416-v1")).toBe(
+      "claude-opus-4-7"
+    );
   });
 
   it("inherits metadata for v1 aliases", () => {

@@ -173,12 +173,12 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-2.5-pro": {
     name: "Gemini 2.5 Pro",
     description:
-      "Google's most capable Gemini 2.5 model with a 1 million token context window and deep thinking mode. Achieves top performance on coding, math, and science benchmarks.",
+      "Google's most capable Gemini 2.5 model with a 1 million token context window and deep thinking mode. Google lists it on the Gemini API deprecations schedule with Gemini 3 Pro as the recommended replacement.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2025-03-25",
     architecture: "Transformer",
-    status: "active",
+    status: "deprecated",
     modalities: ["text", "image", "audio", "video"],
     capabilities: {
       reasoning: true,
@@ -197,12 +197,12 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-2.5-flash": {
     name: "Gemini 2.5 Flash",
     description:
-      "Efficient Gemini 2.5 model combining fast inference with a 1 million token context. Features thinking mode for improved accuracy on complex tasks at lower cost than Pro.",
+      "Efficient Gemini 2.5 model combining fast inference with a 1 million token context. Google lists this stable Gemini 2.5 Flash model on the Gemini API deprecations schedule with shutdown no earlier than June 2026.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2025-05-20",
     architecture: "Transformer",
-    status: "active",
+    status: "deprecated",
     modalities: ["text", "image", "audio", "video"],
     capabilities: {
       reasoning: true,
@@ -221,12 +221,12 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-2.5-flash-lite": {
     name: "Gemini 2.5 Flash Lite",
     description:
-      "Lower-cost Gemini 2.5 Flash variant for high-throughput production use with lighter reasoning and multimodal capability.",
+      "Lower-cost Gemini 2.5 Flash variant for high-throughput production use with lighter reasoning and multimodal capability. Google lists it on the Gemini API deprecations schedule with shutdown no earlier than July 2026.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2025-05-20",
     architecture: "Transformer",
-    status: "active",
+    status: "deprecated",
     modalities: ["text", "image", "audio", "video"],
     capabilities: {
       coding: true,
@@ -241,12 +241,12 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gemini-2.5": {
     name: "Gemini 2.5",
     description:
-      "Google's Gemini 2.5 family for long-context multimodal reasoning, coding, and assistant workloads.",
+      "Google's Gemini 2.5 family for long-context multimodal reasoning, coding, and assistant workloads. The stable Gemini 2.5 line is on Google's deprecations schedule and is being superseded by the Gemini 3 generation.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2025-03-25",
     architecture: "Transformer",
-    status: "active",
+    status: "deprecated",
     modalities: ["text", "image", "audio", "video"],
     capabilities: {
       reasoning: true,

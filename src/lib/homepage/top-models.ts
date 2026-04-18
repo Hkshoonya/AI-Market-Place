@@ -7,6 +7,8 @@ interface HomepageTopModelCandidate {
   name?: string | null;
   provider?: string | null;
   category?: string | null;
+  short_description?: string | null;
+  description?: string | null;
   overall_rank?: number | null;
   capability_score?: number | null;
   adoption_score?: number | null;
@@ -55,12 +57,13 @@ function releaseFreshnessSignal(
   const ageDays = releaseAgeDays(releaseDate, now);
   if (ageDays == null) return 40;
 
-  if (ageDays <= 90) return 100;
-  if (ageDays <= 180) return 90;
-  if (ageDays <= 270) return 74;
-  if (ageDays <= 365) return 58;
-  if (ageDays <= 540) return 35;
-  return 16;
+  if (ageDays <= 60) return 100;
+  if (ageDays <= 120) return 92;
+  if (ageDays <= 180) return 84;
+  if (ageDays <= 270) return 70;
+  if (ageDays <= 365) return 52;
+  if (ageDays <= 450) return 28;
+  return 10;
 }
 
 function releaseFreshnessMultiplier(
@@ -68,14 +71,15 @@ function releaseFreshnessMultiplier(
   now = Date.now()
 ): number {
   const ageDays = releaseAgeDays(releaseDate, now);
-  if (ageDays == null) return 0.75;
+  if (ageDays == null) return 0.68;
 
-  if (ageDays <= 90) return 1;
-  if (ageDays <= 180) return 0.9;
-  if (ageDays <= 270) return 0.76;
-  if (ageDays <= 365) return 0.58;
-  if (ageDays <= 540) return 0.38;
-  return 0.25;
+  if (ageDays <= 60) return 1;
+  if (ageDays <= 120) return 0.96;
+  if (ageDays <= 180) return 0.88;
+  if (ageDays <= 270) return 0.72;
+  if (ageDays <= 365) return 0.52;
+  if (ageDays <= 450) return 0.28;
+  return 0.14;
 }
 
 function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
@@ -86,6 +90,20 @@ function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
 function isEfficiencyTierModel(model: HomepageTopModelCandidate): boolean {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(flash|mini|nano|instant|lite)\b/.test(haystack);
+}
+
+function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): boolean {
+  const haystack = `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
+
+  return (
+    /\bdeprecated\b/.test(haystack) ||
+    /\blegacy\b/.test(haystack) ||
+    /\bsuperseded\b/.test(haystack) ||
+    /retained for compatibility/.test(haystack) ||
+    /recommended replacement/.test(haystack) ||
+    /previous full/.test(haystack) ||
+    /previous generation/.test(haystack)
+  );
 }
 
 function isSpecializedHomepageCandidate(model: HomepageTopModelCandidate): boolean {
@@ -137,6 +155,7 @@ function homepageCandidateMultiplier(
   now = Date.now()
 ): number {
   let multiplier = 1;
+  const ageDays = releaseAgeDays(model.release_date, now);
 
   if (isSpecializedHomepageCandidate(model)) {
     multiplier *= 0.78;
@@ -147,13 +166,20 @@ function homepageCandidateMultiplier(
   }
 
   if (isEfficiencyTierModel(model)) {
-    const ageDays = releaseAgeDays(model.release_date, now);
     multiplier *= ageDays == null || ageDays > 240 ? 0.72 : 0.84;
+  }
+
+  if (hasLifecycleWarningLanguage(model)) {
+    multiplier *= 0.45;
+  }
+
+  if (ageDays != null && ageDays > 365) {
+    multiplier *= 0.72;
   }
 
   const freshness = releaseFreshnessSignal(model.release_date, now);
   if (freshness < 45) {
-    multiplier *= 0.92;
+    multiplier *= 0.88;
   }
 
   return multiplier;
@@ -167,11 +193,11 @@ export function computeHomepageTopModelScore(
   const rawScore =
     numeric(model.capability_score) * 0.26 +
     numeric(model.quality_score) * 0.22 +
-    numeric(model.adoption_score) * 0.17 * freshnessMultiplier +
-    numeric(model.popularity_score) * 0.10 * freshnessMultiplier +
-    numeric(model.economic_footprint_score) * 0.09 * freshnessMultiplier +
-    rankSignal(model.overall_rank) * 0.08 +
-    releaseFreshnessSignal(model.release_date, now) * 0.08;
+    numeric(model.adoption_score) * 0.15 * freshnessMultiplier +
+    numeric(model.popularity_score) * 0.08 * freshnessMultiplier +
+    numeric(model.economic_footprint_score) * 0.08 * freshnessMultiplier +
+    rankSignal(model.overall_rank) * 0.04 +
+    releaseFreshnessSignal(model.release_date, now) * 0.12;
 
   return rawScore * homepageCandidateMultiplier(model, now);
 }

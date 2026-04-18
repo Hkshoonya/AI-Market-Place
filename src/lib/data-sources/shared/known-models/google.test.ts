@@ -27,6 +27,23 @@ describe("resolveGoogleKnownModelMeta", () => {
     });
   });
 
+  it("marks stable Gemini 2.5 rows as deprecated in favor of newer Gemini 3 releases", () => {
+    expect(resolveGoogleKnownModelMeta("gemini-2.5-pro")).toMatchObject({
+      name: "Gemini 2.5 Pro",
+      status: "deprecated",
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-2.5-flash")).toMatchObject({
+      name: "Gemini 2.5 Flash",
+      status: "deprecated",
+    });
+
+    expect(resolveGoogleKnownModelMeta("gemini-2.5-flash-lite")).toMatchObject({
+      name: "Gemini 2.5 Flash Lite",
+      status: "deprecated",
+    });
+  });
+
   it("returns exact Gemma 4 variant metadata when present", () => {
     const meta = resolveGoogleKnownModelMeta("gemma-4-31b-it");
 

@@ -20,6 +20,7 @@ import {
 } from "../shared/build-record";
 import {
   ANTHROPIC_KNOWN_MODELS,
+  canonicalizeAnthropicModelId,
   resolveAnthropicKnownModelMeta,
 } from "../shared/known-models/anthropic";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
@@ -50,10 +51,11 @@ function boundBuildRecord(
   modelId: string,
   overrides: Partial<KnownModelMeta> = {}
 ): Record<string, unknown> {
-  const releaseDate = parseReleaseDateFromModelId(modelId);
+  const canonicalModelId = canonicalizeAnthropicModelId(modelId);
+  const releaseDate = parseReleaseDateFromModelId(canonicalModelId);
   return buildRecord(
-    modelId,
-    resolveAnthropicKnownModelMeta(modelId),
+    canonicalModelId,
+    resolveAnthropicKnownModelMeta(canonicalModelId),
     {
       ...overrides,
       release_date: overrides.release_date ?? releaseDate,

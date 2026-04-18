@@ -167,6 +167,45 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("current-frontier-peer");
   });
 
+  it("penalizes previous-generation lifecycle rows when a fresher replacement is otherwise competitive", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "previous-generation-row",
+          slug: "openai-o1",
+          name: "o1",
+          provider: "OpenAI",
+          overall_rank: 8,
+          economic_footprint_score: 69.1,
+          adoption_score: 64.8,
+          capability_score: 77.2,
+          quality_score: 59.4,
+          popularity_score: 60.5,
+          release_date: "2024-12-17",
+          description: "Previous full o-series reasoning model for complex tasks.",
+        },
+        {
+          id: "current-replacement-row",
+          slug: "openai-o3",
+          name: "o3",
+          provider: "OpenAI",
+          overall_rank: 3,
+          economic_footprint_score: 70.3,
+          adoption_score: 73.2,
+          capability_score: 80.4,
+          quality_score: 63.5,
+          popularity_score: 56,
+          release_date: "2025-04-16",
+          description: "Current frontier reasoning model for complex tasks.",
+        },
+      ],
+      2,
+      now
+    );
+
+    expect(ids[0]).toBe("current-replacement-row");
+  });
+
   it("keeps specialized image and audio variants from crowding out mainstream top models", () => {
     const ids = selectHomepageTopModelIds(
       [
