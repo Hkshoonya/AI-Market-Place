@@ -3,6 +3,8 @@ export interface UpgradeHighlightSource {
   short_description?: string | null;
 }
 
+export type UpgradeHighlightKind = "upgrade" | "lifecycle";
+
 function splitIntoSentences(summary: string) {
   return summary
     .split(/(?<=[.!?])\s+/)
@@ -10,7 +12,10 @@ function splitIntoSentences(summary: string) {
     .filter(Boolean);
 }
 
-export function getModelUpgradeHighlight(model: UpgradeHighlightSource) {
+function matchUpgradeHighlight(model: UpgradeHighlightSource): {
+  kind: UpgradeHighlightKind;
+  text: string;
+} | null {
   const summary = model.short_description ?? model.description;
   if (!summary) return null;
 
@@ -21,15 +26,35 @@ export function getModelUpgradeHighlight(model: UpgradeHighlightSource) {
     )
   );
   if (exactUpgradeSentence) {
-    return exactUpgradeSentence;
+    return {
+      kind: /(previous flagship|previous full|recommended replacement|superseded by)/i.test(
+        exactUpgradeSentence
+      )
+        ? "lifecycle"
+        : "upgrade",
+      text: exactUpgradeSentence,
+    };
   }
 
   const broadLifecycleSentence = sentences.find((sentence) =>
     /\b(latest|flagship|most capable|state-of-the-art|stronger)\b/i.test(sentence)
   );
   if (broadLifecycleSentence) {
-    return broadLifecycleSentence;
+    return {
+      kind: "upgrade",
+      text: broadLifecycleSentence,
+    };
   }
 
   return null;
+}
+
+export function getModelUpgradeHighlight(model: UpgradeHighlightSource) {
+  return matchUpgradeHighlight(model)?.text ?? null;
+}
+
+export function getModelUpgradeHighlightKind(
+  model: UpgradeHighlightSource
+): UpgradeHighlightKind | null {
+  return matchUpgradeHighlight(model)?.kind ?? null;
 }

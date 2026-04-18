@@ -24,6 +24,7 @@ import { CommentsSection } from "@/components/models/comments-section";
 import { SimilarModels } from "@/components/models/similar-models";
 import { DeployTab } from "@/components/models/deploy-tab";
 import { ModelOverview } from "@/components/models/model-overview";
+import { ModelUpgradeNote } from "@/components/models/model-upgrade-note";
 import { ModelViewTracker } from "@/components/models/model-view-tracker";
 import { ModelHeader } from "./_components/model-header";
 import { ModelStatsRow } from "./_components/model-stats-row";
@@ -398,6 +399,8 @@ export default async function ModelDetailPage({
         deployActionSponsored={deployStartPlan?.sponsored ?? false}
         deployActionWorkspace={deployStartPlan?.workspace ?? null}
       />
+
+      <ModelUpgradeNote model={model} />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
         <Card className="mt-4 border-border/50 bg-card/60">

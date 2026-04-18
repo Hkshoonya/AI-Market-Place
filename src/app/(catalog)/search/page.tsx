@@ -22,6 +22,7 @@ import { pickBestModelSignals, type ModelSignalSummary } from "@/lib/news/model-
 import { ModelSignalBadge } from "@/components/models/model-signal-badge";
 import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-badge";
 import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
+import { ModelUpgradeNote } from "@/components/models/model-upgrade-note";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { rankModelsForSearch } from "@/lib/models/search-ranking";
 import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
@@ -567,6 +568,7 @@ export default async function SearchPage({
                                 {displayDescription}
                               </p>
                             ) : null}
+                            <ModelUpgradeNote model={model} compact />
                             {selfHostRequirementLabel ? (
                               <p className="mt-1 text-[11px] text-amber-200">
                                 {selfHostRequirementLabel}
