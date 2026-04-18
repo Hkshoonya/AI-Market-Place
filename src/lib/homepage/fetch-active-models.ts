@@ -6,6 +6,8 @@ export const HOMEPAGE_ACTIVE_MODELS_SELECT = [
   "name",
   "provider",
   "category",
+  "status",
+  "is_api_available",
   "overall_rank",
   "quality_score",
   "capability_score",

@@ -20,6 +20,8 @@ import {
 } from "../../pipeline-health-compute";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
+import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
+import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
 import {
   buildContentQualityMetrics,
   countStaleSellerListings,
@@ -182,6 +184,10 @@ export function isStripePaymentsIssueResolved(input: StripePaymentsHealth): bool
     input.webhookDelivery.status !== "degraded" &&
     input.webhookDelivery.tableAvailable !== false
   );
+}
+
+export function isHomepageRankingIssueResolved(input: { healthy: boolean }): boolean {
+  return input.healthy;
 }
 
 async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> {
@@ -403,6 +409,9 @@ const verifier: ResidentAgent = {
           }
         | null = null;
       let stripePaymentsHealth: StripePaymentsHealth | null = null;
+      let homepageRankingHealth:
+        | ReturnType<typeof computeHomepageRankingHealth>
+        | null = null;
       let crawlSurfaceHealth:
         | {
             healthy: boolean;
@@ -843,6 +852,43 @@ const verifier: ResidentAgent = {
                   issueType: issue.issue_type,
                   reason: "Stripe payment configuration or webhook delivery health still requires attention",
                   ...stripePaymentsHealth,
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "homepage_ranking_health") {
+            homepageRankingHealth ??= await (async () => {
+              const homepageModels = (await fetchAllHomepageActiveModels(
+                sb as never
+              )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
+              return computeHomepageRankingHealth(homepageModels);
+            })();
+            const resolved = isHomepageRankingIssueResolved(homepageRankingHealth);
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                reason:
+                  "homepage shortlist includes current leadership candidates and no longer surfaces superseded rows",
+                ...homepageRankingHealth,
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  reason:
+                    "homepage shortlist is still missing current leadership rows or still surfaces superseded lifecycle rows",
+                  ...homepageRankingHealth,
                 },
                 maxVerificationRetries
               );

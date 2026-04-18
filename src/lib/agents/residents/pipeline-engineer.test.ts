@@ -119,6 +119,66 @@ vi.mock("../../payments/stripe-health", () => ({
   })),
 }));
 
+vi.mock("../../homepage/fetch-active-models", () => ({
+  fetchAllHomepageActiveModels: vi.fn(async () => [
+    {
+      id: "previous-opus",
+      slug: "anthropic-claude-opus-4-6",
+      name: "Claude Opus 4.6",
+      provider: "Anthropic",
+      category: "multimodal",
+      release_date: "2025-12-12",
+      description:
+        "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch.",
+      overall_rank: 14,
+      quality_score: 60.3,
+      capability_score: 80.2,
+      adoption_score: 55.4,
+      economic_footprint_score: 53.6,
+      popularity_score: 47.8,
+    },
+  ]),
+}));
+
+vi.mock("../../homepage/ranking-health", () => ({
+  computeHomepageRankingHealth: vi.fn(() => ({
+    healthy: false,
+    shortlistCount: 1,
+    shortlist: [
+      {
+        id: "previous-opus",
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        provider: "Anthropic",
+        releaseDate: "2025-12-12",
+        score: 27.99,
+      },
+    ],
+    missingRecentLeadership: [
+      {
+        id: "new-opus",
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        releaseDate: "2026-04-16",
+        score: 62.78,
+      },
+    ],
+    lifecycleRowsInShortlist: [
+      {
+        id: "previous-opus",
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        provider: "Anthropic",
+        releaseDate: "2025-12-12",
+        score: 27.99,
+      },
+    ],
+    previewRowsInShortlist: [],
+    staleRowsInShortlist: [],
+  })),
+}));
+
 vi.mock("../ledger", () => ({
   recordAgentIssue: vi.fn(async () => undefined),
   recordAgentIssueFailure: vi.fn(async () => undefined),
@@ -275,6 +335,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "payments_webhook_health",
         source: "stripe",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "homepage_ranking_health",
+        source: "homepage-top-models",
       })
     );
   });

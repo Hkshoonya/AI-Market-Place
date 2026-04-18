@@ -18,6 +18,8 @@ import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
+import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
+import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
 import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import { getStripePaymentsHealth } from "../../payments/stripe-health";
@@ -448,6 +450,47 @@ const pipelineEngineer: ResidentAgent = {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`Failed to compute Stripe payment health: ${message}`);
         await log.error(`Stripe payment health check failed: ${message}`);
+      }
+
+      // Step 4g: Track homepage ranking drift so fresh current flagships do not quietly disappear.
+      try {
+        const homepageModels = (await fetchAllHomepageActiveModels(
+          sb as never
+        )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
+        const homepageRankingHealth = computeHomepageRankingHealth(homepageModels);
+        output.homepageRanking = homepageRankingHealth;
+        const homepageRankingIssueSlug = "pipeline-homepage-ranking-health";
+        const homepageRankingIssueOpen = !homepageRankingHealth.healthy;
+
+        if (homepageRankingIssueOpen) {
+          await recordAgentIssue(sb, {
+            slug: homepageRankingIssueSlug,
+            title: "Homepage ranking drift detected",
+            issueType: "homepage_ranking_health",
+            source: "homepage-top-models",
+            severity:
+              homepageRankingHealth.missingRecentLeadership.length > 0
+                ? "critical"
+                : "high",
+            confidence: 0.96,
+            detectedBy: "pipeline-engineer",
+            playbook: "repair_homepage_ranking",
+            evidence: {
+              ...homepageRankingHealth,
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, homepageRankingIssueSlug, {
+            verifier: "pipeline-engineer",
+            reason:
+              "homepage shortlist does not contain superseded rows and includes current leadership candidates",
+            ...homepageRankingHealth,
+          }).catch(() => {});
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to compute homepage ranking health: ${message}`);
+        await log.error(`Homepage ranking health check failed: ${message}`);
       }
 
       // Step 5: Attempt repair of failed sources

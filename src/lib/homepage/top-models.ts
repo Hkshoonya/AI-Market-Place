@@ -1,7 +1,7 @@
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
-interface HomepageTopModelCandidate {
+export interface HomepageTopModelCandidate {
   id: string;
   slug?: string | null;
   name?: string | null;
@@ -38,7 +38,7 @@ function rankSignal(overallRank: number | null | undefined): number {
   return 101 - boundedRank;
 }
 
-function releaseAgeDays(
+export function releaseAgeDays(
   releaseDate: string | null | undefined,
   now = Date.now()
 ): number | null {
@@ -82,17 +82,17 @@ function releaseFreshnessMultiplier(
   return 0.14;
 }
 
-function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
+export function isPreviewLikeModel(model: HomepageTopModelCandidate): boolean {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(preview|beta|experimental|alpha|test)\b/.test(haystack);
 }
 
-function isEfficiencyTierModel(model: HomepageTopModelCandidate): boolean {
+export function isEfficiencyTierModel(model: HomepageTopModelCandidate): boolean {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(flash|mini|nano|instant|lite)\b/.test(haystack);
 }
 
-function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): boolean {
+export function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): boolean {
   const haystack = `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
 
   return (
@@ -138,7 +138,7 @@ function hasRecentLeadershipReadinessSignals(model: HomepageTopModelCandidate): 
   );
 }
 
-function isRecentLeadershipHomepageCandidate(
+export function isRecentLeadershipHomepageCandidate(
   model: HomepageTopModelCandidate,
   now = Date.now()
 ): boolean {

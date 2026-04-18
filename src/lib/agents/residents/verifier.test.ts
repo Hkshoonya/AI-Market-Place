@@ -5,6 +5,7 @@ import {
   isBenchmarkCoverageIssueResolved,
   isBenchmarkSourceIssueResolved,
   isCrawlerSurfaceIssueResolved,
+  isHomepageRankingIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
   isStripePaymentsIssueResolved,
@@ -356,5 +357,12 @@ describe("isStripePaymentsIssueResolved", () => {
         },
       })
     ).toBe(false);
+  });
+});
+
+describe("isHomepageRankingIssueResolved", () => {
+  it("resolves only when homepage shortlist health is green", () => {
+    expect(isHomepageRankingIssueResolved({ healthy: true })).toBe(true);
+    expect(isHomepageRankingIssueResolved({ healthy: false })).toBe(false);
   });
 });
