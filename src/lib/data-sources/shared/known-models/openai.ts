@@ -309,7 +309,7 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   o1: {
     name: "o1",
     description:
-      "First-generation full o-series reasoning model. Uses extended internal chain-of-thought before responding, excelling at PhD-level science and math problems.",
+      "Previous full o-series reasoning model. Uses extended internal chain-of-thought before responding and remains strong at science and math, but later o3 and o4 releases are the newer frontier generation.",
     category: "llm",
     parameter_count: null,
     context_window: 200000,

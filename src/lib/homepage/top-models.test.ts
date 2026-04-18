@@ -206,6 +206,49 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("current-replacement-row");
   });
 
+  it("keeps a recent flagship upgrade ahead of the previous frontier release while benchmarks catch up", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "previous-flagship-row",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 14,
+          economic_footprint_score: 74.2,
+          adoption_score: 55.4,
+          capability_score: 80.2,
+          quality_score: 60.3,
+          popularity_score: 47.8,
+          release_date: "2025-12-12",
+          description:
+            "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch. Superseded by Opus 4.7 for Anthropic's latest top-end performance.",
+        },
+        {
+          id: "recent-flagship-upgrade",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 312,
+          economic_footprint_score: 0,
+          adoption_score: 61.6,
+          capability_score: 49.2,
+          quality_score: 44.8,
+          popularity_score: 39,
+          release_date: "2026-04-16",
+          description:
+            "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering, long-running task reliability, self-verification, and high-resolution vision while keeping the same pricing.",
+        },
+      ],
+      2,
+      Date.parse("2026-04-17T12:00:00Z")
+    );
+
+    expect(ids[0]).toBe("recent-flagship-upgrade");
+  });
+
   it("keeps specialized image and audio variants from crowding out mainstream top models", () => {
     const ids = selectHomepageTopModelIds(
       [

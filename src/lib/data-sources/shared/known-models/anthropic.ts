@@ -35,7 +35,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-opus-4-6": {
     name: "Claude Opus 4.6",
     description:
-      "Anthropic's most capable model with advanced reasoning, extended thinking, computer use, and top-tier coding abilities. Sets new benchmarks on complex agentic tasks.",
+      "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch. Still strong for advanced reasoning, extended thinking, computer use, and coding, but superseded by Opus 4.7 for Anthropic's latest top-end performance.",
     context_window: 200000,
     release_date: "2025-12-12",
     architecture: "Transformer",

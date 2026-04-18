@@ -122,6 +122,28 @@ function getRelativeDateLabel(value: string | null, now: number) {
   return `${monthsAgo} month${monthsAgo > 1 ? "s" : ""} ago`;
 }
 
+function getHomepageUpgradeHighlight(model: {
+  description?: string | null;
+  short_description?: string | null;
+}) {
+  const summary = model.short_description ?? model.description;
+  if (!summary) return null;
+
+  const normalized = summary.toLowerCase();
+  if (
+    /improves on/.test(normalized) ||
+    /\blatest\b/.test(normalized) ||
+    /\bstronger\b/.test(normalized) ||
+    /recommended replacement/.test(normalized) ||
+    /previous flagship/.test(normalized) ||
+    /previous full/.test(normalized)
+  ) {
+    return summary;
+  }
+
+  return null;
+}
+
 export default async function HomePage() {
   const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
   // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
@@ -505,6 +527,7 @@ export default async function HomePage() {
                   isOpenWeights: model.is_open_weights,
                   accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
                 });
+                const upgradeHighlight = getHomepageUpgradeHighlight(model);
 
                 return (
                   <tr
@@ -533,6 +556,11 @@ export default async function HomePage() {
                             <p className="text-xs text-muted-foreground line-clamp-1">
                               {model.provider}
                             </p>
+                            {upgradeHighlight ? (
+                              <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
+                                {upgradeHighlight}
+                              </p>
+                            ) : null}
                             <div className="mt-1 flex flex-wrap gap-1">
                               {deploymentLabel ? (
                                 <Badge

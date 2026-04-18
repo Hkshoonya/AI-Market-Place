@@ -106,6 +106,43 @@ function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): boolean 
   );
 }
 
+function hasLeadershipUpgradeLanguage(model: HomepageTopModelCandidate): boolean {
+  const haystack = `${model.name ?? ""} ${model.short_description ?? ""} ${
+    model.description ?? ""
+  }`.toLowerCase();
+
+  return (
+    /\blatest\b/.test(haystack) ||
+    /\bflagship\b/.test(haystack) ||
+    /\bmost capable\b/.test(haystack) ||
+    /\bstate-of-the-art\b/.test(haystack) ||
+    /improves on/.test(haystack) ||
+    /stronger than prior/.test(haystack) ||
+    /broad availability/.test(haystack)
+  );
+}
+
+function isRecentLeadershipHomepageCandidate(
+  model: HomepageTopModelCandidate,
+  now = Date.now()
+): boolean {
+  if (!isPrimaryHomepageCategory(model)) return false;
+  if (isSpecializedHomepageCandidate(model)) return false;
+  if (isPreviewLikeModel(model) || isEfficiencyTierModel(model)) return false;
+  if (hasLifecycleWarningLanguage(model)) return false;
+  if (!hasLeadershipUpgradeLanguage(model)) return false;
+
+  const ageDays = releaseAgeDays(model.release_date, now);
+  if (ageDays == null || ageDays > 120) return false;
+
+  const capability = numeric(model.capability_score);
+  const quality = numeric(model.quality_score);
+
+  if (capability < 44 && quality < 44) return false;
+
+  return hasMeaningfulHomepageTraction(model);
+}
+
 function isSpecializedHomepageCandidate(model: HomepageTopModelCandidate): boolean {
   const category = (model.category ?? "").toLowerCase();
   if (["image_generation", "video_generation", "speech_audio", "embeddings"].includes(category)) {
@@ -123,6 +160,14 @@ function isPrimaryHomepageCategory(model: HomepageTopModelCandidate): boolean {
 function hasStrongHomepageCoreScores(model: HomepageTopModelCandidate): boolean {
   const capability = numeric(model.capability_score);
   const quality = numeric(model.quality_score);
+
+  if (
+    isRecentLeadershipHomepageCandidate(model) &&
+    capability >= 44 &&
+    quality >= 44
+  ) {
+    return true;
+  }
 
   if (capability >= 84 || quality >= 84) return true;
   if (capability >= 80 && quality >= 66) return true;
@@ -142,12 +187,15 @@ function hasMeaningfulHomepageTraction(model: HomepageTopModelCandidate): boolea
 }
 
 export function isHighConfidenceHomepageTopModelCandidate(
-  model: HomepageTopModelCandidate
+  model: HomepageTopModelCandidate,
+  now = Date.now()
 ): boolean {
   if (!isPrimaryHomepageCategory(model)) return false;
   if (isSpecializedHomepageCandidate(model)) return false;
 
-  return hasStrongHomepageCoreScores(model) && hasMeaningfulHomepageTraction(model);
+  return (
+    hasStrongHomepageCoreScores(model) || isRecentLeadershipHomepageCandidate(model, now)
+  ) && hasMeaningfulHomepageTraction(model);
 }
 
 function homepageCandidateMultiplier(
@@ -173,13 +221,19 @@ function homepageCandidateMultiplier(
     multiplier *= 0.45;
   }
 
-  if (ageDays != null && ageDays > 365) {
+  if (isRecentLeadershipHomepageCandidate(model, now)) {
+    multiplier *= 1.24;
+  }
+
+  if (ageDays != null && ageDays > 450) {
+    multiplier *= 0.52;
+  } else if (ageDays != null && ageDays > 365) {
     multiplier *= 0.72;
   }
 
   const freshness = releaseFreshnessSignal(model.release_date, now);
   if (freshness < 45) {
-    multiplier *= 0.88;
+    multiplier *= 0.82;
   }
 
   return multiplier;
@@ -191,12 +245,12 @@ export function computeHomepageTopModelScore(
 ): number {
   const freshnessMultiplier = releaseFreshnessMultiplier(model.release_date, now);
   const rawScore =
-    numeric(model.capability_score) * 0.26 +
-    numeric(model.quality_score) * 0.22 +
-    numeric(model.adoption_score) * 0.15 * freshnessMultiplier +
-    numeric(model.popularity_score) * 0.08 * freshnessMultiplier +
-    numeric(model.economic_footprint_score) * 0.08 * freshnessMultiplier +
-    rankSignal(model.overall_rank) * 0.04 +
+    numeric(model.capability_score) * 0.28 +
+    numeric(model.quality_score) * 0.24 +
+    numeric(model.adoption_score) * 0.13 * freshnessMultiplier +
+    numeric(model.popularity_score) * 0.07 * freshnessMultiplier +
+    numeric(model.economic_footprint_score) * 0.07 * freshnessMultiplier +
+    rankSignal(model.overall_rank) * 0.03 +
     releaseFreshnessSignal(model.release_date, now) * 0.12;
 
   return rawScore * homepageCandidateMultiplier(model, now);
@@ -242,7 +296,7 @@ export function selectHomepageTopModelIds<
   });
 
   const highConfidenceCandidates = rankedCandidates.filter((model) =>
-    isHighConfidenceHomepageTopModelCandidate(model)
+    isHighConfidenceHomepageTopModelCandidate(model, now)
   );
   const compareCandidates = (left: T, right: T) => {
     const scoreDelta =

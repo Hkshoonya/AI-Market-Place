@@ -151,6 +151,8 @@ export const HomeTopModelSchema = ModelBaseSchema.pick({
   name: true,
   provider: true,
   category: true,
+  description: true,
+  short_description: true,
   overall_rank: true,
   quality_score: true,
   economic_footprint_score: true,

@@ -164,6 +164,8 @@ describe("Query-specific pick schemas", () => {
       name: validModel.name,
       provider: validModel.provider,
       category: validModel.category,
+      description: validModel.description,
+      short_description: validModel.short_description,
       overall_rank: validModel.overall_rank,
       quality_score: validModel.quality_score,
       economic_footprint_score: validModel.economic_footprint_score,
