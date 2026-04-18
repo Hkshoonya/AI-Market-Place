@@ -130,7 +130,10 @@ export default async function HomePage() {
   const allActiveModels = supabase
     ? await fetchAllHomepageActiveModels(
         supabase as unknown as Parameters<typeof fetchAllHomepageActiveModels>[0]
-      )
+      ).catch((error) => {
+        console.warn("homepage active models query failed", error);
+        return [];
+      })
     : [];
 
   const [
