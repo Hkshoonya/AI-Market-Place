@@ -33,6 +33,7 @@ import { countMarketValueEvidence } from "@/lib/models/market-value";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { getParameterDisplay } from "@/lib/models/presentation";
+import { getModelUpgradeHighlight } from "@/lib/models/upgrade-highlights";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import {
   buildAccessOffersCatalog,
@@ -120,28 +121,6 @@ function getRelativeDateLabel(value: string | null, now: number) {
 
   const monthsAgo = Math.floor(daysAgo / 30);
   return `${monthsAgo} month${monthsAgo > 1 ? "s" : ""} ago`;
-}
-
-function getHomepageUpgradeHighlight(model: {
-  description?: string | null;
-  short_description?: string | null;
-}) {
-  const summary = model.short_description ?? model.description;
-  if (!summary) return null;
-
-  const normalized = summary.toLowerCase();
-  if (
-    /improves on/.test(normalized) ||
-    /\blatest\b/.test(normalized) ||
-    /\bstronger\b/.test(normalized) ||
-    /recommended replacement/.test(normalized) ||
-    /previous flagship/.test(normalized) ||
-    /previous full/.test(normalized)
-  ) {
-    return summary;
-  }
-
-  return null;
 }
 
 export default async function HomePage() {
@@ -527,7 +506,7 @@ export default async function HomePage() {
                   isOpenWeights: model.is_open_weights,
                   accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
                 });
-                const upgradeHighlight = getHomepageUpgradeHighlight(model);
+                const upgradeHighlight = getModelUpgradeHighlight(model);
 
                 return (
                   <tr
@@ -752,6 +731,7 @@ export default async function HomePage() {
               isOpenWeights: model.is_open_weights,
               accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
             });
+            const upgradeHighlight = getModelUpgradeHighlight(model);
 
             return (
               <Link key={model.id} href={`/models/${model.slug}`}>
@@ -777,6 +757,11 @@ export default async function HomePage() {
                         {model.provider}
                       </p>
                     </div>
+                    {upgradeHighlight ? (
+                      <p className="mt-2 text-[11px] leading-5 text-muted-foreground line-clamp-3">
+                        {upgradeHighlight}
+                      </p>
+                    ) : null}
                     <div className="mt-3 flex items-center justify-between">
                       {catConfig && (
                         <Badge

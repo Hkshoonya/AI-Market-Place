@@ -13,6 +13,8 @@ export interface HomepageLaunchModel {
   name: string;
   provider: string;
   category?: string | null;
+  description?: string | null;
+  short_description?: string | null;
   is_open_weights?: boolean | null;
   overall_rank?: number | null;
   release_date?: string | null;
