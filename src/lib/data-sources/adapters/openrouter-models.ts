@@ -21,9 +21,11 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { resolveAnthropicKnownModelMeta } from "../shared/known-models/anthropic";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
 import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
 import { resolveMoonshotKnownModelMeta } from "../shared/known-models/moonshot";
+import { resolveOpenAIKnownModelMeta } from "../shared/known-models/openai";
 import { XAI_KNOWN_MODELS } from "../shared/known-models/xai";
 import { resolveZAIKnownModelMeta } from "../shared/known-models/zai";
 
@@ -118,6 +120,8 @@ interface OpenRouterModelsResponse {
 
 function resolveCuratedKnownMeta(id: string) {
   const [providerPrefix, modelPart = ""] = id.split("/");
+  if (providerPrefix === "anthropic") return resolveAnthropicKnownModelMeta(modelPart);
+  if (providerPrefix === "openai") return resolveOpenAIKnownModelMeta(modelPart);
   if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
   if (providerPrefix === "minimax") return resolveMiniMaxKnownModelMeta(modelPart);
   if (providerPrefix === "moonshotai" || providerPrefix === "moonshot" || providerPrefix === "kimi") {
@@ -126,6 +130,31 @@ function resolveCuratedKnownMeta(id: string) {
   if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
   if (providerPrefix === "z-ai") return resolveZAIKnownModelMeta(modelPart);
   return undefined;
+}
+
+function resolveProviderCategoryDefaults(id: string) {
+  const [providerPrefix] = id.split("/");
+
+  if (providerPrefix === "anthropic") {
+    return {
+      category: "multimodal",
+      modalities: ["text", "image"],
+    } as const;
+  }
+
+  return null;
+}
+
+function inferCategoryFromOpenRouterModel(model: OpenRouterModelEntry) {
+  const descriptionCategory = inferCategory({
+    mode: "description",
+    description: model.description ?? "",
+  });
+  if (descriptionCategory !== "specialized") {
+    return descriptionCategory;
+  }
+
+  return inferCategory({ mode: "arch", arch: model.architecture ?? {} });
 }
 
 // --------------- Helper Functions ---------------
@@ -253,12 +282,16 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
   const licenseName = inferOpenLicenseName(model.id, model.description) ?? (isOpen ? "Open weights" : null);
   const license = isOpen ? "open_source" : "commercial";
   const knownMeta = resolveCuratedKnownMeta(model.id);
+  const providerDefaults = resolveProviderCategoryDefaults(model.id);
 
   return {
     slug: makeSlug(model.id),
     name: knownMeta?.name ?? extractModelName(model.name, model.id),
     provider: extractProvider(model.id),
-    category: knownMeta?.category ?? inferCategory({ mode: "arch", arch }),
+    category:
+      knownMeta?.category ??
+      providerDefaults?.category ??
+      inferCategoryFromOpenRouterModel(model),
     status: "active",
     description: knownMeta?.description ?? model.description ?? null,
     context_window:
@@ -273,7 +306,7 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     license_name: "license_name" in (knownMeta ?? {}) ? (knownMeta?.license_name ?? null) : (isOpen ? licenseName : null),
     hf_model_id: knownMeta?.hf_model_id ?? null,
     website_url: knownMeta?.website_url ?? null,
-    modalities: knownMeta?.modalities ?? mergeModalities(arch),
+    modalities: knownMeta?.modalities ?? providerDefaults?.modalities ?? mergeModalities(arch),
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),
   };

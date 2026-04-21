@@ -33,6 +33,23 @@ describe("openrouter model record mapping", () => {
     expect(record.provider).toBe("OpenAI");
   });
 
+  it("uses curated OpenAI metadata for dated GPT-5.4 releases", () => {
+    const record = __testables.buildModelRecord({
+      id: "openai/gpt-5.4-2026-03-05",
+      name: "OpenAI: GPT-5.4",
+      description: "Generic router description",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record.name).toBe("GPT-5.4");
+    expect(record.category).toBe("llm");
+    expect(record.release_date).toBe("2026-03-05");
+    expect(record.description).toContain("latest GPT-5 generation");
+  });
+
   it("keeps proprietary OpenAI models marked as closed-weight", () => {
     const record = __testables.buildModelRecord({
       id: "openai/gpt-4.1",
@@ -112,6 +129,22 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(false);
     expect(record.license).toBe("commercial");
     expect(record.license_name).toBeNull();
+  });
+
+  it("uses Anthropic provider defaults and curated metadata for Claude 4.7", () => {
+    const record = __testables.buildModelRecord({
+      id: "anthropic/claude-opus-4-7",
+      name: "Anthropic: claude-opus-4.7",
+      description: "Generic router description for Claude 4.7",
+      architecture: {},
+    });
+
+    expect(record.name).toBe("Claude Opus 4.7");
+    expect(record.category).toBe("multimodal");
+    expect(record.modalities).toEqual(["text", "image"]);
+    expect(record.release_date).toBe("2026-04-16");
+    expect(record.description).toContain("Improves on Opus 4.6");
+    expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-7");
   });
 
   it("canonicalizes Z.ai router prefixes", () => {
