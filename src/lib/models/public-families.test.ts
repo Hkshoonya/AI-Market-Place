@@ -497,6 +497,50 @@ describe("public model family dedupe", () => {
     expect(deduped[0]?.slug).toBe("google-gemini-3-1-pro");
   });
 
+  it("still prefers the standard release when the preview sibling has stronger launch language", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "gemini-flash-image",
+        slug: "google-gemini-3-1-flash-image",
+        name: "Gemini 3.1 Flash Image",
+        provider: "Google",
+        category: "image_generation",
+        overall_rank: 150,
+        quality_score: 29.7,
+        capability_score: 65.8,
+        adoption_score: 52.5,
+        popularity_score: 37.7,
+        economic_footprint_score: 24.6,
+        is_api_available: true,
+        release_date: "2026-02-26",
+        description:
+          "Gemini 3.1 image-focused model for prompt-following image generation and faster advanced editing.",
+        hf_downloads: 0,
+      },
+      {
+        id: "gemini-flash-image-preview",
+        slug: "google-gemini-3-1-flash-image-preview",
+        name: "Nano Banana 2 (Gemini 3.1 Flash Image Preview)",
+        provider: "Google",
+        category: "image_generation",
+        overall_rank: 739,
+        quality_score: 20,
+        capability_score: 0,
+        adoption_score: 57.5,
+        popularity_score: 39.2,
+        economic_footprint_score: 20,
+        is_api_available: true,
+        release_date: "2026-02-26",
+        description:
+          "Gemini 3.1 Flash Image Preview is Google's latest state of the art image generation and editing model.",
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("google-gemini-3-1-flash-image");
+  });
+
   it("prefers the canonical DeepSeek family representative over alias and snapshot variants", () => {
     const deduped = dedupePublicModelFamilies([
       {

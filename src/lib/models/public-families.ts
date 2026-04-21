@@ -317,12 +317,12 @@ function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, r
     }
   }
 
-  if (leftRecentLeadership !== rightRecentLeadership) {
-    return leftRecentLeadership ? -1 : 1;
-  }
-
   if (leftPreview !== rightPreview) {
     return leftPreview ? 1 : -1;
+  }
+
+  if (leftRecentLeadership !== rightRecentLeadership) {
+    return leftRecentLeadership ? -1 : 1;
   }
 
   if (leftGeneralPurpose !== rightGeneralPurpose) {
