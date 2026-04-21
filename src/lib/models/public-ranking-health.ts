@@ -1,4 +1,5 @@
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 import {
@@ -31,6 +32,7 @@ export interface PublicRankingHealthSummaryRow {
   overallRank: number | null;
   confidenceScore: number;
   confidenceTier: ReturnType<typeof getPublicRankingConfidenceTier>;
+  benchmarkCount: number;
 }
 
 export interface PublicRankingHealth {
@@ -41,6 +43,7 @@ export interface PublicRankingHealth {
   lifecycleRowsInPool: PublicRankingHealthSummaryRow[];
   previewRowsInPool: PublicRankingHealthSummaryRow[];
   staleRowsInPool: PublicRankingHealthSummaryRow[];
+  undercoveredRecentLeadership: PublicRankingHealthSummaryRow[];
 }
 
 function summarizeRow(model: PublicRankingHealthModel): PublicRankingHealthSummaryRow {
@@ -53,6 +56,7 @@ function summarizeRow(model: PublicRankingHealthModel): PublicRankingHealthSumma
     overallRank: model.overall_rank ?? null,
     confidenceScore: Number(computePublicRankingConfidenceScore(model).toFixed(2)),
     confidenceTier: getPublicRankingConfidenceTier(model),
+    benchmarkCount: countTrustedStructuredBenchmarkScores(model.benchmark_scores),
   };
 }
 
@@ -96,18 +100,30 @@ export function computePublicRankingHealth(
     .filter((model) => !isFreshCurrentPublicRankingCandidate(model))
     .filter((model) => (releaseAgeDays(model.release_date) ?? 0) > 450)
     .map((model) => summarizeRow(model));
+  const undercoveredRecentLeadership = deduped
+    .filter((model) => isRecentLeadershipPublicRankingCandidate(model))
+    .filter((model) => countTrustedStructuredBenchmarkScores(model.benchmark_scores) < 4)
+    .sort(
+      (left, right) =>
+        (releaseAgeDays(left.release_date) ?? Number.POSITIVE_INFINITY) -
+        (releaseAgeDays(right.release_date) ?? Number.POSITIVE_INFINITY)
+    )
+    .slice(0, 10)
+    .map((model) => summarizeRow(model));
 
   return {
     healthy:
       missingRecentLeadership.length === 0 &&
       lifecycleRowsInPool.length === 0 &&
       previewRowsInPool.length === 0 &&
-      staleRowsInPool.length === 0,
+      staleRowsInPool.length === 0 &&
+      undercoveredRecentLeadership.length === 0,
     poolCount: pool.length,
     pool: pool.map((model) => summarizeRow(model)),
     missingRecentLeadership,
     lifecycleRowsInPool,
     previewRowsInPool,
     staleRowsInPool,
+    undercoveredRecentLeadership,
   };
 }

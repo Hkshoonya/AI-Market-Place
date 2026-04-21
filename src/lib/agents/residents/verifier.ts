@@ -920,7 +920,7 @@ const verifier: ResidentAgent = {
                 verifier: "verifier",
                 issueType: issue.issue_type,
                 reason:
-                  "public ranking pool includes current leadership rows and no longer surfaces superseded lifecycle rows",
+                  "public ranking pool includes current leadership rows, no longer surfaces superseded lifecycle rows, and recent flagship rows have adequate benchmark coverage",
                 ...publicRankingHealth,
               });
               (output.resolved as string[]).push(issue.slug);
@@ -932,7 +932,7 @@ const verifier: ResidentAgent = {
                   verifier: "verifier",
                   issueType: issue.issue_type,
                   reason:
-                    "public ranking pool is still missing current leadership rows or still surfaces superseded lifecycle rows",
+                    "public ranking pool is still missing current leadership rows, still surfaces superseded lifecycle rows, or still leaves recent flagship rows benchmark-undercovered",
                   ...publicRankingHealth,
                 },
                 maxVerificationRetries

@@ -553,7 +553,9 @@ const pipelineEngineer: ResidentAgent = {
             severity:
               publicRankingHealth.missingRecentLeadership.length > 0
                 ? "critical"
-                : "high",
+                : publicRankingHealth.undercoveredRecentLeadership.length > 0
+                  ? "high"
+                  : "high",
             confidence: 0.95,
             detectedBy: "pipeline-engineer",
             playbook: "repair_public_rankings",
@@ -565,7 +567,7 @@ const pipelineEngineer: ResidentAgent = {
           await resolveAgentIssue(sb, publicRankingIssueSlug, {
             verifier: "pipeline-engineer",
             reason:
-              "public ranking pool does not contain superseded rows and still includes current leadership candidates",
+              "public ranking pool does not contain superseded rows, includes current leadership candidates, and recent flagship rows have adequate benchmark coverage",
             ...publicRankingHealth,
           }).catch(() => {});
         }

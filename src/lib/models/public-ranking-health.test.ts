@@ -61,7 +61,12 @@ describe("computePublicRankingHealth", () => {
         adoption_score: 66,
         popularity_score: 70,
         economic_footprint_score: 61,
-        benchmark_scores: [{ source: "livebench" }],
+        benchmark_scores: [
+          { source: "livebench" },
+          { source: "terminal-bench" },
+          { source: "aider" },
+          { source: "webarena" },
+        ],
         description:
           "Updated Gemini 3.1 flagship model that improves on Gemini 2.5 Pro with stronger state-of-the-art performance and broad availability.",
       },
@@ -78,7 +83,12 @@ describe("computePublicRankingHealth", () => {
         adoption_score: 72,
         popularity_score: 74,
         economic_footprint_score: 68,
-        benchmark_scores: [{ source: "artificial-analysis" }],
+        benchmark_scores: [
+          { source: "artificial-analysis" },
+          { source: "terminal-bench" },
+          { source: "aider" },
+          { source: "tau-bench" },
+        ],
         description:
           "OpenAI's latest flagship model for reasoning, coding, and long-context agent workflows.",
       },
@@ -171,5 +181,64 @@ describe("computePublicRankingHealth", () => {
     expect(health.staleRowsInPool.map((row) => row.slug)).toContain(
       "openai-gpt-4o-2024-05-13"
     );
+  });
+
+  it("flags recent leadership rows that still have thin trusted benchmark coverage", () => {
+    const health = computePublicRankingHealth([
+      {
+        id: "opus-4-7",
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        category: "multimodal",
+        overall_rank: 200,
+        release_date: "2026-04-16",
+        capability_score: 68.9,
+        quality_score: 57.3,
+        adoption_score: 53.8,
+        popularity_score: 40.7,
+        economic_footprint_score: 57.7,
+        benchmark_scores: [
+          { source: "livecodebench" },
+          { source: "gaia-benchmark" },
+        ],
+        description:
+          "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and reliability.",
+      },
+      {
+        id: "grok-4",
+        slug: "x-ai-grok-4",
+        name: "Grok 4",
+        provider: "xAI",
+        category: "llm",
+        overall_rank: 29,
+        release_date: "2025-08-20",
+        capability_score: 84.7,
+        quality_score: 66.1,
+        adoption_score: 65,
+        popularity_score: 46.9,
+        economic_footprint_score: 66.9,
+        benchmark_scores: [
+          { source: "artificial-analysis" },
+          { source: "terminal-bench" },
+          { source: "aider" },
+          { source: "livecodebench" },
+          { source: "gaia-benchmark" },
+        ],
+        description:
+          "Frontier Grok model built for demanding enterprise reasoning, coding, and agentic task execution.",
+      },
+    ]);
+
+    expect(health.healthy).toBe(false);
+    expect(
+      health.undercoveredRecentLeadership.map((row) => ({
+        slug: row.slug,
+        benchmarkCount: row.benchmarkCount,
+      }))
+    ).toContainEqual({
+      slug: "anthropic-claude-opus-4-7",
+      benchmarkCount: 2,
+    });
   });
 });
