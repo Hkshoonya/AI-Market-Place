@@ -166,6 +166,38 @@ describe("public model family dedupe", () => {
     expect(metaAlias).toBe(metaCanonical);
   });
 
+  it("collapses DeepSeek endpoint aliases and release snapshots into the same series", () => {
+    const deepseekV3Base = getPublicSurfaceSeriesKey({
+      slug: "deepseek-v3",
+      name: "DeepSeek-V3",
+      provider: "DeepSeek",
+    });
+    const deepseekV3Chat = getPublicSurfaceSeriesKey({
+      slug: "deepseek-deepseek-chat",
+      name: "DeepSeek V3",
+      provider: "DeepSeek",
+    });
+    const deepseekV3Snapshot = getPublicSurfaceSeriesKey({
+      slug: "deepseek-deepseek-chat-v3-0324",
+      name: "DeepSeek V3 0324",
+      provider: "DeepSeek",
+    });
+    const deepseekR1Base = getPublicSurfaceSeriesKey({
+      slug: "deepseek-r1",
+      name: "DeepSeek-R1",
+      provider: "DeepSeek",
+    });
+    const deepseekR1Snapshot = getPublicSurfaceSeriesKey({
+      slug: "deepseek-deepseek-r1-0528",
+      name: "R1 0528",
+      provider: "DeepSeek",
+    });
+
+    expect(deepseekV3Chat).toBe(deepseekV3Base);
+    expect(deepseekV3Snapshot).toBe(deepseekV3Base);
+    expect(deepseekR1Snapshot).toBe(deepseekR1Base);
+  });
+
   it("collapses LiteRT packaging suffixes into the base public series", () => {
     const litert = getPublicSurfaceSeriesKey({
       slug: "google-gemma-3n-e4b-it-litert-lm",
@@ -385,5 +417,55 @@ describe("public model family dedupe", () => {
 
     expect(deduped).toHaveLength(1);
     expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-7");
+  });
+
+  it("prefers the canonical DeepSeek family representative over alias and snapshot variants", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "deepseek-v3-base",
+        slug: "deepseek-v3",
+        name: "DeepSeek-V3",
+        provider: "DeepSeek",
+        category: "llm",
+        overall_rank: 88,
+        quality_score: 79.9,
+        capability_score: 77,
+        adoption_score: 74.7,
+        popularity_score: 77.6,
+        economic_footprint_score: 46.7,
+        hf_downloads: 0,
+      },
+      {
+        id: "deepseek-v3-chat",
+        slug: "deepseek-deepseek-chat",
+        name: "DeepSeek V3",
+        provider: "DeepSeek",
+        category: "llm",
+        overall_rank: 5,
+        quality_score: 63.2,
+        capability_score: 72,
+        adoption_score: 59.7,
+        popularity_score: 58.3,
+        economic_footprint_score: 50.2,
+        hf_downloads: 0,
+      },
+      {
+        id: "deepseek-v3-snapshot",
+        slug: "deepseek-deepseek-chat-v3-0324",
+        name: "DeepSeek V3 0324",
+        provider: "DeepSeek",
+        category: "llm",
+        overall_rank: 4,
+        quality_score: 65.7,
+        capability_score: 75.8,
+        adoption_score: 58.5,
+        popularity_score: 55.8,
+        economic_footprint_score: 48.4,
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("deepseek-v3");
   });
 });

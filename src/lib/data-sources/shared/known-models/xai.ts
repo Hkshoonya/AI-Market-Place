@@ -135,7 +135,7 @@ export const XAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "grok-3": {
     name: "Grok 3",
     description:
-      "General-purpose Grok frontier model for reasoning, coding, and multimodal assistant workflows.",
+      "Previous Grok flagship retained for compatibility after the Grok 4 family launch. Still useful for reasoning, coding, and multimodal assistant workflows, but superseded by newer Grok 4 releases for xAI's latest flagship performance.",
     category: "llm",
     context_window: 131072,
     release_date: "2025-02-17",
@@ -156,7 +156,7 @@ export const XAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "grok-3-mini": {
     name: "Grok 3 Mini",
     description:
-      "Smaller Grok 3 variant optimized for lower latency and lower-cost reasoning and coding tasks.",
+      "Previous lower-cost Grok 3 variant retained for compatibility after the Grok 4 family launch. Still suitable for lower-latency reasoning and coding tasks, but superseded by newer Grok 4 releases for xAI's current recommended performance tier.",
     category: "llm",
     context_window: 131072,
     release_date: "2025-02-17",

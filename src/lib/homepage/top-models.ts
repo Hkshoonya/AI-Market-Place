@@ -1,5 +1,6 @@
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { getCanonicalProviderName } from "@/lib/constants/providers";
 
 export interface HomepageTopModelCandidate {
   id: string;
@@ -29,6 +30,15 @@ const PRIMARY_HOMEPAGE_CATEGORIES = new Set(["llm", "multimodal"]);
 
 function numeric(value: number | null | undefined): number {
   return value == null || !Number.isFinite(Number(value)) ? 0 : Number(value);
+}
+
+function normalizeProviderBucket(provider: string | null | undefined): string | null {
+  if (!provider) return null;
+
+  const canonical = getCanonicalProviderName(provider).trim();
+  if (!canonical) return null;
+
+  return canonical.toLowerCase();
 }
 
 function rankSignal(overallRank: number | null | undefined): number {
@@ -333,8 +343,44 @@ export function selectHomepageTopModelIds<
   const prioritizedFallback = rankedCandidates
     .filter((model) => !highConfidenceIds.has(model.id))
     .sort(compareCandidates);
+  const selected: T[] = [];
+  const selectedIds = new Set<string>();
+  const providerCounts = new Map<string, number>();
+  const diversityTarget = Math.min(limit, 8);
 
-  return [...prioritizedHighConfidence, ...prioritizedFallback]
-    .slice(0, limit)
-    .map((model) => model.id);
+  for (const model of prioritizedHighConfidence) {
+    const providerBucket = normalizeProviderBucket(model.provider);
+    const providerCount = providerBucket ? (providerCounts.get(providerBucket) ?? 0) : 0;
+
+    if (selected.length < diversityTarget && providerBucket && providerCount >= 1) {
+      continue;
+    }
+
+    selected.push(model);
+    selectedIds.add(model.id);
+    if (providerBucket) {
+      providerCounts.set(providerBucket, providerCount + 1);
+    }
+
+    if (selected.length >= limit) {
+      return selected.map((candidate) => candidate.id);
+    }
+  }
+
+  for (const model of prioritizedHighConfidence) {
+    if (selectedIds.has(model.id)) continue;
+    selected.push(model);
+    selectedIds.add(model.id);
+    if (selected.length >= limit) {
+      return selected.map((candidate) => candidate.id);
+    }
+  }
+
+  for (const model of prioritizedFallback) {
+    if (selectedIds.has(model.id)) continue;
+    selected.push(model);
+    if (selected.length >= limit) break;
+  }
+
+  return selected.map((model) => model.id);
 }

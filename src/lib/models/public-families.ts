@@ -41,10 +41,12 @@ export interface PublicModelFamily<T extends PublicModelFamilyCandidate> {
 }
 
 const DATED_SLUG_RE = /-\d{4}-\d{2}-\d{2}$/;
+const COMPACT_SNAPSHOT_SUFFIX_RE = /-(?:20\d{6}|0\d{3})(?=-|$)/g;
 const SAFE_VARIANT_RE =
   /\b(exacto|extended|preview|older|audio-preview|realtime-preview)\b/i;
 const MACHINE_SNAPSHOT_RE =
   /(?:^|-)(?:generate|transcribe|embed|embedding|tts|speech|image|video)-\d{3}(?:$|-)/i;
+const ENDPOINT_ALIAS_PREFIX_RE = /^(chat|reasoner|coder|assistant)(?:-|$)/i;
 const PROVIDER_ALIAS_SLUGS: Partial<Record<string, string[]>> = {
   DeepSeek: ["deepseek-ai"],
   Meta: ["meta-ai", "meta-llama", "facebook"],
@@ -57,6 +59,7 @@ const MODEL_FAMILY_PREFIX_REPLACEMENTS: Array<[RegExp, string]> = [
   [/^nvidia-nemotron-/i, "nemotron-"],
   [/^deepseek-ai-/i, "deepseek-"],
 ];
+const NON_PROVIDER_PREFIX_ALIAS_SLUGS = new Set(["meta-llama"]);
 
 function releaseAgeDays(releaseDate: string | null | undefined) {
   if (!releaseDate) return null;
@@ -121,27 +124,24 @@ function getProviderSlugCandidates(provider: string) {
 }
 
 function stripProviderPrefix(slug: string, provider: string) {
-  const canonicalProvider = getCanonicalProviderName(provider);
-  for (const providerSlug of getProviderSlugCandidates(provider)) {
-    if (slug.startsWith(`${providerSlug}-`)) {
-      return slug.slice(providerSlug.length + 1);
+  let remaining = slug;
+  let changed = true;
+  const stripCandidates = getProviderSlugCandidates(provider).filter(
+    (candidate) => !NON_PROVIDER_PREFIX_ALIAS_SLUGS.has(candidate)
+  );
+
+  while (changed) {
+    changed = false;
+
+    for (const providerSlug of stripCandidates) {
+      if (remaining.startsWith(`${providerSlug}-`)) {
+        remaining = remaining.slice(providerSlug.length + 1);
+        changed = true;
+      }
     }
   }
 
-  const slugParts = slug.split("-");
-  const canonicalProviderKey = normalizeProviderKey(canonicalProvider);
-  for (
-    let prefixLength = Math.min(3, slugParts.length - 1);
-    prefixLength >= 1;
-    prefixLength -= 1
-  ) {
-    const prefix = slugParts.slice(0, prefixLength).join("-");
-    if (normalizeProviderKey(getCanonicalProviderName(prefix)) === canonicalProviderKey) {
-      return slugParts.slice(prefixLength).join("-");
-    }
-  }
-
-  return slug;
+  return remaining;
 }
 
 function normalizeFamilyKey(value: string) {
@@ -162,6 +162,35 @@ function normalizeDisplayKey(value: string | null | undefined) {
     .trim();
 }
 
+function stripProviderNamePrefix(name: string, provider: string) {
+  let normalized = name.trim();
+  const candidates = [
+    provider.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+    getCanonicalProviderName(provider).toLowerCase(),
+  ];
+
+  let changed = true;
+  while (changed && normalized.length > 0) {
+    changed = false;
+    const lowered = normalized.toLowerCase();
+
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (
+        lowered === candidate ||
+        lowered.startsWith(`${candidate} `) ||
+        lowered.startsWith(`${candidate}-`)
+      ) {
+        normalized = normalized.slice(candidate.length).replace(/^[\s-]+/, "");
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return normalized;
+}
+
 function getFamilyKey<T extends PublicModelFamilyCandidate>(model: T) {
   const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
   const baseSlug = providerlessSlug.replace(DATED_SLUG_RE, "");
@@ -174,9 +203,22 @@ export function getPublicSurfaceSeriesKey<
   const normalizedProviderlessSlug = providerlessSlugToSeriesKey(
     stripProviderPrefix(model.slug, model.provider)
   );
+  const normalizedDisplayName = displayNameToSeriesKey(
+    stripProviderNamePrefix(model.name, model.provider)
+  );
+
+  if (
+    normalizedDisplayName &&
+    (!normalizedProviderlessSlug ||
+      ENDPOINT_ALIAS_PREFIX_RE.test(normalizedProviderlessSlug) ||
+      normalizedProviderlessSlug.endsWith(`-${normalizedDisplayName}`))
+  ) {
+    return normalizedDisplayName;
+  }
+
   if (normalizedProviderlessSlug) return normalizedProviderlessSlug;
 
-  return displayNameToSeriesKey(model.name);
+  return normalizedDisplayName;
 }
 
 function providerlessSlugToSeriesKey(providerlessSlug: string) {
@@ -184,6 +226,7 @@ function providerlessSlugToSeriesKey(providerlessSlug: string) {
     providerlessSlug
       .replace(/^meta-meta-llama-/i, "llama-")
       .replace(DATED_SLUG_RE, "")
+      .replace(COMPACT_SNAPSHOT_SUFFIX_RE, "")
       .replace(/-v\d+$/i, "")
       .replace(/-v(\d+)-0(?=-|$)/g, "-v$1")
       .replace(
@@ -210,6 +253,7 @@ function displayNameToSeriesKey(name: string) {
     name
       .replace(/\([^)]*\)/g, " ")
       .replace(/\bmeta[-\s]?llama\b/gi, "llama")
+      .replace(/\b(20\d{6}|0\d{3})\b/gi, " ")
       .replace(/\sv\d+$/i, " ")
       .replace(/\bv(\d+)\s+0\b/gi, "v$1 ")
       .replace(/\b(?:e|a)?\d+b\b/gi, " ")
@@ -227,6 +271,8 @@ function getVariantPenalty<T extends PublicModelFamilyCandidate>(model: T) {
   let penalty = 0;
 
   if (DATED_SLUG_RE.test(slug)) penalty += 40;
+  if (COMPACT_SNAPSHOT_SUFFIX_RE.test(slug)) penalty += 28;
+  if (/\b0\d{3}\b/.test(name)) penalty += 18;
   if (/-v\d+$/.test(slug) || /\sv\d+$/.test(name)) penalty += 20;
   if (SAFE_VARIANT_RE.test(slug) || SAFE_VARIANT_RE.test(name)) penalty += 35;
   if (MACHINE_SNAPSHOT_RE.test(slug)) penalty += 55;
@@ -385,6 +431,28 @@ export function collapsePublicModelFamilies<T extends PublicModelFamilyCandidate
   }
 
   for (const ids of exactSignatureGroups.values()) {
+    if (ids.length < 2) continue;
+    const [anchorId, ...rest] = ids;
+    for (const id of rest) {
+      union(anchorId, id);
+    }
+  }
+
+  const seriesSignatureGroups = new Map<string, string[]>();
+  for (const model of models) {
+    const seriesKey = getPublicSurfaceSeriesKey(model);
+    if (!seriesKey) continue;
+
+    const signature = [
+      normalizeProviderKey(getCanonicalProviderName(model.provider)),
+      seriesKey,
+    ].join("||");
+    const existing = seriesSignatureGroups.get(signature) ?? [];
+    existing.push(model.id);
+    seriesSignatureGroups.set(signature, existing);
+  }
+
+  for (const ids of seriesSignatureGroups.values()) {
     if (ids.length < 2) continue;
     const [anchorId, ...rest] = ids;
     for (const id of rest) {

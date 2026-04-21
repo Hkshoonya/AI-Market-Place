@@ -765,4 +765,75 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids).not.toContain("weak-commercial-row");
     expect(ids).toEqual(["strong-qwen", "strong-openai"]);
   });
+
+  it("keeps the first homepage screen diverse across providers before allowing provider repeats", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "provider-a-1",
+          slug: "openai-gpt-5-4",
+          name: "GPT-5.4",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 2,
+          economic_footprint_score: 88,
+          adoption_score: 90,
+          capability_score: 90,
+          quality_score: 89,
+          popularity_score: 70,
+          release_date: "2026-03-01",
+          context_window: 128000,
+        },
+        {
+          id: "provider-a-2",
+          slug: "openai-o3",
+          name: "o3",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 3,
+          economic_footprint_score: 85,
+          adoption_score: 88,
+          capability_score: 88,
+          quality_score: 87,
+          popularity_score: 68,
+          release_date: "2026-02-20",
+          context_window: 128000,
+        },
+        {
+          id: "provider-b-1",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "llm",
+          overall_rank: 5,
+          economic_footprint_score: 82,
+          adoption_score: 84,
+          capability_score: 86,
+          quality_score: 85,
+          popularity_score: 66,
+          release_date: "2026-02-10",
+          context_window: 128000,
+        },
+        {
+          id: "provider-c-1",
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          category: "llm",
+          overall_rank: 7,
+          economic_footprint_score: 80,
+          adoption_score: 82,
+          capability_score: 84,
+          quality_score: 83,
+          popularity_score: 64,
+          release_date: "2026-01-30",
+          context_window: 128000,
+        },
+      ],
+      3,
+      now
+    );
+
+    expect(ids).toEqual(["provider-a-1", "provider-b-1", "provider-c-1"]);
+  });
 });
