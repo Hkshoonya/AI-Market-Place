@@ -123,9 +123,12 @@ function hasLeadershipUpgradeLanguage(model: HomepageTopModelCandidate): boolean
 
   return (
     /\blatest\b/.test(haystack) ||
+    /next generation/.test(haystack) ||
     /\bflagship\b/.test(haystack) ||
     /\bmost capable\b/.test(haystack) ||
     /\bstate-of-the-art\b/.test(haystack) ||
+    /building on/.test(haystack) ||
+    /built on/.test(haystack) ||
     /improves on/.test(haystack) ||
     /stronger than prior/.test(haystack) ||
     /broad availability/.test(haystack)
@@ -367,19 +370,43 @@ export function selectHomepageTopModelIds<
     }
   }
 
-  for (const model of prioritizedHighConfidence) {
-    if (selectedIds.has(model.id)) continue;
-    selected.push(model);
-    selectedIds.add(model.id);
-    if (selected.length >= limit) {
-      return selected.map((candidate) => candidate.id);
+  const fillUniqueProviders = (candidates: T[]) => {
+    for (const model of candidates) {
+      if (selectedIds.has(model.id)) continue;
+      const providerBucket = normalizeProviderBucket(model.provider);
+      if (providerBucket && providerCounts.has(providerBucket)) continue;
+
+      selected.push(model);
+      selectedIds.add(model.id);
+      if (providerBucket) {
+        providerCounts.set(providerBucket, 1);
+      }
+
+      if (selected.length >= limit) {
+        return true;
+      }
     }
+
+    return false;
+  };
+
+  if (fillUniqueProviders(prioritizedHighConfidence)) {
+    return selected.map((candidate) => candidate.id);
   }
 
-  for (const model of prioritizedFallback) {
-    if (selectedIds.has(model.id)) continue;
-    selected.push(model);
-    if (selected.length >= limit) break;
+  if (fillUniqueProviders(prioritizedFallback)) {
+    return selected.map((candidate) => candidate.id);
+  }
+
+  for (const candidates of [prioritizedHighConfidence, prioritizedFallback]) {
+    for (const model of candidates) {
+      if (selectedIds.has(model.id)) continue;
+      selected.push(model);
+      selectedIds.add(model.id);
+      if (selected.length >= limit) {
+        return selected.map((candidate) => candidate.id);
+      }
+    }
   }
 
   return selected.map((model) => model.id);

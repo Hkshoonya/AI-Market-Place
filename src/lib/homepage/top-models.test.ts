@@ -249,6 +249,49 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("recent-flagship-upgrade");
   });
 
+  it("treats next-generation upgrade wording as current-flagship leadership language", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "older-anthropic-frontier",
+          slug: "anthropic-claude-sonnet-4-6",
+          name: "Claude Sonnet 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 202,
+          economic_footprint_score: 47.3,
+          adoption_score: 54.6,
+          capability_score: 64.6,
+          quality_score: 54.8,
+          popularity_score: 40.1,
+          release_date: "2026-02-17",
+          description:
+            "High-performance model balancing intelligence and speed for coding, analysis, and complex instruction following.",
+        },
+        {
+          id: "next-generation-opus",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 195,
+          economic_footprint_score: 57.7,
+          adoption_score: 53.8,
+          capability_score: 68.9,
+          quality_score: 57.3,
+          popularity_score: 40.7,
+          release_date: "2026-04-16",
+          description:
+            "Opus 4.7 is the next generation of Anthropic's Opus family, built for long-running asynchronous agents. Building on Opus 4.6, it improves advanced software engineering, reliability, and high-resolution vision.",
+        },
+      ],
+      2,
+      Date.parse("2026-04-20T12:00:00Z")
+    );
+
+    expect(ids[0]).toBe("next-generation-opus");
+  });
+
   it("requires stronger readiness signals before a fresh flagship row outranks proven frontier peers", () => {
     const ids = selectHomepageTopModelIds(
       [
@@ -835,5 +878,97 @@ describe("selectHomepageTopModelIds", () => {
     );
 
     expect(ids).toEqual(["provider-a-1", "provider-b-1", "provider-c-1"]);
+  });
+
+  it("fills remaining homepage slots with new providers before falling back to duplicate-provider rows", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "provider-a-1",
+          slug: "openai-gpt-5-4",
+          name: "GPT-5.4",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 2,
+          economic_footprint_score: 88,
+          adoption_score: 90,
+          capability_score: 90,
+          quality_score: 89,
+          popularity_score: 70,
+          release_date: "2026-03-01",
+          context_window: 128000,
+        },
+        {
+          id: "provider-a-2",
+          slug: "openai-o3",
+          name: "o3",
+          provider: "OpenAI",
+          category: "llm",
+          overall_rank: 3,
+          economic_footprint_score: 85,
+          adoption_score: 88,
+          capability_score: 88,
+          quality_score: 87,
+          popularity_score: 68,
+          release_date: "2026-02-20",
+          context_window: 128000,
+        },
+        {
+          id: "provider-b-1",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "llm",
+          overall_rank: 5,
+          economic_footprint_score: 82,
+          adoption_score: 84,
+          capability_score: 86,
+          quality_score: 85,
+          popularity_score: 66,
+          release_date: "2026-02-10",
+          context_window: 128000,
+        },
+        {
+          id: "provider-c-1",
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          category: "llm",
+          overall_rank: 7,
+          economic_footprint_score: 80,
+          adoption_score: 82,
+          capability_score: 84,
+          quality_score: 83,
+          popularity_score: 64,
+          release_date: "2026-01-30",
+          context_window: 128000,
+        },
+        {
+          id: "provider-d-1",
+          slug: "x-ai-grok-4-20",
+          name: "Grok 4.20",
+          provider: "xAI",
+          category: "multimodal",
+          overall_rank: 12,
+          economic_footprint_score: 76,
+          adoption_score: 81,
+          capability_score: 79,
+          quality_score: 72,
+          popularity_score: 58,
+          release_date: "2026-03-31",
+          description:
+            "xAI's latest flagship model with stronger reasoning and multimodal assistant performance.",
+          context_window: 128000,
+        },
+      ],
+      4,
+      now
+    );
+
+    expect(ids).toContain("provider-a-1");
+    expect(ids).toContain("provider-b-1");
+    expect(ids).toContain("provider-c-1");
+    expect(ids).toContain("provider-d-1");
+    expect(ids).not.toContain("provider-a-2");
   });
 });
