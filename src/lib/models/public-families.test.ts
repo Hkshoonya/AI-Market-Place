@@ -114,6 +114,40 @@ describe("public model family dedupe", () => {
     ]);
   });
 
+  it("prefers general-purpose rows over specialized duplicates inside the same family", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "grok-general",
+        slug: "x-ai-grok-4",
+        name: "Grok 4",
+        provider: "xAI",
+        category: "llm",
+        overall_rank: 30,
+        quality_score: 66.1,
+        capability_score: 84.7,
+        is_api_available: true,
+        is_open_weights: false,
+        release_date: "2025-08-20",
+      },
+      {
+        id: "grok-specialized",
+        slug: "xai-grok-4",
+        name: "grok-4",
+        provider: "xAI",
+        category: "specialized",
+        overall_rank: 197,
+        quality_score: 77.9,
+        capability_score: 88.3,
+        is_api_available: true,
+        is_open_weights: true,
+        release_date: "2026-03-03",
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("x-ai-grok-4");
+  });
+
   it("collapses provider alias prefixes into the same public surface series", () => {
     const canonical = getPublicSurfaceSeriesKey({
       slug: "minimax-minimax-m2-7-highspeed",

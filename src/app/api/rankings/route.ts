@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(`
-        id, slug, name, provider, category, overall_rank, parameter_count, is_open_weights, license, license_name, context_window, release_date,
+        id, slug, name, provider, category, overall_rank, parameter_count, is_open_weights, is_api_available, status, description, short_description, license, license_name, context_window, release_date,
         hf_downloads, quality_score, capability_score, capability_rank,
         adoption_score, adoption_rank, economic_footprint_score, economic_footprint_rank,
         usage_score, usage_rank, expert_score, expert_rank, balanced_rank,
@@ -129,7 +129,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: uniqueModels.map((model) => ({
-        ...model,
+        ...(() => {
+          const {
+            status: _status,
+            description: _description,
+            short_description: _shortDescription,
+            is_api_available: _isApiAvailable,
+            ...publicModel
+          } = model;
+          return publicModel;
+        })(),
         benchmark_scores: filterTrustedStructuredBenchmarkScores(
           Array.isArray(model.benchmark_scores)
             ? (model.benchmark_scores as Array<{

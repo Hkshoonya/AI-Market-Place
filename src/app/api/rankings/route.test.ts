@@ -198,6 +198,124 @@ describe("GET /api/rankings", () => {
     ]);
   });
 
+  it("prefers the general-purpose representative when a specialized duplicate shares the same family", async () => {
+    vi.mocked(createClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "models") {
+          return {
+            select: vi.fn(() =>
+              createQuery([
+                {
+                  id: "grok-general",
+                  slug: "x-ai-grok-4",
+                  name: "Grok 4",
+                  provider: "xAI",
+                  category: "llm",
+                  overall_rank: 30,
+                  parameter_count: null,
+                  is_open_weights: false,
+                  is_api_available: true,
+                  status: "active",
+                  description: null,
+                  short_description: null,
+                  hf_downloads: 0,
+                  quality_score: 66.1,
+                  capability_score: 84.7,
+                  capability_rank: 2,
+                  adoption_score: 72,
+                  adoption_rank: 2,
+                  economic_footprint_score: 70,
+                  economic_footprint_rank: 2,
+                  usage_score: 60,
+                  usage_rank: 2,
+                  expert_score: 72,
+                  expert_rank: 2,
+                  balanced_rank: 2,
+                  popularity_score: 46.8,
+                  popularity_rank: 2,
+                  market_cap_estimate: 220000000,
+                  agent_score: 52,
+                  agent_rank: 2,
+                  value_score: 55,
+                  benchmark_scores: [],
+                  model_pricing: [],
+                  elo_ratings: [],
+                },
+                {
+                  id: "grok-specialized",
+                  slug: "xai-grok-4",
+                  name: "grok-4",
+                  provider: "xAI",
+                  category: "specialized",
+                  overall_rank: 197,
+                  parameter_count: null,
+                  is_open_weights: true,
+                  is_api_available: true,
+                  status: "active",
+                  description: null,
+                  short_description: null,
+                  hf_downloads: 0,
+                  quality_score: 77.9,
+                  capability_score: 88.3,
+                  capability_rank: 1,
+                  adoption_score: 68,
+                  adoption_rank: 1,
+                  economic_footprint_score: 62.4,
+                  economic_footprint_rank: 1,
+                  usage_score: 60.5,
+                  usage_rank: 1,
+                  expert_score: 78,
+                  expert_rank: 1,
+                  balanced_rank: 1,
+                  popularity_score: 48.5,
+                  popularity_rank: 1,
+                  market_cap_estimate: 293000000,
+                  agent_score: 36.8,
+                  agent_rank: 1,
+                  value_score: 42.9,
+                  benchmark_scores: [],
+                  model_pricing: [],
+                  elo_ratings: [],
+                },
+              ])
+            ),
+          };
+        }
+
+        if (table === "benchmark_scores" || table === "elo_ratings") {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          };
+        }
+
+        if (table === "model_news") {
+          return {
+            select: vi.fn(() => ({
+              overlaps: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: [], error: null })),
+                })),
+              })),
+            })),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await GET(
+      new NextRequest("https://aimarketcap.tech/api/rankings?lens=capability&limit=10")
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].slug).toBe("x-ai-grok-4");
+  });
+
   it("accepts economic_footprint as a compatible lens alias", async () => {
     const from = vi.fn(() => ({
       select: vi.fn(() => createQuery([])),

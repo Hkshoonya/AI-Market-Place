@@ -1,9 +1,17 @@
-import { computePublicRankingConfidenceScore } from "@/lib/models/public-ranking-confidence";
+import {
+  computePublicRankingConfidenceScore,
+  hasLeadershipUpgradeLanguage,
+  hasLifecycleWarningLanguage,
+  isEfficiencyTierModel,
+  isPreviewLikeModel,
+  releaseAgeDays,
+} from "@/lib/models/public-ranking-confidence";
 
 interface SearchableModel {
   slug: string;
   name: string;
   provider?: string | null;
+  status?: string | null;
   description?: string | null;
   short_description?: string | null;
   popularity_score?: number | null;
@@ -13,6 +21,8 @@ interface SearchableModel {
   adoption_score?: number | null;
   economic_footprint_score?: number | null;
   release_date?: string | null;
+  is_open_weights?: boolean | null;
+  is_api_available?: boolean | null;
 }
 
 function normalize(value: string | null | undefined): string {
@@ -20,6 +30,36 @@ function normalize(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function currentGenerationSearchAdjustment(
+  model: SearchableModel,
+  rawQuery: string
+): number {
+  const query = normalize(rawQuery);
+  const provider = normalize(model.provider);
+  const ageDays = releaseAgeDays(model.release_date);
+  let adjustment = 0;
+
+  if (hasLifecycleWarningLanguage(model) || model.status === "deprecated") {
+    adjustment -= 160;
+  }
+
+  if (isPreviewLikeModel(model)) adjustment -= 24;
+  if (isEfficiencyTierModel(model)) adjustment -= 12;
+
+  if (hasLeadershipUpgradeLanguage(model)) {
+    if (ageDays != null && ageDays <= 30) adjustment += 140;
+    else if (ageDays != null && ageDays <= 120) adjustment += 90;
+    else if (ageDays != null && ageDays <= 240) adjustment += 30;
+    else adjustment += 12;
+  }
+
+  if (provider === query && ageDays != null && ageDays <= 120) {
+    adjustment += 18;
+  }
+
+  return adjustment;
 }
 
 export function getModelSearchRelevance(
@@ -54,8 +94,9 @@ export function getModelSearchRelevance(
       ? Math.max(0, 80 - model.overall_rank)
       : 0;
   const confidenceBoost = computePublicRankingConfidenceScore(model) * 2;
+  const currentGenerationBoost = currentGenerationSearchAdjustment(model, rawQuery);
 
-  return score + popularity + rankBoost + confidenceBoost;
+  return score + popularity + rankBoost + confidenceBoost + currentGenerationBoost;
 }
 
 export function rankModelsForSearch<T extends SearchableModel>(

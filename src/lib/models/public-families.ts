@@ -41,6 +41,10 @@ export interface PublicModelFamily<T extends PublicModelFamilyCandidate> {
   variantCount: number;
 }
 
+function isGeneralPurposeCategory(category: string | null | undefined) {
+  return category === "llm" || category === "multimodal";
+}
+
 const DATED_SLUG_RE = /-\d{4}-\d{2}-\d{2}$/;
 const COMPACT_SNAPSHOT_SUFFIX_RE = /-(?:20\d{6}|0\d{3})(?=-|$)/g;
 const SAFE_VARIANT_RE =
@@ -329,6 +333,8 @@ function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, r
   const rightLifecycle = hasLifecycleWarningLanguage(right) || right.status === "deprecated";
   const leftAge = releaseAgeDays(left.release_date);
   const rightAge = releaseAgeDays(right.release_date);
+  const leftGeneralPurpose = isGeneralPurposeCategory(left.category);
+  const rightGeneralPurpose = isGeneralPurposeCategory(right.category);
   const leftRecentLeadership =
     !leftLifecycle &&
     hasLeadershipUpgradeLanguage(left) &&
@@ -356,6 +362,10 @@ function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, r
 
   if (leftRecentLeadership !== rightRecentLeadership) {
     return leftRecentLeadership ? -1 : 1;
+  }
+
+  if (leftGeneralPurpose !== rightGeneralPurpose) {
+    return leftGeneralPurpose ? -1 : 1;
   }
 
   const scoreDiff = getRepresentativeScore(right) - getRepresentativeScore(left);

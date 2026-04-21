@@ -31,7 +31,7 @@ import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 export const dynamic = "force-dynamic";
 
 const SEARCH_MODEL_SELECT =
-  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, release_date, is_open_weights, parameter_count, short_description, market_cap_estimate";
+  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, release_date, is_open_weights, is_api_available, status, parameter_count, description, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
 
@@ -49,7 +49,10 @@ interface SearchModelRow {
   economic_footprint_score?: number | null;
   release_date?: string | null;
   is_open_weights?: boolean | null;
+  is_api_available?: boolean | null;
+  status?: string | null;
   parameter_count?: number | null;
+  description?: string | null;
   short_description?: string | null;
   market_cap_estimate?: number | null;
 }
@@ -112,13 +115,15 @@ async function searchModelsWithFallback(
     variants
   );
 
+  const fetchLimit = Math.min(Math.max(limit * 8, 40), 120);
+
   const ftsResult = await queryClient
     .from("models")
     .select(SEARCH_MODEL_SELECT)
     .textSearch("fts", ftsQuery || safeQuery)
     .eq("status", "active")
     .order("popularity_score", { ascending: false, nullsFirst: false })
-    .limit(Math.min(limit * 4, 50));
+    .limit(fetchLimit);
 
   const ilikeResult = await queryClient
     .from("models")
@@ -126,7 +131,7 @@ async function searchModelsWithFallback(
     .eq("status", "active")
     .or(ilikeFilter)
     .order("popularity_score", { ascending: false, nullsFirst: false })
-    .limit(Math.min(limit * 4, 50));
+    .limit(fetchLimit);
 
   if (ilikeResult.error) {
     throw ilikeResult.error;
@@ -360,6 +365,12 @@ export async function GET(request: NextRequest) {
     );
 
     const enrichedModels = uniqueModels.map((model) => {
+      const {
+        description: _description,
+        status: _status,
+        is_api_available: _isApiAvailable,
+        ...publicModel
+      } = model;
       const pricingSummary = getPublicPricingSummary({
         ...model,
         overall_rank: model.overall_rank ?? null,
@@ -400,7 +411,7 @@ export async function GET(request: NextRequest) {
       );
 
       return {
-        ...model,
+        ...publicModel,
         display_description: getModelDisplayDescription(model).text,
         compact_price: pricingSummary.compactPrice,
         compact_price_label: pricingSummary.compactLabel,

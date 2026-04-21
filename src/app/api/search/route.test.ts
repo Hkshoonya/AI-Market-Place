@@ -442,6 +442,71 @@ describe("GET /api/search", () => {
     );
   });
 
+  it("prefers the current flagship release over an older sibling for broad family queries", async () => {
+    const claudeClient = createMockSupabase({
+      modelFtsData: [
+        {
+          id: "model-claude-46",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 7,
+          quality_score: 63,
+          capability_score: 81.2,
+          adoption_score: 54.8,
+          popularity_score: 49.6,
+          economic_footprint_score: 52.7,
+          release_date: "2026-02-04",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Opus 4.6 is Anthropic's strongest model for coding and long-running professional tasks.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 700_000_000,
+        },
+        {
+          id: "model-claude-47",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 199,
+          quality_score: 57.3,
+          capability_score: 68.9,
+          adoption_score: 53.8,
+          popularity_score: 40.7,
+          economic_footprint_score: 57.7,
+          release_date: "2026-04-16",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Opus 4.7 is the next generation of Anthropic's Opus family, building on the coding and agentic strengths of Opus 4.6.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 710_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(claudeClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=claude") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+      })
+    );
+  });
+
   it("collapses sibling surface variants for exact versioned queries", async () => {
     const versionedClient = createMockSupabase({
       modelFtsData: [],
