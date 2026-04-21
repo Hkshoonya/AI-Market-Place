@@ -96,7 +96,14 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "swe_bench",
-    labels: ["swe-bench", "swe bench"],
+    labels: [
+      "swe-bench pro (public)",
+      "swe bench pro (public)",
+      "swe-bench pro",
+      "swe bench pro",
+      "swe-bench",
+      "swe bench",
+    ],
     type: "percentage",
   },
   {
@@ -106,7 +113,7 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "tau-bench",
-    labels: ["tau-bench", "tau bench"],
+    labels: ["tau2-bench telecom", "tau2-bench", "tau-bench", "tau bench"],
     type: "percentage",
   },
   {
@@ -161,12 +168,12 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "webarena",
-    labels: ["webarena"],
+    labels: ["webarena-verified", "webarena"],
     type: "percentage",
   },
   {
     benchmarkSlug: "os-world",
-    labels: ["os-world", "os world", "osworld"],
+    labels: ["osworld-verified", "os-world-verified", "os-world", "os world", "osworld"],
     type: "percentage",
   },
   {
@@ -776,6 +783,30 @@ function isStructuredBenchmarkSource(
   return source.modelHints.length === 1;
 }
 
+function hasCompetingBenchmarkLabel(
+  text: string,
+  currentBenchmarkSlug: string,
+  currentLabels: string[]
+) {
+  const lower = text.toLowerCase();
+  return BENCHMARK_EXTRACTION_RULES.some(
+    (rule) =>
+      rule.benchmarkSlug !== currentBenchmarkSlug &&
+      rule.labels.some((label) => {
+        const normalizedLabel = label.toLowerCase();
+        if (
+          currentLabels.some((currentLabel) =>
+            currentLabel.toLowerCase().includes(normalizedLabel)
+          )
+        ) {
+          return false;
+        }
+
+        return lower.includes(normalizedLabel);
+      })
+  );
+}
+
 function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchmarkScore[] {
   if (!text) return [];
 
@@ -786,10 +817,16 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
 
   for (const rule of BENCHMARK_EXTRACTION_RULES) {
     const labelPattern = buildBenchmarkLabelPattern(rule.labels);
-    const scoreFirstPattern = new RegExp(
-      String.raw`(?<![\d.])(\d{1,4}(?:\.\d+)?)\s*(%|percent)?\s*(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
-      "gi"
-    );
+    const scoreFirstPattern =
+      rule.type === "elo"
+        ? new RegExp(
+            String.raw`(?<![\d.])(\d{1,4}(?:\.\d+)?)\s*(?:[^\d%]{0,30})?(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
+            "gi"
+          )
+        : new RegExp(
+            String.raw`(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*(%|percent)(?:[^\d%]{0,30})?(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
+            "gi"
+          );
     const benchmarkFirstPattern =
       rule.type === "elo"
         ? new RegExp(
@@ -797,16 +834,34 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
             "gi"
           )
         : new RegExp(
-            String.raw`${labelPattern}(?:[^\d%]{0,30}(?:score|scored|at|of|:|=))?[^\d%]{0,12}(\d{1,3}(?:\.\d+)?)\s*(%|percent)`,
+            String.raw`${labelPattern}[^\d%]{0,80}(\d{1,3}(?:\.\d+)?)\s*(%|percent)`,
             "gi"
           );
 
     const matches = [
-      ...normalizedText.matchAll(scoreFirstPattern),
-      ...normalizedText.matchAll(benchmarkFirstPattern),
+      ...[...normalizedText.matchAll(scoreFirstPattern)].map((match) => ({
+        match,
+        patternType: "score-first" as const,
+      })),
+      ...[...normalizedText.matchAll(benchmarkFirstPattern)].map((match) => ({
+        match,
+        patternType: "benchmark-first" as const,
+      })),
     ];
 
-    for (const match of matches) {
+    for (const { match, patternType } of matches) {
+      const prefixBeforeValue = (match[0] ?? "").slice(
+        0,
+        Math.max(0, (match[0] ?? "").toLowerCase().indexOf((match[1] ?? "").toLowerCase()))
+      );
+      if (
+        rule.type === "percentage" &&
+        patternType === "benchmark-first" &&
+        hasCompetingBenchmarkLabel(prefixBeforeValue, rule.benchmarkSlug, rule.labels)
+      ) {
+        continue;
+      }
+
       const numericValue = Number.parseFloat(match[1] ?? "");
       if (!Number.isFinite(numericValue)) continue;
 

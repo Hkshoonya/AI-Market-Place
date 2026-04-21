@@ -47,6 +47,16 @@ const SAMPLE_BENCHMARK_FIRST_TEXT = `
 Provider evaluations show strong coding gains: SWE-Bench Verified: 74.5% and Terminal-Bench 2.0: 61.2%.
 `;
 
+const SAMPLE_OPENAI_STYLE_TEXT = `
+GPT-5.4 achieves a leading 67.3% success rate on the WebArena-Verified benchmark.
+SWE-Bench Pro (Public) 57.7% and Tau2-Bench Telecom 98.9% remain strong.
+`;
+
+const SAMPLE_FOOTNOTE_TEXT = `
+Success rate, far exceeding GPT-5.2's 47.3%, and surpassing human performance at 72.4%. 1 On WebArena-Verified,
+which tests browser use, GPT-5.4 achieves a leading 67.3% success rate when using screenshots only.
+`;
+
 describe("provider-benchmarks helpers", () => {
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
@@ -208,6 +218,37 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           benchmarkSlug: "terminal-bench",
           score: 61.2,
+        }),
+      ])
+    );
+  });
+
+  it("extracts current OpenAI benchmark labels without footnote false positives", () => {
+    expect(__testables.extractStructuredBenchmarkScores(SAMPLE_OPENAI_STYLE_TEXT)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "webarena",
+          score: 67.3,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "swe_bench",
+          score: 57.7,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "tau-bench",
+          score: 98.9,
+        }),
+      ])
+    );
+  });
+
+  it("does not misread footnote markers as benchmark scores", () => {
+    const extracted = __testables.extractStructuredBenchmarkScores(SAMPLE_FOOTNOTE_TEXT);
+    expect(extracted).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "webarena",
+          score: 1,
         }),
       ])
     );
