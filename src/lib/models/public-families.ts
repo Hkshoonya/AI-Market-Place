@@ -10,6 +10,7 @@ import {
 import {
   hasLeadershipUpgradeLanguage,
   hasLifecycleWarningLanguage,
+  isPreviewLikeModel,
   releaseAgeDays,
 } from "@/lib/models/public-ranking-confidence";
 
@@ -285,6 +286,8 @@ function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) 
 function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, right: T) {
   const leftLifecycle = hasLifecycleWarningLanguage(left) || left.status === "deprecated";
   const rightLifecycle = hasLifecycleWarningLanguage(right) || right.status === "deprecated";
+  const leftPreview = isPreviewLikeModel(left);
+  const rightPreview = isPreviewLikeModel(right);
   const leftAge = releaseAgeDays(left.release_date);
   const rightAge = releaseAgeDays(right.release_date);
   const leftGeneralPurpose = isGeneralPurposeCategory(left.category);
@@ -316,6 +319,10 @@ function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, r
 
   if (leftRecentLeadership !== rightRecentLeadership) {
     return leftRecentLeadership ? -1 : 1;
+  }
+
+  if (leftPreview !== rightPreview) {
+    return leftPreview ? 1 : -1;
   }
 
   if (leftGeneralPurpose !== rightGeneralPurpose) {

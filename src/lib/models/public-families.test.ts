@@ -453,6 +453,50 @@ describe("public model family dedupe", () => {
     expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-7");
   });
 
+  it("prefers the standard release over a preview sibling in the same family", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "gemini-pro",
+        slug: "google-gemini-3-1-pro",
+        name: "Gemini 3.1 Pro",
+        provider: "Google",
+        category: "multimodal",
+        overall_rank: 46,
+        quality_score: 55.2,
+        capability_score: 69.3,
+        adoption_score: 52.6,
+        popularity_score: 42.1,
+        economic_footprint_score: 31.8,
+        is_api_available: true,
+        release_date: "2026-02-19",
+        description:
+          "Gemini 3.1 Pro is Google's standard frontier multimodal release for broad production use.",
+        hf_downloads: 0,
+      },
+      {
+        id: "gemini-pro-preview",
+        slug: "google-gemini-3-1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+        provider: "Google",
+        category: "multimodal",
+        overall_rank: 15,
+        quality_score: 60.6,
+        capability_score: 84.5,
+        adoption_score: 57.6,
+        popularity_score: 47.4,
+        economic_footprint_score: 47.2,
+        is_api_available: true,
+        release_date: "2026-02-19",
+        description:
+          "Gemini 3.1 Pro Preview is the preview access track for Google's frontier reasoning model.",
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("google-gemini-3-1-pro");
+  });
+
   it("prefers the canonical DeepSeek family representative over alias and snapshot variants", () => {
     const deduped = dedupePublicModelFamilies([
       {

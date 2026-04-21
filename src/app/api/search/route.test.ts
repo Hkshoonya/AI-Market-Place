@@ -507,6 +507,136 @@ describe("GET /api/search", () => {
     );
   });
 
+  it("prefers the standard release over a preview sibling for broad family queries", async () => {
+    const geminiClient = createMockSupabase({
+      modelFtsData: [
+        {
+          id: "model-gemini-pro",
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 46,
+          quality_score: 55.2,
+          capability_score: 69.3,
+          adoption_score: 52.6,
+          popularity_score: 42.1,
+          economic_footprint_score: 31.8,
+          release_date: "2026-02-19",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Gemini 3.1 Pro is Google's standard frontier multimodal release for broad production use.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 171_000_000,
+        },
+        {
+          id: "model-gemini-pro-preview",
+          slug: "google-gemini-3-1-pro-preview",
+          name: "Gemini 3.1 Pro Preview",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 15,
+          quality_score: 60.6,
+          capability_score: 84.5,
+          adoption_score: 57.6,
+          popularity_score: 47.4,
+          economic_footprint_score: 47.2,
+          release_date: "2026-02-19",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Gemini 3.1 Pro Preview is the preview access track for Google's frontier reasoning model.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 179_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(geminiClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=gemini") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "google-gemini-3-1-pro",
+        name: "Gemini 3.1 Pro",
+      })
+    );
+  });
+
+  it("keeps the preview variant when the search query explicitly asks for it", async () => {
+    const geminiClient = createMockSupabase({
+      modelFtsData: [
+        {
+          id: "model-gemini-pro",
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 46,
+          quality_score: 55.2,
+          capability_score: 69.3,
+          adoption_score: 52.6,
+          popularity_score: 42.1,
+          economic_footprint_score: 31.8,
+          release_date: "2026-02-19",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Gemini 3.1 Pro is Google's standard frontier multimodal release for broad production use.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 171_000_000,
+        },
+        {
+          id: "model-gemini-pro-preview",
+          slug: "google-gemini-3-1-pro-preview",
+          name: "Gemini 3.1 Pro Preview",
+          provider: "Google",
+          category: "multimodal",
+          overall_rank: 15,
+          quality_score: 60.6,
+          capability_score: 84.5,
+          adoption_score: 57.6,
+          popularity_score: 47.4,
+          economic_footprint_score: 47.2,
+          release_date: "2026-02-19",
+          is_open_weights: false,
+          is_api_available: true,
+          status: "active",
+          description:
+            "Gemini 3.1 Pro Preview is the preview access track for Google's frontier reasoning model.",
+          parameter_count: null,
+          short_description: null,
+          market_cap_estimate: 179_000_000,
+        },
+      ],
+    });
+    createOptionalPublicClientMock.mockReturnValue(geminiClient);
+
+    const response = await GET(
+      new Request("http://localhost/api/search?q=gemini%203.1%20pro%20preview") as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toEqual(
+      expect.objectContaining({
+        slug: "google-gemini-3-1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+      })
+    );
+  });
+
   it("collapses sibling surface variants for exact versioned queries", async () => {
     const versionedClient = createMockSupabase({
       modelFtsData: [],

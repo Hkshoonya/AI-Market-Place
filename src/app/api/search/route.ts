@@ -103,6 +103,10 @@ function buildIlikeOrFilter(fields: string[], variants: string[]) {
     .join(",");
 }
 
+function queryRequestsExplicitVariant(value: string) {
+  return /\b(preview|beta|alpha|experimental)\b/.test(normalizeSearchInput(value));
+}
+
 async function searchModelsWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
   safeQuery: string,
@@ -215,14 +219,14 @@ export async function GET(request: NextRequest) {
 
     const models = await searchModelsWithFallback(supabase, query, limit);
 
-    const rankedModels = rankModelsForSearch(
-      dedupePublicModelFamilies(models ?? []),
-      safeQuery
-    );
-    const confidenceRankedModels = selectPublicRankingPool(
-      rankedModels,
-      Math.min(limit, 5)
-    );
+    const explicitVariantQuery = queryRequestsExplicitVariant(safeQuery);
+    const searchCandidates = explicitVariantQuery
+      ? (models ?? [])
+      : dedupePublicModelFamilies(models ?? []);
+    const rankedModels = rankModelsForSearch(searchCandidates, safeQuery);
+    const confidenceRankedModels = explicitVariantQuery
+      ? rankedModels
+      : selectPublicRankingPool(rankedModels, Math.min(limit, 5));
     const uniqueModels = collapseSearchSurfaceSeries(
       preferDefaultPublicSurfaceReady(confidenceRankedModels, Math.min(limit, 3)),
       limit
