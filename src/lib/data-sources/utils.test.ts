@@ -12,6 +12,7 @@ import {
   fetchWithRetry,
   hasPermanentSyncError,
   isPermanentHttpFailure,
+  normalizeModelRankingInputs,
   retryOperation,
   upsertBatch,
 } from "./utils";
@@ -577,5 +578,36 @@ describe("upsertBatch", () => {
         count: "exact",
       }
     );
+  });
+});
+
+describe("normalizeModelRankingInputs", () => {
+  it("strips public ranking inputs from lifecycle compatibility rows", () => {
+    expect(
+      normalizeModelRankingInputs({
+        slug: "openai-o1",
+        provider: "OpenAI",
+        name: "o1",
+        category: "llm",
+        release_date: "2024-12-17",
+        description:
+          "Previous full o-series reasoning model retained for compatibility. Later o3 and o4 releases are the newer frontier generation.",
+        overall_rank: 8,
+        capability_score: 77.2,
+        quality_score: 59.4,
+        adoption_score: 64.8,
+        popularity_score: 60.5,
+        economic_footprint_score: 69.1,
+        hf_trending_score: 12,
+      })
+    ).toMatchObject({
+      overall_rank: null,
+      capability_score: null,
+      quality_score: null,
+      adoption_score: null,
+      popularity_score: null,
+      economic_footprint_score: null,
+      hf_trending_score: null,
+    });
   });
 });

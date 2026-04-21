@@ -235,8 +235,22 @@ import { runSingleSync } from "../../data-sources/orchestrator";
 import { recordAgentIssue } from "../ledger";
 
 function createSupabaseMock() {
+  const modelUpdates: Array<{ id: string; payload: Record<string, unknown> }> = [];
+
   return {
+    __modelUpdates: modelUpdates,
     from: (table: string) => {
+      if (table === "models") {
+        return {
+          update: (payload: Record<string, unknown>) => ({
+            eq: async (_column: string, id: string) => {
+              modelUpdates.push({ id, payload });
+              return { error: null };
+            },
+          }),
+        };
+      }
+
       let rows: unknown[] = [];
       if (table === "data_sources") {
         rows = [
@@ -321,6 +335,7 @@ describe("pipelineEngineer", () => {
   });
 
   it("repairs only currently enabled sources", async () => {
+    const supabase = createSupabaseMock();
     const log = {
       info: vi.fn(async () => undefined),
       warn: vi.fn(async () => undefined),
@@ -328,7 +343,7 @@ describe("pipelineEngineer", () => {
     };
 
     const result = await pipelineEngineer.run({
-      supabase: createSupabaseMock() as never,
+      supabase: supabase as never,
       agent: {
         config: {
           max_repair_attempts: 5,
@@ -396,5 +411,14 @@ describe("pipelineEngineer", () => {
         source: "public-ranking-pool",
       })
     );
+    expect(supabase.__modelUpdates).toHaveLength(1);
+    expect(supabase.__modelUpdates[0]).toMatchObject({
+      id: "previous-opus",
+      payload: expect.objectContaining({
+        overall_rank: null,
+        capability_score: null,
+        quality_score: null,
+      }),
+    });
   });
 });

@@ -14,6 +14,7 @@ import { getDefaultPublicSurfaceReadinessBlockers } from "@/lib/models/public-su
 import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 import { getPublicSourceTrustTier, isLowTrustPublicSourceTier } from "@/lib/models/public-source-trust";
 import { stripPublicSignalInputs } from "@/lib/models/public-signal-inputs";
+import { hasLifecycleWarningLanguage } from "@/lib/models/public-ranking-confidence";
 import { inferTrustedBenchmarkLocatorHints } from "@/lib/data-sources/shared/benchmark-coverage";
 
 // --------------- Retry & Fetch ---------------
@@ -221,7 +222,7 @@ function normalizeProviderFields(
   return normalized;
 }
 
-function normalizeModelRankingInputs(
+export function normalizeModelRankingInputs(
   record: Record<string, unknown>
 ): Record<string, unknown> {
   const inferredLocators = inferTrustedBenchmarkLocatorHints({
@@ -284,6 +285,19 @@ function normalizeModelRankingInputs(
 
   if (isLowTrustPublicSourceTier(trustTier)) {
     normalizedRecord = stripPublicSignalInputs(normalizedRecord);
+  }
+
+  if (
+    hasLifecycleWarningLanguage({
+      description:
+        typeof record.description === "string" ? record.description : null,
+      short_description:
+        typeof record.short_description === "string"
+          ? record.short_description
+          : null,
+    })
+  ) {
+    return stripPublicRankingInputs(normalizedRecord);
   }
 
   if (blockers.length === 0) {
