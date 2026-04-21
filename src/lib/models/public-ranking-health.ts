@@ -5,6 +5,7 @@ import {
   computePublicRankingConfidenceScore,
   getPublicRankingConfidenceTier,
   hasLifecycleWarningLanguage,
+  isFreshCurrentPublicRankingCandidate,
   isEfficiencyTierModel,
   isPreviewLikeModel,
   isRecentLeadershipPublicRankingCandidate,
@@ -92,14 +93,16 @@ export function computePublicRankingHealth(
     .filter((model) => isPreviewLikeModel(model) || isEfficiencyTierModel(model))
     .map((model) => summarizeRow(model));
   const staleRowsInPool = pool
-    .filter((model) => (releaseAgeDays(model.release_date) ?? 0) > 365)
+    .filter((model) => !isFreshCurrentPublicRankingCandidate(model))
+    .filter((model) => (releaseAgeDays(model.release_date) ?? 0) > 450)
     .map((model) => summarizeRow(model));
 
   return {
     healthy:
       missingRecentLeadership.length === 0 &&
       lifecycleRowsInPool.length === 0 &&
-      previewRowsInPool.length === 0,
+      previewRowsInPool.length === 0 &&
+      staleRowsInPool.length === 0,
     poolCount: pool.length,
     pool: pool.map((model) => summarizeRow(model)),
     missingRecentLeadership,

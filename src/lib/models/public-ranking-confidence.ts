@@ -128,6 +128,15 @@ export function isStandardPublicRankingCandidate(
   );
 }
 
+export function isFreshCurrentPublicRankingCandidate(
+  model: PublicRankingConfidenceModel
+) {
+  if (!isStandardPublicRankingCandidate(model)) return false;
+
+  const ageDays = releaseAgeDays(model.release_date);
+  return ageDays != null && ageDays <= 450;
+}
+
 function coreScoreConfidence(model: PublicRankingConfidenceModel) {
   const capability = numeric(model.capability_score);
   const quality = numeric(model.quality_score);
@@ -252,6 +261,24 @@ export function selectPublicRankingPool<T extends PublicRankingConfidenceModel>(
   const highConfidence = models.filter(
     (model) => getPublicRankingConfidenceTier(model) === "high"
   );
+  const freshCurrentHighConfidence = highConfidence.filter((model) =>
+    isFreshCurrentPublicRankingCandidate(model)
+  );
+  if (freshCurrentHighConfidence.length >= minimumCount) {
+    return freshCurrentHighConfidence;
+  }
+
+  const mediumOrHighConfidence = models.filter((model) => {
+    const tier = getPublicRankingConfidenceTier(model);
+    return tier === "high" || tier === "medium";
+  });
+  const freshCurrentMediumOrHighConfidence = mediumOrHighConfidence.filter((model) =>
+    isFreshCurrentPublicRankingCandidate(model)
+  );
+  if (freshCurrentMediumOrHighConfidence.length >= minimumCount) {
+    return freshCurrentMediumOrHighConfidence;
+  }
+
   const standardHighConfidence = highConfidence.filter((model) =>
     isStandardPublicRankingCandidate(model)
   );
@@ -259,10 +286,6 @@ export function selectPublicRankingPool<T extends PublicRankingConfidenceModel>(
     return standardHighConfidence;
   }
 
-  const mediumOrHighConfidence = models.filter((model) => {
-    const tier = getPublicRankingConfidenceTier(model);
-    return tier === "high" || tier === "medium";
-  });
   const standardMediumOrHighConfidence = mediumOrHighConfidence.filter((model) =>
     isStandardPublicRankingCandidate(model)
   );

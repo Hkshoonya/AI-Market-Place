@@ -152,6 +152,65 @@ describe("public ranking confidence", () => {
     ]);
   });
 
+  it("prefers fresh current rows over stale frontier rows when enough options exist", () => {
+    const selected = selectPublicRankingPool(
+      [
+        {
+          slug: "openai-gpt-4o-2024-05-13",
+          name: "GPT-4o",
+          provider: "OpenAI",
+          category: "multimodal",
+          release_date: "2024-05-13",
+          capability_score: 88,
+          quality_score: 82,
+          adoption_score: 74,
+          benchmark_scores: [{ id: "bench-1", source: "livebench" }],
+        },
+        {
+          slug: "deepseek-v3",
+          name: "DeepSeek-V3",
+          provider: "DeepSeek",
+          category: "llm",
+          release_date: "2024-12-26",
+          capability_score: 86,
+          quality_score: 81,
+          adoption_score: 70,
+          benchmark_scores: [{ id: "bench-2", source: "livebench" }],
+        },
+        {
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          release_date: "2026-04-16",
+          capability_score: 68.9,
+          quality_score: 57.3,
+          adoption_score: 53.8,
+          economic_footprint_score: 57.7,
+          benchmark_scores: [{ id: "bench-3", source: "livebench" }],
+        },
+        {
+          slug: "openai-gpt-5-4",
+          name: "GPT-5.4",
+          provider: "OpenAI",
+          category: "llm",
+          release_date: "2026-03-05",
+          capability_score: 59.7,
+          quality_score: 50.8,
+          adoption_score: 58.9,
+          economic_footprint_score: 45.3,
+          benchmark_scores: [{ id: "bench-4", source: "artificial-analysis" }],
+        },
+      ],
+      2
+    );
+
+    expect(selected.map((model) => model.slug)).toEqual([
+      "anthropic-claude-opus-4-7",
+      "openai-gpt-5-4",
+    ]);
+  });
+
   it("does not give full benchmark credit to rows without trusted source provenance", () => {
     const trusted = computePublicRankingConfidenceScore({
       slug: "trusted-model",

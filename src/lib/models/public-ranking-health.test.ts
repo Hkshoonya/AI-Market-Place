@@ -130,4 +130,46 @@ describe("computePublicRankingHealth", () => {
       "google-gemini-3-1-pro-preview"
     );
   });
+
+  it("flags stale rows that still survive in the public ranking pool", () => {
+    const health = computePublicRankingHealth([
+      {
+        id: "stale-gpt-4o",
+        slug: "openai-gpt-4o-2024-05-13",
+        name: "GPT-4o",
+        provider: "OpenAI",
+        category: "multimodal",
+        overall_rank: 23,
+        release_date: "2024-05-13",
+        capability_score: 88,
+        quality_score: 82,
+        adoption_score: 74,
+        popularity_score: 70,
+        economic_footprint_score: 65,
+        benchmark_scores: [{ source: "livebench" }],
+      },
+      {
+        id: "current-opus",
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        category: "multimodal",
+        overall_rank: 199,
+        release_date: "2026-04-16",
+        capability_score: 68.9,
+        quality_score: 57.3,
+        adoption_score: 53.8,
+        popularity_score: 40.7,
+        economic_footprint_score: 57.7,
+        benchmark_scores: [{ source: "livebench" }],
+        description:
+          "Anthropic's latest generally available flagship. Building on Opus 4.6, it improves advanced software engineering and reliability.",
+      },
+    ]);
+
+    expect(health.healthy).toBe(false);
+    expect(health.staleRowsInPool.map((row) => row.slug)).toContain(
+      "openai-gpt-4o-2024-05-13"
+    );
+  });
 });
