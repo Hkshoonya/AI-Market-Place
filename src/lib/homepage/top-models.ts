@@ -1,6 +1,7 @@
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getKnownModelMeta } from "@/lib/models/known-model-meta";
 
 export interface HomepageTopModelCandidate {
   id: string;
@@ -104,9 +105,14 @@ export function isEfficiencyTierModel(model: HomepageTopModelCandidate): boolean
 }
 
 export function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): boolean {
-  const haystack = `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
+  const knownMeta = getKnownModelMeta(model);
+  const haystack = `${model.short_description ?? ""} ${model.description ?? ""} ${
+    knownMeta?.description ?? ""
+  }`.toLowerCase();
 
   return (
+    knownMeta?.status === "deprecated" ||
+    knownMeta?.status === "archived" ||
     /\bdeprecated\b/.test(haystack) ||
     /\blegacy\b/.test(haystack) ||
     /\bsuperseded\b/.test(haystack) ||
@@ -118,9 +124,10 @@ export function hasLifecycleWarningLanguage(model: HomepageTopModelCandidate): b
 }
 
 function hasLeadershipUpgradeLanguage(model: HomepageTopModelCandidate): boolean {
+  const knownMeta = getKnownModelMeta(model);
   const haystack = `${model.name ?? ""} ${model.short_description ?? ""} ${
     model.description ?? ""
-  }`.toLowerCase();
+  } ${knownMeta?.name ?? ""} ${knownMeta?.description ?? ""}`.toLowerCase();
 
   return (
     /\blatest\b/.test(haystack) ||

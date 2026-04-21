@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePublicRankingConfidenceScore,
   getPublicRankingConfidenceTier,
+  hasLifecycleWarningLanguage,
   selectPublicRankingPool,
 } from "./public-ranking-confidence";
 
@@ -339,5 +340,51 @@ describe("public ranking confidence", () => {
           "Opus 4.7 is the next generation of Anthropic's Opus family. Building on Opus 4.6, it improves advanced software engineering and reliability.",
       })
     ).toBe("high");
+  });
+
+  it("falls back to known-model lifecycle metadata when the live row description is stale", () => {
+    expect(
+      hasLifecycleWarningLanguage({
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        provider: "Anthropic",
+        description:
+          "Opus 4.6 is Anthropic's strongest model for coding and long-running professional tasks.",
+        short_description: null,
+      })
+    ).toBe(true);
+
+    const previousGeneration = computePublicRankingConfidenceScore({
+      slug: "anthropic-claude-opus-4-6",
+      name: "Claude Opus 4.6",
+      provider: "Anthropic",
+      category: "multimodal",
+      release_date: "2026-02-04",
+      overall_rank: 7,
+      capability_score: 81.2,
+      quality_score: 63,
+      adoption_score: 54.8,
+      popularity_score: 49.6,
+      economic_footprint_score: 52.7,
+      description:
+        "Opus 4.6 is Anthropic's strongest model for coding and long-running professional tasks.",
+    });
+    const currentReplacement = computePublicRankingConfidenceScore({
+      slug: "anthropic-claude-opus-4-7",
+      name: "Claude Opus 4.7",
+      provider: "Anthropic",
+      category: "multimodal",
+      release_date: "2026-04-16",
+      overall_rank: 199,
+      capability_score: 68.9,
+      quality_score: 57.3,
+      adoption_score: 53.8,
+      popularity_score: 40.7,
+      economic_footprint_score: 57.7,
+      description:
+        "Opus 4.7 is the next generation of Anthropic's Opus family, building on Opus 4.6.",
+    });
+
+    expect(currentReplacement).toBeGreaterThan(previousGeneration);
   });
 });

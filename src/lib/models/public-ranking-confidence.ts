@@ -1,5 +1,6 @@
 import { hasDiscoveryMetadata, type PublicSurfaceReadinessModel } from "@/lib/models/public-surface-readiness";
 import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
+import { getKnownModelMeta } from "@/lib/models/known-model-meta";
 
 export interface PublicRankingConfidenceModel extends PublicSurfaceReadinessModel {
   description?: string | null;
@@ -7,6 +8,30 @@ export interface PublicRankingConfidenceModel extends PublicSurfaceReadinessMode
   status?: string | null;
   benchmark_scores?: unknown;
   elo_ratings?: unknown;
+}
+
+function buildLifecycleHaystack(
+  model: Pick<
+    PublicRankingConfidenceModel,
+    "slug" | "name" | "provider" | "description" | "short_description"
+  >
+) {
+  const knownMeta = getKnownModelMeta(model);
+  return `${model.short_description ?? ""} ${model.description ?? ""} ${
+    knownMeta?.description ?? ""
+  }`.toLowerCase();
+}
+
+function buildLeadershipHaystack(
+  model: Pick<
+    PublicRankingConfidenceModel,
+    "slug" | "name" | "provider" | "description" | "short_description"
+  >
+) {
+  const knownMeta = getKnownModelMeta(model);
+  return `${model.slug ?? ""} ${model.name ?? ""} ${model.short_description ?? ""} ${
+    model.description ?? ""
+  } ${knownMeta?.name ?? ""} ${knownMeta?.description ?? ""}`.toLowerCase();
 }
 
 function numeric(value: number | null | undefined): number {
@@ -39,12 +64,17 @@ export function isEfficiencyTierModel(
 }
 
 export function hasLifecycleWarningLanguage(
-  model: Pick<PublicRankingConfidenceModel, "description" | "short_description">
+  model: Pick<
+    PublicRankingConfidenceModel,
+    "slug" | "name" | "provider" | "description" | "short_description"
+  >
 ) {
-  const haystack =
-    `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
+  const knownMeta = getKnownModelMeta(model);
+  const haystack = buildLifecycleHaystack(model);
 
   return (
+    knownMeta?.status === "deprecated" ||
+    knownMeta?.status === "archived" ||
     /\bdeprecated\b/.test(haystack) ||
     /\blegacy\b/.test(haystack) ||
     /\bsuperseded\b/.test(haystack) ||
@@ -58,13 +88,10 @@ export function hasLifecycleWarningLanguage(
 export function hasLeadershipUpgradeLanguage(
   model: Pick<
     PublicRankingConfidenceModel,
-    "slug" | "name" | "description" | "short_description"
+    "slug" | "name" | "provider" | "description" | "short_description"
   >
 ) {
-  const haystack =
-    `${model.slug ?? ""} ${model.name ?? ""} ${model.short_description ?? ""} ${
-      model.description ?? ""
-    }`.toLowerCase();
+  const haystack = buildLeadershipHaystack(model);
 
   return (
     /\blatest\b/.test(haystack) ||

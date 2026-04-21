@@ -249,6 +249,49 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids[0]).toBe("recent-flagship-upgrade");
   });
 
+  it("uses known-model lifecycle metadata when a previous generation row still has stale live copy", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "previous-flagship-row",
+          slug: "anthropic-claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 7,
+          economic_footprint_score: 52.7,
+          adoption_score: 54.8,
+          capability_score: 81.2,
+          quality_score: 63,
+          popularity_score: 49.6,
+          release_date: "2026-02-04",
+          description:
+            "Opus 4.6 is Anthropic's strongest model for coding and long-running professional tasks.",
+        },
+        {
+          id: "current-flagship-row",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          overall_rank: 199,
+          economic_footprint_score: 57.7,
+          adoption_score: 53.8,
+          capability_score: 68.9,
+          quality_score: 57.3,
+          popularity_score: 40.7,
+          release_date: "2026-04-16",
+          description:
+            "Opus 4.7 is the next generation of Anthropic's Opus family, building on Opus 4.6.",
+        },
+      ],
+      2,
+      Date.parse("2026-04-20T12:00:00Z")
+    );
+
+    expect(ids[0]).toBe("current-flagship-row");
+  });
+
   it("treats next-generation upgrade wording as current-flagship leadership language", () => {
     const ids = selectHomepageTopModelIds(
       [
@@ -710,18 +753,20 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "strong-anthropic",
-          slug: "anthropic-claude-opus-4-6",
-          name: "Claude Opus 4.6",
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
           provider: "Anthropic",
           category: "multimodal",
-          overall_rank: 18,
-          economic_footprint_score: 75.1,
-          adoption_score: 81.1,
-          capability_score: 80.3,
-          quality_score: 69.6,
-          popularity_score: 53.7,
-          release_date: "2025-12-12",
+          overall_rank: 120,
+          economic_footprint_score: 57.7,
+          adoption_score: 53.8,
+          capability_score: 68.9,
+          quality_score: 57.3,
+          popularity_score: 40.7,
+          release_date: "2026-04-16",
           context_window: 200000,
+          description:
+            "Opus 4.7 is the next generation of Anthropic's Opus family, building on Opus 4.6.",
         },
         {
           id: "strong-qwen",

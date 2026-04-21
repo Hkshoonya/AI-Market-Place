@@ -7,6 +7,11 @@ import {
   getProviderSlug,
   normalizeProviderKey,
 } from "@/lib/constants/providers";
+import {
+  hasLeadershipUpgradeLanguage,
+  hasLifecycleWarningLanguage,
+  releaseAgeDays,
+} from "@/lib/models/public-ranking-confidence";
 
 export interface PublicModelFamilyCandidate {
   id: string;
@@ -65,57 +70,6 @@ const MODEL_FAMILY_PREFIX_REPLACEMENTS: Array<[RegExp, string]> = [
   [/^deepseek-ai-/i, "deepseek-"],
 ];
 const NON_PROVIDER_PREFIX_ALIAS_SLUGS = new Set(["meta-llama"]);
-
-function releaseAgeDays(releaseDate: string | null | undefined) {
-  if (!releaseDate) return null;
-
-  const timestamp = Date.parse(releaseDate);
-  if (!Number.isFinite(timestamp)) return null;
-
-  return Math.max(0, (Date.now() - timestamp) / (24 * 60 * 60 * 1000));
-}
-
-function hasLifecycleWarningLanguage<
-  T extends Pick<PublicModelFamilyCandidate, "description" | "short_description">
->(model: T) {
-  const haystack =
-    `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
-
-  return (
-    /\bdeprecated\b/.test(haystack) ||
-    /\blegacy\b/.test(haystack) ||
-    /\bsuperseded\b/.test(haystack) ||
-    /retained for compatibility/.test(haystack) ||
-    /recommended replacement/.test(haystack) ||
-    /previous full/.test(haystack) ||
-    /previous generation/.test(haystack)
-  );
-}
-
-function hasLeadershipUpgradeLanguage<
-  T extends Pick<
-    PublicModelFamilyCandidate,
-    "slug" | "name" | "description" | "short_description"
-  >
->(model: T) {
-  const haystack =
-    `${model.slug ?? ""} ${model.name ?? ""} ${model.short_description ?? ""} ${
-      model.description ?? ""
-    }`.toLowerCase();
-
-  return (
-    /\blatest\b/.test(haystack) ||
-    /next generation/.test(haystack) ||
-    /\bflagship\b/.test(haystack) ||
-    /\bmost capable\b/.test(haystack) ||
-    /\bstate-of-the-art\b/.test(haystack) ||
-    /building on/.test(haystack) ||
-    /built on/.test(haystack) ||
-    /improves on/.test(haystack) ||
-    /stronger than prior/.test(haystack) ||
-    /broad availability/.test(haystack)
-  );
-}
 
 function getProviderSlugCandidates(provider: string) {
   const canonicalProvider = getCanonicalProviderName(provider);
