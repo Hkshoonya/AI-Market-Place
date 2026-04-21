@@ -17,6 +17,7 @@ export interface PublicModelFamilyCandidate {
   status?: string | null;
   description?: string | null;
   short_description?: string | null;
+  is_api_available?: boolean | null;
   overall_rank?: number | null;
   quality_score?: number | null;
   capability_score?: number | null;
@@ -100,9 +101,12 @@ function hasLeadershipUpgradeLanguage<
 
   return (
     /\blatest\b/.test(haystack) ||
+    /next generation/.test(haystack) ||
     /\bflagship\b/.test(haystack) ||
     /\bmost capable\b/.test(haystack) ||
     /\bstate-of-the-art\b/.test(haystack) ||
+    /building on/.test(haystack) ||
+    /built on/.test(haystack) ||
     /improves on/.test(haystack) ||
     /stronger than prior/.test(haystack) ||
     /broad availability/.test(haystack)
@@ -307,6 +311,9 @@ function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) 
   score += Math.max(0, 1_000 - rank) / 4;
   score += downloads > 0 ? Math.log10(downloads + 1) * 18 : 0;
   score -= getVariantPenalty(model);
+  if (model.is_open_weights) score += 28;
+  else if (model.is_api_available === true) score += 20;
+  else if (model.is_api_available === false) score -= 36;
 
   const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
   if (hasCanonicalProviderPrefix(model)) score += 220;

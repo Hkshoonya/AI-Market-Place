@@ -8,6 +8,7 @@ export interface HomepageTopModelCandidate {
   name?: string | null;
   provider?: string | null;
   category?: string | null;
+  is_api_available?: boolean | null;
   short_description?: string | null;
   description?: string | null;
   overall_rank?: number | null;
@@ -216,6 +217,11 @@ function hasMeaningfulHomepageTraction(model: HomepageTopModelCandidate): boolea
   );
 }
 
+function hasCurrentHomepageAccess(model: HomepageTopModelCandidate): boolean {
+  if (model.is_open_weights) return true;
+  return model.is_api_available !== false;
+}
+
 export function isHighConfidenceHomepageTopModelCandidate(
   model: HomepageTopModelCandidate,
   now = Date.now()
@@ -256,6 +262,10 @@ function homepageCandidateMultiplier(
 
   if (isRecentLeadershipHomepageCandidate(model, now)) {
     multiplier *= 1.24;
+  }
+
+  if (!hasCurrentHomepageAccess(model)) {
+    multiplier *= 0.68;
   }
 
   if (ageDays != null && ageDays > 450) {
@@ -332,6 +342,12 @@ export function selectHomepageTopModelIds<
     isHighConfidenceHomepageTopModelCandidate(model, now)
   );
   const compareCandidates = (left: T, right: T) => {
+    const leftAccessible = hasCurrentHomepageAccess(left);
+    const rightAccessible = hasCurrentHomepageAccess(right);
+    if (leftAccessible !== rightAccessible) {
+      return leftAccessible ? -1 : 1;
+    }
+
     const scoreDelta =
       computeHomepageTopModelScore(right, now) - computeHomepageTopModelScore(left, now);
     if (scoreDelta !== 0) return scoreDelta;
@@ -352,10 +368,14 @@ export function selectHomepageTopModelIds<
   const diversityTarget = Math.min(limit, 8);
 
   for (const model of prioritizedHighConfidence) {
+    if (selected.length >= diversityTarget) {
+      break;
+    }
+
     const providerBucket = normalizeProviderBucket(model.provider);
     const providerCount = providerBucket ? (providerCounts.get(providerBucket) ?? 0) : 0;
 
-    if (selected.length < diversityTarget && providerBucket && providerCount >= 1) {
+    if (providerBucket && providerCount >= 1) {
       continue;
     }
 

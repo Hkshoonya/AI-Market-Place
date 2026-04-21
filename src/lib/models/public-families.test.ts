@@ -393,7 +393,7 @@ describe("public model family dedupe", () => {
         economic_footprint_score: 0,
         release_date: "2026-04-16",
         description:
-          "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and reliability.",
+          "Opus 4.7 is the next generation of Anthropic's Opus family. Building on Opus 4.6, it improves advanced software engineering and reliability.",
         hf_downloads: 0,
       },
       {

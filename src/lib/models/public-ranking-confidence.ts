@@ -68,9 +68,12 @@ export function hasLeadershipUpgradeLanguage(
 
   return (
     /\blatest\b/.test(haystack) ||
+    /next generation/.test(haystack) ||
     /\bflagship\b/.test(haystack) ||
     /\bmost capable\b/.test(haystack) ||
     /\bstate-of-the-art\b/.test(haystack) ||
+    /building on/.test(haystack) ||
+    /built on/.test(haystack) ||
     /improves on/.test(haystack) ||
     /stronger than prior/.test(haystack) ||
     /broad availability/.test(haystack)
@@ -197,6 +200,13 @@ function freshnessAdjustment(model: PublicRankingConfidenceModel) {
   return adjustment;
 }
 
+function availabilityAdjustment(model: PublicRankingConfidenceModel) {
+  if (model.is_open_weights) return 4;
+  if (model.is_api_available === true) return 3;
+  if (model.is_api_available === false) return -8;
+  return 0;
+}
+
 export function computePublicRankingConfidenceScore(
   model: PublicRankingConfidenceModel
 ) {
@@ -204,7 +214,8 @@ export function computePublicRankingConfidenceScore(
     coreScoreConfidence(model) +
     tractionConfidence(model) +
     benchmarkConfidence(model) +
-    freshnessAdjustment(model);
+    freshnessAdjustment(model) +
+    availabilityAdjustment(model);
 
   if (!hasDiscoveryMetadata(model)) {
     score -= 5;

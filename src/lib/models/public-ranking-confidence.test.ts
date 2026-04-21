@@ -169,4 +169,58 @@ describe("public ranking confidence", () => {
       })
     ).toBe("low");
   });
+
+  it("penalizes unavailable closed models versus similarly strong accessible ones", () => {
+    const accessible = computePublicRankingConfidenceScore({
+      slug: "moonshotai-kimi-k2-thinking",
+      name: "Kimi K2 Thinking",
+      provider: "Moonshot AI",
+      category: "llm",
+      release_date: "2025-11-06",
+      is_api_available: true,
+      is_open_weights: false,
+      overall_rank: 50,
+      capability_score: 75.8,
+      quality_score: 42.3,
+      adoption_score: 51,
+      economic_footprint_score: 41.3,
+      benchmark_scores: [{ id: "bench-1", source: "livebench" }],
+    });
+    const unavailable = computePublicRankingConfidenceScore({
+      slug: "minimaxai-minimax-m2-5",
+      name: "MiniMax-M2.5",
+      provider: "MiniMax",
+      category: "llm",
+      release_date: "2026-02-12",
+      is_api_available: false,
+      is_open_weights: false,
+      overall_rank: 208,
+      capability_score: 75.3,
+      quality_score: 57.4,
+      adoption_score: 68,
+      economic_footprint_score: 48.5,
+      benchmark_scores: [{ id: "bench-1", source: "livebench" }],
+    });
+
+    expect(accessible).toBeGreaterThan(unavailable);
+  });
+
+  it("recognizes next-generation upgrade wording as current leadership language", () => {
+    expect(
+      getPublicRankingConfidenceTier({
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        category: "multimodal",
+        release_date: "2026-04-16",
+        is_api_available: true,
+        capability_score: 68.9,
+        quality_score: 57.3,
+        adoption_score: 53.8,
+        economic_footprint_score: 57.7,
+        description:
+          "Opus 4.7 is the next generation of Anthropic's Opus family. Building on Opus 4.6, it improves advanced software engineering and reliability.",
+      })
+    ).toBe("high");
+  });
 });

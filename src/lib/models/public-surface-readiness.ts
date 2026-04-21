@@ -14,6 +14,7 @@ export interface PublicSurfaceReadinessModel {
   name?: string | null;
   category?: string | null;
   release_date?: string | null;
+  is_api_available?: boolean | null;
   is_open_weights?: boolean | null;
   license?: string | null;
   license_name?: string | null;
