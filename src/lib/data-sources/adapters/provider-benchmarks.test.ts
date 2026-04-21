@@ -37,6 +37,16 @@ Customers can establish a benchmark effectiveness score with multiple judgements
 Deployment and performance optimization best practices
 `;
 
+const SAMPLE_STRUCTURED_BENCHMARK_TEXT = `
+Gemini 3.1 Flash-Lite achieves an impressive Elo score of 1432 on the Arena.ai Leaderboard
+and outperforms other models of similar tier across reasoning and multimodal understanding benchmarks,
+including 86.9% on GPQA Diamond and 76.8% on MMMU Pro.
+`;
+
+const SAMPLE_BENCHMARK_FIRST_TEXT = `
+Provider evaluations show strong coding gains: SWE-Bench Verified: 74.5% and Terminal-Bench 2.0: 61.2%.
+`;
+
 describe("provider-benchmarks helpers", () => {
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
@@ -167,6 +177,40 @@ describe("provider-benchmarks helpers", () => {
         "xAI published official provider-reported benchmark evidence for Grok 4 Fast.",
       publishedAt: "2025-09-19T00:00:00.000Z",
     });
+  });
+
+  it("extracts structured benchmark scores from provider benchmark text", () => {
+    expect(__testables.extractStructuredBenchmarkScores(SAMPLE_STRUCTURED_BENCHMARK_TEXT)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "chatbot_arena_elo",
+          score: 1432,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 86.9,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "mmmu",
+          score: 76.8,
+        }),
+      ])
+    );
+  });
+
+  it("extracts benchmark-first percentage patterns conservatively", () => {
+    expect(__testables.extractStructuredBenchmarkScores(SAMPLE_BENCHMARK_FIRST_TEXT)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "swe-bench-verified",
+          score: 74.5,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 61.2,
+        }),
+      ])
+    );
   });
 
   it("auto-generates benchmark sources only for uncovered trusted model locators", () => {

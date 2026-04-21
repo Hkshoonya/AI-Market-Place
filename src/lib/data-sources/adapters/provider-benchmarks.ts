@@ -45,6 +45,22 @@ interface ProviderBenchmarkModel {
   release_date: string | null;
 }
 
+interface ParsedProviderSourceContent {
+  title: string;
+  summary: string;
+  publishedAt: string;
+  hasBenchmarkSignal: boolean;
+  text: string;
+}
+
+interface ExtractedProviderBenchmarkScore {
+  benchmarkSlug: string;
+  score: number;
+  scoreNormalized: number;
+  snippet: string;
+  matchedLabel: string;
+}
+
 type PdfParseModule = typeof import("pdf-parse");
 
 let pdfParseModulePromise: Promise<PdfParseModule> | null = null;
@@ -67,6 +83,103 @@ const PROVIDER_FETCH_TIMEOUT_MS = 15000;
 const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_MODEL_PAGE_SIZE = 1000;
 const MAX_RELATED_BENCHMARK_MODELS = 8;
+
+const BENCHMARK_EXTRACTION_RULES: Array<{
+  benchmarkSlug: string;
+  labels: string[];
+  type: "percentage" | "elo";
+}> = [
+  {
+    benchmarkSlug: "swe-bench-verified",
+    labels: ["swe-bench verified", "swe bench verified"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "swe_bench",
+    labels: ["swe-bench", "swe bench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "terminal-bench",
+    labels: ["terminal-bench 2.0", "terminal-bench", "terminalbench 2.0", "terminalbench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "tau-bench",
+    labels: ["tau-bench", "tau bench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "livecodebench",
+    labels: ["livecodebench", "live code bench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "humaneval",
+    labels: ["humaneval", "human eval"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "mathvista",
+    labels: ["mathvista"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "mmlu-pro",
+    labels: ["mmlu-pro", "mmlu pro"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "mmlu",
+    labels: ["mmlu"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "gpqa",
+    labels: ["gpqa diamond", "gpqa"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "bbh",
+    labels: ["big bench hard", "bbh"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "ifeval",
+    labels: ["ifeval", "if eval"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "mmmu",
+    labels: ["mmmu pro", "mmmu"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "ocrbench",
+    labels: ["ocrbench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "webarena",
+    labels: ["webarena"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "os-world",
+    labels: ["os-world", "os world", "osworld"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "gaia",
+    labels: ["gaia"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "chatbot_arena_elo",
+    labels: ["arena.ai leaderboard", "arena leaderboard", "chatbot arena", "arena elo"],
+    type: "elo",
+  },
+];
 
 const BENCHMARK_KEYWORDS = [
   "benchmark",
@@ -638,6 +751,92 @@ function extractPdfSummary(source: ProviderBenchmarkSource, text: string) {
   return buildGenericBenchmarkSummary(source);
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildBenchmarkLabelPattern(labels: string[]) {
+  return `(?:${labels
+    .map((label) => escapeRegExp(label).replace(/\\ /g, "\\s+"))
+    .join("|")})`;
+}
+
+function getMatchSnippet(text: string, matchIndex: number, matchLength: number) {
+  const start = Math.max(0, matchIndex - 90);
+  const end = Math.min(text.length, matchIndex + matchLength + 90);
+  return text.slice(start, end).trim();
+}
+
+function isStructuredBenchmarkSource(
+  source: ProviderBenchmarkSource,
+  relatedModelIds: string[]
+) {
+  if (relatedModelIds.length === 0) return false;
+  if (source.id.startsWith("auto-")) return true;
+  return source.modelHints.length === 1;
+}
+
+function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchmarkScore[] {
+  if (!text) return [];
+
+  const normalizedText = decodeHtml(text).replace(/\s+/g, " ").trim();
+  if (!normalizedText) return [];
+
+  const extracted = new Map<string, ExtractedProviderBenchmarkScore>();
+
+  for (const rule of BENCHMARK_EXTRACTION_RULES) {
+    const labelPattern = buildBenchmarkLabelPattern(rule.labels);
+    const scoreFirstPattern = new RegExp(
+      String.raw`(?<![\d.])(\d{1,4}(?:\.\d+)?)\s*(%|percent)?\s*(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
+      "gi"
+    );
+    const benchmarkFirstPattern =
+      rule.type === "elo"
+        ? new RegExp(
+            String.raw`${labelPattern}(?:[^\d]{0,30}(?:elo(?:\s+score)?|score|at|:|=))?[^\d]{0,12}(\d{3,4}(?:\.\d+)?)`,
+            "gi"
+          )
+        : new RegExp(
+            String.raw`${labelPattern}(?:[^\d%]{0,30}(?:score|scored|at|of|:|=))?[^\d%]{0,12}(\d{1,3}(?:\.\d+)?)\s*(%|percent)`,
+            "gi"
+          );
+
+    const matches = [
+      ...normalizedText.matchAll(scoreFirstPattern),
+      ...normalizedText.matchAll(benchmarkFirstPattern),
+    ];
+
+    for (const match of matches) {
+      const numericValue = Number.parseFloat(match[1] ?? "");
+      if (!Number.isFinite(numericValue)) continue;
+
+      if (rule.type === "percentage" && (numericValue < 0 || numericValue > 100)) {
+        continue;
+      }
+      if (rule.type === "elo" && (numericValue < 500 || numericValue > 3000)) {
+        continue;
+      }
+
+      const existing = extracted.get(rule.benchmarkSlug);
+      if (existing && existing.score >= numericValue) continue;
+
+      extracted.set(rule.benchmarkSlug, {
+        benchmarkSlug: rule.benchmarkSlug,
+        score: numericValue,
+        scoreNormalized: numericValue,
+        snippet: getMatchSnippet(
+          normalizedText,
+          match.index ?? 0,
+          match[0]?.length ?? 0
+        ),
+        matchedLabel: match[0]?.trim() ?? rule.labels[0],
+      });
+    }
+  }
+
+  return [...extracted.values()];
+}
+
 function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
   return {
     title: source.titleHint,
@@ -650,7 +849,7 @@ function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
 async function parseProviderSourceContent(
   source: ProviderBenchmarkSource,
   response: Response
-) {
+): Promise<ParsedProviderSourceContent> {
   const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
   const isPdf =
     source.contentType === "pdf" ||
@@ -674,12 +873,16 @@ async function parseProviderSourceContent(
             source.publishedAtHint ??
             new Date().toISOString(),
           hasBenchmarkSignal: hasBenchmarkSignal(rawText),
+          text: rawText,
         };
       } finally {
         await parser.destroy();
       }
     } catch {
-      return buildPdfFallbackRecord(source);
+      return {
+        ...buildPdfFallbackRecord(source),
+        text: "",
+      };
     }
   }
 
@@ -687,14 +890,16 @@ async function parseProviderSourceContent(
   const title = extractTitle(html) ?? source.titleHint;
   const summary = buildRecordSummary(source, html);
   const description = extractDescription(html);
+  const text = decodeHtml(stripHtml(html));
   const benchmarkSignal =
-    hasBenchmarkSignal(stripHtml(html)) || hasBenchmarkSignal(description);
+    hasBenchmarkSignal(text) || hasBenchmarkSignal(description);
   return {
     title,
     summary,
     publishedAt:
       extractPublishedAt(html) ?? source.publishedAtHint ?? new Date().toISOString(),
     hasBenchmarkSignal: benchmarkSignal,
+    text,
   };
 }
 
@@ -975,7 +1180,7 @@ function buildAutoBenchmarkSources(
 const adapter: DataSourceAdapter = {
   id: "provider-benchmarks",
   name: "Provider Benchmarks",
-  outputTypes: ["news"],
+  outputTypes: ["news", "benchmarks"],
   defaultConfig: {
     maxPages: PROVIDER_BENCHMARK_SOURCES.length,
     autoMaxPages: 100,
@@ -997,6 +1202,26 @@ const adapter: DataSourceAdapter = {
     const existingAutoSourceIds = await fetchExistingAutoBenchmarkSourceIds(ctx.supabase);
     const lookup = await buildModelLookup(ctx.supabase);
     const aliasIndex = buildModelAliasIndex(activeModels);
+    const { data: benchmarkRows, error: benchmarkRowsError } = await ctx.supabase
+      .from("benchmarks")
+      .select("id, slug");
+    if (benchmarkRowsError) {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        recordsCreated: 0,
+        recordsUpdated: 0,
+        errors: [
+          {
+            message: `Failed to fetch benchmark catalog: ${benchmarkRowsError.message}`,
+            context: "benchmark_catalog",
+          },
+        ],
+      };
+    }
+    const benchmarkIdMap = new Map(
+      (benchmarkRows ?? []).map((row) => [row.slug, row.id] as const)
+    );
     const sources = [
       ...PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages),
       ...buildAutoBenchmarkSources(
@@ -1010,6 +1235,7 @@ const adapter: DataSourceAdapter = {
     const errors: Array<{ message: string; context?: string }> = [];
     let recordsProcessed = 0;
     let autoSkippedWithoutBenchmarkSignal = 0;
+    let benchmarkScoreRecordsCreated = 0;
 
     for (const source of sources) {
       recordsProcessed++;
@@ -1059,6 +1285,52 @@ const adapter: DataSourceAdapter = {
         lookup,
         aliasIndex
       );
+      const structuredScores =
+        isStructuredBenchmarkSource(source, relatedModelIds)
+          ? extractStructuredBenchmarkScores(parsedContent.text)
+          : [];
+
+      for (const structuredScore of structuredScores) {
+        const benchmarkId = benchmarkIdMap.get(structuredScore.benchmarkSlug);
+        if (!benchmarkId) continue;
+
+        for (const relatedModelId of relatedModelIds) {
+          const { error: scoreError } = await ctx.supabase
+            .from("benchmark_scores")
+            .upsert(
+              {
+                model_id: relatedModelId,
+                benchmark_id: benchmarkId,
+                score: structuredScore.score,
+                score_normalized: structuredScore.scoreNormalized,
+                model_version: "",
+                source: "provider-benchmarks",
+                source_url: source.url,
+                evaluation_date: parsedContent.publishedAt.split("T")[0],
+                metadata: {
+                  provider: source.provider,
+                  provider_reported: true,
+                  source_type: source.sourceType ?? "official_provider_page",
+                  source_key: source.id,
+                  snippet: structuredScore.snippet,
+                  matched_label: structuredScore.matchedLabel,
+                },
+              },
+              { onConflict: "model_id,benchmark_id,model_version" }
+            );
+
+          if (scoreError) {
+            errors.push({
+              message: `benchmark_scores upsert for ${source.id}/${relatedModelId}/${structuredScore.benchmarkSlug}: ${scoreError.message}`,
+              context: source.id,
+            });
+            continue;
+          }
+
+          benchmarkScoreRecordsCreated += 1;
+        }
+      }
+
       records.push({
         source: "provider-benchmarks",
         source_id: `provider-benchmarks-${source.id}`,
@@ -1082,6 +1354,10 @@ const adapter: DataSourceAdapter = {
           source_key: source.id,
           model_hints: source.modelHints,
           extracted_title: parsedContent.title,
+          extracted_benchmark_scores: structuredScores.map((score) => ({
+            benchmark_slug: score.benchmarkSlug,
+            score: score.score,
+          })),
         },
       });
     }
@@ -1109,6 +1385,7 @@ const adapter: DataSourceAdapter = {
         ),
         autoSkippedWithoutBenchmarkSignal,
         pagesFetched: records.length,
+        benchmarkScoreRecordsCreated,
       },
     };
   },
@@ -1174,6 +1451,7 @@ export const __testables = {
   extractPdfPublishedAt,
   extractPdfSummary,
   buildPdfFallbackRecord,
+  extractStructuredBenchmarkScores,
   buildAutoBenchmarkSources,
   buildAutoBenchmarkModelHints,
   buildModelAliasIndex,
