@@ -98,7 +98,8 @@ export function computePublicRankingHealth(
   return {
     healthy:
       missingRecentLeadership.length === 0 &&
-      lifecycleRowsInPool.length === 0,
+      lifecycleRowsInPool.length === 0 &&
+      previewRowsInPool.length === 0,
     poolCount: pool.length,
     pool: pool.map((model) => summarizeRow(model)),
     missingRecentLeadership,

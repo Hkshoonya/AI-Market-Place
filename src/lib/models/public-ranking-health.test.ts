@@ -88,4 +88,46 @@ describe("computePublicRankingHealth", () => {
     expect(health.lifecycleRowsInPool).toHaveLength(0);
     expect(health.missingRecentLeadership).toHaveLength(0);
   });
+
+  it("flags preview rows that still survive in the public ranking pool", () => {
+    const health = computePublicRankingHealth([
+      {
+        id: "gemini-preview",
+        slug: "google-gemini-3-1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+        provider: "Google",
+        category: "multimodal",
+        overall_rank: 15,
+        release_date: "2026-02-19",
+        capability_score: 92,
+        quality_score: 90,
+        adoption_score: 66,
+        popularity_score: 70,
+        economic_footprint_score: 61,
+        benchmark_scores: [{ source: "livebench" }],
+        description: "Preview build of Gemini 3.1 Pro.",
+      },
+      {
+        id: "gpt-standard",
+        slug: "openai-gpt-5-4",
+        name: "GPT-5.4",
+        provider: "OpenAI",
+        category: "llm",
+        overall_rank: 2,
+        release_date: "2026-03-21",
+        capability_score: 93,
+        quality_score: 91,
+        adoption_score: 72,
+        popularity_score: 74,
+        economic_footprint_score: 68,
+        benchmark_scores: [{ source: "artificial-analysis" }],
+        description: "OpenAI's latest flagship model.",
+      },
+    ]);
+
+    expect(health.healthy).toBe(false);
+    expect(health.previewRowsInPool.map((row) => row.slug)).toContain(
+      "google-gemini-3-1-pro-preview"
+    );
+  });
 });

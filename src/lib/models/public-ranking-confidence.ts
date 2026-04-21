@@ -118,6 +118,16 @@ export function isRecentLeadershipPublicRankingCandidate(
   return hasRecentLeadershipReadinessSignals(model);
 }
 
+export function isStandardPublicRankingCandidate(
+  model: PublicRankingConfidenceModel
+) {
+  return (
+    !hasLifecycleWarningLanguage(model) &&
+    !isPreviewLikeModel(model) &&
+    !isEfficiencyTierModel(model)
+  );
+}
+
 function coreScoreConfidence(model: PublicRankingConfidenceModel) {
   const capability = numeric(model.capability_score);
   const quality = numeric(model.quality_score);
@@ -242,14 +252,28 @@ export function selectPublicRankingPool<T extends PublicRankingConfidenceModel>(
   const highConfidence = models.filter(
     (model) => getPublicRankingConfidenceTier(model) === "high"
   );
-  if (highConfidence.length >= minimumCount) {
-    return highConfidence;
+  const standardHighConfidence = highConfidence.filter((model) =>
+    isStandardPublicRankingCandidate(model)
+  );
+  if (standardHighConfidence.length >= minimumCount) {
+    return standardHighConfidence;
   }
 
   const mediumOrHighConfidence = models.filter((model) => {
     const tier = getPublicRankingConfidenceTier(model);
     return tier === "high" || tier === "medium";
   });
+  const standardMediumOrHighConfidence = mediumOrHighConfidence.filter((model) =>
+    isStandardPublicRankingCandidate(model)
+  );
+  if (standardMediumOrHighConfidence.length >= minimumCount) {
+    return standardMediumOrHighConfidence;
+  }
+
+  if (highConfidence.length >= minimumCount) {
+    return highConfidence;
+  }
+
   if (mediumOrHighConfidence.length >= minimumCount) {
     return mediumOrHighConfidence;
   }

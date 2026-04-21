@@ -94,6 +94,64 @@ describe("public ranking confidence", () => {
     expect(selected.map((model) => model.slug)).toEqual(["high-a", "medium-b"]);
   });
 
+  it("prefers standard current rows over preview and mini variants when enough options exist", () => {
+    const selected = selectPublicRankingPool(
+      [
+        {
+          slug: "google-gemini-3-1-pro-preview",
+          name: "Gemini 3.1 Pro Preview",
+          provider: "Google",
+          category: "multimodal",
+          release_date: "2026-02-19",
+          capability_score: 90,
+          quality_score: 88,
+          adoption_score: 72,
+          benchmark_scores: [{ id: "bench-1", source: "livebench" }],
+        },
+        {
+          slug: "openai-o4-mini",
+          name: "o4-mini",
+          provider: "OpenAI",
+          category: "llm",
+          release_date: "2025-04-16",
+          capability_score: 91,
+          quality_score: 87,
+          adoption_score: 74,
+          benchmark_scores: [{ id: "bench-2", source: "artificial-analysis" }],
+        },
+        {
+          slug: "anthropic-claude-opus-4-7",
+          name: "Claude Opus 4.7",
+          provider: "Anthropic",
+          category: "multimodal",
+          release_date: "2026-04-16",
+          capability_score: 68.9,
+          quality_score: 57.3,
+          adoption_score: 53.8,
+          economic_footprint_score: 57.7,
+          benchmark_scores: [{ id: "bench-3", source: "livebench" }],
+        },
+        {
+          slug: "moonshotai-kimi-k2-thinking",
+          name: "Kimi K2 Thinking",
+          provider: "Moonshot AI",
+          category: "llm",
+          release_date: "2025-11-06",
+          capability_score: 75.8,
+          quality_score: 42.3,
+          adoption_score: 51,
+          benchmark_scores: [{ id: "bench-4", source: "livebench" }],
+        },
+      ],
+      2
+    );
+
+    expect(selected.map((model) => model.slug)).toEqual([
+      "anthropic-claude-opus-4-7",
+      "moonshotai-kimi-k2-thinking",
+    ]);
+  });
+
   it("does not give full benchmark credit to rows without trusted source provenance", () => {
     const trusted = computePublicRankingConfidenceScore({
       slug: "trusted-model",
