@@ -438,9 +438,9 @@ describe("GET /api/trending", () => {
 
     expect(response.status).toBe(200);
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
+      "z-ai-glm-5",
       "google-gemma-4-31b-it",
       "qwen-qwen3-5-122b-a10b",
-      "z-ai-glm-5",
       "harrier-oss-v1-27b",
     ]);
     expect(body.recent.find((model: { slug: string }) => model.slug === "google-gemma-4-27b-it")).toBeFalsy();
