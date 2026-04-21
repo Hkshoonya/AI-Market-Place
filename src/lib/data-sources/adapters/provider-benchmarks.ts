@@ -364,6 +364,15 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     requiresBenchmarkSignal: true,
   },
   {
+    id: "google-gemini-3-1-pro",
+    provider: "Google",
+    url: "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/",
+    titleHint: "Gemini 3.1 Pro benchmark update",
+    modelHints: ["Gemini 3.1 Pro"],
+    publishedAtHint: "2026-02-19T00:00:00.000Z",
+    requiresBenchmarkSignal: true,
+  },
+  {
     id: "google-gemma-4-launch",
     provider: "Google",
     url: "https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/",
@@ -1511,5 +1520,6 @@ export const __testables = {
   buildAutoBenchmarkModelHints,
   buildModelAliasIndex,
   buildModelRelations,
+  PROVIDER_BENCHMARK_SOURCES,
   PROVIDER_PAGE_HEADERS,
 };

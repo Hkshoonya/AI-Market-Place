@@ -9,6 +9,7 @@ const TRUSTED_STRUCTURED_BENCHMARK_SOURCES = new Set<string>([
   "open-llm-leaderboard",
   "open-vlm-leaderboard",
   "osworld",
+  "provider-benchmarks",
   "seal-leaderboard",
   "swe-bench",
   "tau-bench",

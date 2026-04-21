@@ -254,6 +254,21 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("keeps Gemini 3.1 Pro in the curated provider benchmark watchlist", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "google-gemini-3-1-pro",
+          provider: "Google",
+          url:
+            "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/",
+          requiresBenchmarkSignal: true,
+          modelHints: ["Gemini 3.1 Pro"],
+        }),
+      ])
+    );
+  });
+
   it("auto-generates benchmark sources only for uncovered trusted model locators", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
