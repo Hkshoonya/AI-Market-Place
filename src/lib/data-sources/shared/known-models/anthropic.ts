@@ -87,7 +87,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-4-5-opus": {
     name: "Claude 4.5 Opus",
     description:
-      "Frontier Opus-tier model with deep reasoning, extended thinking, and advanced coding capabilities. Designed for the most demanding enterprise and research workloads.",
+      "Previous Opus-tier flagship retained for compatibility after newer Claude Opus releases. Still strong on deep reasoning, extended thinking, and advanced coding, but superseded by Claude Opus 4.7 for Anthropic's latest top-end performance.",
     context_window: 200000,
     release_date: "2025-08-01",
     architecture: "Transformer",
@@ -121,7 +121,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-4-opus": {
     name: "Claude 4 Opus",
     description:
-      "Anthropic's fourth-generation flagship model. Delivers best-in-class reasoning, extended thinking, and advanced multi-step problem solving across domains.",
+      "Previous Claude 4 flagship retained for compatibility after later Claude Opus releases. Delivers strong reasoning and multi-step problem solving, but superseded by Claude Opus 4.7 for Anthropic's latest flagship performance.",
     context_window: 200000,
     release_date: "2025-05-22",
     architecture: "Transformer",
@@ -155,7 +155,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-opus-4-1": {
     name: "Claude Opus 4.1",
     description:
-      "Anthropic's Claude Opus 4.1 release with flagship reasoning, coding, and agentic task performance for demanding production and research workloads.",
+      "Previous Claude Opus 4.1 release retained for compatibility after later Opus upgrades. Still strong for reasoning, coding, and agentic tasks, but superseded by Claude Opus 4.7 for Anthropic's latest top-end capability.",
     context_window: 200000,
     release_date: "2025-08-05",
     architecture: "Transformer",

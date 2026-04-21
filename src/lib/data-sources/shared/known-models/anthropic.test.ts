@@ -50,4 +50,16 @@ describe("resolveAnthropicKnownModelMeta", () => {
     expect(meta?.release_date).toBe("2025-08-05");
     expect(meta?.context_window).toBe(200000);
   });
+
+  it("marks older Opus-family releases as superseded by Claude Opus 4.7", () => {
+    expect(resolveAnthropicKnownModelMeta("claude-4-opus")?.description).toMatch(
+      /superseded by Claude Opus 4\.7/i
+    );
+    expect(resolveAnthropicKnownModelMeta("claude-4-5-opus")?.description).toMatch(
+      /superseded by Claude Opus 4\.7/i
+    );
+    expect(resolveAnthropicKnownModelMeta("claude-opus-4-1")?.description).toMatch(
+      /superseded by Claude Opus 4\.7/i
+    );
+  });
 });
