@@ -440,7 +440,6 @@ describe("GET /api/trending", () => {
     expect(body.recent.map((model: { slug: string }) => model.slug)).toEqual([
       "google-gemma-4-31b-it",
       "qwen-qwen3-5-122b-a10b",
-      "minimax-minimax-m2-7",
       "z-ai-glm-5",
       "harrier-oss-v1-27b",
     ]);
@@ -523,7 +522,7 @@ describe("GET /api/trending", () => {
     );
   });
 
-  it("shows the canonical family model when a recent sibling variant is newer", async () => {
+  it("keeps weaker sibling variants out when a family does not clear the recent rail", async () => {
     const response = await GET(
       new NextRequest("https://aimarketcap.tech/api/trending?limit=8")
     );
@@ -532,7 +531,7 @@ describe("GET /api/trending", () => {
     expect(response.status).toBe(200);
     expect(
       body.recent.find((model: { slug: string }) => model.slug === "minimax-minimax-m2-7")
-    ).toBeTruthy();
+    ).toBeFalsy();
     expect(
       body.recent.find(
         (model: { slug: string }) => model.slug === "minimax-minimax-m2-7-highspeed"
