@@ -2,6 +2,9 @@ import { hasDiscoveryMetadata, type PublicSurfaceReadinessModel } from "@/lib/mo
 import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 
 export interface PublicRankingConfidenceModel extends PublicSurfaceReadinessModel {
+  description?: string | null;
+  short_description?: string | null;
+  status?: string | null;
   benchmark_scores?: unknown;
   elo_ratings?: unknown;
 }
@@ -10,7 +13,9 @@ function numeric(value: number | null | undefined): number {
   return value == null || !Number.isFinite(Number(value)) ? 0 : Number(value);
 }
 
-function releaseAgeDays(releaseDate: string | null | undefined): number | null {
+export function releaseAgeDays(
+  releaseDate: string | null | undefined
+): number | null {
   if (!releaseDate) return null;
 
   const timestamp = Date.parse(releaseDate);
@@ -19,14 +24,95 @@ function releaseAgeDays(releaseDate: string | null | undefined): number | null {
   return Math.max(0, (Date.now() - timestamp) / (24 * 60 * 60 * 1000));
 }
 
-function isPreviewLikeModel(model: Pick<PublicRankingConfidenceModel, "slug" | "name">) {
+export function isPreviewLikeModel(
+  model: Pick<PublicRankingConfidenceModel, "slug" | "name">
+) {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(preview|beta|experimental|alpha|test)\b/.test(haystack);
 }
 
-function isEfficiencyTierModel(model: Pick<PublicRankingConfidenceModel, "slug" | "name">) {
+export function isEfficiencyTierModel(
+  model: Pick<PublicRankingConfidenceModel, "slug" | "name">
+) {
   const haystack = `${model.slug ?? ""} ${model.name ?? ""}`.toLowerCase();
   return /\b(flash|mini|nano|instant|lite)\b/.test(haystack);
+}
+
+export function hasLifecycleWarningLanguage(
+  model: Pick<PublicRankingConfidenceModel, "description" | "short_description">
+) {
+  const haystack =
+    `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
+
+  return (
+    /\bdeprecated\b/.test(haystack) ||
+    /\blegacy\b/.test(haystack) ||
+    /\bsuperseded\b/.test(haystack) ||
+    /retained for compatibility/.test(haystack) ||
+    /recommended replacement/.test(haystack) ||
+    /previous full/.test(haystack) ||
+    /previous generation/.test(haystack)
+  );
+}
+
+export function hasLeadershipUpgradeLanguage(
+  model: Pick<
+    PublicRankingConfidenceModel,
+    "slug" | "name" | "description" | "short_description"
+  >
+) {
+  const haystack =
+    `${model.slug ?? ""} ${model.name ?? ""} ${model.short_description ?? ""} ${
+      model.description ?? ""
+    }`.toLowerCase();
+
+  return (
+    /\blatest\b/.test(haystack) ||
+    /\bflagship\b/.test(haystack) ||
+    /\bmost capable\b/.test(haystack) ||
+    /\bstate-of-the-art\b/.test(haystack) ||
+    /improves on/.test(haystack) ||
+    /stronger than prior/.test(haystack) ||
+    /broad availability/.test(haystack)
+  );
+}
+
+export function hasRecentLeadershipReadinessSignals(
+  model: Pick<
+    PublicRankingConfidenceModel,
+    | "capability_score"
+    | "quality_score"
+    | "adoption_score"
+    | "economic_footprint_score"
+    | "popularity_score"
+  >
+) {
+  const capability = numeric(model.capability_score);
+  const quality = numeric(model.quality_score);
+  const adoption = numeric(model.adoption_score);
+  const economic = numeric(model.economic_footprint_score);
+  const popularity = numeric(model.popularity_score);
+
+  return (
+    quality >= 50 ||
+    (adoption >= 58 && economic >= 45) ||
+    (quality >= 46 && capability >= 62 && adoption >= 52) ||
+    (capability >= 62 && economic >= 50) ||
+    (capability >= 68 && popularity >= 52)
+  );
+}
+
+export function isRecentLeadershipPublicRankingCandidate(
+  model: PublicRankingConfidenceModel
+) {
+  const ageDays = releaseAgeDays(model.release_date);
+
+  if (ageDays == null || ageDays > 120) return false;
+  if (hasLifecycleWarningLanguage(model)) return false;
+  if (isPreviewLikeModel(model) || isEfficiencyTierModel(model)) return false;
+  if (!hasLeadershipUpgradeLanguage(model)) return false;
+
+  return hasRecentLeadershipReadinessSignals(model);
 }
 
 function coreScoreConfidence(model: PublicRankingConfidenceModel) {
@@ -92,6 +178,20 @@ function freshnessAdjustment(model: PublicRankingConfidenceModel) {
 
   if (isEfficiencyTierModel(model)) {
     adjustment -= ageDays != null && ageDays > 240 ? 5 : 2;
+  }
+
+  if (hasLifecycleWarningLanguage(model) || model.status === "deprecated") {
+    adjustment -= 18;
+
+    if (ageDays != null) {
+      if (ageDays > 365) adjustment -= 18;
+      else if (ageDays > 180) adjustment -= 12;
+      else adjustment -= 6;
+    }
+  }
+
+  if (isRecentLeadershipPublicRankingCandidate(model)) {
+    adjustment += 12;
   }
 
   return adjustment;

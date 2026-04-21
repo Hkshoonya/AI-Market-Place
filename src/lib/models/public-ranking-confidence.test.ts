@@ -118,4 +118,55 @@ describe("public ranking confidence", () => {
 
     expect(trusted).toBeGreaterThan(untrusted);
   });
+
+  it("penalizes previous-generation lifecycle rows so current replacements win the public pool", () => {
+    const previousGeneration = computePublicRankingConfidenceScore({
+      slug: "openai-o1",
+      name: "o1",
+      provider: "OpenAI",
+      category: "llm",
+      release_date: "2024-12-17",
+      overall_rank: 8,
+      capability_score: 77.2,
+      quality_score: 59.4,
+      adoption_score: 64.8,
+      popularity_score: 60.5,
+      economic_footprint_score: 69.1,
+      description:
+        "Previous full o-series reasoning model. Later o3 and o4 releases are the newer frontier generation.",
+    });
+    const currentReplacement = computePublicRankingConfidenceScore({
+      slug: "openai-o3",
+      name: "o3",
+      provider: "OpenAI",
+      category: "llm",
+      release_date: "2025-04-16",
+      overall_rank: 3,
+      capability_score: 80.4,
+      quality_score: 63.5,
+      adoption_score: 73.2,
+      popularity_score: 56,
+      economic_footprint_score: 70.3,
+      description: "Current frontier reasoning model for complex tasks.",
+    });
+
+    expect(currentReplacement).toBeGreaterThan(previousGeneration);
+    expect(
+      getPublicRankingConfidenceTier({
+        slug: "openai-o1",
+        name: "o1",
+        provider: "OpenAI",
+        category: "llm",
+        release_date: "2024-12-17",
+        overall_rank: 8,
+        capability_score: 77.2,
+        quality_score: 59.4,
+        adoption_score: 64.8,
+        popularity_score: 60.5,
+        economic_footprint_score: 69.1,
+        description:
+          "Previous full o-series reasoning model. Later o3 and o4 releases are the newer frontier generation.",
+      })
+    ).toBe("low");
+  });
 });

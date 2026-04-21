@@ -20,6 +20,7 @@ import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
 import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
+import { computePublicRankingHealth } from "../../models/public-ranking-health";
 import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import { getStripePaymentsHealth } from "../../payments/stripe-health";
@@ -458,9 +459,15 @@ const pipelineEngineer: ResidentAgent = {
           sb as never
         )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
         const homepageRankingHealth = computeHomepageRankingHealth(homepageModels);
+        const publicRankingHealth = computePublicRankingHealth(
+          homepageModels as unknown as Parameters<typeof computePublicRankingHealth>[0]
+        );
         output.homepageRanking = homepageRankingHealth;
+        output.publicRanking = publicRankingHealth;
         const homepageRankingIssueSlug = "pipeline-homepage-ranking-health";
         const homepageRankingIssueOpen = !homepageRankingHealth.healthy;
+        const publicRankingIssueSlug = "pipeline-public-ranking-health";
+        const publicRankingIssueOpen = !publicRankingHealth.healthy;
 
         if (homepageRankingIssueOpen) {
           await recordAgentIssue(sb, {
@@ -485,6 +492,32 @@ const pipelineEngineer: ResidentAgent = {
             reason:
               "homepage shortlist does not contain superseded rows and includes current leadership candidates",
             ...homepageRankingHealth,
+          }).catch(() => {});
+        }
+
+        if (publicRankingIssueOpen) {
+          await recordAgentIssue(sb, {
+            slug: publicRankingIssueSlug,
+            title: "Public ranking drift detected",
+            issueType: "public_ranking_health",
+            source: "public-ranking-pool",
+            severity:
+              publicRankingHealth.missingRecentLeadership.length > 0
+                ? "critical"
+                : "high",
+            confidence: 0.95,
+            detectedBy: "pipeline-engineer",
+            playbook: "repair_public_rankings",
+            evidence: {
+              ...publicRankingHealth,
+            },
+          });
+        } else {
+          await resolveAgentIssue(sb, publicRankingIssueSlug, {
+            verifier: "pipeline-engineer",
+            reason:
+              "public ranking pool does not contain superseded rows and still includes current leadership candidates",
+            ...publicRankingHealth,
           }).catch(() => {});
         }
       } catch (error) {

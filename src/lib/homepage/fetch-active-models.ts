@@ -32,6 +32,8 @@ export const HOMEPAGE_ACTIVE_MODELS_SELECT = [
   "is_open_weights",
   "license",
   "license_name",
+  "benchmark_scores(source)",
+  "elo_ratings(elo_score, arena_name)",
 ].join(", ");
 
 type HomepageActiveModelRow = Record<string, unknown>;

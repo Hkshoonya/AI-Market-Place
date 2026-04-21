@@ -8,6 +8,7 @@ import {
   isHomepageRankingIssueResolved,
   isManualBenchmarkSourceIssueResolved,
   isPipelineCronIssueResolved,
+  isPublicRankingIssueResolved,
   isStripePaymentsIssueResolved,
   isRuntimeIssueResolved,
   isSourceIssueResolved,
@@ -364,5 +365,12 @@ describe("isHomepageRankingIssueResolved", () => {
   it("resolves only when homepage shortlist health is green", () => {
     expect(isHomepageRankingIssueResolved({ healthy: true })).toBe(true);
     expect(isHomepageRankingIssueResolved({ healthy: false })).toBe(false);
+  });
+});
+
+describe("isPublicRankingIssueResolved", () => {
+  it("resolves only when the public ranking pool health is green", () => {
+    expect(isPublicRankingIssueResolved({ healthy: true })).toBe(true);
+    expect(isPublicRankingIssueResolved({ healthy: false })).toBe(false);
   });
 });

@@ -22,6 +22,7 @@ import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
 import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
 import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
+import { computePublicRankingHealth } from "../../models/public-ranking-health";
 import {
   buildContentQualityMetrics,
   countStaleSellerListings,
@@ -187,6 +188,10 @@ export function isStripePaymentsIssueResolved(input: StripePaymentsHealth): bool
 }
 
 export function isHomepageRankingIssueResolved(input: { healthy: boolean }): boolean {
+  return input.healthy;
+}
+
+export function isPublicRankingIssueResolved(input: { healthy: boolean }): boolean {
   return input.healthy;
 }
 
@@ -411,6 +416,9 @@ const verifier: ResidentAgent = {
       let stripePaymentsHealth: StripePaymentsHealth | null = null;
       let homepageRankingHealth:
         | ReturnType<typeof computeHomepageRankingHealth>
+        | null = null;
+      let publicRankingHealth:
+        | ReturnType<typeof computePublicRankingHealth>
         | null = null;
       let crawlSurfaceHealth:
         | {
@@ -889,6 +897,43 @@ const verifier: ResidentAgent = {
                   reason:
                     "homepage shortlist is still missing current leadership rows or still surfaces superseded lifecycle rows",
                   ...homepageRankingHealth,
+                },
+                maxVerificationRetries
+              );
+              (output.escalated as string[]).push(issue.slug);
+            }
+
+            continue;
+          }
+
+          if (issue.issue_type === "public_ranking_health") {
+            publicRankingHealth ??= await (async () => {
+              const rankingModels = (await fetchAllHomepageActiveModels(
+                sb as never
+              )) as unknown as Parameters<typeof computePublicRankingHealth>[0];
+              return computePublicRankingHealth(rankingModels);
+            })();
+            const resolved = isPublicRankingIssueResolved(publicRankingHealth);
+
+            if (resolved) {
+              await resolveAgentIssue(sb, issue.slug, {
+                verifier: "verifier",
+                issueType: issue.issue_type,
+                reason:
+                  "public ranking pool includes current leadership rows and no longer surfaces superseded lifecycle rows",
+                ...publicRankingHealth,
+              });
+              (output.resolved as string[]).push(issue.slug);
+            } else {
+              await recordAgentIssueFailure(
+                sb,
+                issue.slug,
+                {
+                  verifier: "verifier",
+                  issueType: issue.issue_type,
+                  reason:
+                    "public ranking pool is still missing current leadership rows or still surfaces superseded lifecycle rows",
+                  ...publicRankingHealth,
                 },
                 maxVerificationRetries
               );

@@ -179,6 +179,51 @@ vi.mock("../../homepage/ranking-health", () => ({
   })),
 }));
 
+vi.mock("../../models/public-ranking-health", () => ({
+  computePublicRankingHealth: vi.fn(() => ({
+    healthy: false,
+    poolCount: 2,
+    pool: [
+      {
+        id: "previous-opus",
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        provider: "Anthropic",
+        releaseDate: "2025-12-12",
+        overallRank: 14,
+        confidenceScore: 22.91,
+        confidenceTier: "medium",
+      },
+    ],
+    missingRecentLeadership: [
+      {
+        id: "new-opus",
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        releaseDate: "2026-04-16",
+        overallRank: 312,
+        confidenceScore: 30.42,
+        confidenceTier: "high",
+      },
+    ],
+    lifecycleRowsInPool: [
+      {
+        id: "previous-opus",
+        slug: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        provider: "Anthropic",
+        releaseDate: "2025-12-12",
+        overallRank: 14,
+        confidenceScore: 22.91,
+        confidenceTier: "medium",
+      },
+    ],
+    previewRowsInPool: [],
+    staleRowsInPool: [],
+  })),
+}));
+
 vi.mock("../ledger", () => ({
   recordAgentIssue: vi.fn(async () => undefined),
   recordAgentIssueFailure: vi.fn(async () => undefined),
@@ -342,6 +387,13 @@ describe("pipelineEngineer", () => {
       expect.objectContaining({
         issueType: "homepage_ranking_health",
         source: "homepage-top-models",
+      })
+    );
+    expect(recordAgentIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        issueType: "public_ranking_health",
+        source: "public-ranking-pool",
       })
     );
   });

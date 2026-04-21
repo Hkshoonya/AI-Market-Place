@@ -344,4 +344,46 @@ describe("public model family dedupe", () => {
 
     expect(small).toBe(large);
   });
+
+  it("prefers a fresher non-lifecycle representative over an older compatibility variant in the same family", () => {
+    const deduped = dedupePublicModelFamilies([
+      {
+        id: "opus-current",
+        slug: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        provider: "Anthropic",
+        category: "multimodal",
+        overall_rank: 312,
+        quality_score: 44.8,
+        capability_score: 49.2,
+        adoption_score: 61.6,
+        popularity_score: 39,
+        economic_footprint_score: 0,
+        release_date: "2026-04-16",
+        description:
+          "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and reliability.",
+        hf_downloads: 0,
+      },
+      {
+        id: "opus-compat",
+        slug: "anthropic-claude-opus-4-7-older",
+        name: "Claude Opus 4.7 (older)",
+        provider: "Anthropic",
+        category: "multimodal",
+        overall_rank: 14,
+        quality_score: 60.3,
+        capability_score: 80.2,
+        adoption_score: 55.4,
+        popularity_score: 47.8,
+        economic_footprint_score: 53.6,
+        release_date: "2025-12-12",
+        description:
+          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch. Superseded by the latest release.",
+        hf_downloads: 0,
+      },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-7");
+  });
 });

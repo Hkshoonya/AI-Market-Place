@@ -14,6 +14,9 @@ export interface PublicModelFamilyCandidate {
   name: string;
   provider: string;
   category?: string | null;
+  status?: string | null;
+  description?: string | null;
+  short_description?: string | null;
   overall_rank?: number | null;
   quality_score?: number | null;
   capability_score?: number | null;
@@ -54,6 +57,54 @@ const MODEL_FAMILY_PREFIX_REPLACEMENTS: Array<[RegExp, string]> = [
   [/^nvidia-nemotron-/i, "nemotron-"],
   [/^deepseek-ai-/i, "deepseek-"],
 ];
+
+function releaseAgeDays(releaseDate: string | null | undefined) {
+  if (!releaseDate) return null;
+
+  const timestamp = Date.parse(releaseDate);
+  if (!Number.isFinite(timestamp)) return null;
+
+  return Math.max(0, (Date.now() - timestamp) / (24 * 60 * 60 * 1000));
+}
+
+function hasLifecycleWarningLanguage<
+  T extends Pick<PublicModelFamilyCandidate, "description" | "short_description">
+>(model: T) {
+  const haystack =
+    `${model.short_description ?? ""} ${model.description ?? ""}`.toLowerCase();
+
+  return (
+    /\bdeprecated\b/.test(haystack) ||
+    /\blegacy\b/.test(haystack) ||
+    /\bsuperseded\b/.test(haystack) ||
+    /retained for compatibility/.test(haystack) ||
+    /recommended replacement/.test(haystack) ||
+    /previous full/.test(haystack) ||
+    /previous generation/.test(haystack)
+  );
+}
+
+function hasLeadershipUpgradeLanguage<
+  T extends Pick<
+    PublicModelFamilyCandidate,
+    "slug" | "name" | "description" | "short_description"
+  >
+>(model: T) {
+  const haystack =
+    `${model.slug ?? ""} ${model.name ?? ""} ${model.short_description ?? ""} ${
+      model.description ?? ""
+    }`.toLowerCase();
+
+  return (
+    /\blatest\b/.test(haystack) ||
+    /\bflagship\b/.test(haystack) ||
+    /\bmost capable\b/.test(haystack) ||
+    /\bstate-of-the-art\b/.test(haystack) ||
+    /improves on/.test(haystack) ||
+    /stronger than prior/.test(haystack) ||
+    /broad availability/.test(haystack)
+  );
+}
 
 function getProviderSlugCandidates(provider: string) {
   const canonicalProvider = getCanonicalProviderName(provider);
@@ -221,6 +272,39 @@ function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) 
 }
 
 function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, right: T) {
+  const leftLifecycle = hasLifecycleWarningLanguage(left) || left.status === "deprecated";
+  const rightLifecycle = hasLifecycleWarningLanguage(right) || right.status === "deprecated";
+  const leftAge = releaseAgeDays(left.release_date);
+  const rightAge = releaseAgeDays(right.release_date);
+  const leftRecentLeadership =
+    !leftLifecycle &&
+    hasLeadershipUpgradeLanguage(left) &&
+    leftAge != null &&
+    leftAge <= 180;
+  const rightRecentLeadership =
+    !rightLifecycle &&
+    hasLeadershipUpgradeLanguage(right) &&
+    rightAge != null &&
+    rightAge <= 180;
+
+  if (leftLifecycle !== rightLifecycle) {
+    if (!leftLifecycle && rightLifecycle) {
+      if ((leftAge ?? Number.POSITIVE_INFINITY) < (rightAge ?? Number.POSITIVE_INFINITY)) {
+        return -1;
+      }
+    }
+
+    if (leftLifecycle && !rightLifecycle) {
+      if ((rightAge ?? Number.POSITIVE_INFINITY) < (leftAge ?? Number.POSITIVE_INFINITY)) {
+        return 1;
+      }
+    }
+  }
+
+  if (leftRecentLeadership !== rightRecentLeadership) {
+    return leftRecentLeadership ? -1 : 1;
+  }
+
   const scoreDiff = getRepresentativeScore(right) - getRepresentativeScore(left);
   if (scoreDiff !== 0) return scoreDiff;
 
