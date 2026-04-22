@@ -7,9 +7,14 @@ import { DeployWorkspacePanel } from "./deploy-workspace-panel";
 const mockUseSWR = vi.fn();
 const mockUseAuth = vi.fn();
 const mockUseOptionalWorkspace = vi.fn();
+let mockPathname = "/deploy";
 
 vi.mock("swr", () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
 }));
 
 vi.mock("@/components/auth/auth-provider", () => ({
@@ -32,6 +37,7 @@ function createWorkspaceValue(overrides?: Record<string, unknown>) {
     minimized: false,
     maximized: false,
     activePanel: "setup",
+    updatedAt: "2026-04-22T00:00:00.000Z",
     persistenceStatus: "saved",
     session: {
       model: "Kimi K2",
@@ -66,6 +72,7 @@ function createWorkspaceValue(overrides?: Record<string, unknown>) {
 
 describe("DeployWorkspacePanel", () => {
   beforeEach(() => {
+    mockPathname = "/deploy";
     mockUseAuth.mockReturnValue({
       user: { id: "user_123" },
     });
@@ -126,6 +133,21 @@ describe("DeployWorkspacePanel", () => {
     render(<DeployWorkspacePanel />);
 
     expect(screen.getByRole("button", { name: /Open Kimi K2 workflow/i })).toBeInTheDocument();
+  });
+
+  it("suppresses a restored workspace panel on the public landing page", () => {
+    mockPathname = "/";
+    mockUseOptionalWorkspace.mockReturnValue(createWorkspaceValue());
+
+    render(<DeployWorkspacePanel />);
+
+    expect(
+      screen.queryByRole("button", { name: /Open Kimi K2 workflow/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Minimize workflow panel/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("In-site Workspace")).not.toBeInTheDocument();
   });
 
   it("renders explicit workflow controls and step labels in the expanded panel", async () => {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -111,6 +112,7 @@ interface WorkspaceDeploymentSnapshot {
 }
 
 export function DeployWorkspacePanel() {
+  const pathname = usePathname();
   const [noteDraft, setNoteDraft] = useState("");
   const [assistantDraft, setAssistantDraft] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -126,6 +128,7 @@ export function DeployWorkspacePanel() {
   } | null>(null);
   const { user } = useAuth();
   const workspace = useOptionalWorkspace();
+  const initialUpdatedAtRef = useRef<string | null>(workspace?.updatedAt ?? null);
   const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
     user && workspace?.session ? "/api/marketplace/wallet?limit=1" : null,
     { ...SWR_TIERS.MEDIUM }
@@ -171,6 +174,15 @@ export function DeployWorkspacePanel() {
   if (!workspace?.session) return null;
 
   const { session, open, minimized, maximized, activePanel, persistenceStatus } = workspace;
+  const suppressRestoredLandingPanel =
+    pathname === "/" &&
+    workspace.updatedAt === initialUpdatedAtRef.current &&
+    (open || minimized);
+
+  if (suppressRestoredLandingPanel) {
+    return null;
+  }
+
   const params = new URLSearchParams({
     intent: "deploy",
     model: session.model ?? "",
