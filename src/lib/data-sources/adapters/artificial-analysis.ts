@@ -62,6 +62,7 @@ interface AAv2Model {
 }
 
 const AA_API_V2 = "https://artificialanalysis.ai/api/v2/data/llms/models";
+const ARTIFICIAL_ANALYSIS_HEALTHCHECK_TIMEOUT_MS = 10_000;
 
 // ────────────────────────────────────────────────────────────────
 // Benchmark slug mapping
@@ -479,12 +480,19 @@ const adapter: DataSourceAdapter = {
     // Always healthy since we have static fallback
     const apiKey = process.env.ARTIFICIAL_ANALYSIS_API_KEY;
     if (apiKey) {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        ARTIFICIAL_ANALYSIS_HEALTHCHECK_TIMEOUT_MS
+      );
+
       try {
         const res = await fetch(AA_API_V2, {
           headers: {
             Accept: "application/json",
             "x-api-key": apiKey,
           },
+          signal: controller.signal,
         });
         if (res.ok) {
           return { healthy: true, latencyMs: Date.now() - start, message: "v2 API reachable" };
@@ -494,12 +502,19 @@ const adapter: DataSourceAdapter = {
           latencyMs: Date.now() - start,
           message: `v2 API returned ${res.status} — static fallback available`,
         };
-      } catch {
+      } catch (error) {
+        const aborted =
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === "AbortError");
         return {
           healthy: true,
           latencyMs: Date.now() - start,
-          message: "v2 API unreachable — static fallback available",
+          message: aborted
+            ? "v2 API health check timed out — static fallback available"
+            : "v2 API unreachable — static fallback available",
         };
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
