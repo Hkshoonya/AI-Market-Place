@@ -1,6 +1,9 @@
 import { ANTHROPIC_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/anthropic";
+import { BLACK_FOREST_LABS_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/black-forest-labs";
 import { GOOGLE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/google";
+import { META_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/meta";
 import { MINIMAX_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/minimax";
+import { MISTRAL_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/mistral";
 import { MOONSHOT_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/moonshot";
 import { OPENAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/openai";
 import { XAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/xai";
@@ -13,18 +16,32 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   openai: OPENAI_KNOWN_MODELS,
   google: GOOGLE_KNOWN_MODELS,
   anthropic: ANTHROPIC_KNOWN_MODELS,
+  meta: META_KNOWN_MODELS,
+  "mistral ai": MISTRAL_KNOWN_MODELS,
   minimax: MINIMAX_KNOWN_MODELS,
   "moonshot ai": MOONSHOT_KNOWN_MODELS,
   kimi: MOONSHOT_KNOWN_MODELS,
   xai: XAI_KNOWN_MODELS,
   "z.ai": ZAI_KNOWN_MODELS,
   "zai-org": ZAI_KNOWN_MODELS,
+  "black forest labs": BLACK_FOREST_LABS_KNOWN_MODELS,
 };
 
 export interface KnownModelLookupInput {
   slug?: string | null;
   name?: string | null;
   provider?: string | null;
+}
+
+export interface KnownModelPatchInput extends KnownModelLookupInput {
+  category?: string | null;
+  release_date?: string | null;
+  context_window?: number | null;
+  is_open_weights?: boolean | null;
+  license?: string | null;
+  license_name?: string | null;
+  hf_model_id?: string | null;
+  website_url?: string | null;
 }
 
 const IGNORED_MATCH_TOKENS = new Set([
@@ -207,4 +224,40 @@ export function getKnownModelMeta(
   }
 
   return null;
+}
+
+function hasString(value: string | null | undefined): boolean {
+  return Boolean(value?.trim());
+}
+
+function hasPositiveNumber(value: number | null | undefined): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+export function buildKnownModelMetaPatch(
+  model: KnownModelPatchInput
+): Record<string, unknown> {
+  const knownMeta = getKnownModelMeta(model);
+  if (!knownMeta) return {};
+
+  return Object.fromEntries(
+    Object.entries({
+      name: hasString(model.name) ? undefined : knownMeta.name,
+      category: hasString(model.category) ? undefined : knownMeta.category,
+      release_date: hasString(model.release_date) ? undefined : knownMeta.release_date,
+      context_window: hasPositiveNumber(model.context_window)
+        ? undefined
+        : knownMeta.context_window,
+      is_open_weights:
+        typeof model.is_open_weights === "boolean"
+          ? undefined
+          : knownMeta.is_open_weights,
+      license: hasString(model.license) ? undefined : knownMeta.license,
+      license_name: hasString(model.license_name)
+        ? undefined
+        : knownMeta.license_name,
+      hf_model_id: hasString(model.hf_model_id) ? undefined : knownMeta.hf_model_id,
+      website_url: hasString(model.website_url) ? undefined : knownMeta.website_url,
+    }).filter(([, value]) => value !== undefined && value !== null)
+  ) as Record<string, unknown>;
 }

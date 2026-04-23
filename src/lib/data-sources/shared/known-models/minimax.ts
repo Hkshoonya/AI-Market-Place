@@ -1,6 +1,27 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "MiniMax-M2": {
+    name: "MiniMax M2",
+    description:
+      "MiniMax open-weight reasoning and coding model built for agentic software workflows and production tool use.",
+    category: "llm",
+    context_window: 204800,
+    release_date: "2025-10-27",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Open weights",
+    website_url: "https://www.minimax.io/news/minimax-m2",
+  },
   "MiniMax-M2.7": {
     name: "MiniMax M2.7",
     description:

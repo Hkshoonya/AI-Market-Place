@@ -26,9 +26,13 @@ import {
   stripPublicRankingInputs,
 } from "../../models/public-ranking-inputs";
 import { hasLifecycleWarningLanguage } from "../../models/public-ranking-confidence";
-import { isDefaultPublicSurfaceReady } from "../../models/public-surface-readiness";
+import {
+  getDefaultPublicSurfaceReadinessBlockers,
+  isDefaultPublicSurfaceReady,
+} from "../../models/public-surface-readiness";
 import { getPublicSourceTrustTier } from "../../models/public-source-trust";
 import { computePublicRankingHealth } from "../../models/public-ranking-health";
+import { buildKnownModelMetaPatch } from "../../models/known-model-meta";
 import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import { getStripePaymentsHealth } from "../../payments/stripe-health";
@@ -463,6 +467,58 @@ const pipelineEngineer: ResidentAgent = {
 
       // Step 4g: Track homepage ranking drift so fresh current flagships do not quietly disappear.
       try {
+        const { data: activeModelsForMetadata } = await sb
+          .from("models")
+          .select(
+            "id, slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window, hf_model_id, website_url"
+          )
+          .eq("status", "active");
+        const metadataRepairCandidates = (activeModelsForMetadata ?? [])
+          .map((model) => ({
+            ...model,
+            blockers: getDefaultPublicSurfaceReadinessBlockers(model),
+            patch: buildKnownModelMetaPatch(model),
+          }))
+          .filter(
+            (model) =>
+              getPublicSourceTrustTier(model) === "official" &&
+              model.blockers.some((blocker) =>
+                [
+                  "missing_name",
+                  "missing_category",
+                  "missing_release_date",
+                  "missing_open_weight_license",
+                  "missing_context_window",
+                ].includes(blocker)
+              ) &&
+              Object.keys(model.patch).length > 0
+          );
+        const metadataRepairs: Array<{ id: string; slug: string }> = [];
+
+        for (const candidate of metadataRepairCandidates.slice(0, 50)) {
+          const metadataPatch = candidate.patch as Record<string, unknown>;
+          const { error } = await sb
+            .from("models")
+            .update(metadataPatch)
+            .eq("id", candidate.id);
+
+          if (error) {
+            errors.push(
+              `Failed to auto-repair public metadata for ${candidate.slug}: ${error.message}`
+            );
+            await log.warn(
+              `Public metadata auto-repair failed for ${candidate.slug}: ${error.message}`
+            );
+            continue;
+          }
+
+          Object.assign(candidate, metadataPatch);
+          metadataRepairs.push({
+            id: candidate.id,
+            slug: candidate.slug ?? candidate.id,
+          });
+        }
+
         const homepageModels = (await fetchAllHomepageActiveModels(
           sb as never
         )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
@@ -524,6 +580,11 @@ const pipelineEngineer: ResidentAgent = {
         );
         output.homepageRanking = homepageRankingHealth;
         output.publicRanking = publicRankingHealth;
+        output.publicMetadataAutoRepair = {
+          attempted: metadataRepairCandidates.length,
+          repaired: metadataRepairs.length,
+          rows: metadataRepairs,
+        };
         output.publicRankingAutoRepair = {
           attempted: rankingRepairCandidates.length,
           repaired: rankingRepairs.length,

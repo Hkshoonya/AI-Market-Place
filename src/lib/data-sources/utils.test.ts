@@ -610,4 +610,28 @@ describe("normalizeModelRankingInputs", () => {
       hf_trending_score: null,
     });
   });
+
+  it("backfills trusted known-model metadata before readiness gating", () => {
+    expect(
+      normalizeModelRankingInputs({
+        slug: "meta-llama-3-3-70b-instruct",
+        provider: "Meta",
+        name: "Llama 3.3 70B Instruct",
+        category: "llm",
+        release_date: null,
+        context_window: null,
+        hf_model_id: null,
+        website_url: null,
+        overall_rank: 21,
+        capability_score: 80,
+      })
+    ).toMatchObject({
+      release_date: "2024-12-06",
+      context_window: 131072,
+      hf_model_id: "meta-llama/Llama-3.3-70B-Instruct",
+      website_url: "https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct",
+      overall_rank: 21,
+      capability_score: 80,
+    });
+  });
 });

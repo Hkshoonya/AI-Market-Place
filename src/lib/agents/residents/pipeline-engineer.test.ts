@@ -258,6 +258,27 @@ function createSupabaseMock() {
     from: (table: string) => {
       if (table === "models") {
         return {
+          select: () => ({
+            eq: async () => ({
+              data: [
+                {
+                  id: "meta-llama",
+                  slug: "meta-llama-3-3-70b-instruct",
+                  provider: "Meta",
+                  name: "Llama 3.3 70B Instruct",
+                  category: "llm",
+                  release_date: null,
+                  is_open_weights: true,
+                  license: "open_source",
+                  license_name: "Llama 3.3 Community License",
+                  context_window: null,
+                  hf_model_id: null,
+                  website_url: null,
+                },
+              ],
+              error: null,
+            }),
+          }),
           update: (payload: Record<string, unknown>) => ({
             eq: async (_column: string, id: string) => {
               modelUpdates.push({ id, payload });
@@ -427,8 +448,15 @@ describe("pipelineEngineer", () => {
         source: "public-ranking-pool",
       })
     );
-    expect(supabase.__modelUpdates).toHaveLength(2);
+    expect(supabase.__modelUpdates).toHaveLength(3);
     expect(supabase.__modelUpdates[0]).toMatchObject({
+      id: "meta-llama",
+      payload: expect.objectContaining({
+        release_date: "2024-12-06",
+        context_window: 131072,
+      }),
+    });
+    expect(supabase.__modelUpdates[1]).toMatchObject({
       id: "previous-opus",
       payload: expect.objectContaining({
         overall_rank: null,
@@ -436,7 +464,7 @@ describe("pipelineEngineer", () => {
         quality_score: null,
       }),
     });
-    expect(supabase.__modelUpdates[1]).toMatchObject({
+    expect(supabase.__modelUpdates[2]).toMatchObject({
       id: "flash-tts",
       payload: expect.objectContaining({
         overall_rank: null,
@@ -449,6 +477,10 @@ describe("pipelineEngineer", () => {
       repaired: 2,
       lifecycleCandidates: 1,
       officialNotReadyCandidates: 2,
+    });
+    expect(result.output.publicMetadataAutoRepair).toMatchObject({
+      attempted: 1,
+      repaired: 1,
     });
   });
 });

@@ -459,6 +459,20 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     modalities: ["text", "image"],
     capabilities: { image_generation: true, image_editing: true },
   },
+  "gpt-image-2": {
+    name: "GPT Image 2",
+    description:
+      "OpenAI's state-of-the-art image generation model for high-quality generation and editing with stronger production workflow support.",
+    category: "image_generation",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2026-04-21",
+    architecture: "Diffusion",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: { image_generation: true, image_editing: true },
+    website_url: "https://developers.openai.com/api/docs/models/gpt-image-2",
+  },
   "dall-e-3": {
     name: "DALL-E 3",
     description:

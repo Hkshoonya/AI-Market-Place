@@ -15,6 +15,7 @@ import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 import { getPublicSourceTrustTier, isLowTrustPublicSourceTier } from "@/lib/models/public-source-trust";
 import { stripPublicSignalInputs } from "@/lib/models/public-signal-inputs";
 import { hasLifecycleWarningLanguage } from "@/lib/models/public-ranking-confidence";
+import { buildKnownModelMetaPatch } from "@/lib/models/known-model-meta";
 import { inferTrustedBenchmarkLocatorHints } from "@/lib/data-sources/shared/benchmark-coverage";
 
 // --------------- Retry & Fetch ---------------
@@ -225,58 +226,117 @@ function normalizeProviderFields(
 export function normalizeModelRankingInputs(
   record: Record<string, unknown>
 ): Record<string, unknown> {
-  const inferredLocators = inferTrustedBenchmarkLocatorHints({
-    slug: typeof record.slug === "string" ? record.slug : "",
-    provider: typeof record.provider === "string" ? record.provider : "",
-    category: typeof record.category === "string" ? record.category : null,
-    hf_model_id:
-      typeof record.hf_model_id === "string" ? record.hf_model_id : null,
-    website_url:
-      typeof record.website_url === "string" ? record.website_url : null,
-    name: typeof record.name === "string" ? record.name : null,
-  });
-  const normalizedModel = {
+  const knownMetaPatch = buildKnownModelMetaPatch({
     slug: typeof record.slug === "string" ? record.slug : null,
     provider: typeof record.provider === "string" ? record.provider : null,
-    hf_model_id:
-      (typeof record.hf_model_id === "string" ? record.hf_model_id : null) ??
-      inferredLocators.hf_model_id,
-    website_url:
-      (typeof record.website_url === "string" ? record.website_url : null) ??
-      inferredLocators.website_url,
     name: typeof record.name === "string" ? record.name : null,
     category: typeof record.category === "string" ? record.category : null,
     release_date:
       typeof record.release_date === "string" ? record.release_date : null,
+    context_window:
+      typeof record.context_window === "number" ? record.context_window : null,
     is_open_weights:
       typeof record.is_open_weights === "boolean" ? record.is_open_weights : null,
     license: typeof record.license === "string" ? record.license : null,
     license_name:
       typeof record.license_name === "string" ? record.license_name : null,
+    hf_model_id:
+      typeof record.hf_model_id === "string" ? record.hf_model_id : null,
+    website_url:
+      typeof record.website_url === "string" ? record.website_url : null,
+  });
+  const mergedRecord = {
+    ...record,
+    ...knownMetaPatch,
+  };
+  const inferredLocators = inferTrustedBenchmarkLocatorHints({
+    slug: typeof mergedRecord.slug === "string" ? mergedRecord.slug : "",
+    provider:
+      typeof mergedRecord.provider === "string" ? mergedRecord.provider : "",
+    category:
+      typeof mergedRecord.category === "string" ? mergedRecord.category : null,
+    hf_model_id:
+      typeof mergedRecord.hf_model_id === "string"
+        ? mergedRecord.hf_model_id
+        : null,
+    website_url:
+      typeof mergedRecord.website_url === "string"
+        ? mergedRecord.website_url
+        : null,
+    name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
+  });
+  const normalizedModel = {
+    slug: typeof mergedRecord.slug === "string" ? mergedRecord.slug : null,
+    provider:
+      typeof mergedRecord.provider === "string" ? mergedRecord.provider : null,
+    hf_model_id:
+      (typeof mergedRecord.hf_model_id === "string"
+        ? mergedRecord.hf_model_id
+        : null) ??
+      inferredLocators.hf_model_id,
+    website_url:
+      (typeof mergedRecord.website_url === "string"
+        ? mergedRecord.website_url
+        : null) ??
+      inferredLocators.website_url,
+    name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
+    category:
+      typeof mergedRecord.category === "string" ? mergedRecord.category : null,
+    release_date:
+      typeof mergedRecord.release_date === "string"
+        ? mergedRecord.release_date
+        : null,
+    is_open_weights:
+      typeof mergedRecord.is_open_weights === "boolean"
+        ? mergedRecord.is_open_weights
+        : null,
+    license:
+      typeof mergedRecord.license === "string" ? mergedRecord.license : null,
+    license_name:
+      typeof mergedRecord.license_name === "string"
+        ? mergedRecord.license_name
+        : null,
     context_window:
-      typeof record.context_window === "number" ? record.context_window : null,
+      typeof mergedRecord.context_window === "number"
+        ? mergedRecord.context_window
+        : null,
     overall_rank:
-      typeof record.overall_rank === "number" ? record.overall_rank : null,
+      typeof mergedRecord.overall_rank === "number"
+        ? mergedRecord.overall_rank
+        : null,
     capability_score:
-      typeof record.capability_score === "number" ? record.capability_score : null,
+      typeof mergedRecord.capability_score === "number"
+        ? mergedRecord.capability_score
+        : null,
     quality_score:
-      typeof record.quality_score === "number" ? record.quality_score : null,
+      typeof mergedRecord.quality_score === "number"
+        ? mergedRecord.quality_score
+        : null,
     adoption_score:
-      typeof record.adoption_score === "number" ? record.adoption_score : null,
+      typeof mergedRecord.adoption_score === "number"
+        ? mergedRecord.adoption_score
+        : null,
     popularity_score:
-      typeof record.popularity_score === "number" ? record.popularity_score : null,
+      typeof mergedRecord.popularity_score === "number"
+        ? mergedRecord.popularity_score
+        : null,
     economic_footprint_score:
-      typeof record.economic_footprint_score === "number"
-        ? record.economic_footprint_score
+      typeof mergedRecord.economic_footprint_score === "number"
+        ? mergedRecord.economic_footprint_score
         : null,
     hf_downloads:
-      typeof record.hf_downloads === "number" ? record.hf_downloads : null,
-    hf_likes: typeof record.hf_likes === "number" ? record.hf_likes : null,
+      typeof mergedRecord.hf_downloads === "number"
+        ? mergedRecord.hf_downloads
+        : null,
+    hf_likes:
+      typeof mergedRecord.hf_likes === "number" ? mergedRecord.hf_likes : null,
     hf_trending_score:
-      typeof record.hf_trending_score === "number" ? record.hf_trending_score : null,
+      typeof mergedRecord.hf_trending_score === "number"
+        ? mergedRecord.hf_trending_score
+        : null,
   };
   let normalizedRecord = {
-    ...record,
+    ...mergedRecord,
     hf_model_id: normalizedModel.hf_model_id,
     website_url: normalizedModel.website_url,
   };
