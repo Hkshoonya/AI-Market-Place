@@ -89,6 +89,43 @@ type ActiveModelForPublicSurfaceRepair = {
   [Field in (typeof MODEL_PUBLIC_RANKING_FIELDS)[number]]?: number | null;
 };
 
+const ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_PAGE_SIZE = 1000;
+
+async function fetchAllActiveModelsForPublicSurfaceRepair(
+  supabase: AgentContext["supabase"]
+): Promise<ActiveModelForPublicSurfaceRepair[]> {
+  const rows: ActiveModelForPublicSurfaceRepair[] = [];
+
+  for (
+    let from = 0;
+    ;
+    from += ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_PAGE_SIZE
+  ) {
+    const to = from + ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("models")
+      .select(ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT)
+      .eq("status", "active")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(
+        `Failed to fetch active models for public surface repair: ${error.message}`
+      );
+    }
+
+    const page = ((data ?? []) as unknown) as ActiveModelForPublicSurfaceRepair[];
+    rows.push(...page);
+
+    if (page.length < ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return rows;
+}
+
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
   name: "Pipeline Engineer",
@@ -511,12 +548,7 @@ const pipelineEngineer: ResidentAgent = {
 
       // Step 4g: Track homepage ranking drift so fresh current flagships do not quietly disappear.
       try {
-        const { data: activeModelsForMetadata } = await sb
-          .from("models")
-          .select(ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT)
-          .eq("status", "active");
-        const activeModels = ((activeModelsForMetadata ??
-          []) as unknown) as ActiveModelForPublicSurfaceRepair[];
+        const activeModels = await fetchAllActiveModelsForPublicSurfaceRepair(sb);
         const metadataRepairCandidates = activeModels
           .map((model) => ({
             ...model,
