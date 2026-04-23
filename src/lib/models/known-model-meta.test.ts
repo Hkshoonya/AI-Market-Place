@@ -41,6 +41,42 @@ describe("getKnownModelMeta", () => {
         "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/",
     });
   });
+
+  it("resolves newly cataloged official specialist rows by provider fallback", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "google-nano-banana-2",
+        provider: "Google",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      release_date: "2026-02-26",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "minimax-speech-2-6-turbo",
+        provider: "MiniMax",
+      })
+    ).toMatchObject({
+      category: "speech_audio",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "black-forest-labs-flux-2-pro",
+        provider: "Black Forest Labs",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      license: "commercial",
+      is_open_weights: false,
+    });
+  });
 });
 
 describe("buildKnownModelMetaPatch", () => {
@@ -77,6 +113,25 @@ describe("buildKnownModelMetaPatch", () => {
     ).toMatchObject({
       category: "speech_audio",
       release_date: "2026-04-15",
+      license: "commercial",
+    });
+  });
+
+  it("overrides generic specialist categorization and wrong open-weight flags for known commercial rows", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "minimax-music-2-6",
+        provider: "MiniMax",
+        name: "music-2.6",
+        category: "specialized",
+        release_date: "2026-04-09",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+      })
+    ).toMatchObject({
+      category: "speech_audio",
+      is_open_weights: false,
       license: "commercial",
     });
   });

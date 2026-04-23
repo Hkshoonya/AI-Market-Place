@@ -202,6 +202,91 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
     website_url: "https://www.minimax.io/models/audio",
   },
+  "speech-2.6-turbo": {
+    name: "MiniMax Speech 2.6 Turbo",
+    description:
+      "Low-latency MiniMax speech model for real-time multilingual text-to-speech with expressive voices and fast response.",
+    category: "speech_audio",
+    architecture: "Speech generation",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/speech",
+  },
+  "speech-2.6-hd": {
+    name: "MiniMax Speech 2.6 HD",
+    description:
+      "High-fidelity MiniMax speech model for premium voiceovers, audiobooks, and studio-grade multilingual text-to-speech.",
+    category: "speech_audio",
+    architecture: "Speech generation",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/speech",
+  },
+  "speech-02-hd": {
+    name: "MiniMax Speech 02 HD",
+    description:
+      "High-definition MiniMax text-to-audio model focused on natural voice synthesis, emotional delivery, and multilingual output.",
+    category: "speech_audio",
+    architecture: "Speech generation",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/speech",
+  },
+  "music-2.6": {
+    name: "MiniMax Music 2.6",
+    description:
+      "MiniMax music generation model for full-length songs, richer bass, stronger arrangement control, and higher-quality vocals.",
+    category: "speech_audio",
+    architecture: "Music generation",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/speech",
+  },
+  "music-cover": {
+    name: "MiniMax Music Cover",
+    description:
+      "MiniMax cover-generation model for style transfer, vocal replacement, and one-step cover creation from reference audio.",
+    category: "speech_audio",
+    architecture: "Music generation",
+    status: "active",
+    modalities: ["audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/models/speech",
+  },
 };
 
 const MINIMAX_KNOWN_MODEL_FAMILY_PREFIXES = [

@@ -75,4 +75,38 @@ export const BLACK_FOREST_LABS_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
     website_url: "https://bfl.ai/blog/24-10-02-flux",
   },
+  "flux-2-pro": {
+    name: "FLUX.2 [pro]",
+    description:
+      "Black Forest Labs production FLUX.2 image model for high-quality generation and multi-reference image editing at scale.",
+    category: "image_generation",
+    architecture: "Rectified flow transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://bfl.ai/flux2",
+  },
+  "flux-2-max": {
+    name: "FLUX.2 [max]",
+    description:
+      "Black Forest Labs highest-fidelity FLUX.2 image model for maximum quality, grounding, and multi-reference control.",
+    category: "image_generation",
+    architecture: "Rectified flow transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://bfl.ai/flux2",
+  },
 };

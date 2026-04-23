@@ -187,6 +187,43 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     website_url:
       "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-lite/",
   },
+  "lyria-3": {
+    name: "Lyria 3",
+    description:
+      "Google DeepMind music generation model for creating 30-second tracks from text or images with lyrics, creative control, and rich arrangement.",
+    category: "speech_audio",
+    release_date: "2026-02-18",
+    architecture: "Latent diffusion",
+    status: "active",
+    modalities: ["text", "image", "audio"],
+    website_url: "https://deepmind.google/models/model-cards/lyria-3/",
+    capabilities: {
+      audio_generation: true,
+      vision: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  "nano-banana-2": {
+    name: "Nano Banana 2",
+    description:
+      "Google's fast image generation and editing model with stronger instruction following, higher visual fidelity, and grounded multi-image workflows.",
+    category: "image_generation",
+    release_date: "2026-02-26",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    website_url: "https://blog.google/innovation-and-ai/technology/ai/nano-banana-2/",
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+      vision: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 
   // ---- Gemini 2.5 series ----
   "gemini-2.5-pro": {

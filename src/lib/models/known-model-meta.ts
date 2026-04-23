@@ -248,9 +248,14 @@ export function buildKnownModelMetaPatch(
   if (!knownMeta) return {};
 
   const shouldOverrideGenericCategory =
-    model.category === "multimodal" &&
+    (model.category === "multimodal" || model.category === "specialized") &&
     typeof knownMeta.category === "string" &&
     SPECIALIST_CATEGORY_OVERRIDES.has(knownMeta.category);
+  const shouldOverrideOpenWeightFlag =
+    model.is_open_weights === true &&
+    knownMeta.is_open_weights === false &&
+    !hasString(model.license) &&
+    !hasString(model.license_name);
 
   return Object.fromEntries(
     Object.entries({
@@ -264,9 +269,11 @@ export function buildKnownModelMetaPatch(
         ? undefined
         : knownMeta.context_window,
       is_open_weights:
-        typeof model.is_open_weights === "boolean"
-          ? undefined
-          : knownMeta.is_open_weights,
+        shouldOverrideOpenWeightFlag
+          ? knownMeta.is_open_weights
+          : typeof model.is_open_weights === "boolean"
+            ? undefined
+            : knownMeta.is_open_weights,
       license: hasString(model.license) ? undefined : knownMeta.license,
       license_name: hasString(model.license_name)
         ? undefined
