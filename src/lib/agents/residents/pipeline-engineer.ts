@@ -526,7 +526,7 @@ const pipelineEngineer: ResidentAgent = {
           }))
           .filter(
             (model) =>
-              model.trustTier === "community" &&
+              ["community", "wrapper"].includes(model.trustTier) &&
               model.blockers.some((blocker) =>
                 [
                   "missing_name",

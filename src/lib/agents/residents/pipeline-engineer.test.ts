@@ -307,6 +307,20 @@ function createSupabaseMock() {
                   hf_model_id: null,
                   website_url: null,
                 },
+                {
+                  id: "wrapper-archive",
+                  slug: "wrapper-no-release-date-gguf",
+                  provider: "Wrapper Labs",
+                  name: "Wrapper No Release Date",
+                  category: "llm",
+                  release_date: null,
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: null,
+                  hf_model_id: "wrapper/no-release-date",
+                  website_url: null,
+                },
               ],
               error: null,
             }),
@@ -486,7 +500,7 @@ describe("pipelineEngineer", () => {
         source: "public-ranking-pool",
       })
     );
-    expect(supabase.__modelUpdates).toHaveLength(5);
+    expect(supabase.__modelUpdates).toHaveLength(6);
     expect(supabase.__modelUpdates[0]).toMatchObject({
       id: "meta-llama",
       payload: expect.objectContaining({
@@ -501,6 +515,12 @@ describe("pipelineEngineer", () => {
       }),
     });
     expect(supabase.__modelUpdates[2]).toMatchObject({
+      id: "wrapper-archive",
+      payload: expect.objectContaining({
+        status: "archived",
+      }),
+    });
+    expect(supabase.__modelUpdates[3]).toMatchObject({
       id: "previous-opus",
       payload: expect.objectContaining({
         overall_rank: null,
@@ -508,7 +528,7 @@ describe("pipelineEngineer", () => {
         quality_score: null,
       }),
     });
-    expect(supabase.__modelUpdates[3]).toMatchObject({
+    expect(supabase.__modelUpdates[4]).toMatchObject({
       id: "flash-tts",
       payload: expect.objectContaining({
         overall_rank: null,
@@ -516,7 +536,7 @@ describe("pipelineEngineer", () => {
         quality_score: null,
       }),
     });
-    expect(supabase.__modelUpdates[4]).toMatchObject({
+    expect(supabase.__modelUpdates[5]).toMatchObject({
       id: "community-wrapper",
       payload: expect.objectContaining({
         overall_rank: null,
@@ -536,8 +556,8 @@ describe("pipelineEngineer", () => {
       repaired: 1,
     });
     expect(result.output.lowTrustCatalogAutoArchive).toMatchObject({
-      attempted: 1,
-      archived: 1,
+      attempted: 2,
+      archived: 2,
     });
   });
 });
