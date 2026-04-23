@@ -52,6 +52,43 @@ const INLINE_REPAIR_DISABLED_SOURCES = new Set([
   "github-stars",
 ]);
 
+const ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT = [
+  "id",
+  "slug",
+  "provider",
+  "name",
+  "category",
+  "release_date",
+  "is_open_weights",
+  "license",
+  "license_name",
+  "context_window",
+  "hf_model_id",
+  "website_url",
+  "description",
+  "short_description",
+  ...MODEL_PUBLIC_RANKING_FIELDS,
+].join(", ");
+
+type ActiveModelForPublicSurfaceRepair = {
+  id: string;
+  slug: string | null;
+  provider: string | null;
+  name: string | null;
+  category: string | null;
+  release_date: string | null;
+  is_open_weights: boolean | null;
+  license: string | null;
+  license_name: string | null;
+  context_window: number | null;
+  hf_model_id: string | null;
+  website_url: string | null;
+  description: string | null;
+  short_description: string | null;
+} & {
+  [Field in (typeof MODEL_PUBLIC_RANKING_FIELDS)[number]]?: number | null;
+};
+
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
   name: "Pipeline Engineer",
@@ -476,11 +513,11 @@ const pipelineEngineer: ResidentAgent = {
       try {
         const { data: activeModelsForMetadata } = await sb
           .from("models")
-          .select(
-            "id, slug, provider, name, category, release_date, is_open_weights, license, license_name, context_window, hf_model_id, website_url"
-          )
+          .select(ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT)
           .eq("status", "active");
-        const metadataRepairCandidates = (activeModelsForMetadata ?? [])
+        const activeModels = ((activeModelsForMetadata ??
+          []) as unknown) as ActiveModelForPublicSurfaceRepair[];
+        const metadataRepairCandidates = activeModels
           .map((model) => ({
             ...model,
             blockers: getDefaultPublicSurfaceReadinessBlockers(model),
@@ -526,7 +563,7 @@ const pipelineEngineer: ResidentAgent = {
           });
         }
 
-        const lowTrustArchiveCandidates = (activeModelsForMetadata ?? [])
+        const lowTrustArchiveCandidates = activeModels
           .map((model) => ({
             ...model,
             trustTier: getPublicSourceTrustTier(model),
@@ -583,11 +620,11 @@ const pipelineEngineer: ResidentAgent = {
         const homepageModels = (await fetchAllHomepageActiveModels(
           sb as never
         )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
-        const lifecycleRepairCandidates = homepageModels.filter(
+        const lifecycleRepairCandidates = activeModels.filter(
           (model) =>
             hasLifecycleWarningLanguage(model) && hasPublicRankingInputs(model)
         );
-        const notReadyRankingRepairCandidates = homepageModels.filter(
+        const notReadyRankingRepairCandidates = activeModels.filter(
           (model) =>
             !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
         );
