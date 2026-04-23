@@ -68,6 +68,7 @@ interface GoogleModelsResponse {
 }
 
 const GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const GOOGLE_MODELS_DOCS_URL = "https://ai.google.dev/gemini-api/docs/models/gemini";
 
 /** Extract the short model ID from "models/gemini-2.0-flash" -> "gemini-2.0-flash". */
 function extractModelId(name: string): string {
@@ -214,6 +215,40 @@ const { sync, healthCheck } = createAdapterSyncer<
   healthCheckSuccessMsg: "Google Generative Language API reachable",
 });
 
+async function healthCheckWithFallback(
+  secrets: Record<string, string>
+) {
+  const start = Date.now();
+  const apiResult = await healthCheck(secrets);
+  if (apiResult.healthy) {
+    return apiResult;
+  }
+
+  try {
+    const docsRes = await fetchWithRetry(
+      GOOGLE_MODELS_DOCS_URL,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ModelIndexBot/1.0)",
+        },
+      },
+      { maxRetries: 1 }
+    );
+
+    if (docsRes.ok) {
+      return {
+        healthy: true,
+        latencyMs: Date.now() - start,
+        message: `${apiResult.message} — docs/static fallback available`,
+      };
+    }
+  } catch {
+    // Fall through to the API failure result.
+  }
+
+  return apiResult;
+}
+
 // ---------------------------------------------------------------------------
 // Adapter definition
 // ---------------------------------------------------------------------------
@@ -225,7 +260,7 @@ const adapter: DataSourceAdapter = {
   defaultConfig: {},
   requiredSecrets: [],
   sync,
-  healthCheck,
+  healthCheck: healthCheckWithFallback,
 };
 
 registerAdapter(adapter);
