@@ -57,6 +57,16 @@ Success rate, far exceeding GPT-5.2's 47.3%, and surpassing human performance at
 which tests browser use, GPT-5.4 achieves a leading 67.3% success rate when using screenshots only.
 `;
 
+const SAMPLE_ANTHROPIC_OPUS_47_TEXT = `
+Based on our internal research-agent benchmark, Claude Opus 4.7 has the strongest efficiency baseline we've seen for multi-step work.
+It tied for the top overall score across our six modules at 0.715 and delivered the most consistent long-context performance of any model we tested.
+On General Finance—our largest module—it improved meaningfully on Opus 4.6, scoring 0.813 versus 0.767.
+Claude Opus 4.7 demonstrates strong substantive accuracy on BigLaw Bench for Harvey, scoring 90.9% at high effort.
+On CursorBench, Opus 4.7 is a meaningful jump in capabilities, clearing 70% versus Opus 4.6 at 58%.
+For the computer-use work that sits at the heart of XBOW’s autonomous penetration testing, the new Claude Opus 4.7 is a step change:
+98.5% on our visual-acuity benchmark versus 54.5% for Opus 4.6.
+`;
+
 describe("provider-benchmarks helpers", () => {
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
@@ -249,6 +259,48 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           benchmarkSlug: "webarena",
           score: 1,
+        }),
+      ])
+    );
+  });
+
+  it("extracts absolute Anthropic Opus 4.7 benchmark metrics conservatively", () => {
+    expect(__testables.extractStructuredBenchmarkScores(SAMPLE_ANTHROPIC_OPUS_47_TEXT)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "research-agent",
+          score: 0.715,
+          scoreNormalized: 71.5,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "finance-agent",
+          score: 0.813,
+          scoreNormalized: 81.3,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "biglaw-bench",
+          score: 90.9,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "cursorbench",
+          score: 70,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "visual-acuity-benchmark",
+          score: 98.5,
+        }),
+      ])
+    );
+  });
+
+  it("keeps Claude Opus 4.7 in the curated provider benchmark watchlist", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "anthropic-claude-opus-4-7",
+          provider: "Anthropic",
+          url: "https://www.anthropic.com/news/claude-opus-4-7",
+          modelHints: ["Claude Opus 4.7"],
         }),
       ])
     );

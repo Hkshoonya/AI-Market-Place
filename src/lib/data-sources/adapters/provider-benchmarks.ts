@@ -87,7 +87,7 @@ const MAX_RELATED_BENCHMARK_MODELS = 8;
 const BENCHMARK_EXTRACTION_RULES: Array<{
   benchmarkSlug: string;
   labels: string[];
-  type: "percentage" | "elo";
+  type: "percentage" | "elo" | "fractional";
 }> = [
   {
     benchmarkSlug: "swe-bench-verified",
@@ -144,6 +144,31 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   {
     benchmarkSlug: "gpqa",
     labels: ["gpqa diamond", "gpqa"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "research-agent",
+    labels: ["research-agent benchmark", "research agent benchmark"],
+    type: "fractional",
+  },
+  {
+    benchmarkSlug: "finance-agent",
+    labels: ["general finance"],
+    type: "fractional",
+  },
+  {
+    benchmarkSlug: "biglaw-bench",
+    labels: ["biglaw bench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "cursorbench",
+    labels: ["cursorbench", "cursor bench"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "visual-acuity-benchmark",
+    labels: ["visual-acuity benchmark", "visual acuity benchmark"],
     type: "percentage",
   },
   {
@@ -332,6 +357,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://www.anthropic.com/news/claude-opus-4-6",
     titleHint: "Claude Opus 4.6 benchmark update",
     modelHints: ["Claude Opus 4.6"],
+  },
+  {
+    id: "anthropic-claude-opus-4-7",
+    provider: "Anthropic",
+    url: "https://www.anthropic.com/news/claude-opus-4-7",
+    titleHint: "Claude Opus 4.7 benchmark update",
+    modelHints: ["Claude Opus 4.7"],
   },
   {
     id: "anthropic-claude-3-7-sonnet",
@@ -816,6 +848,38 @@ function hasCompetingBenchmarkLabel(
   );
 }
 
+function normalizeExtractedScore(
+  type: "percentage" | "elo" | "fractional",
+  numericValue: number
+) {
+  return type === "fractional"
+    ? Math.round(numericValue * 1000) / 10
+    : numericValue;
+}
+
+function recordStructuredBenchmarkScore(
+  extracted: Map<string, ExtractedProviderBenchmarkScore>,
+  normalizedText: string,
+  benchmarkSlug: string,
+  type: "percentage" | "elo" | "fractional",
+  numericValue: number,
+  matchIndex: number,
+  matchLength: number,
+  matchedLabel: string
+) {
+  const normalizedScore = normalizeExtractedScore(type, numericValue);
+  const existing = extracted.get(benchmarkSlug);
+  if (existing && existing.scoreNormalized >= normalizedScore) return;
+
+  extracted.set(benchmarkSlug, {
+    benchmarkSlug,
+    score: numericValue,
+    scoreNormalized: normalizedScore,
+    snippet: getMatchSnippet(normalizedText, matchIndex, matchLength),
+    matchedLabel,
+  });
+}
+
 function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchmarkScore[] {
   if (!text) return [];
 
@@ -829,11 +893,16 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
     const scoreFirstPattern =
       rule.type === "elo"
         ? new RegExp(
-            String.raw`(?<![\d.])(\d{1,4}(?:\.\d+)?)\s*(?:[^\d%]{0,30})?(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
+            String.raw`(?<![\d.])(\d{1,4}(?:\.\d+)?)\s*(?:[^\d%.]{0,30})?(?:on|in|for|at)\s+(?:(?:the|our)\s+)?${labelPattern}`,
             "gi"
           )
-        : new RegExp(
-            String.raw`(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*(%|percent)(?:[^\d%]{0,30})?(?:on|in|for|at)\s+(?:the\s+)?${labelPattern}`,
+        : rule.type === "fractional"
+          ? new RegExp(
+              String.raw`(?<![\d.])(0?\.\d+)\s*(?:[^\d%.]{0,30})?(?:on|in|for|at)\s+(?:(?:the|our)\s+)?${labelPattern}`,
+              "gi"
+            )
+          : new RegExp(
+            String.raw`(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*(%|percent)(?:[^\d%.]{0,30})?(?:on|in|for|at)\s+(?:(?:the|our)\s+)?${labelPattern}`,
             "gi"
           );
     const benchmarkFirstPattern =
@@ -842,7 +911,12 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
             String.raw`${labelPattern}(?:[^\d]{0,30}(?:elo(?:\s+score)?|score|at|:|=))?[^\d]{0,12}(\d{3,4}(?:\.\d+)?)`,
             "gi"
           )
-        : new RegExp(
+        : rule.type === "fractional"
+          ? new RegExp(
+              String.raw`${labelPattern}[^\d]{0,240}(?:score(?:d|ing)?(?:\s+of)?|at|:|=)?[^\d]{0,20}(0?\.\d+)`,
+              "gi"
+            )
+          : new RegExp(
             String.raw`${labelPattern}[^\d%]{0,80}(\d{1,3}(?:\.\d+)?)\s*(%|percent)`,
             "gi"
           );
@@ -880,22 +954,74 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
       if (rule.type === "elo" && (numericValue < 500 || numericValue > 3000)) {
         continue;
       }
+      if (rule.type === "fractional" && (numericValue < 0 || numericValue > 1)) {
+        continue;
+      }
 
-      const existing = extracted.get(rule.benchmarkSlug);
-      if (existing && existing.score >= numericValue) continue;
-
-      extracted.set(rule.benchmarkSlug, {
-        benchmarkSlug: rule.benchmarkSlug,
-        score: numericValue,
-        scoreNormalized: numericValue,
-        snippet: getMatchSnippet(
-          normalizedText,
-          match.index ?? 0,
-          match[0]?.length ?? 0
-        ),
-        matchedLabel: match[0]?.trim() ?? rule.labels[0],
-      });
+      recordStructuredBenchmarkScore(
+        extracted,
+        normalizedText,
+        rule.benchmarkSlug,
+        rule.type,
+        numericValue,
+        match.index ?? 0,
+        match[0]?.length ?? 0,
+        match[0]?.trim() ?? rule.labels[0]
+      );
     }
+  }
+
+  const fallbackRules: Array<{
+    benchmarkSlug: string;
+    type: "percentage" | "fractional";
+    pattern: RegExp;
+  }> = [
+    {
+      benchmarkSlug: "research-agent",
+      type: "fractional",
+      pattern:
+        /research-agent benchmark[\s\S]{0,260}?(?:overall score|score(?:d|ing)?(?:\s+of)?|at)[^\d]{0,20}(0?\.\d+)/i,
+    },
+    {
+      benchmarkSlug: "finance-agent",
+      type: "fractional",
+      pattern:
+        /general finance[\s\S]{0,220}?(?:scoring|score(?:d|ing)?(?:\s+of)?|at)[^\d]{0,20}(0?\.\d+)/i,
+    },
+    {
+      benchmarkSlug: "cursorbench",
+      type: "percentage",
+      pattern:
+        /cursorbench[\s\S]{0,180}?(?:clearing|scoring|at|:|=)[^\d]{0,20}(\d{1,3}(?:\.\d+)?)\s*(%|percent)/i,
+    },
+  ];
+
+  for (const rule of fallbackRules) {
+    if (extracted.has(rule.benchmarkSlug)) continue;
+
+    const match = rule.pattern.exec(normalizedText);
+    if (!match) continue;
+
+    const numericValue = Number.parseFloat(match[1] ?? "");
+    if (!Number.isFinite(numericValue)) continue;
+
+    if (rule.type === "percentage" && (numericValue < 0 || numericValue > 100)) {
+      continue;
+    }
+    if (rule.type === "fractional" && (numericValue < 0 || numericValue > 1)) {
+      continue;
+    }
+
+    recordStructuredBenchmarkScore(
+      extracted,
+      normalizedText,
+      rule.benchmarkSlug,
+      rule.type,
+      numericValue,
+      match.index ?? 0,
+      match[0]?.length ?? 0,
+      match[0]?.trim() ?? rule.benchmarkSlug
+    );
   }
 
   return [...extracted.values()];
