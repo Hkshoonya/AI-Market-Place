@@ -137,6 +137,22 @@ vi.mock("../../homepage/fetch-active-models", () => ({
       economic_footprint_score: 53.6,
       popularity_score: 47.8,
     },
+    {
+      id: "flash-tts",
+      slug: "google-gemini-3-1-flash-tts",
+      name: "Gemini 3.1 Flash TTS",
+      provider: "Google",
+      category: "multimodal",
+      release_date: null,
+      description: "Gemini 3.1 native text-to-speech model for real-time assistant output.",
+      overall_rank: 220,
+      quality_score: 41.2,
+      capability_score: 52.4,
+      adoption_score: 36.5,
+      economic_footprint_score: 28.1,
+      popularity_score: 34.2,
+      context_window: null,
+    },
   ]),
 }));
 
@@ -411,7 +427,7 @@ describe("pipelineEngineer", () => {
         source: "public-ranking-pool",
       })
     );
-    expect(supabase.__modelUpdates).toHaveLength(1);
+    expect(supabase.__modelUpdates).toHaveLength(2);
     expect(supabase.__modelUpdates[0]).toMatchObject({
       id: "previous-opus",
       payload: expect.objectContaining({
@@ -419,6 +435,20 @@ describe("pipelineEngineer", () => {
         capability_score: null,
         quality_score: null,
       }),
+    });
+    expect(supabase.__modelUpdates[1]).toMatchObject({
+      id: "flash-tts",
+      payload: expect.objectContaining({
+        overall_rank: null,
+        capability_score: null,
+        quality_score: null,
+      }),
+    });
+    expect(result.output.publicRankingAutoRepair).toMatchObject({
+      attempted: 2,
+      repaired: 2,
+      lifecycleCandidates: 1,
+      officialNotReadyCandidates: 2,
     });
   });
 });

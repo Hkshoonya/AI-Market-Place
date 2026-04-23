@@ -26,6 +26,8 @@ import {
   stripPublicRankingInputs,
 } from "../../models/public-ranking-inputs";
 import { hasLifecycleWarningLanguage } from "../../models/public-ranking-confidence";
+import { isDefaultPublicSurfaceReady } from "../../models/public-surface-readiness";
+import { getPublicSourceTrustTier } from "../../models/public-source-trust";
 import { computePublicRankingHealth } from "../../models/public-ranking-health";
 import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
@@ -468,9 +470,23 @@ const pipelineEngineer: ResidentAgent = {
           (model) =>
             hasLifecycleWarningLanguage(model) && hasPublicRankingInputs(model)
         );
-        const lifecycleRepairs: Array<{ id: string; slug: string }> = [];
+        const officialNotReadyRepairCandidates = homepageModels.filter(
+          (model) =>
+            getPublicSourceTrustTier(model) === "official" &&
+            !isDefaultPublicSurfaceReady(model) &&
+            hasPublicRankingInputs(model)
+        );
+        const rankingRepairCandidates = [
+          ...new Map(
+            [...lifecycleRepairCandidates, ...officialNotReadyRepairCandidates].map((model) => [
+              model.id,
+              model,
+            ])
+          ).values(),
+        ];
+        const rankingRepairs: Array<{ id: string; slug: string }> = [];
 
-        for (const candidate of lifecycleRepairCandidates.slice(0, 25)) {
+        for (const candidate of rankingRepairCandidates.slice(0, 25)) {
           const sanitized = stripPublicRankingInputs(
             candidate as unknown as Record<string, unknown>
           );
@@ -487,16 +503,16 @@ const pipelineEngineer: ResidentAgent = {
 
           if (error) {
             errors.push(
-              `Failed to auto-repair lifecycle ranking inputs for ${candidate.slug}: ${error.message}`
+              `Failed to auto-repair public ranking inputs for ${candidate.slug}: ${error.message}`
             );
             await log.warn(
-              `Lifecycle ranking auto-repair failed for ${candidate.slug}: ${error.message}`
+              `Public ranking auto-repair failed for ${candidate.slug}: ${error.message}`
             );
             continue;
           }
 
           Object.assign(candidate, updatePayload);
-          lifecycleRepairs.push({
+          rankingRepairs.push({
             id: candidate.id,
             slug: candidate.slug ?? candidate.id,
           });
@@ -509,9 +525,11 @@ const pipelineEngineer: ResidentAgent = {
         output.homepageRanking = homepageRankingHealth;
         output.publicRanking = publicRankingHealth;
         output.publicRankingAutoRepair = {
-          attempted: lifecycleRepairCandidates.length,
-          repaired: lifecycleRepairs.length,
-          rows: lifecycleRepairs,
+          attempted: rankingRepairCandidates.length,
+          repaired: rankingRepairs.length,
+          rows: rankingRepairs,
+          lifecycleCandidates: lifecycleRepairCandidates.length,
+          officialNotReadyCandidates: officialNotReadyRepairCandidates.length,
         };
         const homepageRankingIssueSlug = "pipeline-homepage-ranking-health";
         const homepageRankingIssueOpen = !homepageRankingHealth.healthy;
