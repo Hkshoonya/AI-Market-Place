@@ -321,6 +321,20 @@ function createSupabaseMock() {
                   hf_model_id: "wrapper/no-release-date",
                   website_url: null,
                 },
+                {
+                  id: "official-preview",
+                  slug: "google-gemini-flash-preview",
+                  provider: "Google",
+                  name: "Gemini Flash Preview",
+                  category: "multimodal",
+                  release_date: null,
+                  is_open_weights: false,
+                  license: null,
+                  license_name: null,
+                  context_window: 1048576,
+                  hf_model_id: null,
+                  website_url: null,
+                },
               ],
               error: null,
             }),
@@ -520,6 +534,16 @@ describe("pipelineEngineer", () => {
         status: "archived",
       }),
     });
+    expect(supabase.__modelUpdates).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "official-preview",
+          payload: expect.objectContaining({
+            status: "archived",
+          }),
+        }),
+      ])
+    );
     expect(supabase.__modelUpdates[3]).toMatchObject({
       id: "previous-opus",
       payload: expect.objectContaining({

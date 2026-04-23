@@ -65,12 +65,12 @@ export function isWrapperVariantSlug(slug: string | null | undefined) {
 export function getPublicSourceTrustTier(
   model: PublicSourceTrustModel
 ): PublicSourceTrustTier {
-  if (isPackagingVariantSlug(model.slug) || isWrapperVariantSlug(model.slug)) {
-    return "wrapper";
-  }
-
   if (OFFICIAL_PROVIDERS.has(getCanonicalProviderName(model.provider ?? ""))) {
     return "official";
+  }
+
+  if (isPackagingVariantSlug(model.slug) || isWrapperVariantSlug(model.slug)) {
+    return "wrapper";
   }
 
   if (model.hf_model_id || model.website_url) {

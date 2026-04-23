@@ -108,18 +108,18 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.llmMissingContextWindowCount).toBe(1);
     expect(coverage.signalContaminationCount).toBe(0);
     expect(coverage.trustTierCounts).toEqual({
-      official: 4,
+      official: 5,
       trusted_catalog: 0,
       community: 1,
-      wrapper: 1,
+      wrapper: 0,
     });
-    expect(coverage.lowTrustActiveCount).toBe(2);
+    expect(coverage.lowTrustActiveCount).toBe(1);
     expect(coverage.lowTrustReadyCount).toBe(0);
-    expect(coverage.official.activeModels).toBe(4);
-    expect(coverage.official.completeDiscoveryMetadataCount).toBe(4);
+    expect(coverage.official.activeModels).toBe(5);
+    expect(coverage.official.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
     expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(3);
-    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(75);
+    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(60);
     expect(coverage.official.topReadinessBlockers).toEqual(
       expect.arrayContaining([{ reason: "missing_context_window", count: 1 }])
     );
@@ -131,16 +131,15 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.providers.map((provider) => provider.provider)).toEqual(
       expect.arrayContaining(["Google", "xAI"])
     );
-    expect(coverage.official.releaseDateExemptAliasCount).toBe(0);
+    expect(coverage.official.releaseDateExemptAliasCount).toBe(1);
     expect(coverage.recentIncompleteModels[0]?.slug).toBe("x-ai-grok-4-20");
     expect(coverage.recentNotReadyModels[0]?.slug).toBe("x-ai-grok-4-20");
     expect(coverage.recentNotReadyModels[0]?.reasons).toEqual([
       "missing_context_window",
     ]);
-    expect(coverage.recentLowTrustModels[0]?.slug).toBe("google-gemini-flash-latest");
-    expect(coverage.recentLowTrustModels[0]?.trust_tier).toBe("wrapper");
-    expect(coverage.recentLowTrustModels[1]?.slug).toBe("mystery-model");
-    expect(coverage.recentLowTrustModels[1]?.trust_tier).toBe("community");
+    expect(coverage.recentLowTrustModels).toHaveLength(1);
+    expect(coverage.recentLowTrustModels[0]?.slug).toBe("mystery-model");
+    expect(coverage.recentLowTrustModels[0]?.trust_tier).toBe("community");
     expect(coverage.recentSignalContaminationModels).toEqual([]);
   });
 

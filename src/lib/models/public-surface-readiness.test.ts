@@ -81,4 +81,17 @@ describe("public surface readiness", () => {
       "wrapper_variant",
     ]);
   });
+
+  it("treats official latest rows as variant-blocked, not weak-signal rows", () => {
+    expect(
+      getDefaultPublicSurfaceReadinessBlockers({
+        slug: "google-gemini-flash-latest",
+        provider: "Google",
+        name: "Gemini Flash Latest",
+        category: "multimodal",
+        release_date: null,
+        context_window: 1048576,
+      })
+    ).toEqual(["wrapper_variant"]);
+  });
 });

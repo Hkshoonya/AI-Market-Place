@@ -5,8 +5,9 @@ import {
 } from "@/lib/data-sources/shared/benchmark-coverage";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import {
-  getPublicSourceTrustTier,
   OFFICIAL_PROVIDERS,
+  isPackagingVariantSlug,
+  isWrapperVariantSlug,
 } from "@/lib/models/public-source-trust";
 import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
 import type { TypedSupabaseClient } from "@/types/database";
@@ -30,7 +31,10 @@ export function isBenchmarkMetadataCoverageCandidate(
     return false;
   }
 
-  if (getPublicSourceTrustTier(model) === "wrapper") {
+  if (
+    isPackagingVariantSlug(model.slug) ||
+    isWrapperVariantSlug(model.slug)
+  ) {
     return false;
   }
 

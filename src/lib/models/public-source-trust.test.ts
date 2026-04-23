@@ -15,7 +15,23 @@ describe("public source trust", () => {
     ).toBe("official");
   });
 
-  it("marks packaging and wrapper slugs as wrapper trust", () => {
+  it("keeps official provider variants official", () => {
+    expect(
+      getPublicSourceTrustTier({
+        provider: "Google",
+        slug: "google-gemini-flash-latest",
+      })
+    ).toBe("official");
+
+    expect(
+      getPublicSourceTrustTier({
+        provider: "OpenAI",
+        slug: "openai-gpt-5-chat-preview",
+      })
+    ).toBe("official");
+  });
+
+  it("marks packaging and wrapper slugs as wrapper trust for non-official rows", () => {
     expect(
       getPublicSourceTrustTier({
         provider: "Community",
