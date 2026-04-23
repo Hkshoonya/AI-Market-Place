@@ -23,7 +23,6 @@ import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
 import {
   MODEL_PUBLIC_RANKING_FIELDS,
   hasPublicRankingInputs,
-  stripPublicRankingInputs,
 } from "../../models/public-ranking-inputs";
 import { hasLifecycleWarningLanguage } from "../../models/public-ranking-confidence";
 import {
@@ -526,52 +525,57 @@ const pipelineEngineer: ResidentAgent = {
           (model) =>
             hasLifecycleWarningLanguage(model) && hasPublicRankingInputs(model)
         );
-        const officialNotReadyRepairCandidates = homepageModels.filter(
+        const notReadyRankingRepairCandidates = homepageModels.filter(
           (model) =>
-            getPublicSourceTrustTier(model) === "official" &&
-            !isDefaultPublicSurfaceReady(model) &&
-            hasPublicRankingInputs(model)
+            !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
+        );
+        const officialNotReadyRepairCandidates = notReadyRankingRepairCandidates.filter(
+          (model) => getPublicSourceTrustTier(model) === "official"
+        );
+        const lowTrustNotReadyRepairCandidates = notReadyRankingRepairCandidates.filter(
+          (model) => getPublicSourceTrustTier(model) !== "official"
         );
         const rankingRepairCandidates = [
           ...new Map(
-            [...lifecycleRepairCandidates, ...officialNotReadyRepairCandidates].map((model) => [
-              model.id,
-              model,
-            ])
+            notReadyRankingRepairCandidates.map((model) => [model.id, model])
           ).values(),
         ];
         const rankingRepairs: Array<{ id: string; slug: string }> = [];
+        const rankingUpdatePayload = Object.fromEntries(
+          MODEL_PUBLIC_RANKING_FIELDS.map((field) => [field, null])
+        );
+        const MAX_RANKING_REPAIR_ROWS = 250;
+        const RANKING_REPAIR_BATCH_SIZE = 100;
 
-        for (const candidate of rankingRepairCandidates.slice(0, 25)) {
-          const sanitized = stripPublicRankingInputs(
-            candidate as unknown as Record<string, unknown>
-          );
-          const updatePayload = Object.fromEntries(
-            MODEL_PUBLIC_RANKING_FIELDS.map((field) => [
-              field,
-              sanitized[field] ?? null,
-            ])
-          );
+        for (
+          let i = 0;
+          i < Math.min(rankingRepairCandidates.length, MAX_RANKING_REPAIR_ROWS);
+          i += RANKING_REPAIR_BATCH_SIZE
+        ) {
+          const batch = rankingRepairCandidates.slice(i, i + RANKING_REPAIR_BATCH_SIZE);
+          const batchIds = batch.map((candidate) => candidate.id);
           const { error } = await sb
             .from("models")
-            .update(updatePayload)
-            .eq("id", candidate.id);
+            .update(rankingUpdatePayload)
+            .in("id", batchIds);
 
           if (error) {
             errors.push(
-              `Failed to auto-repair public ranking inputs for ${candidate.slug}: ${error.message}`
+              `Failed to auto-repair public ranking inputs for batch starting ${batch[0]?.slug ?? i}: ${error.message}`
             );
             await log.warn(
-              `Public ranking auto-repair failed for ${candidate.slug}: ${error.message}`
+              `Public ranking auto-repair failed for batch starting ${batch[0]?.slug ?? i}: ${error.message}`
             );
             continue;
           }
 
-          Object.assign(candidate, updatePayload);
-          rankingRepairs.push({
-            id: candidate.id,
-            slug: candidate.slug ?? candidate.id,
-          });
+          for (const candidate of batch) {
+            Object.assign(candidate, rankingUpdatePayload);
+            rankingRepairs.push({
+              id: candidate.id,
+              slug: candidate.slug ?? candidate.id,
+            });
+          }
         }
 
         const homepageRankingHealth = computeHomepageRankingHealth(homepageModels);
@@ -591,6 +595,7 @@ const pipelineEngineer: ResidentAgent = {
           rows: rankingRepairs,
           lifecycleCandidates: lifecycleRepairCandidates.length,
           officialNotReadyCandidates: officialNotReadyRepairCandidates.length,
+          lowTrustNotReadyCandidates: lowTrustNotReadyRepairCandidates.length,
         };
         const homepageRankingIssueSlug = "pipeline-homepage-ranking-health";
         const homepageRankingIssueOpen = !homepageRankingHealth.healthy;

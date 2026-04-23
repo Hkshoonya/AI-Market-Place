@@ -153,6 +153,24 @@ vi.mock("../../homepage/fetch-active-models", () => ({
       popularity_score: 34.2,
       context_window: null,
     },
+    {
+      id: "community-wrapper",
+      slug: "community-latest-coding-model",
+      name: "Latest Coding Model",
+      provider: "Unknown Labs",
+      category: "llm",
+      release_date: null,
+      description: "Community-discovered model snapshot with no official release metadata.",
+      overall_rank: 412,
+      quality_score: 21.4,
+      capability_score: 31.2,
+      adoption_score: 18.5,
+      economic_footprint_score: 12.1,
+      popularity_score: 25.2,
+      context_window: null,
+      hf_model_id: null,
+      website_url: null,
+    },
   ]),
 }));
 
@@ -282,6 +300,12 @@ function createSupabaseMock() {
           update: (payload: Record<string, unknown>) => ({
             eq: async (_column: string, id: string) => {
               modelUpdates.push({ id, payload });
+              return { error: null };
+            },
+            in: async (_column: string, ids: string[]) => {
+              for (const id of ids) {
+                modelUpdates.push({ id, payload });
+              }
               return { error: null };
             },
           }),
@@ -448,7 +472,7 @@ describe("pipelineEngineer", () => {
         source: "public-ranking-pool",
       })
     );
-    expect(supabase.__modelUpdates).toHaveLength(3);
+    expect(supabase.__modelUpdates).toHaveLength(4);
     expect(supabase.__modelUpdates[0]).toMatchObject({
       id: "meta-llama",
       payload: expect.objectContaining({
@@ -472,11 +496,20 @@ describe("pipelineEngineer", () => {
         quality_score: null,
       }),
     });
+    expect(supabase.__modelUpdates[3]).toMatchObject({
+      id: "community-wrapper",
+      payload: expect.objectContaining({
+        overall_rank: null,
+        capability_score: null,
+        quality_score: null,
+      }),
+    });
     expect(result.output.publicRankingAutoRepair).toMatchObject({
-      attempted: 2,
-      repaired: 2,
+      attempted: 3,
+      repaired: 3,
       lifecycleCandidates: 1,
       officialNotReadyCandidates: 2,
+      lowTrustNotReadyCandidates: 1,
     });
     expect(result.output.publicMetadataAutoRepair).toMatchObject({
       attempted: 1,
