@@ -22,6 +22,7 @@ import {
   getTrustedBenchmarkWebsiteUrl,
 } from "../shared/benchmark-coverage";
 import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score-trust";
+import { normalizeElo } from "@/lib/scoring/scoring-helpers";
 
 interface ProviderBenchmarkSource {
   id: string;
@@ -905,9 +906,15 @@ function normalizeExtractedScore(
   type: "percentage" | "elo" | "fractional",
   numericValue: number
 ) {
-  return type === "fractional"
-    ? Math.round(numericValue * 1000) / 10
-    : numericValue;
+  if (type === "fractional") {
+    return Math.round(numericValue * 1000) / 10;
+  }
+
+  if (type === "elo") {
+    return Math.round(normalizeElo(numericValue) * 10) / 10;
+  }
+
+  return numericValue;
 }
 
 function recordStructuredBenchmarkScore(

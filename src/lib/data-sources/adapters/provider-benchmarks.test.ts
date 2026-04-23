@@ -330,6 +330,7 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           benchmarkSlug: "chatbot_arena_elo",
           score: 1432,
+          scoreNormalized: 100,
         }),
         expect.objectContaining({
           benchmarkSlug: "gpqa",
