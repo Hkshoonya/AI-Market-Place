@@ -42,19 +42,17 @@ import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { SITE_URL } from "@/lib/constants/site";
 import { SearchResultsTabs } from "./search-results-tabs";
 import { prepareSearchSurfaceModels } from "@/lib/models/search-surface";
+import {
+  searchModelsWithFallback,
+  type SearchQueryModelRow,
+} from "@/lib/models/search-query";
 
 export const revalidate = 0;
 
-const SEARCH_MODEL_SELECT =
-  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, economic_footprint_score, popularity_score, release_date, is_open_weights, parameter_count, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, short_description, pricing_type, review_count, preview_manifest, mcp_manifest, agent_config, agent_id";
 
-type SearchModelItem = {
-  id: string;
-  slug: string;
-  name: string;
-  provider: string;
+type SearchModelItem = SearchQueryModelRow & {
   category: string;
   overall_rank: number | null;
   quality_score: number | null;
@@ -64,7 +62,6 @@ type SearchModelItem = {
   is_open_weights: boolean | null;
   parameter_count: number | null;
   short_description: string | null;
-  description?: string | null;
   market_cap_estimate?: number | null;
   model_pricing?: Array<{
     provider_name?: string | null;
@@ -104,45 +101,6 @@ type SearchMarketplaceItem = {
 type SearchQueryClient =
   | Exclude<ReturnType<typeof createOptionalPublicClient>, null>
   | ReturnType<typeof createAdminClient>;
-
-async function searchModelsWithFallback(
-  queryClient: ReturnType<typeof createAdminClient>,
-  safeQuery: string
-) {
-  const ftsResult = await queryClient
-    .from("models")
-    .select(SEARCH_MODEL_SELECT, { count: "exact" })
-    .textSearch("fts", safeQuery)
-    .eq("status", "active")
-    .order("popularity_score", { ascending: false, nullsFirst: false })
-    .range(0, 1999);
-
-  if (ftsResult.data && ftsResult.data.length > 0) {
-    return {
-      data: ftsResult.data,
-      count: ftsResult.count ?? ftsResult.data.length,
-    };
-  }
-
-  const ilikeResult = await queryClient
-    .from("models")
-    .select(SEARCH_MODEL_SELECT, { count: "exact" })
-    .eq("status", "active")
-    .or(
-      `name.ilike.%${safeQuery}%,provider.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
-    )
-    .order("popularity_score", { ascending: false, nullsFirst: false })
-    .range(0, 1999);
-
-  if (ilikeResult.error) {
-    throw ilikeResult.error;
-  }
-
-  return {
-    data: ilikeResult.data ?? [],
-    count: ilikeResult.count ?? 0,
-  };
-}
 
 async function searchMarketplaceWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
@@ -190,8 +148,12 @@ async function loadSearchModelResults(
   offset: number,
   pageSize: number
 ) {
-  const { data, count } = await searchModelsWithFallback(supabase, safeQuery);
-  const uniqueModels = prepareSearchSurfaceModels(data ?? [], safeQuery, pageSize);
+  const { data, count } = await searchModelsWithFallback(supabase, safeQuery, 2000);
+  const uniqueModels = prepareSearchSurfaceModels(
+    (data ?? []) as SearchModelItem[],
+    safeQuery,
+    pageSize
+  );
   const [
     { data: newsRaw },
     { data: pricingRaw },

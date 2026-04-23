@@ -24,113 +24,15 @@ import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-trackin
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
+import {
+  searchModelsWithFallback,
+  type SearchQueryModelRow,
+} from "@/lib/models/search-query";
 
 export const dynamic = "force-dynamic";
 
-const SEARCH_MODEL_SELECT =
-  "id, slug, name, provider, category, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, release_date, is_open_weights, is_api_available, status, parameter_count, description, short_description, market_cap_estimate";
 const SEARCH_MARKETPLACE_SELECT =
   "id, slug, title, listing_type, price, avg_rating, preview_manifest, mcp_manifest, agent_config, agent_id";
-
-interface SearchModelRow {
-  id: string;
-  slug: string;
-  name: string;
-  provider: string;
-  category?: string | null;
-  overall_rank?: number | null;
-  quality_score?: number | null;
-  capability_score?: number | null;
-  adoption_score?: number | null;
-  popularity_score?: number | null;
-  economic_footprint_score?: number | null;
-  release_date?: string | null;
-  is_open_weights?: boolean | null;
-  is_api_available?: boolean | null;
-  status?: string | null;
-  parameter_count?: number | null;
-  description?: string | null;
-  short_description?: string | null;
-  market_cap_estimate?: number | null;
-}
-
-function normalizeSearchInput(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function buildSearchVariants(value: string) {
-  const normalized = normalizeSearchInput(value);
-  const tokens = normalized.split(/\s+/).filter(Boolean);
-
-  return Array.from(
-    new Set(
-      [
-        sanitizeFilterValue(value),
-        tokens.join(" "),
-        tokens.join("-"),
-        tokens.join(""),
-      ]
-        .map((variant) => variant.trim())
-        .filter((variant) => variant.length >= 2)
-    )
-  );
-}
-
-function buildIlikeOrFilter(fields: string[], variants: string[]) {
-  return fields
-    .flatMap((field) => variants.map((variant) => `${field}.ilike.%${sanitizeFilterValue(variant)}%`))
-    .join(",");
-}
-
-async function searchModelsWithFallback(
-  queryClient: ReturnType<typeof createAdminClient>,
-  safeQuery: string,
-  limit: number
-): Promise<SearchModelRow[]> {
-  const variants = buildSearchVariants(safeQuery);
-  const ftsQuery = normalizeSearchInput(safeQuery);
-  const ilikeFilter = buildIlikeOrFilter(
-    ["name", "slug", "provider", "description", "short_description"],
-    variants
-  );
-
-  const fetchLimit = Math.min(Math.max(limit * 8, 40), 120);
-
-  const ftsResult = await queryClient
-    .from("models")
-    .select(SEARCH_MODEL_SELECT)
-    .textSearch("fts", ftsQuery || safeQuery)
-    .eq("status", "active")
-    .order("popularity_score", { ascending: false, nullsFirst: false })
-    .limit(fetchLimit);
-
-  const ilikeResult = await queryClient
-    .from("models")
-    .select(SEARCH_MODEL_SELECT)
-    .eq("status", "active")
-    .or(ilikeFilter)
-    .order("popularity_score", { ascending: false, nullsFirst: false })
-    .limit(fetchLimit);
-
-  if (ilikeResult.error) {
-    throw ilikeResult.error;
-  }
-
-  const merged = new Map<string, SearchModelRow>();
-  for (const row of ftsResult.data ?? []) {
-    if (typeof row.id === "string") merged.set(row.id, row as SearchModelRow);
-  }
-  for (const row of ilikeResult.data ?? []) {
-    if (typeof row.id === "string" && !merged.has(row.id)) {
-      merged.set(row.id, row as SearchModelRow);
-    }
-  }
-
-  return [...merged.values()];
-}
 
 async function searchMarketplaceWithFallback(
   queryClient: ReturnType<typeof createAdminClient>,
@@ -195,11 +97,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [], marketplace: [] });
     }
 
-    const models = await searchModelsWithFallback(supabase, query, limit);
+    const fetchLimit = Math.min(Math.max(limit * 8, 40), 120);
+    const { data: models } = await searchModelsWithFallback(
+      supabase,
+      query,
+      fetchLimit
+    );
 
     const explicitVariantQuery = queryRequestsExplicitVariant(safeQuery);
     const uniqueModels = prepareSearchSurfaceModels(
-      models ?? [],
+      (models ?? []) as SearchQueryModelRow[],
       explicitVariantQuery ? query : safeQuery,
       limit
     );
