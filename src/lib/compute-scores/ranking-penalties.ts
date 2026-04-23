@@ -60,6 +60,61 @@ function isRecentLeadershipBonusRow(model: RankingPenaltyModel) {
   );
 }
 
+function isAgingLeadershipDriftRow(model: RankingPenaltyModel) {
+  const ageDays = releaseAgeDays(model.release_date);
+  const capabilityRank = Number(model.capabilityRank ?? Number.POSITIVE_INFINITY);
+
+  return (
+    ageDays != null &&
+    ageDays > 240 &&
+    capabilityRank > 20 &&
+    hasLeadershipUpgradeLanguage(model) &&
+    !isRecentLeadershipBonusRow(model) &&
+    !isPreviewLikeModel(model) &&
+    !isEfficiencyTierModel(model) &&
+    !isLifecycleReplacementRow(model) &&
+    !isClosedUnavailableRow(model) &&
+    !model.is_open_weights
+  );
+}
+
+function isAgingMidPackCommercialRow(model: RankingPenaltyModel) {
+  const ageDays = releaseAgeDays(model.release_date);
+  const capabilityRank = Number(model.capabilityRank ?? Number.POSITIVE_INFINITY);
+
+  return (
+    ageDays != null &&
+    ageDays > 300 &&
+    capabilityRank > 25 &&
+    !hasLeadershipUpgradeLanguage(model) &&
+    !isPreviewLikeModel(model) &&
+    !isEfficiencyTierModel(model) &&
+    !isLifecycleReplacementRow(model) &&
+    !isClosedUnavailableRow(model) &&
+    !model.is_open_weights
+  );
+}
+
+function isRecentMidPackCommercialSurvivor(model: RankingPenaltyModel) {
+  const ageDays = releaseAgeDays(model.release_date);
+  const capabilityRank = Number(model.capabilityRank ?? Number.POSITIVE_INFINITY);
+  const benchmarkCount = Number(model.benchmarkCount ?? 0);
+
+  return (
+    ageDays != null &&
+    ageDays <= 180 &&
+    capabilityRank >= 30 &&
+    benchmarkCount > 0 &&
+    benchmarkCount <= 4 &&
+    !hasLeadershipUpgradeLanguage(model) &&
+    !isPreviewLikeModel(model) &&
+    !isEfficiencyTierModel(model) &&
+    !isLifecycleReplacementRow(model) &&
+    !isClosedUnavailableRow(model) &&
+    !model.is_open_weights
+  );
+}
+
 export function computeCapabilityScoreMultiplier(model: RankingPenaltyModel) {
   const ageDays = releaseAgeDays(model.release_date);
   let multiplier = 1;
@@ -111,6 +166,24 @@ export function computeBalancedRankPenalty(model: RankingPenaltyModel, modelCoun
 
   if (isClosedUnavailableRow(model)) {
     penalty += Math.round(modelCount * 0.08);
+  }
+
+  if (isAgingLeadershipDriftRow(model)) {
+    penalty +=
+      ageDays != null && ageDays > 365
+        ? Math.round(modelCount * 0.08)
+        : Math.round(modelCount * 0.05);
+  }
+
+  if (isAgingMidPackCommercialRow(model)) {
+    penalty +=
+      ageDays != null && ageDays > 365
+        ? Math.round(modelCount * 0.06)
+        : Math.round(modelCount * 0.04);
+  }
+
+  if (isRecentMidPackCommercialSurvivor(model)) {
+    penalty += Math.round(modelCount * 0.04);
   }
 
   if (isLifecycleReplacementRow(model)) {

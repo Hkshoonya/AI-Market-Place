@@ -50,6 +50,23 @@ describe("ranking penalties", () => {
     expect(computeBalancedRankPenalty(currentFlagship, 2000)).toBeLessThan(0);
   });
 
+  it("penalizes aging flagship-branded rows that no longer represent the current frontier", () => {
+    const legacyFlagship = {
+      slug: "openai-gpt-4o",
+      name: "GPT-4o",
+      provider: "openai",
+      release_date: "2024-05-13",
+      is_api_available: true,
+      is_open_weights: false,
+      benchmarkCount: 10,
+      capabilityRank: 35,
+      description:
+        "Multimodal flagship model with native vision and audio capabilities.",
+    };
+
+    expect(computeBalancedRankPenalty(legacyFlagship, 2000)).toBeGreaterThanOrEqual(160);
+  });
+
   it("does not reward recent benchmark-backed rows that are not yet frontier-level on capability", () => {
     const midPackRecentRow = {
       slug: "google-gemini-3-1-pro",
@@ -64,6 +81,23 @@ describe("ranking penalties", () => {
     };
 
     expect(computeBalancedRankPenalty(midPackRecentRow, 2000)).toBe(0);
+  });
+
+  it("penalizes recent mid-pack commercial rows that survive on usage without frontier capability", () => {
+    const midPackCommercial = {
+      slug: "minimax-minimax-m2-1",
+      name: "MiniMax M2.1",
+      provider: "minimax",
+      release_date: "2025-12-23",
+      is_api_available: true,
+      is_open_weights: false,
+      benchmarkCount: 4,
+      capabilityRank: 31,
+      description:
+        "MiniMax coding and reasoning model optimized for real-world programming and workplace tasks.",
+    };
+
+    expect(computeBalancedRankPenalty(midPackCommercial, 2000)).toBeGreaterThanOrEqual(80);
   });
 
   it("penalizes closed inaccessible rows even when they are not open weights", () => {
