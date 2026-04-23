@@ -61,7 +61,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
       supabase
         .from("models")
         .select(
-          "id, name, slug, provider, category, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, is_api_available, hf_trending_score, parameter_count, github_stars"
+          "id, name, slug, provider, category, status, description, short_description, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, is_api_available, hf_trending_score, parameter_count, github_stars"
         )
         .eq("status", "active"),
     "models"

@@ -17,6 +17,9 @@ export interface ScoringInputs {
     slug: string;
     provider: string;
     category: string;
+    status: string | null;
+    description: string | null;
+    short_description: string | null;
     quality_score: number | null;
     value_score: number | null;
     hf_downloads: number | null;

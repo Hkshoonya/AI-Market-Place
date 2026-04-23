@@ -37,6 +37,10 @@ import {
 import { buildSourceCoverage, getCorroborationMultiplier } from "@/lib/source-coverage";
 import { isFreshVerifiedPricingEntry } from "@/lib/models/pricing";
 import type { ScoringInputs, ScoringResults } from "./types";
+import {
+  computeBalancedRankPenalty,
+  computeCapabilityScoreMultiplier,
+} from "./ranking-penalties";
 
 /**
  * Orchestrate all scoring lenses for all models.
@@ -324,7 +328,15 @@ export async function computeAllLenses(
       category: (m.category as string) ?? "other",
       sourceCoverage: sourceCoverageMap.get(m.id) ?? null,
     };
-    capabilityScoreMap.set(m.id, computeCapabilityScore(capInputs));
+    const rawCapabilityScore = computeCapabilityScore(capInputs);
+    if (rawCapabilityScore == null) {
+      capabilityScoreMap.set(m.id, null);
+      continue;
+    }
+
+    const capabilityMultiplier = computeCapabilityScoreMultiplier(m);
+    const adjustedCapabilityScore = Math.round(rawCapabilityScore * capabilityMultiplier * 10) / 10;
+    capabilityScoreMap.set(m.id, adjustedCapabilityScore);
   }
 
   // Capability ranks (only ranked models)
@@ -507,6 +519,7 @@ export async function computeAllLenses(
     usageRank: usageRankMap.get(m.id) ?? defaultRank,
     expertRank: expertRankMap.get(m.id) ?? defaultRank,
     valueRank: valueRankMap.get(m.id) ?? null,
+    rankPenalty: computeBalancedRankPenalty(m, models.length),
   }));
   const balancedRankings = computeBalancedRankings(balancedInput);
   const balancedRankMap = new Map(

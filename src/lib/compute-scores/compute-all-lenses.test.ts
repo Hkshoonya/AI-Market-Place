@@ -42,6 +42,9 @@ function buildFixtureInputs(): ScoringInputs {
       slug: "gpt-4o",
       provider: "openai",
       category: "llm",
+      status: "active",
+      description: null,
+      short_description: null,
       quality_score: null,
       value_score: null,
       hf_downloads: null,
@@ -59,6 +62,9 @@ function buildFixtureInputs(): ScoringInputs {
       slug: "llama-3-70b",
       provider: "meta",
       category: "llm",
+      status: "active",
+      description: null,
+      short_description: null,
       quality_score: null,
       value_score: null,
       hf_downloads: 500000,
@@ -76,6 +82,9 @@ function buildFixtureInputs(): ScoringInputs {
       slug: "stable-diffusion-xl",
       provider: "stability ai",
       category: "image_generation",
+      status: "active",
+      description: null,
+      short_description: null,
       quality_score: null,
       value_score: null,
       hf_downloads: 1000000,
@@ -140,6 +149,87 @@ function buildFixtureInputs(): ScoringInputs {
     newsMentionMap,
     providerBenchmarkAvg,
     staleCount: 0,
+    sourceCoverageMap: new Map(),
+  };
+}
+
+function buildLifecyclePenaltyFixture(): ScoringInputs {
+  return {
+    models: [
+      {
+        id: "anthropic-claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        slug: "anthropic-claude-opus-4-6",
+        provider: "anthropic",
+        category: "llm",
+        status: "active",
+        description: null,
+        short_description: null,
+        quality_score: null,
+        value_score: null,
+        hf_downloads: 0,
+        hf_likes: 2_400,
+        release_date: "2025-06-01",
+        is_open_weights: false,
+        is_api_available: true,
+        hf_trending_score: null,
+        parameter_count: null,
+        github_stars: 0,
+      },
+      {
+        id: "anthropic-claude-opus-4-7",
+        name: "Claude Opus 4.7",
+        slug: "anthropic-claude-opus-4-7",
+        provider: "anthropic",
+        category: "llm",
+        status: "active",
+        description: null,
+        short_description: null,
+        quality_score: null,
+        value_score: null,
+        hf_downloads: 0,
+        hf_likes: 400,
+        release_date: "2026-04-16",
+        is_open_weights: false,
+        is_api_available: true,
+        hf_trending_score: null,
+        parameter_count: null,
+        github_stars: 0,
+      },
+    ],
+    benchmarkMap: new Map<string, number[]>([
+      ["anthropic-claude-opus-4-6", [93, 90, 88]],
+      ["anthropic-claude-opus-4-7", [82, 79, 76]],
+    ]),
+    benchmarkDetailMap: new Map<string, Array<{ slug: string; score: number }>>([
+      [
+        "anthropic-claude-opus-4-6",
+        [
+          { slug: "mmlu", score: 93 },
+          { slug: "gpqa", score: 90 },
+          { slug: "math", score: 88 },
+        ],
+      ],
+      [
+        "anthropic-claude-opus-4-7",
+        [
+          { slug: "mmlu", score: 82 },
+          { slug: "gpqa", score: 79 },
+          { slug: "math", score: 76 },
+        ],
+      ],
+    ]),
+    eloMap: new Map<string, number>([
+      ["anthropic-claude-opus-4-6", 1290],
+      ["anthropic-claude-opus-4-7", 1220],
+    ]),
+    newsMentionMap: new Map<string, number>([
+      ["anthropic-claude-opus-4-6", 25],
+      ["anthropic-claude-opus-4-7", 35],
+    ]),
+    providerBenchmarkAvg: new Map<string, number>([["anthropic", 84]]),
+    staleCount: 0,
+    sourceCoverageMap: new Map(),
   };
 }
 
@@ -368,6 +458,27 @@ describe("computeAllLenses", () => {
         provider_name: "OpenAI",
         effective_date: "2026-03-01",
       })
+    );
+  });
+
+  it("demotes superseded lifecycle rows below the current replacement in capability and balanced ranks", async () => {
+    const inputs = buildLifecyclePenaltyFixture();
+    const supabase = createMockSupabase();
+
+    const result = await computeAllLenses(inputs, supabase);
+
+    const opus46Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-6");
+    const opus47Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-7");
+
+    expect(opus46Capability).not.toBeNull();
+    expect(opus47Capability).not.toBeNull();
+    expect(opus47Capability!).toBeGreaterThan(opus46Capability!);
+
+    expect(result.capRankMap.get("anthropic-claude-opus-4-7")).toBeLessThan(
+      result.capRankMap.get("anthropic-claude-opus-4-6")!
+    );
+    expect(result.balancedRankMap.get("anthropic-claude-opus-4-7")?.overall).toBeLessThan(
+      result.balancedRankMap.get("anthropic-claude-opus-4-6")?.overall ?? Number.MAX_SAFE_INTEGER
     );
   });
 });

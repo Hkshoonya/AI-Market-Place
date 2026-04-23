@@ -32,6 +32,7 @@ interface ModelRanks {
   usageRank: number;
   expertRank: number;
   valueRank: number | null;
+  rankPenalty?: number;
 }
 
 /**
@@ -47,11 +48,13 @@ export function computeBalancedRankings(
     const w = CATEGORY_BALANCED_WEIGHTS[m.category] ?? CATEGORY_BALANCED_WEIGHTS.default;
     const capRank = m.capabilityRank ?? maxRank;
     const valRank = m.valueRank ?? maxRank;
+    const rankPenalty = Math.max(0, Number(m.rankPenalty ?? 0));
 
     const composite = capRank * w.capability
                     + m.usageRank * w.usage
                     + m.expertRank * w.expert
-                    + valRank * w.value;
+                    + valRank * w.value
+                    + rankPenalty;
 
     return { id: m.id, category: m.category, composite };
   });
