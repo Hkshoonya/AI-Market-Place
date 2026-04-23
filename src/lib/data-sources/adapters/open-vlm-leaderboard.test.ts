@@ -29,4 +29,30 @@ describe("open-vlm-leaderboard helpers", () => {
   it("normalizes sub-1 scale scores to percentages", () => {
     expect(__testables.normalizeScore("mmmu", 0.873)).toBeCloseTo(87.3);
   });
+
+  it("falls back to HTTP only for certificate-style upstream errors", () => {
+    expect(
+      __testables.shouldFallbackToHttpOpenVlm(
+        new TypeError("fetch failed", {
+          cause: new Error("certificate has expired"),
+        })
+      )
+    ).toBe(true);
+
+    expect(
+      __testables.shouldFallbackToHttpOpenVlm(
+        new TypeError("fetch failed", {
+          cause: new Error("self signed certificate"),
+        })
+      )
+    ).toBe(true);
+
+    expect(
+      __testables.shouldFallbackToHttpOpenVlm(
+        new TypeError("fetch failed", {
+          cause: new Error("socket hang up"),
+        })
+      )
+    ).toBe(false);
+  });
 });

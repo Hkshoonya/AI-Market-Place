@@ -54,6 +54,7 @@ interface BenchmarkExtractor {
 }
 
 const OPENVLM_JSON_URL = "https://opencompass.openxlab.space/assets/OpenVLM.json";
+const OPENVLM_JSON_HTTP_FALLBACK_URL = "http://opencompass.openxlab.space/assets/OpenVLM.json";
 const OPENVLM_PAGE_URL = "https://huggingface.co/spaces/opencompass/open_vlm_leaderboard";
 
 const PROVIDER_PREFIXES = [
@@ -114,6 +115,77 @@ function normalizeScore(benchmarkSlug: string, rawScore: number): number {
   return rawScore;
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const causeMessage =
+      typeof err.cause === "object" &&
+      err.cause &&
+      "message" in err.cause &&
+      typeof err.cause.message === "string"
+        ? err.cause.message
+        : "";
+    return `${err.message} ${causeMessage}`.trim();
+  }
+
+  return String(err);
+}
+
+function shouldFallbackToHttpOpenVlm(err: unknown): boolean {
+  const message = getErrorMessage(err).toLowerCase();
+  return (
+    message.includes("certificate has expired") ||
+    message.includes("certificate") ||
+    message.includes("tls")
+  );
+}
+
+async function fetchOpenVlmFeed(
+  signal?: AbortSignal,
+  maxRetries = 3
+): Promise<{
+  response: Response;
+  sourceUrl: string;
+  usedHttpFallback: boolean;
+}> {
+  const init = {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "AI-Market-Cap-Bot",
+    },
+    signal,
+  } satisfies RequestInit;
+
+  try {
+    const response = await fetchWithRetry(
+      OPENVLM_JSON_URL,
+      init,
+      { signal, maxRetries }
+    );
+
+    return {
+      response,
+      sourceUrl: OPENVLM_JSON_URL,
+      usedHttpFallback: false,
+    };
+  } catch (err) {
+    if (!shouldFallbackToHttpOpenVlm(err)) {
+      throw err;
+    }
+  }
+
+  const response = await fetchWithRetry(
+    OPENVLM_JSON_HTTP_FALLBACK_URL,
+    init,
+    { signal, maxRetries }
+  );
+
+  return {
+    response,
+    sourceUrl: OPENVLM_JSON_HTTP_FALLBACK_URL,
+    usedHttpFallback: true,
+  };
+}
+
 function extractBenchmarkScores(entry: OpenVlmEntry): ExtractedBenchmarkScore[] {
   const scores: ExtractedBenchmarkScore[] = [];
 
@@ -161,6 +233,7 @@ function parsePublishedAt(rawTime: string | undefined): string {
 export const __testables = {
   extractBenchmarkScores,
   normalizeScore,
+  shouldFallbackToHttpOpenVlm,
 };
 
 const adapter: DataSourceAdapter = {
@@ -179,19 +252,16 @@ const adapter: DataSourceAdapter = {
     const today = new Date().toISOString().split("T")[0];
 
     let payload: OpenVlmLeaderboardResponse;
+    let feedSourceUrl = OPENVLM_JSON_URL;
+    let usedHttpFallback = false;
 
     try {
-      const res = await fetchWithRetry(
-        OPENVLM_JSON_URL,
-        {
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "AI-Market-Cap-Bot",
-          },
-          signal: ctx.signal,
-        },
-        { signal: ctx.signal }
+      const feed = await fetchOpenVlmFeed(
+        ctx.signal
       );
+      const { response: res, sourceUrl } = feed;
+      feedSourceUrl = sourceUrl;
+      usedHttpFallback = feed.usedHttpFallback;
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
@@ -204,7 +274,11 @@ const adapter: DataSourceAdapter = {
             message: `Open VLM JSON feed returned ${res.status}: ${body.slice(0, 200)}`,
             context: isPermanentHttpFailure(res.status, body) ? "permanent_upstream_failure" : "api_error",
           }],
-          metadata: { source: "openxlab_json", url: OPENVLM_JSON_URL },
+          metadata: {
+            source: "openxlab_json",
+            url: sourceUrl,
+            usedHttpFallback,
+          },
         };
       }
 
@@ -420,7 +494,8 @@ const adapter: DataSourceAdapter = {
       errors,
       metadata: {
         source: "openxlab_json",
-        url: OPENVLM_JSON_URL,
+        url: feedSourceUrl,
+        usedHttpFallback,
         totalRowsFetched: rawEntries.length,
         matchedModels: matchedCount,
         matchRateScope: "broad_public_leaderboard",
@@ -432,23 +507,16 @@ const adapter: DataSourceAdapter = {
   async healthCheck(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      const res = await fetchWithRetry(
-        OPENVLM_JSON_URL,
-        {
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "AI-Market-Cap-Bot",
-          },
-        },
-        { maxRetries: 1 }
-      );
+      const { response: res, usedHttpFallback } = await fetchOpenVlmFeed(undefined, 1);
       const latencyMs = Date.now() - start;
 
       if (res.ok) {
         return {
           healthy: true,
           latencyMs,
-          message: "Open VLM JSON feed reachable",
+          message: usedHttpFallback
+            ? "Open VLM JSON feed reachable via HTTP fallback"
+            : "Open VLM JSON feed reachable",
         };
       }
 
