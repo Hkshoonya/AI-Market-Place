@@ -52,6 +52,7 @@ interface ParsedProviderSourceContent {
   publishedAt: string;
   hasBenchmarkSignal: boolean;
   text: string;
+  html?: string;
 }
 
 interface ExtractedProviderBenchmarkScore {
@@ -63,8 +64,10 @@ interface ExtractedProviderBenchmarkScore {
 }
 
 type PdfParseModule = typeof import("pdf-parse");
+type JSDOMModule = typeof import("jsdom");
 
 let pdfParseModulePromise: Promise<PdfParseModule> | null = null;
+let jsdomModulePromise: Promise<JSDOMModule> | null = null;
 
 async function loadPdfParse() {
   if (!pdfParseModulePromise) {
@@ -72,6 +75,14 @@ async function loadPdfParse() {
   }
 
   return pdfParseModulePromise;
+}
+
+async function loadJSDOM() {
+  if (!jsdomModulePromise) {
+    jsdomModulePromise = import("jsdom");
+  }
+
+  return jsdomModulePromise;
 }
 
 const PROVIDER_PAGE_HEADERS = {
@@ -1036,6 +1047,160 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
   return [...extracted.values()];
 }
 
+function normalizeTableText(value: string | null | undefined) {
+  return decodeHtml(String(value ?? ""))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTableMatchText(value: string | null | undefined) {
+  return normalizeTableText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function resolveStructuredBenchmarkRule(cellText: string) {
+  const normalizedCell = normalizeTableMatchText(cellText);
+  if (!normalizedCell) return null;
+
+  return (
+    BENCHMARK_EXTRACTION_RULES.find((rule) =>
+      rule.labels.some((label) => {
+        const normalizedLabel = normalizeTableMatchText(label);
+        return (
+          normalizedCell === normalizedLabel ||
+          normalizedCell.includes(normalizedLabel)
+        );
+      })
+    ) ?? null
+  );
+}
+
+function resolveTargetTableHeaderIndex(
+  headerRow: string[],
+  modelHints: string[]
+) {
+  const normalizedHints = modelHints
+    .map((hint) => normalizeTableMatchText(hint))
+    .filter(Boolean);
+
+  if (normalizedHints.length === 0) return -1;
+
+  return headerRow.findIndex((cell) => {
+    const normalizedCell = normalizeTableMatchText(cell);
+    if (!normalizedCell) return false;
+
+    return normalizedHints.some(
+      (normalizedHint) =>
+        normalizedCell === normalizedHint ||
+        normalizedCell.includes(normalizedHint) ||
+        normalizedHint.includes(normalizedCell)
+    );
+  });
+}
+
+function extractTableCellScore(
+  value: string,
+  type: "percentage" | "elo" | "fractional"
+) {
+  const matches = [...normalizeTableText(value).matchAll(/\d{1,4}(?:\.\d+)?/g)];
+  if (matches.length === 0) return null;
+
+  const numericValue = Number.parseFloat(matches[matches.length - 1]?.[0] ?? "");
+  if (!Number.isFinite(numericValue)) return null;
+
+  if (type === "percentage" && (numericValue < 0 || numericValue > 100)) {
+    return null;
+  }
+  if (type === "elo" && (numericValue < 500 || numericValue > 3000)) {
+    return null;
+  }
+  if (type === "fractional" && (numericValue < 0 || numericValue > 1)) {
+    return null;
+  }
+
+  return numericValue;
+}
+
+async function extractStructuredBenchmarkScoresFromHtmlTables(
+  source: ProviderBenchmarkSource,
+  html: string
+) {
+  if (!html) return [];
+
+  const { JSDOM } = await loadJSDOM();
+  const dom = new JSDOM(html);
+  const tables = [...dom.window.document.querySelectorAll("table")];
+  const extracted = new Map<string, ExtractedProviderBenchmarkScore>();
+
+  for (const table of tables) {
+    const rows = [...table.querySelectorAll("tr")]
+      .map((row) =>
+        [...row.querySelectorAll("th,td")]
+          .map((cell) => normalizeTableText(cell.textContent))
+          .filter(Boolean)
+      )
+      .filter((row) => row.length > 0);
+
+    if (rows.length < 2) continue;
+
+    const headerRowIndex = rows.findIndex(
+      (row) => resolveTargetTableHeaderIndex(row, source.modelHints) >= 0
+    );
+    if (headerRowIndex < 0) continue;
+
+    const headerRow = rows[headerRowIndex];
+    const headerModelIndex = resolveTargetTableHeaderIndex(
+      headerRow,
+      source.modelHints
+    );
+    if (headerModelIndex < 0) continue;
+
+    const sampleDataRow = rows
+      .slice(headerRowIndex + 1)
+      .find((row) => row.length > 1);
+    if (!sampleDataRow) continue;
+
+    const scoreColumnIndex =
+      sampleDataRow.length === headerRow.length + 1
+        ? headerModelIndex + 1
+        : headerModelIndex;
+    if (scoreColumnIndex < 0) continue;
+
+    for (const row of rows.slice(headerRowIndex + 1)) {
+      if (row.length <= scoreColumnIndex) continue;
+
+      const benchmarkCell = row
+        .slice(0, Math.min(scoreColumnIndex, 4))
+        .find((cell) => resolveStructuredBenchmarkRule(cell));
+      if (!benchmarkCell) continue;
+
+      const rule = resolveStructuredBenchmarkRule(benchmarkCell);
+      if (!rule) continue;
+
+      const numericValue = extractTableCellScore(
+        row[scoreColumnIndex] ?? "",
+        rule.type
+      );
+      if (numericValue === null) continue;
+
+      recordStructuredBenchmarkScore(
+        extracted,
+        row.join(" "),
+        rule.benchmarkSlug,
+        rule.type,
+        numericValue,
+        0,
+        row.join(" ").length,
+        row.join(" ")
+      );
+    }
+  }
+
+  return [...extracted.values()];
+}
+
 function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
   return {
     title: source.titleHint,
@@ -1099,6 +1264,7 @@ async function parseProviderSourceContent(
       extractPublishedAt(html) ?? source.publishedAtHint ?? new Date().toISOString(),
     hasBenchmarkSignal: benchmarkSignal,
     text,
+    html,
   };
 }
 
@@ -1473,10 +1639,28 @@ const adapter: DataSourceAdapter = {
         lookup,
         aliasIndex
       );
-      const structuredScores =
-        isStructuredBenchmarkSource(source, relatedModelIds)
-          ? extractStructuredBenchmarkScores(parsedContent.text)
-          : [];
+      const structuredScores = isStructuredBenchmarkSource(source, relatedModelIds)
+        ? [
+            ...(parsedContent.html
+              ? await extractStructuredBenchmarkScoresFromHtmlTables(
+                  source,
+                  parsedContent.html
+                )
+              : []),
+            ...extractStructuredBenchmarkScores(parsedContent.text),
+          ].reduce<ExtractedProviderBenchmarkScore[]>((scores, score) => {
+            if (
+              scores.some(
+                (existing) => existing.benchmarkSlug === score.benchmarkSlug
+              )
+            ) {
+              return scores;
+            }
+
+            scores.push(score);
+            return scores;
+          }, [])
+        : [];
 
       for (const structuredScore of structuredScores) {
         const benchmarkId = benchmarkIdMap.get(structuredScore.benchmarkSlug);
@@ -1640,6 +1824,7 @@ export const __testables = {
   extractPdfSummary,
   buildPdfFallbackRecord,
   extractStructuredBenchmarkScores,
+  extractStructuredBenchmarkScoresFromHtmlTables,
   buildAutoBenchmarkSources,
   buildAutoBenchmarkModelHints,
   buildModelAliasIndex,

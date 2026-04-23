@@ -67,6 +67,131 @@ For the computer-use work that sits at the heart of XBOW’s autonomous penetrat
 98.5% on our visual-acuity benchmark versus 54.5% for Opus 4.6.
 `;
 
+const SAMPLE_KIMI_TABLE_HTML = `
+  <html>
+    <body>
+      <table>
+        <tr>
+          <th>Benchmark</th>
+          <th>Kimi K2.6</th>
+          <th>GPT-5.4 (xhigh)</th>
+          <th>Claude Opus 4.6 (max effort)</th>
+        </tr>
+        <tr>
+          <td>SWE-Bench Pro</td>
+          <td>58.6</td>
+          <td>57.7</td>
+          <td>53.4</td>
+        </tr>
+        <tr>
+          <td>LiveCodeBench (v6)</td>
+          <td>89.6</td>
+          <td>88.8</td>
+          <td>91.7</td>
+        </tr>
+        <tr>
+          <td>GPQA-Diamond</td>
+          <td>90.5</td>
+          <td>92.8</td>
+          <td>91.3</td>
+        </tr>
+      </table>
+    </body>
+  </html>
+`;
+
+const SAMPLE_GLM_TABLE_HTML = `
+  <html>
+    <body>
+      <table>
+        <tr>
+          <th>GLM-5.1</th>
+          <th>GLM-5</th>
+          <th>Claude Opus 4.6</th>
+        </tr>
+        <tr>
+          <td>AIME 2026</td>
+          <td>95.3</td>
+          <td>95.4</td>
+          <td>95.6</td>
+        </tr>
+        <tr>
+          <td>GPQA-Diamond</td>
+          <td>86.2</td>
+          <td>86.0</td>
+          <td>91.3</td>
+        </tr>
+        <tr>
+          <td>SWE-Bench Pro</td>
+          <td>58.4</td>
+          <td>55.1</td>
+          <td>57.3</td>
+        </tr>
+        <tr>
+          <td>Terminal-Bench 2.0 (Terminus-2)</td>
+          <td>63.5</td>
+          <td>61.9</td>
+          <td>57.3</td>
+        </tr>
+      </table>
+    </body>
+  </html>
+`;
+
+const SAMPLE_META_TABLE_HTML = `
+  <html>
+    <body>
+      <table>
+        <tr>
+          <th>Category</th>
+          <th>Benchmark</th>
+          <th># Shots</th>
+          <th>Metric</th>
+          <th>Llama 3 8B</th>
+          <th>Llama 3.1 8B</th>
+          <th>Llama 3.1 405B</th>
+        </tr>
+        <tr>
+          <td>General</td>
+          <td>MMLU</td>
+          <td>5</td>
+          <td>macro_avg/acc_char</td>
+          <td>66.7</td>
+          <td>66.7</td>
+          <td>85.2</td>
+        </tr>
+        <tr>
+          <td>General</td>
+          <td>IFEval</td>
+          <td>0</td>
+          <td>acc</td>
+          <td>76.8</td>
+          <td>80.4</td>
+          <td>88.6</td>
+        </tr>
+        <tr>
+          <td>Reasoning</td>
+          <td>GPQA</td>
+          <td>0</td>
+          <td>em</td>
+          <td>34.6</td>
+          <td>30.4</td>
+          <td>50.7</td>
+        </tr>
+        <tr>
+          <td>Code</td>
+          <td>HumanEval</td>
+          <td>0</td>
+          <td>pass@1</td>
+          <td>60.4</td>
+          <td>72.6</td>
+          <td>89.0</td>
+        </tr>
+      </table>
+    </body>
+  </html>
+`;
+
 describe("provider-benchmarks helpers", () => {
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
@@ -288,6 +413,107 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           benchmarkSlug: "visual-acuity-benchmark",
           score: 98.5,
+        }),
+      ])
+    );
+  });
+
+  it("extracts benchmark rows from provider HTML tables using the focused model column", async () => {
+    const extracted =
+      await __testables.extractStructuredBenchmarkScoresFromHtmlTables(
+        {
+          id: "moonshot-kimi-k2-6-tech-blog",
+          provider: "Moonshot AI",
+          url: "https://www.kimi.com/blog/kimi-k2-6",
+          titleHint: "Kimi K2.6 benchmark update",
+          modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+        },
+        SAMPLE_KIMI_TABLE_HTML
+      );
+
+    expect(extracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "swe_bench",
+          score: 58.6,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "livecodebench",
+          score: 89.6,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 90.5,
+        }),
+      ])
+    );
+  });
+
+  it("extracts benchmark rows from model-only comparison headers", async () => {
+    const extracted =
+      await __testables.extractStructuredBenchmarkScoresFromHtmlTables(
+        {
+          id: "zai-glm-5-1",
+          provider: "Z.ai",
+          url: "https://huggingface.co/zai-org/GLM-5.1",
+          titleHint: "GLM-5.1 benchmark update",
+          modelHints: ["GLM-5.1", "GLM 5.1"],
+        },
+        SAMPLE_GLM_TABLE_HTML
+      );
+
+    expect(extracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 86.2,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "swe_bench",
+          score: 58.4,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 63.5,
+        }),
+      ])
+    );
+  });
+
+  it("extracts benchmark rows when the model column is at the end of the table", async () => {
+    const extracted =
+      await __testables.extractStructuredBenchmarkScoresFromHtmlTables(
+        {
+          id: "auto-hf-meta-meta-llama-3-1-405b-instruct",
+          provider: "Meta",
+          url: "https://huggingface.co/meta-llama/Llama-3.1-405B-Instruct",
+          titleHint: "Llama 3.1 405B Instruct benchmark update",
+          modelHints: [
+            "Llama 3.1 405B Instruct",
+            "Llama-3.1-405B-Instruct",
+            "meta-llama-3.1-405b-instruct",
+          ],
+        },
+        SAMPLE_META_TABLE_HTML
+      );
+
+    expect(extracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "mmlu",
+          score: 85.2,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "ifeval",
+          score: 88.6,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 50.7,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "humaneval",
+          score: 89.0,
         }),
       ])
     );
