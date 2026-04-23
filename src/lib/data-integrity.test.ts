@@ -529,13 +529,11 @@ describe("verifyDataIntegrity", () => {
 
     expect(report.benchmarkMetadata.benchmarkExpectedModels).toBe(2);
     expect(report.benchmarkMetadata.withTrustedHfLocator).toBe(1);
-    expect(report.benchmarkMetadata.withTrustedWebsiteLocator).toBe(1);
-    expect(report.benchmarkMetadata.withAnyTrustedBenchmarkLocator).toBe(1);
-    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocatorCount).toBe(1);
-    expect(report.benchmarkMetadata.trustedLocatorCoveragePct).toBe(50);
-    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocator[0]?.slug).toBe(
-      "x-ai-grok-4-20"
-    );
+    expect(report.benchmarkMetadata.withTrustedWebsiteLocator).toBe(2);
+    expect(report.benchmarkMetadata.withAnyTrustedBenchmarkLocator).toBe(2);
+    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocatorCount).toBe(0);
+    expect(report.benchmarkMetadata.trustedLocatorCoveragePct).toBe(100);
+    expect(report.benchmarkMetadata.missingTrustedBenchmarkLocator).toEqual([]);
   });
 
   it("includes public metadata coverage summary", async () => {
