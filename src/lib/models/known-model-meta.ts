@@ -76,6 +76,13 @@ const ALLOWED_VARIANT_TOKENS = new Set([
   "code",
 ]);
 
+const SPECIALIST_CATEGORY_OVERRIDES = new Set([
+  "speech_audio",
+  "embeddings",
+  "image_generation",
+  "video_generation",
+]);
+
 function canonicalize(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -240,10 +247,18 @@ export function buildKnownModelMetaPatch(
   const knownMeta = getKnownModelMeta(model);
   if (!knownMeta) return {};
 
+  const shouldOverrideGenericCategory =
+    model.category === "multimodal" &&
+    typeof knownMeta.category === "string" &&
+    SPECIALIST_CATEGORY_OVERRIDES.has(knownMeta.category);
+
   return Object.fromEntries(
     Object.entries({
       name: hasString(model.name) ? undefined : knownMeta.name,
-      category: hasString(model.category) ? undefined : knownMeta.category,
+      category:
+        hasString(model.category) && !shouldOverrideGenericCategory
+          ? undefined
+          : knownMeta.category,
       release_date: hasString(model.release_date) ? undefined : knownMeta.release_date,
       context_window: hasPositiveNumber(model.context_window)
         ? undefined

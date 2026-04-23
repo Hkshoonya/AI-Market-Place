@@ -35,6 +35,7 @@ describe("getKnownModelMeta", () => {
         provider: "Google",
       })
     ).toMatchObject({
+      category: "speech_audio",
       release_date: "2026-04-15",
       website_url:
         "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/",
@@ -60,6 +61,23 @@ describe("buildKnownModelMetaPatch", () => {
       context_window: 32768,
       hf_model_id: "mistralai/Mixtral-8x7B-Instruct-v0.1",
       website_url: "https://mistral.ai/news/mixtral-of-experts",
+    });
+  });
+
+  it("overrides generic multimodal categorization for specialist rows", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "google-gemini-3-1-flash-tts",
+        provider: "Google",
+        name: "Gemini 3.1 Flash TTS",
+        category: "multimodal",
+        release_date: null,
+        license: null,
+      })
+    ).toMatchObject({
+      category: "speech_audio",
+      release_date: "2026-04-15",
+      license: "commercial",
     });
   });
 
