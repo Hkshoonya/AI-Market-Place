@@ -7,6 +7,7 @@ export async function runScheduledAgentCron(
   options: {
     agentSlug: string;
     jobName: string;
+    timeoutMs?: number;
   }
 ) {
   const authHeader = request.headers.get("authorization");
@@ -21,7 +22,12 @@ export async function runScheduledAgentCron(
     return tracker.skip();
   }
 
-  const result = await executeAgent(options.agentSlug, "scheduled_run");
+  const result = await executeAgent(
+    options.agentSlug,
+    "scheduled_run",
+    {},
+    options.timeoutMs
+  );
   const payload = {
     agent: result.agentSlug,
     taskId: result.taskId,

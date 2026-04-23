@@ -105,6 +105,37 @@ describe("runScheduledAgentCron", () => {
     );
   });
 
+  it("forwards a route-specific timeout override to the runtime", async () => {
+    mockExecuteAgent.mockResolvedValue({
+      agentSlug: "pipeline-engineer",
+      taskId: "task-timeout",
+      success: true,
+      output: { ok: true },
+      errors: [],
+      durationMs: 101,
+    });
+
+    const { runScheduledAgentCron } = await import("./_shared");
+    const response = await runScheduledAgentCron(
+      new Request("https://aimarketcap.tech/api/cron/agents/pipeline", {
+        headers: { authorization: "Bearer test-cron-secret" },
+      }),
+      {
+        agentSlug: "pipeline-engineer",
+        jobName: "agent-pipeline-engineer",
+        timeoutMs: 840_000,
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockExecuteAgent).toHaveBeenCalledWith(
+      "pipeline-engineer",
+      "scheduled_run",
+      {},
+      840_000
+    );
+  });
+
   it("treats an already-running agent task as a skipped completion instead of a cron failure", async () => {
     mockExecuteAgent.mockResolvedValue({
       agentSlug: "pipeline-engineer",
