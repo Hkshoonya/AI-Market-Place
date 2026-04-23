@@ -48,7 +48,10 @@ export function computeBalancedRankings(
     const w = CATEGORY_BALANCED_WEIGHTS[m.category] ?? CATEGORY_BALANCED_WEIGHTS.default;
     const capRank = m.capabilityRank ?? maxRank;
     const valRank = m.valueRank ?? maxRank;
-    const rankPenalty = Math.max(0, Number(m.rankPenalty ?? 0));
+    const rawRankPenalty = Number(m.rankPenalty ?? 0);
+    const rankPenalty = Number.isFinite(rawRankPenalty)
+      ? Math.max(-Math.round(maxRank * 0.25), Math.min(Math.round(maxRank * 0.75), rawRankPenalty))
+      : 0;
 
     const composite = capRank * w.capability
                     + m.usageRank * w.usage

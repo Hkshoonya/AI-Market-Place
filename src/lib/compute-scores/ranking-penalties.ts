@@ -1,4 +1,5 @@
 import {
+  hasLeadershipUpgradeLanguage,
   hasLifecycleWarningLanguage,
   isEfficiencyTierModel,
   isPreviewLikeModel,
@@ -16,6 +17,8 @@ export interface RankingPenaltyModel {
   release_date?: string | null;
   is_open_weights?: boolean | null;
   is_api_available?: boolean | null;
+  benchmarkCount?: number | null;
+  capabilityRank?: number | null;
 }
 
 function isLifecycleReplacementRow(model: RankingPenaltyModel) {
@@ -37,6 +40,24 @@ function isCompatibilityRetentionRow(model: RankingPenaltyModel) {
 
 function isClosedUnavailableRow(model: RankingPenaltyModel) {
   return model.is_api_available === false && !model.is_open_weights;
+}
+
+function isRecentLeadershipBonusRow(model: RankingPenaltyModel) {
+  const ageDays = releaseAgeDays(model.release_date);
+  const benchmarkCount = Number(model.benchmarkCount ?? 0);
+  const capabilityRank = Number(model.capabilityRank ?? Number.POSITIVE_INFINITY);
+
+  return (
+    ageDays != null &&
+    ageDays <= 120 &&
+    benchmarkCount >= 4 &&
+    capabilityRank <= 20 &&
+    hasLeadershipUpgradeLanguage(model) &&
+    !isPreviewLikeModel(model) &&
+    !isEfficiencyTierModel(model) &&
+    !isLifecycleReplacementRow(model) &&
+    !isClosedUnavailableRow(model)
+  );
 }
 
 export function computeCapabilityScoreMultiplier(model: RankingPenaltyModel) {
@@ -71,6 +92,14 @@ export function computeCapabilityScoreMultiplier(model: RankingPenaltyModel) {
 export function computeBalancedRankPenalty(model: RankingPenaltyModel, modelCount: number) {
   const ageDays = releaseAgeDays(model.release_date);
   let penalty = 0;
+
+  if (isRecentLeadershipBonusRow(model)) {
+    const benchmarkCount = Number(model.benchmarkCount ?? 0);
+    penalty -=
+      benchmarkCount >= 6
+        ? Math.round(modelCount * 0.2)
+        : Math.round(modelCount * 0.14);
+  }
 
   if (isPreviewLikeModel(model)) {
     penalty += Math.round(modelCount * 0.03);

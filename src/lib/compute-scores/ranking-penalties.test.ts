@@ -33,6 +33,39 @@ describe("ranking penalties", () => {
     expect(computeBalancedRankPenalty(currentFlagship, 2000)).toBe(0);
   });
 
+  it("rewards benchmark-backed recent flagship rows in balanced rank", () => {
+    const currentFlagship = {
+      slug: "anthropic-claude-opus-4-7",
+      name: "Claude Opus 4.7",
+      provider: "anthropic",
+      release_date: "2026-04-16",
+      is_api_available: true,
+      is_open_weights: false,
+      benchmarkCount: 5,
+      capabilityRank: 7,
+      description:
+        "Our latest and most capable Opus release with stronger performance than Opus 4.6.",
+    };
+
+    expect(computeBalancedRankPenalty(currentFlagship, 2000)).toBeLessThan(0);
+  });
+
+  it("does not reward recent benchmark-backed rows that are not yet frontier-level on capability", () => {
+    const midPackRecentRow = {
+      slug: "google-gemini-3-1-pro",
+      name: "Gemini 3.1 Pro",
+      provider: "google",
+      release_date: "2026-02-19",
+      is_api_available: true,
+      is_open_weights: false,
+      benchmarkCount: 5,
+      capabilityRank: 53,
+      description: "Google's latest Gemini 3.1 Pro release.",
+    };
+
+    expect(computeBalancedRankPenalty(midPackRecentRow, 2000)).toBe(0);
+  });
+
   it("penalizes closed inaccessible rows even when they are not open weights", () => {
     const inaccessibleClosedRow = {
       slug: "vendor-old-model",

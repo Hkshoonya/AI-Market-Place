@@ -86,4 +86,13 @@ describe("computeBalancedRankings", () => {
     expect(img1.category_balanced_rank).toBe(1);
     expect(img2.category_balanced_rank).toBe(2);
   });
+
+  it("allows bounded negative rank penalties to boost current leadership rows", () => {
+    const models = [
+      { id: "bonus", category: "llm", capabilityRank: 13, usageRank: 20, expertRank: 13, valueRank: 20, rankPenalty: -20 },
+      { id: "baseline", category: "llm", capabilityRank: 12, usageRank: 20, expertRank: 12, valueRank: 20, rankPenalty: 0 },
+    ];
+    const result = computeBalancedRankings(models);
+    expect(result.find((row) => row.id === "bonus")?.balanced_rank).toBe(1);
+  });
 });

@@ -519,7 +519,14 @@ export async function computeAllLenses(
     usageRank: usageRankMap.get(m.id) ?? defaultRank,
     expertRank: expertRankMap.get(m.id) ?? defaultRank,
     valueRank: valueRankMap.get(m.id) ?? null,
-    rankPenalty: computeBalancedRankPenalty(m, models.length),
+    rankPenalty: computeBalancedRankPenalty(
+      {
+        ...m,
+        benchmarkCount: benchmarkDetailMap.get(m.id)?.length ?? 0,
+        capabilityRank: capRankMap.get(m.id) ?? null,
+      },
+      models.length
+    ),
   }));
   const balancedRankings = computeBalancedRankings(balancedInput);
   const balancedRankMap = new Map(
