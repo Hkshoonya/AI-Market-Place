@@ -93,6 +93,13 @@ function inferTrustedBenchmarkWebsiteCandidate(
     }
   }
 
+  if (
+    provider === "xAI" &&
+    (/\bgrok[- ]4(?:[. -]?20)?\b/.test(text) || slug === "x-ai-grok-4-20")
+  ) {
+    return "https://data.x.ai/2025-08-20-grok-4-model-card.pdf";
+  }
+
   if (provider === "MiniMax") {
     if (model.category === "speech_audio") {
       return "https://www.minimax.io/models/audio";
@@ -205,7 +212,15 @@ export function getTrustedBenchmarkWebsiteUrl(
   model: BenchmarkExpectedModel
 ): string | null {
   const inferred = inferTrustedBenchmarkLocatorHints(model);
-  const websiteUrl = model.website_url?.trim() || inferred.website_url;
+  const provider = getCanonicalProviderName(model.provider);
+  const slug = String(model.slug ?? "").toLowerCase();
+  const preferInferredXaiBenchmarkCard =
+    provider === "xAI" &&
+    slug === "x-ai-grok-4-20" &&
+    typeof inferred.website_url === "string";
+  const websiteUrl = preferInferredXaiBenchmarkCard
+    ? inferred.website_url
+    : model.website_url?.trim() || inferred.website_url;
   if (!websiteUrl) return null;
   if (!isBenchmarkExpectedModel(model)) return null;
 
@@ -216,7 +231,6 @@ export function getTrustedBenchmarkWebsiteUrl(
     return null;
   }
 
-  const provider = getCanonicalProviderName(model.provider);
   const allowedHosts = TRUSTED_BENCHMARK_WEBSITE_HOSTS[provider] ?? [];
   const isTrustedHost = allowedHosts.some(
     (allowedHost) => host === allowedHost || host.endsWith(`.${allowedHost}`)

@@ -21,6 +21,7 @@ import {
   getTrustedBenchmarkHfUrl,
   getTrustedBenchmarkWebsiteUrl,
 } from "../shared/benchmark-coverage";
+import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score-trust";
 
 interface ProviderBenchmarkSource {
   id: string;
@@ -83,6 +84,7 @@ const PROVIDER_FETCH_TIMEOUT_MS = 15000;
 const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_MODEL_PAGE_SIZE = 1000;
 const MAX_RELATED_BENCHMARK_MODELS = 8;
+const MIN_TRUSTED_BENCHMARK_SCORES_FOR_AUTO_SOURCE = 4;
 
 const BENCHMARK_EXTRACTION_RULES: Array<{
   benchmarkSlug: string;
@@ -1208,16 +1210,16 @@ async function fetchBenchmarkCandidateModels(
   return models;
 }
 
-async function fetchCoveredBenchmarkModelIds(
+async function fetchTrustedStructuredBenchmarkScoreCounts(
   supabase: SyncContext["supabase"]
 ) {
-  const coveredIds = new Set<string>();
+  const trustedCountsByModelId = new Map<string, number>();
 
   for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
     const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
     const { data, error } = await supabase
       .from("benchmark_scores")
-      .select("model_id")
+      .select("model_id, source")
       .range(from, to);
 
     if (error) {
@@ -1226,37 +1228,21 @@ async function fetchCoveredBenchmarkModelIds(
 
     const rows = data ?? [];
     for (const row of rows) {
-      if (typeof row.model_id === "string") {
-        coveredIds.add(row.model_id);
+      if (typeof row.model_id !== "string") continue;
+      if (!isTrustedStructuredBenchmarkSource(row.source)) {
+        continue;
       }
+
+      trustedCountsByModelId.set(
+        row.model_id,
+        (trustedCountsByModelId.get(row.model_id) ?? 0) + 1
+      );
     }
 
     if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
   }
 
-  for (let from = 0; ; from += BENCHMARK_MODEL_PAGE_SIZE) {
-    const to = from + BENCHMARK_MODEL_PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from("model_news")
-      .select("related_model_ids")
-      .eq("category", "benchmark")
-      .range(from, to);
-
-    if (error) {
-      throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);
-    }
-
-    const rows = data ?? [];
-    for (const row of rows) {
-      for (const modelId of row.related_model_ids ?? []) {
-        coveredIds.add(modelId);
-      }
-    }
-
-    if (rows.length < BENCHMARK_MODEL_PAGE_SIZE) break;
-  }
-
-  return coveredIds;
+  return trustedCountsByModelId;
 }
 
 async function fetchExistingAutoBenchmarkSourceIds(
@@ -1308,7 +1294,7 @@ function buildAutoBenchmarkModelHints(model: ProviderBenchmarkModel) {
 
 function buildAutoBenchmarkSources(
   models: ProviderBenchmarkModel[],
-  coveredModelIds: Set<string>,
+  trustedBenchmarkCountsByModelId: Map<string, number>,
   existingAutoSourceIds: Set<string>,
   autoMaxPages: number
 ) {
@@ -1318,13 +1304,14 @@ function buildAutoBenchmarkSources(
   const candidates: AutoBenchmarkSourceCandidate[] = [];
 
   for (const model of models) {
+    const trustedBenchmarkCount = trustedBenchmarkCountsByModelId.get(model.id) ?? 0;
     const hfSourceId = `provider-benchmarks-auto-hf-${makeSlug(model.slug)}`;
     const websiteSourceId = `provider-benchmarks-auto-web-${makeSlug(model.slug)}`;
     const hasExistingAutoSource =
       existingAutoSourceIds.has(hfSourceId) ||
       existingAutoSourceIds.has(websiteSourceId);
     if (
-      coveredModelIds.has(model.id) &&
+      trustedBenchmarkCount >= MIN_TRUSTED_BENCHMARK_SCORES_FOR_AUTO_SOURCE &&
       !hasExistingAutoSource
     ) {
       continue;
@@ -1348,7 +1335,10 @@ function buildAutoBenchmarkSources(
 
     for (const locator of locatorCandidates) {
       if (!locator.url || curatedUrls.has(locator.url)) continue;
-      if (coveredModelIds.has(model.id) && !existingAutoSourceIds.has(locator.sourceId)) {
+      if (
+        trustedBenchmarkCount >= MIN_TRUSTED_BENCHMARK_SCORES_FOR_AUTO_SOURCE &&
+        !existingAutoSourceIds.has(locator.sourceId)
+      ) {
         continue;
       }
 
@@ -1395,7 +1385,8 @@ const adapter: DataSourceAdapter = {
 
     const activeModels = await fetchAllActiveAliasModels(ctx.supabase);
     const benchmarkCandidateModels = await fetchBenchmarkCandidateModels(ctx.supabase);
-    const coveredBenchmarkModelIds = await fetchCoveredBenchmarkModelIds(ctx.supabase);
+    const trustedBenchmarkCountsByModelId =
+      await fetchTrustedStructuredBenchmarkScoreCounts(ctx.supabase);
     const existingAutoSourceIds = await fetchExistingAutoBenchmarkSourceIds(ctx.supabase);
     const lookup = await buildModelLookup(ctx.supabase);
     const aliasIndex = buildModelAliasIndex(activeModels);
@@ -1423,7 +1414,7 @@ const adapter: DataSourceAdapter = {
       ...PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages),
       ...buildAutoBenchmarkSources(
         benchmarkCandidateModels,
-        coveredBenchmarkModelIds,
+        trustedBenchmarkCountsByModelId,
         existingAutoSourceIds,
         autoMaxPages
       ),

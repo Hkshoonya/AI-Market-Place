@@ -334,7 +334,7 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
-  it("auto-generates benchmark sources only for uncovered trusted model locators", () => {
+  it("auto-generates benchmark sources for models below the trusted benchmark coverage target", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
         {
@@ -368,7 +368,7 @@ describe("provider-benchmarks helpers", () => {
           release_date: "2026-04-03",
         },
       ],
-      new Set(["3"]),
+      new Map([["3", 4]]),
       new Set<string>(),
       10
     );
@@ -410,7 +410,7 @@ describe("provider-benchmarks helpers", () => {
           release_date: "2026-01-20",
         },
       ],
-      new Set(["1"]),
+      new Map([["1", 4]]),
       new Set(["provider-benchmarks-auto-web-deepseek-r1"]),
       10
     );
@@ -450,7 +450,7 @@ describe("provider-benchmarks helpers", () => {
           release_date: "2024-09-01",
         },
       ],
-      new Set<string>(),
+      new Map<string, number>(),
       new Set<string>(),
       10
     );
@@ -460,7 +460,7 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           id: "auto-web-x-ai-grok-4-20",
           provider: "xAI",
-          url: "https://docs.x.ai/docs/models",
+          url: "https://data.x.ai/2025-08-20-grok-4-model-card.pdf",
           sourceType: "official_provider_page",
           requiresBenchmarkSignal: true,
         }),
@@ -469,6 +469,38 @@ describe("provider-benchmarks helpers", () => {
           provider: "OpenAI",
           url: "https://developers.openai.com/api/docs/guides/speech-to-text",
           sourceType: "official_provider_page",
+          requiresBenchmarkSignal: true,
+        }),
+      ])
+    );
+  });
+
+  it("keeps generating auto sources for official models with only partial trusted benchmark coverage", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "meta-meta-llama-3-1-405b-instruct",
+          name: "Llama 3.1 405B Instruct",
+          provider: "Meta",
+          category: "llm",
+          hf_model_id: "meta-llama/Llama-3.1-405B-Instruct",
+          website_url: null,
+          release_date: "2024-07-23",
+        },
+      ],
+      new Map([["1", 2]]),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-hf-meta-meta-llama-3-1-405b-instruct",
+          provider: "Meta",
+          url: "https://huggingface.co/meta-llama/Llama-3.1-405B-Instruct",
+          sourceType: "official_model_card",
           requiresBenchmarkSignal: true,
         }),
       ])

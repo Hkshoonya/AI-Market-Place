@@ -119,7 +119,7 @@ describe("benchmark coverage helpers", () => {
         category: "multimodal",
         website_url: "https://docs.x.ai/docs/models",
       })
-    ).toBe("https://docs.x.ai/docs/models");
+    ).toBe("https://data.x.ai/2025-08-20-grok-4-model-card.pdf");
 
     expect(
       getTrustedBenchmarkWebsiteUrl({
@@ -137,7 +137,7 @@ describe("benchmark coverage helpers", () => {
         category: "multimodal",
         website_url: "https://example.com/grok",
       })
-    ).toBeNull();
+    ).toBe("https://data.x.ai/2025-08-20-grok-4-model-card.pdf");
   });
 
   it("accepts official benchmark docs for more official providers", () => {
