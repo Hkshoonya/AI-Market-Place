@@ -44,6 +44,14 @@ import {
   resolveEffectiveHealthRow,
 } from "../../pipeline-health-compute";
 
+const INLINE_REPAIR_DISABLED_SOURCES = new Set([
+  "provider-benchmarks",
+  "provider-deployment-signals",
+  "huggingface",
+  "open-vlm-leaderboard",
+  "github-stars",
+]);
+
 const pipelineEngineer: ResidentAgent = {
   slug: "pipeline-engineer",
   name: "Pipeline Engineer",
@@ -725,9 +733,20 @@ const pipelineEngineer: ResidentAgent = {
       const maxVerificationRetries =
         (ctx.agent.config.max_verification_retries as number) ?? 3;
       const repairAttempts: Record<string, unknown>[] = [];
+      const repairSkips: Record<string, unknown>[] = [];
       let repaired = 0;
 
       for (const slug of Array.from(failedSources).slice(0, maxRepairs)) {
+        if (INLINE_REPAIR_DISABLED_SOURCES.has(slug)) {
+          repairSkips.push({
+            source: slug,
+            skipped: true,
+            reason: "heavyweight_source",
+          });
+          await log.info(`Skipping inline repair for heavyweight source: ${slug}`);
+          continue;
+        }
+
         await log.info(`Attempting repair sync for: ${slug}`);
         try {
           const result = await runSingleSync(slug);
@@ -778,6 +797,7 @@ const pipelineEngineer: ResidentAgent = {
         }
       }
       output.repairAttempts = repairAttempts;
+      output.repairSkips = repairSkips;
 
       // Step 6: Summary
       const healthyCount = healthChecks.filter((h) => h.healthy).length;
@@ -788,6 +808,7 @@ const pipelineEngineer: ResidentAgent = {
         failedInLast24h: failedSources.size,
         enabledManualBenchmarkSources: enabledManualBenchmarkSources.length,
         repairAttempts: repairAttempts.length,
+        repairSkips: repairSkips.length,
         repairsSucceeded: repaired,
       };
 
