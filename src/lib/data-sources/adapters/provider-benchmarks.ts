@@ -841,7 +841,40 @@ function isStructuredBenchmarkSource(
 ) {
   if (relatedModelIds.length === 0) return false;
   if (source.id.startsWith("auto-")) return true;
-  return source.modelHints.length === 1;
+  return hasSingleStructuredTargetHint(source);
+}
+
+function hasSingleStructuredTargetHint(source: ProviderBenchmarkSource) {
+  const primaryHint = normalizeTableMatchText(source.modelHints[0] ?? "");
+  if (!primaryHint) return false;
+
+  return source.modelHints.every((hint) => {
+    const normalizedHint = normalizeTableMatchText(hint);
+    return (
+      normalizedHint === primaryHint ||
+      primaryHint.includes(normalizedHint) ||
+      normalizedHint.includes(primaryHint)
+    );
+  });
+}
+
+function buildStructuredBenchmarkModelIds(
+  source: ProviderBenchmarkSource,
+  aliasIndex: ReturnType<typeof buildModelAliasIndex>,
+  relatedModelIds: string[]
+) {
+  const primaryHint = source.modelHints[0];
+  const primaryHintIds = primaryHint
+    ? resolveBenchmarkHintModelIds(primaryHint, aliasIndex)
+    : [];
+
+  if (primaryHintIds.length > 0 && primaryHintIds.length <= MAX_RELATED_BENCHMARK_MODELS) {
+    if (source.id.startsWith("auto-") || hasSingleStructuredTargetHint(source)) {
+      return primaryHintIds;
+    }
+  }
+
+  return relatedModelIds;
 }
 
 function hasCompetingBenchmarkLabel(
@@ -1639,6 +1672,11 @@ const adapter: DataSourceAdapter = {
         lookup,
         aliasIndex
       );
+      const structuredBenchmarkModelIds = buildStructuredBenchmarkModelIds(
+        source,
+        aliasIndex,
+        relatedModelIds
+      );
       const structuredScores = isStructuredBenchmarkSource(source, relatedModelIds)
         ? [
             ...(parsedContent.html
@@ -1666,7 +1704,7 @@ const adapter: DataSourceAdapter = {
         const benchmarkId = benchmarkIdMap.get(structuredScore.benchmarkSlug);
         if (!benchmarkId) continue;
 
-        for (const relatedModelId of relatedModelIds) {
+        for (const relatedModelId of structuredBenchmarkModelIds) {
           const { error: scoreError } = await ctx.supabase
             .from("benchmark_scores")
             .upsert(
@@ -1825,6 +1863,8 @@ export const __testables = {
   buildPdfFallbackRecord,
   extractStructuredBenchmarkScores,
   extractStructuredBenchmarkScoresFromHtmlTables,
+  hasSingleStructuredTargetHint,
+  buildStructuredBenchmarkModelIds,
   buildAutoBenchmarkSources,
   buildAutoBenchmarkModelHints,
   buildModelAliasIndex,

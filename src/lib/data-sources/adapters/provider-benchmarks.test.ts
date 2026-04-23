@@ -866,4 +866,64 @@ describe("provider-benchmarks helpers", () => {
 
     expect(relatedModelIds).toEqual(["target"]);
   });
+
+  it("treats alias-only model hints as a single structured target", () => {
+    expect(
+      __testables.hasSingleStructuredTargetHint({
+        id: "moonshot-kimi-k26",
+        provider: "Moonshot AI",
+        url: "https://www.kimi.com/blog/kimi-k2-6",
+        titleHint: "Kimi K2.6 benchmark update",
+        modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+      })
+    ).toBe(true);
+
+    expect(
+      __testables.hasSingleStructuredTargetHint({
+        id: "mixed-family",
+        provider: "Moonshot AI",
+        url: "https://www.kimi.com/blog/kimi-k2-6",
+        titleHint: "Mixed family benchmark update",
+        modelHints: ["Kimi K2.6", "Kimi K2.5"],
+      })
+    ).toBe(false);
+  });
+
+  it("narrows structured benchmark writes to the primary hint model ids", () => {
+    const aliasModels = [
+      {
+        id: "kimi-family",
+        slug: "moonshotai-kimi-k2",
+        name: "Kimi K2",
+        provider: "Moonshot AI",
+      },
+      {
+        id: "kimi-k26",
+        slug: "moonshotai-kimi-k2-6",
+        name: "Kimi K2.6",
+        provider: "Moonshot AI",
+      },
+      {
+        id: "kimi-k25",
+        slug: "moonshotai-kimi-k2-5",
+        name: "Kimi K2.5",
+        provider: "Moonshot AI",
+      },
+    ];
+    const aliasIndex = __testables.buildModelAliasIndex(aliasModels);
+
+    expect(
+      __testables.buildStructuredBenchmarkModelIds(
+        {
+          id: "moonshot-kimi-k26",
+          provider: "Moonshot AI",
+          url: "https://www.kimi.com/blog/kimi-k2-6",
+          titleHint: "Kimi K2.6 benchmark update",
+          modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+        },
+        aliasIndex,
+        ["kimi-family", "kimi-k26", "kimi-k25"]
+      )
+    ).toEqual(["kimi-k26"]);
+  });
 });
