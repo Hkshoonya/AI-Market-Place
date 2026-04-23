@@ -3,16 +3,13 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
-import {
-  dedupePublicModelFamilies,
-  getPublicSurfaceSeriesKey,
-} from "@/lib/models/public-families";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { pickBestModelSignals } from "@/lib/news/model-signals";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
-import { rankModelsForSearch } from "@/lib/models/search-ranking";
-import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
-import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
+import {
+  prepareSearchSurfaceModels,
+  queryRequestsExplicitVariant,
+} from "@/lib/models/search-surface";
 import {
   buildAccessOffersCatalog,
   getBestAccessOfferForModel,
@@ -57,21 +54,6 @@ interface SearchModelRow {
   market_cap_estimate?: number | null;
 }
 
-function collapseSearchSurfaceSeries<T extends SearchModelRow>(models: T[], limit: number) {
-  const selected: T[] = [];
-  const seenSeries = new Set<string>();
-
-  for (const model of models) {
-    const key = getPublicSurfaceSeriesKey(model);
-    if (seenSeries.has(key)) continue;
-    seenSeries.add(key);
-    selected.push(model);
-    if (selected.length >= limit) break;
-  }
-
-  return selected;
-}
-
 function normalizeSearchInput(value: string) {
   return value
     .toLowerCase()
@@ -101,10 +83,6 @@ function buildIlikeOrFilter(fields: string[], variants: string[]) {
   return fields
     .flatMap((field) => variants.map((variant) => `${field}.ilike.%${sanitizeFilterValue(variant)}%`))
     .join(",");
-}
-
-function queryRequestsExplicitVariant(value: string) {
-  return /\b(preview|beta|alpha|experimental)\b/.test(normalizeSearchInput(value));
 }
 
 async function searchModelsWithFallback(
@@ -220,15 +198,9 @@ export async function GET(request: NextRequest) {
     const models = await searchModelsWithFallback(supabase, query, limit);
 
     const explicitVariantQuery = queryRequestsExplicitVariant(safeQuery);
-    const searchCandidates = explicitVariantQuery
-      ? (models ?? [])
-      : dedupePublicModelFamilies(models ?? []);
-    const rankedModels = rankModelsForSearch(searchCandidates, safeQuery);
-    const confidenceRankedModels = explicitVariantQuery
-      ? rankedModels
-      : selectPublicRankingPool(rankedModels, Math.min(limit, 5));
-    const uniqueModels = collapseSearchSurfaceSeries(
-      preferDefaultPublicSurfaceReady(confidenceRankedModels, Math.min(limit, 3)),
+    const uniqueModels = prepareSearchSurfaceModels(
+      models ?? [],
+      explicitVariantQuery ? query : safeQuery,
       limit
     );
     const [

@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants/categories";
 import { formatNumber } from "@/lib/format";
-import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -24,8 +23,6 @@ import { BenchmarkTrackingBadge } from "@/components/models/benchmark-tracking-b
 import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { ModelUpgradeNote } from "@/components/models/model-upgrade-note";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
-import { rankModelsForSearch } from "@/lib/models/search-ranking";
-import { selectPublicRankingPool } from "@/lib/models/public-ranking-confidence";
 import {
   buildBenchmarkTrackingSummaryMap,
 } from "@/lib/models/benchmark-tracking-bulk";
@@ -44,6 +41,7 @@ import {
 import { attachListingPolicies } from "@/lib/marketplace/policy-read";
 import { SITE_URL } from "@/lib/constants/site";
 import { SearchResultsTabs } from "./search-results-tabs";
+import { prepareSearchSurfaceModels } from "@/lib/models/search-surface";
 
 export const revalidate = 0;
 
@@ -193,10 +191,7 @@ async function loadSearchModelResults(
   pageSize: number
 ) {
   const { data, count } = await searchModelsWithFallback(supabase, safeQuery);
-  const uniqueModels = selectPublicRankingPool(
-    rankModelsForSearch(dedupePublicModelFamilies(data ?? []), safeQuery),
-    Math.min(pageSize, 5)
-  );
+  const uniqueModels = prepareSearchSurfaceModels(data ?? [], safeQuery, pageSize);
   const [
     { data: newsRaw },
     { data: pricingRaw },
