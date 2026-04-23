@@ -321,6 +321,19 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("keeps Kimi K2.6 in the curated provider benchmark watchlist", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "moonshot-kimi-k2-6-tech-blog",
+          provider: "Moonshot AI",
+          url: "https://www.kimi.com/blog/kimi-k2-6",
+          modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+        }),
+      ])
+    );
+  });
+
   it("auto-generates benchmark sources only for uncovered trusted model locators", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
@@ -427,13 +440,14 @@ describe("provider-benchmarks helpers", () => {
         },
         {
           id: "2",
-          slug: "minimax-speech-2-8-hd",
-          name: "MiniMax Speech 2.8 HD",
-          provider: "MiniMax",
+          slug: "openai-whisper-1",
+          name: "Whisper",
+          provider: "OpenAI",
           category: "speech_audio",
           hf_model_id: null,
-          website_url: "https://www.minimax.io/models/audio",
-          release_date: "2026-02-05",
+          website_url:
+            "https://developers.openai.com/api/docs/guides/speech-to-text",
+          release_date: "2024-09-01",
         },
       ],
       new Set<string>(),
@@ -451,9 +465,9 @@ describe("provider-benchmarks helpers", () => {
           requiresBenchmarkSignal: true,
         }),
         expect.objectContaining({
-          id: "auto-web-minimax-speech-2-8-hd",
-          provider: "MiniMax",
-          url: "https://www.minimax.io/models/audio",
+          id: "auto-web-openai-whisper-1",
+          provider: "OpenAI",
+          url: "https://developers.openai.com/api/docs/guides/speech-to-text",
           sourceType: "official_provider_page",
           requiresBenchmarkSignal: true,
         }),

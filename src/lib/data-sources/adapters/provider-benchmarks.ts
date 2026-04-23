@@ -456,6 +456,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Kimi K2", "K2"],
   },
   {
+    id: "moonshot-kimi-k2-6-tech-blog",
+    provider: "Moonshot AI",
+    url: "https://www.kimi.com/blog/kimi-k2-6",
+    titleHint: "Kimi K2.6 benchmark update",
+    modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+  },
+  {
     id: "microsoft-harrier-oss",
     provider: "Microsoft",
     url: "https://huggingface.co/microsoft/harrier-oss-v1-27b",

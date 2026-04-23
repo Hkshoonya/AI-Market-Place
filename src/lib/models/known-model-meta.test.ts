@@ -76,6 +76,19 @@ describe("getKnownModelMeta", () => {
       license: "commercial",
       is_open_weights: false,
     });
+
+    expect(
+      getKnownModelMeta({
+        slug: "moonshotai-kimi-k2-6",
+        provider: "Moonshot AI",
+      })
+    ).toMatchObject({
+      category: "multimodal",
+      release_date: "2026-04-20",
+      license: "open_source",
+      is_open_weights: true,
+      website_url: "https://www.kimi.com/blog/kimi-k2-6",
+    });
   });
 });
 

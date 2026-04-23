@@ -18,6 +18,7 @@ const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
   "Mistral AI": ["mistralai"],
   Microsoft: ["microsoft"],
   NVIDIA: ["nvidia"],
+  OpenAI: ["openai"],
   Qwen: ["Qwen"],
   "Z.ai": ["zai-org"],
   MiniMax: ["minimaxai"],
@@ -33,7 +34,14 @@ const TRUSTED_BENCHMARK_WEBSITE_HOSTS: Record<string, string[]> = {
   Qwen: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
   Alibaba: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
   DeepSeek: ["deepseek.com", "api-docs.deepseek.com"],
-  "Moonshot AI": ["moonshot.ai", "platform.moonshot.ai", "kimi.com", "www.kimi.com"],
+  "Moonshot AI": [
+    "moonshot.ai",
+    "www.moonshot.ai",
+    "platform.moonshot.ai",
+    "platform.kimi.com",
+    "kimi.com",
+    "www.kimi.com",
+  ],
   Cohere: ["cohere.com", "docs.cohere.com"],
   "Z.ai": ["z.ai", "www.z.ai", "docs.z.ai"],
   MiniMax: ["minimax.io", "www.minimax.io", "platform.minimax.io"],
@@ -90,6 +98,14 @@ function inferTrustedBenchmarkWebsiteCandidate(
       return "https://www.minimax.io/models/audio";
     }
     return "https://www.minimax.io/models/text";
+  }
+
+  if (provider === "Moonshot AI") {
+    if (/\bk2(?:\s|[-_.])?6\b/.test(text) || text.includes("kimi k2 6")) {
+      return "https://www.kimi.com/blog/kimi-k2-6";
+    }
+
+    return "https://platform.kimi.com/docs/models";
   }
 
   if (provider === "Z.ai") {
@@ -150,7 +166,9 @@ export function isBenchmarkExpectedModel(model: {
   }
 
   if (category === "speech_audio") {
-    return /\b(asr|transcribe|transcription|speech|stt)\b/.test(text);
+    return /\b(asr|stt|whisper|transcribe|transcription|speech[- ]to[- ]text|voice[- ]transcription)\b/.test(
+      text
+    );
   }
 
   if (category === "specialized") {

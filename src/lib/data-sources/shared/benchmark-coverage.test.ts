@@ -35,6 +35,24 @@ describe("benchmark coverage helpers", () => {
     ).toBe(false);
   });
 
+  it("treats speech benchmark coverage as ASR-focused, not generic TTS", () => {
+    expect(
+      isBenchmarkExpectedModel({
+        slug: "minimax-speech-2-6-hd",
+        provider: "MiniMax",
+        category: "speech_audio",
+      })
+    ).toBe(false);
+
+    expect(
+      isBenchmarkExpectedModel({
+        slug: "openai-whisper-1",
+        provider: "OpenAI",
+        category: "speech_audio",
+      })
+    ).toBe(true);
+  });
+
   it("derives trusted HF benchmark URLs only for approved provider orgs", () => {
     expect(
       getTrustedBenchmarkHfUrl({
@@ -44,6 +62,15 @@ describe("benchmark coverage helpers", () => {
         hf_model_id: "google/gemma-4-31B-it",
       })
     ).toBe("https://huggingface.co/google/gemma-4-31B-it");
+
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "openai-whisper-large-v3",
+        provider: "OpenAI",
+        category: "speech_audio",
+        hf_model_id: "openai/whisper-large-v3",
+      })
+    ).toBe("https://huggingface.co/openai/whisper-large-v3");
 
     expect(
       getTrustedBenchmarkHfUrl({
@@ -96,12 +123,12 @@ describe("benchmark coverage helpers", () => {
 
     expect(
       getTrustedBenchmarkWebsiteUrl({
-        slug: "minimax-speech-2-8-hd",
-        provider: "MiniMax",
+        slug: "openai-whisper-1",
+        provider: "OpenAI",
         category: "speech_audio",
-        website_url: "https://www.minimax.io/models/audio",
+        website_url: "https://developers.openai.com/api/docs/guides/speech-to-text",
       })
-    ).toBe("https://www.minimax.io/models/audio");
+    ).toBe("https://developers.openai.com/api/docs/guides/speech-to-text");
 
     expect(
       getTrustedBenchmarkWebsiteUrl({
@@ -140,6 +167,15 @@ describe("benchmark coverage helpers", () => {
         website_url: "https://api-docs.deepseek.com/updates",
       })
     ).toBe("https://api-docs.deepseek.com/updates");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "moonshotai-kimi-k2-6",
+        provider: "Moonshot AI",
+        category: "multimodal",
+        website_url: "https://platform.kimi.com/docs/models",
+      })
+    ).toBe("https://platform.kimi.com/docs/models");
   });
 
   it("infers trusted official docs pages when the stored website_url is missing", () => {
@@ -169,6 +205,15 @@ describe("benchmark coverage helpers", () => {
         website_url: null,
       })
     ).toBe("https://www.minimax.io/models/text");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "moonshotai-kimi-k2-6",
+        provider: "Moonshot AI",
+        category: "multimodal",
+        website_url: null,
+      })
+    ).toBe("https://www.kimi.com/blog/kimi-k2-6");
   });
 
   it("infers approved HF locators for missing official open-weight rows", () => {

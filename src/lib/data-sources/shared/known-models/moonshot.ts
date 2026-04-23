@@ -1,6 +1,28 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const MOONSHOT_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "kimi-k2.6": {
+    name: "Kimi K2.6",
+    description:
+      "Moonshot AI's latest multimodal model with stronger long-horizon coding, agent execution, and vision performance, released as an open-source flagship.",
+    category: "multimodal",
+    context_window: 256000,
+    release_date: "2026-04-20",
+    architecture: "Transformer (MoE)",
+    status: "active",
+    modalities: ["text", "image", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Open weights",
+    website_url: "https://www.kimi.com/blog/kimi-k2-6",
+  },
   "kimi-k2.5": {
     name: "Kimi K2.5",
     description:
