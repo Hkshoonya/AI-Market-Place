@@ -27,6 +27,19 @@ describe("getKnownModelMeta", () => {
       hf_model_id: "black-forest-labs/FLUX.1-schnell",
     });
   });
+
+  it("resolves Google speech rows by provider catalog fallback", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "google-gemini-3-1-flash-tts",
+        provider: "Google",
+      })
+    ).toMatchObject({
+      release_date: "2026-04-15",
+      website_url:
+        "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/",
+    });
+  });
 });
 
 describe("buildKnownModelMetaPatch", () => {

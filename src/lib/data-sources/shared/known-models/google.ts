@@ -146,6 +146,25 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "gemini-3.1-flash-tts": {
+    name: "Gemini 3.1 Flash TTS",
+    description:
+      "Google's Gemini 3.1 text-to-speech model for expressive, controllable speech generation with native multi-speaker dialogue, 70+ language support, and audio tags for delivery control.",
+    category: "multimodal",
+    release_date: "2026-04-15",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "audio"],
+    website_url:
+      "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/",
+    capabilities: {
+      speech: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
   "gemini-3.1-flash-lite": {
     name: "Gemini 3.1 Flash Lite",
     description:
