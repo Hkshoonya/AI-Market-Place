@@ -6,6 +6,7 @@ import { MINIMAX_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/min
 import { MISTRAL_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/mistral";
 import { MOONSHOT_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/moonshot";
 import { OPENAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/openai";
+import { QWEN_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/qwen";
 import { XAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/xai";
 import { ZAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/zai";
 import type { KnownModelMeta } from "@/lib/data-sources/shared/build-record";
@@ -21,6 +22,7 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   minimax: MINIMAX_KNOWN_MODELS,
   "moonshot ai": MOONSHOT_KNOWN_MODELS,
   kimi: MOONSHOT_KNOWN_MODELS,
+  qwen: QWEN_KNOWN_MODELS,
   xai: XAI_KNOWN_MODELS,
   "z.ai": ZAI_KNOWN_MODELS,
   "zai-org": ZAI_KNOWN_MODELS,

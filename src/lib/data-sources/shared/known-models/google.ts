@@ -224,6 +224,42 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "nano-banana-pro": {
+    name: "Nano Banana Pro",
+    description:
+      "Google DeepMind's Gemini 3 Pro Image model for studio-quality image generation and editing across Gemini, AI Studio, Vertex AI, and other Google products.",
+    category: "image_generation",
+    release_date: "2025-11-20",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    website_url: "https://blog.google/innovation-and-ai/products/nano-banana-pro/",
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+      vision: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
+  upscaler: {
+    name: "Upscaler",
+    description:
+      "Google image upscaling model for 2x and 4x enhancement in the Gemini image stack and related Google creative surfaces.",
+    category: "specialized",
+    release_date: "2026-02-12",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["image"],
+    capabilities: {
+      image_editing: true,
+      vision: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
 
   // ---- Gemini 2.5 series ----
   "gemini-2.5-pro": {

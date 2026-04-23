@@ -57,11 +57,47 @@ describe("getKnownModelMeta", () => {
 
     expect(
       getKnownModelMeta({
+        slug: "google-nano-banana-pro",
+        provider: "Google",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      release_date: "2025-11-20",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "google-upscaler",
+        provider: "Google",
+      })
+    ).toMatchObject({
+      category: "specialized",
+      release_date: "2026-02-12",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
         slug: "minimax-speech-2-6-turbo",
         provider: "MiniMax",
       })
     ).toMatchObject({
       category: "speech_audio",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "minimax-speech-02-turbo",
+        provider: "MiniMax",
+      })
+    ).toMatchObject({
+      category: "speech_audio",
+      release_date: "2025-04-02",
       license: "commercial",
       is_open_weights: false,
     });
@@ -75,6 +111,40 @@ describe("getKnownModelMeta", () => {
       category: "image_generation",
       license: "commercial",
       is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "black-forest-labs-flux-2-flex",
+        provider: "Black Forest Labs",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "black-forest-labs-flux-fill-pro",
+        provider: "Black Forest Labs",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "qwen-qwen3-tts",
+        provider: "Qwen",
+      })
+    ).toMatchObject({
+      category: "speech_audio",
+      license: "open_source",
+      license_name: "Apache 2.0",
+      is_open_weights: true,
     });
 
     expect(
@@ -146,6 +216,55 @@ describe("buildKnownModelMetaPatch", () => {
       category: "speech_audio",
       is_open_weights: false,
       license: "commercial",
+    });
+  });
+
+  it("fills missing official release and license metadata for newly cataloged provider rows", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "minimax-music-2-6",
+        provider: "MiniMax",
+        name: "MiniMax Music 2.6",
+        category: "speech_audio",
+        release_date: null,
+        is_open_weights: false,
+        license: "commercial",
+        license_name: null,
+      })
+    ).toMatchObject({
+      release_date: "2026-04-10",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "black-forest-labs-flux-fill-pro",
+        provider: "Black Forest Labs",
+        name: "flux-fill-pro",
+        category: "image_generation",
+        release_date: "2026-04-14",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+      })
+    ).toMatchObject({
+      is_open_weights: false,
+      license: "commercial",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "qwen-qwen3-tts",
+        provider: "Qwen",
+        name: "qwen3-tts",
+        category: "speech_audio",
+        release_date: "2026-04-02",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+      })
+    ).toMatchObject({
+      license: "open_source",
+      license_name: "Apache 2.0",
     });
   });
 

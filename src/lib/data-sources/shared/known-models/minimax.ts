@@ -240,6 +240,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     name: "MiniMax Speech 02 HD",
     description:
       "High-definition MiniMax text-to-audio model focused on natural voice synthesis, emotional delivery, and multilingual output.",
+    release_date: "2025-04-02",
     category: "speech_audio",
     architecture: "Speech generation",
     status: "active",
@@ -253,10 +254,29 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
     website_url: "https://www.minimax.io/models/speech",
   },
+  "speech-02-turbo": {
+    name: "MiniMax Speech 02 Turbo",
+    description:
+      "Low-latency MiniMax speech model tuned for real-time text-to-audio, voice cloning, and interactive conversational audio use cases.",
+    release_date: "2025-04-02",
+    category: "speech_audio",
+    architecture: "Speech generation",
+    status: "active",
+    modalities: ["text", "audio"],
+    capabilities: {
+      audio_generation: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.minimax.io/news/speech-02-series",
+  },
   "music-2.6": {
     name: "MiniMax Music 2.6",
     description:
       "MiniMax music generation model for full-length songs, richer bass, stronger arrangement control, and higher-quality vocals.",
+    release_date: "2026-04-10",
     category: "speech_audio",
     architecture: "Music generation",
     status: "active",
@@ -274,6 +294,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     name: "MiniMax Music Cover",
     description:
       "MiniMax cover-generation model for style transfer, vocal replacement, and one-step cover creation from reference audio.",
+    release_date: "2026-04-10",
     category: "speech_audio",
     architecture: "Music generation",
     status: "active",

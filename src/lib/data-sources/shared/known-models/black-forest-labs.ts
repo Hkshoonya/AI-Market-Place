@@ -109,4 +109,38 @@ export const BLACK_FOREST_LABS_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license_name: null,
     website_url: "https://bfl.ai/flux2",
   },
+  "flux-2-flex": {
+    name: "FLUX.2 [flex]",
+    description:
+      "Black Forest Labs FLUX.2 image model focused on fine-grained typography, adjustable controls, and production-grade editing quality through the hosted API and playground.",
+    category: "image_generation",
+    architecture: "Rectified flow transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.bfl.ai/flux_2/flux2_overview",
+  },
+  "flux-fill-pro": {
+    name: "FLUX.1 Fill [pro]",
+    description:
+      "Black Forest Labs hosted FLUX inpainting and outpainting model for production image editing workflows through the API and playground.",
+    category: "image_generation",
+    architecture: "Rectified flow transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_editing: true,
+      image_generation: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.us.bfl.ai/flux_tools/flux_1_fill",
+  },
 };
