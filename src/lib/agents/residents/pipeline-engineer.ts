@@ -85,41 +85,41 @@ const pipelineEngineer: ResidentAgent = {
       await log.info(`Found ${dataSources.length} enabled data sources`);
 
       // Step 3: Health check all adapters
-      const healthChecks: Record<string, unknown>[] = [];
-      for (const source of dataSources) {
-        const adapter = getAdapter(source.adapter_type);
-        if (!adapter) {
-          healthChecks.push({
-            source: source.slug,
-            healthy: false,
-            message: `No adapter for type "${source.adapter_type}"`,
-          });
-          continue;
-        }
-
-        try {
-          const { secrets } = resolveSecrets(source.secret_env_keys);
-          const result = await adapter.healthCheck(secrets);
-          healthChecks.push({
-            source: source.slug,
-            healthy: result.healthy,
-            latencyMs: result.latencyMs,
-            message: result.message,
-          });
-
-          if (!result.healthy) {
-            await log.warn(`Health check failed for ${source.slug}: ${result.message}`);
+      const healthChecks: Record<string, unknown>[] = await Promise.all(
+        dataSources.map(async (source) => {
+          const adapter = getAdapter(source.adapter_type);
+          if (!adapter) {
+            return {
+              source: source.slug,
+              healthy: false,
+              message: `No adapter for type "${source.adapter_type}"`,
+            };
           }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          healthChecks.push({
-            source: source.slug,
-            healthy: false,
-            message: `Health check error: ${msg}`,
-          });
-          await log.error(`Health check error for ${source.slug}: ${msg}`);
-        }
-      }
+
+          try {
+            const { secrets } = resolveSecrets(source.secret_env_keys);
+            const result = await adapter.healthCheck(secrets);
+            if (!result.healthy) {
+              await log.warn(`Health check failed for ${source.slug}: ${result.message}`);
+            }
+
+            return {
+              source: source.slug,
+              healthy: result.healthy,
+              latencyMs: result.latencyMs,
+              message: result.message,
+            };
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            await log.error(`Health check error for ${source.slug}: ${msg}`);
+            return {
+              source: source.slug,
+              healthy: false,
+              message: `Health check error: ${msg}`,
+            };
+          }
+        })
+      );
       output.healthChecks = healthChecks;
 
       // Step 4: Find recently failed sync jobs (last 24 hours)
