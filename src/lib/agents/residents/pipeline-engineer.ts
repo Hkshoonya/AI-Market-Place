@@ -518,6 +518,60 @@ const pipelineEngineer: ResidentAgent = {
           });
         }
 
+        const lowTrustArchiveCandidates = (activeModelsForMetadata ?? [])
+          .map((model) => ({
+            ...model,
+            trustTier: getPublicSourceTrustTier(model),
+            blockers: getDefaultPublicSurfaceReadinessBlockers(model),
+          }))
+          .filter(
+            (model) =>
+              model.trustTier === "community" &&
+              model.blockers.some((blocker) =>
+                [
+                  "missing_name",
+                  "missing_category",
+                  "missing_release_date",
+                ].includes(blocker)
+              )
+          );
+        const lowTrustArchives: Array<{ id: string; slug: string }> = [];
+        const LOW_TRUST_ARCHIVE_BATCH_SIZE = 100;
+        const MAX_LOW_TRUST_ARCHIVE_ROWS = 250;
+
+        for (
+          let i = 0;
+          i < Math.min(lowTrustArchiveCandidates.length, MAX_LOW_TRUST_ARCHIVE_ROWS);
+          i += LOW_TRUST_ARCHIVE_BATCH_SIZE
+        ) {
+          const batch = lowTrustArchiveCandidates.slice(
+            i,
+            i + LOW_TRUST_ARCHIVE_BATCH_SIZE
+          );
+          const batchIds = batch.map((candidate) => candidate.id);
+          const { error } = await sb
+            .from("models")
+            .update({ status: "archived", updated_at: new Date().toISOString() })
+            .in("id", batchIds);
+
+          if (error) {
+            errors.push(
+              `Failed to auto-archive low-trust catalog rows for batch starting ${batch[0]?.slug ?? i}: ${error.message}`
+            );
+            await log.warn(
+              `Low-trust catalog auto-archive failed for batch starting ${batch[0]?.slug ?? i}: ${error.message}`
+            );
+            continue;
+          }
+
+          for (const candidate of batch) {
+            lowTrustArchives.push({
+              id: candidate.id,
+              slug: candidate.slug ?? candidate.id,
+            });
+          }
+        }
+
         const homepageModels = (await fetchAllHomepageActiveModels(
           sb as never
         )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
@@ -588,6 +642,11 @@ const pipelineEngineer: ResidentAgent = {
           attempted: metadataRepairCandidates.length,
           repaired: metadataRepairs.length,
           rows: metadataRepairs,
+        };
+        output.lowTrustCatalogAutoArchive = {
+          attempted: lowTrustArchiveCandidates.length,
+          archived: lowTrustArchives.length,
+          rows: lowTrustArchives,
         };
         output.publicRankingAutoRepair = {
           attempted: rankingRepairCandidates.length,
