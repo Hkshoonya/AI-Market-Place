@@ -32,6 +32,14 @@ function normalize(value: string | null | undefined): string {
     .trim();
 }
 
+function isBroadBrandQuery(rawQuery: string): boolean {
+  const query = normalize(rawQuery);
+  if (!query) return false;
+
+  const tokens = query.split(/\s+/).filter(Boolean);
+  return tokens.length === 1 && !/\d/.test(query) && query.length >= 3;
+}
+
 function currentGenerationSearchAdjustment(
   model: SearchableModel,
   rawQuery: string
@@ -39,6 +47,8 @@ function currentGenerationSearchAdjustment(
   const query = normalize(rawQuery);
   const provider = normalize(model.provider);
   const ageDays = releaseAgeDays(model.release_date);
+  const capability = Number(model.capability_score ?? 0);
+  const overallRank = Number(model.overall_rank ?? Number.MAX_SAFE_INTEGER);
   let adjustment = 0;
 
   if (hasLifecycleWarningLanguage(model) || model.status === "deprecated") {
@@ -57,6 +67,38 @@ function currentGenerationSearchAdjustment(
 
   if (provider === query && ageDays != null && ageDays <= 120) {
     adjustment += 18;
+  }
+
+  if (isBroadBrandQuery(rawQuery)) {
+    const standardCurrentRow =
+      !hasLifecycleWarningLanguage(model) &&
+      !isPreviewLikeModel(model) &&
+      !isEfficiencyTierModel(model);
+
+    if (
+      standardCurrentRow &&
+      capability >= 80 &&
+      overallRank <= 20
+    ) {
+      adjustment += 150;
+    } else if (
+      standardCurrentRow &&
+      hasLeadershipUpgradeLanguage(model) &&
+      ageDays != null &&
+      ageDays <= 240
+    ) {
+      adjustment += 72;
+    } else if (
+      standardCurrentRow &&
+      capability >= 78 &&
+      overallRank <= 25
+    ) {
+      adjustment += 28;
+    }
+
+    if (ageDays != null && ageDays > 365 && capability < 72) {
+      adjustment -= 18;
+    }
   }
 
   return adjustment;

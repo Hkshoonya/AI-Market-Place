@@ -81,4 +81,77 @@ describe("search ranking helpers", () => {
 
     expect(ranked[0]?.slug).toBe("provider-model-pro");
   });
+
+  it("treats broad brand queries as current-flagship searches", () => {
+    const ranked = rankModelsForSearch(
+      [
+        {
+          slug: "x-ai-grok-4-20",
+          name: "Grok 4.20",
+          provider: "xAI",
+          popularity_score: 59,
+          overall_rank: 41,
+          quality_score: 44.1,
+          capability_score: 59.2,
+          adoption_score: 50,
+          economic_footprint_score: 35,
+          release_date: "2026-03-31",
+          description: "Updated Grok 4 family release for multimodal assistant workflows.",
+        },
+        {
+          slug: "x-ai-grok-4",
+          name: "Grok 4",
+          provider: "xAI",
+          popularity_score: 47,
+          overall_rank: 16,
+          quality_score: 66.1,
+          capability_score: 84.6,
+          adoption_score: 65,
+          economic_footprint_score: 66.9,
+          release_date: "2025-08-20",
+          description: "Frontier Grok model built for demanding enterprise reasoning and coding.",
+        },
+      ],
+      "grok"
+    );
+
+    expect(ranked[0]?.slug).toBe("x-ai-grok-4");
+  });
+
+  it("prefers the current flagship family row for broad provider-family searches", () => {
+    const ranked = rankModelsForSearch(
+      [
+        {
+          slug: "google-gemini-2-0-flash-001",
+          name: "Gemini 2.0 Flash",
+          provider: "Google",
+          popularity_score: 55,
+          overall_rank: 30,
+          quality_score: 50.9,
+          capability_score: 71.6,
+          adoption_score: 62.7,
+          economic_footprint_score: 47.5,
+          release_date: "2025-02-05",
+          description: "Fast Gemini family model for low-latency assistant tasks.",
+        },
+        {
+          slug: "google-gemini-3-1-pro",
+          name: "Gemini 3.1 Pro",
+          provider: "Google",
+          popularity_score: 46.3,
+          overall_rank: 101,
+          quality_score: 57.7,
+          capability_score: 69.3,
+          adoption_score: 52.6,
+          economic_footprint_score: 31.9,
+          release_date: "2026-02-19",
+          description:
+            "Updated Gemini 3.1 flagship model that improves on Gemini 2.5 Pro with stronger state-of-the-art performance and broad availability.",
+        },
+      ],
+      "gemini"
+    );
+
+    expect(ranked[0]?.slug).toBe("google-gemini-3-1-pro");
+  });
 });
