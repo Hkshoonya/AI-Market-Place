@@ -4,6 +4,7 @@ import {
   isPreviewLikeModel,
   releaseAgeDays,
 } from "@/lib/models/public-ranking-confidence";
+import { getKnownModelMeta } from "@/lib/models/known-model-meta";
 
 export interface RankingPenaltyModel {
   slug?: string | null;
@@ -19,6 +20,19 @@ export interface RankingPenaltyModel {
 
 function isLifecycleReplacementRow(model: RankingPenaltyModel) {
   return hasLifecycleWarningLanguage(model) || model.status === "deprecated" || model.status === "archived";
+}
+
+function isCompatibilityRetentionRow(model: RankingPenaltyModel) {
+  const knownMeta = getKnownModelMeta(model);
+  const haystack = `${model.name ?? ""} ${model.description ?? ""} ${model.short_description ?? ""} ${
+    knownMeta?.description ?? ""
+  }`.toLowerCase();
+  return (
+    /retained for compatibility/.test(haystack) ||
+    /previous flagship/.test(haystack) ||
+    /previous full/.test(haystack) ||
+    /recommended replacement/.test(haystack)
+  );
 }
 
 function isClosedUnavailableRow(model: RankingPenaltyModel) {
@@ -42,7 +56,11 @@ export function computeCapabilityScoreMultiplier(model: RankingPenaltyModel) {
   }
 
   if (isLifecycleReplacementRow(model)) {
-    if (ageDays != null && ageDays > 365) multiplier *= 0.68;
+    if (isCompatibilityRetentionRow(model)) {
+      if (ageDays != null && ageDays > 365) multiplier *= 0.62;
+      else if (ageDays != null && ageDays > 180) multiplier *= 0.66;
+      else multiplier *= 0.72;
+    } else if (ageDays != null && ageDays > 365) multiplier *= 0.68;
     else if (ageDays != null && ageDays > 180) multiplier *= 0.72;
     else multiplier *= 0.78;
   }
@@ -67,7 +85,11 @@ export function computeBalancedRankPenalty(model: RankingPenaltyModel, modelCoun
   }
 
   if (isLifecycleReplacementRow(model)) {
-    if (ageDays != null && ageDays > 365) penalty += Math.round(modelCount * 0.32);
+    if (isCompatibilityRetentionRow(model)) {
+      if (ageDays != null && ageDays > 365) penalty += Math.round(modelCount * 0.42);
+      else if (ageDays != null && ageDays > 180) penalty += Math.round(modelCount * 0.36);
+      else penalty += Math.round(modelCount * 0.3);
+    } else if (ageDays != null && ageDays > 365) penalty += Math.round(modelCount * 0.32);
     else if (ageDays != null && ageDays > 180) penalty += Math.round(modelCount * 0.26);
     else penalty += Math.round(modelCount * 0.2);
   }
