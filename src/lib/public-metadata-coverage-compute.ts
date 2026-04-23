@@ -8,6 +8,7 @@ import {
   hasDiscoveryMetadata,
   hasOpenWeightLicense,
   isDefaultPublicSurfaceReady,
+  isDefaultPublicSurfaceEligibilityExemptModel,
   needsContextWindowForCoverage,
   type PublicSurfaceReadinessBlocker,
   isReleaseDateWrapperModel,
@@ -327,6 +328,9 @@ export async function computePublicMetadataCoverage(
   const officialMissingReleaseDate = officialModels.filter(
     (model) => !isReleaseDateWrapperModel(model) && !model.release_date
   );
+  const officialDiscoveryEligibleModels = officialModels.filter(
+    (model) => !isDefaultPublicSurfaceEligibilityExemptModel(model)
+  );
   const officialReleaseDateExemptAliasCount = officialModels.filter(
     isReleaseDateWrapperModel
   ).length;
@@ -367,9 +371,8 @@ export async function computePublicMetadataCoverage(
   const officialCompleteDiscoveryMetadataCount = officialModels.filter(
     hasDiscoveryMetadata
   ).length;
-  const officialDefaultPublicSurfaceReadyCount = officialModels.filter(
-    isDefaultPublicSurfaceReady
-  ).length;
+  const officialDefaultPublicSurfaceReadyCount =
+    officialDiscoveryEligibleModels.filter(isDefaultPublicSurfaceReady).length;
   const completeDiscoveryMetadataPct =
     models.length > 0
       ? Number(
@@ -392,16 +395,19 @@ export async function computePublicMetadataCoverage(
         )
       : 100;
   const officialDefaultPublicSurfaceReadyPct =
-    officialModels.length > 0
+    officialDiscoveryEligibleModels.length > 0
       ? Number(
           (
-            (officialDefaultPublicSurfaceReadyCount / officialModels.length) *
+            (officialDefaultPublicSurfaceReadyCount /
+              officialDiscoveryEligibleModels.length) *
             100
           ).toFixed(1)
         )
       : 100;
   const topReadinessBlockers = computeBlockerCounts(effectiveModels);
-  const officialTopReadinessBlockers = computeBlockerCounts(officialModels);
+  const officialTopReadinessBlockers = computeBlockerCounts(
+    officialDiscoveryEligibleModels
+  );
 
   const recentIncompleteModels = effectiveModels
     .filter(
@@ -540,7 +546,9 @@ export async function computePublicMetadataCoverage(
           category: model.category,
           release_date: model.release_date,
         })),
-      recentNotReadyModels: buildRecentNotReadyRows(officialModels),
+      recentNotReadyModels: buildRecentNotReadyRows(
+        officialDiscoveryEligibleModels
+      ),
       recentRankingContaminationModels:
         buildRecentRankingContaminationRows(officialRankingContaminationModels),
     },

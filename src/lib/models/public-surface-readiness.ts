@@ -56,6 +56,12 @@ export function isReleaseDateWrapperModel(
   return isWrapperVariantSlug(model.slug);
 }
 
+export function isDefaultPublicSurfaceEligibilityExemptModel(
+  model: Pick<PublicSurfaceReadinessModel, "slug">
+) {
+  return isPackagingVariantModel(model) || isReleaseDateWrapperModel(model);
+}
+
 export function needsContextWindowForCoverage(model: PublicSurfaceReadinessModel) {
   return needsContextWindow(model) && !isPackagingVariantModel(model);
 }

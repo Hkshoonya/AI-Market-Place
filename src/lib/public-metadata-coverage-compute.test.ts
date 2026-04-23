@@ -119,7 +119,7 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.official.completeDiscoveryMetadataPct).toBe(100);
     expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(3);
-    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(60);
+    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(75);
     expect(coverage.official.topReadinessBlockers).toEqual(
       expect.arrayContaining([{ reason: "missing_context_window", count: 1 }])
     );
@@ -200,5 +200,63 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.rankingContaminationCount).toBe(0);
     expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(2);
     expect(coverage.official.topReadinessBlockers).toEqual([]);
+  });
+
+  it("excludes official wrapper and packaging variants from the official readiness denominator", async () => {
+    const supabase = createMockSupabase([
+      {
+        slug: "google-gemini-3-1-pro",
+        provider: "Google",
+        name: "Gemini 3.1 Pro",
+        category: "multimodal",
+        release_date: "2026-04-01",
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 1048576,
+      },
+      {
+        slug: "google-gemini-flash-latest",
+        provider: "Google",
+        name: "Gemini Flash Latest",
+        category: "multimodal",
+        release_date: null,
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 1048576,
+      },
+      {
+        slug: "openai-gpt-5-chat-latest",
+        provider: "OpenAI",
+        name: "GPT-5 Chat Latest",
+        category: "llm",
+        release_date: null,
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 400000,
+      },
+      {
+        slug: "unsloth-gemma-4-31b-it-gguf",
+        provider: "Google",
+        name: "Gemma 4 31B IT GGUF",
+        category: "llm",
+        release_date: "2026-04-02",
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 131072,
+      },
+    ]);
+
+    const coverage = await computePublicMetadataCoverage(supabase as never);
+
+    expect(coverage.official.activeModels).toBe(4);
+    expect(coverage.official.defaultPublicSurfaceReadyCount).toBe(1);
+    expect(coverage.official.defaultPublicSurfaceReadyPct).toBe(100);
+    expect(coverage.official.releaseDateExemptAliasCount).toBe(2);
+    expect(coverage.official.topReadinessBlockers).toEqual([]);
+    expect(coverage.official.recentNotReadyModels).toEqual([]);
   });
 });

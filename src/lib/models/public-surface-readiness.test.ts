@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getDefaultPublicSurfaceReadinessBlockers,
   hasCompletePublicMetadata,
+  isDefaultPublicSurfaceEligibilityExemptModel,
   isDefaultPublicSurfaceReady,
 } from "./public-surface-readiness";
 
@@ -93,5 +94,23 @@ describe("public surface readiness", () => {
         context_window: 1048576,
       })
     ).toEqual(["wrapper_variant"]);
+  });
+
+  it("marks wrapper and packaging variants as default-surface eligibility exemptions", () => {
+    expect(
+      isDefaultPublicSurfaceEligibilityExemptModel({
+        slug: "google-gemini-flash-latest",
+      })
+    ).toBe(true);
+    expect(
+      isDefaultPublicSurfaceEligibilityExemptModel({
+        slug: "unsloth-qwen3-5-122b-a10b-gguf",
+      })
+    ).toBe(true);
+    expect(
+      isDefaultPublicSurfaceEligibilityExemptModel({
+        slug: "google-gemma-4-31b-it",
+      })
+    ).toBe(false);
   });
 });
