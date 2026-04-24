@@ -92,7 +92,9 @@ describe("executeTrackedSyncCronJob", () => {
     const response = await executeTrackedSyncCronJob({ tier: 1 });
 
     expect(response.status).toBe(200);
-    expect(mockTrackCronRun).toHaveBeenCalledWith("sync-tier-1");
+    expect(mockTrackCronRun).toHaveBeenCalledWith("sync-tier-1", {
+      staleAfterMs: 10 * 60 * 1000,
+    });
     expect(mockTrackerComplete).toHaveBeenCalledWith(
       expect.objectContaining({
         tier: 1,
@@ -163,7 +165,9 @@ describe("executeTrackedSyncCronJob", () => {
     const response = await executeTrackedSyncCronJob({ source: "provider-news" });
 
     expect(response.status).toBe(200);
-    expect(mockTrackCronRun).toHaveBeenCalledWith("sync-source-provider-news");
+    expect(mockTrackCronRun).toHaveBeenCalledWith("sync-source-provider-news", {
+      staleAfterMs: 10 * 60 * 1000,
+    });
     expect(mockRunSingleSync).toHaveBeenCalledWith("provider-news");
   });
 

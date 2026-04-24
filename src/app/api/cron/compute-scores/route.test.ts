@@ -117,6 +117,9 @@ describe("GET /api/cron/compute-scores", () => {
     const response = await GET(makeRequest());
 
     expect(response.status).toBe(200);
+    expect(mockTrackCronRun).toHaveBeenCalledWith("compute-scores", {
+      staleAfterMs: 10 * 60 * 1000,
+    });
     expect(mockTrackerComplete).toHaveBeenCalledWith(
       expect.objectContaining({
         totalModels: 1,

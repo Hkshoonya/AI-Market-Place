@@ -6,6 +6,8 @@ import {
   type OrchestratorResult,
 } from "./orchestrator";
 
+const STALE_AFTER_MS = 10 * 60 * 1000;
+
 export function createSyncCronSummary(result: OrchestratorResult) {
   const hasFailed = result.sourcesFailed > 0;
 
@@ -30,7 +32,8 @@ export async function executeTrackedSyncCronJob(input: {
   tier?: number;
 }): Promise<NextResponse> {
   const tracker = await trackCronRun(
-    input.source ? `sync-source-${input.source}` : `sync-tier-${input.tier}`
+    input.source ? `sync-source-${input.source}` : `sync-tier-${input.tier}`,
+    { staleAfterMs: STALE_AFTER_MS }
   );
 
   if (tracker.shouldSkip) {

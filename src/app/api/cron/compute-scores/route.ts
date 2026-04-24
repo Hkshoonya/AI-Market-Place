@@ -8,6 +8,7 @@ import { createTaggedLogger } from "@/lib/logging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+const STALE_AFTER_MS = 10 * 60 * 1000;
 
 const log = createTaggedLogger("cron/compute-scores");
 
@@ -37,7 +38,9 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const tracker = await trackCronRun("compute-scores");
+  const tracker = await trackCronRun("compute-scores", {
+    staleAfterMs: STALE_AFTER_MS,
+  });
   if (tracker.shouldSkip) {
     return tracker.skip();
   }
