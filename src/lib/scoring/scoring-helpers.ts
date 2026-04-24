@@ -28,6 +28,7 @@ export const BENCHMARK_IMPORTANCE: Record<string, number> = {
   "mmlu": 1.0,
   "humaneval": 1.2,
   "math": 1.1,
+  "aime": 1.15,
   "math-benchmark": 1.1,
   "gpqa": 1.3,
   "ifeval": 0.9,

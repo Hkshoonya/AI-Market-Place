@@ -37,6 +37,15 @@ export const BENCHMARKS: BenchmarkConfig[] = [
     source: "open_llm_leaderboard",
   },
   {
+    slug: "aime",
+    name: "AIME",
+    category: "math",
+    scoreType: "percentage",
+    maxScore: 100,
+    description: "American Invitational Mathematics Examination benchmark",
+    source: "provider-benchmarks",
+  },
+  {
     slug: "gpqa",
     name: "GPQA",
     category: "reasoning",

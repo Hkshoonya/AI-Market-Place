@@ -138,6 +138,12 @@ const SAMPLE_GLM_TABLE_HTML = `
   </html>
 `;
 
+const SAMPLE_GLM_EVAL_RESULTS_HTML = `
+  <div
+    data-props="{&quot;evalResults&quot;:[{&quot;dataset&quot;:{&quot;id&quot;:&quot;MathArena/aime_2026&quot;,&quot;isBenchmark&quot;:true},&quot;value&quot;:95.3,&quot;label&quot;:&quot;MathArena Aime 2026&quot;,&quot;filename&quot;:&quot;.eval_results/MathArena--aime_2026.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;Idavidrein/gpqa&quot;,&quot;isBenchmark&quot;:true},&quot;value&quot;:86.2,&quot;label&quot;:&quot;Diamond&quot;,&quot;filename&quot;:&quot;.eval_results/gpqa.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;ScaleAI/SWE-bench_Pro&quot;,&quot;isBenchmark&quot;:true},&quot;value&quot;:58.4,&quot;label&quot;:&quot;SWE Bench Pro&quot;,&quot;filename&quot;:&quot;.eval_results/swe_bench_pro.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;harborframework/terminal-bench-2.0&quot;,&quot;isBenchmark&quot;:true},&quot;value&quot;:63.5,&quot;label&quot;:&quot;Terminalbench 2&quot;,&quot;filename&quot;:&quot;.eval_results/terminal_bench_2.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;harborframework/terminal-bench-2.0&quot;,&quot;isBenchmark&quot;:true},&quot;value&quot;:69,&quot;label&quot;:&quot;Terminalbench 2&quot;,&quot;notes&quot;:&quot;agent: Terminus 2(Claude Code)&quot;,&quot;filename&quot;:&quot;.eval_results/terminal_bench_2_claudecode.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;cais/hle&quot;,&quot;isBenchmark&quot;:false},&quot;value&quot;:52.3,&quot;label&quot;:&quot;Hle&quot;,&quot;filename&quot;:&quot;.eval_results/hle_with_tools.yaml&quot;}]}">
+  </div>
+`;
+
 const SAMPLE_META_TABLE_HTML = `
   <html>
     <body>
@@ -513,6 +519,41 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           benchmarkSlug: "terminal-bench",
           score: 63.5,
+        }),
+      ])
+    );
+  });
+
+  it("extracts structured benchmark scores from Hugging Face evalResults metadata", () => {
+    const extracted =
+      __testables.extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
+        SAMPLE_GLM_EVAL_RESULTS_HTML
+      );
+
+    expect(extracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "aime",
+          score: 95.3,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 86.2,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "swe_bench",
+          score: 58.4,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 69,
+        }),
+      ])
+    );
+    expect(extracted).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "hle",
         }),
       ])
     );

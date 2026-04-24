@@ -64,6 +64,17 @@ interface ExtractedProviderBenchmarkScore {
   matchedLabel: string;
 }
 
+interface HuggingFaceEvalResult {
+  dataset?: {
+    id?: string | null;
+    isBenchmark?: boolean | null;
+  } | null;
+  value?: number | null;
+  filename?: string | null;
+  label?: string | null;
+  notes?: string | null;
+}
+
 type PdfParseModule = typeof import("pdf-parse");
 type JSDOMModule = typeof import("jsdom");
 
@@ -165,6 +176,11 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   {
     benchmarkSlug: "gpqa",
     labels: ["gpqa diamond", "gpqa"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "aime",
+    labels: ["aime 2026", "aime 2025", "aime"],
     type: "percentage",
   },
   {
@@ -1114,6 +1130,153 @@ function extractStructuredBenchmarkScores(text: string): ExtractedProviderBenchm
   return [...extracted.values()];
 }
 
+function extractJsonArrayAfterToken(html: string, token: string) {
+  const tokenIndex = html.indexOf(token);
+  if (tokenIndex < 0) return null;
+
+  const arrayStart = html.indexOf("[", tokenIndex);
+  if (arrayStart < 0) return null;
+
+  let depth = 0;
+  for (let index = arrayStart; index < html.length; index += 1) {
+    const character = html[index];
+
+    if (character === "[") depth += 1;
+    if (character === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return html.slice(arrayStart, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveHuggingFaceEvalBenchmarkSlug(result: HuggingFaceEvalResult) {
+  const haystack = [
+    result.dataset?.id,
+    result.filename,
+    result.label,
+    result.notes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!haystack) return null;
+
+  if (/matharena\/aime_|(^|[^a-z])aime(?:[_ -]?\d{4})?\b/.test(haystack)) {
+    return "aime";
+  }
+  if (/gpqa/.test(haystack)) {
+    return "gpqa";
+  }
+  if (/swe[-_ ]bench/.test(haystack)) {
+    return "swe_bench";
+  }
+  if (/terminal[-_ ]bench/.test(haystack)) {
+    return "terminal-bench";
+  }
+  if (/livecodebench/.test(haystack)) {
+    return "livecodebench";
+  }
+  if (/human[_ -]?eval/.test(haystack)) {
+    return "humaneval";
+  }
+  if (/mmlu[-_ ]?pro/.test(haystack)) {
+    return "mmlu-pro";
+  }
+  if (/(^|[^a-z])mmlu([^a-z]|$)/.test(haystack)) {
+    return "mmlu";
+  }
+  if (/ifeval/.test(haystack)) {
+    return "ifeval";
+  }
+  if (/mathvista/.test(haystack)) {
+    return "mathvista";
+  }
+  if (/(^|[^a-z])bbh([^a-z]|$)|big bench hard/.test(haystack)) {
+    return "bbh";
+  }
+  if (/mmmu/.test(haystack)) {
+    return "mmmu";
+  }
+  if (/ocrbench/.test(haystack)) {
+    return "ocrbench";
+  }
+
+  return null;
+}
+
+function extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
+  html: string
+): ExtractedProviderBenchmarkScore[] {
+  if (!html || !html.includes("evalResults&quot;:")) return [];
+
+  const encodedArray = extractJsonArrayAfterToken(html, "evalResults&quot;:");
+  if (!encodedArray) return [];
+
+  let parsedResults: HuggingFaceEvalResult[];
+  try {
+    parsedResults = JSON.parse(decodeHtml(encodedArray)) as HuggingFaceEvalResult[];
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(parsedResults)) return [];
+
+  const extracted = new Map<string, ExtractedProviderBenchmarkScore>();
+
+  for (const result of parsedResults) {
+    if (result?.dataset?.isBenchmark === false) continue;
+
+    const benchmarkSlug = resolveHuggingFaceEvalBenchmarkSlug(result);
+    if (!benchmarkSlug) continue;
+
+    const numericValue = Number(result?.value);
+    if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 100) {
+      continue;
+    }
+
+    const matchedLabel = [
+      result.label,
+      result.notes ? `(${result.notes})` : null,
+      result.dataset?.id,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    recordStructuredBenchmarkScore(
+      extracted,
+      matchedLabel || benchmarkSlug,
+      benchmarkSlug,
+      "percentage",
+      numericValue,
+      0,
+      (matchedLabel || benchmarkSlug).length,
+      matchedLabel || benchmarkSlug
+    );
+  }
+
+  return [...extracted.values()];
+}
+
+function dedupeStructuredBenchmarkScores(
+  scores: ExtractedProviderBenchmarkScore[]
+) {
+  const deduped = new Map<string, ExtractedProviderBenchmarkScore>();
+
+  for (const score of scores) {
+    const existing = deduped.get(score.benchmarkSlug);
+    if (!existing || existing.scoreNormalized < score.scoreNormalized) {
+      deduped.set(score.benchmarkSlug, score);
+    }
+  }
+
+  return [...deduped.values()];
+}
+
 function normalizeTableText(value: string | null | undefined) {
   return decodeHtml(String(value ?? ""))
     .replace(/\s+/g, " ")
@@ -1725,26 +1888,20 @@ const adapter: DataSourceAdapter = {
         relatedModelIds
       );
       const structuredScores = isStructuredBenchmarkSource(source, relatedModelIds)
-        ? [
+        ? dedupeStructuredBenchmarkScores([
             ...(parsedContent.html
               ? await extractStructuredBenchmarkScoresFromHtmlTables(
                   source,
                   parsedContent.html
                 )
               : []),
+            ...(parsedContent.html
+              ? extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
+                  parsedContent.html
+                )
+              : []),
             ...extractStructuredBenchmarkScores(parsedContent.text),
-          ].reduce<ExtractedProviderBenchmarkScore[]>((scores, score) => {
-            if (
-              scores.some(
-                (existing) => existing.benchmarkSlug === score.benchmarkSlug
-              )
-            ) {
-              return scores;
-            }
-
-            scores.push(score);
-            return scores;
-          }, [])
+          ])
         : [];
 
       for (const structuredScore of structuredScores) {
@@ -1909,6 +2066,7 @@ export const __testables = {
   extractPdfSummary,
   buildPdfFallbackRecord,
   extractStructuredBenchmarkScores,
+  extractStructuredBenchmarkScoresFromHuggingFaceEvalResults,
   extractStructuredBenchmarkScoresFromHtmlTables,
   hasSingleStructuredTargetHint,
   buildStructuredBenchmarkModelIds,
