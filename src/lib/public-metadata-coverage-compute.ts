@@ -312,6 +312,9 @@ export async function computePublicMetadataCoverage(
   const missingReleaseDate = effectiveModels.filter(
     (model) => !isReleaseDateWrapperModel(model) && !model.release_date
   );
+  const discoveryEligibleModels = effectiveModels.filter(
+    (model) => !isDefaultPublicSurfaceEligibilityExemptModel(model)
+  );
   const releaseDateExemptAliasCount = effectiveModels.filter(
     isReleaseDateWrapperModel
   ).length;
@@ -340,7 +343,7 @@ export async function computePublicMetadataCoverage(
   const officialLlmMissingContextWindow = officialModels.filter(
     (model) => needsContextWindowForCoverage(model) && !model.context_window
   );
-  const rankingContaminationModels = effectiveModels.filter(
+  const rankingContaminationModels = discoveryEligibleModels.filter(
     (model) =>
       !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
   );
@@ -348,16 +351,16 @@ export async function computePublicMetadataCoverage(
     (model) =>
       !isDefaultPublicSurfaceReady(model) && hasPublicRankingInputs(model)
   );
-  const signalContaminationModels = effectiveModels.filter(
+  const signalContaminationModels = discoveryEligibleModels.filter(
     (model) =>
       isLowTrustPublicSourceTier(getPublicSourceTrustTier(model)) &&
       hasPublicSignalInputs(model)
   );
   const trustTierCounts = buildTrustTierCounts(effectiveModels);
-  const lowTrustActiveModels = effectiveModels.filter((model) =>
+  const lowTrustActiveModels = discoveryEligibleModels.filter((model) =>
     isLowTrustPublicSourceTier(getPublicSourceTrustTier(model))
   );
-  const lowTrustReadyModels = effectiveModels.filter(
+  const lowTrustReadyModels = discoveryEligibleModels.filter(
     (model) =>
       isLowTrustPublicSourceTier(getPublicSourceTrustTier(model)) &&
       isDefaultPublicSurfaceReady(model)
@@ -365,7 +368,7 @@ export async function computePublicMetadataCoverage(
   const completeDiscoveryMetadataCount = models.filter(
     (_, index) => hasDiscoveryMetadata(effectiveModels[index]!)
   ).length;
-  const defaultPublicSurfaceReadyCount = effectiveModels.filter(
+  const defaultPublicSurfaceReadyCount = discoveryEligibleModels.filter(
     isDefaultPublicSurfaceReady
   ).length;
   const officialCompleteDiscoveryMetadataCount = officialModels.filter(
@@ -380,9 +383,12 @@ export async function computePublicMetadataCoverage(
         )
       : 100;
   const defaultPublicSurfaceReadyPct =
-    models.length > 0
+    discoveryEligibleModels.length > 0
       ? Number(
-          ((defaultPublicSurfaceReadyCount / models.length) * 100).toFixed(1)
+          (
+            (defaultPublicSurfaceReadyCount / discoveryEligibleModels.length) *
+            100
+          ).toFixed(1)
         )
       : 100;
   const officialCompleteDiscoveryMetadataPct =
@@ -404,7 +410,7 @@ export async function computePublicMetadataCoverage(
           ).toFixed(1)
         )
       : 100;
-  const topReadinessBlockers = computeBlockerCounts(effectiveModels);
+  const topReadinessBlockers = computeBlockerCounts(discoveryEligibleModels);
   const officialTopReadinessBlockers = computeBlockerCounts(
     officialDiscoveryEligibleModels
   );
@@ -427,11 +433,11 @@ export async function computePublicMetadataCoverage(
       category: model.category,
       release_date: model.release_date,
     }));
-  const recentNotReadyModels = buildRecentNotReadyRows(effectiveModels);
+  const recentNotReadyModels = buildRecentNotReadyRows(discoveryEligibleModels);
   const recentRankingContaminationModels = buildRecentRankingContaminationRows(
     rankingContaminationModels
   );
-  const recentLowTrustModels = buildRecentLowTrustRows(effectiveModels);
+  const recentLowTrustModels = buildRecentLowTrustRows(discoveryEligibleModels);
   const recentSignalContaminationModels = buildRecentSignalContaminationRows(
     signalContaminationModels
   );

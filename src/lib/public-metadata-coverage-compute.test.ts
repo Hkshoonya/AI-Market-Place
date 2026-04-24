@@ -94,7 +94,7 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.completeDiscoveryMetadataCount).toBe(5);
     expect(coverage.completeDiscoveryMetadataPct).toBeCloseTo(83.3);
     expect(coverage.defaultPublicSurfaceReadyCount).toBe(3);
-    expect(coverage.defaultPublicSurfaceReadyPct).toBe(50);
+    expect(coverage.defaultPublicSurfaceReadyPct).toBe(60);
     expect(coverage.topReadinessBlockers).toEqual(
       expect.arrayContaining([
         { reason: "missing_category", count: 1 },
@@ -258,5 +258,56 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.official.releaseDateExemptAliasCount).toBe(2);
     expect(coverage.official.topReadinessBlockers).toEqual([]);
     expect(coverage.official.recentNotReadyModels).toEqual([]);
+  });
+
+  it("excludes low-trust wrapper and packaging variants from the overall readiness denominator", async () => {
+    const supabase = createMockSupabase([
+      {
+        slug: "google-gemini-3-1-pro",
+        provider: "Google",
+        website_url: "https://ai.google.dev/gemini-api/docs/models",
+        name: "Gemini 3.1 Pro",
+        category: "multimodal",
+        release_date: "2026-04-01",
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 1048576,
+      },
+      {
+        slug: "unsloth-gemma-4-31b-it-gguf",
+        provider: "Community",
+        name: "Gemma 4 31B IT GGUF",
+        category: "llm",
+        release_date: "2026-04-02",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+        context_window: 131072,
+      },
+      {
+        slug: "arcee-ai-trinity-large-preview",
+        provider: "Community",
+        name: "Trinity Large Preview",
+        category: "llm",
+        release_date: null,
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 32768,
+      },
+    ]);
+
+    const coverage = await computePublicMetadataCoverage(supabase as never);
+
+    expect(coverage.activeModels).toBe(3);
+    expect(coverage.defaultPublicSurfaceReadyCount).toBe(1);
+    expect(coverage.defaultPublicSurfaceReadyPct).toBe(100);
+    expect(coverage.lowTrustActiveCount).toBe(0);
+    expect(coverage.lowTrustReadyCount).toBe(0);
+    expect(coverage.releaseDateExemptAliasCount).toBe(1);
+    expect(coverage.topReadinessBlockers).toEqual([]);
+    expect(coverage.recentLowTrustModels).toEqual([]);
+    expect(coverage.recentNotReadyModels).toEqual([]);
   });
 });
