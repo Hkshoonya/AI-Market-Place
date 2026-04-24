@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -425,9 +425,15 @@ function createMockSupabase() {
 describe("GET /api/trending", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-22T12:00:00.000Z"));
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     createClientMock.mockReturnValue(createMockSupabase() as never);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("filters low-context created-at-only rows from recent and normalizes provider names", async () => {

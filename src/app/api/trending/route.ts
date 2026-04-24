@@ -285,7 +285,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("models")
       .select(
-        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, created_at, parameter_count, is_open_weights"
+        "id, slug, name, provider, category, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, created_at, parameter_count, is_open_weights, license, license_name, context_window"
       )
       .eq("status", "active");
 
