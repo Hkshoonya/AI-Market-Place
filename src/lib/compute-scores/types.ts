@@ -26,6 +26,9 @@ export interface ScoringInputs {
     hf_likes: number | null;
     release_date: string | null;
     is_open_weights: boolean;
+    license: string | null;
+    license_name: string | null;
+    context_window: number | null;
     is_api_available: boolean;
     hf_trending_score: number | null;
     parameter_count: number | null;

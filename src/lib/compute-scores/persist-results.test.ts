@@ -53,14 +53,20 @@ function buildFixtureInputs(modelIds: string[]): ScoringInputs {
       id,
       name: `Model ${id}`,
       slug: `model-${id}`,
-      provider: "test-provider",
+      provider: "openai",
       category: "llm",
+      status: "active",
+      description: null,
+      short_description: null,
       quality_score: null,
       value_score: null,
       hf_downloads: 1000,
       hf_likes: 100,
       release_date: "2024-01-01",
       is_open_weights: false,
+      license: null,
+      license_name: null,
+      context_window: 128000,
       is_api_available: true,
       hf_trending_score: null,
       parameter_count: null,
@@ -334,6 +340,35 @@ describe("persistResults", () => {
       market_cap_estimate: null,
       agent_score: null,
       agent_rank: null,
+    });
+  });
+
+  it("does not repersist public ranking fields onto not-ready rows", async () => {
+    const modelIds = ["m1"];
+    const inputs = buildFixtureInputs(modelIds);
+    inputs.models[0] = {
+      ...inputs.models[0],
+      release_date: null,
+      context_window: null,
+    };
+    const results = buildFixtureResults(modelIds);
+    const modelUpdates: Array<Record<string, unknown>> = [];
+    const supabase = createPersistMockSupabase({ modelUpdateCollector: modelUpdates });
+
+    await persistResults(supabase, inputs, results);
+
+    expect(modelUpdates[0]).toMatchObject({
+      id: "m1",
+      overall_rank: null,
+      balanced_rank: null,
+      quality_score: null,
+      popularity_score: null,
+      adoption_score: null,
+      capability_score: null,
+      usage_score: null,
+      expert_score: null,
+      value_score: null,
+      market_cap_estimate: null,
     });
   });
 });

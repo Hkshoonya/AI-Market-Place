@@ -9,6 +9,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildSignalCoverage } from "@/lib/pipeline-health";
 import { createTaggedLogger } from "@/lib/logging";
+import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { stripPublicRankingInputs } from "@/lib/models/public-ranking-inputs";
 import type { ScoringInputs, ScoringResults, PersistStats } from "./types";
 
 const log = createTaggedLogger("compute-scores/persist-results");
@@ -65,11 +67,13 @@ export async function persistResults(
   let updated = 0;
   let errors = 0;
   const BATCH = 50;
+  const modelMap = new Map(models.map((m) => [m.id, m]));
 
   for (let i = 0; i < scoredModels.length; i += BATCH) {
     const batch = scoredModels.slice(i, i + BATCH);
 
     const promises = batch.map((sm) => {
+      const model = modelMap.get(sm.id);
       const updateData: Record<string, unknown> = {
         quality_score: sm.qualityScore,
         popularity_score: popularityMap.get(sm.id) ?? 0,
@@ -130,6 +134,10 @@ export async function persistResults(
         updateData.market_cap_estimate = mktCap;
       }
 
+      if (model && !isDefaultPublicSurfaceReady(model)) {
+        Object.assign(updateData, stripPublicRankingInputs(updateData));
+      }
+
       return supabase
         .from("models")
         .update(updateData)
@@ -148,7 +156,6 @@ export async function persistResults(
   const today = new Date().toISOString().split("T")[0];
   let snapshotsCreated = 0;
   let snapshotErrors = 0;
-  const modelMap = new Map(models.map((m) => [m.id, m]));
 
   async function upsertSnapshotWithRetry(snapshot: Record<string, unknown>, modelMeta: {
     id: string;
