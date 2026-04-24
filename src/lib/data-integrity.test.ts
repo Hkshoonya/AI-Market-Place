@@ -433,7 +433,7 @@ describe("verifyDataIntegrity", () => {
               if (
                 typeof columns === "string" &&
                 columns.startsWith(
-                  "slug, provider, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window"
+                  "slug, provider, architecture, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window"
                 )
               ) {
                 return {
