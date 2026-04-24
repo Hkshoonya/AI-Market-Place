@@ -97,6 +97,13 @@ const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_MODEL_PAGE_SIZE = 1000;
 const MAX_RELATED_BENCHMARK_MODELS = 8;
 const MIN_TRUSTED_BENCHMARK_SCORES_FOR_AUTO_SOURCE = 4;
+const NOISY_GENERIC_AUTO_BENCHMARK_WEBSITE_URLS = new Set([
+  "https://ai.google.dev/gemini-api/docs/models",
+  "https://ai.google.dev/gemini-api/docs/models/",
+  "https://www.llama.com/",
+  "https://llama.com/",
+  "https://llama.meta.com/",
+]);
 
 const BENCHMARK_EXTRACTION_RULES: Array<{
   benchmarkSlug: string;
@@ -1518,6 +1525,13 @@ function buildAutoBenchmarkModelHints(model: ProviderBenchmarkModel) {
   return [...hints].filter(Boolean);
 }
 
+function shouldSkipGenericAutoWebsiteSource(url: string | null | undefined) {
+  if (!url) return false;
+
+  const normalized = url.trim().toLowerCase();
+  return NOISY_GENERIC_AUTO_BENCHMARK_WEBSITE_URLS.has(normalized);
+}
+
 function buildAutoBenchmarkSources(
   models: ProviderBenchmarkModel[],
   trustedBenchmarkCountsByModelId: Map<string, number>,
@@ -1561,6 +1575,12 @@ function buildAutoBenchmarkSources(
 
     for (const locator of locatorCandidates) {
       if (!locator.url || curatedUrls.has(locator.url)) continue;
+      if (
+        locator.sourceType === "official_provider_page" &&
+        shouldSkipGenericAutoWebsiteSource(locator.url)
+      ) {
+        continue;
+      }
       if (
         trustedBenchmarkCount >= MIN_TRUSTED_BENCHMARK_SCORES_FOR_AUTO_SOURCE &&
         !existingAutoSourceIds.has(locator.sourceId)

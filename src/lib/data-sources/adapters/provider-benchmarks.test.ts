@@ -821,6 +821,70 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("skips generic provider overview pages for noisy auto benchmark sources", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "google-gemini-3-flash",
+          name: "Gemini 3 Flash",
+          provider: "Google",
+          category: "llm",
+          hf_model_id: null,
+          website_url: "https://ai.google.dev/gemini-api/docs/models",
+          release_date: "2026-02-10",
+        },
+        {
+          id: "2",
+          slug: "meta-llama-llama-4-maverick",
+          name: "Llama 4 Maverick",
+          provider: "Meta",
+          category: "llm",
+          hf_model_id: "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+          website_url: "https://llama.meta.com/",
+          release_date: "2026-02-10",
+        },
+        {
+          id: "3",
+          slug: "google-gemini-2-5-flash-image",
+          name: "Gemini 2.5 Flash Image",
+          provider: "Google",
+          category: "multimodal",
+          hf_model_id: null,
+          website_url: "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-image",
+          release_date: "2026-02-10",
+        },
+      ],
+      new Map<string, number>(),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-web-google-gemini-3-flash",
+        }),
+        expect.objectContaining({
+          id: "auto-web-meta-llama-llama-4-maverick",
+        }),
+      ])
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-hf-meta-llama-llama-4-maverick",
+          url: "https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+        }),
+        expect.objectContaining({
+          id: "auto-web-google-gemini-2-5-flash-image",
+          url: "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-image",
+        }),
+      ])
+    );
+  });
+
   it("keeps generating auto sources for official models with only partial trusted benchmark coverage", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
