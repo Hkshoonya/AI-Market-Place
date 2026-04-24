@@ -76,6 +76,10 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "gpt-4.5": { provider: "OpenAI", inputPricePerMillion: 75.00, outputPricePerMillion: 150.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
 
   // ─── OpenAI — GPT-5 family (CORRECTED) ─────────────────────────
+  "gpt-5-5": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
+  "gpt-5.5": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
+  "gpt-5-5-pro": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 180.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
+  "gpt-5.5-pro": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 180.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
   "gpt-5": { provider: "OpenAI", inputPricePerMillion: 1.25, outputPricePerMillion: 10.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "gpt-5-mini": { provider: "OpenAI", inputPricePerMillion: 0.25, outputPricePerMillion: 2.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
   "gpt-5-nano": { provider: "OpenAI", inputPricePerMillion: 0.15, outputPricePerMillion: 0.60, source: "openai.com/pricing", lastUpdated: "2026-03-01" },

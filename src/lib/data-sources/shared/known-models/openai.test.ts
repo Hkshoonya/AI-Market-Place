@@ -14,6 +14,16 @@ describe("resolveOpenAIKnownModelMeta", () => {
     expect(meta?.context_window).toBe(256000);
   });
 
+  it("inherits metadata for GPT-5.5 dated and pro snapshots", () => {
+    const base = resolveOpenAIKnownModelMeta("gpt-5.5-2026-04-23");
+    expect(base?.release_date).toBe("2026-04-23");
+    expect(base?.context_window).toBe(1050000);
+
+    const pro = resolveOpenAIKnownModelMeta("gpt-5.5-pro-2026-04-23");
+    expect(pro?.release_date).toBe("2026-04-23");
+    expect(pro?.context_window).toBe(1050000);
+  });
+
   it("inherits metadata for audio variants", () => {
     const meta = resolveOpenAIKnownModelMeta("gpt-4o-mini-transcribe-2025-03-20");
     expect(meta?.category).toBe("speech_audio");

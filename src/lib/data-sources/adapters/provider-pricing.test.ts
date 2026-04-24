@@ -136,6 +136,20 @@ describe("lookupProviderPrice", () => {
   });
 
   it("uses the refreshed official OpenAI pricing source for current flagship models", () => {
+    expect(lookupProviderPrice("openai-gpt-5-5")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 5,
+      outputPricePerMillion: 30,
+      source: "platform.openai.com/docs/pricing",
+    });
+
+    expect(lookupProviderPrice("openai-gpt-5-5-pro")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 30,
+      outputPricePerMillion: 180,
+      source: "platform.openai.com/docs/pricing",
+    });
+
     expect(lookupProviderPrice("openai-gpt-4-1")).toMatchObject({
       provider: "OpenAI",
       inputPricePerMillion: 2,

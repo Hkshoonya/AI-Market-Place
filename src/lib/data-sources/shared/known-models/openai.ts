@@ -7,6 +7,45 @@ import type { KnownModelMeta } from "../build-record";
 
 export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   // ---- GPT-5 series ----
+  "gpt-5.5": {
+    name: "GPT-5.5",
+    description:
+      "OpenAI's flagship frontier model for complex reasoning, coding, and professional work. Supports a 1M-token context window, advanced tool use, and stronger long-horizon task execution than GPT-5.4.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 1050000,
+    release_date: "2026-04-23",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    website_url: "https://developers.openai.com/api/docs/models/gpt-5.5",
+  },
+  "gpt-5.5-pro": {
+    name: "GPT-5.5 Pro",
+    description:
+      "Higher-compute GPT-5.5 variant optimized for the hardest professional workloads, producing more precise answers at significantly higher latency and cost.",
+    category: "llm",
+    parameter_count: null,
+    context_window: 1050000,
+    release_date: "2026-04-23",
+    architecture: "Transformer (reasoning)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+    },
+    website_url: "https://developers.openai.com/api/docs/models/gpt-5.5-pro",
+  },
   "gpt-5.2": {
     name: "GPT-5.2",
     description:

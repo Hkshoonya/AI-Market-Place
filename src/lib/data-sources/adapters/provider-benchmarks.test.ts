@@ -1086,6 +1086,18 @@ describe("provider-benchmarks helpers", () => {
     expect(relatedModelIds).toEqual(["base", "codex", "chat-latest"]);
   });
 
+  it("includes GPT-5.5 in the curated OpenAI benchmark watchlist", () => {
+    const source = __testables.PROVIDER_BENCHMARK_SOURCES.find(
+      (entry) => entry.id === "openai-gpt-5-5"
+    );
+
+    expect(source).toMatchObject({
+      provider: "OpenAI",
+      url: "https://openai.com/index/introducing-gpt-5-5/",
+      modelHints: ["GPT-5.5", "GPT-5.5 Pro"],
+    });
+  });
+
   it("prefers curated hint matches when source text is noisy navigation", () => {
     const aliasModels = [
       {

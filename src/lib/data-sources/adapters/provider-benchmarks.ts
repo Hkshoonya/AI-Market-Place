@@ -361,6 +361,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     contentType: "pdf",
   },
   {
+    id: "openai-gpt-5-5",
+    provider: "OpenAI",
+    url: "https://openai.com/index/introducing-gpt-5-5/",
+    titleHint: "GPT-5.5 benchmark update",
+    modelHints: ["GPT-5.5", "GPT-5.5 Pro"],
+  },
+  {
     id: "openai-gpt-5-4",
     provider: "OpenAI",
     url: "https://openai.com/index/introducing-gpt-5-4/",
