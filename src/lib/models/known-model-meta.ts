@@ -1,5 +1,6 @@
 import { ANTHROPIC_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/anthropic";
 import { BLACK_FOREST_LABS_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/black-forest-labs";
+import { DEEPSEEK_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/deepseek";
 import { GOOGLE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/google";
 import { META_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/meta";
 import { MINIMAX_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/minimax";
@@ -17,7 +18,10 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   openai: OPENAI_KNOWN_MODELS,
   google: GOOGLE_KNOWN_MODELS,
   anthropic: ANTHROPIC_KNOWN_MODELS,
+  deepseek: DEEPSEEK_KNOWN_MODELS,
+  "deepseek ai": DEEPSEEK_KNOWN_MODELS,
   meta: META_KNOWN_MODELS,
+  "meta-llama": META_KNOWN_MODELS,
   "mistral ai": MISTRAL_KNOWN_MODELS,
   minimax: MINIMAX_KNOWN_MODELS,
   "moonshot ai": MOONSHOT_KNOWN_MODELS,
@@ -243,6 +247,17 @@ function hasPositiveNumber(value: number | null | undefined): boolean {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
+function hasKnownClosedWeightMarkers(model: KnownModelPatchInput): boolean {
+  const normalizedLicense = model.license?.trim().toLowerCase();
+  const normalizedLicenseName = model.license_name?.trim().toLowerCase();
+
+  return (
+    normalizedLicense === "commercial" ||
+    normalizedLicenseName === "commercial" ||
+    normalizedLicenseName === "proprietary"
+  );
+}
+
 export function buildKnownModelMetaPatch(
   model: KnownModelPatchInput
 ): Record<string, unknown> {
@@ -250,14 +265,23 @@ export function buildKnownModelMetaPatch(
   if (!knownMeta) return {};
 
   const shouldOverrideGenericCategory =
-    (model.category === "multimodal" || model.category === "specialized") &&
-    typeof knownMeta.category === "string" &&
-    SPECIALIST_CATEGORY_OVERRIDES.has(knownMeta.category);
+    ((model.category === "multimodal" &&
+      typeof knownMeta.category === "string" &&
+      SPECIALIST_CATEGORY_OVERRIDES.has(knownMeta.category)) ||
+      (model.category === "specialized" &&
+        typeof knownMeta.category === "string" &&
+        knownMeta.category !== "specialized"));
   const shouldOverrideOpenWeightFlag =
     model.is_open_weights === true &&
     knownMeta.is_open_weights === false &&
     !hasString(model.license) &&
     !hasString(model.license_name);
+  const shouldOverrideClosedWeightFlag =
+    model.is_open_weights === false &&
+    knownMeta.is_open_weights === true &&
+    hasKnownClosedWeightMarkers(model);
+  const shouldOverrideLicenseFields =
+    shouldOverrideOpenWeightFlag || shouldOverrideClosedWeightFlag;
 
   return Object.fromEntries(
     Object.entries({
@@ -271,15 +295,19 @@ export function buildKnownModelMetaPatch(
         ? undefined
         : knownMeta.context_window,
       is_open_weights:
-        shouldOverrideOpenWeightFlag
+        shouldOverrideLicenseFields
           ? knownMeta.is_open_weights
           : typeof model.is_open_weights === "boolean"
             ? undefined
             : knownMeta.is_open_weights,
-      license: hasString(model.license) ? undefined : knownMeta.license,
-      license_name: hasString(model.license_name)
-        ? undefined
-        : knownMeta.license_name,
+      license:
+        shouldOverrideLicenseFields || !hasString(model.license)
+          ? knownMeta.license
+          : undefined,
+      license_name:
+        shouldOverrideLicenseFields || !hasString(model.license_name)
+          ? knownMeta.license_name
+          : undefined,
       hf_model_id: hasString(model.hf_model_id) ? undefined : knownMeta.hf_model_id,
       website_url: hasString(model.website_url) ? undefined : knownMeta.website_url,
     }).filter(([, value]) => value !== undefined && value !== null)

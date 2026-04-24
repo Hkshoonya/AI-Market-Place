@@ -1,6 +1,27 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const META_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "llama-3-8b-instruct": {
+    name: "Meta-Llama-3-8B-Instruct",
+    description:
+      "Meta open-weight instruction model in the Llama 3 family for general chat, reasoning, and coding workloads.",
+    category: "llm",
+    context_window: 8192,
+    release_date: "2024-04-18",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Llama 3 Community License",
+    hf_model_id: "meta-llama/Meta-Llama-3-8B-Instruct",
+    website_url: "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
+  },
   "llama-3-70b-instruct": {
     name: "Llama 3 70B Instruct",
     description:

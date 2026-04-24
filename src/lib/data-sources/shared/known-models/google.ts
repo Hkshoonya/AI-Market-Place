@@ -205,6 +205,24 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     license: "commercial",
     license_name: null,
   },
+  "lyria-3-pro": {
+    name: "Lyria 3 Pro",
+    description:
+      "Google DeepMind's higher-end Lyria 3 music generation tier for richer prompt control, lyrics, and production-quality soundtrack creation.",
+    category: "speech_audio",
+    release_date: "2026-03-25",
+    architecture: "Latent diffusion",
+    status: "active",
+    modalities: ["text", "image", "audio"],
+    website_url: "https://blog.google/innovation-and-ai/technology/ai/lyria-3-pro/",
+    capabilities: {
+      audio_generation: true,
+      vision: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+  },
   "nano-banana-2": {
     name: "Nano Banana 2",
     description:
@@ -658,6 +676,27 @@ export const GOOGLE_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: true,
     license: "open_source",
     license_name: "Apache 2.0",
+  },
+  "gemma-3n-e4b-it-litert-lm": {
+    name: "gemma-3n-E4B-it-litert-lm",
+    description:
+      "Google Gemma 3n LiteRT open-weight text variant for efficient on-device inference with Gemma 3n-family capabilities and a 32K token context window.",
+    category: "llm",
+    context_window: 32000,
+    release_date: "2025-06-06",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+    hf_model_id: "google/gemma-3n-E4B-it-litert-lm",
+    website_url: "https://huggingface.co/google/gemma-3n-E4B-it-litert-lm",
   },
   "gemma-2": {
     name: "Gemma 2",

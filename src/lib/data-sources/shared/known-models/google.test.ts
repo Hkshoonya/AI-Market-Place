@@ -84,6 +84,22 @@ describe("resolveGoogleKnownModelMeta", () => {
     });
   });
 
+  it("resolves exact Google aliases for packaging and pro commercial variants", () => {
+    expect(resolveGoogleKnownModelMeta("gemma-3n-e4b-it-litert-lm")).toMatchObject({
+      name: "gemma-3n-E4B-it-litert-lm",
+      context_window: 32000,
+      license: "open_source",
+      license_name: "Apache 2.0",
+    });
+
+    expect(resolveGoogleKnownModelMeta("lyria-3-pro")).toMatchObject({
+      name: "Lyria 3 Pro",
+      category: "speech_audio",
+      license: "commercial",
+      is_open_weights: false,
+    });
+  });
+
   it("resolves Google API wrapper IDs to canonical release metadata", () => {
     expect(resolveGoogleKnownModelMeta("imagen-4.0-generate-001")).toMatchObject({
       name: "Imagen 4",

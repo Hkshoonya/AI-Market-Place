@@ -159,6 +159,52 @@ describe("getKnownModelMeta", () => {
       is_open_weights: true,
       website_url: "https://www.kimi.com/blog/kimi-k2-6",
     });
+
+    expect(
+      getKnownModelMeta({
+        slug: "deepseek-ai-deepseek-v3-1",
+        name: "deepseek-v3.1",
+        provider: "DeepSeek",
+      })
+    ).toMatchObject({
+      category: "llm",
+      context_window: 128000,
+      license: "open_source",
+      license_name: "MIT",
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "qwen-qwen3-235b-a22b-instruct-2507",
+        provider: "Qwen",
+      })
+    ).toMatchObject({
+      context_window: 262144,
+      license: "open_source",
+      license_name: "Apache 2.0",
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "qwen-qwen-image-2-pro",
+        provider: "Qwen",
+      })
+    ).toMatchObject({
+      category: "image_generation",
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "meta-llama-meta-llama-3-8b-instruct",
+        provider: "meta-llama",
+      })
+    ).toMatchObject({
+      context_window: 8192,
+      license: "open_source",
+      license_name: "Llama 3 Community License",
+    });
   });
 });
 
@@ -265,6 +311,60 @@ describe("buildKnownModelMetaPatch", () => {
     ).toMatchObject({
       license: "open_source",
       license_name: "Apache 2.0",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "qwen-qwen-image-2",
+        provider: "Qwen",
+        name: "qwen-image-2",
+        category: "image_generation",
+        release_date: "2026-03-04",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+      })
+    ).toMatchObject({
+      is_open_weights: false,
+      license: "commercial",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "deepseek-ai-deepseek-v3-1",
+        provider: "DeepSeek",
+        name: "deepseek-v3.1",
+        category: "specialized",
+        release_date: "2026-03-03",
+        is_open_weights: true,
+        license: null,
+        license_name: null,
+        context_window: null,
+      })
+    ).toMatchObject({
+      category: "llm",
+      context_window: 128000,
+      license: "open_source",
+      license_name: "MIT",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "meta-llama-meta-llama-3-8b-instruct",
+        provider: "meta-llama",
+        name: "Meta-Llama-3-8B-Instruct",
+        category: "llm",
+        release_date: "2024-04-17",
+        is_open_weights: false,
+        license: "commercial",
+        license_name: "proprietary",
+        context_window: null,
+      })
+    ).toMatchObject({
+      is_open_weights: true,
+      license: "open_source",
+      license_name: "Llama 3 Community License",
+      context_window: 8192,
     });
   });
 
