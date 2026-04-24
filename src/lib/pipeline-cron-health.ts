@@ -43,6 +43,7 @@ export function summarizePipelineCronHealth(
   cronRuns: PipelineCronRunSnapshot[],
   now = Date.now()
 ): PipelineCronHealthSummary {
+  const recentFailureCutoffMs = now - 24 * 60 * 60 * 1000;
   const hasAnyRuns = cronRuns.length > 0;
   const criticalJobs = Object.entries(PIPELINE_CRON_EXPECTATIONS).map(
     ([jobName, expectedIntervalHours]) => {
@@ -87,7 +88,11 @@ export function summarizePipelineCronHealth(
   );
 
   return {
-    recentFailures24h: cronRuns.filter((run) => run.status === "failed").length,
+    recentFailures24h: cronRuns.filter((run) => {
+      if (run.status !== "failed") return false;
+      const timestamp = toTimestamp(run.started_at ?? run.created_at);
+      return timestamp >= recentFailureCutoffMs;
+    }).length,
     latestFailedJobCount: latestFailedJobs.length,
     staleJobCount: staleJobs.length,
     lastRunAt: sortedRuns[0]?.started_at ?? sortedRuns[0]?.created_at ?? null,
