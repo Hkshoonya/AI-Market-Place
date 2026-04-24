@@ -35,6 +35,7 @@ export const LOW_TRUST_PUBLIC_SOURCE_TIERS = new Set<PublicSourceTrustTier>([
 export interface PublicSourceTrustModel {
   slug?: string | null;
   provider?: string | null;
+  architecture?: string | null;
   hf_model_id?: string | null;
   website_url?: string | null;
   hf_downloads?: number | null;
@@ -54,6 +55,12 @@ export function isPackagingVariantSlug(slug: string | null | undefined) {
   );
 }
 
+export function isPackagingVariantArchitecture(
+  architecture: string | null | undefined
+) {
+  return /\bgguf\b/i.test(String(architecture ?? ""));
+}
+
 export function isWrapperVariantSlug(slug: string | null | undefined) {
   return (
     /(?:^|-)latest$/i.test(String(slug ?? "")) ||
@@ -69,7 +76,11 @@ export function getPublicSourceTrustTier(
     return "official";
   }
 
-  if (isPackagingVariantSlug(model.slug) || isWrapperVariantSlug(model.slug)) {
+  if (
+    isPackagingVariantSlug(model.slug) ||
+    isPackagingVariantArchitecture(model.architecture) ||
+    isWrapperVariantSlug(model.slug)
+  ) {
     return "wrapper";
   }
 

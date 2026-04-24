@@ -1,5 +1,6 @@
 import {
   getPublicSourceTrustTier,
+  isPackagingVariantArchitecture,
   isPackagingVariantSlug,
   isWrapperVariantSlug,
 } from "./public-source-trust";
@@ -9,6 +10,7 @@ export { OFFICIAL_PROVIDERS } from "./public-source-trust";
 export interface PublicSurfaceReadinessModel {
   slug?: string | null;
   provider?: string | null;
+  architecture?: string | null;
   hf_model_id?: string | null;
   website_url?: string | null;
   name?: string | null;
@@ -45,9 +47,12 @@ export function needsContextWindow(model: Pick<PublicSurfaceReadinessModel, "cat
 }
 
 export function isPackagingVariantModel(
-  model: Pick<PublicSurfaceReadinessModel, "slug">
+  model: Pick<PublicSurfaceReadinessModel, "slug" | "architecture">
 ) {
-  return isPackagingVariantSlug(model.slug);
+  return (
+    isPackagingVariantSlug(model.slug) ||
+    isPackagingVariantArchitecture(model.architecture)
+  );
 }
 
 export function isReleaseDateWrapperModel(
@@ -57,7 +62,7 @@ export function isReleaseDateWrapperModel(
 }
 
 export function isDefaultPublicSurfaceEligibilityExemptModel(
-  model: Pick<PublicSurfaceReadinessModel, "slug">
+  model: Pick<PublicSurfaceReadinessModel, "slug" | "architecture">
 ) {
   return isPackagingVariantModel(model) || isReleaseDateWrapperModel(model);
 }

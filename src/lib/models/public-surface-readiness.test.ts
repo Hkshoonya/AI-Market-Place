@@ -38,6 +38,32 @@ describe("public surface readiness", () => {
     ).toBe(false);
   });
 
+  it("rejects packaging variants inferred from architecture, not only the slug", () => {
+    expect(
+      isDefaultPublicSurfaceReady({
+        slug: "ruv-ruvltra-claude-code",
+        provider: "ruv",
+        architecture: "gguf",
+        name: "RuvLtra Claude Code",
+        category: "llm",
+        release_date: "2026-01-16",
+        context_window: null,
+      })
+    ).toBe(false);
+
+    expect(
+      getDefaultPublicSurfaceReadinessBlockers({
+        slug: "ruv-ruvltra-claude-code",
+        provider: "ruv",
+        architecture: "gguf",
+        name: "RuvLtra Claude Code",
+        category: "llm",
+        release_date: "2026-01-16",
+        context_window: null,
+      })
+    ).toContain("packaging_variant");
+  });
+
   it("rejects incomplete open-weight rows", () => {
     expect(
       hasCompletePublicMetadata({
@@ -105,6 +131,12 @@ describe("public surface readiness", () => {
     expect(
       isDefaultPublicSurfaceEligibilityExemptModel({
         slug: "unsloth-qwen3-5-122b-a10b-gguf",
+      })
+    ).toBe(true);
+    expect(
+      isDefaultPublicSurfaceEligibilityExemptModel({
+        slug: "ruv-ruvltra-claude-code",
+        architecture: "gguf",
       })
     ).toBe(true);
     expect(

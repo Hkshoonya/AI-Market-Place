@@ -47,6 +47,17 @@ describe("public source trust", () => {
     ).toBe("wrapper");
   });
 
+  it("marks GGUF packaging rows as wrapper trust even when the slug lacks a gguf token", () => {
+    expect(
+      getPublicSourceTrustTier({
+        provider: "ruv",
+        slug: "ruv-ruvltra-claude-code",
+        architecture: "gguf",
+        hf_model_id: "ruv/ruvltra-claude-code",
+      })
+    ).toBe("wrapper");
+  });
+
   it("marks non-official rows with trusted locators as trusted catalog", () => {
     expect(
       getPublicSourceTrustTier({
