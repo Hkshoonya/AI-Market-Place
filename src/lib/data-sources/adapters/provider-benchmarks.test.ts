@@ -845,18 +845,18 @@ describe("provider-benchmarks helpers", () => {
     expect(sources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "auto-web-x-ai-grok-4-20",
-          provider: "xAI",
-          url: "https://data.x.ai/2025-08-20-grok-4-model-card.pdf",
-          sourceType: "official_provider_page",
-          requiresBenchmarkSignal: true,
-        }),
-        expect.objectContaining({
           id: "auto-web-openai-whisper-1",
           provider: "OpenAI",
           url: "https://developers.openai.com/api/docs/guides/speech-to-text",
           sourceType: "official_provider_page",
           requiresBenchmarkSignal: true,
+        }),
+      ])
+    );
+    expect(sources).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-web-x-ai-grok-4-20",
         }),
       ])
     );
