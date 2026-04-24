@@ -13,6 +13,7 @@ const PROVIDER_ALIASES: Record<string, string> = {
   anthropic: "Anthropic",
   blackforestlabs: "Black Forest Labs",
   cohere: "Cohere",
+  coherelabs: "Cohere",
   databricks: "Databricks",
   deepseek: "DeepSeek",
   deepseekai: "DeepSeek",

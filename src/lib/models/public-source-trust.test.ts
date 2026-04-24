@@ -13,6 +13,14 @@ describe("public source trust", () => {
         slug: "zai-org-glm-5-1",
       })
     ).toBe("official");
+
+    expect(
+      getPublicSourceTrustTier({
+        provider: "CohereLabs",
+        slug: "coherelabs-tiny-aya-global",
+        hf_model_id: "CohereLabs/tiny-aya-global",
+      })
+    ).toBe("official");
   });
 
   it("keeps official provider variants official", () => {

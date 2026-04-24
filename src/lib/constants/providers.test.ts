@@ -15,6 +15,7 @@ describe("provider identity", () => {
     expect(getCanonicalProviderName("deepseek-ai")).toBe("DeepSeek");
     expect(getCanonicalProviderName("Alibaba / Qwen")).toBe("Qwen");
     expect(getCanonicalProviderName("meta-llama")).toBe("Meta");
+    expect(getCanonicalProviderName("CohereLabs")).toBe("Cohere");
   });
 
   it("does not over-collapse unrelated owner names into major providers", () => {
