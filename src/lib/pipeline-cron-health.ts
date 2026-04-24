@@ -13,6 +13,7 @@ export type PipelineCronRunSnapshot = {
   status?: string | null;
   started_at?: string | null;
   created_at?: string | null;
+  error_message?: string | null;
 };
 
 export type PipelineCronJobHealth = {
@@ -37,6 +38,18 @@ function toTimestamp(value: string | null | undefined) {
   if (!value) return 0;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+const AUTO_STALE_CRON_ERROR_PREFIX = "Marked stale before acquiring cron lock for";
+
+export function isAutoStaleCronFailure(
+  run: Pick<PipelineCronRunSnapshot, "status" | "error_message">
+) {
+  return (
+    run.status === "failed" &&
+    typeof run.error_message === "string" &&
+    run.error_message.startsWith(AUTO_STALE_CRON_ERROR_PREFIX)
+  );
 }
 
 export function summarizePipelineCronHealth(
@@ -89,7 +102,7 @@ export function summarizePipelineCronHealth(
 
   return {
     recentFailures24h: cronRuns.filter((run) => {
-      if (run.status !== "failed") return false;
+      if (run.status !== "failed" || isAutoStaleCronFailure(run)) return false;
       const timestamp = toTimestamp(run.started_at ?? run.created_at);
       return timestamp >= recentFailureCutoffMs;
     }).length,

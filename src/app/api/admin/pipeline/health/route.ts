@@ -477,7 +477,7 @@ export async function GET(request: NextRequest) {
         .limit(1000),
       adminSupabase
         .from("cron_runs")
-        .select("job_name, status, started_at, created_at")
+        .select("job_name, status, started_at, created_at, error_message")
         .in("job_name", Object.keys(PIPELINE_CRON_EXPECTATIONS))
         .gte(
           "created_at",

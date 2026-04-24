@@ -843,6 +843,76 @@ describe("GET /api/pipeline/health", () => {
       expect(body.cron.latestFailedJobCount).toBe(1);
       expect(body.cron.staleJobCount).toBe(0);
     });
+
+    it("ignores auto-staled cron lock cleanup rows after a newer successful rerun", async () => {
+      const supabase = createMockSupabase({
+        data_sources: {
+          data: makeDataSources([{ slug: "a1", sync_interval_hours: 6 }]),
+          error: null,
+        },
+        pipeline_health: {
+          data: makePipelineHealth([
+            {
+              source_slug: "a1",
+              consecutive_failures: 0,
+              last_success_at: syncedAgo(0.5, 6),
+              expected_interval_hours: 6,
+            },
+          ]),
+          error: null,
+        },
+        cron_runs: {
+          data: [
+            {
+              job_name: "compute-scores",
+              status: "completed",
+              started_at: syncedAgo(0.5, 6),
+              created_at: syncedAgo(0.5, 6),
+            },
+            {
+              job_name: "compute-scores",
+              status: "failed",
+              started_at: syncedAgo(1, 6),
+              created_at: syncedAgo(1, 6),
+              error_message: "Marked stale before acquiring cron lock for compute-scores",
+            },
+            {
+              job_name: "sync-tier-1",
+              status: "completed",
+              started_at: syncedAgo(0.5, 2),
+              created_at: syncedAgo(0.5, 2),
+            },
+            {
+              job_name: "sync-tier-2",
+              status: "completed",
+              started_at: syncedAgo(0.5, 4),
+              created_at: syncedAgo(0.5, 4),
+            },
+            {
+              job_name: "sync-tier-3",
+              status: "completed",
+              started_at: syncedAgo(0.5, 8),
+              created_at: syncedAgo(0.5, 8),
+            },
+            {
+              job_name: "sync-tier-4",
+              status: "completed",
+              started_at: syncedAgo(0.5, 24),
+              created_at: syncedAgo(0.5, 24),
+            },
+          ],
+          error: null,
+        },
+      });
+      mockCreateAdminClient.mockReturnValue(supabase as ReturnType<typeof createAdminClient>);
+
+      const response = await GET(makeRequest() as never);
+      const body = await response.json();
+
+      expect(body.status).toBe("healthy");
+      expect(body.cron.recentFailures24h).toBe(0);
+      expect(body.cron.latestFailedJobCount).toBe(0);
+    });
   });
 
   // -------------------------------------------------------------------------

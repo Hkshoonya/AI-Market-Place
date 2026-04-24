@@ -26,6 +26,7 @@ import {
 } from "@/lib/cron-runtime";
 import { checkCrawlerSurfaceHealth } from "@/lib/crawl-health";
 import { getStripePaymentsHealth } from "@/lib/payments/stripe-health";
+import { isAutoStaleCronFailure } from "@/lib/pipeline-cron-health";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,7 @@ type CronRunSnapshot = {
   status?: string | null;
   started_at?: string | null;
   created_at?: string | null;
+  error_message?: string | null;
 };
 
 function countLatestFailedJobs(cronRuns: CronRunSnapshot[]) {
@@ -271,7 +273,7 @@ export async function GET(request: NextRequest) {
       ).toISOString();
       const { data: cronRuns = [] } = await supabase
         .from("cron_runs")
-        .select("job_name, status, started_at, created_at")
+        .select("job_name, status, started_at, created_at, error_message")
         .gte("created_at", cronCutoff)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -279,8 +281,9 @@ export async function GET(request: NextRequest) {
 
       const cronMode = resolveCronRunnerMode();
       const schedulerConfigured = isCronSchedulerConfigured(cronMode);
-      const recentFailures24h = recentCronRuns.filter((run) => run.status === "failed")
-        .length;
+      const recentFailures24h = recentCronRuns.filter(
+        (run) => run.status === "failed" && !isAutoStaleCronFailure(run)
+      ).length;
       const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
       const cronStale = schedulerConfigured && recentCronRuns.length === 0;
       const cronDegraded = cronStale || latestFailedJobs24h > 0;
