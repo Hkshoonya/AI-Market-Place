@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { __testables, inferOpenWeightsFromHfModel } from "./huggingface";
 
@@ -35,6 +35,10 @@ describe("inferOpenWeightsFromHfModel", () => {
 });
 
 describe("huggingface metadata helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("adds auth headers for gated HF raw fetches when a token is present", () => {
     expect(__testables.buildHfHeaders()).toEqual({
       "User-Agent": "AI-Market-Cap-Bot/1.0",
@@ -139,5 +143,116 @@ describe("huggingface metadata helpers", () => {
       "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct"
     );
     expect(record.hf_model_id).toBe("Qwen/Qwen2.5-7B-Instruct");
+  });
+
+  it("extracts ordered base model ids from HF model info card data and tags", () => {
+    expect(
+      __testables.extractBaseModelIdsFromModelInfo({
+        cardData: {
+          base_model: [
+            "Qwen/Qwen3.5-27B",
+            "Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+          ],
+        },
+        tags: [
+          "base_model:Qwen/Qwen3.5-27B",
+          "base_model:adapter:Qwen/Qwen3.5-27B",
+          "base_model:quantized:HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive",
+        ],
+      })
+    ).toEqual([
+      "Qwen/Qwen3.5-27B",
+      "Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+      "HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive",
+    ]);
+  });
+
+  it("falls back to the HF base model when a derivative repo omits context fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+
+        if (
+          url ===
+          "https://huggingface.co/salakash/Minimalism/raw/main/tokenizer_config.json"
+        ) {
+          return new Response("{}", { status: 404 });
+        }
+
+        if (
+          url ===
+          "https://huggingface.co/salakash/Minimalism/raw/main/config.json"
+        ) {
+          return new Response(JSON.stringify({ model_type: "qwen2" }), {
+            status: 200,
+          });
+        }
+
+        if (
+          url ===
+          "https://huggingface.co/api/models/salakash/Minimalism"
+        ) {
+          return new Response(
+            JSON.stringify({
+              cardData: {
+                base_model: "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+              },
+              tags: [
+                "base_model:Qwen/Qwen2.5-Coder-0.5B-Instruct",
+                "base_model:adapter:Qwen/Qwen2.5-Coder-0.5B-Instruct",
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (
+          url ===
+          "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct/raw/main/tokenizer_config.json"
+        ) {
+          return new Response(
+            JSON.stringify({
+              model_max_length: 32768,
+            }),
+            { status: 200 }
+          );
+        }
+
+        throw new Error(`Unexpected fetch URL in test: ${url}`);
+      })
+    );
+
+    const record = {
+      slug: "salakash-minimalism",
+      name: "Minimalism",
+      provider: "Qwen",
+      category: "llm",
+      status: "active",
+      architecture: "mlx-lm",
+      parameter_count: null,
+      hf_model_id: "salakash/Minimalism",
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      license: "open_source",
+      license_name: "apache-2.0",
+      is_open_weights: true,
+      is_api_available: false,
+      supported_languages: [],
+      modalities: [],
+      capabilities: {},
+      context_window: null,
+      website_url: null,
+      release_date: null,
+      data_refreshed_at: new Date().toISOString(),
+    };
+
+    await __testables.enrichRecordWithContextWindow(record, undefined, {
+      allowAnyProvider: true,
+    });
+
+    expect(record.context_window).toBe(32768);
+    expect(record.website_url).toBe("https://huggingface.co/salakash/Minimalism");
   });
 });

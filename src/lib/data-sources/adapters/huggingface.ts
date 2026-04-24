@@ -311,6 +311,13 @@ function buildHfModelPageUrl(hfId: string) {
     .join("/")}`;
 }
 
+function buildHfApiModelInfoUrl(hfId: string) {
+  return `${HF_API_BASE}/models/${hfId
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/")}`;
+}
+
 function buildHfHeaders(token?: string) {
   const headers: Record<string, string> = {
     "User-Agent": "AI-Market-Cap-Bot/1.0",
@@ -348,6 +355,84 @@ async function fetchHfRawJson(
   }
 }
 
+async function fetchHfModelInfo(
+  hfId: string,
+  signal?: AbortSignal,
+  token?: string
+): Promise<Record<string, unknown> | null> {
+  const res = await fetchWithRetry(
+    buildHfApiModelInfoUrl(hfId),
+    {
+      headers: buildHfHeaders(token),
+      signal,
+    },
+    { signal, maxRetries: 1, baseDelayMs: 400 }
+  );
+
+  if (!res.ok) return null;
+
+  try {
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function extractBaseModelIdsFromModelInfo(
+  modelInfo: Record<string, unknown> | null | undefined
+): string[] {
+  if (!modelInfo) return [];
+
+  const cardData =
+    modelInfo.cardData && typeof modelInfo.cardData === "object"
+      ? (modelInfo.cardData as Record<string, unknown>)
+      : null;
+
+  const baseModelCandidates = [
+    ...(typeof cardData?.base_model === "string" ? [cardData.base_model] : []),
+    ...(Array.isArray(cardData?.base_model)
+      ? cardData.base_model.filter((value): value is string => typeof value === "string")
+      : []),
+    ...(Array.isArray(modelInfo.tags)
+      ? modelInfo.tags
+          .filter((value): value is string => typeof value === "string")
+          .filter((tag) => tag.startsWith("base_model:"))
+          .map((tag) => tag.split(":").pop() ?? "")
+      : []),
+  ];
+
+  return Array.from(
+    new Set(
+      baseModelCandidates
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .filter((value) => value.includes("/"))
+    )
+  );
+}
+
+async function fetchContextWindowForHfId(
+  hfId: string,
+  signal?: AbortSignal,
+  token?: string
+): Promise<number | null> {
+  const tokenizerConfig = await fetchHfRawJson(
+    hfId,
+    "tokenizer_config.json",
+    signal,
+    token
+  );
+  const tokenizerContext =
+    extractContextWindowFromTokenizerConfig(tokenizerConfig);
+
+  if (tokenizerContext) {
+    return tokenizerContext;
+  }
+
+  const config = await fetchHfRawJson(hfId, "config.json", signal, token);
+  return extractContextWindowFromConfig(config);
+}
+
 function shouldAttemptContextEnrichment(
   record: HfModelRecord,
   options?: { allowAnyProvider?: boolean }
@@ -375,27 +460,31 @@ async function enrichRecordWithContextWindow(
 
   if (!shouldAttemptContextEnrichment(record, options)) return;
 
-  const tokenizerConfig = await fetchHfRawJson(
+  const directContext = await fetchContextWindowForHfId(
     hfModelId,
-    "tokenizer_config.json",
     signal,
     options?.token
   );
-  const tokenizerContext =
-    extractContextWindowFromTokenizerConfig(tokenizerConfig);
 
-  if (tokenizerContext) {
-    record.context_window = tokenizerContext;
-  } else {
-    const config = await fetchHfRawJson(
-      hfModelId,
-      "config.json",
+  if (directContext) {
+    record.context_window = directContext;
+    return;
+  }
+
+  const modelInfo = await fetchHfModelInfo(hfModelId, signal, options?.token);
+  const baseModelIds = extractBaseModelIdsFromModelInfo(modelInfo).filter(
+    (baseModelId) => baseModelId !== hfModelId
+  );
+
+  for (const baseModelId of baseModelIds) {
+    const baseContext = await fetchContextWindowForHfId(
+      baseModelId,
       signal,
       options?.token
     );
-    const configContext = extractContextWindowFromConfig(config);
-    if (configContext) {
-      record.context_window = configContext;
+    if (baseContext) {
+      record.context_window = baseContext;
+      return;
     }
   }
 }
@@ -764,10 +853,14 @@ registerAdapter(adapter);
 export default adapter;
 
 export const __testables = {
+  buildHfApiModelInfoUrl,
   buildHfHeaders,
   buildHfModelPageUrl,
+  enrichRecordWithContextWindow,
+  extractBaseModelIdsFromModelInfo,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,
+  fetchContextWindowForHfId,
   normalizeContextWindow,
   shouldAttemptContextEnrichment,
   transformModel,
