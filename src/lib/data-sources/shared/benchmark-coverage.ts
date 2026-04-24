@@ -16,6 +16,7 @@ const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
   Google: ["google"],
   Meta: ["meta-llama"],
   "Mistral AI": ["mistralai"],
+  Cohere: ["CohereLabs"],
   Microsoft: ["microsoft"],
   NVIDIA: ["nvidia"],
   OpenAI: ["openai"],

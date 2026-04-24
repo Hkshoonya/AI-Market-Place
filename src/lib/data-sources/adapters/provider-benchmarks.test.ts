@@ -917,6 +917,38 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("trusts CohereLabs HF model cards for official Cohere auto benchmark sources", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "coherelabs-tiny-aya-global",
+          name: "tiny-aya-global",
+          provider: "CohereLabs",
+          category: "llm",
+          hf_model_id: "CohereLabs/tiny-aya-global",
+          website_url: "https://huggingface.co/CohereLabs/tiny-aya-global",
+          release_date: "2026-02-13",
+        },
+      ],
+      new Map([["1", 0]]),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auto-hf-coherelabs-tiny-aya-global",
+          provider: "CohereLabs",
+          url: "https://huggingface.co/CohereLabs/tiny-aya-global",
+          sourceType: "official_model_card",
+          requiresBenchmarkSignal: true,
+        }),
+      ])
+    );
+  });
+
   it("combines curated hints with text-resolved model matches", () => {
     const aliasModels = [
       {
