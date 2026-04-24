@@ -1,6 +1,7 @@
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { countTrustedStructuredBenchmarkScores } from "@/lib/models/benchmark-score-trust";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { isBenchmarkExpectedModel } from "@/lib/data-sources/shared/benchmark-coverage";
 
 import {
   computePublicRankingConfidenceScore,
@@ -102,6 +103,13 @@ export function computePublicRankingHealth(
     .map((model) => summarizeRow(model));
   const undercoveredRecentLeadership = deduped
     .filter((model) => isRecentLeadershipPublicRankingCandidate(model))
+    .filter((model) =>
+      isBenchmarkExpectedModel({
+        slug: model.slug,
+        provider: model.provider,
+        category: model.category ?? null,
+      })
+    )
     .filter((model) => countTrustedStructuredBenchmarkScores(model.benchmark_scores) < 4)
     .sort(
       (left, right) =>

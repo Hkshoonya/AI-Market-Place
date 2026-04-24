@@ -25,6 +25,16 @@ describe("benchmark coverage helpers", () => {
     ).toBe(true);
   });
 
+  it("keeps source-thin Grok 4.20 rows out of benchmark-expected coverage", () => {
+    expect(
+      isBenchmarkExpectedModel({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        category: "multimodal",
+      })
+    ).toBe(false);
+  });
+
   it("keeps image-only rows out of benchmark-expected coverage", () => {
     expect(
       isBenchmarkExpectedModel({
@@ -114,30 +124,32 @@ describe("benchmark coverage helpers", () => {
   it("accepts trusted official provider pages when HF model cards are unavailable", () => {
     expect(
       getTrustedBenchmarkWebsiteUrl({
-        slug: "x-ai-grok-4-20",
-        provider: "xAI",
-        category: "multimodal",
-        website_url: "https://docs.x.ai/docs/models",
-      })
-    ).toBe("https://data.x.ai/2025-08-20-grok-4-model-card.pdf");
-
-    expect(
-      getTrustedBenchmarkWebsiteUrl({
         slug: "openai-whisper-1",
         provider: "OpenAI",
         category: "speech_audio",
         website_url: "https://developers.openai.com/api/docs/guides/speech-to-text",
       })
     ).toBe("https://developers.openai.com/api/docs/guides/speech-to-text");
+  });
+
+  it("does not assign trusted benchmark locators to source-thin Grok 4.20 rows", () => {
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        category: "multimodal",
+        website_url: "https://docs.x.ai/docs/models",
+      })
+    ).toBeNull();
 
     expect(
       getTrustedBenchmarkWebsiteUrl({
         slug: "x-ai-grok-4-20",
         provider: "xAI",
         category: "multimodal",
-        website_url: "https://example.com/grok",
+        website_url: "https://data.x.ai/2025-08-20-grok-4-model-card.pdf",
       })
-    ).toBe("https://data.x.ai/2025-08-20-grok-4-model-card.pdf");
+    ).toBeNull();
   });
 
   it("accepts official benchmark docs for more official providers", () => {

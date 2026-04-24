@@ -11,6 +11,7 @@ import { OPENAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/open
 import { QWEN_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/qwen";
 import { XAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/xai";
 import { ZAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/zai";
+import { inferTrustedBenchmarkLocatorHints } from "@/lib/data-sources/shared/benchmark-coverage";
 import type { KnownModelMeta } from "@/lib/data-sources/shared/build-record";
 
 type KnownCatalog = Record<string, KnownModelMeta>;
@@ -208,6 +209,13 @@ export function getKnownModelMeta(
       .filter(Boolean)
   );
 
+  let bestSubsetMatch:
+    | {
+        meta: KnownModelMeta;
+        specificity: number;
+      }
+    | null = null;
+
   for (const [key, meta] of Object.entries(catalog)) {
     const normalizedCandidates = [
       key,
@@ -222,11 +230,17 @@ export function getKnownModelMeta(
       buildTokenSignature(meta.name, model.provider),
     ].filter(Boolean);
 
-    if (normalizedCandidates.some((value) => candidateKeys.has(value))) {
-      return meta;
-    }
+    const matchingNormalizedCandidates = normalizedCandidates.filter((value) =>
+      candidateKeys.has(value)
+    );
+    const matchingTokenSignatures = tokenSignatures.filter((signature) =>
+      candidateSignatures.has(signature)
+    );
 
-    if (tokenSignatures.some((signature) => candidateSignatures.has(signature))) {
+    if (
+      matchingNormalizedCandidates.length > 0 ||
+      matchingTokenSignatures.length > 0
+    ) {
       return meta;
     }
 
@@ -236,11 +250,18 @@ export function getKnownModelMeta(
       isSubsetTokenMatch(model.name, key, model.provider) ||
       isSubsetTokenMatch(model.name, meta.name, model.provider)
     ) {
-      return meta;
+      const specificity = Math.max(
+        tokenizeModelIdentity(key, model.provider).length,
+        tokenizeModelIdentity(meta.name, model.provider).length
+      );
+
+      if (!bestSubsetMatch || specificity > bestSubsetMatch.specificity) {
+        bestSubsetMatch = { meta, specificity };
+      }
     }
   }
 
-  return null;
+  return bestSubsetMatch?.meta ?? null;
 }
 
 function hasString(value: string | null | undefined): boolean {
@@ -260,6 +281,28 @@ function hasKnownClosedWeightMarkers(model: KnownModelPatchInput): boolean {
     normalizedLicenseName === "commercial" ||
     normalizedLicenseName === "proprietary"
   );
+}
+
+function shouldOverrideInferredBenchmarkWebsiteUrl(
+  model: KnownModelPatchInput,
+  knownMeta: KnownModelMeta
+): boolean {
+  const currentUrl = model.website_url?.trim();
+  const canonicalUrl = knownMeta.website_url?.trim();
+  if (!currentUrl || !canonicalUrl || currentUrl === canonicalUrl) {
+    return false;
+  }
+
+  const inferredLocators = inferTrustedBenchmarkLocatorHints({
+    slug: model.slug ?? "",
+    provider: model.provider ?? "",
+    category: model.category ?? null,
+    hf_model_id: model.hf_model_id ?? null,
+    website_url: model.website_url ?? null,
+    name: model.name ?? null,
+  });
+
+  return inferredLocators.website_url?.trim() === currentUrl;
 }
 
 export function buildKnownModelMetaPatch(
@@ -286,6 +329,10 @@ export function buildKnownModelMetaPatch(
     hasKnownClosedWeightMarkers(model);
   const shouldOverrideLicenseFields =
     shouldOverrideOpenWeightFlag || shouldOverrideClosedWeightFlag;
+  const shouldOverrideWebsiteUrl = shouldOverrideInferredBenchmarkWebsiteUrl(
+    model,
+    knownMeta
+  );
 
   return Object.fromEntries(
     Object.entries({
@@ -313,7 +360,10 @@ export function buildKnownModelMetaPatch(
           ? knownMeta.license_name
           : undefined,
       hf_model_id: hasString(model.hf_model_id) ? undefined : knownMeta.hf_model_id,
-      website_url: hasString(model.website_url) ? undefined : knownMeta.website_url,
+      website_url:
+        hasString(model.website_url) && !shouldOverrideWebsiteUrl
+          ? undefined
+          : knownMeta.website_url,
     }).filter(([, value]) => value !== undefined && value !== null)
   ) as Record<string, unknown>;
 }

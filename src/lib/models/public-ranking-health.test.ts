@@ -241,4 +241,52 @@ describe("computePublicRankingHealth", () => {
       benchmarkCount: 2,
     });
   });
+
+  it("does not expect thin benchmark coverage from source-thin Grok 4.20 rows", () => {
+    const health = computePublicRankingHealth([
+      {
+        id: "grok-4-20",
+        slug: "x-ai-grok-4-20",
+        name: "Grok 4.20",
+        provider: "xAI",
+        category: "multimodal",
+        overall_rank: 18,
+        release_date: "2026-03-31",
+        capability_score: 85.1,
+        quality_score: 72.4,
+        adoption_score: 62.1,
+        popularity_score: 55.3,
+        economic_footprint_score: 61.2,
+        benchmark_scores: [],
+        description:
+          "xAI's latest flagship Grok 4.20 release for multimodal assistant, reasoning, and coding workflows.",
+      },
+      {
+        id: "gpt-5-4",
+        slug: "openai-gpt-5-4",
+        name: "GPT-5.4",
+        provider: "OpenAI",
+        category: "llm",
+        overall_rank: 2,
+        release_date: "2026-03-21",
+        capability_score: 93,
+        quality_score: 91,
+        adoption_score: 72,
+        popularity_score: 74,
+        economic_footprint_score: 68,
+        benchmark_scores: [
+          { source: "artificial-analysis" },
+          { source: "terminal-bench" },
+          { source: "aider" },
+          { source: "tau-bench" },
+        ],
+        description:
+          "OpenAI's latest flagship model for reasoning, coding, and long-context agent workflows.",
+      },
+    ]);
+
+    expect(health.undercoveredRecentLeadership.map((row) => row.slug)).not.toContain(
+      "x-ai-grok-4-20"
+    );
+  });
 });

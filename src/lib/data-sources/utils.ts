@@ -16,7 +16,11 @@ import { getPublicSourceTrustTier, isLowTrustPublicSourceTier } from "@/lib/mode
 import { stripPublicSignalInputs } from "@/lib/models/public-signal-inputs";
 import { hasLifecycleWarningLanguage } from "@/lib/models/public-ranking-confidence";
 import { buildKnownModelMetaPatch } from "@/lib/models/known-model-meta";
-import { inferTrustedBenchmarkLocatorHints } from "@/lib/data-sources/shared/benchmark-coverage";
+import {
+  getTrustedBenchmarkHfUrl,
+  getTrustedBenchmarkWebsiteUrl,
+  inferTrustedBenchmarkLocatorHints,
+} from "@/lib/data-sources/shared/benchmark-coverage";
 
 // --------------- Retry & Fetch ---------------
 
@@ -265,6 +269,43 @@ export function normalizeModelRankingInputs(
         : null,
     name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
   });
+  const trustedBenchmarkHfUrl = getTrustedBenchmarkHfUrl({
+    slug: typeof mergedRecord.slug === "string" ? mergedRecord.slug : "",
+    provider:
+      typeof mergedRecord.provider === "string" ? mergedRecord.provider : "",
+    category:
+      typeof mergedRecord.category === "string" ? mergedRecord.category : null,
+    hf_model_id:
+      (typeof mergedRecord.hf_model_id === "string"
+        ? mergedRecord.hf_model_id
+        : null) ?? inferredLocators.hf_model_id,
+    website_url:
+      typeof mergedRecord.website_url === "string"
+        ? mergedRecord.website_url
+        : null,
+    name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
+  });
+  const trustedBenchmarkLocators = {
+    hf_model_id: trustedBenchmarkHfUrl
+      ? inferredLocators.hf_model_id
+      : null,
+    website_url: getTrustedBenchmarkWebsiteUrl({
+      slug: typeof mergedRecord.slug === "string" ? mergedRecord.slug : "",
+      provider:
+        typeof mergedRecord.provider === "string" ? mergedRecord.provider : "",
+      category:
+        typeof mergedRecord.category === "string" ? mergedRecord.category : null,
+      hf_model_id:
+        typeof mergedRecord.hf_model_id === "string"
+          ? mergedRecord.hf_model_id
+          : null,
+      website_url:
+        typeof mergedRecord.website_url === "string"
+          ? mergedRecord.website_url
+          : null,
+      name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
+    }),
+  };
   const normalizedModel = {
     slug: typeof mergedRecord.slug === "string" ? mergedRecord.slug : null,
     provider:
@@ -273,12 +314,12 @@ export function normalizeModelRankingInputs(
       (typeof mergedRecord.hf_model_id === "string"
         ? mergedRecord.hf_model_id
         : null) ??
-      inferredLocators.hf_model_id,
+      trustedBenchmarkLocators.hf_model_id,
     website_url:
       (typeof mergedRecord.website_url === "string"
         ? mergedRecord.website_url
         : null) ??
-      inferredLocators.website_url,
+      trustedBenchmarkLocators.website_url,
     name: typeof mergedRecord.name === "string" ? mergedRecord.name : null,
     category:
       typeof mergedRecord.category === "string" ? mergedRecord.category : null,

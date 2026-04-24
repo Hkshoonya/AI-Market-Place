@@ -145,6 +145,26 @@ function inferTrustedBenchmarkWebsiteCandidate(
   return null;
 }
 
+function isSourceThinBenchmarkExcludedModel(model: {
+  slug: string;
+  provider: string;
+  category: string | null;
+}) {
+  const provider = getCanonicalProviderName(model.provider);
+  const slug = String(model.slug ?? "").toLowerCase();
+
+  // xAI's Grok 4.20 family currently ships trusted official docs, but those
+  // pages do not expose a stable public benchmark table we can normalize.
+  if (
+    provider === "xAI" &&
+    (slug === "x-ai-grok-4-20" || slug === "x-ai-grok-4-20-multi-agent")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function inferTrustedBenchmarkLocatorHints(
   model: BenchmarkExpectedModel
 ): {
@@ -162,6 +182,10 @@ export function isBenchmarkExpectedModel(model: {
   slug: string;
   provider: string;
 }) {
+  if (isSourceThinBenchmarkExcludedModel(model)) {
+    return false;
+  }
+
   const category = model.category ?? "";
   const text = `${model.provider} ${model.slug}`.toLowerCase();
 

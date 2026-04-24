@@ -42,6 +42,20 @@ describe("getKnownModelMeta", () => {
     });
   });
 
+  it("prefers exact catalog matches over earlier fuzzy subset matches", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        name: "Grok 4.20",
+      })
+    ).toMatchObject({
+      name: "Grok 4.20",
+      release_date: "2026-03-31",
+      website_url: "https://docs.x.ai/docs/models",
+    });
+  });
+
   it("resolves CohereLabs rows by provider alias fallback", () => {
     expect(
       getKnownModelMeta({
@@ -412,5 +426,20 @@ describe("buildKnownModelMetaPatch", () => {
         website_url: "https://example.com/custom",
       })
     ).toEqual({});
+  });
+
+  it("repairs inferred benchmark locator URLs back to the canonical provider URL", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        name: "Grok 4.20",
+        category: "multimodal",
+        release_date: "2026-03-31",
+        website_url: "https://data.x.ai/2025-08-20-grok-4-model-card.pdf",
+      })
+    ).toMatchObject({
+      website_url: "https://docs.x.ai/docs/models",
+    });
   });
 });

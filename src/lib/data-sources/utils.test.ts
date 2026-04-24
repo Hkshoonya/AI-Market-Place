@@ -579,6 +579,21 @@ describe("upsertBatch", () => {
       }
     );
   });
+
+  it("repairs benchmark locator website URLs back to canonical provider URLs for known rows", () => {
+    expect(
+      normalizeModelRankingInputs({
+        slug: "x-ai-grok-4-20",
+        provider: "xAI",
+        name: "Grok 4.20",
+        category: "multimodal",
+        release_date: "2026-03-31",
+        website_url: "https://data.x.ai/2025-08-20-grok-4-model-card.pdf",
+      })
+    ).toMatchObject({
+      website_url: "https://docs.x.ai/docs/models",
+    });
+  });
 });
 
 describe("normalizeModelRankingInputs", () => {
