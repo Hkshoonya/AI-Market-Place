@@ -603,14 +603,16 @@ const pipelineEngineer: ResidentAgent = {
           }))
           .filter(
             (model) =>
-              ["community", "wrapper"].includes(model.trustTier) &&
-              model.blockers.some((blocker) =>
-                [
-                  "missing_name",
-                  "missing_category",
-                  "missing_release_date",
-                ].includes(blocker)
-              )
+              (model.trustTier === "community" &&
+                model.blockers.includes("weak_signals")) ||
+              (["community", "wrapper"].includes(model.trustTier) &&
+                model.blockers.some((blocker) =>
+                  [
+                    "missing_name",
+                    "missing_category",
+                    "missing_release_date",
+                  ].includes(blocker)
+                ))
           );
         const lowTrustArchives: Array<{ id: string; slug: string }> = [];
         const LOW_TRUST_ARCHIVE_BATCH_SIZE = 100;

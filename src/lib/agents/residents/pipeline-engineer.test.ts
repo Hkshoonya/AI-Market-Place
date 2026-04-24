@@ -623,6 +623,12 @@ describe("pipelineEngineer", () => {
             status: "archived",
           }),
         }),
+        expect.objectContaining({
+          id: "community-wrapper",
+          payload: expect.objectContaining({
+            status: "archived",
+          }),
+        }),
       ])
     );
     expect(supabase.__modelUpdates).toEqual(
@@ -665,8 +671,8 @@ describe("pipelineEngineer", () => {
       repaired: expect.any(Number),
     });
     expect(result.output.lowTrustCatalogAutoArchive).toMatchObject({
-      attempted: 2,
-      archived: 2,
+      attempted: 3,
+      archived: 3,
     });
   });
 });
