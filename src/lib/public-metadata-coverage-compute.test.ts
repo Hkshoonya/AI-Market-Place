@@ -310,4 +310,48 @@ describe("computePublicMetadataCoverage", () => {
     expect(coverage.recentLowTrustModels).toEqual([]);
     expect(coverage.recentNotReadyModels).toEqual([]);
   });
+
+  it("excludes GGUF packaging rows inferred from architecture from the readiness denominator", async () => {
+    const supabase = createMockSupabase([
+      {
+        slug: "google-gemini-3-1-pro",
+        provider: "Google",
+        name: "Gemini 3.1 Pro",
+        category: "multimodal",
+        release_date: "2026-04-01",
+        is_open_weights: false,
+        license: null,
+        license_name: null,
+        context_window: 1048576,
+      },
+      {
+        slug: "ruv-ruvltra-claude-code",
+        provider: "ruv",
+        architecture: "gguf",
+        hf_model_id: "ruv/ruvltra-claude-code",
+        name: "RuvLtra Claude Code",
+        category: "llm",
+        release_date: "2026-01-16",
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Apache 2.0",
+        context_window: null,
+      },
+    ]);
+
+    const coverage = await computePublicMetadataCoverage(supabase as never);
+
+    expect(coverage.defaultPublicSurfaceReadyCount).toBe(1);
+    expect(coverage.defaultPublicSurfaceReadyPct).toBe(100);
+    expect(coverage.llmMissingContextWindowCount).toBe(0);
+    expect(coverage.trustTierCounts).toEqual({
+      official: 1,
+      trusted_catalog: 0,
+      community: 0,
+      wrapper: 1,
+    });
+    expect(coverage.lowTrustActiveCount).toBe(0);
+    expect(coverage.topReadinessBlockers).toEqual([]);
+    expect(coverage.recentNotReadyModels).toEqual([]);
+  });
 });

@@ -25,6 +25,7 @@ const PAGE_SIZE = 1000;
 type ActiveModelPublicMetadataRow = {
   slug: string;
   provider: string | null;
+  architecture?: string | null;
   hf_model_id?: string | null;
   website_url?: string | null;
   name: string;
@@ -288,7 +289,7 @@ export async function computePublicMetadataCoverage(
       const query = supabase
         .from("models")
         .select(
-          "slug, provider, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
+          "slug, provider, architecture, hf_model_id, website_url, name, category, release_date, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
         )
         .eq("status", "active");
       const { data, error } = await orderBy(query, "slug").range(from, to);
