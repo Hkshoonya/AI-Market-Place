@@ -46,7 +46,10 @@ function makeRequest(body: unknown) {
   return new NextRequest("http://localhost/api/admin/moderate", {
     method: "PATCH",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: "http://localhost",
+    },
   });
 }
 
@@ -107,5 +110,24 @@ describe("PATCH /api/admin/moderate", () => {
 
     expect(response.status).toBe(500);
     expect(body.error).toContain("write failed");
+  });
+
+  it("rejects cross-origin admin moderation requests", async () => {
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/moderate", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "ban",
+          target_type: "user",
+          target_id: "11111111-1111-1111-1111-111111111111",
+        }),
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });

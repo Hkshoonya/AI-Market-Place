@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
+import { getSafeExternalHref } from "@/lib/security/url";
 import type { Profile } from "@/types/database";
 
 interface SellerCardProps {
@@ -26,6 +27,7 @@ interface SellerCardProps {
 export function SellerCard({ seller }: SellerCardProps) {
   const displayName = seller.display_name || seller.username || "Seller";
   const initial = displayName.charAt(0).toUpperCase();
+  const safeSellerWebsite = getSafeExternalHref(seller.seller_website);
 
   return (
     <Card className="border-border/50 bg-card">
@@ -93,15 +95,15 @@ export function SellerCard({ seller }: SellerCardProps) {
         </div>
 
         {/* Website */}
-        {seller.seller_website && (
+        {safeSellerWebsite && (
           <a
-            href={seller.seller_website}
+            href={safeSellerWebsite}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs text-neon hover:underline"
           >
             <ExternalLink className="h-3 w-3" />
-            {seller.seller_website.replace(/^https?:\/\//, "")}
+            {safeSellerWebsite.replace(/^https?:\/\//, "")}
           </a>
         )}
 

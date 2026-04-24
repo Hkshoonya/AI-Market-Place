@@ -23,6 +23,7 @@ import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
+import { nullableHttpUrlSchema } from "@/lib/security/url";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ const skillManifestSchema = z
     input_schema: z.record(z.string(), z.unknown()).optional(),
     output_schema: z.record(z.string(), z.unknown()).optional(),
     runtime: z.string().max(100).optional(),
-    endpoint: z.string().url().optional(),
+    endpoint: nullableHttpUrlSchema("endpoint"),
     pricing: z
       .object({
         model: z.string().max(50).optional(),
@@ -104,21 +105,9 @@ const createBotListingSchema = z.object({
     .max(20, "Maximum 20 tags allowed")
     .optional()
     .default([]),
-  thumbnail_url: z
-    .string()
-    .url("thumbnail_url must be a valid URL")
-    .optional()
-    .nullable(),
-  demo_url: z
-    .string()
-    .url("demo_url must be a valid URL")
-    .optional()
-    .nullable(),
-  documentation_url: z
-    .string()
-    .url("documentation_url must be a valid URL")
-    .optional()
-    .nullable(),
+  thumbnail_url: nullableHttpUrlSchema("thumbnail_url"),
+  demo_url: nullableHttpUrlSchema("demo_url"),
+  documentation_url: nullableHttpUrlSchema("documentation_url"),
   agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
   mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
   skill_manifest: skillManifestSchema.optional().nullable(),
@@ -154,9 +143,9 @@ const updateBotListingSchema = z.object({
     .array(z.string().max(50))
     .max(20, "Maximum 20 tags allowed")
     .optional(),
-  thumbnail_url: z.string().url().optional().nullable(),
-  demo_url: z.string().url().optional().nullable(),
-  documentation_url: z.string().url().optional().nullable(),
+  thumbnail_url: nullableHttpUrlSchema("thumbnail_url"),
+  demo_url: nullableHttpUrlSchema("demo_url"),
+  documentation_url: nullableHttpUrlSchema("documentation_url"),
   agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
   mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
   model_id: z.string().uuid().optional().nullable(),

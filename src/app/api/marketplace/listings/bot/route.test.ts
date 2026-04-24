@@ -276,6 +276,36 @@ describe("/api/marketplace/listings/bot", () => {
     expect(body.error).toMatch(/expired/i);
   });
 
+  it("rejects unsafe public URLs in bot listing payloads", async () => {
+    mockAuthenticateApiKey.mockResolvedValue({
+      authenticated: true,
+      keyRecord: {
+        id: "key-1",
+        owner_id: "owner-1",
+        agent_id: null,
+        scopes: ["marketplace"],
+      },
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/bot", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer aimk_valid",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Bot Listing",
+          description: "Bot-created listing",
+          listing_type: "agent",
+          documentation_url: "javascript:alert(1)",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("creates unverified bot listings as drafts when seller verification enforcement is enabled", async () => {
     process.env.ENFORCE_SELLER_VERIFICATION = "true";
     const insertedPayloads: Record<string, unknown>[] = [];

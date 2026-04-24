@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (!hasTrustedRequestOrigin(request)) {
+      return NextResponse.json(
+        { error: "Cross-origin request rejected." },
+        { status: 403 }
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

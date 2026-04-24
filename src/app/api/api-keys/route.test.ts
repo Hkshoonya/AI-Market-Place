@@ -101,7 +101,10 @@ describe("POST /api/api-keys", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/api-keys", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           name: "Withdraw Bot",
           scopes: ["read", "withdraw"],
@@ -115,5 +118,26 @@ describe("POST /api/api-keys", () => {
     expect(insertedRows[0]?.scopes).toEqual(["read", "withdraw"]);
     expect(body.key.scopes).toEqual(["read", "withdraw"]);
     expect(body.plaintext_key).toBe("aimk_plaintext");
+  });
+
+  it("rejects cross-origin API key creation requests", async () => {
+    const insertedRows: Record<string, unknown>[] = [];
+    mockCreateClient.mockResolvedValue(createMockSupabase(insertedRows));
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/api-keys", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          name: "Cross-Origin Bot",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(insertedRows).toEqual([]);
   });
 });

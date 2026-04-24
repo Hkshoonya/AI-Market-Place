@@ -10,6 +10,9 @@ import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleAuthenticatedCheckout } from "@/lib/marketplace/purchase-handlers";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 
+const PUBLIC_MODEL_DETAIL_SELECT =
+  "id, slug, name, provider, category, description, short_description, status, overall_rank, quality_score, capability_score, adoption_score, popularity_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score, release_date, is_open_weights, is_api_available, parameter_count, context_window, license, license_name, hf_model_id, website_url, benchmark_scores(*, benchmark:benchmarks(*)), model_pricing(*), elo_ratings(*), rankings(*)";
+
 export const MCP_TOOLS: McpTool[] = [
   {
     name: "search_models",
@@ -172,8 +175,9 @@ export async function executeTool(
 
       const { data, error } = await sb
         .from("models")
-        .select("*, benchmark_scores(*, benchmark:benchmarks(*)), model_pricing(*), elo_ratings(*), rankings(*)")
+        .select(PUBLIC_MODEL_DETAIL_SELECT)
         .eq("slug", slug)
+        .eq("status", "active")
         .single();
 
       if (error) throw new Error(`Model not found: ${slug}`);

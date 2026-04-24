@@ -42,12 +42,14 @@ export async function generatePrompt(
         .from("models")
         .select("name, provider, category, quality_score, hf_downloads, parameter_count, context_window, is_open_weights, license")
         .eq("slug", slugA)
+        .eq("status", "active")
         .single();
 
       const { data: modelB } = await sb
         .from("models")
         .select("name, provider, category, quality_score, hf_downloads, parameter_count, context_window, is_open_weights, license")
         .eq("slug", slugB)
+        .eq("status", "active")
         .single();
 
       if (!modelA || !modelB) throw new Error("One or both models not found");

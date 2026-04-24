@@ -15,7 +15,7 @@ function createMockSupabase() {
       if (table === "models") {
         return {
           select: () => ({
-            eq: () => ({
+            eq: (_field: string) => ({
               order: () => ({
                 limit: async () => ({
                   data: [
@@ -32,6 +32,23 @@ function createMockSupabase() {
                       is_open_weights: false,
                     },
                   ],
+                  error: null,
+                }),
+              }),
+              eq: () => ({
+                single: async () => ({
+                  data: {
+                    slug: "google-deepmind-sonnet",
+                    name: "Sonnet",
+                    provider: "Google",
+                    category: "llm",
+                    description: "TensorFlow-based neural network library",
+                    short_description: null,
+                    benchmark_scores: [],
+                    model_pricing: [],
+                    elo_ratings: [],
+                    rankings: [],
+                  },
                   error: null,
                 }),
               }),

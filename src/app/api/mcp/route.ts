@@ -10,11 +10,26 @@ import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
+const PRIVILEGED_MCP_TOOLS = new Set(["create_order", "purchase", "send_message"]);
+
 function createServiceClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+function createPublicClient() {
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+
+function requiresPrivilegedMcpClient(body: JsonRpcRequest): boolean {
+  if (body.method !== "tools/call") return false;
+  const toolName = (body.params?.name as string) ?? "";
+  return PRIVILEGED_MCP_TOOLS.has(toolName);
 }
 
 export async function POST(request: NextRequest) {
@@ -33,28 +48,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = createServiceClient();
-
-    // Authenticate via API key (optional for read-only, required for write operations)
-    let keyRecord: Record<string, unknown> | undefined;
-    const apiKey = extractApiKey(request);
-
-    if (apiKey) {
-      const auth = await validateApiKey(supabase, apiKey);
-      if (auth.valid && auth.keyRecord) {
-        keyRecord = auth.keyRecord;
-      } else {
-        return NextResponse.json(
-          {
-            jsonrpc: "2.0",
-            id: null,
-            error: { code: JSON_RPC_ERRORS.INTERNAL_ERROR, message: auth.error ?? "Invalid API key" },
-          },
-          { status: 401 }
-        );
-      }
-    }
-
     // Parse JSON-RPC request
     let body: JsonRpcRequest;
     try {
@@ -81,6 +74,33 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Authenticate via API key (optional for public reads, required for privileged tools)
+    let keyRecord: Record<string, unknown> | undefined;
+    let serviceClient: ReturnType<typeof createServiceClient> | null = null;
+    const apiKey = extractApiKey(request);
+
+    if (apiKey) {
+      serviceClient = createServiceClient();
+      const auth = await validateApiKey(serviceClient, apiKey);
+      if (auth.valid && auth.keyRecord) {
+        keyRecord = auth.keyRecord;
+      } else {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: JSON_RPC_ERRORS.INTERNAL_ERROR, message: auth.error ?? "Invalid API key" },
+          },
+          { status: 401 }
+        );
+      }
+    }
+
+    const supabase =
+      keyRecord && requiresPrivilegedMcpClient(body)
+        ? (serviceClient ?? createServiceClient())
+        : createPublicClient();
 
     // Handle the request
     const response = await handleMcpRequest(supabase, body, keyRecord);

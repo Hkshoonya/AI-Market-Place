@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { getSafeExternalHref } from "@/lib/security/url";
 import type { SellerVerificationRequest } from "@/types/database";
 
 interface VerificationRequestWithProfile extends SellerVerificationRequest {
@@ -146,9 +147,9 @@ export default function AdminVerificationsPage() {
                   )}
 
                   <div className="flex flex-wrap items-center gap-4 text-xs">
-                    {req.website_url && (
+                    {getSafeExternalHref(req.website_url) && (
                       <a
-                        href={req.website_url}
+                        href={getSafeExternalHref(req.website_url)!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-neon hover:underline"
@@ -157,9 +158,9 @@ export default function AdminVerificationsPage() {
                         Website
                       </a>
                     )}
-                    {req.portfolio_url && (
+                    {getSafeExternalHref(req.portfolio_url) && (
                       <a
-                        href={req.portfolio_url}
+                        href={getSafeExternalHref(req.portfolio_url)!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-neon hover:underline"

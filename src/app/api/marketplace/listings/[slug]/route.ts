@@ -9,6 +9,8 @@ import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { systemLog } from "@/lib/logging";
 import { evaluateListingPolicy, syncListingPolicyReview } from "@/lib/marketplace/policy";
 import { buildListingPreviewManifest } from "@/lib/marketplace/manifest";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
+import { normalizeOptionalHttpUrl } from "@/lib/security/url";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +96,13 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+  if (!hasTrustedRequestOrigin(request)) {
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 }
+    );
+  }
+
   const { slug } = await params;
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
@@ -184,6 +193,28 @@ export async function PATCH(
   if ("title" in updates && typeof updates.title === "string") {
     if (updates.title.length < 1 || updates.title.length > 500) {
       return NextResponse.json({ error: "Title must be 1-500 characters" }, { status: 400 });
+    }
+  }
+
+  for (const field of [
+    "documentation_url",
+    "demo_url",
+    "source_url",
+    "thumbnail_url",
+  ] as const) {
+    if (!(field in updates)) continue;
+    try {
+      updates[field] = normalizeOptionalHttpUrl(updates[field], field);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : `${field} must be a valid http or https URL`,
+        },
+        { status: 400 }
+      );
     }
   }
 
@@ -385,6 +416,13 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+  if (!hasTrustedRequestOrigin(request)) {
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 }
+    );
+  }
+
   const { slug } = await params;
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"

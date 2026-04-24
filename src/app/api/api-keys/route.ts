@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/agents/auth";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,13 @@ export async function GET(request: NextRequest) {
 
 // POST: Create new API key
 export async function POST(request: NextRequest) {
+  if (!hasTrustedRequestOrigin(request)) {
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 }
+    );
+  }
+
   const ip = getClientIp(request);
   const rl = await rateLimit(`api-keys:${ip}`, RATE_LIMITS.auth);
   if (!rl.success) {

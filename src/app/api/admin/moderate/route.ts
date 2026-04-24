@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assertUuid } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    if (!hasTrustedRequestOrigin(request)) {
+      return NextResponse.json(
+        { error: "Cross-origin request rejected." },
+        { status: 403 }
+      );
+    }
+
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
     const {

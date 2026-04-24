@@ -67,7 +67,10 @@ function makeRequest(status: "active" | "paused" | "draft"): NextRequest {
     "https://aimarketcap.tech/api/marketplace/listings/test-listing",
     {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: "https://aimarketcap.tech",
+      },
       body: JSON.stringify({ status }),
     }
   );
@@ -251,7 +254,10 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/marketplace/listings/test-listing", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ description: "credential bypass workflow", status: "active" }),
       }),
       {
@@ -283,7 +289,10 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/marketplace/listings/test-listing", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           short_description: "Updated summary",
           mcp_manifest: {
@@ -304,5 +313,29 @@ describe("PATCH /api/marketplace/listings/[slug]", () => {
         fulfillment_type: "mcp_endpoint",
       })
     );
+  });
+
+  it("rejects unsafe seller-controlled URLs during listing updates", async () => {
+    const updatePayloads: Record<string, unknown>[] = [];
+    mockCreateAdminClient.mockReturnValue(createAdminSupabase(updatePayloads));
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/listings/test-listing", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
+        body: JSON.stringify({
+          demo_url: "javascript:alert(1)",
+        }),
+      }),
+      {
+        params: Promise.resolve({ slug: "test-listing" }),
+      }
+    );
+
+    expect(response.status).toBe(400);
+    expect(updatePayloads).toEqual([]);
   });
 });

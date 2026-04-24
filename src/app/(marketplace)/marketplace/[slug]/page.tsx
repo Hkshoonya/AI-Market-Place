@@ -29,6 +29,7 @@ import {
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { formatWalletTopUpList } from "@/lib/constants/wallet";
 import { SITE_URL } from "@/lib/constants/site";
+import { getSafeExternalHref } from "@/lib/security/url";
 import type { Metadata } from "next";
 import type { MarketplacePricingType } from "@/types/database";
 
@@ -152,6 +153,10 @@ export default async function ListingDetailPage(props: {
   });
   const commerceSignals = getListingCommerceSignals(listing);
   const checkoutSummary = getCheckoutSummary(listing.pricing_type);
+  const safeDemoUrl = getSafeExternalHref(listing.demo_url);
+  const safeDocumentationUrl = getSafeExternalHref(
+    listing.documentation_url
+  );
 
   const typeConfig = LISTING_TYPE_MAP[listing.listing_type as keyof typeof LISTING_TYPE_MAP];
 
@@ -432,18 +437,22 @@ export default async function ListingDetailPage(props: {
           <ManifestPreviewCard manifest={previewManifest} />
 
           {/* Links */}
-          {(listing.demo_url || listing.documentation_url) && (
+          {(safeDemoUrl || safeDocumentationUrl) && (
             <div className="flex gap-3">
-              {listing.demo_url && (
+              {safeDemoUrl && (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={listing.demo_url} target="_blank" rel="noopener noreferrer">
+                  <a href={safeDemoUrl} target="_blank" rel="noopener noreferrer">
                     View Demo
                   </a>
                 </Button>
               )}
-              {listing.documentation_url && (
+              {safeDocumentationUrl && (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={listing.documentation_url} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={safeDocumentationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Documentation
                   </a>
                 </Button>

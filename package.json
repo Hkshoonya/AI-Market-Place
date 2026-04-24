@@ -11,7 +11,14 @@
     "npm": "10.9.7"
   },
   "overrides": {
-    "camera-controls": "3.1.0"
+    "camera-controls": "3.1.0",
+    "@sentry/bundler-plugin-core": {
+      "brace-expansion": "5.0.5"
+    },
+    "dompurify": "3.4.1",
+    "picomatch": "4.0.4",
+    "postcss": "8.5.10",
+    "protobufjs": "7.5.5"
   },
   "browserslist": [
     "chrome 111",
@@ -42,7 +49,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
-    "@sentry/nextjs": "^10.42.0",
+    "@sentry/nextjs": "^10.50.0",
     "@solana/web3.js": "^1.98.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
@@ -54,11 +61,11 @@
     "fflate": "^0.8.2",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.575.0",
-    "next": "16.1.6",
+    "next": "^16.2.4",
     "node-cron": "^4.2.1",
     "octokit": "^5.0.5",
     "pdf-parse": "^2.4.5",
-    "posthog-js": "^1.358.1",
+    "posthog-js": "^1.372.1",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -85,7 +92,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "dotenv": "^17.3.1",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "^16.2.4",
     "jsdom": "^28.1.0",
     "msw": "^2.12.10",
     "shadcn": "^3.8.5",

@@ -22,6 +22,8 @@ import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MarketplaceSortOption } from "@/lib/constants/marketplace";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
+import { nullableHttpUrlSchema } from "@/lib/security/url";
 
 const createListingSchema = z.object({
   title: z
@@ -79,21 +81,9 @@ const createListingSchema = z.object({
     .max(20, "Maximum 20 tags allowed")
     .optional()
     .default([]),
-  thumbnail_url: z
-    .string()
-    .url("thumbnail_url must be a valid URL")
-    .optional()
-    .nullable(),
-  demo_url: z
-    .string()
-    .url("demo_url must be a valid URL")
-    .optional()
-    .nullable(),
-  documentation_url: z
-    .string()
-    .url("documentation_url must be a valid URL")
-    .optional()
-    .nullable(),
+  thumbnail_url: nullableHttpUrlSchema("thumbnail_url"),
+  demo_url: nullableHttpUrlSchema("demo_url"),
+  documentation_url: nullableHttpUrlSchema("documentation_url"),
   agent_config: z.record(z.string(), z.unknown()).optional().nullable(),
   mcp_manifest: z.record(z.string(), z.unknown()).optional().nullable(),
 });
@@ -200,6 +190,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+  if (!hasTrustedRequestOrigin(request)) {
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 }
+    );
+  }
+
   const { createClient: createServerClient } = await import(
     "@/lib/supabase/server"
   );

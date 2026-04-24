@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import type { SellerVerificationRequest } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
+import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
+import { nullableHttpUrlSchema } from "@/lib/security/url";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,13 @@ export async function GET(request: NextRequest) {
 // POST /api/marketplace/seller/verify — submit verification request
 export async function POST(request: NextRequest) {
   try {
+  if (!hasTrustedRequestOrigin(request)) {
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 }
+    );
+  }
+
   const ip = getClientIp(request);
   const rl = await rateLimit(`seller-verify-write:${ip}`, RATE_LIMITS.write);
   if (!rl.success) {
@@ -102,8 +111,8 @@ export async function POST(request: NextRequest) {
   const verifySchema = z.object({
     business_name: z.string().min(2, "Business name must be at least 2 characters").max(200),
     business_description: z.string().max(5000).optional(),
-    website_url: z.string().url().max(2048).optional().or(z.literal("")),
-    portfolio_url: z.string().url().max(2048).optional().or(z.literal("")),
+    website_url: nullableHttpUrlSchema("website_url"),
+    portfolio_url: nullableHttpUrlSchema("portfolio_url"),
     reason: z.string().max(2000).optional(),
   });
 
