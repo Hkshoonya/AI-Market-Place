@@ -35,6 +35,22 @@ describe("inferOpenWeightsFromHfModel", () => {
 });
 
 describe("huggingface metadata helpers", () => {
+  it("keeps per-sync context enrichment limited by provider, but allows broad gap backfill", () => {
+    const record = {
+      provider: "LocoreMind",
+      category: "llm",
+      hf_model_id: "LocoreMind/LocoTrainer-4B",
+      context_window: null,
+    };
+
+    expect(__testables.shouldAttemptContextEnrichment(record as never)).toBe(false);
+    expect(
+      __testables.shouldAttemptContextEnrichment(record as never, {
+        allowAnyProvider: true,
+      })
+    ).toBe(true);
+  });
+
   it("prefers tokenizer model_max_length when it is trustworthy", () => {
     expect(
       __testables.extractContextWindowFromTokenizerConfig({

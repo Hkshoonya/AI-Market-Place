@@ -315,18 +315,23 @@ async function fetchHfRawJson(
   }
 }
 
-function shouldAttemptContextEnrichment(record: HfModelRecord) {
+function shouldAttemptContextEnrichment(
+  record: HfModelRecord,
+  options?: { allowAnyProvider?: boolean }
+) {
   return (
     Boolean(record.hf_model_id) &&
     !record.context_window &&
     CONTEXT_ELIGIBLE_CATEGORIES.has(record.category) &&
-    CONTEXT_ENRICHMENT_PROVIDERS.has(record.provider)
+    (options?.allowAnyProvider === true ||
+      CONTEXT_ENRICHMENT_PROVIDERS.has(record.provider))
   );
 }
 
 async function enrichRecordWithContextWindow(
   record: HfModelRecord,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { allowAnyProvider?: boolean }
 ) {
   const hfModelId = record.hf_model_id;
   if (!hfModelId) return;
@@ -335,7 +340,7 @@ async function enrichRecordWithContextWindow(
     record.website_url = buildHfModelPageUrl(hfModelId);
   }
 
-  if (!shouldAttemptContextEnrichment(record)) return;
+  if (!shouldAttemptContextEnrichment(record, options)) return;
 
   const tokenizerConfig = await fetchHfRawJson(
     hfModelId,
@@ -360,7 +365,9 @@ async function enrichRecordsWithOfficialContextWindow(
   records: HfModelRecord[],
   signal?: AbortSignal
 ) {
-  const candidates = records.filter(shouldAttemptContextEnrichment);
+  const candidates = records.filter((record) =>
+    shouldAttemptContextEnrichment(record)
+  );
 
   for (let index = 0; index < candidates.length; index += HF_CONTEXT_FETCH_CONCURRENCY) {
     await Promise.all(
@@ -383,7 +390,6 @@ interface HfMetadataGapRow {
 function shouldBackfillGapRow(row: HfMetadataGapRow) {
   return (
     Boolean(row.hf_model_id) &&
-    CONTEXT_ENRICHMENT_PROVIDERS.has(row.provider) &&
     (!row.website_url ||
       (!row.context_window && CONTEXT_ELIGIBLE_CATEGORIES.has(row.category)))
   );
@@ -414,7 +420,7 @@ async function fetchMetadataGapRows(ctx: SyncContext) {
   return rows;
 }
 
-async function backfillOfficialMetadataGaps(
+async function backfillHfMetadataGaps(
   ctx: SyncContext
 ): Promise<{ updated: number; errors: SyncError[] }> {
   const rows = await fetchMetadataGapRows(ctx);
@@ -452,7 +458,9 @@ async function backfillOfficialMetadataGaps(
         };
 
         try {
-          await enrichRecordWithContextWindow(patch, ctx.signal);
+          await enrichRecordWithContextWindow(patch, ctx.signal, {
+            allowAnyProvider: true,
+          });
 
           const changed =
             patch.context_window !== row.context_window ||
@@ -637,14 +645,14 @@ const adapter: DataSourceAdapter = {
     }
 
     try {
-      const gapBackfill = await backfillOfficialMetadataGaps(ctx);
+      const gapBackfill = await backfillHfMetadataGaps(ctx);
       totalUpdated += gapBackfill.updated;
       errors.push(...gapBackfill.errors);
     } catch (error) {
       errors.push({
         message:
           error instanceof Error ? error.message : String(error),
-        context: "official-hf-gap-backfill",
+        context: "hf-gap-backfill",
       });
     }
 
