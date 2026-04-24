@@ -261,6 +261,11 @@ function extractContextWindowFromConfig(
     config.text_config && typeof config.text_config === "object"
       ? (config.text_config as Record<string, unknown>)
       : null;
+  const transformerLayerConfig =
+    config.transformer_layer_config &&
+    typeof config.transformer_layer_config === "object"
+      ? (config.transformer_layer_config as Record<string, unknown>)
+      : null;
 
   const candidates = [
     config.max_position_embeddings,
@@ -269,6 +274,8 @@ function extractContextWindowFromConfig(
     config.max_seq_len,
     config.seq_length,
     config.model_max_length,
+    config.block_size,
+    config.n_positions,
     deriveRopeScaledContext(config),
     textConfig?.max_position_embeddings,
     textConfig?.sliding_window,
@@ -276,7 +283,20 @@ function extractContextWindowFromConfig(
     textConfig?.max_seq_len,
     textConfig?.seq_length,
     textConfig?.model_max_length,
+    textConfig?.block_size,
+    textConfig?.n_positions,
     textConfig ? deriveRopeScaledContext(textConfig) : null,
+    transformerLayerConfig?.max_position_embeddings,
+    transformerLayerConfig?.sliding_window,
+    transformerLayerConfig?.max_sequence_length,
+    transformerLayerConfig?.max_seq_len,
+    transformerLayerConfig?.seq_length,
+    transformerLayerConfig?.model_max_length,
+    transformerLayerConfig?.block_size,
+    transformerLayerConfig?.n_positions,
+    transformerLayerConfig
+      ? deriveRopeScaledContext(transformerLayerConfig)
+      : null,
   ]
     .map(normalizeContextWindow)
     .filter((candidate): candidate is number => candidate !== null);
@@ -291,16 +311,29 @@ function buildHfModelPageUrl(hfId: string) {
     .join("/")}`;
 }
 
+function buildHfHeaders(token?: string) {
+  const headers: Record<string, string> = {
+    "User-Agent": "AI-Market-Cap-Bot/1.0",
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 async function fetchHfRawJson(
   hfId: string,
   filename: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  token?: string
 ): Promise<Record<string, unknown> | null> {
   const url = `${buildHfModelPageUrl(hfId)}/raw/main/${filename}`;
   const res = await fetchWithRetry(
     url,
     {
-      headers: { "User-Agent": "AI-Market-Cap-Bot/1.0" },
+      headers: buildHfHeaders(token),
       signal,
     },
     { signal, maxRetries: 1, baseDelayMs: 400 }
@@ -331,7 +364,7 @@ function shouldAttemptContextEnrichment(
 async function enrichRecordWithContextWindow(
   record: HfModelRecord,
   signal?: AbortSignal,
-  options?: { allowAnyProvider?: boolean }
+  options?: { allowAnyProvider?: boolean; token?: string }
 ) {
   const hfModelId = record.hf_model_id;
   if (!hfModelId) return;
@@ -345,7 +378,8 @@ async function enrichRecordWithContextWindow(
   const tokenizerConfig = await fetchHfRawJson(
     hfModelId,
     "tokenizer_config.json",
-    signal
+    signal,
+    options?.token
   );
   const tokenizerContext =
     extractContextWindowFromTokenizerConfig(tokenizerConfig);
@@ -353,9 +387,14 @@ async function enrichRecordWithContextWindow(
   if (tokenizerContext) {
     record.context_window = tokenizerContext;
   } else {
-    const config = await fetchHfRawJson(hfModelId, "config.json", signal);
+    const config = await fetchHfRawJson(
+      hfModelId,
+      "config.json",
+      signal,
+      options?.token
+    );
     const configContext = extractContextWindowFromConfig(config);
-  if (configContext) {
+    if (configContext) {
       record.context_window = configContext;
     }
   }
@@ -363,7 +402,8 @@ async function enrichRecordWithContextWindow(
 
 async function enrichRecordsWithOfficialContextWindow(
   records: HfModelRecord[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  token?: string
 ) {
   const candidates = records.filter((record) =>
     shouldAttemptContextEnrichment(record)
@@ -373,7 +413,9 @@ async function enrichRecordsWithOfficialContextWindow(
     await Promise.all(
       candidates
         .slice(index, index + HF_CONTEXT_FETCH_CONCURRENCY)
-        .map((record) => enrichRecordWithContextWindow(record, signal))
+        .map((record) =>
+          enrichRecordWithContextWindow(record, signal, { token })
+        )
     );
   }
 }
@@ -460,6 +502,7 @@ async function backfillHfMetadataGaps(
         try {
           await enrichRecordWithContextWindow(patch, ctx.signal, {
             allowAnyProvider: true,
+            token: ctx.secrets.HUGGINGFACE_API_TOKEN ?? "",
           });
 
           const changed =
@@ -616,7 +659,11 @@ const adapter: DataSourceAdapter = {
           .filter((m) => !m.private && !m.disabled)
           .map(transformModel);
 
-        await enrichRecordsWithOfficialContextWindow(records, ctx.signal);
+        await enrichRecordsWithOfficialContextWindow(
+          records,
+          ctx.signal,
+          token
+        );
 
         totalProcessed += models.length;
 
@@ -717,6 +764,7 @@ registerAdapter(adapter);
 export default adapter;
 
 export const __testables = {
+  buildHfHeaders,
   buildHfModelPageUrl,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,

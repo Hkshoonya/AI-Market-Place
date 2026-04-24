@@ -35,6 +35,17 @@ describe("inferOpenWeightsFromHfModel", () => {
 });
 
 describe("huggingface metadata helpers", () => {
+  it("adds auth headers for gated HF raw fetches when a token is present", () => {
+    expect(__testables.buildHfHeaders()).toEqual({
+      "User-Agent": "AI-Market-Cap-Bot/1.0",
+    });
+
+    expect(__testables.buildHfHeaders("hf_test_token")).toEqual({
+      "User-Agent": "AI-Market-Cap-Bot/1.0",
+      Authorization: "Bearer hf_test_token",
+    });
+  });
+
   it("keeps per-sync context enrichment limited by provider, but allows broad gap backfill", () => {
     const record = {
       provider: "LocoreMind",
@@ -89,6 +100,20 @@ describe("huggingface metadata helpers", () => {
         },
       })
     ).toBe(229376);
+
+    expect(
+      __testables.extractContextWindowFromConfig({
+        transformer_layer_config: {
+          max_position_embeddings: 40960,
+        },
+      })
+    ).toBe(40960);
+
+    expect(
+      __testables.extractContextWindowFromConfig({
+        block_size: 4096,
+      })
+    ).toBe(4096);
   });
 
   it("adds the canonical HF page URL to transformed records", () => {
