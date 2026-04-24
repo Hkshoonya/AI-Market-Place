@@ -355,11 +355,16 @@ async function fetchHfRawJson(
   }
 }
 
-async function fetchHfModelInfo(
+type HfModelInfoLookup = {
+  status: number;
+  data: Record<string, unknown> | null;
+};
+
+async function fetchHfModelInfoLookup(
   hfId: string,
   signal?: AbortSignal,
   token?: string
-): Promise<Record<string, unknown> | null> {
+): Promise<HfModelInfoLookup> {
   const res = await fetchWithRetry(
     buildHfApiModelInfoUrl(hfId),
     {
@@ -369,12 +374,23 @@ async function fetchHfModelInfo(
     { signal, maxRetries: 1, baseDelayMs: 400 }
   );
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    return {
+      status: res.status,
+      data: null,
+    };
+  }
 
   try {
-    return (await res.json()) as Record<string, unknown>;
+    return {
+      status: res.status,
+      data: (await res.json()) as Record<string, unknown>,
+    };
   } catch {
-    return null;
+    return {
+      status: res.status,
+      data: null,
+    };
   }
 }
 
@@ -450,15 +466,17 @@ async function enrichRecordWithContextWindow(
   record: HfModelRecord,
   signal?: AbortSignal,
   options?: { allowAnyProvider?: boolean; token?: string }
-) {
+): Promise<{ repositoryMissing: boolean }> {
   const hfModelId = record.hf_model_id;
-  if (!hfModelId) return;
+  if (!hfModelId) return { repositoryMissing: false };
 
   if (!record.website_url) {
     record.website_url = buildHfModelPageUrl(hfModelId);
   }
 
-  if (!shouldAttemptContextEnrichment(record, options)) return;
+  if (!shouldAttemptContextEnrichment(record, options)) {
+    return { repositoryMissing: false };
+  }
 
   const directContext = await fetchContextWindowForHfId(
     hfModelId,
@@ -468,11 +486,20 @@ async function enrichRecordWithContextWindow(
 
   if (directContext) {
     record.context_window = directContext;
-    return;
+    return { repositoryMissing: false };
   }
 
-  const modelInfo = await fetchHfModelInfo(hfModelId, signal, options?.token);
-  const baseModelIds = extractBaseModelIdsFromModelInfo(modelInfo).filter(
+  const modelInfoLookup = await fetchHfModelInfoLookup(
+    hfModelId,
+    signal,
+    options?.token
+  );
+
+  if (modelInfoLookup.status === 404) {
+    return { repositoryMissing: true };
+  }
+
+  const baseModelIds = extractBaseModelIdsFromModelInfo(modelInfoLookup.data).filter(
     (baseModelId) => baseModelId !== hfModelId
   );
 
@@ -484,9 +511,11 @@ async function enrichRecordWithContextWindow(
     );
     if (baseContext) {
       record.context_window = baseContext;
-      return;
+      return { repositoryMissing: false };
     }
   }
+
+  return { repositoryMissing: false };
 }
 
 async function enrichRecordsWithOfficialContextWindow(
@@ -589,23 +618,34 @@ async function backfillHfMetadataGaps(
         };
 
         try {
-          await enrichRecordWithContextWindow(patch, ctx.signal, {
-            allowAnyProvider: true,
-            token: ctx.secrets.HUGGINGFACE_API_TOKEN ?? "",
-          });
+          const enrichment = await enrichRecordWithContextWindow(
+            patch,
+            ctx.signal,
+            {
+              allowAnyProvider: true,
+              token: ctx.secrets.HUGGINGFACE_API_TOKEN ?? "",
+            }
+          );
 
           const changed =
             patch.context_window !== row.context_window ||
-            patch.website_url !== row.website_url;
+            patch.website_url !== row.website_url ||
+            enrichment.repositoryMissing;
           if (!changed) return;
+
+          const updatePatch: Record<string, string | number | null> = {
+            context_window: patch.context_window ?? null,
+            website_url: patch.website_url ?? null,
+            data_refreshed_at: patch.data_refreshed_at,
+          };
+
+          if (enrichment.repositoryMissing) {
+            updatePatch.status = "archived";
+          }
 
           const { error } = await ctx.supabase
             .from("models")
-            .update({
-              context_window: patch.context_window,
-              website_url: patch.website_url,
-              data_refreshed_at: patch.data_refreshed_at,
-            })
+            .update(updatePatch)
             .eq("slug", row.slug);
 
           if (error) {
@@ -853,6 +893,7 @@ registerAdapter(adapter);
 export default adapter;
 
 export const __testables = {
+  backfillHfMetadataGaps,
   buildHfApiModelInfoUrl,
   buildHfHeaders,
   buildHfModelPageUrl,
@@ -860,6 +901,7 @@ export const __testables = {
   extractBaseModelIdsFromModelInfo,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,
+  fetchHfModelInfoLookup,
   fetchContextWindowForHfId,
   normalizeContextWindow,
   shouldAttemptContextEnrichment,

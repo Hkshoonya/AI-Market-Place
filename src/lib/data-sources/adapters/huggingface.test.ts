@@ -255,4 +255,134 @@ describe("huggingface metadata helpers", () => {
     expect(record.context_window).toBe(32768);
     expect(record.website_url).toBe("https://huggingface.co/salakash/Minimalism");
   });
+
+  it("reports repositoryMissing when the HF model lookup returns 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+
+        if (
+          url ===
+            "https://huggingface.co/Tesslate/OmniCoder-2-9B/raw/main/tokenizer_config.json" ||
+          url ===
+            "https://huggingface.co/Tesslate/OmniCoder-2-9B/raw/main/config.json"
+        ) {
+          return new Response("{}", { status: 404 });
+        }
+
+        if (url === "https://huggingface.co/api/models/Tesslate/OmniCoder-2-9B") {
+          return new Response(JSON.stringify({ error: "Repository not found" }), {
+            status: 404,
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL in test: ${url}`);
+      })
+    );
+
+    const record = {
+      slug: "tesslate-omnicoder-2-9b",
+      name: "OmniCoder-2-9B",
+      provider: "Tesslate",
+      category: "llm",
+      status: "active",
+      architecture: "transformers",
+      parameter_count: null,
+      hf_model_id: "Tesslate/OmniCoder-2-9B",
+      hf_downloads: 0,
+      hf_likes: 0,
+      hf_trending_score: 0,
+      license: "open_source",
+      license_name: "apache-2.0",
+      is_open_weights: true,
+      is_api_available: false,
+      supported_languages: [],
+      modalities: [],
+      capabilities: {},
+      context_window: null,
+      website_url: null,
+      release_date: null,
+      data_refreshed_at: new Date().toISOString(),
+    };
+
+    const result = await __testables.enrichRecordWithContextWindow(
+      record,
+      undefined,
+      {
+        allowAnyProvider: true,
+      }
+    );
+
+    expect(result.repositoryMissing).toBe(true);
+    expect(record.context_window).toBeNull();
+    expect(record.website_url).toBe(
+      "https://huggingface.co/Tesslate/OmniCoder-2-9B"
+    );
+  });
+
+  it("archives active HF gap rows whose repos now return 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+
+        if (
+          url ===
+            "https://huggingface.co/Tesslate/OmniCoder-2-9B/raw/main/tokenizer_config.json" ||
+          url ===
+            "https://huggingface.co/Tesslate/OmniCoder-2-9B/raw/main/config.json"
+        ) {
+          return new Response("{}", { status: 404 });
+        }
+
+        if (url === "https://huggingface.co/api/models/Tesslate/OmniCoder-2-9B") {
+          return new Response(JSON.stringify({ error: "Repository not found" }), {
+            status: 404,
+          });
+        }
+
+        throw new Error(`Unexpected fetch URL in test: ${url}`);
+      })
+    );
+
+    const range = vi.fn(async () => ({
+      data: [
+        {
+          slug: "tesslate-omnicoder-2-9b",
+          provider: "Tesslate",
+          category: "llm",
+          hf_model_id: "Tesslate/OmniCoder-2-9B",
+          context_window: null,
+          website_url: null,
+        },
+      ],
+      error: null,
+    }));
+    const not = vi.fn(() => ({ range }));
+    const eqSelect = vi.fn(() => ({ not }));
+    let appliedUpdate: Record<string, unknown> | null = null;
+    const eqUpdate = vi.fn(async () => ({ error: null }));
+    const update = vi.fn((payload: Record<string, unknown>) => {
+      appliedUpdate = payload;
+      return { eq: eqUpdate };
+    });
+    const select = vi.fn(() => ({ eq: eqSelect }));
+    const from = vi.fn(() => ({ select, update }));
+
+    const result = await __testables.backfillHfMetadataGaps({
+      supabase: { from } as never,
+      config: {},
+      secrets: {},
+      lastSyncAt: null,
+    });
+
+    expect(result.updated).toBe(1);
+    expect(result.errors).toEqual([]);
+    expect(appliedUpdate).toMatchObject({
+      status: "archived",
+      context_window: null,
+      website_url: "https://huggingface.co/Tesslate/OmniCoder-2-9B",
+    });
+  });
 });
