@@ -207,6 +207,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     description:
       "Low-latency MiniMax speech model for real-time multilingual text-to-speech with expressive voices and fast response.",
     category: "speech_audio",
+    release_date: "2025-10-30",
     architecture: "Speech generation",
     status: "active",
     modalities: ["text", "audio"],
@@ -224,6 +225,7 @@ export const MINIMAX_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     description:
       "High-fidelity MiniMax speech model for premium voiceovers, audiobooks, and studio-grade multilingual text-to-speech.",
     category: "speech_audio",
+    release_date: "2025-10-30",
     architecture: "Speech generation",
     status: "active",
     modalities: ["text", "audio"],

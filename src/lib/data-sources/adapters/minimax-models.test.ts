@@ -89,6 +89,24 @@ describe("minimax-models adapter", () => {
     );
   });
 
+  it("carries official release dates for MiniMax Speech 2.6 variants", () => {
+    const turbo = __testables.buildModelRecord("speech-2.6-turbo");
+    const hd = __testables.buildModelRecord("speech-2.6-hd");
+
+    expect(turbo).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        release_date: "2025-10-30",
+      })
+    );
+    expect(hd).toEqual(
+      expect.objectContaining({
+        provider: "MiniMax",
+        release_date: "2025-10-30",
+      })
+    );
+  });
+
   it("keeps MiniMax music models proprietary with audio metadata", () => {
     const record = __testables.buildModelRecord("music-2.5");
 
