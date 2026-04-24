@@ -1,5 +1,6 @@
 import { ANTHROPIC_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/anthropic";
 import { BLACK_FOREST_LABS_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/black-forest-labs";
+import { COHERE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/cohere";
 import { DEEPSEEK_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/deepseek";
 import { GOOGLE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/google";
 import { META_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/meta";
@@ -16,6 +17,9 @@ type KnownCatalog = Record<string, KnownModelMeta>;
 
 const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   openai: OPENAI_KNOWN_MODELS,
+  cohere: COHERE_KNOWN_MODELS,
+  coherelabs: COHERE_KNOWN_MODELS,
+  "cohere labs": COHERE_KNOWN_MODELS,
   google: GOOGLE_KNOWN_MODELS,
   anthropic: ANTHROPIC_KNOWN_MODELS,
   deepseek: DEEPSEEK_KNOWN_MODELS,

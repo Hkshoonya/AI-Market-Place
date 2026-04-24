@@ -42,6 +42,19 @@ describe("getKnownModelMeta", () => {
     });
   });
 
+  it("resolves CohereLabs rows by provider alias fallback", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "coherelabs-tiny-aya-global",
+        provider: "CohereLabs",
+      })
+    ).toMatchObject({
+      context_window: 8192,
+      license: "research_only",
+      hf_model_id: "CohereLabs/tiny-aya-global",
+    });
+  });
+
   it("resolves newly cataloged official specialist rows by provider fallback", () => {
     expect(
       getKnownModelMeta({
@@ -243,6 +256,26 @@ describe("buildKnownModelMetaPatch", () => {
       category: "speech_audio",
       release_date: "2026-04-15",
       license: "commercial",
+    });
+  });
+
+  it("fills missing context window for known CohereLabs public rows", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "coherelabs-tiny-aya-global",
+        provider: "CohereLabs",
+        name: "tiny-aya-global",
+        category: "llm",
+        release_date: "2026-02-13",
+        context_window: null,
+        license: "research_only",
+        license_name: "CC-BY-NC-4.0",
+        hf_model_id: "CohereLabs/tiny-aya-global",
+        website_url: "https://huggingface.co/CohereLabs/tiny-aya-global",
+      })
+    ).toMatchObject({
+      context_window: 8192,
+      is_open_weights: true,
     });
   });
 
