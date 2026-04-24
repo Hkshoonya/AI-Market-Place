@@ -192,6 +192,43 @@ const SAMPLE_META_TABLE_HTML = `
   </html>
 `;
 
+const SAMPLE_DEEPSEEK_V4_TABLE_HTML = `
+  <html>
+    <body>
+      <table>
+        <tr>
+          <th>Benchmark (Metric)</th>
+          <th># Shots</th>
+          <th>DeepSeek-V3.2-Base</th>
+          <th>DeepSeek-V4-Flash-Base</th>
+          <th>DeepSeek-V4-Pro-Base</th>
+        </tr>
+        <tr>
+          <td>MMLU-Pro (EM)</td>
+          <td>5-shot</td>
+          <td>65.5</td>
+          <td>68.3</td>
+          <td>73.5</td>
+        </tr>
+        <tr>
+          <td>SuperGPQA (EM)</td>
+          <td>5-shot</td>
+          <td>45.0</td>
+          <td>46.5</td>
+          <td>53.9</td>
+        </tr>
+        <tr>
+          <td>HumanEval (Pass@1)</td>
+          <td>0-shot</td>
+          <td>62.8</td>
+          <td>69.5</td>
+          <td>76.8</td>
+        </tr>
+      </table>
+    </body>
+  </html>
+`;
+
 describe("provider-benchmarks helpers", () => {
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
@@ -520,6 +557,65 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("extracts benchmark rows from DeepSeek V4 Hugging Face model-card tables", async () => {
+    const [proExtracted, flashExtracted] = await Promise.all([
+      __testables.extractStructuredBenchmarkScoresFromHtmlTables(
+        {
+          id: "deepseek-v4-pro",
+          provider: "DeepSeek",
+          url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
+          titleHint: "DeepSeek V4 Pro benchmark update",
+          modelHints: ["DeepSeek-V4-Pro"],
+        },
+        SAMPLE_DEEPSEEK_V4_TABLE_HTML
+      ),
+      __testables.extractStructuredBenchmarkScoresFromHtmlTables(
+        {
+          id: "deepseek-v4-flash",
+          provider: "DeepSeek",
+          url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash",
+          titleHint: "DeepSeek V4 Flash benchmark update",
+          modelHints: ["DeepSeek-V4-Flash"],
+        },
+        SAMPLE_DEEPSEEK_V4_TABLE_HTML
+      ),
+    ]);
+
+    expect(proExtracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "mmlu-pro",
+          score: 73.5,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 53.9,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "humaneval",
+          score: 76.8,
+        }),
+      ])
+    );
+
+    expect(flashExtracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "mmlu-pro",
+          score: 68.3,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "gpqa",
+          score: 46.5,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "humaneval",
+          score: 69.5,
+        }),
+      ])
+    );
+  });
+
   it("keeps Claude Opus 4.7 in the curated provider benchmark watchlist", () => {
     expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
       expect.arrayContaining([
@@ -528,6 +624,29 @@ describe("provider-benchmarks helpers", () => {
           provider: "Anthropic",
           url: "https://www.anthropic.com/news/claude-opus-4-7",
           modelHints: ["Claude Opus 4.7"],
+        }),
+      ])
+    );
+  });
+
+  it("keeps DeepSeek V4 Pro and Flash in the curated provider benchmark watchlist", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "deepseek-v4-pro",
+          provider: "DeepSeek",
+          url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
+          sourceType: "official_model_card",
+          requiresBenchmarkSignal: true,
+          modelHints: ["DeepSeek-V4-Pro"],
+        }),
+        expect.objectContaining({
+          id: "deepseek-v4-flash",
+          provider: "DeepSeek",
+          url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash",
+          sourceType: "official_model_card",
+          requiresBenchmarkSignal: true,
+          modelHints: ["DeepSeek-V4-Flash"],
         }),
       ])
     );
