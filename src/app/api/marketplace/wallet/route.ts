@@ -21,6 +21,7 @@ import {
   getTransactionHistoryCount,
 } from "@/lib/payments/wallet";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   try {

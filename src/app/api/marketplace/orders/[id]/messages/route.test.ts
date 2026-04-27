@@ -150,7 +150,10 @@ describe("marketplace order messages route", () => {
       new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1/messages", {
         method: "POST",
         body: JSON.stringify({ content: "  hello seller  " }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "order-1" }) }
     );
@@ -181,5 +184,40 @@ describe("marketplace order messages route", () => {
         }),
       })
     );
+  });
+
+  it("rejects cross-origin message sends for signed-in users", async () => {
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "buyer-1" } },
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table === "marketplace_orders") {
+          return createOrderLookup({
+            id: "order-1",
+            buyer_id: "buyer-1",
+            seller_id: "seller-1",
+          });
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ content: "hello seller" }),
+      }),
+      { params: Promise.resolve({ id: "order-1" }) }
+    );
+
+    expect(response.status).toBe(403);
   });
 });

@@ -5,6 +5,7 @@ import { deliverDigitalGood } from "@/lib/marketplace/delivery";
 import type { MarketplaceOrder } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,11 @@ export async function PATCH(
       { error: "Authentication required. Please sign in to update this order." },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   let body: unknown;

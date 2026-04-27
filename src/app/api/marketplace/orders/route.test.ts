@@ -217,4 +217,27 @@ describe("POST /api/marketplace/orders", () => {
       })
     );
   });
+
+  it("rejects cross-origin order creation for signed-in browser sessions", async () => {
+    createClientMock.mockResolvedValue(
+      createServerClient({ id: "buyer-1" }) as never
+    );
+    createAdminClientMock.mockReturnValue(createAdminClientStub() as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/orders", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          listing_id: "11111111-1111-4111-8111-111111111111",
+          message: "I want access",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+  });
 });

@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrCreateWallet } from "@/lib/payments/wallet";
 import { WALLET_TOP_UP_PACKS } from "@/lib/constants/wallet";
 import { buildCanonicalUrl } from "@/lib/constants/site";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       throw new ApiError(401, "Authentication required");
+    }
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
     }
 
     const wallet = await getOrCreateWallet(user.id);

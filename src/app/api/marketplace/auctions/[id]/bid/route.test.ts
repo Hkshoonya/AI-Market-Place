@@ -41,7 +41,10 @@ describe("POST /api/marketplace/auctions/[id]/bid", () => {
       new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/bid", {
         method: "POST",
         body: JSON.stringify({ amount: -5 }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "auction-1" }) }
     );
@@ -66,7 +69,10 @@ describe("POST /api/marketplace/auctions/[id]/bid", () => {
       new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/bid", {
         method: "POST",
         body: JSON.stringify({ amount: 125 }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "auction-1" }) }
     );
@@ -74,5 +80,27 @@ describe("POST /api/marketplace/auctions/[id]/bid", () => {
 
     expect(response.status).toBe(402);
     expect(body.error).toMatch(/insufficient/i);
+  });
+
+  it("rejects cross-origin browser bids while allowing non-browser agent calls", async () => {
+    vi.mocked(resolveAuthUser).mockResolvedValue({
+      userId: "buyer-1",
+      authMethod: "session",
+    } as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/bid", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ amount: 125 }),
+      }),
+      { params: Promise.resolve({ id: "auction-1" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(vi.mocked(placeBid)).not.toHaveBeenCalled();
   });
 });

@@ -119,6 +119,9 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1", {
         method: "PATCH",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ status: "completed" }),
       }),
       { params: Promise.resolve({ id: "order-1" }) }
@@ -141,6 +144,9 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1", {
         method: "PATCH",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ status: "completed" }),
       }),
       { params: Promise.resolve({ id: "order-1" }) }
@@ -178,6 +184,9 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1", {
         method: "PATCH",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ status: "rejected" }),
       }),
       { params: Promise.resolve({ id: "order-1" }) }
@@ -189,5 +198,23 @@ describe("PATCH /api/marketplace/orders/[id]", () => {
     const ordersTable = supabase.from.mock.results[0]?.value;
     expect(mockRefundPurchaseEscrow).toHaveBeenCalledWith("order-1");
     expect(ordersTable.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects cross-origin order status updates", async () => {
+    const { PATCH } = await import("./route");
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/orders/order-1", {
+        method: "PATCH",
+        headers: {
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ status: "completed" }),
+      }),
+      { params: Promise.resolve({ id: "order-1" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockDeliverDigitalGood).not.toHaveBeenCalled();
   });
 });

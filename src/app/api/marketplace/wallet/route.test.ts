@@ -156,6 +156,9 @@ describe("POST /api/marketplace/wallet", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       })
     );
     const body = await response.json();
@@ -183,11 +186,27 @@ describe("POST /api/marketplace/wallet", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       })
     );
     const body = await response.json();
 
     expect(response.status).toBe(503);
     expect(body.error).toMatch(/not configured/i);
+  });
+
+  it("rejects cross-origin wallet creation requests", async () => {
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/wallet", {
+        method: "POST",
+        headers: {
+          origin: "https://evil.example",
+        },
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });

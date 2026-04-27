@@ -29,6 +29,7 @@ import {
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 function isValidSolanaAddress(value: string): boolean {
   try {
@@ -97,6 +98,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedSessionOrigin(request, auth.authMethod);
+  if (originError) {
+    return originError;
   }
 
   if (

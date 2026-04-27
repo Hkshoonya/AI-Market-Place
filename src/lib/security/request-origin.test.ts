@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hasTrustedRequestOrigin } from "./request-origin";
+import {
+  hasTrustedRequestOrigin,
+  rejectUntrustedRequestOrigin,
+  rejectUntrustedSessionOrigin,
+} from "./request-origin";
 
 describe("hasTrustedRequestOrigin", () => {
   it("accepts matching origin headers", () => {
@@ -35,5 +39,35 @@ describe("hasTrustedRequestOrigin", () => {
     });
 
     expect(hasTrustedRequestOrigin(request)).toBe(false);
+  });
+
+  it("returns a 403 response for untrusted browser writes", async () => {
+    const request = new Request("https://aimarketcap.tech/api/example", {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    });
+
+    const response = rejectUntrustedRequestOrigin(request);
+
+    expect(response?.status).toBe(403);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Cross-origin browser requests are not allowed.",
+    });
+  });
+
+  it("skips origin enforcement for API-key requests", () => {
+    const request = new Request("https://aimarketcap.tech/api/example", {
+      method: "POST",
+    });
+
+    expect(rejectUntrustedSessionOrigin(request, "api_key")).toBeNull();
+  });
+
+  it("does not treat guest requests as session-protected writes", () => {
+    const request = new Request("https://aimarketcap.tech/api/example", {
+      method: "POST",
+    });
+
+    expect(rejectUntrustedSessionOrigin(request, null)).toBeNull();
   });
 });

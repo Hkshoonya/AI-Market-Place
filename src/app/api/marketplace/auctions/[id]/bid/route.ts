@@ -17,6 +17,7 @@ import {
 } from "@/lib/rate-limit";
 import { placeBid } from "@/lib/marketplace/auctions/english";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const bidSchema = z.object({
   amount: z.number().positive("Bid amount must be positive").max(10_000_000, "Bid amount exceeds maximum"),
@@ -48,6 +49,11 @@ export async function POST(
       { error: "Authentication required. Please sign in to place a bid." },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedSessionOrigin(request, auth.authMethod);
+  if (originError) {
+    return originError;
   }
 
   // Parse body

@@ -64,6 +64,9 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           pack: "starter",
           return_path: "/wallet?intent=deploy&model=GPT-4.1",
@@ -120,11 +123,30 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ pack: "starter" }),
       })
     );
 
     expect(response.status).toBe(401);
+  });
+
+  it("rejects cross-origin checkout requests for signed-in users", async () => {
+    const { POST } = await import("./route");
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
+        method: "POST",
+        headers: {
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ pack: "starter" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("surfaces Stripe API failures", async () => {
@@ -139,6 +161,9 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ pack: "starter" }),
       })
     );

@@ -15,6 +15,7 @@ import {
 } from "@/lib/rate-limit";
 import { acceptDutchAuction } from "@/lib/marketplace/auctions/dutch";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,11 @@ export async function POST(
         { error: "Authentication required. Please sign in to accept this auction." },
         { status: 401 }
       );
+    }
+
+    const originError = rejectUntrustedSessionOrigin(request, auth.authMethod);
+    if (originError) {
+      return originError;
     }
 
     // Accept the Dutch auction

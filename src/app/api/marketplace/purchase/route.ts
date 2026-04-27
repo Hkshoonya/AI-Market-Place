@@ -20,6 +20,7 @@ import {
   type PurchaseResult,
 } from "@/lib/marketplace/purchase-handlers";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const purchaseSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -83,6 +84,11 @@ export async function POST(request: NextRequest) {
 
   // Authenticate — may be null for guest checkout
   const auth = await resolveAuthUser(request, ["marketplace", "write", "marketplace_access"]);
+
+  const originError = rejectUntrustedSessionOrigin(request, auth?.authMethod);
+  if (originError) {
+    return originError;
+  }
 
   const admin = createAdminClient();
   const sb = admin;

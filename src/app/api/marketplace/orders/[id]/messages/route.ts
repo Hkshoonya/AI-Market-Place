@@ -10,6 +10,7 @@ import {
 } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +150,11 @@ export async function POST(
       },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   // Verify user is part of this order

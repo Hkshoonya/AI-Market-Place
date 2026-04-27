@@ -22,6 +22,7 @@ import {
   normalizeAuctionStatusParam,
   type AuctionStatus,
 } from "@/lib/marketplace/auctions/status";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const createAuctionSchema = z.object({
   listing_id: z.string().uuid(),
@@ -200,6 +201,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   const rl = await rateLimit(`auction-create:${user.id}`, RATE_LIMITS.write);

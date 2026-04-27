@@ -37,6 +37,9 @@ describe("POST /api/marketplace/auctions/[id]/accept", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/accept", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "auction-1" }) }
     );
@@ -59,6 +62,9 @@ describe("POST /api/marketplace/auctions/[id]/accept", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/accept", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "auction-1" }) }
     );
@@ -66,5 +72,25 @@ describe("POST /api/marketplace/auctions/[id]/accept", () => {
 
     expect(response.status).toBe(409);
     expect(body.error).toMatch(/another buyer/i);
+  });
+
+  it("rejects cross-origin browser auction accepts", async () => {
+    vi.mocked(resolveAuthUser).mockResolvedValue({
+      userId: "buyer-1",
+      authMethod: "session",
+    } as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/auctions/auction-1/accept", {
+        method: "POST",
+        headers: {
+          origin: "https://evil.example",
+        },
+      }),
+      { params: Promise.resolve({ id: "auction-1" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(vi.mocked(acceptDutchAuction)).not.toHaveBeenCalled();
   });
 });

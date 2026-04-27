@@ -7,6 +7,7 @@ import { parseQueryResult } from "@/lib/schemas/parse";
 import type { TypedSupabaseClient } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const createOrderSchema = z.object({
   listing_id: z.string().uuid("listing_id must be a valid UUID"),
@@ -152,6 +153,13 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isGuest = !user;
+
+  if (user) {
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
+  }
 
   // Guests must provide email
   if (isGuest && !guest_email) {

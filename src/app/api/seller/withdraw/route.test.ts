@@ -192,6 +192,7 @@ describe("POST /api/seller/withdraw", () => {
         headers: {
           authorization: "Bearer session-token",
           "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
         },
         body: JSON.stringify({
           amount: 25,
@@ -218,7 +219,20 @@ describe("POST /api/seller/withdraw", () => {
       })
     );
 
-    const response = await POST(makeRequest());
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/seller/withdraw", {
+        method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 25,
+          chain: "solana",
+          wallet_address: "11111111111111111111111111111111",
+        }),
+      })
+    );
     const body = await response.json();
 
     expect(response.status).toBe(403);
@@ -244,6 +258,7 @@ describe("POST /api/seller/withdraw", () => {
         headers: {
           authorization: "Bearer session-token",
           "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
         },
         body: JSON.stringify({
           amount: 25,
@@ -257,6 +272,30 @@ describe("POST /api/seller/withdraw", () => {
     expect(response.status).toBe(400);
     expect(body.error).toMatch(/network fee/i);
     expect(body.error).toMatch(/total debit/i);
+  });
+
+  it("rejects cross-origin browser withdrawal requests while keeping API-key flows separate", async () => {
+    mockResolveAuthUser.mockResolvedValue({
+      userId: "seller-1",
+      authMethod: "session",
+    });
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/seller/withdraw", {
+        method: "POST",
+        headers: {
+          origin: "https://evil.example",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 25,
+          chain: "base",
+          wallet_address: "0x000000000000000000000000000000000000dEaD",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });
 
