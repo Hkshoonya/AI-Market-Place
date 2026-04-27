@@ -10,6 +10,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { assertUuid, sanitizeFilterValue } from "@/lib/utils/sanitize";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const auth = await requireAdminSession();
     if (auth.error) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     let body: unknown;
     try {

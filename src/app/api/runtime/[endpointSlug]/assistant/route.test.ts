@@ -126,4 +126,28 @@ describe("POST /api/runtime/[endpointSlug]/assistant", () => {
     );
     expect(findOrCreateConversation).not.toHaveBeenCalled();
   });
+
+  it("rejects cross-origin session assistant requests", async () => {
+    resolveAuthUser.mockResolvedValue({
+      userId: "user-1",
+      authMethod: "session",
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/runtime/openai-gpt-4-1-abc12345/assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ message: "Help me start" }),
+      }) as never,
+      { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(generateAgentResponse).not.toHaveBeenCalled();
+  });
 });

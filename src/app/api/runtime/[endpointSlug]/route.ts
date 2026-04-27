@@ -9,6 +9,7 @@ import {
   buildWorkspaceRuntimeEndpointPath,
 } from "@/lib/workspace/runtime";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,11 @@ export async function POST(
     const auth = await resolveAuthUser(request, ["agent"]);
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const originError = rejectUntrustedSessionOrigin(request, auth.authMethod);
+    if (originError) {
+      return originError;
     }
 
     const parsed = RequestSchema.safeParse(await request.json());

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runTierSync } from "@/lib/data-sources/orchestrator";
 import type { OrchestratorResult } from "@/lib/data-sources/orchestrator";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max for long-running bootstrap work
@@ -32,6 +33,11 @@ export async function POST(_request: NextRequest) {
 
     if (!profile?.is_admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const originError = rejectUntrustedRequestOrigin(_request);
+    if (originError) {
+      return originError;
     }
 
     // 3. Run tiers 1 → 4 sequentially.

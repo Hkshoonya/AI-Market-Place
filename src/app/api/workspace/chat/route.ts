@@ -9,6 +9,7 @@ import {
   generateAgentResponse,
 } from "@/lib/agents/chat";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,11 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
     }
 
     const parsed = RequestSchema.safeParse(await request.json());

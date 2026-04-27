@@ -8,6 +8,7 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,11 @@ export async function PATCH(request: NextRequest) {
       .single();
     if (!profile?.is_admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
     }
 
     let body: unknown;

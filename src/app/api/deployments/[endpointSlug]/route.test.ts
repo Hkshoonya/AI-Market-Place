@@ -328,4 +328,27 @@ describe("POST /api/deployments/[endpointSlug]", () => {
     expect(body.response.provider).toBe("huggingface");
     expect(body.response.content).toBe("Hello from HF route");
   });
+
+  it("rejects cross-origin session deployment invocations", async () => {
+    resolveAuthUser.mockResolvedValue({
+      userId: "user-1",
+      authMethod: "session",
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/deployments/openai-gpt-4-1-abc12345", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ message: "Hello" }),
+      }) as never,
+      { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(callAgentModel).not.toHaveBeenCalled();
+  });
 });

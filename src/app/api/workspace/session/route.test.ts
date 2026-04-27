@@ -109,7 +109,10 @@ describe("workspace session API", () => {
     const response = await PUT(
       new Request("https://aimarketcap.tech/api/workspace/session", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ workspace }),
       })
     );
@@ -133,12 +136,36 @@ describe("workspace session API", () => {
     const response = await PUT(
       new Request("https://aimarketcap.tech/api/workspace/session", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ workspace: null }),
       })
     );
 
     expect(response.status).toBe(200);
     expect(deleteEq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("rejects cross-origin workspace session writes", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const { PUT } = await import("./route");
+    const response = await PUT(
+      new Request("https://aimarketcap.tech/api/workspace/session", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ workspace: null }),
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });

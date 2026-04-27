@@ -29,7 +29,10 @@ function makeRequest(body: unknown) {
   return new NextRequest("https://aimarketcap.tech/api/admin/social/reports/report-1", {
     method: "PATCH",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: "https://aimarketcap.tech",
+    },
   });
 }
 
@@ -186,5 +189,29 @@ describe("PATCH /api/admin/social/reports/[id]", () => {
     expect(response.status).toBe(200);
     expect(postUpdateEq).toHaveBeenCalledWith("id", "post-1");
     expect(reportUpdateEq).toHaveBeenCalledWith("id", "report-1");
+  });
+
+  it("rejects cross-origin admin moderation updates", async () => {
+    mockCreateClient.mockResolvedValue(
+      makeSessionClient({
+        user: { id: "admin-1" },
+        isAdmin: true,
+      }) as never
+    );
+    mockCreateAdminClient.mockReturnValue({} as never);
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/admin/social/reports/report-1", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ action: "dismiss" }),
+      }),
+      { params: Promise.resolve({ id: "report-1" }) }
+    );
+
+    expect(response.status).toBe(403);
   });
 });

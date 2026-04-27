@@ -128,7 +128,10 @@ describe("POST /api/workspace/chat", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ message: "How do I start?" }),
       })
     );
@@ -230,7 +233,10 @@ describe("POST /api/workspace/chat", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           message: "How do I start?",
           runtime_id: "runtime-1",
@@ -245,5 +251,28 @@ describe("POST /api/workspace/chat", () => {
         total_tokens: 130,
       })
     );
+  });
+
+  it("rejects cross-origin session chat writes", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ message: "How do I start?" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(findOrCreateConversation).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

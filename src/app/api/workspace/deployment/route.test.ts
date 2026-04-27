@@ -157,7 +157,10 @@ describe("workspace deployment API", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "openai-gpt-4-1",
           modelName: "GPT-4.1",
@@ -186,7 +189,10 @@ describe("workspace deployment API", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "kimi-k2",
           modelName: "Kimi K2",
@@ -233,7 +239,10 @@ describe("workspace deployment API", () => {
     const response = await PATCH(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "openai-gpt-4-1",
           action: "pause",
@@ -322,7 +331,10 @@ describe("workspace deployment API", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "qwen-qwen2-5-7b-instruct",
           modelName: "Qwen2.5 7B Instruct",
@@ -481,7 +493,10 @@ describe("workspace deployment API", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "meta-llama-3-3-70b-instruct",
           modelName: "Llama 3.3 70B Instruct",
@@ -537,7 +552,10 @@ describe("workspace deployment API", () => {
     const response = await DELETE(
       new Request("https://aimarketcap.tech/api/workspace/deployment", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "openai-gpt-4-1",
         }),
@@ -549,5 +567,30 @@ describe("workspace deployment API", () => {
     const body = await response.json();
     expect(body.removed).toBe(true);
     expect(body.message).toMatch(/removed/i);
+  });
+
+  it("rejects cross-origin deployment writes", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          modelSlug: "openai-gpt-4-1",
+          modelName: "GPT-4.1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

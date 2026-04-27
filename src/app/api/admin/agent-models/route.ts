@@ -14,6 +14,7 @@ import {
   type AgentProviderName,
   DEFAULT_AGENT_PROVIDER_MODELS,
 } from "@/lib/agents/provider-model-constants";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const auth = await requireAdmin();
     if (auth.error) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const body = await request.json().catch(() => null);
     const parsed = updateSchema.safeParse(body);

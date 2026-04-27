@@ -3,6 +3,7 @@ import { z } from "zod";
 import { handleApiError } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeWorkspaceState } from "@/lib/workspace/session";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,11 @@ export async function PUT(request: Request) {
   try {
     const auth = await requireUser();
     if ("error" in auth) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const parsed = RequestSchema.safeParse(await request.json());
     if (!parsed.success) {

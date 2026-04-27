@@ -117,6 +117,9 @@ describe("admin agent model settings API", () => {
     const response = await PATCH(
       new NextRequest("http://localhost/api/admin/agent-models", {
         method: "PATCH",
+        headers: {
+          origin: "http://localhost",
+        },
         body: JSON.stringify({ provider: "openrouter", model: "minimax/minimax-m2.5" }),
       })
     );
@@ -133,6 +136,9 @@ describe("admin agent model settings API", () => {
     const response = await PATCH(
       new NextRequest("http://localhost/api/admin/agent-models", {
         method: "PATCH",
+        headers: {
+          origin: "http://localhost",
+        },
         body: JSON.stringify({ provider: "openrouter", model: "minimax/minimax-m2.5:nitro" }),
       })
     );
@@ -142,5 +148,24 @@ describe("admin agent model settings API", () => {
     expect(createAdminClientMock).toHaveBeenCalled();
     expect(clearAgentProviderModelOverrideCacheMock).toHaveBeenCalled();
     expect(body.effectiveModels.openrouter).toBe("minimax/minimax-m2.5");
+  });
+
+  it("rejects cross-origin admin model updates", async () => {
+    createClientMock.mockResolvedValue(
+      createSessionClient({ user: { id: "admin-1" }, isAdmin: true }) as never
+    );
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/agent-models", {
+        method: "PATCH",
+        headers: {
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ provider: "openrouter", model: "minimax/minimax-m2.5:nitro" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(createAdminClientMock).not.toHaveBeenCalled();
   });
 });

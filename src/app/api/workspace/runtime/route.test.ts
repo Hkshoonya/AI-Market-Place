@@ -106,7 +106,10 @@ describe("workspace runtime API", () => {
     const response = await POST(
       new Request("https://aimarketcap.tech/api/workspace/runtime", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelSlug: "openai-gpt-4-1",
           modelName: "GPT-4.1",
@@ -126,5 +129,30 @@ describe("workspace runtime API", () => {
       }),
       { onConflict: "user_id,model_slug" }
     );
+  });
+
+  it("rejects cross-origin runtime activation", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/runtime", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          modelSlug: "openai-gpt-4-1",
+          modelName: "GPT-4.1",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

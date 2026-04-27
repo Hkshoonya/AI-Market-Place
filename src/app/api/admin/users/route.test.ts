@@ -57,7 +57,9 @@ function makeRequest(
   return new NextRequest(url, {
     method,
     body: options?.body ? JSON.stringify(options.body) : undefined,
-    headers: options?.body ? { "content-type": "application/json" } : undefined,
+    headers: options?.body
+      ? { "content-type": "application/json", origin: "http://localhost" }
+      : undefined,
   });
 }
 
@@ -170,5 +172,31 @@ describe("admin users route", () => {
       "id",
       "11111111-1111-1111-1111-111111111111"
     );
+  });
+
+  it("rejects cross-origin admin user updates", async () => {
+    mockCreateClient.mockResolvedValue(
+      makeSessionClient({
+        user: { id: "admin-1" },
+        isAdmin: true,
+      }) as never
+    );
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/users", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          userId: "11111111-1111-1111-1111-111111111111",
+          isAdmin: true,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
   });
 });

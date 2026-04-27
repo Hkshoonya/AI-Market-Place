@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const resolveAuthUser = vi.fn();
 const single = vi.fn();
 const eq = vi.fn();
+const updateEq = vi.fn();
+const update = vi.fn();
 const from = vi.fn();
+const callAgentModel = vi.fn();
 
 vi.mock("@/lib/auth/resolve-user", () => ({
   resolveAuthUser: (...args: unknown[]) => resolveAuthUser(...args),
@@ -15,11 +18,19 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+vi.mock("@/lib/agents/provider-router", () => ({
+  callAgentModel: (...args: unknown[]) => callAgentModel(...args),
+}));
+
 describe("GET /api/runtime/[endpointSlug]", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
 
+    updateEq.mockResolvedValue({ error: null });
+    update.mockImplementation(() => ({
+      eq: updateEq,
+    }));
     eq.mockImplementation(() => ({
       eq,
       single,
@@ -33,6 +44,7 @@ describe("GET /api/runtime/[endpointSlug]", () => {
         select: () => ({
           eq,
         }),
+        update,
       };
     });
   });
@@ -68,5 +80,72 @@ describe("GET /api/runtime/[endpointSlug]", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.runtime.assistantPath).toBe("/api/runtime/openai-gpt-4-1-abc12345/assistant");
+  });
+
+  it("allows api-key runtime invocations without an origin header", async () => {
+    resolveAuthUser.mockResolvedValue({
+      userId: "user-1",
+      authMethod: "api_key",
+      apiKeyId: "key-1",
+      apiKeyScopes: ["agent"],
+    });
+    single.mockResolvedValue({
+      data: {
+        id: "runtime-1",
+        model_slug: "openai-gpt-4-1",
+        model_name: "GPT-4.1",
+        provider_name: "ChatGPT Plus",
+        status: "ready",
+        endpoint_slug: "openai-gpt-4-1-abc12345",
+        total_requests: 2,
+        total_tokens: 90,
+        last_used_at: "2026-04-01T13:00:00.000Z",
+        updated_at: "2026-04-01T13:30:00.000Z",
+      },
+      error: null,
+    });
+    callAgentModel.mockResolvedValue({
+      content: "Hello from GPT-4.1",
+      provider: "openrouter",
+      model: "openai/gpt-4.1",
+      usage: { totalTokens: 25, inputTokens: 10, outputTokens: 15 },
+      raw: {},
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/runtime/openai-gpt-4-1-abc12345", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Hello" }),
+      }) as never,
+      { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
+    );
+
+    expect(response.status).toBe(200);
+    expect(callAgentModel).toHaveBeenCalled();
+  });
+
+  it("rejects cross-origin session runtime invocations", async () => {
+    resolveAuthUser.mockResolvedValue({
+      userId: "user-1",
+      authMethod: "session",
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/runtime/openai-gpt-4-1-abc12345", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ message: "Hello" }),
+      }) as never,
+      { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(callAgentModel).not.toHaveBeenCalled();
   });
 });

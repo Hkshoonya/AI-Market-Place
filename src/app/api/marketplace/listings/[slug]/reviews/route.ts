@@ -5,6 +5,7 @@ import { z } from "zod";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const createReviewSchema = z.object({
   rating: z.number().int("Rating must be a whole number").min(1, "Rating must be at least 1").max(5, "Rating must be at most 5"),
@@ -124,6 +125,11 @@ export async function POST(
       { error: "Authentication required. Please sign in to leave a review." },
       { status: 401 }
     );
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   const rl = await rateLimit(`review-create:${user.id}`, RATE_LIMITS.api);

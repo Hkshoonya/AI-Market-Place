@@ -116,7 +116,10 @@ describe("admin agent control route", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({ status: "active" }),
       }),
       { params: Promise.resolve({ id: "agent-1" }) }
@@ -139,6 +142,9 @@ describe("admin agent control route", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "agent-1" }) }
     );
@@ -157,6 +163,9 @@ describe("admin agent control route", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "agent-1" }) }
     );
@@ -185,6 +194,9 @@ describe("admin agent control route", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
         method: "POST",
+        headers: {
+          origin: "https://aimarketcap.tech",
+        },
       }),
       { params: Promise.resolve({ id: "agent-1" }) }
     );
@@ -193,5 +205,25 @@ describe("admin agent control route", () => {
     expect(response.status).toBe(409);
     expect(body.success).toBe(false);
     expect(body.taskId).toBe("task-running");
+  });
+
+  it("rejects cross-origin admin agent status updates", async () => {
+    const supabase = createSessionClient();
+    mockCreateClient.mockResolvedValue(supabase);
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/admin/agents/agent-1", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ status: "active" }),
+      }),
+      { params: Promise.resolve({ id: "agent-1" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(supabase.updates).toEqual([]);
   });
 });

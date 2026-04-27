@@ -8,6 +8,7 @@ import {
   buildWorkspaceRuntimeEndpointSlug,
 } from "@/lib/workspace/runtime";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,11 @@ export async function POST(request: Request) {
   try {
     const auth = await requireUser();
     if ("error" in auth) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const parsed = RequestSchema.safeParse(await request.json());
     if (!parsed.success) {

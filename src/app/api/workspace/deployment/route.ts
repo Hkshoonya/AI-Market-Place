@@ -23,6 +23,7 @@ import {
   resolveWorkspaceProvisioningOption,
   updateHostedDeploymentScale,
 } from "@/lib/workspace/external-deployment";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -192,6 +193,11 @@ export async function POST(request: Request) {
   try {
     const auth = await requireUser();
     if ("error" in auth) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const parsed = RequestSchema.safeParse(await request.json());
     if (!parsed.success) {
@@ -392,6 +398,11 @@ export async function PATCH(request: Request) {
     const auth = await requireUser();
     if ("error" in auth) return auth.error;
 
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const parsed = UpdateSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -503,6 +514,11 @@ export async function DELETE(request: Request) {
   try {
     const auth = await requireUser();
     if ("error" in auth) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const parsed = DeleteSchema.safeParse(await request.json());
     if (!parsed.success) {

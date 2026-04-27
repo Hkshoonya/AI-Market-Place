@@ -9,6 +9,7 @@ import {
 } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const UpdateSocialReportSchema = z.object({
   action: z.enum(["dismiss", "remove", "restore"]),
@@ -56,6 +57,11 @@ export async function PATCH(
   try {
     const auth = await requireAdminSession();
     if ("error" in auth) return auth.error;
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
 
     const parsed = UpdateSocialReportSchema.safeParse(await request.json());
     if (!parsed.success) {
