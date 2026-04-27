@@ -29,7 +29,7 @@ export function WalletDepositPanel({
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <p className="text-sm font-medium text-amber-400">Insufficient balance</p>
       <p className="text-xs text-muted-foreground">
-        Deposit USDC to top up your wallet. Common top-up packs are{" "}
+        Deposit USDC to one of your active chain addresses to top up your wallet. Common top-up packs are{" "}
         {formatWalletTopUpList()}.
       </p>
       {recommendedAmount ? (

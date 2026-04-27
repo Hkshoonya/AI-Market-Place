@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Wallet address generation is not configured yet. Configure Solana or EVM wallet infrastructure and try again.",
+            "Wallet address generation is not configured yet. Configure at least one supported wallet infrastructure and try again.",
         },
         { status: 503 }
       );

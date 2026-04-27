@@ -36,7 +36,7 @@ vi.mock("@/lib/logging", () => ({
   }),
 }));
 
-import { getWithdrawalFee, processWithdrawal } from "./withdraw";
+import { getSupportedChains, getWithdrawalFee, processWithdrawal } from "./withdraw";
 
 function createAdminClientStub() {
   return {
@@ -113,5 +113,22 @@ describe("processWithdrawal", () => {
         referenceType: "withdrawal_refund",
       })
     );
+  });
+});
+
+describe("getSupportedChains", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("reflects the active Solana and EVM chain configuration", () => {
+    mockIsSolanaConfigured.mockReturnValue(false);
+    mockIsEvmConfigured.mockImplementation((chain?: string) => chain === "base");
+
+    expect(getSupportedChains()).toEqual([
+      expect.objectContaining({ chain: "solana", configured: false }),
+      expect.objectContaining({ chain: "base", configured: true }),
+      expect.objectContaining({ chain: "polygon", configured: false }),
+    ]);
   });
 });

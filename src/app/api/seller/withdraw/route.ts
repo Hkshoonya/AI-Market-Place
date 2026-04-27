@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { PublicKey } from "@solana/web3.js";
+import bs58 from "bs58";
 import { isAddress } from "viem";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,6 +30,14 @@ import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
+function isValidSolanaAddress(value: string): boolean {
+  try {
+    return bs58.decode(value).length === 32;
+  } catch {
+    return false;
+  }
+}
+
 const withdrawSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   chain: z.enum(["solana", "base", "polygon"], {
@@ -42,9 +50,7 @@ const withdrawSchema = z.object({
     .max(200, "wallet_address is too long"),
 }).superRefine(({ chain, wallet_address }, ctx) => {
   if (chain === "solana") {
-    try {
-      new PublicKey(wallet_address);
-    } catch {
+    if (!isValidSolanaAddress(wallet_address)) {
       ctx.addIssue({
         code: "custom",
         path: ["wallet_address"],

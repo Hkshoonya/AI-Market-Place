@@ -54,6 +54,56 @@ function getWalletDerivationIndex(walletId: string): number {
   return hash.readUInt32BE(0);
 }
 
+function getPreferredEvmPrimaryChain(): ChainType {
+  if (isEvmConfigured("base")) {
+    return "base";
+  }
+
+  if (isEvmConfigured("polygon")) {
+    return "polygon";
+  }
+
+  return "internal";
+}
+
+function getDefaultPrimaryChain(): ChainType {
+  if (isSolanaConfigured()) {
+    return "solana";
+  }
+
+  if (isEvmConfigured()) {
+    return getPreferredEvmPrimaryChain();
+  }
+
+  return "internal";
+}
+
+function resolveWalletPrimaryChain(
+  current: ChainType | null | undefined,
+  {
+    hasSolanaAddress,
+    hasEvmAddress,
+  }: { hasSolanaAddress: boolean; hasEvmAddress: boolean }
+): ChainType {
+  if (current === "solana" && hasSolanaAddress) {
+    return "solana";
+  }
+
+  if ((current === "base" || current === "polygon") && hasEvmAddress) {
+    return current;
+  }
+
+  if (hasSolanaAddress) {
+    return "solana";
+  }
+
+  if (hasEvmAddress) {
+    return getPreferredEvmPrimaryChain();
+  }
+
+  return "internal";
+}
+
 // ---------------------------------------------------------------------------
 // Core wallet operations
 // ---------------------------------------------------------------------------
@@ -89,7 +139,7 @@ export async function getOrCreateWallet(
       held_balance: 0,
       total_earned: 0,
       total_spent: 0,
-      primary_chain: "solana" as ChainType,
+      primary_chain: getDefaultPrimaryChain(),
       is_active: true,
     })
     .select("*")
@@ -151,9 +201,10 @@ export async function ensureWalletDepositAddresses(wallet: Wallet): Promise<Wall
     .update({
       deposit_address_solana: solanaDepositAddress,
       deposit_address_evm: evmDepositAddress,
-      primary_chain:
-        wallet.primary_chain ??
-        (solanaDepositAddress ? "solana" : evmDepositAddress ? "base" : null),
+      primary_chain: resolveWalletPrimaryChain(wallet.primary_chain, {
+        hasSolanaAddress: Boolean(solanaDepositAddress),
+        hasEvmAddress: Boolean(evmDepositAddress),
+      }),
     })
     .eq("id", wallet.id)
     .select("*")

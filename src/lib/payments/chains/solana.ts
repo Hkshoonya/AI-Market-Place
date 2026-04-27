@@ -19,6 +19,7 @@ import { createHash } from "crypto";
 import bs58 from "bs58";
 import type { Chain, Token } from "../wallet";
 import { createTaggedLogger } from "@/lib/logging";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 const log = createTaggedLogger("payments/solana");
 
@@ -64,8 +65,12 @@ function getSolanaEnv() {
   };
 }
 
+export function isSolanaEnabled(): boolean {
+  return isRuntimeFlagEnabled("ENABLE_SOLANA_CHAIN", false);
+}
+
 export function isSolanaConfigured(): boolean {
-  return !!process.env.SOLANA_RPC_URL;
+  return isSolanaEnabled() && !!process.env.SOLANA_RPC_URL;
 }
 
 function getConnection(): Connection {

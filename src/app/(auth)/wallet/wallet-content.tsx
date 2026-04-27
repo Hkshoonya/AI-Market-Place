@@ -522,7 +522,7 @@ export default function WalletContent() {
             </div>
             <ol className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>1. Pay by card for the fastest wallet top-up, or use deposit addresses below.</li>
-              <li>2. If you use chain funding, send USDC on Solana, Base, or Polygon.</li>
+              <li>2. If you use chain funding, send USDC only to the active deposit addresses shown below.</li>
               <li>3. Once the balance appears, spend from the same wallet across the site.</li>
             </ol>
           </div>
