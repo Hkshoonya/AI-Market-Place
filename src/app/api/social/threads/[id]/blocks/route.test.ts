@@ -17,7 +17,10 @@ function makeRequest(body: Record<string, unknown>) {
   return new NextRequest("https://aimarketcap.tech/api/social/threads/thread-1/blocks", {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: "https://aimarketcap.tech",
+    },
   });
 }
 
@@ -89,5 +92,27 @@ describe("POST /api/social/threads/[id]/blocks", () => {
     });
 
     expect(response.status).toBe(201);
+  });
+
+  it("rejects cross-origin browser block requests", async () => {
+    vi.mocked(resolveSocialActorFromRequest).mockResolvedValue({
+      actor: { id: "actor-1", actor_type: "human" },
+      authMethod: "session",
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({} as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/social/threads/thread-1/blocks", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ blocked_actor_id: "actor-3" }),
+      }),
+      { params: Promise.resolve({ id: "thread-1" }) }
+    );
+
+    expect(response.status).toBe(403);
   });
 });

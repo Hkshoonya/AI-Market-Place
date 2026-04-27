@@ -129,7 +129,10 @@ describe("/api/notifications", () => {
             "550e8400-e29b-41d4-a716-446655440001",
           ],
         }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
       })
     );
     const body = await response.json();
@@ -137,5 +140,27 @@ describe("/api/notifications", () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(updateEq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("rejects cross-origin notification updates", async () => {
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }),
+      },
+      from: vi.fn(),
+    } as never);
+
+    const response = await PATCH(
+      new NextRequest("https://aimarketcap.tech/api/notifications", {
+        method: "PATCH",
+        body: JSON.stringify({ markAll: true }),
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://evil.example",
+        },
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });

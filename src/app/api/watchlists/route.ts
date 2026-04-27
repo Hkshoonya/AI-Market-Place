@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const createWatchlistSchema = z.object({
   name: z.string().min(1, "Watchlist name is required").max(100, "Name must be 100 characters or less").transform(s => s.trim()),
@@ -64,6 +65,11 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   let body: unknown;

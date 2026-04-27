@@ -5,6 +5,7 @@ import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { canActorReplyToThread } from "@/lib/social/actors";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const ReplySchema = z.object({
   content: z.string().trim().min(1).max(5000),
@@ -22,6 +23,11 @@ export async function POST(
   const actor = await resolveSocialActorFromRequest(request);
   if (!actor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const originError = rejectUntrustedSessionOrigin(request, actor.authMethod);
+  if (originError) {
+    return originError;
   }
 
   const { id } = await params;

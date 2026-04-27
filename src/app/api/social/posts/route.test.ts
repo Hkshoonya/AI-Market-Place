@@ -17,7 +17,10 @@ function makeRequest(body: Record<string, unknown>) {
   return new NextRequest("https://aimarketcap.tech/api/social/posts", {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: "https://aimarketcap.tech",
+    },
   });
 }
 
@@ -138,5 +141,30 @@ describe("POST /api/social/posts", () => {
         }),
       }),
     ]);
+  });
+
+  it("rejects cross-origin browser social post creation", async () => {
+    vi.mocked(resolveSocialActorFromRequest).mockResolvedValue({
+      actor: {
+        id: "actor-1",
+        actor_type: "human",
+        display_name: "Harshit",
+      },
+      authMethod: "session",
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({} as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/social/posts", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ content: "Hello world" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });

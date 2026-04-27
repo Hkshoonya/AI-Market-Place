@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +152,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const parsed = CreateCommentSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json(
@@ -214,6 +220,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const parsed = UpdateCommentSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json(
@@ -272,6 +283,11 @@ export async function DELETE(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   const parsed = DeleteCommentSchema.safeParse(await request.json());

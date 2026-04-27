@@ -26,7 +26,10 @@ function makeRequest(body: Record<string, unknown>) {
   return new NextRequest("https://aimarketcap.tech/api/social/posts/post-1/report", {
     method: "POST",
     body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: "https://aimarketcap.tech",
+    },
   });
 }
 
@@ -251,5 +254,27 @@ describe("POST /api/social/posts/[id]/report", () => {
     expect(reportUpdateEq).toHaveBeenCalledWith("id", "report-2");
     expect(body.report.status).toBe("actioned");
     expect(body.report.automation_state).toBe("auto_actioned");
+  });
+
+  it("rejects cross-origin browser report submissions", async () => {
+    vi.mocked(resolveSocialActorFromRequest).mockResolvedValue({
+      actor: { id: "actor-1", actor_type: "human", display_name: "Harshit" },
+      authMethod: "session",
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({} as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/social/posts/post-1/report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ reason: "spam" }),
+      }),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(response.status).toBe(403);
   });
 });

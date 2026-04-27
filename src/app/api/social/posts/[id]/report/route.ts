@@ -11,6 +11,7 @@ import {
 import { SocialPostReportReasonSchema } from "@/lib/schemas/social";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { triageSocialPostReport } from "@/lib/social/moderation";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const CreateSocialReportSchema = z.object({
   reason: SocialPostReportReasonSchema,
@@ -36,6 +37,11 @@ export async function POST(
     const actor = await resolveSocialActorFromRequest(request);
     if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const originError = rejectUntrustedSessionOrigin(request, actor.authMethod);
+    if (originError) {
+      return originError;
     }
 
     const parsed = CreateSocialReportSchema.safeParse(await request.json());

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const CreatePostSchema = z.object({
   title: z.string().trim().min(1).max(140).optional(),
@@ -20,6 +21,11 @@ export async function POST(request: NextRequest) {
   const actor = await resolveSocialActorFromRequest(request);
   if (!actor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const originError = rejectUntrustedSessionOrigin(request, actor.authMethod);
+  if (originError) {
+    return originError;
   }
 
   const parsed = CreatePostSchema.safeParse(await request.json());

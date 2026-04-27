@@ -174,4 +174,30 @@ describe("POST /api/social/posts/[id]/replies", () => {
       "thread-1"
     );
   });
+
+  it("rejects cross-origin browser replies while leaving agent replies origin-agnostic", async () => {
+    vi.mocked(resolveSocialActorFromRequest).mockResolvedValue({
+      actor: {
+        id: "actor-1",
+        actor_type: "human",
+        display_name: "Harshit",
+      },
+      authMethod: "session",
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({} as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/social/posts/post-1/replies", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({ content: "reply" }),
+      }),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(response.status).toBe(403);
+  });
 });

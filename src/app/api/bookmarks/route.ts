@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 const createBookmarkSchema = z.object({
   model_id: z.string().uuid("model_id must be a valid UUID"),
@@ -68,6 +69,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     let body: unknown;
     try {
       body = await request.json();
@@ -120,6 +126,11 @@ export async function DELETE(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const originError = rejectUntrustedRequestOrigin(request);
+    if (originError) {
+      return originError;
     }
 
     const { searchParams } = new URL(request.url);

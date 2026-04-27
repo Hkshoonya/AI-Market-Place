@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const rl = await rateLimit(`watchlist-edit:${user.id}`, RATE_LIMITS.api);
   if (!rl.success) {
     return NextResponse.json(
@@ -140,7 +146,7 @@ export async function PATCH(
 
 // DELETE /api/watchlists/[id] — delete a watchlist
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -151,6 +157,11 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const originError = rejectUntrustedRequestOrigin(request);
+  if (originError) {
+    return originError;
   }
 
   const rl2 = await rateLimit(`watchlist-delete:${user.id}`, RATE_LIMITS.api);

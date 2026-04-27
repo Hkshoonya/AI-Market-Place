@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
+import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 const BlockSchema = z.object({
   blocked_actor_id: z.string().uuid().or(z.string().min(1)),
@@ -18,6 +19,12 @@ export async function POST(
   if (!actor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const originError = rejectUntrustedSessionOrigin(request, actor.authMethod);
+  if (originError) {
+    return originError;
+  }
+
   if (actor.actor.actor_type !== "human") {
     return NextResponse.json(
       { error: "Only human thread owners can block actors." },

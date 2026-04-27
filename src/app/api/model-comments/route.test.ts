@@ -195,7 +195,10 @@ describe("/api/model-comments", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/model-comments", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelId: "model-1",
           content: "Hello world",
@@ -242,7 +245,10 @@ describe("/api/model-comments", () => {
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/model-comments", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           modelId: "model-1",
           content: "Hello world",
@@ -272,7 +278,10 @@ describe("/api/model-comments", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/model-comments", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           action: "upvote",
           commentId: "comment-1",
@@ -313,7 +322,10 @@ describe("/api/model-comments", () => {
     const response = await PATCH(
       new NextRequest("https://aimarketcap.tech/api/model-comments", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           action: "edit",
           commentId: "comment-1",
@@ -341,7 +353,10 @@ describe("/api/model-comments", () => {
     const response = await DELETE(
       new NextRequest("https://aimarketcap.tech/api/model-comments", {
         method: "DELETE",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
         body: JSON.stringify({
           commentId: "comment-1",
         }),
@@ -351,5 +366,33 @@ describe("/api/model-comments", () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
+  });
+
+  it("rejects cross-origin comment creation requests", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: { user: { id: "user-1" } },
+          error: null,
+        })),
+      },
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue(makeAdminClient() as never);
+
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/model-comments", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        body: JSON.stringify({
+          modelId: "model-1",
+          content: "Hello world",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
   });
 });
