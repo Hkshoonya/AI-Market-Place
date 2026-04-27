@@ -1,6 +1,53 @@
 import type { KnownModelMeta } from "../build-record";
 
+const QWEN_MODEL_STUDIO_TEXT_DOCS =
+  "https://www.alibabacloud.com/help/en/model-studio/text-generation-model/";
+
 export const QWEN_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "qwen3.5-plus-2026-04-20": {
+    name: "Qwen3.5 Plus 2026-04-20",
+    description:
+      "Updated Qwen3.5 Plus commercial snapshot for agentic coding, long-context workflows, and multimodal production tasks in Alibaba Cloud Model Studio.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-04-23",
+    architecture: "Hybrid linear attention + sparse MoE",
+    status: "active",
+    modalities: ["text", "image", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: QWEN_MODEL_STUDIO_TEXT_DOCS,
+  },
+  "qwen3.6-flash": {
+    name: "Qwen3.6 Flash",
+    description:
+      "Qwen3.6 Flash commercial multimodal model with stronger agentic coding, math, and visual reasoning in Alibaba Cloud Model Studio.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-04-16",
+    architecture: "Transformer (MoE)",
+    status: "active",
+    modalities: ["text", "image", "video"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: QWEN_MODEL_STUDIO_TEXT_DOCS,
+  },
   "qwen3-235b-a22b-instruct-2507": {
     name: "Qwen3-235B-A22B-Instruct-2507",
     description:

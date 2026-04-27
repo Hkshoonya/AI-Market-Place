@@ -176,6 +176,32 @@ describe("getKnownModelMeta", () => {
 
     expect(
       getKnownModelMeta({
+        slug: "qwen-qwen3-5-plus-20260420",
+        provider: "Qwen",
+      })
+    ).toMatchObject({
+      category: "multimodal",
+      release_date: "2026-04-23",
+      context_window: 1000000,
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
+        slug: "qwen-qwen3-6-flash",
+        provider: "Qwen",
+      })
+    ).toMatchObject({
+      category: "multimodal",
+      release_date: "2026-04-16",
+      context_window: 1000000,
+      license: "commercial",
+      is_open_weights: false,
+    });
+
+    expect(
+      getKnownModelMeta({
         slug: "moonshotai-kimi-k2-6",
         provider: "Moonshot AI",
       })
@@ -374,6 +400,51 @@ describe("buildKnownModelMetaPatch", () => {
     ).toMatchObject({
       is_open_weights: false,
       license: "commercial",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "qwen-qwen3-5-plus-20260420",
+        provider: "Qwen",
+        name: "qwen3.5-plus-2026-04-20",
+        category: "multimodal",
+        release_date: null,
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Open weights",
+        context_window: null,
+        website_url: null,
+      })
+    ).toMatchObject({
+      release_date: "2026-04-23",
+      context_window: 1000000,
+      is_open_weights: false,
+      license: "commercial",
+      website_url:
+        "https://www.alibabacloud.com/help/en/model-studio/text-generation-model/",
+    });
+
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "qwen-qwen3-6-flash",
+        provider: "Qwen",
+        name: "qwen3.6-flash",
+        category: "llm",
+        release_date: null,
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Open weights",
+        context_window: null,
+        website_url: null,
+      })
+    ).toMatchObject({
+      category: "multimodal",
+      release_date: "2026-04-16",
+      context_window: 1000000,
+      is_open_weights: false,
+      license: "commercial",
+      website_url:
+        "https://www.alibabacloud.com/help/en/model-studio/text-generation-model/",
     });
 
     expect(

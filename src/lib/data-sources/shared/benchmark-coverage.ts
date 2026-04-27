@@ -138,6 +138,15 @@ function inferTrustedBenchmarkWebsiteCandidate(
     return "https://ai.azure.com/explore/models";
   }
 
+  if (provider === "Qwen" || provider === "Alibaba") {
+    if (slug.includes("qwen3-6-flash")) {
+      return "https://www.alibabacloud.com/blog/603043";
+    }
+    if (slug.includes("qwen3-5-plus")) {
+      return "https://www.alibabacloud.com/blog/602894";
+    }
+  }
+
   if (provider === "Meta" && text.includes("llama")) {
     return "https://www.llama.com/";
   }
@@ -239,11 +248,15 @@ export function getTrustedBenchmarkWebsiteUrl(
   const inferred = inferTrustedBenchmarkLocatorHints(model);
   const provider = getCanonicalProviderName(model.provider);
   const slug = String(model.slug ?? "").toLowerCase();
+  const preferInferredQwenBenchmarkPage =
+    (provider === "Qwen" || provider === "Alibaba") &&
+    typeof inferred.website_url === "string" &&
+    (slug.includes("qwen3-6-flash") || slug.includes("qwen3-5-plus"));
   const preferInferredXaiBenchmarkCard =
     provider === "xAI" &&
     slug === "x-ai-grok-4-20" &&
     typeof inferred.website_url === "string";
-  const websiteUrl = preferInferredXaiBenchmarkCard
+  const websiteUrl = preferInferredXaiBenchmarkCard || preferInferredQwenBenchmarkPage
     ? inferred.website_url
     : model.website_url?.trim() || inferred.website_url;
   if (!websiteUrl) return null;

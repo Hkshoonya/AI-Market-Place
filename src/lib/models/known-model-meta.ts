@@ -283,6 +283,16 @@ function hasKnownClosedWeightMarkers(model: KnownModelPatchInput): boolean {
   );
 }
 
+function hasGenericOpenWeightMarkers(model: KnownModelPatchInput): boolean {
+  const normalizedLicense = model.license?.trim().toLowerCase();
+  const normalizedLicenseName = model.license_name?.trim().toLowerCase();
+
+  return (
+    normalizedLicense === "open_source" ||
+    normalizedLicenseName === "open weights"
+  );
+}
+
 function shouldOverrideInferredBenchmarkWebsiteUrl(
   model: KnownModelPatchInput,
   knownMeta: KnownModelMeta
@@ -315,14 +325,15 @@ export function buildKnownModelMetaPatch(
     ((model.category === "multimodal" &&
       typeof knownMeta.category === "string" &&
       SPECIALIST_CATEGORY_OVERRIDES.has(knownMeta.category)) ||
+      (model.category === "llm" && knownMeta.category === "multimodal") ||
       (model.category === "specialized" &&
         typeof knownMeta.category === "string" &&
         knownMeta.category !== "specialized"));
   const shouldOverrideOpenWeightFlag =
     model.is_open_weights === true &&
     knownMeta.is_open_weights === false &&
-    !hasString(model.license) &&
-    !hasString(model.license_name);
+    ((!hasString(model.license) && !hasString(model.license_name)) ||
+      hasGenericOpenWeightMarkers(model));
   const shouldOverrideClosedWeightFlag =
     model.is_open_weights === false &&
     knownMeta.is_open_weights === true &&

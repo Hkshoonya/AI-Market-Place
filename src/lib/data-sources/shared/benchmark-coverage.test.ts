@@ -188,6 +188,15 @@ describe("benchmark coverage helpers", () => {
         website_url: "https://platform.kimi.com/docs/models",
       })
     ).toBe("https://platform.kimi.com/docs/models");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "qwen-qwen3-6-flash",
+        provider: "Qwen",
+        category: "multimodal",
+        website_url: "https://www.alibabacloud.com/help/en/model-studio/text-generation-model/",
+      })
+    ).toBe("https://www.alibabacloud.com/blog/603043");
   });
 
   it("infers trusted official docs pages when the stored website_url is missing", () => {
@@ -226,6 +235,24 @@ describe("benchmark coverage helpers", () => {
         website_url: null,
       })
     ).toBe("https://www.kimi.com/blog/kimi-k2-6");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "qwen-qwen3-5-plus-20260420",
+        provider: "Qwen",
+        category: "multimodal",
+        website_url: null,
+      })
+    ).toBe("https://www.alibabacloud.com/blog/602894");
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "qwen-qwen3-6-flash",
+        provider: "Qwen",
+        category: "multimodal",
+        website_url: null,
+      })
+    ).toBe("https://www.alibabacloud.com/blog/603043");
   });
 
   it("infers approved HF locators for missing official open-weight rows", () => {
