@@ -95,11 +95,16 @@ function createMockSupabase(insertedPayloads: Record<string, unknown>[]) {
   };
 }
 
-function makeRequest(): NextRequest {
+function makeRequest(
+  options: {
+    origin?: string;
+  } = {}
+): NextRequest {
   return new NextRequest("https://aimarketcap.tech/api/marketplace/listings", {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      origin: options.origin ?? "https://aimarketcap.tech",
     },
     body: JSON.stringify({
       title: "Test Listing",

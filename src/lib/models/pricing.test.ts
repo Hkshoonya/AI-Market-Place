@@ -25,6 +25,10 @@ function makeModel(overrides: Partial<PriceSortableModel>): PriceSortableModel {
   };
 }
 
+function recentDate(daysAgo = 10): string {
+  return new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+}
+
 describe("getLowestInputPrice", () => {
   it("prefers the cheapest verified route on compact public surfaces", () => {
     const model = makeModel({
@@ -96,6 +100,7 @@ describe("pricing summaries", () => {
   });
 
   it("still exposes the cheapest verified route separately", () => {
+    const effectiveDate = recentDate();
     const model = makeModel({
       provider: "OpenAI",
       model_pricing: [
@@ -103,13 +108,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenAI",
           input_price_per_million: 3,
           source: "OpenAI Pricing",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
         {
           provider_name: "OpenRouter",
           input_price_per_million: 2,
           source: "openrouter",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
       ],
     });
@@ -119,6 +124,7 @@ describe("pricing summaries", () => {
   });
 
   it("keeps the official first-party route available separately", () => {
+    const effectiveDate = recentDate();
     const model = makeModel({
       provider: "Anthropic",
       model_pricing: [
@@ -126,13 +132,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
       ],
     });
@@ -141,6 +147,7 @@ describe("pricing summaries", () => {
   });
 
   it("returns a compact public summary with cheapest-verified strategy by default", () => {
+    const effectiveDate = recentDate();
     const model = makeModel({
       provider: "Anthropic",
       model_pricing: [
@@ -148,13 +155,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
       ],
     });
@@ -169,6 +176,7 @@ describe("pricing summaries", () => {
   });
 
   it("can still return official-first compact pricing when explicitly requested", () => {
+    const effectiveDate = recentDate();
     const model = makeModel({
       provider: "Anthropic",
       model_pricing: [
@@ -176,13 +184,13 @@ describe("pricing summaries", () => {
           provider_name: "OpenRouter",
           input_price_per_million: 2.8,
           source: "openrouter",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
         {
           provider_name: "Anthropic",
           input_price_per_million: 3,
           source: "Anthropic Pricing",
-          effective_date: "2026-03-10",
+          effective_date: effectiveDate,
         },
       ],
     });
@@ -247,6 +255,7 @@ describe("pricing summaries", () => {
   });
 
   it("surfaces verified per-request pricing when no token price exists", () => {
+    const effectiveDate = recentDate();
     const model = makeModel({
       provider: "OpenAI",
       model_pricing: [
@@ -256,7 +265,7 @@ describe("pricing summaries", () => {
           output_price_per_million: null,
           price_per_call: 0.04,
           source: "platform.openai.com/docs/pricing",
-          effective_date: "2026-03-17",
+          effective_date: effectiveDate,
         },
       ],
     });
