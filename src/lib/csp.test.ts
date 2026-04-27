@@ -29,4 +29,14 @@ describe("buildContentSecurityPolicy", () => {
     expect(policy).toContain("http://localhost:54321");
     expect(policy).toContain("ws://localhost:54321");
   });
+
+  it("adds stricter baseline document and plugin directives", () => {
+    const policy = buildContentSecurityPolicy({
+      isDevelopment: false,
+      isE2E: false,
+    });
+
+    expect(policy).toContain("object-src 'none'");
+    expect(policy).toContain("base-uri 'self'");
+  });
 });

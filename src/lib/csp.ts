@@ -31,6 +31,8 @@ export function buildContentSecurityPolicy({
     "img-src 'self' data: https://*.supabase.co https://api.dicebear.com",
     "font-src 'self'",
     `connect-src ${connectSrc.join(" ")}`,
+    "object-src 'none'",
+    "base-uri 'self'",
     "frame-ancestors 'none'",
   ];
 

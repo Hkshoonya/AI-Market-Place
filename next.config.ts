@@ -4,6 +4,7 @@ import { buildContentSecurityPolicy } from "./src/lib/csp";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   experimental: {
     optimizePackageImports: ["recharts", "posthog-js", "lucide-react"],
   },
