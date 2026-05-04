@@ -30,6 +30,10 @@ function isAdminRoute(pathname: string): boolean {
   return pathname.startsWith("/admin/") || pathname === "/admin";
 }
 
+function hasSupabaseSessionCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => cookie.name.startsWith("sb-"));
+}
+
 export async function proxy(request: NextRequest) {
   // www -> apex redirect (must be first, before session handling)
   const host = request.headers.get("host") ?? request.nextUrl.host;
@@ -43,6 +47,9 @@ export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+  const pathname = request.nextUrl.pathname;
+  const requiresAuth = isProtectedRoute(pathname) || isAdminRoute(pathname);
+  const shouldResolveUser = requiresAuth || hasSupabaseSessionCookie(request);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,17 +78,16 @@ export async function proxy(request: NextRequest) {
   // Wrap in try/catch so network failures (e.g. E2E test environments with a
   // dummy Supabase URL) don't crash the proxy and are treated as unauthenticated.
   let user = null;
-  try {
-    const {
-      data: { user: resolvedUser },
-    } = await supabase.auth.getUser();
-    user = resolvedUser;
-  } catch {
-    // Network error or unreachable Supabase instance - treat as no session
+  if (shouldResolveUser) {
+    try {
+      const {
+        data: { user: resolvedUser },
+      } = await supabase.auth.getUser();
+      user = resolvedUser;
+    } catch {
+      // Network error or unreachable Supabase instance - treat as no session
+    }
   }
-
-  const pathname = request.nextUrl.pathname;
-  const requiresAuth = isProtectedRoute(pathname) || isAdminRoute(pathname);
 
   if (requiresAuth) {
     if (!user) {

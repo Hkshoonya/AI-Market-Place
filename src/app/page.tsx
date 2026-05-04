@@ -128,16 +128,17 @@ export default async function HomePage() {
   // eslint-disable-next-line react-hooks/purity -- server component runs once per request, not a repeated render cycle; Date.now() is stable for this response
   const now = Date.now();
 
-  const allActiveModels = supabase
-    ? await fetchAllHomepageActiveModels(
+  const allActiveModelsPromise = supabase
+    ? fetchAllHomepageActiveModels(
         supabase as unknown as Parameters<typeof fetchAllHomepageActiveModels>[0]
       ).catch((error) => {
         console.warn("homepage active models query failed", error);
         return [];
       })
-    : [];
+    : Promise.resolve([]);
 
   const [
+    allActiveModels,
     { count: modelCount },
     { count: benchmarkCount },
     { data: deploymentPlatformsRaw },
@@ -148,6 +149,7 @@ export default async function HomePage() {
     { data: latestPipelineSyncRaw },
   ] = supabase
     ? await Promise.all([
+        allActiveModelsPromise,
         supabase.from("models").select("*", { count: "exact", head: true }),
         supabase.from("benchmarks").select("*", { count: "exact", head: true }),
         supabase
@@ -191,16 +193,17 @@ export default async function HomePage() {
           .order("last_sync_at", { ascending: false })
           .limit(1),
       ])
-    : [
-        { count: 0 },
-        { count: 0 },
-        { data: [] },
-        { data: [] },
-        { data: [] },
-        { data: [] },
-        { data: [] },
-        { data: [] },
-      ];
+    : await Promise.all([
+        allActiveModelsPromise,
+        Promise.resolve({ count: 0 }),
+        Promise.resolve({ count: 0 }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+      ]);
 
   const homepageActiveModels =
     (allActiveModels ?? []) as unknown as Parameters<typeof dedupePublicModelFamilies>[0];

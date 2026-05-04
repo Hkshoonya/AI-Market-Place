@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { ArrowRight, Rocket, Activity, Layers, Globe, BarChart3, Download, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,9 +43,49 @@ const STAT_CONFIGS = [
 ] as const;
 
 export function HeroSection({ stats }: { stats: HeroStats }) {
+  const [showScene, setShowScene] = useState(false);
   const statEntries = STAT_CONFIGS.filter(
     (s) => stats[s.key as keyof HeroStats] != null && stats[s.key as keyof HeroStats]! > 0
   ).slice(0, 6);
+
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      return;
+    }
+
+    let cancelled = false;
+    const revealScene = () => {
+      if (!cancelled) {
+        setShowScene(true);
+      }
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const handle = idleWindow.requestIdleCallback(() => revealScene(), {
+        timeout: 1500,
+      });
+
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback?.(handle);
+      };
+    }
+
+    const timeout = window.setTimeout(revealScene, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, []);
 
   return (
     <section
@@ -55,7 +96,14 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
     >
       {/* Three.js Background — desktop only */}
       <div className="hidden md:block" data-testid="hero-scene-slot" aria-hidden="true">
-        <NeuralNetworkScene />
+        {showScene ? (
+          <NeuralNetworkScene />
+        ) : (
+          <div className="absolute inset-0 z-0 overflow-hidden bg-[#000000]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,212,170,0.16),rgba(0,0,0,0)_70%)]" />
+            <div className="absolute left-1/2 top-1/3 h-[360px] w-[540px] -translate-x-1/2 rounded-full bg-neon/8 blur-[120px]" />
+          </div>
+        )}
       </div>
 
       {/* Mobile fallback gradient */}
@@ -66,7 +114,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
 
       {/* Content overlay */}
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 md:py-32">
-        <div className="text-center animate-fade-in">
+        <div className="text-center">
           <Badge
             variant="outline"
             className="mb-6 border-neon/30 bg-neon/5 px-3 py-1 text-xs text-neon backdrop-blur-sm"
@@ -77,8 +125,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
 
           <h1
             id="home-hero-heading"
-            className="text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl animate-slide-up"
-            style={{ animationDelay: "100ms" }}
+            className="text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl"
           >
             The{" "}
             <span className="text-neon text-glow">Market Cap</span>
@@ -88,8 +135,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
 
           <p
             id="home-hero-description"
-            className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl animate-slide-up"
-            style={{ animationDelay: "200ms" }}
+            className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl"
           >
             Track, rank, and compare AI models with structured benchmarks where
             available, provider-reported evidence, pricing intelligence, and a
@@ -100,8 +146,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
           </p>
 
           <div
-            className="mt-8 flex flex-wrap items-center justify-center gap-4 animate-slide-up"
-            style={{ animationDelay: "300ms" }}
+            className="mt-8 flex flex-wrap items-center justify-center gap-4"
           >
             <Button
               size="lg"
@@ -121,8 +166,7 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
 
         {/* Stats Row */}
         <ul
-          className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 stagger-children animate-slide-up"
-          style={{ animationDelay: "400ms" }}
+          className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6"
           aria-label="Platform statistics"
         >
           {statEntries.map((stat) => {

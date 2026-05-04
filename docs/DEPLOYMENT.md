@@ -138,6 +138,8 @@ Build-time environment requirements:
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- optional: `NEXT_PUBLIC_POSTHOG_KEY`
+- optional: `NEXT_PUBLIC_POSTHOG_HOST`
 - optional: `SENTRY_AUTH_TOKEN`
 
 Runtime recommendation for autonomous maintenance:

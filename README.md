@@ -322,6 +322,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-side DB access (bypasses RLS) |
 | `CRON_SECRET` | Yes | Authenticates cron requests |
+| `NEXT_PUBLIC_POSTHOG_KEY` | Optional | PostHog client-side analytics |
+| `NEXT_PUBLIC_POSTHOG_HOST` | Optional | PostHog ingestion host (`us` or `eu`) |
 | `OPENAI_API_KEY` | Optional | OpenAI model metadata sync |
 | `ANTHROPIC_API_KEY` | Optional | Anthropic model metadata sync |
 | `HUGGINGFACE_API_TOKEN` | Optional | HuggingFace Hub sync |

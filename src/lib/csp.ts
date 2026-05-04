@@ -11,7 +11,7 @@ export function buildContentSecurityPolicy({
     "'self'",
     "'unsafe-inline'",
     ...(isDevelopment ? ["'unsafe-eval'"] : []),
-    "https://us.posthog.com",
+    "https://*.posthog.com",
     "https://static.cloudflareinsights.com",
   ];
 
@@ -21,7 +21,7 @@ export function buildContentSecurityPolicy({
     "https://*.supabase.co",
     "wss://*.supabase.co",
     "https://*.ingest.sentry.io",
-    "https://us.i.posthog.com",
+    "https://*.i.posthog.com",
   ];
 
   const directives = [

@@ -70,4 +70,30 @@ describe("proxy admin protection", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://aimarketcap.tech/");
   });
+
+  it("skips Supabase user resolution for anonymous public routes", async () => {
+    const supabase = makeSupabaseClient({ user: null });
+    createServerClientMock.mockReturnValue(supabase);
+
+    const response = await proxy(makeRequest("/"));
+
+    expect(response.status).toBe(200);
+    expect(supabase.auth.getUser).not.toHaveBeenCalled();
+  });
+
+  it("still resolves Supabase user state when a public route carries sb cookies", async () => {
+    const supabase = makeSupabaseClient({ user: { id: "user-1" } });
+    createServerClientMock.mockReturnValue(supabase);
+
+    const request = new NextRequest("https://aimarketcap.tech/", {
+      headers: {
+        cookie: "sb-access-token=valid-session-cookie",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
+  });
 });

@@ -7,6 +7,20 @@ import { SWRConfig } from "swr";
 import { jsonFetcher } from "@/lib/swr/fetcher";
 import type { PostHog } from "posthog-js";
 
+function derivePostHogUiHost(apiHost: string): string {
+  try {
+    const url = new URL(apiHost);
+
+    if (url.hostname.endsWith(".i.posthog.com")) {
+      url.hostname = url.hostname.replace(".i.posthog.com", ".posthog.com");
+    }
+
+    return url.origin;
+  } catch {
+    return "https://us.posthog.com";
+  }
+}
+
 function PostHogPageView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,9 +46,12 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
 
     import("posthog-js").then(({ default: posthog }) => {
+      const posthogHost =
+        process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+
       posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-        api_host: "https://us.i.posthog.com",
-        ui_host: "https://us.posthog.com",
+        api_host: posthogHost,
+        ui_host: derivePostHogUiHost(posthogHost),
         capture_pageview: false,
         capture_pageleave: true,
         person_profiles: "always",
