@@ -1,3 +1,4 @@
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { authenticateApiKey } from "@/lib/agents/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -22,46 +23,48 @@ export async function resolveSocialActorFromRequest(
 ): Promise<ResolvedSocialActor | null> {
   const admin = createAdminClient();
 
+  let sessionUser: SupabaseUser | null = null;
   try {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
-    if (user) {
-      const actor = await resolveOrCreateHumanActor(admin, user.id, {
-        email: user.email ?? null,
-        username:
-          typeof user.user_metadata?.preferred_username === "string"
-            ? user.user_metadata.preferred_username
-            : typeof user.user_metadata?.username === "string"
-              ? user.user_metadata.username
-              : null,
-        displayName:
-          typeof user.user_metadata?.full_name === "string"
-            ? user.user_metadata.full_name
-            : typeof user.user_metadata?.name === "string"
-              ? user.user_metadata.name
-              : null,
-        avatarUrl:
-          typeof user.user_metadata?.avatar_url === "string"
-            ? user.user_metadata.avatar_url
-            : typeof user.user_metadata?.picture === "string"
-              ? user.user_metadata.picture
-              : null,
-      });
-      return {
-        actor: {
-          id: actor.id,
-          actor_type: actor.actor_type,
-          display_name: actor.display_name,
-          handle: actor.handle,
-        },
-        authMethod: "session",
-      };
-    }
+    sessionUser = user ?? null;
   } catch {
-    // Session missing, continue to API key auth.
+    // Session missing or supabase unreachable — fall through to API key auth.
+  }
+
+  if (sessionUser) {
+    const actor = await resolveOrCreateHumanActor(admin, sessionUser.id, {
+      email: sessionUser.email ?? null,
+      username:
+        typeof sessionUser.user_metadata?.preferred_username === "string"
+          ? sessionUser.user_metadata.preferred_username
+          : typeof sessionUser.user_metadata?.username === "string"
+            ? sessionUser.user_metadata.username
+            : null,
+      displayName:
+        typeof sessionUser.user_metadata?.full_name === "string"
+          ? sessionUser.user_metadata.full_name
+          : typeof sessionUser.user_metadata?.name === "string"
+            ? sessionUser.user_metadata.name
+            : null,
+      avatarUrl:
+        typeof sessionUser.user_metadata?.avatar_url === "string"
+          ? sessionUser.user_metadata.avatar_url
+          : typeof sessionUser.user_metadata?.picture === "string"
+            ? sessionUser.user_metadata.picture
+            : null,
+    });
+    return {
+      actor: {
+        id: actor.id,
+        actor_type: actor.actor_type,
+        display_name: actor.display_name,
+        handle: actor.handle,
+      },
+      authMethod: "session",
+    };
   }
 
   const auth = await authenticateApiKey(admin, request);

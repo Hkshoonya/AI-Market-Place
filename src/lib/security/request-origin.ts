@@ -1,7 +1,24 @@
 import { NextResponse } from "next/server";
 
+function getExpectedOrigin(request: Request) {
+  const requestUrl = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  const host = request.headers.get("host");
+  if (host) {
+    return `${forwardedProto ?? requestUrl.protocol.replace(/:$/, "")}://${host}`;
+  }
+
+  return requestUrl.origin;
+}
+
 export function hasTrustedRequestOrigin(request: Request): boolean {
-  const expectedOrigin = new URL(request.url).origin;
+  const expectedOrigin = getExpectedOrigin(request);
   const origin = request.headers.get("origin");
 
   if (origin) {
@@ -9,15 +26,16 @@ export function hasTrustedRequestOrigin(request: Request): boolean {
   }
 
   const referer = request.headers.get("referer");
-  if (!referer) {
-    return false;
+  if (referer) {
+    try {
+      return new URL(referer).origin === expectedOrigin;
+    } catch {
+      return false;
+    }
   }
 
-  try {
-    return new URL(referer).origin === expectedOrigin;
-  } catch {
-    return false;
-  }
+  const fetchSite = request.headers.get("sec-fetch-site");
+  return fetchSite === "same-origin";
 }
 
 export function rejectUntrustedRequestOrigin(

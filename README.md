@@ -397,6 +397,8 @@ docs/                       # Deployment + schema bootstrap docs
 e2e/                        # Playwright E2E tests (auth, leaderboard, marketplace, model-detail)
 ```
 
+For a concise top-level route ownership and purpose map, see [`docs/ROUTE_AREA_MAP.md`](./docs/ROUTE_AREA_MAP.md).
+
 <br>
 
 ## Contributing

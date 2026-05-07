@@ -1,4 +1,9 @@
 import type { BrowserContext } from "@playwright/test";
+import {
+  buildMockSession,
+  mockProfile,
+  mockUser,
+} from "../mocks/auth-fixtures";
 
 /**
  * Injects mock Supabase authentication into a browser context.
@@ -21,48 +26,7 @@ import type { BrowserContext } from "@playwright/test";
  * Call this BEFORE page.goto(). Tests run fully offline.
  */
 export async function injectMockAuth(context: BrowserContext): Promise<void> {
-  const mockUser = {
-    id: "test-user-id",
-    aud: "authenticated",
-    role: "authenticated",
-    email: "e2e-test@example.com",
-    email_confirmed_at: "2024-01-01T00:00:00Z",
-    phone: "",
-    confirmed_at: "2024-01-01T00:00:00Z",
-    last_sign_in_at: "2024-01-01T00:00:00Z",
-    app_metadata: {
-      provider: "email",
-      providers: ["email"],
-    },
-    user_metadata: {
-      full_name: "E2E Tester",
-    },
-    identities: [],
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  };
-
-  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
-
-  const mockSession = {
-    access_token: "mock-access-token-for-e2e-testing",
-    token_type: "bearer",
-    expires_in: 3600,
-    expires_at: expiresAt,
-    refresh_token: "mock-refresh-token-for-e2e-testing",
-    user: mockUser,
-  };
-  const mockProfile = {
-    id: mockUser.id,
-    username: "e2e-tester",
-    display_name: "E2E Tester",
-    avatar_url: null,
-    bio: null,
-    is_admin: false,
-    is_seller: false,
-    seller_verified: false,
-    joined_at: "2024-01-01T00:00:00Z",
-  };
+  const mockSession = buildMockSession();
 
   // Encode session as base64url and prefix with "base64-" to match @supabase/ssr
   // encoding. Node.js Buffer.toString('base64url') uses the same URL-safe alphabet.

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SocialComposer } from "./social-composer";
 
+const mockSocialWriteFailed = vi.fn();
 const mockRefresh = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockToastError = vi.fn();
@@ -22,6 +23,12 @@ vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => mockToastSuccess(...args),
     error: (...args: unknown[]) => mockToastError(...args),
+  },
+}));
+
+vi.mock("@/lib/posthog", () => ({
+  analytics: {
+    socialWriteFailed: (...args: unknown[]) => mockSocialWriteFailed(...args),
   },
 }));
 
@@ -83,6 +90,7 @@ vi.mock("./social-image-inputs", () => ({
 describe("SocialComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     mockUseAuth.mockReturnValue({
       user: null,
       profile: null,
@@ -237,6 +245,60 @@ describe("SocialComposer", () => {
           alt_text: "Night shift dashboard",
         },
       ],
+    });
+  });
+
+  it("surfaces a session-expired message when the post API returns 401", async () => {
+    const user = userEvent.setup();
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1" },
+      profile: { display_name: "Harshit", username: "harshit_dev" },
+      loading: false,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        })
+      )
+    );
+
+    render(
+      <SocialComposer
+        selectedCommunity="global"
+        communities={[
+          {
+            id: "community-1",
+            slug: "global",
+            name: "Global",
+            description: "All conversations",
+            is_global: true,
+            created_at: "2026-03-13T00:00:00.000Z",
+            updated_at: "2026-03-13T00:00:00.000Z",
+            created_by_actor_id: null,
+          },
+        ]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/thread content/i), {
+      target: { value: "Keep Commons live." },
+    });
+    await user.click(screen.getByRole("button", { name: /post thread/i }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringContaining("session is missing or expired")
+      );
+      expect(mockSocialWriteFailed).toHaveBeenCalledWith(
+        "thread",
+        401,
+        "unauthorized",
+        "Unauthorized"
+      );
     });
   });
 });

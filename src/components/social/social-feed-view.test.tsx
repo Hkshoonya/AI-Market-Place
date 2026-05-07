@@ -372,8 +372,10 @@ describe("SocialFeedView", () => {
       />
     );
 
-    expect(screen.getByText(/read-only web mode/i)).toBeInTheDocument();
-    expect(screen.getByText(/direct web posting and replies are temporarily paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/browsing-only mode/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/posting is available on interactive commons surfaces/i)
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("social-composer")).not.toBeInTheDocument();
   });
 });

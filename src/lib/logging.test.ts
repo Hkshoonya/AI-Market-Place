@@ -5,12 +5,14 @@ const selectMock = vi.fn(() => ({ single: vi.fn() }));
 const fromMock = vi.fn(() => ({
   insert: insertMock,
 }));
+const hasAdminClientConfigMock = vi.fn(() => true);
 const createAdminClientMock = vi.fn(() => ({
   from: fromMock,
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: createAdminClientMock,
+  hasAdminClientConfig: hasAdminClientConfigMock,
 }));
 
 describe("logging", () => {
@@ -20,6 +22,7 @@ describe("logging", () => {
     vi.resetModules();
     vi.clearAllMocks();
     insertMock.mockReturnValue({ select: selectMock });
+    hasAdminClientConfigMock.mockReturnValue(true);
     consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
   });
 
@@ -37,5 +40,14 @@ describe("logging", () => {
     expect(result).toBeNull();
     expect(createAdminClientMock).not.toHaveBeenCalled();
   });
-});
 
+  it("skips durable log writes when admin Supabase config is missing", async () => {
+    hasAdminClientConfigMock.mockReturnValue(false);
+    const { systemLog } = await import("./logging");
+
+    const result = await systemLog.info("test", "hello");
+
+    expect(result).toBeNull();
+    expect(createAdminClientMock).not.toHaveBeenCalled();
+  });
+});

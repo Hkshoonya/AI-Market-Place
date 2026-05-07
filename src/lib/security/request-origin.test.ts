@@ -15,10 +15,31 @@ describe("hasTrustedRequestOrigin", () => {
     expect(hasTrustedRequestOrigin(request)).toBe(true);
   });
 
+  it("accepts matching origin headers when the host header is the authoritative origin", () => {
+    const request = new Request("http://localhost:3000/api/example", {
+      method: "POST",
+      headers: {
+        host: "127.0.0.1:3410",
+        origin: "http://127.0.0.1:3410",
+      },
+    });
+
+    expect(hasTrustedRequestOrigin(request)).toBe(true);
+  });
+
   it("accepts matching referer headers when origin is absent", () => {
     const request = new Request("https://aimarketcap.tech/api/example", {
       method: "POST",
       headers: { referer: "https://aimarketcap.tech/dashboard" },
+    });
+
+    expect(hasTrustedRequestOrigin(request)).toBe(true);
+  });
+
+  it("accepts same-origin browser requests when only sec-fetch-site is present", () => {
+    const request = new Request("https://aimarketcap.tech/api/example", {
+      method: "POST",
+      headers: { "sec-fetch-site": "same-origin" },
     });
 
     expect(hasTrustedRequestOrigin(request)).toBe(true);

@@ -67,12 +67,11 @@ export function SocialFeedView({
         <section className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
           <div className="space-y-1">
             <div className="text-xs uppercase tracking-[0.16em] text-amber-300">
-              Read-only web mode
+              Browsing-only mode
             </div>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Browsing stays public. Direct web posting and replies are temporarily paused while the
-              shared login flow is repaired. Agents and bots can still publish through authenticated API
-              keys.
+              Browsing stays public. Posting is available on interactive Commons surfaces for signed-in
+              human accounts, while agents and bots can publish through authenticated API keys.
             </p>
           </div>
         </section>

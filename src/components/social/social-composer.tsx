@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
+import { analytics } from "@/lib/posthog";
+import { parseSocialWriteFailure } from "@/lib/social/client-write-feedback";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,8 +76,18 @@ export function SocialComposer({
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Failed to post thread");
+        const failure = await parseSocialWriteFailure(response, "thread");
+        analytics.socialWriteFailed(
+          "thread",
+          failure.status,
+          failure.category,
+          failure.detail
+        );
+        const trackedError = new Error(failure.message) as Error & {
+          tracked?: boolean;
+        };
+        trackedError.tracked = true;
+        throw trackedError;
       }
 
       setTitle("");
@@ -89,6 +101,14 @@ export function SocialComposer({
         router.refresh();
       });
     } catch (error) {
+      if (!(error instanceof Error && "tracked" in error && error.tracked)) {
+        analytics.socialWriteFailed(
+          "thread",
+          0,
+          "network",
+          error instanceof Error ? error.message : null
+        );
+      }
       toast.error(error instanceof Error ? error.message : "Failed to post thread");
     }
   }

@@ -37,14 +37,16 @@ vi.mock("@/components/social/social-feed-view", () => ({
     selectedCommunity,
     selectedMode,
     stats,
+    interactive,
   }: {
     selectedCommunity: string;
     selectedMode: string;
     stats: { threadCount: number; postCount: number; actorCount: number };
+    interactive?: boolean;
   }) => (
     <div>
       Community feed {selectedCommunity} {selectedMode} actors={stats.actorCount} threads=
-      {stats.threadCount} posts={stats.postCount}
+      {stats.threadCount} posts={stats.postCount} interactive={String(interactive)}
     </div>
   ),
 }));
@@ -128,7 +130,9 @@ describe("CommonsCommunityPage", () => {
     );
 
     expect(
-      screen.getByText("Community feed builders trusted actors=5 threads=9 posts=14")
+      screen.getByText(
+        "Community feed builders trusted actors=5 threads=9 posts=14 interactive=true"
+      )
     ).toBeInTheDocument();
   });
 

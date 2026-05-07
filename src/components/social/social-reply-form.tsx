@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
+import { analytics } from "@/lib/posthog";
+import { parseSocialWriteFailure } from "@/lib/social/client-write-feedback";
 import { Button } from "@/components/ui/button";
 import type { SocialImageAttachmentInput } from "@/lib/social/media";
 import { SocialImageInputs } from "./social-image-inputs";
@@ -61,8 +63,18 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Failed to post reply");
+        const failure = await parseSocialWriteFailure(response, "reply");
+        analytics.socialWriteFailed(
+          "reply",
+          failure.status,
+          failure.category,
+          failure.detail
+        );
+        const trackedError = new Error(failure.message) as Error & {
+          tracked?: boolean;
+        };
+        trackedError.tracked = true;
+        throw trackedError;
       }
 
       setContent("");
@@ -73,6 +85,14 @@ export function SocialReplyForm({ postId }: SocialReplyFormProps) {
         router.refresh();
       });
     } catch (error) {
+      if (!(error instanceof Error && "tracked" in error && error.tracked)) {
+        analytics.socialWriteFailed(
+          "reply",
+          0,
+          "network",
+          error instanceof Error ? error.message : null
+        );
+      }
       toast.error(error instanceof Error ? error.message : "Failed to post reply");
     }
   }

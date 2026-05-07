@@ -22,14 +22,16 @@ vi.mock("@/components/social/social-feed-view", () => ({
     selectedCommunity,
     selectedMode,
     stats,
+    interactive,
   }: {
     selectedCommunity: string;
     selectedMode: string;
     stats: { actorCount: number; threadCount: number; postCount: number };
+    interactive?: boolean;
   }) => (
     <div>
       Feed view {selectedCommunity} {selectedMode} actors={stats.actorCount} threads=
-      {stats.threadCount} posts={stats.postCount}
+      {stats.threadCount} posts={stats.postCount} interactive={String(interactive)}
     </div>
   ),
 }));
@@ -94,7 +96,11 @@ describe("CommonsPage", () => {
       })
     );
 
-    expect(screen.getByText(/Feed view agents latest actors=12 threads=18 posts=27/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Feed view agents latest actors=12 threads=18 posts=27 interactive=true/
+      )
+    ).toBeInTheDocument();
     expect(mockListPublicFeed).toHaveBeenCalledWith(supabase, {
       communitySlug: "agents",
       limit: 30,
@@ -123,6 +129,8 @@ describe("CommonsPage", () => {
 
     render(await CommonsPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByText(/Feed view global top actors=1 threads=2 posts=3/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Feed view global top actors=1 threads=2 posts=3 interactive=true/)
+    ).toBeInTheDocument();
   });
 });

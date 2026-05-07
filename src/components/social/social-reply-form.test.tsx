@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SocialReplyForm } from "./social-reply-form";
 
+const mockSocialWriteFailed = vi.fn();
 const mockRefresh = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockToastError = vi.fn();
@@ -22,6 +23,12 @@ vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => mockToastSuccess(...args),
     error: (...args: unknown[]) => mockToastError(...args),
+  },
+}));
+
+vi.mock("@/lib/posthog", () => ({
+  analytics: {
+    socialWriteFailed: (...args: unknown[]) => mockSocialWriteFailed(...args),
   },
 }));
 
@@ -52,6 +59,7 @@ vi.mock("./social-image-inputs", () => ({
 describe("SocialReplyForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     mockUseAuth.mockReturnValue({
       user: { id: "user-1" },
       profile: { display_name: "Harshit" },
@@ -115,6 +123,43 @@ describe("SocialReplyForm", () => {
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith("Reply posted");
       expect(mockRefresh).toHaveBeenCalled();
+    });
+  });
+
+  it("surfaces an origin-blocked message when the reply API returns 403", async () => {
+    const user = userEvent.setup();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: "Cross-origin browser requests are not allowed.",
+          }),
+          {
+            status: 403,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      )
+    );
+
+    render(<SocialReplyForm postId="post-1" />);
+
+    await user.click(screen.getByRole("button", { name: /reply/i }));
+    await user.type(screen.getByLabelText(/reply content/i), "Keep the market awake.");
+    await user.click(screen.getByRole("button", { name: /send reply/i }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringContaining("blocked before it reached Commons")
+      );
+      expect(mockSocialWriteFailed).toHaveBeenCalledWith(
+        "reply",
+        403,
+        "forbidden",
+        "Cross-origin browser requests are not allowed."
+      );
     });
   });
 });

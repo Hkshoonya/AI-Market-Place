@@ -13,4 +13,16 @@ export const analytics = {
     posthog.capture("lens_switched", { from_lens: fromLens, to_lens: toLens }),
   searchPerformed: (query: string, resultCount: number) =>
     posthog.capture("search_performed", { query_length: query.length, result_count: resultCount }),
+  socialWriteFailed: (
+    action: "thread" | "reply",
+    status: number,
+    category: string,
+    detail: string | null
+  ) =>
+    posthog.capture("social_write_failed", {
+      action,
+      status,
+      category,
+      detail,
+    }),
 };

@@ -12,7 +12,7 @@
  *   await systemLog.error("compute-scores", "Failed to update model", { modelId, err });
  */
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, hasAdminClientConfig } from "@/lib/supabase/admin";
 import { isE2ETestMode } from "@/lib/runtime-environment";
 
 export type LogLevel = "info" | "warn" | "error";
@@ -36,6 +36,10 @@ async function writeLog(entry: LogEntry): Promise<string | null> {
   consoleFn(`[${level.toUpperCase()}] [${source}] ${message}`, metadata ?? "");
 
   if (isE2ETestMode()) {
+    return null;
+  }
+
+  if (!hasAdminClientConfig()) {
     return null;
   }
 

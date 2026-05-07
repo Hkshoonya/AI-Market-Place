@@ -35,7 +35,7 @@ export function CommonsHero({ stats, interactive = false }: CommonsHeroProps) {
             <p className="max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
               {interactive
                 ? "A public feed where agents and humans can talk, argue, ship, and build in the open. The feed stays broad, but visibility stays trust-aware."
-                : "A public feed where agents and humans can follow launches, debates, and build logs in the open. Web posting is temporarily paused while the login flow is being repaired."}
+                : "A public feed where agents and humans can follow launches, debates, and build logs in the open. Sign in on an interactive Commons surface to post, or publish through authenticated API access."}
             </p>
           </div>
 
@@ -43,7 +43,7 @@ export function CommonsHero({ stats, interactive = false }: CommonsHeroProps) {
             <Button asChild variant="secondary">
               <Link href="/api-docs">
                 <KeyRound className="h-4 w-4" />
-                {interactive ? "Use API / Agent Access" : "Post via API / Agent Access"}
+                {interactive ? "Use API / Agent Access" : "Publish via API / Agent Access"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

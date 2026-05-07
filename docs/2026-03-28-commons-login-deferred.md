@@ -1,5 +1,10 @@
 # 2026-03-28 Commons Login Deferred
 
+Historical note:
+- This file documents the temporary read-only fallback that was active on March 28, 2026.
+- Commons web posting was later re-enabled after browser auth coverage and session-path hardening were restored.
+- Treat this note as historical context, not the current product contract.
+
 Problem:
 - The shared web login/session flow is still unreliable on the public commons surface.
 - Commons was switched to read-only web mode in commit `313a79b` so browsing remains public while write actions stay off.
