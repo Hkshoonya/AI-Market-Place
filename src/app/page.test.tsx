@@ -1,8 +1,24 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 const mockCreateOptionalPublicClient = vi.fn();
 const mockCreateOptionalAdminClient = vi.fn();
+const mockHeroSection = vi.fn(
+  ({
+    marketSignalsTimestamp,
+    marketSignalsDetail,
+  }: {
+    marketSignalsTimestamp?: string | null;
+    marketSignalsDetail?: string | null;
+  }) => (
+    <div
+      data-testid="hero-section"
+      data-market-signals-timestamp={marketSignalsTimestamp ?? ""}
+      data-market-signals-detail={marketSignalsDetail ?? ""}
+    />
+  )
+);
 
 vi.mock("@/lib/supabase/public-server", () => ({
   createOptionalPublicClient: () => mockCreateOptionalPublicClient(),
@@ -13,31 +29,19 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 vi.mock("@/components/hero-section", () => ({
-  HeroSection: () => <div data-testid="hero-section" />,
-}));
-
-vi.mock("@/components/charts/provider-market-share", () => ({
-  ProviderMarketShare: () => <div data-testid="provider-market-share" />,
-}));
-
-vi.mock("@/components/charts/category-distribution", () => ({
-  CategoryDistribution: () => <div data-testid="category-distribution" />,
+  HeroSection: (props: unknown) => mockHeroSection(props),
 }));
 
 vi.mock("@/components/charts/top-movers", () => ({
   default: () => <div data-testid="top-movers" />,
 }));
 
-vi.mock("@/components/charts/quality-price-frontier", () => ({
-  default: () => <div data-testid="quality-price-frontier" />,
-}));
-
 vi.mock("@/components/models/trending-models", () => ({
   TrendingModels: () => <div data-testid="trending-models" />,
 }));
 
-vi.mock("@/components/home/top-subscription-providers", () => ({
-  TopSubscriptionProviders: () => <div data-testid="top-subscription-providers" />,
+vi.mock("@/components/home/homepage-mover-strip", () => ({
+  HomepageMoverStrip: () => <div data-testid="homepage-mover-strip" />,
 }));
 
 vi.mock("@/components/shared/provider-logo", () => ({
@@ -52,34 +56,23 @@ vi.mock("@/components/ui/count-up", () => ({
   CountUp: ({ end }: { end: number }) => <span>{end}</span>,
 }));
 
-vi.mock("@/components/shared/data-freshness-badge", () => ({
-  DataFreshnessBadge: ({
-    label,
-    timestamp,
-    detail,
-  }: {
-    label: string;
-    timestamp: string | null | undefined;
-    detail?: string | null;
-  }) => (
-    <div
-      data-testid="freshness-badge"
-      data-label={label}
-      data-timestamp={timestamp ?? ""}
-      data-detail={detail ?? ""}
-    />
-  ),
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 function createMockSupabase({
   latestSignalAt,
   latestPipelineSyncAt,
   recentLaunchNews = [],
+  recentDeploymentNews = [],
   activeModels = [],
 }: {
   latestSignalAt?: string | null;
   latestPipelineSyncAt?: string | null;
   recentLaunchNews?: Array<Record<string, unknown>>;
+  recentDeploymentNews?: Array<Record<string, unknown>>;
   activeModels?: Array<Record<string, unknown>>;
 }) {
   return {
@@ -112,8 +105,7 @@ function createMockSupabase({
 
       if (table === "benchmarks") {
         return {
-          select: (_query?: string, _options?: { count?: string; head?: boolean }) =>
-            Promise.resolve({ count: 0, error: null }),
+          select: () => Promise.resolve({ count: 0, error: null }),
         };
       }
 
@@ -153,6 +145,24 @@ function createMockSupabase({
                         data: latestSignalAt ? [{ published_at: latestSignalAt }] : [],
                         error: null,
                       }),
+                  }),
+                }),
+              };
+            }
+
+            if (query?.includes("title, summary")) {
+              return {
+                in: () => ({
+                  not: () => ({
+                    gte: () => ({
+                      order: () => ({
+                        limit: () =>
+                          Promise.resolve({
+                            data: recentDeploymentNews,
+                            error: null,
+                          }),
+                      }),
+                    }),
                   }),
                 }),
               };
@@ -204,16 +214,14 @@ function createMockSupabase({
   };
 }
 
-describe("HomePage freshness badge", () => {
+describe("HomePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     mockCreateOptionalAdminClient.mockReturnValue(null);
   });
 
-  it(
-    "prefers latest pipeline sync timestamp over launch/news activity",
-    async () => {
+  it("forwards the freshest pipeline sync metadata into the hero", async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
       createMockSupabase({
         latestSignalAt: "2026-03-19T16:10:00.000Z",
@@ -224,15 +232,17 @@ describe("HomePage freshness badge", () => {
     const { default: HomePage } = await import("./page");
     render(await HomePage());
 
-    const [badge] = await screen.findAllByTestId("freshness-badge");
-    expect(badge).toHaveAttribute("data-label", "Market signals refreshed");
-    expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:00:00.000Z");
-    expect(badge).toHaveAttribute("data-detail", "pipeline sync");
-    },
-    30000
-  );
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-timestamp",
+      "2026-03-19T16:00:00.000Z"
+    );
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-detail",
+      "pipeline sync"
+    );
+  });
 
-  it("falls back to recent market updates when no pipeline sync timestamp exists", async () => {
+  it("falls back to market update freshness when there is no pipeline sync", async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
       createMockSupabase({
         latestSignalAt: "2026-03-19T16:10:00.000Z",
@@ -243,12 +253,17 @@ describe("HomePage freshness badge", () => {
     const { default: HomePage } = await import("./page");
     render(await HomePage());
 
-    const [badge] = await screen.findAllByTestId("freshness-badge");
-    expect(badge).toHaveAttribute("data-timestamp", "2026-03-19T16:10:00.000Z");
-    expect(badge).toHaveAttribute("data-detail", "market updates");
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-timestamp",
+      "2026-03-19T16:10:00.000Z"
+    );
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-detail",
+      "market updates"
+    );
   });
 
-  it("renders the updated top-models heading", async () => {
+  it("renders the mover strip and the concise top-models value proposition", async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
       createMockSupabase({
         latestSignalAt: "2026-03-19T16:10:00.000Z",
@@ -260,5 +275,32 @@ describe("HomePage freshness badge", () => {
     render(await HomePage());
 
     expect(screen.getByText("Top AI Models")).toBeInTheDocument();
+    expect(screen.getByTestId("homepage-mover-strip")).toBeInTheDocument();
+    expect(
+      screen.getByText(/strongest current mix of quality, reach, pricing, and verified market signals/i)
+    ).toBeInTheDocument();
+  });
+
+  it("replaces the seller CTA with broader API and tracking actions", async () => {
+    mockCreateOptionalPublicClient.mockReturnValue(
+      createMockSupabase({
+        latestSignalAt: "2026-03-19T16:10:00.000Z",
+        latestPipelineSyncAt: "2026-03-19T16:00:00.000Z",
+      })
+    );
+
+    const { default: HomePage } = await import("./page");
+    render(await HomePage());
+
+    expect(
+      screen.getByRole("heading", {
+        name: /get the api or start tracking the market directly/i,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get the api/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start tracking/i })).toBeInTheDocument();
+    expect(
+      screen.queryByText(/launches, pricing, benchmarks, and api changes live in the dedicated updates page/i)
+    ).not.toBeInTheDocument();
   });
 });

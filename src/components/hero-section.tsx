@@ -3,10 +3,22 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Rocket, Activity, Layers, Globe, BarChart3, Download, Heart } from "lucide-react";
+import {
+  ArrowRight,
+  Rocket,
+  Activity,
+  Layers,
+  Globe,
+  BarChart3,
+  Download,
+  Heart,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { formatDate, formatRelativeTime } from "@/lib/format";
 
 // Dynamic import with SSR disabled — Three.js only runs in browser
 const NeuralNetworkScene = dynamic(
@@ -26,6 +38,12 @@ interface HeroStats {
   totalLikes?: number;
 }
 
+interface HeroSectionProps {
+  stats: HeroStats;
+  marketSignalsTimestamp?: string | null;
+  marketSignalsDetail?: string | null;
+}
+
 function formatStatValue(num: number): string {
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
@@ -42,11 +60,21 @@ const STAT_CONFIGS = [
   { key: "categoryCount", icon: Layers, label: "Categories" },
 ] as const;
 
-export function HeroSection({ stats }: { stats: HeroStats }) {
+export function HeroSection({
+  stats,
+  marketSignalsTimestamp = null,
+  marketSignalsDetail = null,
+}: HeroSectionProps) {
   const [showScene, setShowScene] = useState(false);
   const statEntries = STAT_CONFIGS.filter(
     (s) => stats[s.key as keyof HeroStats] != null && stats[s.key as keyof HeroStats]! > 0
   ).slice(0, 6);
+  const freshnessRelative = marketSignalsTimestamp
+    ? formatRelativeTime(marketSignalsTimestamp)
+    : null;
+  const freshnessAbsolute = marketSignalsTimestamp
+    ? formatDate(marketSignalsTimestamp)
+    : null;
 
   useEffect(() => {
     if (window.innerWidth < 768) {
@@ -141,9 +169,50 @@ export function HeroSection({ stats }: { stats: HeroStats }) {
             available, provider-reported evidence, pricing intelligence, and a
             marketplace in one place.
           </p>
+          {marketSignalsTimestamp ? (
+            <p
+              className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground"
+              title={freshnessAbsolute ?? undefined}
+            >
+              Market signals refreshed {freshnessRelative}
+              {marketSignalsDetail ? (
+                <span className="text-muted-foreground/80">
+                  {" "}
+                  · {marketSignalsDetail}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
           <p id="home-hero-scene-description" className="sr-only">
             Animated background showing AI models connecting, sharing signals, and growing across a living network.
           </p>
+
+          <form
+            action="/search"
+            method="GET"
+            className="mx-auto mt-6 flex max-w-2xl flex-col gap-3 rounded-2xl border border-border/50 bg-card/35 p-3 backdrop-blur-md sm:flex-row sm:items-center"
+          >
+            <label htmlFor="home-hero-search" className="sr-only">
+              Search models, providers, or releases
+            </label>
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="home-hero-search"
+                name="q"
+                type="search"
+                placeholder="Search models, providers, or releases..."
+                className="h-11 border-border/60 bg-background/70 pl-10 text-sm"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="lg"
+              className="h-11 bg-neon px-5 text-background font-semibold hover:bg-neon/90"
+            >
+              Search
+            </Button>
+          </form>
 
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-4"

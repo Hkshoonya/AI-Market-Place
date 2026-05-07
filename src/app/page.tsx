@@ -5,8 +5,8 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
+  CircleHelp,
   Flame,
-  Layers,
   Rocket,
   Scale,
   Server,
@@ -17,6 +17,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CATEGORIES } from "@/lib/constants/categories";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
@@ -25,8 +31,6 @@ import { formatNumber } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
-import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
-import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants/site";
 import { CountUp } from "@/components/ui/count-up";
 import { countMarketValueEvidence } from "@/lib/models/market-value";
@@ -43,38 +47,16 @@ import {
   getDeployabilityLabel,
   getUsageUpdateBadgeLabel,
 } from "@/lib/models/deployability";
-import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
-import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
 import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
+import { HomepageMoverStrip } from "@/components/home/homepage-mover-strip";
 
 const TopMovers = dynamic(() => import("@/components/charts/top-movers"), {
   loading: () => <div className="h-[400px] animate-pulse rounded-xl bg-card" />,
 });
-
-const QualityPriceFrontier = dynamic(
-  () => import("@/components/charts/quality-price-frontier"),
-  { loading: () => <div className="h-[500px] animate-pulse rounded-xl bg-card" /> }
-);
-
-const ProviderMarketShare = dynamic(
-  () =>
-    import("@/components/charts/provider-market-share").then((module) => ({
-      default: module.ProviderMarketShare,
-    })),
-  { loading: () => <div className="h-[350px] animate-pulse rounded-xl bg-card" /> }
-);
-
-const CategoryDistribution = dynamic(
-  () =>
-    import("@/components/charts/category-distribution").then((module) => ({
-      default: module.CategoryDistribution,
-    })),
-  { loading: () => <div className="h-[350px] animate-pulse rounded-xl bg-card" /> }
-);
 
 const TrendingModels = dynamic(
   () =>
@@ -343,34 +325,6 @@ export default async function HomePage() {
       ? qualityScores.reduce((sum, s) => sum + s, 0) / qualityScores.length
       : 0;
 
-  // Derive provider & category chart data from consolidated query
-  const providerMap = new Map<string, number>();
-  const categoryMap = new Map<string, number>();
-  for (const m of activeModels) {
-    const canonicalProvider = getCanonicalProviderName(m.provider);
-    providerMap.set(canonicalProvider, (providerMap.get(canonicalProvider) ?? 0) + 1);
-    if (m.category) categoryMap.set(m.category, (categoryMap.get(m.category) ?? 0) + 1);
-  }
-
-  const providerChartData = Array.from(providerMap.entries())
-    .map(([provider, count]) => ({
-      provider,
-      count,
-      color: getProviderBrand(provider)?.color ?? "#666",
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  const categoryChartData = Array.from(categoryMap.entries())
-    .map(([cat, count]) => {
-      const config = CATEGORIES.find((c) => c.slug === cat);
-      return {
-        category: config?.shortLabel ?? cat,
-        count,
-        color: config?.color ?? "#666",
-      };
-    })
-    .sort((a, b) => b.count - a.count);
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -403,36 +357,19 @@ export default async function HomePage() {
           totalDownloads,
           totalLikes,
         }}
+        marketSignalsTimestamp={marketSignalsRefreshedAt}
+        marketSignalsDetail={latestPipelineSyncAt ? "pipeline sync" : "market updates"}
       />
-
-      <div className="mx-auto mt-6 max-w-7xl px-4">
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-card/50 p-4 md:flex-row md:items-center md:justify-between">
-          <DataFreshnessBadge
-            label="Market signals refreshed"
-            timestamp={marketSignalsRefreshedAt}
-            detail={latestPipelineSyncAt ? "pipeline sync" : "market updates"}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/news"
-              className="inline-flex items-center gap-1 text-sm font-medium text-neon hover:underline"
-            >
-              Explore live updates
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <span className="text-xs text-muted-foreground">
-              Launches, pricing, benchmarks, and API changes live in the dedicated updates page.
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Top 10 Leaderboard */}
       <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="h-5 w-5 text-neon" />
-            <h2 className="text-xl font-bold">Top AI Models</h2>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-5 w-5 text-neon" />
+              <h2 className="text-xl font-bold">Top AI Models</h2>
+            </div>
+            <HomepageMoverStrip />
           </div>
           <Button variant="ghost" size="sm" className="text-neon" asChild>
             <Link href="/leaderboards">
@@ -442,13 +379,8 @@ export default async function HomePage() {
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
-          Ranked for enterprise traction, real-world adoption, economic footprint, and model quality.
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          This shortlist favors general-purpose models with stronger benchmark-backed quality signals, not every active model in the catalog.
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {topModelsWithDirectEvidenceCount} of {topModels.length || 0} shortlisted models currently show direct benchmark or arena evidence. Wider catalog coverage is still propagating.
+          Start here for the models with the strongest current mix of quality, reach, pricing,
+          and verified market signals.
         </p>
 
         <div className="mt-6 overflow-x-auto rounded-xl border border-border/50">
@@ -465,7 +397,26 @@ export default async function HomePage() {
                   Category
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  Est. Market Value
+                  <div className="flex items-center justify-end gap-1">
+                    <span>Est. Market Value</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label="Top model ranking methodology"
+                        >
+                          <CircleHelp className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs leading-5">
+                        Ranked for economic footprint, adoption, and quality, with extra trust
+                        given to direct benchmark, arena, and verified pricing evidence.{" "}
+                        {topModelsWithDirectEvidenceCount} of {topModels.length || 0} shortlisted
+                        models currently show direct benchmark or arena evidence.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </th>
                 <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-muted-foreground whitespace-nowrap">
                   Popularity
@@ -704,313 +655,286 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* New Launches */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Rocket className="h-5 w-5 text-neon" />
-            <h2 className="text-xl font-bold">New Launches</h2>
+            <h2 className="text-xl font-bold">New in the market</h2>
           </div>
           <Button variant="ghost" size="sm" className="text-neon" asChild>
-            <Link href="/models">
+            <Link href="/news">
               View All <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
-          Recently launched or newly surfaced models from tracked providers and official release signals.
+          Track new launches and newly verified ways to run or buy access to important models,
+          without burning half the page on two lookalike card walls.
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {newModels?.map(({ model, surfacedAt }) => {
-            const catConfig = CATEGORIES.find(
-              (c) => c.slug === model.category
-            );
-            const parameterDisplay = getParameterDisplay(model);
-            const surfaceDateValue = surfacedAt ?? model.release_date ?? null;
-            const dateLabel = getRelativeDateLabel(surfaceDateValue, now);
-            const deploymentLabel = getDeployabilityLabel({
-              isOpenWeights: model.is_open_weights,
-              accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
-            });
-            const upgradeHighlight = getModelUpgradeHighlight(model);
+        <Tabs defaultValue="launches" className="mt-6">
+          <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/35 p-1 sm:w-fit">
+            <TabsTrigger value="launches">Launches</TabsTrigger>
+            {newDeploymentPaths.length > 0 ? (
+              <TabsTrigger value="deployments">Deployments</TabsTrigger>
+            ) : null}
+          </TabsList>
 
-            return (
-              <Link key={model.id} href={`/models/${model.slug}`}>
-                <Card className="group border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon h-full">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className="border-gain/30 bg-gain/10 text-[11px] text-gain"
-                      >
-                        NEW
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        {dateLabel}
-                      </span>
-                    </div>
-                    <h3 className="mt-3 text-sm font-semibold group-hover:text-neon transition-colors">
-                      {model.name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <ProviderLogo provider={model.provider} size="sm" />
-                      <p className="text-xs text-muted-foreground">
-                        {model.provider}
-                      </p>
-                    </div>
-                    {upgradeHighlight ? (
-                      <p className="mt-2 text-[11px] leading-5 text-muted-foreground line-clamp-3">
-                        {upgradeHighlight}
-                      </p>
-                    ) : null}
-                    <div className="mt-3 flex items-center justify-between">
-                      {catConfig && (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-transparent text-[11px]"
-                          style={{
-                            backgroundColor: `${catConfig.color}15`,
-                            color: catConfig.color,
-                          }}
-                        >
-                          <catConfig.icon className="h-3 w-3" />
-                          {catConfig.shortLabel}
-                        </Badge>
-                      )}
-                      <div className="flex items-center gap-2">
-                        {deploymentLabel ? (
-                          <Badge
-                            variant="outline"
-                            className="border-cyan-500/30 bg-cyan-500/10 text-[11px] text-cyan-200"
-                          >
-                            {deploymentLabel}
-                          </Badge>
-                        ) : null}
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap className="h-3 w-3 text-neon" />
-                          {parameterDisplay.label}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+          <TabsContent value="launches" className="mt-5">
+            <div className="overflow-x-auto pb-2">
+              <div className="flex min-w-full gap-4">
+                {newModels?.map(({ model, surfacedAt }) => {
+                  const catConfig = CATEGORIES.find((c) => c.slug === model.category);
+                  const parameterDisplay = getParameterDisplay(model);
+                  const surfaceDateValue = surfacedAt ?? model.release_date ?? null;
+                  const dateLabel = getRelativeDateLabel(surfaceDateValue, now);
+                  const deploymentLabel = getDeployabilityLabel({
+                    isOpenWeights: model.is_open_weights,
+                    accessOffer: getBestAccessOfferForModel(accessOffers, model.id),
+                  });
+                  const upgradeHighlight = getModelUpgradeHighlight(model);
 
-      {newDeploymentPaths.length > 0 ? (
-        <section className="mx-auto max-w-7xl px-4 py-12">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Server className="h-5 w-5 text-neon" />
-              <h2 className="text-xl font-bold">New Ways to Start Using Models</h2>
-            </div>
-            <Button variant="ghost" size="sm" className="text-neon" asChild>
-              <Link href="/news">
-                View All <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-
-          <p className="mt-3 text-sm text-muted-foreground">
-            This section tracks new ways a model became available to people, whether that means
-            use on AI Market Cap, a new provider option, or a new way to run it yourself.
-          </p>
-
-          <DeploymentMeaningLegend
-            className="mt-4"
-            intro="Deployment here means a model gained a real way to be used, whether that is on this site, through a provider, on a rented server, or on your own machine."
-          />
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {newDeploymentPaths.map(({ model, surfacedAt, title, summary, source, signalType }) => {
-              const catConfig = CATEGORIES.find((c) => c.slug === model.category);
-              const parameterDisplay = getParameterDisplay(model);
-              const dateLabel = getRelativeDateLabel(surfacedAt, now);
-
-              return (
-                <Link key={`${model.id}-${source ?? "deployment"}`} href={`/models/${model.slug}`}>
-                  <Card className="group border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon h-full">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge
-                          variant="outline"
-                          className="border-neon/30 bg-neon/10 text-[11px] text-neon"
-                        >
-                          {getUsageUpdateBadgeLabel(signalType)}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground">{dateLabel}</span>
-                      </div>
-                      <h3 className="mt-3 text-sm font-semibold group-hover:text-neon transition-colors">
-                        {model.name}
-                      </h3>
-                      <div className="mt-0.5 flex items-center gap-1.5">
-                        <ProviderLogo provider={model.provider} size="sm" />
-                        <p className="text-xs text-muted-foreground">{model.provider}</p>
-                      </div>
-                      <p className="mt-3 line-clamp-2 text-sm text-foreground/90">{title}</p>
-                      <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-                        {summary ?? "A new verified way to use this model is now available."}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between">
-                        {catConfig ? (
-                          <Badge
-                            variant="outline"
-                            className="gap-1 border-transparent text-[11px]"
-                            style={{
-                              backgroundColor: `${catConfig.color}15`,
-                              color: catConfig.color,
-                            }}
-                          >
-                            <catConfig.icon className="h-3 w-3" />
-                            {catConfig.shortLabel}
-                          </Badge>
-                        ) : (
-                          <span />
-                        )}
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap className="h-3 w-3 text-neon" />
-                          {parameterDisplay.label}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {/* Dashboard Row: Top Movers + Trending */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Top Movers â€” biggest rank changes */}
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <Shuffle className="h-5 w-5 text-neon" />
-              <h2 className="text-xl font-bold">Top Movers</h2>
-            </div>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Models with the biggest recent ranking changes.
-            </p>
-            <TopMovers />
-          </div>
-
-          {/* Trending Models */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Flame className="h-5 w-5 text-neon" />
-                <h2 className="text-xl font-bold">Trending Models</h2>
+                  return (
+                    <Link
+                      key={model.id}
+                      href={`/models/${model.slug}`}
+                      className="min-w-[280px] flex-1 snap-start sm:min-w-[320px]"
+                    >
+                      <Card className="group h-full border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <Badge
+                              variant="outline"
+                              className="border-gain/30 bg-gain/10 text-[11px] text-gain"
+                            >
+                              NEW
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground">{dateLabel}</span>
+                          </div>
+                          <h3 className="mt-3 text-sm font-semibold transition-colors group-hover:text-neon">
+                            {model.name}
+                          </h3>
+                          <div className="mt-0.5 flex items-center gap-1.5">
+                            <ProviderLogo provider={model.provider} size="sm" />
+                            <p className="text-xs text-muted-foreground">{model.provider}</p>
+                          </div>
+                          {upgradeHighlight ? (
+                            <p className="mt-2 line-clamp-3 text-[11px] leading-5 text-muted-foreground">
+                              {upgradeHighlight}
+                            </p>
+                          ) : null}
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            {catConfig ? (
+                              <Badge
+                                variant="outline"
+                                className="gap-1 border-transparent text-[11px]"
+                                style={{
+                                  backgroundColor: `${catConfig.color}15`,
+                                  color: catConfig.color,
+                                }}
+                              >
+                                <catConfig.icon className="h-3 w-3" />
+                                {catConfig.shortLabel}
+                              </Badge>
+                            ) : (
+                              <span />
+                            )}
+                            <div className="flex items-center gap-2">
+                              {deploymentLabel ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-cyan-500/30 bg-cyan-500/10 text-[11px] text-cyan-200"
+                                >
+                                  {deploymentLabel}
+                                </Badge>
+                              ) : null}
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Zap className="h-3 w-3 text-neon" />
+                                {parameterDisplay.label}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
-            <p className="mb-4 text-sm text-muted-foreground">
-              The models people are actively searching for and opening now.
-            </p>
+          </TabsContent>
+
+          {newDeploymentPaths.length > 0 ? (
+            <TabsContent value="deployments" className="mt-5">
+              <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <Server className="h-4 w-4 text-neon" />
+                <span>
+                  New official APIs, self-host paths, and verified platform rollouts for tracked models.
+                </span>
+              </div>
+              <div className="overflow-x-auto pb-2">
+                <div className="flex min-w-full gap-4">
+                  {newDeploymentPaths.map(
+                    ({ model, surfacedAt, title, summary, source, signalType }) => {
+                      const catConfig = CATEGORIES.find((c) => c.slug === model.category);
+                      const parameterDisplay = getParameterDisplay(model);
+                      const dateLabel = getRelativeDateLabel(surfacedAt, now);
+
+                      return (
+                        <Link
+                          key={`${model.id}-${source ?? "deployment"}`}
+                          href={`/models/${model.slug}`}
+                          className="min-w-[280px] flex-1 snap-start sm:min-w-[320px]"
+                        >
+                          <Card className="group h-full border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className="border-neon/30 bg-neon/10 text-[11px] text-neon"
+                                >
+                                  {getUsageUpdateBadgeLabel(signalType)}
+                                </Badge>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {dateLabel}
+                                </span>
+                              </div>
+                              <h3 className="mt-3 text-sm font-semibold transition-colors group-hover:text-neon">
+                                {model.name}
+                              </h3>
+                              <div className="mt-0.5 flex items-center gap-1.5">
+                                <ProviderLogo provider={model.provider} size="sm" />
+                                <p className="text-xs text-muted-foreground">{model.provider}</p>
+                              </div>
+                              <p className="mt-3 line-clamp-2 text-sm text-foreground/90">
+                                {title}
+                              </p>
+                              <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                                {summary ?? "A new verified way to use this model is now available."}
+                              </p>
+                              <div className="mt-3 flex items-center justify-between">
+                                {catConfig ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 border-transparent text-[11px]"
+                                    style={{
+                                      backgroundColor: `${catConfig.color}15`,
+                                      color: catConfig.color,
+                                    }}
+                                  >
+                                    <catConfig.icon className="h-3 w-3" />
+                                    {catConfig.shortLabel}
+                                  </Badge>
+                                ) : (
+                                  <span />
+                                )}
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Zap className="h-3 w-3 text-neon" />
+                                  {parameterDisplay.label}
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          ) : null}
+        </Tabs>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shuffle className="h-5 w-5 text-neon" />
+            <h2 className="text-xl font-bold">What&apos;s moving now</h2>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          The market-cap view needs movement, not two equal-weight widgets fighting for attention.
+        </p>
+        <Tabs defaultValue="movers" className="mt-6">
+          <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/35 p-1 sm:w-fit">
+            <TabsTrigger value="movers">Top Movers</TabsTrigger>
+            <TabsTrigger value="trending">Trending</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="movers" className="mt-5">
+            <TopMovers />
+          </TabsContent>
+
+          <TabsContent value="trending" className="mt-5">
             <Card className="border-border/50 bg-card">
               <CardContent className="p-4">
+                <div className="mb-4 flex items-center gap-3">
+                  <Flame className="h-5 w-5 text-neon" />
+                  <h3 className="text-lg font-semibold">Trending Models</h3>
+                </div>
                 <TrendingModels limit={8} />
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </section>
 
-      {/* Quality vs Price Frontier â€” Interactive Scatter */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="h-5 w-5 text-neon" />
-            <h2 className="text-xl font-bold">Quality vs Price Frontier</h2>
-          </div>
-          <Button variant="ghost" size="sm" className="text-neon" asChild>
-            <Link href="/leaderboards?tab=frontier">
-              Explore <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Use this chart to find models that give strong results without overspending.
-        </p>
-        <QualityPriceFrontier />
-      </section>
-
-      {/* Market Analytics: Provider + Category Distribution */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <h2 className="text-xl font-bold mb-6">Market Analytics</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          These charts show where model supply is concentrated by provider and by category.
-        </p>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Provider Market Share</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProviderMarketShare data={providerChartData} />
-            </CardContent>
-          </Card>
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Models by Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CategoryDistribution data={categoryChartData} />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Subscription Access Leaders */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold">Best Subscription Access</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            If you want a paid plan instead of raw API billing, start here.
-          </p>
-        </div>
-        <TopSubscriptionProviders offers={accessOffers.subscriptionOffers.slice(0, 6)} />
-      </section>
-
-      {/* Categories Grid */}
       <section className="mx-auto max-w-7xl px-4 py-12">
         <div className="flex items-center gap-3">
-          <Layers className="h-5 w-5 text-neon" />
-          <h2 className="text-xl font-bold">Browse by Category</h2>
+          <BarChart3 className="h-5 w-5 text-neon" />
+          <h2 className="text-xl font-bold">Go deeper when you need it</h2>
         </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
-          {CATEGORIES.map((cat) => (
-            <Link key={cat.slug} href={`/models?category=${cat.slug}`}>
-              <Card className="group border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: `${cat.color}15` }}
-                  >
-                    <cat.icon
-                      className="h-6 w-6"
-                      style={{ color: cat.color }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold group-hover:text-neon transition-colors">
-                      {cat.label}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {cat.description}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-neon transition-colors" />
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <p className="mt-3 text-sm text-muted-foreground">
+          The homepage should shortlist decisions. Frontier charts, supply maps, and subscription
+          breakdowns belong one click deeper.
+        </p>
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <Link href="/leaderboards?tab=frontier">
+            <Card className="group h-full border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <BarChart3 className="h-4 w-4 text-neon" />
+                  Quality vs Price Frontier
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  See the full efficiency scatter plot when you are comparing outcome quality to verified spend.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/leaderboards">
+            <Card className="group h-full border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Scale className="h-4 w-4 text-neon" />
+                  Market Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Explore deeper market structure through ranking views, provider concentration, and category slices.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/pricing">
+            <Card className="group h-full border-border/50 bg-card transition-all hover:border-neon/30 hover:glow-neon">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Server className="h-4 w-4 text-neon" />
+                  Best Subscription Access
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Compare paid plans and verified access routes on the dedicated pricing surface instead of in the hero flow.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </section>
 
@@ -1020,22 +944,29 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-neon/5 to-transparent" />
           <CardContent className="relative flex flex-col items-center p-8 text-center md:p-12">
             <h2 className="text-2xl font-bold md:text-3xl">
-              List your AI model on the marketplace
+              Get the API or start tracking the market directly
             </h2>
             <p className="mt-3 max-w-lg text-muted-foreground">
-              Reach thousands of developers and businesses looking for AI
-              models. Sell API access, fine-tuned models, datasets, and more.
+              Pull rankings and model metadata into your own workflows, or start with
+              watchlists and live surfaces before you build anything custom.
             </p>
-            <Button
-              size="lg"
-              className="mt-6 bg-neon text-background font-semibold hover:bg-neon/90"
-              asChild
-            >
-              <Link href="/sell" prefetch={false}>
-                Start Selling
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                className="bg-neon text-background font-semibold hover:bg-neon/90"
+                asChild
+              >
+                <Link href="/api-docs">
+                  Get the API
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/discover" prefetch={false}>
+                  Start Tracking
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>

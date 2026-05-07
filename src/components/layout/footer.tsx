@@ -13,8 +13,9 @@ const FOOTER_LINKS = {
     { href: "/workspace", label: "Workspace" },
     { href: "/deployments", label: "Deployments" },
     { href: "/discover", label: "Discover Watchlists" },
+    { href: "/pricing", label: "Pricing" },
   ],
-  Categories: CATEGORIES.slice(0, 5).map((c) => ({
+  Categories: CATEGORIES.map((c) => ({
     href: `/models?category=${c.slug}`,
     label: c.shortLabel,
   })),
