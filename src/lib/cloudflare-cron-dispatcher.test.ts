@@ -32,10 +32,31 @@ describe("cloudflare cron dispatcher schedule", () => {
       expect.arrayContaining([
         "Tier 1 Sync",
         "Tier 2 Sync",
+        "Launch Signals (X Announcements)",
         "Auction Settlement",
         "Deployment Reconcile",
       ])
     );
     expect(dueJobs).not.toContain("Wallet Chain Deposit Scan");
+    expect(dueJobs).not.toContain("Launch Signals (Provider News)");
+  });
+
+  it("staggered launch-signal syncs land on separate five-minute ticks", () => {
+    const onHour = new Date("2026-05-18T05:00:00.000Z");
+    const atFive = new Date("2026-05-18T05:05:00.000Z");
+
+    expect(dueJobsForTime(onHour).map((job) => job.name)).toEqual(
+      expect.arrayContaining(["Launch Signals (X Announcements)"])
+    );
+    expect(dueJobsForTime(onHour).map((job) => job.name)).not.toContain(
+      "Launch Signals (Provider News)"
+    );
+
+    expect(dueJobsForTime(atFive).map((job) => job.name)).toEqual(
+      expect.arrayContaining([
+        "Launch Signals (Provider News)",
+        "Auction Settlement",
+      ])
+    );
   });
 });

@@ -20,6 +20,16 @@
     "path": "/api/cron/sync?tier=4"
   },
   {
+    "name": "Launch Signals (X Announcements)",
+    "cron": "0 * * * *",
+    "path": "/api/cron/sync?source=x-announcements"
+  },
+  {
+    "name": "Launch Signals (Provider News)",
+    "cron": "5 * * * *",
+    "path": "/api/cron/sync?source=provider-news"
+  },
+  {
     "name": "Auction Settlement",
     "cron": "*/5 * * * *",
     "path": "/api/cron/auctions"
