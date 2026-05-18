@@ -124,7 +124,7 @@ export function Header() {
         </nav>
 
         {/* Right side */}
-        <div className="ml-3 flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 xl:ml-3">
           <SearchDialog />
 
           <div className="hidden items-center gap-1 xl:flex">

@@ -81,12 +81,15 @@ describe("Header", () => {
     const brandText = screen.getByText("AI Market", { exact: false });
     const desktopNav = screen.getByRole("navigation", { name: /main navigation/i });
     const [modelsLink] = Array.from(desktopNav.querySelectorAll("a[href=\"/models\"]"));
+    const actionsContainer = screen.getByTestId("search-dialog").parentElement;
 
     expect(brandLink).toHaveClass("shrink-0");
     expect(brandText).toHaveClass("whitespace-nowrap");
     expect(brandText).not.toHaveClass("truncate");
     expect(modelsLink).toHaveClass("shrink-0");
     expect(modelsLink).toHaveClass("whitespace-nowrap");
+    expect(actionsContainer).toHaveClass("ml-auto");
+    expect(actionsContainer).toHaveClass("xl:ml-3");
   });
 
   it("keeps account links accessible while reducing signed-in header crowding", () => {
