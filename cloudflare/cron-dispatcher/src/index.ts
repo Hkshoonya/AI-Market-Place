@@ -18,6 +18,20 @@ interface WorkerExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
+interface HealthSnapshot {
+  status?: string;
+  release?: {
+    commitSha?: string | null;
+    branch?: string | null;
+    environment?: string | null;
+  };
+  cron?: {
+    mode?: string | null;
+    schedulerConfigured?: boolean;
+    lastRunAt?: string | null;
+  };
+}
+
 function normalizeBaseUrl(url: string) {
   return url.replace(/\/+$/, "");
 }
@@ -91,7 +105,41 @@ async function dispatchJobs(jobs: CronJobDefinition[], at: Date, env: Env) {
   return summary;
 }
 
+async function fetchTargetHealth(env: Env): Promise<HealthSnapshot | null> {
+  const response = await fetch(buildTargetUrl(env, "/api/health"), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${env.CRON_SECRET}`,
+      "User-Agent": "aimarketcap-cron-dispatcher/1.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Health check failed with HTTP ${response.status}`);
+  }
+
+  const body = (await response.json()) as HealthSnapshot;
+  return body;
+}
+
 async function dispatchDueJobs(at: Date, env: Env) {
+  const health = await fetchTargetHealth(env);
+  if (health?.cron?.mode !== "external") {
+    const summary = {
+      scheduledTime: at.toISOString(),
+      attempted: 0,
+      failed: 0,
+      durationMs: 0,
+      skipped: true,
+      reason: "target_cron_mode_not_external",
+      targetCronMode: health?.cron?.mode ?? null,
+      targetRelease: health?.release?.commitSha ?? null,
+      results: [],
+    };
+    console.log("Cron dispatch skipped because target app has not cut over yet", summary);
+    return summary;
+  }
+
   const jobs = dueJobsForTime(at);
   if (jobs.length === 0) {
     const summary = {
