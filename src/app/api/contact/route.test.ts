@@ -43,14 +43,25 @@ describe("POST /api/contact", () => {
     vi.clearAllMocks();
   });
 
-  it("stores a generic contact submission without notifying admin users", async () => {
+  it("stores a generic contact submission and notifies admin users", async () => {
     const contactInsert = vi.fn().mockResolvedValue({ error: null });
     const notificationsInsert = vi.fn().mockResolvedValue({ error: null });
+    const adminLookup = vi.fn().mockResolvedValue({
+      data: [{ id: "admin-1" }, { id: "admin-2" }],
+      error: null,
+    });
 
     mockCreateAdminClient.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "contact_submissions") {
           return { insert: contactInsert };
+        }
+        if (table === "profiles") {
+          return {
+            select: vi.fn(() => ({
+              eq: adminLookup,
+            })),
+          };
         }
         if (table === "notifications") {
           return { insert: notificationsInsert };
@@ -73,7 +84,21 @@ describe("POST /api/contact", () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(contactInsert).toHaveBeenCalledOnce();
-    expect(notificationsInsert).not.toHaveBeenCalled();
+    expect(adminLookup).toHaveBeenCalledWith("is_admin", true);
+    expect(notificationsInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        user_id: "admin-1",
+        type: "system",
+        title: "New contact submission",
+        link: "/admin",
+      }),
+      expect.objectContaining({
+        user_id: "admin-2",
+        type: "system",
+        title: "New contact submission",
+        link: "/admin",
+      }),
+    ]);
   });
 
   it("notifies the targeted seller when a listing contact submission includes seller context", async () => {
@@ -147,5 +172,41 @@ describe("POST /api/contact", () => {
       })
     );
     expect(inquiryCountUpdate).toHaveBeenCalledWith("id", "listing-1");
+  });
+
+  it("returns an error when the contact submission cannot be persisted", async () => {
+    const contactInsert = vi.fn().mockResolvedValue({
+      error: { message: "insert failed" },
+    });
+    const notificationsInsert = vi.fn();
+
+    mockCreateAdminClient.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "contact_submissions") {
+          return { insert: contactInsert };
+        }
+        if (table === "notifications") {
+          return { insert: notificationsInsert };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      makeRequest({
+        name: "Harshit",
+        email: "harshit@example.com",
+        category: "general",
+        subject: "General question",
+        message: "Need help with the marketplace.",
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: "Failed to save your message. Please try again.",
+    });
+    expect(notificationsInsert).not.toHaveBeenCalled();
   });
 });

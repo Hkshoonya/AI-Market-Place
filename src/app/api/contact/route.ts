@@ -17,6 +17,50 @@ const contactSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
+async function notifyAdminsAboutContactSubmission(
+  supabase: ReturnType<typeof createAdminClient>,
+  subject: string,
+  name: string,
+  email: string
+) {
+  const { data: admins, error: adminsError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("is_admin", true);
+
+  if (adminsError) {
+    void systemLog.warn("api/contact", "Admin notification recipient lookup failed", {
+      error: adminsError.message,
+    });
+    return;
+  }
+
+  const adminIds = (admins ?? [])
+    .map((admin) => admin.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  if (adminIds.length === 0) {
+    return;
+  }
+
+  const { error: notifError } = await supabase.from("notifications").insert(
+    adminIds.map((userId) => ({
+      user_id: userId,
+      type: "system" as const,
+      title: "New contact submission",
+      message: `${name} (${email}) · ${subject}`,
+      link: "/admin",
+    }))
+  );
+
+  if (notifError) {
+    void systemLog.warn("api/contact", "Admin contact notification insert failed", {
+      error: notifError.message,
+      adminCount: adminIds.length,
+    });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = await rateLimit(`contact:${ip}`, RATE_LIMITS.write);
@@ -89,7 +133,10 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       void systemLog.error("api/contact", "DB insert failed", { error: insertError.message });
-      // Still return success to user — log the error server-side
+      return NextResponse.json(
+        { error: "Failed to save your message. Please try again." },
+        { status: 500 }
+      );
     }
 
     if (listingContext?.seller_id) {
@@ -120,6 +167,8 @@ export async function POST(request: NextRequest) {
           sellerId: listingContext.seller_id,
         });
       }
+    } else {
+      await notifyAdminsAboutContactSubmission(supabase, subject, name, email);
     }
 
     return NextResponse.json({
