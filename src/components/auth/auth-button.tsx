@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
@@ -78,11 +77,12 @@ export function AuthButton() {
           aria-label={`User menu for ${displayName}`}
         >
           {avatarUrl ? (
-            <Image
+            // User avatars can be arbitrary remote URLs or SVGs.
+            // Render them directly instead of routing through next/image.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={avatarUrl}
               alt={displayName}
-              width={32}
-              height={32}
               className="h-8 w-8 rounded-full object-cover"
             />
           ) : (

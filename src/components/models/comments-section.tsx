@@ -10,7 +10,6 @@ import { SWR_TIERS } from "@/lib/swr/config";
 import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatRelativeDate } from "@/lib/format";
 import { clientError } from "@/lib/client-log";
-import Image from "next/image";
 import Link from "next/link";
 
 interface Comment {
@@ -254,11 +253,11 @@ export function CommentsSection({ modelId }: CommentsSectionProps) {
       >
         <div className="flex gap-3 py-3">
           {avatarUrl ? (
-            <Image
+            // Comment avatars are user-provided and may be SVGs or arbitrary remote URLs.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={avatarUrl}
               alt={authorName}
-              width={32}
-              height={32}
               className="h-8 w-8 rounded-full object-cover shrink-0"
             />
           ) : (

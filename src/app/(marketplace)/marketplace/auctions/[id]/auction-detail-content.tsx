@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import useSWR from "swr";
 import {
   ArrowLeft,
@@ -257,13 +256,12 @@ export default function AuctionDetailContent({
                 <div className="mt-3 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold">
                     {auction.seller.avatar_url ? (
-                      <Image
+                      // Seller avatars are user-provided and may be SVGs or arbitrary remote URLs.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
                         src={auction.seller.avatar_url}
                         alt={auction.seller.display_name}
-                        width={40}
-                        height={40}
                         className="h-10 w-10 rounded-full object-cover"
-                        unoptimized
                       />
                     ) : (
                       auction.seller.display_name.charAt(0).toUpperCase()
