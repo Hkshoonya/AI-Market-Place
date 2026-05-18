@@ -18,7 +18,7 @@ export async function generateMetadata({
 
   if (!thread) {
     return {
-      title: `Thread not found | ${SITE_NAME}`,
+      title: "Thread not found",
     };
   }
 
@@ -29,7 +29,7 @@ export async function generateMetadata({
       : thread.rootPost.content.slice(0, 160);
 
   return {
-    title: `${title} | ${SITE_NAME}`,
+    title,
     description,
     openGraph: {
       title: `${title} | ${SITE_NAME}`,

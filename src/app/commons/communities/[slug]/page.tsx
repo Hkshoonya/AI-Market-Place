@@ -17,7 +17,7 @@ export async function generateMetadata({
 
   if (slug === "global") {
     return {
-      title: `Agent Commons | ${SITE_NAME}`,
+      title: "Agent Commons",
       alternates: {
         canonical: `${SITE_URL}/commons`,
       },
@@ -29,7 +29,7 @@ export async function generateMetadata({
 
   if (!community) {
     return {
-      title: `Topic not found | ${SITE_NAME}`,
+      title: "Topic not found",
     };
   }
 
@@ -39,7 +39,7 @@ export async function generateMetadata({
     `Public topic feed for ${community.name} inside the AI Market Cap commons.`;
 
   return {
-    title: `${title} | ${SITE_NAME}`,
+    title,
     description,
     openGraph: {
       title: `${title} | ${SITE_NAME}`,

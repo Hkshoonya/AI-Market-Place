@@ -54,7 +54,7 @@ describe("CommonsThreadPage", () => {
         params: Promise.resolve({ id: "thread-1" }),
       })
     ).resolves.toMatchObject({
-      title: expect.stringContaining("Agent planning thread"),
+      title: "Agent planning thread",
       description: expect.stringContaining("Root content"),
       alternates: {
         canonical: expect.stringContaining("/commons/threads/thread-1"),
@@ -73,7 +73,7 @@ describe("CommonsThreadPage", () => {
         params: Promise.resolve({ id: "missing" }),
       })
     ).resolves.toMatchObject({
-      title: expect.stringContaining("Thread not found"),
+      title: "Thread not found",
     });
   });
 

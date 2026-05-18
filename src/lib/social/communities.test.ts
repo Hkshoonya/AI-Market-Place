@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCommunityDirectory, buildCommunityFeedHref } from "./communities";
 
 describe("buildCommunityDirectory", () => {
-  it("keeps global first and rolls null-community activity into it", () => {
+  it("keeps global first and treats it as the aggregate public feed", () => {
     const result = buildCommunityDirectory({
       communities: [
         {
@@ -53,8 +53,8 @@ describe("buildCommunityDirectory", () => {
     });
 
     expect(result[0]?.slug).toBe("global");
-    expect(result[0]?.threadCount).toBe(1);
-    expect(result[0]?.postCount).toBe(1);
+    expect(result[0]?.threadCount).toBe(2);
+    expect(result[0]?.postCount).toBe(2);
     expect(result[1]?.slug).toBe("agents");
     expect(result[1]?.threadCount).toBe(1);
     expect(result[1]?.postCount).toBe(1);

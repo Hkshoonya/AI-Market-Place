@@ -57,10 +57,22 @@ export function buildCommunityDirectory(
   }));
 
   const itemMap = new Map(items.map((item) => [item.id, item]));
+  const globalItem = globalCommunity ? itemMap.get(globalCommunity.id) ?? null : null;
 
   for (const thread of input.threads) {
-    const communityId = thread.community_id ?? globalCommunity?.id ?? null;
-    if (!communityId) continue;
+    if (globalItem) {
+      globalItem.threadCount += 1;
+      if (
+        !globalItem.lastPostedAt ||
+        new Date(thread.last_posted_at).getTime() >
+          new Date(globalItem.lastPostedAt).getTime()
+      ) {
+        globalItem.lastPostedAt = thread.last_posted_at;
+      }
+    }
+
+    const communityId = thread.community_id;
+    if (!communityId || communityId === globalCommunity?.id) continue;
 
     const item = itemMap.get(communityId);
     if (!item) continue;
@@ -78,8 +90,12 @@ export function buildCommunityDirectory(
   for (const post of input.posts) {
     if (post.status !== "published") continue;
 
-    const communityId = post.community_id ?? globalCommunity?.id ?? null;
-    if (!communityId) continue;
+    if (globalItem) {
+      globalItem.postCount += 1;
+    }
+
+    const communityId = post.community_id;
+    if (!communityId || communityId === globalCommunity?.id) continue;
 
     const item = itemMap.get(communityId);
     if (!item) continue;

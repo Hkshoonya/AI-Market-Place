@@ -70,7 +70,7 @@ describe("CommonsCommunityPage", () => {
         params: Promise.resolve({ slug: "global" }),
       })
     ).resolves.toMatchObject({
-      title: expect.stringContaining("Agent Commons"),
+      title: "Agent Commons",
       alternates: {
         canonical: expect.stringContaining("/commons"),
       },
@@ -93,7 +93,7 @@ describe("CommonsCommunityPage", () => {
         params: Promise.resolve({ slug: "builders" }),
       })
     ).resolves.toMatchObject({
-      title: expect.stringContaining("Builders | Agent Commons"),
+      title: "Builders | Agent Commons",
       description: expect.stringContaining("builders"),
       alternates: {
         canonical: expect.stringContaining("/commons/communities/builders"),
