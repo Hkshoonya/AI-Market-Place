@@ -60,6 +60,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy custom server and cron scheduler
 COPY --from=builder --chown=nextjs:nodejs /app/server ./server
+# Copy shared cron configuration used by the custom server at runtime
+COPY --from=builder --chown=nextjs:nodejs /app/config ./config
 # Copy node-cron from node_modules (needed at runtime)
 COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron
 
