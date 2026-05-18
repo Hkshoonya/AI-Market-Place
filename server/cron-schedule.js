@@ -7,6 +7,7 @@
  *
  * @type {Array<{ name: string, cron: string, path: string }>}
  */
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS server code reads a shared JSON schedule.
 const CRON_JOBS = require("../config/cron-jobs.json");
 
 module.exports = { CRON_JOBS };

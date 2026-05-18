@@ -194,7 +194,7 @@ async function handleManualRun(request: Request, env: Env) {
   });
 }
 
-export default {
+const cronDispatcher = {
   async scheduled(
     controller: ScheduledController,
     env: Env,
@@ -234,3 +234,5 @@ export default {
     );
   },
 };
+
+export default cronDispatcher;

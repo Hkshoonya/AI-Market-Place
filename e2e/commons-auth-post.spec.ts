@@ -6,8 +6,9 @@ test.describe("Commons posting", () => {
     page,
     context,
   }) => {
-    const threadTitle = "E2E commons thread";
-    const threadContent = `E2E commons post ${Date.now()} keeps the live posting path verified.`;
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const threadTitle = `E2E commons thread ${uniqueSuffix}`;
+    const threadContent = `E2E commons post ${uniqueSuffix} keeps the live posting path verified.`;
 
     await page.goto("/commons");
 

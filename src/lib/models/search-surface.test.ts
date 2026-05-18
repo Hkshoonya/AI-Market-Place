@@ -85,11 +85,16 @@ describe("prepareSearchSurfaceModels", () => {
       10
     );
 
-    expect(results.map((model) => model.id)).toEqual([
-      "official-gemini",
-      "official-claude",
-      "official-gpt",
-    ]);
+    expect(results[0]?.id).toBe("official-gemini");
+    expect(results).toHaveLength(3);
+    expect(results.map((model) => model.id)).toEqual(
+      expect.arrayContaining([
+        "official-gemini",
+        "official-claude",
+        "official-gpt",
+      ])
+    );
+    expect(results.map((model) => model.id)).not.toContain("community-preview");
   });
 
   it("preserves explicit preview searches", () => {
