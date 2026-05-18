@@ -1,5 +1,6 @@
 {
   "name": "aimarketcap-cron-dispatcher",
+  "account_id": "fbfce5875ce339f84da50ababc61faaf",
   "main": "src/index.ts",
   "compatibility_date": "2026-05-18",
   "workers_dev": true,
