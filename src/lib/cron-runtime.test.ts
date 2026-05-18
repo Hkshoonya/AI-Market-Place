@@ -29,12 +29,12 @@ describe("cron runtime mode", () => {
     expect(resolveCronRunnerMode()).toBe("disabled");
   });
 
-  it("coerces explicit external mode back to internal on Railway", async () => {
+  it("honors explicit external mode on Railway", async () => {
     process.env.CRON_RUNNER_MODE = "external";
     process.env.RAILWAY_ENVIRONMENT = "production";
 
     const { resolveCronRunnerMode } = await import("./cron-runtime");
-    expect(resolveCronRunnerMode()).toBe("internal");
+    expect(resolveCronRunnerMode()).toBe("external");
   });
 
   it("honors explicit external mode outside Railway", async () => {

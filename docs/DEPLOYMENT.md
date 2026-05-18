@@ -5,7 +5,7 @@ Production target: `aimarketcap.tech`
 This repository is configured for:
 - Railway running the app container from `Dockerfile`
 - Supabase Cloud as the database
-- Railway in-process cron as the scheduler of record
+- Cloudflare cron dispatcher as the scheduler of record
 - GitHub Actions for CI/CD and manual cron recovery only
 
 This guide now supports one optional supplemental Railway cron service for fast launch-signal pickup. It is not a second primary scheduler.
@@ -14,14 +14,12 @@ This guide now supports one optional supplemental Railway cron service for fast 
 
 The live deployment should use exactly one primary scheduler.
 
-- Primary scheduler: Railway in-process cron through `server/custom-server.js`
-- App runtime: `CRON_RUNNER_MODE=internal`
+- Primary scheduler: Cloudflare cron dispatcher through `cloudflare/cron-dispatcher`
+- App runtime: `CRON_RUNNER_MODE=external`
 - GitHub Actions cron: manual recovery only through `workflow_dispatch`
-- External cron: optional local/manual recovery path only, not the default
+- Railway in-process cron: fallback only, not the default
 
 The cron lock is designed to tolerate overlap during a cutover window, but overlap should not be the steady-state design.
-
-The only supported steady-state exception is a small supplemental launch-signal cron service that runs source-specific syncs for `x-announcements` and `provider-news`. Those runs are protected by per-source adapter locks so they do not overlap unsafely with the primary tier sync.
 
 ## Required environment variables
 
@@ -33,7 +31,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 CRON_SECRET=<strong-random-secret>
 NEXT_PUBLIC_SITE_URL=https://aimarketcap.tech
-CRON_RUNNER_MODE=internal
+CRON_RUNNER_MODE=external
 CRON_SINGLE_RUN_LOCK=true
 RATE_LIMIT_BACKEND=database
 ENABLE_MARKETPLACE_FEES=false
@@ -73,15 +71,15 @@ BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY=true
 ```
 
 Important:
-- Railway deployments should run with `CRON_RUNNER_MODE=internal`.
-- If an old Railway env still says `CRON_RUNNER_MODE=external`, the runtime now coerces it back to `internal`.
-- Do not run an external cron host against the same Railway production app as steady state.
+- Railway deployments should run with `CRON_RUNNER_MODE=external` when Cloudflare owns scheduling.
+- The runtime now honors explicit `CRON_RUNNER_MODE=external` on Railway.
+- Do not leave Railway internal cron enabled once the Cloudflare dispatcher is deployed.
 - Keep `RATE_LIMIT_BACKEND=database` in production so rate limits are shared across instances and cold starts.
 - Keep `ENABLE_MARKETPLACE_FEES=false` until you intentionally want marketplace escrow releases to deduct platform fees again.
 
 ## Railway deployment
 
-The container entrypoint remains `server/custom-server.js`, and with `CRON_RUNNER_MODE=internal` it serves the app and schedules cron jobs internally on Railway.
+The container entrypoint remains `server/custom-server.js`. With `CRON_RUNNER_MODE=external` it serves the app only and expects Cloudflare to call the cron routes.
 
 Railway should deploy the service from:
 
@@ -89,7 +87,7 @@ Railway should deploy the service from:
 railway.json -> Dockerfile -> node server/custom-server.js
 ```
 
-The Railway in-process scheduler currently owns jobs such as:
+The Railway app still owns the job implementation for routes such as:
 - tiered source sync
 - auction settlement
 - wallet deposit scan
@@ -97,42 +95,35 @@ The Railway in-process scheduler currently owns jobs such as:
 - score computation
 - resident-agent maintenance
 
-## Optional Railway launch-signal cron service
+## Cloudflare cron dispatcher
 
-Use this only if you want faster pickup for official provider/X launch chatter without increasing the cadence of the full pipeline.
-
-Railway supports separate cron services whose start command runs on schedule and exits. Configure an additional service in the same project with:
+Deploy the scheduler worker from:
 
 ```text
-Start command: npm run cron:launch-signals
-Schedule: 0 * * * *        # hourly low-cost default
+cloudflare/cron-dispatcher
 ```
 
-If you want slightly faster pickup, use:
+Worker config:
+- one Cloudflare Cron Trigger: `*/5 * * * *`
+- shared job table from `config/cron-jobs.json`
+- dispatch target: `https://aimarketcap.tech`
+- auth: `CRON_SECRET` secret in the Worker
+
+Deploy steps:
+
+```bash
+printf '%s' "$CRON_SECRET" | npx wrangler secret put CRON_SECRET -c cloudflare/cron-dispatcher/wrangler.jsonc
+npm run deploy:cloudflare-cron
+```
+
+The Worker computes which jobs are due at each 5-minute tick and calls the existing Railway cron routes with `Authorization: Bearer <CRON_SECRET>`.
+
+Manual verification:
 
 ```text
-Schedule: */30 * * * *     # every 30 minutes
+GET  https://<worker-subdomain>.workers.dev/
+POST https://<worker-subdomain>.workers.dev/run      # requires Authorization: Bearer <CRON_SECRET>
 ```
-
-Service guidance:
-- same repository and environment as the main app
-- no public domain
-- no healthcheck path
-- not always-on
-
-What it does:
-- runs only `x-announcements`
-- runs only `provider-news`
-- records runs into `cron_runs`
-- reuses the same sync internals as the app
-- exits after completion
-
-What it does not do:
-- does not run the full tier pipeline
-- does not recompute rankings
-- does not replace the main Railway in-process scheduler
-
-This is the recommended low-cost way to improve launch freshness on Railway without adding a permanently running worker.
 
 Build-time environment requirements:
 - `NEXT_PUBLIC_SITE_URL`
@@ -159,9 +150,9 @@ Set the public origin to:
 https://aimarketcap.tech
 ```
 
-## External cron setup
+## Manual recovery cron setup
 
-External cron is no longer the recommended steady-state production scheduler. Keep this section only for local/manual recovery or migration windows.
+External shell cron is now a manual recovery path only. Keep this section only for local/manual recovery or migration windows.
 
 Copy the helper script to a temporary recovery host only when needed:
 
@@ -215,7 +206,7 @@ source /opt/aimc/.env && /opt/aimc/scripts/cron-jobs.sh sync-source arena-hard-a
 
 Use it with `workflow_dispatch` only when Railway cron needs manual recovery.
 
-Do not add scheduled GitHub Actions cron while Railway in-process cron is the scheduler of record.
+Do not add scheduled GitHub Actions cron while Cloudflare is the scheduler of record.
 
 ## Stripe webhook readiness
 
@@ -245,7 +236,7 @@ Use:
 
 Behavior:
 - returns `503` when the app cannot reach the database
-- reports the effective cron mode after Railway safety coercion
+- reports the effective cron mode
 - reports recent cron activity from `cron_runs`
 
 Authenticated health calls are more informative than anonymous ones.
@@ -254,10 +245,11 @@ Authenticated health calls are more informative than anonymous ones.
 
 Safe deployment order:
 1. Apply database migrations.
-2. Deploy the app with `CRON_RUNNER_MODE=internal` and `CRON_SINGLE_RUN_LOCK=true`.
+2. Deploy the app with `CRON_RUNNER_MODE=external` and `CRON_SINGLE_RUN_LOCK=true`.
 3. Confirm the durable rate-limit migration is applied and `RATE_LIMIT_BACKEND=database` is present in the environment.
-4. Confirm `/api/health` shows internal cron mode and recent cron activity.
-5. Do not leave an external cron host enabled against the same production app.
+4. Deploy the Cloudflare cron dispatcher and set its `CRON_SECRET`.
+5. Confirm `/api/health` shows external cron mode and recent cron activity.
+6. Do not leave Railway internal cron enabled against the same production app.
 6. Keep GitHub Actions cron manual-only unless Railway cron ownership intentionally changes.
 7. After observing deprecated-path logs, enable the enforcement flags.
 

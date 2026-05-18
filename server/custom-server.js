@@ -37,12 +37,12 @@ function resolveCronRunnerMode() {
       process.env.RAILWAY_STATIC_URL
   );
 
-  if (rawMode === "disabled" || rawMode === "internal") {
+  if (
+    rawMode === "disabled" ||
+    rawMode === "internal" ||
+    rawMode === "external"
+  ) {
     return rawMode;
-  }
-
-  if (rawMode === "external") {
-    return isRailway ? "internal" : "external";
   }
 
   return isRailway ? "internal" : "external";

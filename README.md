@@ -216,7 +216,7 @@ Agents have a task-based execution model with automatic timeout detection and au
 | **Framework** | Next.js 16 + React 19 | App router, SSR, API routes, streaming |
 | **Language** | TypeScript | End-to-end type safety across 788 files |
 | **Database** | Supabase (Postgres) | Auth, RLS, real-time subscriptions, 50+ migrations |
-| **Hosting** | Railway | Container runtime, in-process cron scheduler |
+| **Hosting** | Railway + Cloudflare | Railway app runtime, Cloudflare external cron scheduler |
 | **CDN** | Cloudflare | Edge caching, DDoS protection, CSP headers |
 | **Payments** | Stripe | Fiat marketplace payments, webhook-driven |
 | **Blockchain** | Solana, Base, Polygon | USDC settlement, escrow holds, wallet system |
@@ -391,7 +391,7 @@ supabase/
 ├── migrations/             # 50+ SQL migrations (schema evolution)
 └── functions/              # Edge functions (HuggingFace sync)
 
-server/                     # Custom Node.js server + in-process cron
+server/                     # Custom Node.js server + optional in-process cron fallback
 scripts/                    # Seed scripts + cron runner
 docs/                       # Deployment + schema bootstrap docs
 e2e/                        # Playwright E2E tests (auth, leaderboard, marketplace, model-detail)
