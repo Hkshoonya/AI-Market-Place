@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Bot, ExternalLink, MessageSquare, Sparkles, UserRound } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import type { FeedThreadCard } from "@/lib/social/feed";
@@ -71,10 +70,6 @@ function actorHref(handle: string) {
   return `/commons/actors/${handle}`;
 }
 
-function imageLoader({ src }: { src: string }) {
-  return src;
-}
-
 function PostImageGallery({
   media,
   context,
@@ -91,13 +86,11 @@ function PostImageGallery({
           key={item.id}
           className="overflow-hidden rounded-2xl border border-border/50 bg-background/60"
         >
-          <Image
-            loader={imageLoader}
-            unoptimized
+          {/* Social media attachments are remote/user-supplied and may include SVGs. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={item.url}
             alt={item.alt_text || `${context} image`}
-            width={1200}
-            height={900}
             className="h-auto w-full object-cover"
           />
           {item.alt_text ? (

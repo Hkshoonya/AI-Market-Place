@@ -66,6 +66,17 @@ function buildAvatarOptions(seed: string) {
   ];
 }
 
+function isHttpsUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const INVALID_AVATAR_URL_MESSAGE = "Error: Avatar URL must be a valid HTTPS image URL.";
+
 export default function ProfileContent() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
@@ -128,8 +139,16 @@ export default function ProfileContent() {
 
   const handleSave = async () => {
     if (!user) return;
-    setSaving(true);
+    const normalizedAvatarUrl = avatarUrl.trim();
+
     setMessage(null);
+    if (normalizedAvatarUrl && !isHttpsUrl(normalizedAvatarUrl)) {
+      setMessage(INVALID_AVATAR_URL_MESSAGE);
+      toast.error("Avatar URL must use HTTPS");
+      return;
+    }
+
+    setSaving(true);
 
     const supabase = createClient();
     const { error } = await supabase
@@ -138,7 +157,7 @@ export default function ProfileContent() {
         display_name: displayName || null,
         username: username || null,
         bio: bio || null,
-        avatar_url: avatarUrl.trim() || null,
+        avatar_url: normalizedAvatarUrl || null,
       })
       .eq("id", user.id);
 
@@ -177,7 +196,9 @@ export default function ProfileContent() {
     .toUpperCase();
   const avatarSeed = buildAvatarSeed(displayName, username, user.email);
   const avatarOptions = buildAvatarOptions(avatarSeed);
-  const previewAvatarUrl = avatarUrl.trim() || null;
+  const normalizedAvatarUrl = avatarUrl.trim();
+  const previewAvatarUrl =
+    normalizedAvatarUrl && isHttpsUrl(normalizedAvatarUrl) ? normalizedAvatarUrl : null;
   const previewDisplayName = profile?.display_name || profile?.username || user.email || "User";
 
   return (
@@ -341,7 +362,7 @@ export default function ProfileContent() {
                   Profile Picture
                 </label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Pick a ready-made avatar or paste any image URL you want to use.
+                  Pick a ready-made avatar or paste an HTTPS image URL you want to use.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -388,14 +409,31 @@ export default function ProfileContent() {
                     id="profile-avatar-url"
                     value={customAvatarUrl}
                     onChange={(e) => setCustomAvatarUrlDraft(e.target.value)}
-                    placeholder="https://example.com/avatar.png"
+                    placeholder="https://images.example.com/avatar.png"
                     className="bg-secondary"
                   />
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setAvatarUrlDraft(customAvatarUrl.trim())}
+                      onClick={() => {
+                        const normalizedCustomAvatarUrl = customAvatarUrl.trim();
+
+                        setMessage(null);
+                        if (!normalizedCustomAvatarUrl) {
+                          setAvatarUrlDraft("");
+                          return;
+                        }
+
+                        if (!isHttpsUrl(normalizedCustomAvatarUrl)) {
+                          setMessage(INVALID_AVATAR_URL_MESSAGE);
+                          toast.error("Avatar URL must use HTTPS");
+                          return;
+                        }
+
+                        setAvatarUrlDraft(normalizedCustomAvatarUrl);
+                        setCustomAvatarUrlDraft(normalizedCustomAvatarUrl);
+                      }}
                     >
                       Use URL
                     </Button>

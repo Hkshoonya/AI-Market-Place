@@ -28,7 +28,7 @@ export function buildContentSecurityPolicy({
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https://*.supabase.co https://api.dicebear.com",
+    "img-src 'self' data: https:",
     "font-src 'self'",
     `connect-src ${connectSrc.join(" ")}`,
     "object-src 'none'",

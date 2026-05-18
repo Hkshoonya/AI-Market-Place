@@ -114,4 +114,49 @@ describe("ProfileContent", () => {
 
     expect(toastSuccess).toHaveBeenCalledWith("Profile updated successfully");
   });
+
+  it("rejects insecure custom avatar urls before applying them", async () => {
+    const user = userEvent.setup();
+
+    render(<ProfileContent />);
+
+    await user.clear(screen.getByLabelText(/custom avatar url/i));
+    await user.type(
+      screen.getByLabelText(/custom avatar url/i),
+      "http://images.example.com/custom-avatar.png"
+    );
+    await user.click(screen.getByRole("button", { name: /use url/i }));
+
+    expect(toastError).toHaveBeenCalledWith("Avatar URL must use HTTPS");
+    expect(
+      screen.getByText("Error: Avatar URL must be a valid HTTPS image URL.")
+    ).toBeInTheDocument();
+  });
+
+  it("blocks saving a legacy insecure avatar url until it is fixed or removed", async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "user@example.com" },
+      profile: {
+        display_name: "User One",
+        username: "userone",
+        bio: "hello",
+        avatar_url: "http://images.example.com/legacy-avatar.png",
+        is_admin: false,
+        seller_verified: false,
+        joined_at: "2026-03-01T00:00:00.000Z",
+      },
+      loading: false,
+    });
+
+    const user = userEvent.setup();
+
+    render(<ProfileContent />);
+    await user.click(screen.getByRole("button", { name: /save profile/i }));
+
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith("Avatar URL must use HTTPS");
+    expect(
+      screen.getByText("Error: Avatar URL must be a valid HTTPS image URL.")
+    ).toBeInTheDocument();
+  });
 });

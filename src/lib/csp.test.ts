@@ -39,4 +39,13 @@ describe("buildContentSecurityPolicy", () => {
     expect(policy).toContain("object-src 'none'");
     expect(policy).toContain("base-uri 'self'");
   });
+
+  it("allows secure remote images for user-provided media", () => {
+    const policy = buildContentSecurityPolicy({
+      isDevelopment: false,
+      isE2E: false,
+    });
+
+    expect(policy).toContain("img-src 'self' data: https:");
+  });
 });
