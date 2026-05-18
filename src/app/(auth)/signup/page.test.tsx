@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./signup-form", () => ({
-  default: () => <div>Signup form shell</div>,
+  default: ({
+    initialRedirect,
+  }: {
+    initialRedirect?: string;
+  }) => <div>Signup form shell redirect={initialRedirect ?? "none"}</div>,
 }));
 
 import SignupPage, { metadata } from "./page";
@@ -15,9 +19,25 @@ describe("SignupPage", () => {
     });
   });
 
-  it("renders the signup form wrapper", () => {
-    render(<SignupPage />);
+  it("passes redirect state into the signup form", async () => {
+    render(
+      await SignupPage({
+        searchParams: Promise.resolve({
+          redirect: "/commons",
+        }),
+      })
+    );
 
-    expect(screen.getByText("Signup form shell")).toBeInTheDocument();
+    expect(
+      screen.getByText("Signup form shell redirect=/commons")
+    ).toBeInTheDocument();
+  });
+
+  it("handles missing search params without crashing", async () => {
+    render(await SignupPage({}));
+
+    expect(
+      screen.getByText("Signup form shell redirect=none")
+    ).toBeInTheDocument();
   });
 });

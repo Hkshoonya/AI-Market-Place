@@ -78,6 +78,25 @@ test.describe("Auth flow", () => {
     await expect(page.getByRole("link", { name: "Sign up" })).toBeVisible();
   });
 
+  test("auth forms preserve redirect targets when switching between sign-in and sign-up", async ({
+    page,
+  }) => {
+    await page.goto("/login?redirect=/commons");
+
+    const signUpLink = page.getByRole("link", { name: "Sign up" });
+    await expect(signUpLink).toHaveAttribute(
+      "href",
+      /\/signup\?redirect=%2Fcommons$/
+    );
+
+    await signUpLink.click();
+
+    await expect(page).toHaveURL(/\/signup\?redirect=%2Fcommons$/);
+    await expect(
+      page.locator("main").getByRole("link", { name: "Sign in", exact: true })
+    ).toHaveAttribute("href", /\/login\?redirect=%2Fcommons$/);
+  });
+
   // ---------------------------------------------------------------------------
   // Test 3: Form submission with bad credentials shows error
   // ---------------------------------------------------------------------------

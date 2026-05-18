@@ -7,6 +7,14 @@ export const metadata: Metadata = {
     "Create your AI Market Cap account to track AI models and access the marketplace.",
 };
 
-export default function SignupPage() {
-  return <SignupForm />;
+interface SignupPageProps {
+  searchParams?: Promise<{
+    redirect?: string;
+  }>;
+}
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+
+  return <SignupForm initialRedirect={resolvedSearchParams.redirect} />;
 }

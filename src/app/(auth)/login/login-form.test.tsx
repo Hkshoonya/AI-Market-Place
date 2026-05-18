@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import LoginForm from "./login-form";
 
@@ -27,6 +27,8 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 describe("LoginForm", () => {
+  const originalLocation = window.location;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignInWithPassword.mockResolvedValue({
@@ -35,6 +37,14 @@ describe("LoginForm", () => {
     });
     mockGetSession.mockResolvedValue({
       data: { session: null },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
     });
   });
 
@@ -55,6 +65,7 @@ describe("LoginForm", () => {
     Object.defineProperty(window, "location", {
       value: { assign: assignSpy },
       writable: true,
+      configurable: true,
     });
 
     mockSignInWithPassword.mockResolvedValue({
@@ -85,5 +96,31 @@ describe("LoginForm", () => {
 
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("preserves the redirect target when linking to sign-up", () => {
+    render(<LoginForm initialRedirect="/commons" />);
+
+    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute(
+      "href",
+      "/signup?redirect=%2Fcommons"
+    );
+  });
+
+  it("passes the sanitized redirect target into OAuth sign-in callbacks", async () => {
+    mockSignInWithOAuth.mockResolvedValue({ error: null });
+
+    render(<LoginForm initialRedirect="/commons" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /continue with github/i }));
+
+    await waitFor(() => {
+      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=%2Fcommons`,
+        },
+      });
+    });
   });
 });

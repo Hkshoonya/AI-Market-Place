@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  buildAuthCallbackUrl,
+  buildAuthRouteHref,
+  sanitizeAuthRedirect,
+} from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/client";
 
 export interface LoginFormProps {
@@ -14,24 +19,11 @@ export interface LoginFormProps {
   hasAuthError?: boolean;
 }
 
-function sanitizeRedirect(rawRedirect?: string) {
-  if (
-    rawRedirect &&
-    rawRedirect.startsWith("/") &&
-    !rawRedirect.startsWith("//") &&
-    !rawRedirect.includes(":")
-  ) {
-    return rawRedirect;
-  }
-
-  return "/";
-}
-
 export default function LoginForm({
   initialRedirect,
   hasAuthError = false,
 }: LoginFormProps) {
-  const redirectTo = sanitizeRedirect(initialRedirect);
+  const redirectTo = sanitizeAuthRedirect(initialRedirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -87,7 +79,7 @@ export default function LoginForm({
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+        redirectTo: buildAuthCallbackUrl(window.location.origin, redirectTo),
       },
     });
 
@@ -187,7 +179,10 @@ export default function LoginForm({
 
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-neon hover:underline">
+            <Link
+              href={buildAuthRouteHref("/signup", redirectTo)}
+              className="text-neon hover:underline"
+            >
               Sign up
             </Link>
           </p>

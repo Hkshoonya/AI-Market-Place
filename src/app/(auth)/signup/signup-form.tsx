@@ -7,9 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  buildAuthCallbackUrl,
+  buildAuthRouteHref,
+  sanitizeAuthRedirect,
+} from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SignupForm() {
+export interface SignupFormProps {
+  initialRedirect?: string;
+}
+
+export default function SignupForm({ initialRedirect }: SignupFormProps) {
+  const redirectTo = sanitizeAuthRedirect(initialRedirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,7 +49,7 @@ export default function SignupForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: buildAuthCallbackUrl(window.location.origin, redirectTo),
       },
     });
 
@@ -56,7 +66,7 @@ export default function SignupForm() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: buildAuthCallbackUrl(window.location.origin, redirectTo),
       },
     });
     if (error) {
@@ -76,7 +86,9 @@ export default function SignupForm() {
               activate your account.
             </p>
             <Button variant="outline" className="mt-6" asChild>
-              <Link href="/login">Back to Sign In</Link>
+              <Link href={buildAuthRouteHref("/login", redirectTo)}>
+                Back to Sign In
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -176,7 +188,10 @@ export default function SignupForm() {
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-neon hover:underline">
+            <Link
+              href={buildAuthRouteHref("/login", redirectTo)}
+              className="text-neon hover:underline"
+            >
               Sign in
             </Link>
           </p>
