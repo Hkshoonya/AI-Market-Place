@@ -53,6 +53,17 @@ STRIPE_WEBHOOK_SECRET=<stripe-webhook-signing-secret>
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<stripe-publishable-key>
 ```
 
+Optional contact email variables:
+
+```env
+RESEND_API_KEY=<resend-api-key>
+CONTACT_EMAIL_FROM="AI Market Cap <support@aimarketcap.tech>"
+CONTACT_EMAIL_TO=support@aimarketcap.tech
+```
+
+Without `RESEND_API_KEY`, public contact submissions are still saved in Supabase
+and surfaced as admin notifications, but no email is sent to the support inbox.
+
 Optional agent-provider routing variables:
 
 ```env

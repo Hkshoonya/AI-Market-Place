@@ -4,6 +4,7 @@ import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rat
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
 import { systemLog } from "@/lib/logging";
+import { sendContactSubmissionEmail } from "@/lib/email/contact-email";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
@@ -169,6 +170,20 @@ export async function POST(request: NextRequest) {
       }
     } else {
       await notifyAdminsAboutContactSubmission(supabase, subject, name, email);
+      const emailResult = await sendContactSubmissionEmail({
+        name,
+        email,
+        category: category || "general",
+        subject,
+        message,
+      });
+
+      if (emailResult.status === "failed") {
+        void systemLog.warn("api/contact", "Contact email delivery failed", {
+          error: emailResult.error,
+          category: category || "general",
+        });
+      }
     }
 
     return NextResponse.json({

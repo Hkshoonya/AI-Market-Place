@@ -22,10 +22,21 @@ vi.mock("@/lib/logging", () => ({
   systemLog: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+vi.mock("@/lib/email/contact-email", () => ({
+  sendContactSubmissionEmail: vi.fn(async () => ({
+    status: "skipped",
+    reason: "not_configured",
+  })),
+}));
+
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendContactSubmissionEmail } from "@/lib/email/contact-email";
+import { systemLog } from "@/lib/logging";
 import { POST } from "./route";
 
 const mockCreateAdminClient = vi.mocked(createAdminClient);
+const mockSendContactSubmissionEmail = vi.mocked(sendContactSubmissionEmail);
+const mockSystemLog = vi.mocked(systemLog);
 
 function makeRequest(body: Record<string, unknown>) {
   return new NextRequest("https://aimarketcap.tech/api/contact", {
@@ -41,6 +52,10 @@ function makeRequest(body: Record<string, unknown>) {
 describe("POST /api/contact", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSendContactSubmissionEmail.mockResolvedValue({
+      status: "skipped",
+      reason: "not_configured",
+    });
   });
 
   it("stores a generic contact submission and notifies admin users", async () => {
@@ -99,6 +114,13 @@ describe("POST /api/contact", () => {
         link: "/admin",
       }),
     ]);
+    expect(mockSendContactSubmissionEmail).toHaveBeenCalledWith({
+      name: "Harshit",
+      email: "harshit@example.com",
+      category: "general",
+      subject: "General question",
+      message: "Need help with the marketplace.",
+    });
   });
 
   it("notifies the targeted seller when a listing contact submission includes seller context", async () => {
@@ -172,6 +194,7 @@ describe("POST /api/contact", () => {
       })
     );
     expect(inquiryCountUpdate).toHaveBeenCalledWith("id", "listing-1");
+    expect(mockSendContactSubmissionEmail).not.toHaveBeenCalled();
   });
 
   it("returns an error when the contact submission cannot be persisted", async () => {
@@ -208,5 +231,58 @@ describe("POST /api/contact", () => {
       error: "Failed to save your message. Please try again.",
     });
     expect(notificationsInsert).not.toHaveBeenCalled();
+    expect(mockSendContactSubmissionEmail).not.toHaveBeenCalled();
+  });
+
+  it("logs provider delivery failures without leaking submitter PII", async () => {
+    mockSendContactSubmissionEmail.mockResolvedValue({
+      status: "failed",
+      error: "Domain not verified",
+    });
+    const contactInsert = vi.fn().mockResolvedValue({ error: null });
+    const notificationsInsert = vi.fn().mockResolvedValue({ error: null });
+    const adminLookup = vi.fn().mockResolvedValue({
+      data: [{ id: "admin-1" }],
+      error: null,
+    });
+
+    mockCreateAdminClient.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "contact_submissions") {
+          return { insert: contactInsert };
+        }
+        if (table === "profiles") {
+          return {
+            select: vi.fn(() => ({
+              eq: adminLookup,
+            })),
+          };
+        }
+        if (table === "notifications") {
+          return { insert: notificationsInsert };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      makeRequest({
+        name: "Harshit",
+        email: "harshit@example.com",
+        category: "general",
+        subject: "General question",
+        message: "Need help with the marketplace.",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockSystemLog.warn).toHaveBeenCalledWith(
+      "api/contact",
+      "Contact email delivery failed",
+      {
+        error: "Domain not verified",
+        category: "general",
+      }
+    );
   });
 });
