@@ -217,6 +217,45 @@ describe("buildDeploymentCatalog", () => {
     expect(result.relatedPlatforms.map((item) => item.platform.slug)).not.toContain("openrouter");
   });
 
+  it("can suppress inferred related access paths for archived or API-disabled models", () => {
+    const result = buildDeploymentCatalog({
+      model: {
+        slug: "anthropic-claude-fable-5",
+        name: "Claude Fable 5",
+        provider: "Anthropic",
+        is_open_weights: false,
+      },
+      deployments: [],
+      platforms: [
+        {
+          id: "platform-claude-pro",
+          slug: "claude-pro",
+          name: "Claude Pro",
+          type: "subscription",
+          base_url: "https://claude.ai",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+        {
+          id: "platform-bedrock",
+          slug: "aws-bedrock",
+          name: "AWS Bedrock",
+          type: "hosting",
+          base_url: "https://aws.amazon.com/bedrock",
+          has_affiliate: false,
+          affiliate_url: null,
+          affiliate_tag: null,
+        },
+      ],
+      pricingProviderNames: ["OpenRouter"],
+      allowRelatedAccess: false,
+    });
+
+    expect(result.directDeployments).toHaveLength(0);
+    expect(result.relatedPlatforms).toHaveLength(0);
+  });
+
   it("maps provider-family subscription plans for MiniMax, Kimi, and GLM providers", () => {
     const platforms = [
       {

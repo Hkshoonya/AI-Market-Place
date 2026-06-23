@@ -233,6 +233,7 @@ export function buildDeploymentCatalog(input: {
   deployments: ModelDeployment[];
   platforms: DeploymentPlatform[];
   pricingProviderNames: string[];
+  allowRelatedAccess?: boolean;
 }): DeploymentCatalogResult {
   const platformBySlug = new Map(input.platforms.map((platform) => [platform.slug, platform]));
   const seenPlatformIds = new Set<string>();
@@ -248,6 +249,9 @@ export function buildDeploymentCatalog(input: {
   });
 
   const relatedPlatforms: DeploymentCatalogItem[] = [];
+  if (input.allowRelatedAccess === false) {
+    return { directDeployments, relatedPlatforms };
+  }
 
   if (!input.model.is_open_weights) {
     for (const providerName of input.pricingProviderNames) {

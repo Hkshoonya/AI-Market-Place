@@ -164,6 +164,7 @@ export async function GET(
       deployments: typedDeployments,
       platforms: typedPlatforms,
       pricingProviderNames,
+      allowRelatedAccess: allowsLiveAccessSignals,
     });
     const provisioning = await resolveWorkspaceProvisioningOption({
       supabase,
