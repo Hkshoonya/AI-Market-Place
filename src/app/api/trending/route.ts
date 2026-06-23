@@ -36,6 +36,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const TRENDING_NEWS_SOURCES = [
+  "provider-blog",
+  "provider-benchmarks",
+  "x-twitter",
+  "hf-papers",
+  "provider-deployment-signals",
+  "ollama-library",
+] as const;
+
 function toTimestamp(value: string | null | undefined) {
   if (!value) return 0;
   const timestamp = Date.parse(value);
@@ -308,6 +317,7 @@ export async function GET(request: NextRequest) {
     const { data: coverageNewsRaw } = await supabase
       .from("model_news")
       .select("related_model_ids, source, category, metadata")
+      .in("source", [...TRENDING_NEWS_SOURCES])
       .gte("published_at", thirtyDaysAgo.toISOString())
       .not("related_model_ids", "is", null)
       .order("published_at", { ascending: false })
@@ -389,6 +399,7 @@ export async function GET(request: NextRequest) {
       .select(
         "id, title, source, related_provider, related_model_ids, published_at, metadata"
       )
+      .in("source", [...TRENDING_NEWS_SOURCES])
       .gte("published_at", fourteenDaysAgo.toISOString())
       .order("published_at", { ascending: false })
       .limit(250);

@@ -20,23 +20,23 @@ describe("computePublicRankingHealth", () => {
         economic_footprint_score: 53.6,
         benchmark_scores: [{ source: "livebench" }],
         description:
-          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch. Superseded by Opus 4.7.",
+          "Previous flagship Claude Opus release retained for compatibility after later Claude Opus launches. Superseded by Opus 4.8.",
       },
       {
         id: "current-opus",
-        slug: "anthropic-claude-opus-4-7",
-        name: "Claude Opus 4.7",
+        slug: "anthropic-claude-opus-4-8",
+        name: "Claude Opus 4.8",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 312,
-        release_date: "2026-04-16",
+        release_date: "2026-05-28",
         capability_score: 49.2,
         quality_score: 44.8,
         adoption_score: 61.6,
         popularity_score: 39,
         economic_footprint_score: 0,
         description:
-          "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and reliability.",
+          "Anthropic's latest generally available Opus-tier model. Improves on Opus 4.7 for advanced software engineering and reliability.",
       },
     ]);
 
@@ -160,12 +160,12 @@ describe("computePublicRankingHealth", () => {
       },
       {
         id: "current-opus",
-        slug: "anthropic-claude-opus-4-7",
-        name: "Claude Opus 4.7",
+        slug: "anthropic-claude-opus-4-8",
+        name: "Claude Opus 4.8",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 199,
-        release_date: "2026-04-16",
+        release_date: "2026-05-28",
         capability_score: 68.9,
         quality_score: 57.3,
         adoption_score: 53.8,
@@ -173,7 +173,7 @@ describe("computePublicRankingHealth", () => {
         economic_footprint_score: 57.7,
         benchmark_scores: [{ source: "livebench" }],
         description:
-          "Anthropic's latest generally available flagship. Building on Opus 4.6, it improves advanced software engineering and reliability.",
+          "Anthropic's latest generally available Opus-tier model. Building on Opus 4.7, it improves advanced software engineering and reliability.",
       },
     ]);
 
@@ -186,13 +186,13 @@ describe("computePublicRankingHealth", () => {
   it("flags recent leadership rows that still have thin trusted benchmark coverage", () => {
     const health = computePublicRankingHealth([
       {
-        id: "opus-4-7",
-        slug: "anthropic-claude-opus-4-7",
-        name: "Claude Opus 4.7",
+        id: "opus-4-8",
+        slug: "anthropic-claude-opus-4-8",
+        name: "Claude Opus 4.8",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 200,
-        release_date: "2026-04-16",
+        release_date: "2026-05-28",
         capability_score: 68.9,
         quality_score: 57.3,
         adoption_score: 53.8,
@@ -203,7 +203,7 @@ describe("computePublicRankingHealth", () => {
           { source: "gaia-benchmark" },
         ],
         description:
-          "Anthropic's latest generally available flagship. Improves on Opus 4.6 for advanced software engineering and reliability.",
+          "Anthropic's latest generally available Opus-tier model. Improves on Opus 4.7 for advanced software engineering and reliability.",
       },
       {
         id: "grok-4",
@@ -237,7 +237,7 @@ describe("computePublicRankingHealth", () => {
         benchmarkCount: row.benchmarkCount,
       }))
     ).toContainEqual({
-      slug: "anthropic-claude-opus-4-7",
+      slug: "anthropic-claude-opus-4-8",
       benchmarkCount: 2,
     });
   });

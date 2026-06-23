@@ -121,11 +121,11 @@ describe("public ranking confidence", () => {
           benchmark_scores: [{ id: "bench-2", source: "artificial-analysis" }],
         },
         {
-          slug: "anthropic-claude-opus-4-7",
-          name: "Claude Opus 4.7",
+          slug: "anthropic-claude-opus-4-8",
+          name: "Claude Opus 4.8",
           provider: "Anthropic",
           category: "multimodal",
-          release_date: "2026-04-16",
+          release_date: "2026-05-28",
           capability_score: 68.9,
           quality_score: 57.3,
           adoption_score: 53.8,
@@ -148,7 +148,7 @@ describe("public ranking confidence", () => {
     );
 
     expect(selected.map((model) => model.slug)).toEqual([
-      "anthropic-claude-opus-4-7",
+      "anthropic-claude-opus-4-8",
       "moonshotai-kimi-k2-thinking",
     ]);
   });
@@ -179,11 +179,11 @@ describe("public ranking confidence", () => {
           benchmark_scores: [{ id: "bench-2", source: "livebench" }],
         },
         {
-          slug: "anthropic-claude-opus-4-7",
-          name: "Claude Opus 4.7",
+          slug: "anthropic-claude-opus-4-8",
+          name: "Claude Opus 4.8",
           provider: "Anthropic",
           category: "multimodal",
-          release_date: "2026-04-16",
+          release_date: "2026-05-28",
           capability_score: 68.9,
           quality_score: 57.3,
           adoption_score: 53.8,
@@ -207,7 +207,7 @@ describe("public ranking confidence", () => {
     );
 
     expect(selected.map((model) => model.slug)).toEqual([
-      "anthropic-claude-opus-4-7",
+      "anthropic-claude-opus-4-8",
       "openai-gpt-5-4",
     ]);
   });
@@ -326,18 +326,18 @@ describe("public ranking confidence", () => {
   it("recognizes next-generation upgrade wording as current leadership language", () => {
     expect(
       getPublicRankingConfidenceTier({
-        slug: "anthropic-claude-opus-4-7",
-        name: "Claude Opus 4.7",
+        slug: "anthropic-claude-opus-4-8",
+        name: "Claude Opus 4.8",
         provider: "Anthropic",
         category: "multimodal",
-        release_date: "2026-04-16",
+        release_date: "2026-05-28",
         is_api_available: true,
         capability_score: 68.9,
         quality_score: 57.3,
         adoption_score: 53.8,
         economic_footprint_score: 57.7,
         description:
-          "Opus 4.7 is the next generation of Anthropic's Opus family. Building on Opus 4.6, it improves advanced software engineering and reliability.",
+          "Opus 4.8 is the next generation of Anthropic's Opus family. Building on Opus 4.7, it improves advanced software engineering and reliability.",
       })
     ).toBe("high");
   });
@@ -355,11 +355,11 @@ describe("public ranking confidence", () => {
     ).toBe(true);
 
     const previousGeneration = computePublicRankingConfidenceScore({
-      slug: "anthropic-claude-opus-4-6",
-      name: "Claude Opus 4.6",
+      slug: "anthropic-claude-opus-4-7",
+      name: "Claude Opus 4.7",
       provider: "Anthropic",
       category: "multimodal",
-      release_date: "2026-02-04",
+      release_date: "2026-04-16",
       overall_rank: 7,
       capability_score: 81.2,
       quality_score: 63,
@@ -367,14 +367,14 @@ describe("public ranking confidence", () => {
       popularity_score: 49.6,
       economic_footprint_score: 52.7,
       description:
-        "Opus 4.6 is Anthropic's strongest model for coding and long-running professional tasks.",
+        "Opus 4.7 is Anthropic's strongest model for coding and long-running professional tasks.",
     });
     const currentReplacement = computePublicRankingConfidenceScore({
-      slug: "anthropic-claude-opus-4-7",
-      name: "Claude Opus 4.7",
+      slug: "anthropic-claude-opus-4-8",
+      name: "Claude Opus 4.8",
       provider: "Anthropic",
       category: "multimodal",
-      release_date: "2026-04-16",
+      release_date: "2026-05-28",
       overall_rank: 199,
       capability_score: 68.9,
       quality_score: 57.3,
@@ -382,7 +382,7 @@ describe("public ranking confidence", () => {
       popularity_score: 40.7,
       economic_footprint_score: 57.7,
       description:
-        "Opus 4.7 is the next generation of Anthropic's Opus family, building on Opus 4.6.",
+        "Opus 4.8 is the next generation of Anthropic's Opus family, building on Opus 4.7.",
     });
 
     expect(currentReplacement).toBeGreaterThan(previousGeneration);

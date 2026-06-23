@@ -14,6 +14,7 @@ const DEFAULT_SIGNAL_TRUST_BONUS = 4;
 
 const SOURCE_WEIGHTS: Record<string, number> = {
   "provider-blog": 1,
+  "provider-benchmarks": 1,
   "artificial-analysis": 0.95,
   "open-llm-leaderboard": 0.95,
   arxiv: 0.85,
@@ -23,6 +24,7 @@ const SOURCE_WEIGHTS: Record<string, number> = {
 
 const SOURCE_CAPS: Record<string, number> = {
   "provider-blog": 3,
+  "provider-benchmarks": 3,
   "artificial-analysis": 2.5,
   "open-llm-leaderboard": 2.5,
   arxiv: 2,
@@ -49,6 +51,7 @@ const IMPORTANCE_MULTIPLIERS = {
 
 const SOURCE_TRUST_BONUS: Record<string, number> = {
   "provider-blog": 12,
+  "provider-benchmarks": 12,
   "artificial-analysis": 10,
   "open-llm-leaderboard": 10,
   arxiv: 8,

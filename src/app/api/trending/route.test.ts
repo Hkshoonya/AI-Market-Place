@@ -357,6 +357,24 @@ function createMockSupabase() {
       if (table === "model_news") {
         return {
           select: () => ({
+            in: () => ({
+              gte: () => ({
+                not: () => ({
+                  order: () => ({
+                    limit: async () => ({
+                      data: modelNews,
+                      error: null,
+                    }),
+                  }),
+                }),
+                order: () => ({
+                  limit: async () => ({
+                    data: modelNews,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
             overlaps: () => ({
               order: () => ({
                 limit: async () => ({

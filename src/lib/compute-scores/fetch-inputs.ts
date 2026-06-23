@@ -17,6 +17,13 @@ import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
 
 const log = createTaggedLogger("compute-scores");
 const PAGE_SIZE = 1000;
+const SCORING_NEWS_SOURCES = [
+  "provider-blog",
+  "provider-benchmarks",
+  "x-twitter",
+  "hf-papers",
+  "arxiv",
+] as const;
 
 async function fetchAllPages<T>(
   buildQuery: () => {
@@ -156,6 +163,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
       supabase
         .from("model_news")
         .select("title, related_provider, related_model_ids, source, category, published_at, metadata")
+        .in("source", [...SCORING_NEWS_SOURCES])
         .gte("published_at", thirtyDaysAgo)
         .not("related_model_ids", "is", null),
     "model_news"

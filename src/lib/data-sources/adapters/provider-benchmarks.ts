@@ -195,7 +195,7 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "biglaw-bench",
-    labels: ["biglaw bench"],
+    labels: ["biglaw bench", "legal agent benchmark"],
     type: "percentage",
   },
   {
@@ -211,6 +211,16 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   {
     benchmarkSlug: "bbh",
     labels: ["big bench hard", "bbh"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "webarena",
+    labels: ["online-mind2web", "online mind2web", "webarena"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "agent-bench",
+    labels: ["super-agent benchmark", "super agent benchmark", "agentbench"],
     type: "percentage",
   },
   {
@@ -408,6 +418,13 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://www.anthropic.com/news/claude-opus-4-7",
     titleHint: "Claude Opus 4.7 benchmark update",
     modelHints: ["Claude Opus 4.7"],
+  },
+  {
+    id: "anthropic-claude-opus-4-8",
+    provider: "Anthropic",
+    url: "https://www.anthropic.com/news/claude-opus-4-8",
+    titleHint: "Claude Opus 4.8 benchmark update",
+    modelHints: ["Claude Opus 4.8", "claude-opus-4-8"],
   },
   {
     id: "anthropic-claude-3-7-sonnet",

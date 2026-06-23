@@ -125,12 +125,15 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "claude-3-opus": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-3-haiku": { provider: "Anthropic", inputPricePerMillion: 0.25, outputPricePerMillion: 1.25, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
 
-  // ─── Anthropic — Claude 4.x (CORRECTED: Opus 4.5/4.6 dropped to $5/$25) ─
+  // ─── Anthropic — Claude 4.x / 5.x ────────────────────────────
+  "claude-fable-5": { provider: "Anthropic", inputPricePerMillion: 10.00, outputPricePerMillion: 50.00, source: "platform.claude.com/docs/en/about-claude/pricing", lastUpdated: "2026-06-23" },
   "claude-4-opus": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-4-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-opus-4": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-opus-4-5": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-opus-4-6": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
+  "claude-opus-4-7": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "platform.claude.com/docs/en/about-claude/pricing", lastUpdated: "2026-06-23" },
+  "claude-opus-4-8": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "platform.claude.com/docs/en/about-claude/pricing", lastUpdated: "2026-06-23" },
   "claude-4-5-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-sonnet-4-6": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-haiku-4-5": { provider: "Anthropic", inputPricePerMillion: 1.00, outputPricePerMillion: 5.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },

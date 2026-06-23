@@ -415,8 +415,8 @@ describe("public model family dedupe", () => {
     const deduped = dedupePublicModelFamilies([
       {
         id: "opus-current",
-        slug: "anthropic-claude-opus-4-7",
-        name: "Claude Opus 4.7",
+        slug: "anthropic-claude-opus-4-8",
+        name: "Claude Opus 4.8",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 312,
@@ -425,15 +425,15 @@ describe("public model family dedupe", () => {
         adoption_score: 61.6,
         popularity_score: 39,
         economic_footprint_score: 0,
-        release_date: "2026-04-16",
+        release_date: "2026-05-28",
         description:
-          "Opus 4.7 is the next generation of Anthropic's Opus family. Building on Opus 4.6, it improves advanced software engineering and reliability.",
+          "Opus 4.8 is the next generation of Anthropic's Opus family. Building on Opus 4.7, it improves advanced software engineering and reliability.",
         hf_downloads: 0,
       },
       {
         id: "opus-compat",
-        slug: "anthropic-claude-opus-4-7-older",
-        name: "Claude Opus 4.7 (older)",
+        slug: "anthropic-claude-opus-4-8-older",
+        name: "Claude Opus 4.8 (older)",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 14,
@@ -444,13 +444,13 @@ describe("public model family dedupe", () => {
         economic_footprint_score: 53.6,
         release_date: "2025-12-12",
         description:
-          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.7 launch. Superseded by the latest release.",
+          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.8 launch. Superseded by the latest release.",
         hf_downloads: 0,
       },
     ]);
 
     expect(deduped).toHaveLength(1);
-    expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-7");
+    expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-8");
   });
 
   it("prefers the standard release over a preview sibling in the same family", () => {

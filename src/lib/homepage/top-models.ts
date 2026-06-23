@@ -159,6 +159,33 @@ function hasRecentLeadershipReadinessSignals(model: HomepageTopModelCandidate): 
   );
 }
 
+function hasSparseHomepageScoreSignals(model: HomepageTopModelCandidate): boolean {
+  return (
+    numeric(model.capability_score) <= 0 &&
+    numeric(model.quality_score) <= 0 &&
+    numeric(model.adoption_score) <= 0 &&
+    numeric(model.economic_footprint_score) <= 0 &&
+    numeric(model.popularity_score) <= 0 &&
+    numeric(model.overall_rank) <= 0
+  );
+}
+
+function hasTrustedOfficialLeadershipLaunch(
+  model: HomepageTopModelCandidate,
+  now = Date.now()
+): boolean {
+  const knownMeta = getKnownModelMeta(model);
+  if (!knownMeta || knownMeta.status !== "active" || !knownMeta.website_url) {
+    return false;
+  }
+
+  const ageDays = releaseAgeDays(model.release_date ?? knownMeta.release_date, now);
+  if (ageDays == null || ageDays > 120) return false;
+  if (!hasSparseHomepageScoreSignals(model)) return false;
+
+  return hasLeadershipUpgradeLanguage(model) && hasCurrentHomepageAccess(model);
+}
+
 export function isRecentLeadershipHomepageCandidate(
   model: HomepageTopModelCandidate,
   now = Date.now()
@@ -174,6 +201,10 @@ export function isRecentLeadershipHomepageCandidate(
 
   const capability = numeric(model.capability_score);
   const quality = numeric(model.quality_score);
+
+  if (hasTrustedOfficialLeadershipLaunch(model, now)) {
+    return true;
+  }
 
   if (capability < 44 && quality < 44) return false;
   if (!hasRecentLeadershipReadinessSignals(model)) return false;
@@ -303,7 +334,12 @@ export function computeHomepageTopModelScore(
     rankSignal(model.overall_rank) * 0.03 +
     releaseFreshnessSignal(model.release_date, now) * 0.12;
 
-  return rawScore * homepageCandidateMultiplier(model, now);
+  const weightedScore = rawScore * homepageCandidateMultiplier(model, now);
+  if (hasTrustedOfficialLeadershipLaunch(model, now)) {
+    return Math.max(weightedScore, 68);
+  }
+
+  return weightedScore;
 }
 
 export function selectHomepageTopModelIds<
@@ -341,7 +377,8 @@ export function selectHomepageTopModelIds<
     return (
       model.economic_footprint_score != null ||
       model.adoption_score != null ||
-      model.capability_score != null
+      model.capability_score != null ||
+      isRecentLeadershipHomepageCandidate(model, now)
     );
   });
 

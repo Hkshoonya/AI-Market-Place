@@ -71,6 +71,7 @@ function createPagedMockSupabase(
       const chain = {
         select: () => chain,
         eq: () => chain,
+        in: () => chain,
         gte: () => chain,
         not: () => chain,
         range: () => resolvePage(),

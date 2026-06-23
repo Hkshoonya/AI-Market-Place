@@ -60,6 +60,11 @@
     "path": "/api/cron/marketplace/policy-rescan?mode=missing&limit=500"
   },
   {
+    "name": "Retention Maintenance",
+    "cron": "40 1 * * *",
+    "path": "/api/cron/maintenance?limit=2000"
+  },
+  {
     "name": "Pipeline Agent",
     "cron": "30 */2 * * *",
     "path": "/api/cron/agents/pipeline"

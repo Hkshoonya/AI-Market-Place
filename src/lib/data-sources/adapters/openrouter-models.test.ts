@@ -131,20 +131,20 @@ describe("openrouter model record mapping", () => {
     expect(record.license_name).toBeNull();
   });
 
-  it("uses Anthropic provider defaults and curated metadata for Claude 4.7", () => {
+  it("uses Anthropic provider defaults and curated metadata for Claude 4.8", () => {
     const record = __testables.buildModelRecord({
-      id: "anthropic/claude-opus-4-7",
-      name: "Anthropic: claude-opus-4.7",
-      description: "Generic router description for Claude 4.7",
+      id: "anthropic/claude-opus-4-8",
+      name: "Anthropic: claude-opus-4.8",
+      description: "Generic router description for Claude 4.8",
       architecture: {},
     });
 
-    expect(record.name).toBe("Claude Opus 4.7");
+    expect(record.name).toBe("Claude Opus 4.8");
     expect(record.category).toBe("multimodal");
     expect(record.modalities).toEqual(["text", "image"]);
-    expect(record.release_date).toBe("2026-04-16");
-    expect(record.description).toContain("Improves on Opus 4.6");
-    expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-7");
+    expect(record.release_date).toBe("2026-05-28");
+    expect(record.description).toContain("Builds on Opus 4.7");
+    expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-8");
   });
 
   it("canonicalizes Z.ai router prefixes", () => {

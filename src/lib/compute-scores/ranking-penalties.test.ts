@@ -7,7 +7,7 @@ import {
 describe("ranking penalties", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-30T00:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-06-23T00:00:00.000Z"));
   });
 
   afterEach(() => {
@@ -30,10 +30,10 @@ describe("ranking penalties", () => {
 
   it("does not penalize the current flagship replacement", () => {
     const currentFlagship = {
-      slug: "anthropic-claude-opus-4-7",
-      name: "Claude Opus 4.7",
+      slug: "anthropic-claude-opus-4-8",
+      name: "Claude Opus 4.8",
       provider: "anthropic",
-      release_date: "2026-04-16",
+      release_date: "2026-05-28",
       is_api_available: true,
       is_open_weights: false,
     };
@@ -44,16 +44,16 @@ describe("ranking penalties", () => {
 
   it("rewards benchmark-backed recent flagship rows in balanced rank", () => {
     const currentFlagship = {
-      slug: "anthropic-claude-opus-4-7",
-      name: "Claude Opus 4.7",
+      slug: "anthropic-claude-opus-4-8",
+      name: "Claude Opus 4.8",
       provider: "anthropic",
-      release_date: "2026-04-16",
+      release_date: "2026-05-28",
       is_api_available: true,
       is_open_weights: false,
       benchmarkCount: 5,
       capabilityRank: 7,
       description:
-        "Our latest and most capable Opus release with stronger performance than Opus 4.6.",
+        "Our latest and most capable Opus release with stronger performance than Opus 4.7.",
     };
 
     expect(computeBalancedRankPenalty(currentFlagship, 2000)).toBeLessThan(0);
@@ -97,7 +97,7 @@ describe("ranking penalties", () => {
       slug: "minimax-minimax-m2-1",
       name: "MiniMax M2.1",
       provider: "minimax",
-      release_date: "2025-12-23",
+      release_date: "2026-02-12",
       is_api_available: true,
       is_open_weights: false,
       benchmarkCount: 4,

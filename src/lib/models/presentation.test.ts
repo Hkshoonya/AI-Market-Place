@@ -63,7 +63,7 @@ describe("model presentation helpers", () => {
     });
 
     expect(result.source).toBe("official_catalog");
-    expect(result.text).toMatch(/superseded by Claude Opus 4\.7/i);
+    expect(result.text).toMatch(/superseded by Claude Opus 4\.8/i);
   });
 
   it("matches provider variants like MiniMax highspeed builds to the base official model", () => {
