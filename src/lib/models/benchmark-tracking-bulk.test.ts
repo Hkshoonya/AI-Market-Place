@@ -215,4 +215,104 @@ describe("buildBenchmarkTrackingSummaryMap", () => {
       })
     );
   });
+
+  it("chunks large model sets and restricts news lookups to benchmark category", async () => {
+    const scoreChunks: number[] = [];
+    const arenaChunks: number[] = [];
+    const newsChunks: number[] = [];
+    const newsCategories: string[] = [];
+
+    const queryClient = {
+      from: (table: string) => {
+        if (table === "benchmark_scores") {
+          return {
+            select: () => ({
+              in: async (_column: string, values: string[]) => {
+                scoreChunks.push(values.length);
+                return { data: [], error: null };
+              },
+            }),
+          };
+        }
+
+        if (table === "elo_ratings") {
+          return {
+            select: () => ({
+              in: async (_column: string, values: string[]) => {
+                arenaChunks.push(values.length);
+                return { data: [], error: null };
+              },
+            }),
+          };
+        }
+
+        if (table === "model_news") {
+          return {
+            select: () => ({
+              eq: (_column: string, value: string) => {
+                newsCategories.push(value);
+                return {
+                  overlaps: (_overlapColumn: string, values: string[]) => {
+                    newsChunks.push(values.length);
+                    return {
+                      order: () => ({
+                        limit: async () => ({
+                          data: [
+                            {
+                              id: "benchmark-model-125",
+                              title: "Model 125 benchmark results",
+                              source: "provider-blog",
+                              category: "benchmark",
+                              related_model_ids: ["model-125"],
+                              metadata: { signal_type: "benchmark" },
+                              published_at: "2026-04-01T00:00:00.000Z",
+                            },
+                            {
+                              id: "benchmark-model-125",
+                              title: "Model 125 benchmark results",
+                              source: "provider-blog",
+                              category: "benchmark",
+                              related_model_ids: ["model-125"],
+                              metadata: { signal_type: "benchmark" },
+                              published_at: "2026-04-01T00:00:00.000Z",
+                            },
+                          ],
+                          error: null,
+                        }),
+                      }),
+                    };
+                  },
+                };
+              },
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const models = Array.from({ length: 125 }, (_, index) => {
+      const id = `model-${index + 1}`;
+      return {
+        id,
+        slug: `provider-model-${index + 1}`,
+        provider: "Provider",
+        category: "llm",
+      };
+    });
+
+    const summaries = await buildBenchmarkTrackingSummaryMap(queryClient, models);
+
+    expect(scoreChunks).toEqual([100, 25]);
+    expect(arenaChunks).toEqual([100, 25]);
+    expect(newsChunks).toEqual([100, 25]);
+    expect(newsCategories).toEqual(["benchmark", "benchmark"]);
+    expect(summaries.get("model-125")).toEqual(
+      expect.objectContaining({
+        status: "provider_reported",
+        badgeLabel: "Provider-reported*",
+      })
+    );
+  });
 });

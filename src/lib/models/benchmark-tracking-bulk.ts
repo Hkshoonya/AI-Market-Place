@@ -6,21 +6,30 @@ import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score
 import { getNewsSignalType } from "@/lib/news/presentation";
 import { systemLog } from "@/lib/logging";
 
+const MODEL_ID_QUERY_CHUNK_SIZE = 100;
+const BENCHMARK_NEWS_ROWS_PER_CHUNK = 500;
+
+type TrackingQueryResult = {
+  data: unknown[] | null;
+  error: { message: string } | null;
+};
+
+type TrackingQuery = PromiseLike<TrackingQueryResult>;
+
+type TrackingQueryBuilder = {
+  in?: (column: string, values: string[]) => TrackingQuery;
+  eq?: (column: string, value: string) => TrackingQueryBuilder;
+  overlaps?: (column: string, values: string[]) => TrackingQueryBuilder;
+  order?: (
+    column: string,
+    options: { ascending: boolean }
+  ) => TrackingQueryBuilder;
+  limit?: (count: number) => TrackingQuery;
+};
+
 type QueryClient = {
   from: (table: string) => {
-    select: (columns: string) => {
-      in?: (
-        column: string,
-        values: string[]
-      ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
-      overlaps?: (column: string, values: string[]) => {
-        order: (column: string, options: { ascending: boolean }) => {
-          limit: (
-            count: number
-          ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
-        };
-      };
-    };
+    select: (columns: string) => TrackingQueryBuilder;
   };
 };
 
@@ -33,9 +42,17 @@ type BenchmarkTrackingModel = {
 
 type QueryResultRow = unknown;
 
+function chunkValues<T>(values: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
 async function resolveTrackingQuery(
   source: string,
-  query: PromiseLike<{ data: QueryResultRow[] | null; error: { message: string } | null }>
+  query: TrackingQuery
 ) {
   try {
     const result = await query;
@@ -55,11 +72,67 @@ async function resolveTrackingQuery(
   }
 }
 
+async function resolveTrackingQueries(source: string, queries: TrackingQuery[]) {
+  const rows = await Promise.all(
+    queries.map((query) => resolveTrackingQuery(source, query))
+  );
+  return rows.flat();
+}
+
+function buildModelIdQueries(
+  queryClient: QueryClient,
+  table: string,
+  columns: string,
+  ids: string[]
+) {
+  return chunkValues(ids, MODEL_ID_QUERY_CHUNK_SIZE).map((chunk) => {
+    const query = queryClient.from(table).select(columns).in?.("model_id", chunk);
+    return query ?? Promise.resolve({ data: [], error: null });
+  });
+}
+
+function buildBenchmarkNewsQueries(queryClient: QueryClient, ids: string[]) {
+  return chunkValues(ids, MODEL_ID_QUERY_CHUNK_SIZE).map((chunk) => {
+    const query = queryClient
+      .from("model_news")
+      .select("id, title, source, category, related_model_ids, metadata, published_at");
+    const benchmarkQuery = query.eq?.("category", "benchmark") ?? query;
+    const overlapQuery = benchmarkQuery.overlaps?.("related_model_ids", chunk);
+    const orderedQuery =
+      overlapQuery?.order?.("published_at", { ascending: false }) ?? overlapQuery;
+    const limitedQuery = orderedQuery?.limit?.(BENCHMARK_NEWS_ROWS_PER_CHUNK);
+
+    return limitedQuery ?? Promise.resolve({ data: [], error: null });
+  });
+}
+
+function dedupeRowsById(rows: QueryResultRow[]) {
+  const deduped = new Map<string, QueryResultRow>();
+  const withoutIds: QueryResultRow[] = [];
+
+  for (const row of rows) {
+    const id =
+      row && typeof row === "object" && "id" in row && typeof row.id === "string"
+        ? row.id
+        : null;
+
+    if (!id) {
+      withoutIds.push(row);
+      continue;
+    }
+
+    deduped.set(id, row);
+  }
+
+  return [...deduped.values(), ...withoutIds];
+}
+
 export async function buildBenchmarkTrackingSummaryMap(
   queryClient: QueryClient,
   models: BenchmarkTrackingModel[]
 ) {
   const ids = models.map((model) => model.id);
+  const idSet = new Set(ids);
   const summaries = new Map<string, BenchmarkTrackingSummary>();
 
   if (ids.length === 0) {
@@ -67,27 +140,17 @@ export async function buildBenchmarkTrackingSummaryMap(
   }
 
   const [scoreRows, arenaRows, benchmarkNewsRows] = await Promise.all([
-    resolveTrackingQuery(
+    resolveTrackingQueries(
       "benchmark scores",
-      queryClient
-        .from("benchmark_scores")
-        .select("model_id, source")
-        .in?.("model_id", ids) ??
-        Promise.resolve({ data: [], error: null })
+      buildModelIdQueries(queryClient, "benchmark_scores", "model_id, source", ids)
     ),
-    resolveTrackingQuery(
+    resolveTrackingQueries(
       "arena ratings",
-      queryClient.from("elo_ratings").select("model_id").in?.("model_id", ids) ??
-        Promise.resolve({ data: [], error: null })
+      buildModelIdQueries(queryClient, "elo_ratings", "model_id", ids)
     ),
-    resolveTrackingQuery(
+    resolveTrackingQueries(
       "benchmark news",
-      queryClient
-        .from("model_news")
-        .select("id, title, source, category, related_model_ids, metadata, published_at")
-        .overlaps?.("related_model_ids", ids)
-        .order("published_at", { ascending: false })
-        .limit(500) ?? Promise.resolve({ data: [], error: null })
+      buildBenchmarkNewsQueries(queryClient, ids)
     ),
   ]);
 
@@ -117,7 +180,7 @@ export async function buildBenchmarkTrackingSummaryMap(
   }
 
   const benchmarkEvidenceCounts = new Map<string, number>();
-  for (const row of benchmarkNewsRows) {
+  for (const row of dedupeRowsById(benchmarkNewsRows)) {
     if (!row || typeof row !== "object") continue;
     const signalType = getNewsSignalType({
       id: "id" in row && typeof row.id === "string" ? row.id : null,
@@ -145,7 +208,7 @@ export async function buildBenchmarkTrackingSummaryMap(
         ? row.related_model_ids.filter((value): value is string => typeof value === "string")
         : [];
     for (const modelId of relatedModelIds) {
-      if (!ids.includes(modelId)) continue;
+      if (!idSet.has(modelId)) continue;
       benchmarkEvidenceCounts.set(
         modelId,
         (benchmarkEvidenceCounts.get(modelId) ?? 0) + 1
