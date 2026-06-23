@@ -34,6 +34,7 @@ function createQuery(data: MockModel[]) {
     textSearch: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     range: vi.fn().mockReturnThis(),
+    in: vi.fn(async () => ({ data, error: null })),
     then: (resolve: (value: { data: MockModel[]; error: null }) => unknown) =>
       Promise.resolve(resolve({ data, error: null })),
   };

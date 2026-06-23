@@ -99,7 +99,7 @@ export default async function ModelsPage({
 
   let dbQuery = supabase
     .from("models")
-    .select("*, rankings(*), model_pricing(*)", { count: "exact" });
+    .select(sort === "price" ? "*, model_pricing(*)" : "*", { count: "exact" });
 
   dbQuery =
     lifecycleFilter === "all"
@@ -363,7 +363,26 @@ export default async function ModelsPage({
     sortedUniqueModels.length > 0
       ? sortedUniqueModels.length
       : (count ?? parsedModels.length);
-  const models = sortedUniqueModels.slice(from, to + 1);
+  const pagedCandidateModels = sortedUniqueModels.slice(from, to + 1);
+  const pagedModelIds = pagedCandidateModels.map((model) => model.id);
+  const pageDetailsResponse =
+    pagedModelIds.length > 0
+      ? await supabase
+          .from("models")
+          .select("*, rankings(*), model_pricing(*)")
+          .in("id", pagedModelIds)
+      : { data: [], error: null };
+  const parsedPageDetails = parseQueryResultPartial(
+    pageDetailsResponse,
+    ModelsPageSchema,
+    "ModelsPageDetails"
+  );
+  const pageDetailsById = new Map(
+    parsedPageDetails.map((model) => [model.id, model])
+  );
+  const models = pagedCandidateModels.map(
+    (model) => pageDetailsById.get(model.id) ?? model
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

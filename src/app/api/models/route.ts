@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("models")
-      .select("*, rankings(*), model_pricing(*)")
+      .select("*")
       .eq("status", "active");
 
     if (category) query = query.eq("category", category as import("@/types/database").ModelCategory);
@@ -79,7 +79,26 @@ export async function GET(request: NextRequest) {
     );
     const uniqueModels = dedupePublicModelFamilies(filteredData);
     const total = uniqueModels.length;
-    const pagedModels = uniqueModels.slice((page - 1) * limit, page * limit);
+    const pagedCandidateModels = uniqueModels.slice((page - 1) * limit, page * limit);
+    const pagedModelIds = pagedCandidateModels.map((model) => String(model.id));
+    const { data: pagedModelDetails, error: pagedModelDetailsError } =
+      pagedModelIds.length > 0
+        ? await supabase
+            .from("models")
+            .select("*, rankings(*), model_pricing(*)")
+            .in("id", pagedModelIds)
+        : { data: [], error: null };
+
+    if (pagedModelDetailsError) {
+      return NextResponse.json({ error: pagedModelDetailsError.message }, { status: 500 });
+    }
+
+    const pagedModelDetailsById = new Map(
+      (pagedModelDetails ?? []).map((model) => [String(model.id), model])
+    );
+    const pagedModels = pagedCandidateModels.map(
+      (model) => pagedModelDetailsById.get(String(model.id)) ?? model
+    );
     const benchmarkTracking = await buildBenchmarkTrackingSummaryMap(
       supabase as never,
       pagedModels.map((model) => ({
