@@ -32,6 +32,7 @@ function createQuery(data: MockModel[]) {
   const query = {
     eq: vi.fn().mockReturnThis(),
     textSearch: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     range: vi.fn().mockReturnThis(),
     in: vi.fn(async () => ({ data, error: null })),
@@ -267,6 +268,8 @@ describe("GET /api/models", () => {
     expect(response.status).toBe(200);
     expect(body.data).toHaveLength(1);
     expect(body.data[0].slug).toBe("community-model-latest");
-    expect(query.textSearch).toHaveBeenCalledWith("fts", "community model");
+    expect(query.or).toHaveBeenCalledWith(
+      expect.stringContaining("slug.ilike.%community-model%")
+    );
   });
 });

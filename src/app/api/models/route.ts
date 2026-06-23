@@ -10,6 +10,28 @@ import { buildBenchmarkTrackingSummaryMap } from "@/lib/models/benchmark-trackin
 
 export const dynamic = "force-dynamic";
 
+function buildModelSearchFilter(rawSearch: string) {
+  const normalized = rawSearch
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const variants = Array.from(
+    new Set(
+      [
+        rawSearch.replace(/[^a-zA-Z0-9 -]/g, "").trim(),
+        tokens.join(" "),
+        tokens.join("-"),
+        tokens.join(""),
+      ].filter((variant) => variant.length >= 2)
+    )
+  );
+
+  return ["name", "slug", "provider", "description", "short_description"]
+    .flatMap((field) => variants.map((variant) => `${field}.ilike.%${variant}%`))
+    .join(",");
+}
+
 export async function GET(request: NextRequest) {
   // Rate limit: public endpoints
   const ip = getClientIp(request);
@@ -45,7 +67,10 @@ export async function GET(request: NextRequest) {
 
     if (category) query = query.eq("category", category as import("@/types/database").ModelCategory);
     if (openOnly) query = query.eq("is_open_weights", true);
-    if (search) query = query.textSearch("fts", search);
+    if (search) {
+      const searchFilter = buildModelSearchFilter(search);
+      if (searchFilter) query = query.or(searchFilter);
+    }
 
     // Sorting
     const sortMap: Record<string, { column: string; ascending: boolean }> = {
