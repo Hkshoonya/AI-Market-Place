@@ -11,6 +11,7 @@ const HIGH_FREQUENCY_NEWS_SOURCES = [
   "artificial-analysis",
   "livebench",
 ] as const;
+const DELETE_CHUNK_SIZE = 400;
 
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -23,9 +24,12 @@ async function deleteBatchByIds(
 ) {
   if (ids.length === 0) return 0;
 
-  const { error } = await supabase.from(table).delete().in("id", ids);
-  if (error) {
-    throw new Error(`Failed deleting ${table}: ${error.message}`);
+  for (let index = 0; index < ids.length; index += DELETE_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + DELETE_CHUNK_SIZE);
+    const { error } = await supabase.from(table).delete().in("id", chunk);
+    if (error) {
+      throw new Error(`Failed deleting ${table}: ${error.message}`);
+    }
   }
 
   return ids.length;
