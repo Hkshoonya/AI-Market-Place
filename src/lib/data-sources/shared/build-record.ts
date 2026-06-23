@@ -34,6 +34,8 @@ export interface KnownModelMeta {
    *  (Anthropic) hardcode it via ProviderDefaults. */
   modalities?: string[];
   capabilities?: Record<string, boolean>;
+  /** Whether the model is currently available through a hosted/API surface. */
+  is_api_available?: boolean;
   /** Whether model weights are publicly available. Optional because some
    *  providers (Anthropic, OpenAI) always hardcode false. */
   is_open_weights?: boolean;
@@ -64,6 +66,7 @@ export interface ProviderDefaults {
   category?: string;
   /** If set, all models from this provider get these modalities (skips inference). */
   modalities?: string[];
+  is_api_available?: boolean;
   is_open_weights?: boolean;
   license?: string;
   license_name?: string | null;
@@ -89,7 +92,7 @@ export interface ModelRecord {
   parameter_count: number | null;
   context_window: number | null;
   release_date: string | null;
-  is_api_available: true;
+  is_api_available: boolean;
   is_open_weights: boolean;
   license: string | undefined;
   license_name: string | null | undefined;
@@ -143,11 +146,17 @@ function normalizeOpenWeightFields(
     defaults.is_open_weights ??
     merged.is_open_weights ??
     (merged.license === "open_source");
+  const hasExplicitClosedWeightSignal =
+    merged.is_open_weights === false &&
+    merged.license !== "open_source" &&
+    normalizedLicenseName !== "Apache 2.0" &&
+    normalizedLicenseName !== "MIT" &&
+    normalizedLicenseName !== "Open weights";
 
   const is_open_weights =
-    hasExplicitLicenseDefaults
-      ? baseIsOpenWeights
-      : baseIsOpenWeights ||
+    hasExplicitLicenseDefaults || hasExplicitClosedWeightSignal
+      ? Boolean(baseIsOpenWeights)
+      : Boolean(baseIsOpenWeights) ||
         merged.license === "open_source" ||
         normalizedLicenseName === "Apache 2.0" ||
         normalizedLicenseName === "MIT" ||
@@ -276,7 +285,7 @@ export function buildRecord(
     parameter_count: merged.parameter_count ?? null,
     context_window: merged.context_window ?? null,
     release_date: merged.release_date ?? null,
-    is_api_available: true,
+    is_api_available: defaults.is_api_available ?? merged.is_api_available ?? true,
     is_open_weights: normalizedLicense.is_open_weights,
     license: normalizedLicense.license,
     license_name: normalizedLicense.license_name,

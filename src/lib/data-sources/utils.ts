@@ -235,10 +235,13 @@ export function normalizeModelRankingInputs(
     provider: typeof record.provider === "string" ? record.provider : null,
     name: typeof record.name === "string" ? record.name : null,
     category: typeof record.category === "string" ? record.category : null,
+    status: typeof record.status === "string" ? record.status : null,
     release_date:
       typeof record.release_date === "string" ? record.release_date : null,
     context_window:
       typeof record.context_window === "number" ? record.context_window : null,
+    is_api_available:
+      typeof record.is_api_available === "boolean" ? record.is_api_available : null,
     is_open_weights:
       typeof record.is_open_weights === "boolean" ? record.is_open_weights : null,
     license: typeof record.license === "string" ? record.license : null,

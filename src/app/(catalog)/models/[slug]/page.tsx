@@ -171,8 +171,12 @@ export default async function ModelDetailPage({
   const lifecycleBadge = getLifecycleBadge(model.status);
   const parameterDisplay = getParameterDisplay(model);
   const benchmarkScores = filterTrustedStructuredBenchmarkScores(model.benchmark_scores ?? []);
+  const allowsLiveAccessSignals =
+    model.status === "active" && model.is_api_available !== false;
   type PricingEntry = import("./_components/pricing-tab").PricingEntry;
-  const pricingData = (model.model_pricing ?? []) as PricingEntry[];
+  const pricingData = allowsLiveAccessSignals
+    ? ((model.model_pricing ?? []) as PricingEntry[])
+    : [];
   const deploymentPlatforms = (platformsResponse.data ?? []).map((platform) => {
     const platformRecord = platform as Record<string, unknown>;
     return {

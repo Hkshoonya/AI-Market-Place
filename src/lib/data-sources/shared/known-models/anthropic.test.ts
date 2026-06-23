@@ -70,8 +70,22 @@ describe("resolveAnthropicKnownModelMeta", () => {
     expect(resolveAnthropicKnownModelMeta("claude-fable-5")).toMatchObject({
       name: "Claude Fable 5",
       status: "archived",
+      category: "multimodal",
       release_date: "2026-06-09",
       context_window: 1000000,
+      is_api_available: false,
+      is_open_weights: false,
+      license: "commercial",
+      license_name: null,
     });
+    expect(resolveAnthropicKnownModelMeta("claude-fable-latest")).toMatchObject({
+      name: "Claude Fable 5",
+      status: "archived",
+      is_api_available: false,
+      is_open_weights: false,
+    });
+    expect(canonicalizeAnthropicModelId("claude-fable-latest")).toBe(
+      "claude-fable-5"
+    );
   });
 });

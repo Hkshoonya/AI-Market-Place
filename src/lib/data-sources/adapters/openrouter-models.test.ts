@@ -147,6 +147,46 @@ describe("openrouter model record mapping", () => {
     expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-8");
   });
 
+  it("does not let suspended proprietary Claude Fable models look open-weight or available", () => {
+    const fable5 = __testables.buildModelRecord({
+      id: "anthropic/claude-fable-5",
+      name: "Anthropic: Claude Fable 5",
+      description:
+        "Misleading upstream text saying open weights and local machine support.",
+      pricing: {
+        prompt: "0.00001",
+        completion: "0.00005",
+      },
+      architecture: {
+        input_modalities: ["text", "image"],
+        output_modalities: ["text"],
+      },
+    });
+    const latestAlias = __testables.buildModelRecord({
+      id: "anthropic/claude-fable-latest",
+      name: "Anthropic: Claude Fable Latest",
+      description: "Router alias for Fable.",
+      architecture: {},
+    });
+
+    expect(fable5).toMatchObject({
+      name: "Claude Fable 5",
+      category: "multimodal",
+      status: "archived",
+      is_api_available: false,
+      is_open_weights: false,
+      license: "commercial",
+      license_name: null,
+      release_date: "2026-06-09",
+    });
+    expect(latestAlias).toMatchObject({
+      name: "Claude Fable 5",
+      status: "archived",
+      is_api_available: false,
+      is_open_weights: false,
+    });
+  });
+
   it("canonicalizes Z.ai router prefixes", () => {
     const record = __testables.buildModelRecord({
       id: "z-ai/glm-5",

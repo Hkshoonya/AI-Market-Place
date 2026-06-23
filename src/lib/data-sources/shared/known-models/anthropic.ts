@@ -14,12 +14,18 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-fable-5": {
     name: "Claude Fable 5",
     description:
-      "Anthropic's most capable widely released model, built for demanding reasoning and long-horizon agentic work. Access was suspended by Anthropic on June 12, 2026, so it is retained for tracking but excluded from default rankings until availability returns.",
+      "Anthropic model announced on June 9, 2026 and suspended by Anthropic on June 12, 2026. It is proprietary closed-weight software, not a local/open-weight model, and is retained only for historical tracking until access returns.",
+    category: "multimodal",
     context_window: 1000000,
     release_date: "2026-06-09",
     architecture: "Transformer",
     status: "archived",
+    is_api_available: false,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
     website_url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+    modalities: ["text", "image"],
     capabilities: {
       vision: true,
       tool_use: true,
@@ -302,6 +308,7 @@ export function canonicalizeAnthropicModelId(modelId: string): string {
   ]);
 
   const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-fable-latest$/, "claude-fable-5"],
     [/^claude-fable-5(?:-\d{8})?(?:-v\d+)?$/, "claude-fable-5"],
     [/^claude-opus-4-8(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-8"],
     [/^claude-opus-48(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-8"],

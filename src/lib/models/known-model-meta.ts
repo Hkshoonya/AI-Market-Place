@@ -46,8 +46,10 @@ export interface KnownModelLookupInput {
 
 export interface KnownModelPatchInput extends KnownModelLookupInput {
   category?: string | null;
+  status?: string | null;
   release_date?: string | null;
   context_window?: number | null;
+  is_api_available?: boolean | null;
   is_open_weights?: boolean | null;
   license?: string | null;
   license_name?: string | null;
@@ -344,6 +346,15 @@ export function buildKnownModelMetaPatch(
     model,
     knownMeta
   );
+  const shouldOverrideLifecycleStatus =
+    typeof knownMeta.status === "string" &&
+    knownMeta.status !== "active" &&
+    (!hasString(model.status) ||
+      model.status === "active");
+  const shouldOverrideApiAvailability =
+    typeof knownMeta.is_api_available === "boolean" &&
+    (typeof model.is_api_available !== "boolean" ||
+      knownMeta.is_api_available === false);
 
   return Object.fromEntries(
     Object.entries({
@@ -352,10 +363,14 @@ export function buildKnownModelMetaPatch(
         hasString(model.category) && !shouldOverrideGenericCategory
           ? undefined
           : knownMeta.category,
+      status: shouldOverrideLifecycleStatus ? knownMeta.status : undefined,
       release_date: hasString(model.release_date) ? undefined : knownMeta.release_date,
       context_window: hasPositiveNumber(model.context_window)
         ? undefined
         : knownMeta.context_window,
+      is_api_available: shouldOverrideApiAvailability
+        ? knownMeta.is_api_available
+        : undefined,
       is_open_weights:
         shouldOverrideLicenseFields
           ? knownMeta.is_open_weights
@@ -375,6 +390,10 @@ export function buildKnownModelMetaPatch(
         hasString(model.website_url) && !shouldOverrideWebsiteUrl
           ? undefined
           : knownMeta.website_url,
-    }).filter(([, value]) => value !== undefined && value !== null)
+    }).filter(([key, value]) => {
+      if (value === undefined) return false;
+      if (value !== null) return true;
+      return key === "license_name" && shouldOverrideLicenseFields;
+    })
   ) as Record<string, unknown>;
 }

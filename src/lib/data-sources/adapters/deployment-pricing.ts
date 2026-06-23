@@ -83,6 +83,14 @@ function matchesPricingEntry(
   return true;
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 const adapter: DataSourceAdapter = {
   id: "deployment-pricing",
   name: "Deployment Pricing",
@@ -94,6 +102,7 @@ const adapter: DataSourceAdapter = {
     const { supabase } = ctx;
     let recordsProcessed = 0;
     let recordsCreated = 0;
+    let recordsUpdated = 0;
     const errors: { message: string; context?: string }[] = [];
 
     // Get all platforms
@@ -114,6 +123,46 @@ const adapter: DataSourceAdapter = {
     const platformMap = new Map(
       platforms.map((p: { id: string; slug: string }) => [p.slug, p.id])
     );
+
+    const { data: nonActiveModels, error: nonActiveModelsError } = await supabase
+      .from("models")
+      .select("id")
+      .neq("status", "active");
+
+    if (nonActiveModelsError) {
+      errors.push({
+        message: nonActiveModelsError.message,
+        context: "non-active models query",
+      });
+    } else {
+      const nonActiveModelIds =
+        nonActiveModels?.map((model: { id: string }) => model.id).filter(Boolean) ?? [];
+
+      if (nonActiveModelIds.length > 0) {
+        for (const modelIdChunk of chunkArray(nonActiveModelIds, 250)) {
+          const { data: deprecatedDeployments, error: deprecatedDeploymentsError } =
+            await supabase
+              .from("model_deployments")
+              .update({
+                status: "deprecated",
+                updated_at: new Date().toISOString(),
+              })
+              .in("model_id", modelIdChunk)
+              .eq("status", "available")
+              .select("id");
+
+          if (deprecatedDeploymentsError) {
+            errors.push({
+              message: deprecatedDeploymentsError.message,
+              context: "deprecated deployment cleanup",
+            });
+            continue;
+          }
+
+          recordsUpdated += deprecatedDeployments?.length ?? 0;
+        }
+      }
+    }
 
     // Get all models
     const { data: models } = await supabase
@@ -173,7 +222,7 @@ const adapter: DataSourceAdapter = {
       success: errors.length === 0,
       recordsProcessed,
       recordsCreated,
-      recordsUpdated: 0,
+      recordsUpdated,
       errors,
     };
   },

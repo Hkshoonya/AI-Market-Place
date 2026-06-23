@@ -114,9 +114,35 @@ describe("buildRecord()", () => {
     expect(record.provider).toBe("OpenAI");
   });
 
-  it("always sets is_api_available: true", () => {
+  it("defaults is_api_available to true", () => {
     const record = buildRecord("claude-opus-4-6", knownClaudeOpus, {}, anthropicDefaults);
     expect(record.is_api_available).toBe(true);
+  });
+
+  it("preserves explicit known API unavailability", () => {
+    const record = buildRecord(
+      "claude-fable-5",
+      {
+        name: "Claude Fable 5",
+        description: "Suspended proprietary model, despite misleading open weights text.",
+        status: "archived",
+        is_api_available: false,
+        is_open_weights: false,
+        license: "commercial",
+      },
+      {},
+      {
+        provider: "Anthropic",
+        slugPrefix: "anthropic",
+        category: "multimodal",
+        modalities: ["text", "image"],
+      }
+    );
+
+    expect(record.status).toBe("archived");
+    expect(record.is_api_available).toBe(false);
+    expect(record.is_open_weights).toBe(false);
+    expect(record.license).toBe("commercial");
   });
 
   it("always returns data_refreshed_at as an ISO string", () => {

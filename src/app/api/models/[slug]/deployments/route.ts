@@ -28,13 +28,15 @@ export async function GET(
     // Get model
     const { data: modelRaw } = await supabase
       .from("models")
-      .select("id, name, slug, provider, is_open_weights")
+      .select("id, name, slug, provider, status, is_api_available, is_open_weights")
       .eq("slug", slug)
       .single();
 
     if (!modelRaw) {
       return NextResponse.json({ error: "Model not found" }, { status: 404 });
     }
+    const allowsLiveAccessSignals =
+      modelRaw.status === "active" && modelRaw.is_api_available !== false;
 
     // Get deployments with platform info
     const { data: deployments } = await supabase
@@ -72,43 +74,47 @@ export async function GET(
           .limit(8)
       : { data: [] as typeof modelNewsRaw };
 
-    const pricingProviderNames = Array.from(
-      new Set((pricingRows ?? []).map((row) => row.provider_name).filter(Boolean))
-    ) as string[];
+    const pricingProviderNames = allowsLiveAccessSignals
+      ? (Array.from(
+          new Set((pricingRows ?? []).map((row) => row.provider_name).filter(Boolean))
+        ) as string[])
+      : [];
     const seenNewsIds = new Set<string>();
-    const deploymentEvidence = buildLaunchRadar(
-      [...(modelNewsRaw ?? []), ...(providerNewsRaw ?? [])]
-        .filter((item) => {
-          if (!item.id || seenNewsIds.has(item.id)) return false;
-          seenNewsIds.add(item.id);
-          return true;
-        })
-        .filter((item) => {
-          const signalType = getNewsSignalType(item);
-          return signalType === "open_source" || signalType === "api";
-        }),
-      12
-    )
-      .map((item) =>
-        normalizeDeploymentSignalSummary(
-          {
-            id: modelRaw.id,
-            slug: modelRaw.slug,
-            name: modelRaw.name,
-            provider: modelRaw.provider,
-          },
-          item
+    const deploymentEvidence = allowsLiveAccessSignals
+      ? buildLaunchRadar(
+          [...(modelNewsRaw ?? []), ...(providerNewsRaw ?? [])]
+            .filter((item) => {
+              if (!item.id || seenNewsIds.has(item.id)) return false;
+              seenNewsIds.add(item.id);
+              return true;
+            })
+            .filter((item) => {
+              const signalType = getNewsSignalType(item);
+              return signalType === "open_source" || signalType === "api";
+            }),
+          12
         )
-      )
-      .sort(compareDeploymentSignalSummaries)
-      .filter((item, index, items) => {
-        const dedupeKey = `${item.signalType}::${item.title}`;
-        return (
-          items.findIndex((candidate) => `${candidate.signalType}::${candidate.title}` === dedupeKey) ===
-          index
-        );
-      })
-      .slice(0, 6);
+          .map((item) =>
+            normalizeDeploymentSignalSummary(
+              {
+                id: modelRaw.id,
+                slug: modelRaw.slug,
+                name: modelRaw.name,
+                provider: modelRaw.provider,
+              },
+              item
+            )
+          )
+          .sort(compareDeploymentSignalSummaries)
+          .filter((item, index, items) => {
+            const dedupeKey = `${item.signalType}::${item.title}`;
+            return (
+              items.findIndex((candidate) => `${candidate.signalType}::${candidate.title}` === dedupeKey) ===
+              index
+            );
+          })
+          .slice(0, 6)
+      : [];
 
     const typedDeployments: ModelDeployment[] = [];
     for (const deployment of deployments ?? []) {
@@ -153,7 +159,7 @@ export async function GET(
         slug: modelRaw.slug,
         name: modelRaw.name,
         provider: modelRaw.provider,
-        is_open_weights: modelRaw.is_open_weights,
+        is_open_weights: allowsLiveAccessSignals && modelRaw.is_open_weights,
       },
       deployments: typedDeployments,
       platforms: typedPlatforms,
@@ -170,7 +176,7 @@ export async function GET(
         id: modelRaw.id,
         name: modelRaw.name,
         provider: modelRaw.provider,
-        is_open_weights: modelRaw.is_open_weights,
+        is_open_weights: allowsLiveAccessSignals && modelRaw.is_open_weights,
       },
       deployments: deploymentCatalog.directDeployments,
       relatedPlatforms: deploymentCatalog.relatedPlatforms,

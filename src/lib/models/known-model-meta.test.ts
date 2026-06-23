@@ -338,6 +338,31 @@ describe("buildKnownModelMetaPatch", () => {
     });
   });
 
+  it("repairs suspended Anthropic Fable rows that were inferred as open-weight and available", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "anthropic-claude-fable-5",
+        provider: "Anthropic",
+        name: "claude-fable-5",
+        category: "specialized",
+        status: "active",
+        release_date: null,
+        context_window: 1000000,
+        is_api_available: true,
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Open weights",
+      })
+    ).toMatchObject({
+      category: "multimodal",
+      status: "archived",
+      is_api_available: false,
+      is_open_weights: false,
+      license: "commercial",
+      license_name: null,
+    });
+  });
+
   it("fills missing official release and license metadata for newly cataloged provider rows", () => {
     expect(
       buildKnownModelMetaPatch({

@@ -283,6 +283,9 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
   const license = isOpen ? "open_source" : "commercial";
   const knownMeta = resolveCuratedKnownMeta(model.id);
   const providerDefaults = resolveProviderCategoryDefaults(model.id);
+  const status = knownMeta?.status ?? "active";
+  const isApiAvailable =
+    knownMeta?.is_api_available ?? (status === "archived" ? false : true);
 
   return {
     slug: makeSlug(model.id),
@@ -292,7 +295,7 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
       knownMeta?.category ??
       providerDefaults?.category ??
       inferCategoryFromOpenRouterModel(model),
-    status: "active",
+    status,
     description: knownMeta?.description ?? model.description ?? null,
     context_window:
       knownMeta?.context_window ??
@@ -300,7 +303,7 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
       model.top_provider?.context_length ??
       null,
     release_date: knownMeta?.release_date ?? unixToDateString(model.created),
-    is_api_available: true,
+    is_api_available: isApiAvailable,
     is_open_weights: knownMeta?.is_open_weights ?? isOpen,
     license: knownMeta?.license ?? license,
     license_name: "license_name" in (knownMeta ?? {}) ? (knownMeta?.license_name ?? null) : (isOpen ? licenseName : null),
@@ -310,6 +313,17 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     capabilities: {},
     data_refreshed_at: new Date().toISOString(),
   };
+}
+
+function shouldRecordOpenRouterPricing(model: OpenRouterModelEntry): boolean {
+  if (!hasPricing(model.pricing)) return false;
+
+  const knownMeta = resolveCuratedKnownMeta(model.id);
+  if (knownMeta?.is_api_available === false || knownMeta?.status === "archived") {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -436,7 +450,7 @@ const adapter: DataSourceAdapter = {
     // model with parseable pricing, look up its UUID by slug, then insert
     // a pricing row. We skip on error rather than aborting the whole sync.
 
-    const modelsWithPricing = models.filter((m) => hasPricing(m.pricing));
+    const modelsWithPricing = models.filter(shouldRecordOpenRouterPricing);
     let pricingInserted = 0;
     let pricingSkipped = 0;
 
