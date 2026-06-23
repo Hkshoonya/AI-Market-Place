@@ -62,7 +62,7 @@
   {
     "name": "Retention Maintenance",
     "cron": "40 1 * * *",
-    "path": "/api/cron/maintenance?limit=2000"
+    "path": "/api/cron/maintenance?limit=5000"
   },
   {
     "name": "Pipeline Agent",
