@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   computePopularDiscoveryScore,
@@ -11,6 +11,15 @@ import {
 } from "./discovery";
 
 describe("model discovery scoring", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-30T00:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("prefers recent high-signal models for trending instead of stale raw download winners", () => {
     const now = new Date("2026-03-14T00:00:00.000Z");
 

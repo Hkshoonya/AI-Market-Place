@@ -1,10 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   computeBalancedRankPenalty,
   computeCapabilityScoreMultiplier,
 } from "./ranking-penalties";
 
 describe("ranking penalties", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-30T00:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("heavily penalizes superseded compatibility rows", () => {
     const previousFlagship = {
       slug: "anthropic-claude-opus-4-6",
