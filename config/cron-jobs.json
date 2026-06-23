@@ -50,6 +50,11 @@
     "path": "/api/cron/compute-scores"
   },
   {
+    "name": "Trending Cache",
+    "cron": "*/15 * * * *",
+    "path": "/api/cron/trending-cache?limits=8,10"
+  },
+  {
     "name": "Social Signal Publisher",
     "cron": "55 */2 * * *",
     "path": "/api/cron/social/publish-signals"

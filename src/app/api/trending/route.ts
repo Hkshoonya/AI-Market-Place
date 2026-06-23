@@ -44,6 +44,105 @@ const TRENDING_NEWS_SOURCES = [
   "provider-deployment-signals",
   "ollama-library",
 ] as const;
+const TRENDING_CACHE_TTL_MS = 20 * 60 * 1000;
+
+type TrendingCachePayload = {
+  trending: unknown[];
+  recent: unknown[];
+  deployable: unknown[];
+  popular: unknown[];
+  discussed: unknown[];
+};
+
+type TrendingCacheClient = {
+  from: (table: "api_response_cache") => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        gt: (column: string, value: string) => {
+          maybeSingle: () => PromiseLike<{
+            data: { payload: unknown; generated_at?: string | null } | null;
+            error: { message?: string } | null;
+          }>;
+        };
+      };
+    };
+    upsert: (
+      payload: Record<string, unknown>,
+      options: { onConflict: string }
+    ) => PromiseLike<{ error: { message?: string } | null }>;
+  };
+};
+
+function getTrendingCacheKey(limit: number, category: string | null) {
+  return `trending:v1:limit=${limit}:category=${category || "all"}`;
+}
+
+function isTrendingCachePayload(value: unknown): value is TrendingCachePayload {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    Array.isArray(candidate.trending) &&
+    Array.isArray(candidate.recent) &&
+    Array.isArray(candidate.deployable) &&
+    Array.isArray(candidate.popular) &&
+    Array.isArray(candidate.discussed)
+  );
+}
+
+async function readTrendingCache(
+  supabase: unknown,
+  cacheKey: string
+): Promise<TrendingCachePayload | null> {
+  try {
+    const cacheClient = supabase as TrendingCacheClient;
+    const { data, error } = await cacheClient
+      .from("api_response_cache")
+      .select("payload, generated_at")
+      .eq("cache_key", cacheKey)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (error || !isTrendingCachePayload(data?.payload)) return null;
+    return data.payload;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeTrendingCache(
+  supabase: unknown,
+  input: {
+    limit: number;
+    category: string | null;
+    payload: TrendingCachePayload;
+    ttlMs?: number;
+  }
+) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + (input.ttlMs ?? TRENDING_CACHE_TTL_MS));
+  const cacheClient = supabase as TrendingCacheClient;
+  const { error } = await cacheClient
+    .from("api_response_cache")
+    .upsert(
+      {
+        cache_key: getTrendingCacheKey(input.limit, input.category),
+        payload: input.payload,
+        generated_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        metadata: {
+          route: "/api/trending",
+          limit: input.limit,
+          category: input.category,
+        },
+      },
+      { onConflict: "cache_key" }
+    );
+
+  if (error) {
+    throw new Error(`Failed writing trending cache: ${error.message ?? "unknown error"}`);
+  }
+}
 
 function toTimestamp(value: string | null | undefined) {
   if (!value) return 0;
@@ -271,26 +370,14 @@ function getRecentSignalWeight(item: {
   return recencyScore + importanceScore * 12 + typeScore * 10;
 }
 
-// GET /api/trending — get trending models based on recent activity
-export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
-  const rl = await rateLimit(`trending:${ip}`, RATE_LIMITS.public);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Too many requests." },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
+export async function buildTrendingPayload(
+  supabase: ReturnType<typeof createClient<Database>>,
+  input: {
+    limit: number;
+    category: string | null;
   }
-
-  try {
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
-    const category = searchParams.get("category");
-
+): Promise<TrendingCachePayload> {
+    const { limit, category } = input;
     let query = supabase
       .from("models")
       .select(
@@ -305,7 +392,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      throw new Error(error.message);
     }
     const visibleModels = dedupePublicModelFamilies(
       preferDefaultPublicSurfaceReady(data ?? [], 8)
@@ -587,12 +674,52 @@ export async function GET(request: NextRequest) {
         benchmark_tracking: benchmarkTracking.get(model.id) ?? null,
       }));
 
-    return NextResponse.json({
+    return {
       trending: attachSignal(trending),
       recent: attachSignal(recent, launchOnlySignals),
       deployable: attachSignal(deployable, deployableSignals),
       popular: attachSignal(popular),
       discussed: attachSignal(discussedUnique.slice(0, limit)),
+    };
+}
+
+// GET /api/trending — get trending models based on recent activity
+export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await rateLimit(`trending:${ip}`, RATE_LIMITS.public);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
+  try {
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
+    const category = searchParams.get("category");
+    const cacheKey = getTrendingCacheKey(limit, category);
+    const cachedPayload = await readTrendingCache(supabase, cacheKey);
+
+    if (cachedPayload) {
+      return NextResponse.json(cachedPayload, {
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=900",
+          "X-AIMC-Cache": "hit",
+        },
+      });
+    }
+
+    const payload = await buildTrendingPayload(supabase, { limit, category });
+    return NextResponse.json(payload, {
+      headers: {
+        "Cache-Control": "public, max-age=30, s-maxage=120, stale-while-revalidate=600",
+        "X-AIMC-Cache": "miss",
+      },
     });
   } catch (err) {
     return handleApiError(err, "api/trending");
