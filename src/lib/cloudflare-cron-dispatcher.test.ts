@@ -59,4 +59,24 @@ describe("cloudflare cron dispatcher schedule", () => {
       ])
     );
   });
+
+  it("scores new models shortly after the even-hour sync window", () => {
+    const afterEvenHourSync = new Date("2026-05-18T04:25:00.000Z");
+    const verifierTime = new Date("2026-05-18T04:15:00.000Z");
+    const formerScoreTime = new Date("2026-05-18T04:45:00.000Z");
+    const oddHour = new Date("2026-05-18T05:25:00.000Z");
+
+    expect(dueJobsForTime(afterEvenHourSync).map((job) => job.name)).toContain(
+      "Compute Scores"
+    );
+    expect(dueJobsForTime(verifierTime).map((job) => job.name)).not.toContain(
+      "Compute Scores"
+    );
+    expect(dueJobsForTime(formerScoreTime).map((job) => job.name)).not.toContain(
+      "Compute Scores"
+    );
+    expect(dueJobsForTime(oddHour).map((job) => job.name)).not.toContain(
+      "Compute Scores"
+    );
+  });
 });

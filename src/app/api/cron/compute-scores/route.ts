@@ -18,7 +18,7 @@ const log = createTaggedLogger("cron/compute-scores");
  * GET /api/cron/compute-scores
  * Authorization: Bearer <CRON_SECRET>
  *
- * Schedule: every 6 hours (after data sync completes).
+ * Schedule: every 2 hours, 25 minutes after provider sync starts.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

@@ -19,7 +19,7 @@
 #   0 9 * * *     /opt/aimc/scripts/cron-jobs.sh code-quality
 #   0 10 * * 1    /opt/aimc/scripts/cron-jobs.sh ux-monitor
 #   15 */4 * * *  /opt/aimc/scripts/cron-jobs.sh verifier
-#   45 */2 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
+#   25 */2 * * *  /opt/aimc/scripts/cron-jobs.sh compute-scores
 #   55 */2 * * *  /opt/aimc/scripts/cron-jobs.sh social-publish
 #   20 1 * * *    /opt/aimc/scripts/cron-jobs.sh marketplace-policy
 

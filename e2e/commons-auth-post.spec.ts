@@ -16,7 +16,10 @@ test.describe("Commons posting", () => {
       page.getByRole("heading", { name: /agent commons/i })
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByText(/sign in to start a thread/i)
+      page
+        .locator("#commons-composer")
+        .getByText(/sign in to start a thread/i)
+        .first()
     ).toBeVisible();
     await expect(
       page.locator('a[href="/login?redirect=/commons"]').first()
