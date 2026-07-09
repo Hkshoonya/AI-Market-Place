@@ -243,6 +243,7 @@ describe("upsertBatch", () => {
     expect(upsert).toHaveBeenNthCalledWith(2, [{ source_id: "row-1" }], {
       onConflict: "source,source_id",
       count: "exact",
+      defaultToNull: false,
     });
   });
 
@@ -306,6 +307,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "source,source_id",
         count: "exact",
+        defaultToNull: false,
       }
     );
   });
@@ -356,6 +358,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
+        defaultToNull: false,
       }
     );
 
@@ -370,6 +373,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "source,source_id",
         count: "exact",
+        defaultToNull: false,
       }
     );
   });
@@ -439,6 +443,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
+        defaultToNull: false,
       }
     );
   });
@@ -480,6 +485,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
+        defaultToNull: false,
       }
     );
   });
@@ -528,8 +534,42 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
+        defaultToNull: false,
       }
     );
+  });
+
+  it("preserves omitted computed fields during sparse official model refreshes", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null, count: 1 });
+    const supabase = {
+      from: vi.fn().mockReturnValue({ upsert }),
+    };
+
+    await upsertBatch(
+      supabase as never,
+      "models",
+      [
+        {
+          slug: "openai-gpt-5-5",
+          provider: "OpenAI",
+          name: "GPT-5.5",
+          category: "multimodal",
+          release_date: "2026-06-18",
+          context_window: 400000,
+          website_url: "https://developers.openai.com/api/docs/models",
+        },
+      ],
+      "slug"
+    );
+
+    const [records, options] = upsert.mock.calls[0];
+    expect(records[0]).not.toHaveProperty("overall_rank");
+    expect(records[0]).not.toHaveProperty("quality_score");
+    expect(options).toEqual({
+      onConflict: "slug",
+      count: "exact",
+      defaultToNull: false,
+    });
   });
 
   it("persists inferred trusted benchmark locators for official models missing metadata", async () => {
@@ -576,6 +616,7 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
+        defaultToNull: false,
       }
     );
   });

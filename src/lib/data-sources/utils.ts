@@ -124,9 +124,14 @@ export async function upsertBatch(
   for (let i = 0; i < sanitizedRecords.length; i += batchSize) {
     const batch = sanitizedRecords.slice(i, i + batchSize);
 
+    // Source payloads are intentionally sparse; preserve columns omitted from a refresh.
     const { error, count } = await sb
       .from(table)
-      .upsert(batch, { onConflict: conflictColumn, count: "exact" });
+      .upsert(batch, {
+        onConflict: conflictColumn,
+        count: "exact",
+        defaultToNull: false,
+      });
 
     if (error) {
       if (batch.length === 1) {
@@ -141,7 +146,11 @@ export async function upsertBatch(
         const record = batch[rowIndex];
         const { error: rowError, count: rowCount } = await sb
           .from(table)
-          .upsert([record], { onConflict: conflictColumn, count: "exact" });
+          .upsert([record], {
+            onConflict: conflictColumn,
+            count: "exact",
+            defaultToNull: false,
+          });
 
         if (rowError) {
           const rowIdentifier =
