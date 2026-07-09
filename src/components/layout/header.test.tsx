@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Header } from "./header";
 
@@ -48,6 +48,9 @@ vi.mock("@/components/ui/button", () => ({
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children, ...props }: ComponentProps<"div">) => (
+    <div {...props}>{children}</div>
+  ),
   SheetTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SheetTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -79,7 +82,7 @@ describe("Header", () => {
     render(<Header />);
 
     const brandLink = screen.getByRole("link", { name: /ai market cap - home/i });
-    const brandText = screen.getByText("AI Market", { exact: false });
+    const brandText = within(brandLink).getByText("AI Market", { exact: false });
     const desktopNav = screen.getByRole("navigation", { name: /main navigation/i });
     const [modelsLink] = Array.from(desktopNav.querySelectorAll("a[href=\"/models\"]"));
     const actionsContainer = screen.getByTestId("search-dialog").parentElement;
@@ -91,6 +94,9 @@ describe("Header", () => {
     expect(modelsLink).toHaveClass("whitespace-nowrap");
     expect(actionsContainer).toHaveClass("ml-auto");
     expect(actionsContainer).toHaveClass("xl:ml-3");
+    expect(
+      screen.getByText(/navigate ai market cap and manage your account/i)
+    ).toHaveClass("sr-only");
   });
 
   it("keeps account links accessible while reducing signed-in header crowding", () => {

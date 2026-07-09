@@ -28,7 +28,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
 import { AuthButton, MobileAuthControls } from "@/components/auth/auth-button";
@@ -218,6 +224,9 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[min(20rem,85dvw)] max-w-[100dvw] bg-background">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <SheetDescription className="sr-only">
+                Navigate AI Market Cap and manage your account.
+              </SheetDescription>
               <nav className="mt-8 flex min-h-0 flex-1 flex-col gap-2 pb-6" aria-label="Mobile navigation">
                 {NAV_ITEMS.map((item) => {
                   const isActive = pathname.startsWith(item.href);
