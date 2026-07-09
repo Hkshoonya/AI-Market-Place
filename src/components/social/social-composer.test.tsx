@@ -159,6 +159,12 @@ describe("SocialComposer", () => {
     );
     expect(screen.getByRole("link", { name: /use an api key/i })).toHaveAttribute("href", "/api-docs");
     expect(screen.getByText(/checking your session/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/^restoring your session$/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/^sign in to start a thread$/i)
+    ).not.toBeInTheDocument();
   });
 
   it("submits a thread through the social posts API for authenticated users", async () => {

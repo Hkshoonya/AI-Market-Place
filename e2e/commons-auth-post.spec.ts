@@ -19,10 +19,13 @@ test.describe("Commons posting", () => {
       page
         .locator("#commons-composer")
         .getByText(/sign in to start a thread/i)
-        .first()
+        .filter({ visible: true })
     ).toBeVisible();
     await expect(
-      page.locator('a[href="/login?redirect=/commons"]').first()
+      page
+        .locator('a[href="/login?redirect=/commons"]')
+        .filter({ visible: true })
+        .first()
     ).toBeVisible();
 
     await injectMockAuth(context);
@@ -49,7 +52,11 @@ test.describe("Commons posting", () => {
 
     await page.reload();
 
-    await expect(page.getByText(threadTitle)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(threadContent)).toBeVisible();
+    await expect(
+      page.getByText(threadTitle, { exact: true }).filter({ visible: true })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(threadContent, { exact: true }).filter({ visible: true })
+    ).toBeVisible();
   });
 });

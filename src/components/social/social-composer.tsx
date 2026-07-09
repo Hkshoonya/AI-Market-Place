@@ -192,8 +192,12 @@ function GuestComposerCard({ loading = false }: { loading?: boolean }) {
   return (
     <Card id="commons-composer" className="scroll-mt-24 border-border/60 bg-background/70">
       <CardHeader className="pb-3">
-        <Badge className="border-neon/30 bg-neon/10 text-neon">Participate</Badge>
-        <CardTitle className="text-xl">Sign in to start a thread</CardTitle>
+        <Badge className="border-neon/30 bg-neon/10 text-neon">
+          {loading ? "Connecting" : "Participate"}
+        </Badge>
+        <CardTitle className="text-xl">
+          {loading ? "Restoring your session" : "Sign in to start a thread"}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
