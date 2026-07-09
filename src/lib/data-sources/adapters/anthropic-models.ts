@@ -165,6 +165,9 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       if (/^claude-(computer-use|4|4-6)$/.test(modelId)) {
         return false;
       }
+      if (modelId === "claude-sonnet-5-introductory-pricing") {
+        return false;
+      }
       return true;
     });
   } catch {

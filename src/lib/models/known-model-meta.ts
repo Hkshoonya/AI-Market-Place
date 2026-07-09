@@ -94,6 +94,7 @@ const SPECIALIST_CATEGORY_OVERRIDES = new Set([
   "embeddings",
   "image_generation",
   "video_generation",
+  "code",
 ]);
 
 function canonicalize(value: string | null | undefined): string {

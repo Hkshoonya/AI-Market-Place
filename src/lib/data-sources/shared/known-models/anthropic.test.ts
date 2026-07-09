@@ -5,6 +5,25 @@ import {
 } from "./anthropic";
 
 describe("resolveAnthropicKnownModelMeta", () => {
+  it("resolves Claude Sonnet 5 and dated aliases to current release metadata", () => {
+    expect(resolveAnthropicKnownModelMeta("claude-sonnet-5")).toMatchObject({
+      name: "Claude Sonnet 5",
+      release_date: "2026-06-30",
+      context_window: 1000000,
+      status: "active",
+      is_api_available: true,
+      is_open_weights: false,
+      website_url: "https://www.anthropic.com/news/claude-sonnet-5",
+    });
+    expect(resolveAnthropicKnownModelMeta("claude-sonnet-5-20260630-v1")).toMatchObject({
+      name: "Claude Sonnet 5",
+      release_date: "2026-06-30",
+    });
+    expect(canonicalizeAnthropicModelId("claude-sonnet-5-20260630-v1")).toBe(
+      "claude-sonnet-5"
+    );
+  });
+
   it("resolves Claude Opus 4.8 canonical and generic aliases to the current Opus release metadata", () => {
     const canonical = resolveAnthropicKnownModelMeta("claude-opus-4-8");
     const genericAlias = resolveAnthropicKnownModelMeta("claude-4-8");
@@ -66,26 +85,40 @@ describe("resolveAnthropicKnownModelMeta", () => {
     );
   });
 
-  it("retains suspended Fable 5 as non-active until access returns", () => {
+  it("keeps restored Fable 5 proprietary while marking API access active", () => {
     expect(resolveAnthropicKnownModelMeta("claude-fable-5")).toMatchObject({
       name: "Claude Fable 5",
-      status: "archived",
+      status: "active",
       category: "multimodal",
       release_date: "2026-06-09",
       context_window: 1000000,
-      is_api_available: false,
+      is_api_available: true,
       is_open_weights: false,
       license: "commercial",
       license_name: null,
     });
     expect(resolveAnthropicKnownModelMeta("claude-fable-latest")).toMatchObject({
       name: "Claude Fable 5",
-      status: "archived",
-      is_api_available: false,
+      status: "active",
+      is_api_available: true,
       is_open_weights: false,
     });
     expect(canonicalizeAnthropicModelId("claude-fable-latest")).toBe(
       "claude-fable-5"
+    );
+  });
+
+  it("tracks Mythos 5 as proprietary limited availability", () => {
+    expect(resolveAnthropicKnownModelMeta("claude-mythos-5")).toMatchObject({
+      name: "Claude Mythos 5",
+      status: "preview",
+      context_window: 1000000,
+      is_api_available: true,
+      is_open_weights: false,
+      license: "commercial",
+    });
+    expect(canonicalizeAnthropicModelId("claude-mythos-latest")).toBe(
+      "claude-mythos-5"
     );
   });
 });

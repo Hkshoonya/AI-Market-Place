@@ -11,16 +11,66 @@ import type { KnownModelMeta } from "../build-record";
 
 export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   // ---- Claude 5 / latest generation ----
+  "claude-sonnet-5": {
+    name: "Claude Sonnet 5",
+    description:
+      "Anthropic's latest Sonnet model, balancing frontier agentic coding, tool use, computer use, reasoning, and knowledge work with lower cost than the Opus tier.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-06-30",
+    architecture: "Transformer",
+    status: "active",
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.anthropic.com/news/claude-sonnet-5",
+    modalities: ["text", "image"],
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      adaptive_thinking: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+  },
   "claude-fable-5": {
     name: "Claude Fable 5",
     description:
-      "Anthropic model announced on June 9, 2026 and suspended by Anthropic on June 12, 2026. It is proprietary closed-weight software, not a local/open-weight model, and is retained only for historical tracking until access returns.",
+      "Anthropic's most capable generally available model for demanding reasoning, coding, and long-horizon agentic work. Access was restored on July 1, 2026; it remains proprietary closed-weight software and cannot run as an open local model.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2026-06-09",
     architecture: "Transformer",
-    status: "archived",
-    is_api_available: false,
+    status: "active",
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+    modalities: ["text", "image"],
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      adaptive_thinking: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+  },
+  "claude-mythos-5": {
+    name: "Claude Mythos 5",
+    description:
+      "Anthropic's limited-availability successor to Mythos Preview, sharing Fable 5 capabilities without its safety classifiers. Access is restricted to approved Project Glasswing organizations.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-06-09",
+    architecture: "Transformer",
+    status: "preview",
+    is_api_available: true,
     is_open_weights: false,
     license: "commercial",
     license_name: null,
@@ -308,8 +358,11 @@ export function canonicalizeAnthropicModelId(modelId: string): string {
   ]);
 
   const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-sonnet-5(?:-\d{8})?(?:-v\d+)?$/, "claude-sonnet-5"],
     [/^claude-fable-latest$/, "claude-fable-5"],
     [/^claude-fable-5(?:-\d{8})?(?:-v\d+)?$/, "claude-fable-5"],
+    [/^claude-mythos-latest$/, "claude-mythos-5"],
+    [/^claude-mythos-5(?:-\d{8})?(?:-v\d+)?$/, "claude-mythos-5"],
     [/^claude-opus-4-8(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-8"],
     [/^claude-opus-48(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-8"],
     [/^claude-4-8(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-4-8"],

@@ -168,7 +168,7 @@ describe("openrouter model record mapping", () => {
     expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-8");
   });
 
-  it("does not let suspended proprietary Claude Fable models look open-weight or available", () => {
+  it("keeps restored Claude Fable models proprietary and non-local", () => {
     const fable5 = __testables.buildModelRecord({
       id: "anthropic/claude-fable-5",
       name: "Anthropic: Claude Fable 5",
@@ -193,8 +193,8 @@ describe("openrouter model record mapping", () => {
     expect(fable5).toMatchObject({
       name: "Claude Fable 5",
       category: "multimodal",
-      status: "archived",
-      is_api_available: false,
+      status: "active",
+      is_api_available: true,
       is_open_weights: false,
       license: "commercial",
       license_name: null,
@@ -202,8 +202,8 @@ describe("openrouter model record mapping", () => {
     });
     expect(latestAlias).toMatchObject({
       name: "Claude Fable 5",
-      status: "archived",
-      is_api_available: false,
+      status: "active",
+      is_api_available: true,
       is_open_weights: false,
     });
   });

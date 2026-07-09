@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { buildKnownModelMetaPatch, getKnownModelMeta } from "./known-model-meta";
 
 describe("getKnownModelMeta", () => {
+  it("does not treat Anthropic pricing anchors as model variants", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "anthropic-claude-sonnet-5-introductory-pricing",
+        provider: "Anthropic",
+      })
+    ).toBeNull();
+  });
+
   it("resolves Meta open-weight rows by canonical slug", () => {
     expect(
       getKnownModelMeta({
@@ -338,28 +347,47 @@ describe("buildKnownModelMetaPatch", () => {
     });
   });
 
-  it("repairs suspended Anthropic Fable rows that were inferred as open-weight and available", () => {
+  it("repairs restored Anthropic Fable rows without marking them open-weight", () => {
     expect(
       buildKnownModelMetaPatch({
         slug: "anthropic-claude-fable-5",
         provider: "Anthropic",
         name: "claude-fable-5",
         category: "specialized",
-        status: "active",
+        status: "archived",
         release_date: null,
         context_window: 1000000,
-        is_api_available: true,
+        is_api_available: false,
         is_open_weights: true,
         license: "open_source",
         license_name: "Open weights",
       })
     ).toMatchObject({
       category: "multimodal",
-      status: "archived",
-      is_api_available: false,
       is_open_weights: false,
       license: "commercial",
       license_name: null,
+    });
+  });
+
+  it("classifies Grok Build as a coding model with an official update path", () => {
+    expect(
+      buildKnownModelMetaPatch({
+        slug: "x-ai-grok-build-0-1",
+        provider: "xAI",
+        name: "Grok Build 0.1",
+        category: "multimodal",
+        release_date: null,
+        context_window: 256000,
+        is_api_available: true,
+        is_open_weights: false,
+        license: "commercial",
+        license_name: "Proprietary",
+      })
+    ).toMatchObject({
+      category: "code",
+      release_date: "2026-05-19",
+      website_url: "https://docs.x.ai/developers/models/grok-build-0.1",
     });
   });
 

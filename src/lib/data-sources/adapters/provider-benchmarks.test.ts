@@ -236,6 +236,25 @@ const SAMPLE_DEEPSEEK_V4_TABLE_HTML = `
 `;
 
 describe("provider-benchmarks helpers", () => {
+  it("tracks current official Anthropic and xAI benchmark pages", () => {
+    const sources = new Map(
+      __testables.PROVIDER_BENCHMARK_SOURCES.map((source) => [source.id, source])
+    );
+
+    expect(sources.get("anthropic-claude-sonnet-5")).toMatchObject({
+      url: "https://www.anthropic.com/news/claude-sonnet-5",
+      requiresBenchmarkSignal: true,
+    });
+    expect(sources.get("anthropic-claude-fable-5-mythos-5")).toMatchObject({
+      url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+      requiresBenchmarkSignal: true,
+    });
+    expect(sources.get("xai-grok-4-5")).toMatchObject({
+      url: "https://x.ai/news/grok-4-5",
+      requiresBenchmarkSignal: true,
+    });
+  });
+
   it("extracts official page metadata for provider benchmark evidence", () => {
     expect(__testables.extractTitle(SAMPLE_HTML)).toBe(
       "GLM-4.5 benchmark update"

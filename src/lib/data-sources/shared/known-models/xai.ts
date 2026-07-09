@@ -1,6 +1,50 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const XAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "grok-4-5": {
+    name: "Grok 4.5",
+    description:
+      "SpaceXAI's frontier model for coding, agentic tasks, knowledge work, and configurable reasoning.",
+    category: "multimodal",
+    context_window: 500000,
+    release_date: "2026-07-08",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://x.ai/news/grok-4-5",
+  },
+  "grok-build-0-1": {
+    name: "Grok Build 0.1",
+    description:
+      "SpaceXAI's fast coding model trained for agentic software engineering, web development, debugging, MCP, and tool-driven workflows.",
+    category: "code",
+    context_window: 256000,
+    release_date: "2026-05-19",
+    architecture: "Transformer (code)",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      vision: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://docs.x.ai/developers/models/grok-build-0.1",
+  },
   "grok-4.1": {
     name: "Grok 4.1",
     description:
