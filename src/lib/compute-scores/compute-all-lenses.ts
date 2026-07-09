@@ -65,7 +65,9 @@ function normalizedPricingValue(field: string, value: unknown) {
     field === "blended_price_per_million"
   ) {
     const numericValue = Number(value);
-    return Number.isFinite(numericValue) ? numericValue : null;
+    return Number.isFinite(numericValue)
+      ? Number(numericValue.toFixed(6))
+      : null;
   }
   return value;
 }

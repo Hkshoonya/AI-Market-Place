@@ -465,8 +465,8 @@ describe("computeAllLenses", () => {
       slug === "gpt-4o"
         ? {
             provider: "OpenAI",
-            inputPricePerMillion: 2.5,
-            outputPricePerMillion: 10,
+            inputPricePerMillion: 0.1,
+            outputPricePerMillion: 0.2,
             source: "openai.com/pricing",
             lastUpdated: "2026-03-01",
           }
@@ -479,12 +479,12 @@ describe("computeAllLenses", () => {
         model_id: "gpt-4o",
         provider_name: "OpenAI",
         pricing_model: "token_based",
-        input_price_per_million: 2.5,
-        output_price_per_million: 10,
+        input_price_per_million: 0.1,
+        output_price_per_million: 0.2,
         price_per_call: null,
         price_per_gpu_second: null,
         subscription_monthly: null,
-        blended_price_per_million: 5.5,
+        blended_price_per_million: 0.14,
         source: "openai.com/pricing",
         effective_date: "2026-03-01",
         updated_at: "2026-07-09T00:00:00.000Z",
