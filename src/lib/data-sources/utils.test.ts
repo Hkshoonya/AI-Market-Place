@@ -243,7 +243,6 @@ describe("upsertBatch", () => {
     expect(upsert).toHaveBeenNthCalledWith(2, [{ source_id: "row-1" }], {
       onConflict: "source,source_id",
       count: "exact",
-      defaultToNull: false,
     });
   });
 
@@ -307,7 +306,6 @@ describe("upsertBatch", () => {
       {
         onConflict: "source,source_id",
         count: "exact",
-        defaultToNull: false,
       }
     );
   });
@@ -358,7 +356,6 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
-        defaultToNull: false,
       }
     );
 
@@ -373,7 +370,6 @@ describe("upsertBatch", () => {
       {
         onConflict: "source,source_id",
         count: "exact",
-        defaultToNull: false,
       }
     );
   });
@@ -417,8 +413,9 @@ describe("upsertBatch", () => {
       "slug"
     );
 
-    expect(upsert).toHaveBeenCalledWith(
-      [
+    const persistedRecords = upsert.mock.calls.flatMap(([records]) => records);
+    expect(persistedRecords).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
           slug: "community-cool-model-gguf",
           overall_rank: null,
@@ -439,12 +436,7 @@ describe("upsertBatch", () => {
           hf_likes: null,
           hf_trending_score: null,
         }),
-      ],
-      {
-        onConflict: "slug",
-        count: "exact",
-        defaultToNull: false,
-      }
+      ])
     );
   });
 
@@ -485,7 +477,6 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
-        defaultToNull: false,
       }
     );
   });
@@ -534,7 +525,6 @@ describe("upsertBatch", () => {
       {
         onConflict: "slug",
         count: "exact",
-        defaultToNull: false,
       }
     );
   });
@@ -554,21 +544,38 @@ describe("upsertBatch", () => {
           provider: "OpenAI",
           name: "GPT-5.5",
           category: "multimodal",
-          release_date: "2026-06-18",
+          release_date: "2026-04-23",
           context_window: 400000,
           website_url: "https://developers.openai.com/api/docs/models",
+          quality_score: undefined,
+        },
+        {
+          slug: "community-wrapper-row",
+          provider: "Community Hub",
+          name: "Community Wrapper Row",
+          category: "llm",
+          release_date: "2026-04-01",
+          context_window: 32768,
+          overall_rank: 11,
+          quality_score: 70,
         },
       ],
       "slug"
     );
 
-    const [records, options] = upsert.mock.calls[0];
-    expect(records[0]).not.toHaveProperty("overall_rank");
-    expect(records[0]).not.toHaveProperty("quality_score");
-    expect(options).toEqual({
+    expect(upsert).toHaveBeenCalledTimes(2);
+    const [officialRecords, officialOptions] = upsert.mock.calls[0];
+    const [unsafeRecords] = upsert.mock.calls[1];
+    expect(officialRecords[0]).not.toHaveProperty("overall_rank");
+    expect(officialRecords[0]).not.toHaveProperty("quality_score");
+    expect(unsafeRecords[0]).toMatchObject({
+      slug: "community-wrapper-row",
+      overall_rank: null,
+      quality_score: null,
+    });
+    expect(officialOptions).toEqual({
       onConflict: "slug",
       count: "exact",
-      defaultToNull: false,
     });
   });
 
@@ -602,8 +609,10 @@ describe("upsertBatch", () => {
       "slug"
     );
 
-    expect(upsert).toHaveBeenCalledWith(
-      [
+    expect(upsert).toHaveBeenCalled();
+    const persistedRecords = upsert.mock.calls.flatMap(([records]) => records);
+    expect(persistedRecords).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
           slug: "openai-gpt-5-search-api",
           website_url: "https://developers.openai.com/api/docs/models",
@@ -612,12 +621,7 @@ describe("upsertBatch", () => {
           slug: "bytedance-ui-tars-1-5-7b",
           hf_model_id: "ByteDance-Seed/UI-TARS-1.5-7B",
         }),
-      ],
-      {
-        onConflict: "slug",
-        count: "exact",
-        defaultToNull: false,
-      }
+      ])
     );
   });
 

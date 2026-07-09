@@ -120,24 +120,25 @@ export async function upsertBatch(
   const sanitizedRecords = records.map((record) =>
     sanitizeRecordForJson(normalizeProviderFields(table, record))
   );
+  // PostgREST merges the union of bulk-payload columns, filling a missing key
+  // with null. Uniform shapes keep intentional nulls from leaking into sparse rows.
+  const batches = buildUniformColumnBatches(sanitizedRecords, batchSize);
+  let recordsAttempted = 0;
 
-  for (let i = 0; i < sanitizedRecords.length; i += batchSize) {
-    const batch = sanitizedRecords.slice(i, i + batchSize);
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    const batchStart = recordsAttempted;
+    recordsAttempted += batch.length;
 
-    // Source payloads are intentionally sparse; preserve columns omitted from a refresh.
     const { error, count } = await sb
       .from(table)
-      .upsert(batch, {
-        onConflict: conflictColumn,
-        count: "exact",
-        defaultToNull: false,
-      });
+      .upsert(batch, { onConflict: conflictColumn, count: "exact" });
 
     if (error) {
       if (batch.length === 1) {
         errors.push({
-          message: `Upsert batch ${Math.floor(i / batchSize) + 1} failed: ${error.message}`,
-          context: `table=${table}, batchStart=${i}, batchSize=${batch.length}`,
+          message: `Upsert batch ${batchIndex + 1} failed: ${error.message}`,
+          context: `table=${table}, batchStart=${batchStart}, batchSize=${batch.length}`,
         });
         continue;
       }
@@ -146,23 +147,19 @@ export async function upsertBatch(
         const record = batch[rowIndex];
         const { error: rowError, count: rowCount } = await sb
           .from(table)
-          .upsert([record], {
-            onConflict: conflictColumn,
-            count: "exact",
-            defaultToNull: false,
-          });
+          .upsert([record], { onConflict: conflictColumn, count: "exact" });
 
         if (rowError) {
           const rowIdentifier =
             (typeof record.source_id === "string" && record.source_id) ||
             (typeof record.slug === "string" && record.slug) ||
             (typeof record.id === "string" && record.id) ||
-            `${i + rowIndex}`;
+            `${batchStart + rowIndex}`;
 
           errors.push({
             message: `Upsert row failed after batch fallback: ${rowError.message}`,
             context:
-              `table=${table}, batchStart=${i}, batchSize=${batch.length}, rowIndex=${rowIndex}, row=${rowIdentifier}`,
+              `table=${table}, batchStart=${batchStart}, batchSize=${batch.length}, rowIndex=${rowIndex}, row=${rowIdentifier}`,
           });
         } else {
           totalCreated += rowCount ?? 1;
@@ -174,6 +171,32 @@ export async function upsertBatch(
   }
 
   return { created: totalCreated, errors };
+}
+
+function buildUniformColumnBatches(
+  records: Record<string, unknown>[],
+  batchSize: number
+): Record<string, unknown>[][] {
+  const recordsByColumns = new Map<string, Record<string, unknown>[]>();
+
+  for (const record of records) {
+    const columnSignature = JSON.stringify(Object.keys(record).sort());
+    const group = recordsByColumns.get(columnSignature);
+    if (group) {
+      group.push(record);
+    } else {
+      recordsByColumns.set(columnSignature, [record]);
+    }
+  }
+
+  const batches: Record<string, unknown>[][] = [];
+  for (const group of recordsByColumns.values()) {
+    for (let index = 0; index < group.length; index += batchSize) {
+      batches.push(group.slice(index, index + batchSize));
+    }
+  }
+
+  return batches;
 }
 
 function sanitizeStringForJson(value: string): string {
@@ -205,7 +228,11 @@ function sanitizeJsonValue<T>(value: T): T {
 function sanitizeRecordForJson(
   record: Record<string, unknown>
 ): Record<string, unknown> {
-  return sanitizeJsonValue(record);
+  return Object.fromEntries(
+    Object.entries(sanitizeJsonValue(record)).filter(
+      ([, value]) => value !== undefined
+    )
+  );
 }
 
 function normalizeProviderFields(
