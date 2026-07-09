@@ -66,6 +66,7 @@ export interface ScoringResults {
   normalizedValueMap: Map<string, number>;
   valueRankMap: Map<string, number>;
   pricingSynced: number;
+  pricingUnchanged: number;
   pricingSourceMap: Map<string, Set<string>>;
   stats: NormalizationStats;
 }

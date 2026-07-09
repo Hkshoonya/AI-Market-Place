@@ -265,17 +265,16 @@ function createMockSupabase() {
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 }
 
-function createUpsertCapturingSupabase(captured: Array<Record<string, unknown>>) {
+function createUpsertCapturingSupabase(
+  captured: Array<Record<string, unknown>>,
+  existingPricing: Array<Record<string, unknown>> = []
+) {
   return {
     from: (table: string) => {
       if (table === "model_pricing") {
         return {
           select() {
-            return {
-              not() {
-                return Promise.resolve({ data: [], error: null });
-              },
-            };
+            return Promise.resolve({ data: existingPricing, error: null });
           },
           upsert(payload: Record<string, unknown>) {
             captured.push(payload);
@@ -459,6 +458,44 @@ describe("computeAllLenses", () => {
         effective_date: "2026-03-01",
       })
     );
+  });
+
+  it("skips writes when curated pricing is unchanged", async () => {
+    vi.mocked(lookupProviderPrice).mockImplementation((slug: string) =>
+      slug === "gpt-4o"
+        ? {
+            provider: "OpenAI",
+            inputPricePerMillion: 2.5,
+            outputPricePerMillion: 10,
+            source: "openai.com/pricing",
+            lastUpdated: "2026-03-01",
+          }
+        : null
+    );
+
+    const captured: Array<Record<string, unknown>> = [];
+    const supabase = createUpsertCapturingSupabase(captured, [
+      {
+        model_id: "gpt-4o",
+        provider_name: "OpenAI",
+        pricing_model: "token_based",
+        input_price_per_million: 2.5,
+        output_price_per_million: 10,
+        price_per_call: null,
+        price_per_gpu_second: null,
+        subscription_monthly: null,
+        blended_price_per_million: 5.5,
+        source: "openai.com/pricing",
+        effective_date: "2026-03-01",
+        updated_at: "2026-07-09T00:00:00.000Z",
+      },
+    ]);
+
+    const result = await computeAllLenses(buildFixtureInputs(), supabase);
+
+    expect(captured).toEqual([]);
+    expect(result.pricingSynced).toBe(0);
+    expect(result.pricingUnchanged).toBe(1);
   });
 
   it("demotes superseded lifecycle rows below the current replacement in capability and balanced ranks", async () => {

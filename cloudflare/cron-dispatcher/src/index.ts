@@ -41,21 +41,27 @@ function buildTargetUrl(env: Env, path: string) {
 }
 
 async function dispatchJob(job: CronJobDefinition, at: Date, env: Env) {
-  const targetUrl = buildTargetUrl(env, job.path);
-  const response = await fetch(targetUrl, {
-    method: "GET",
+  const dispatchUrl = buildTargetUrl(env, "/api/cron/dispatch");
+  const response = await fetch(dispatchUrl, {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${env.CRON_SECRET}`,
+      "Content-Type": "application/json",
       "User-Agent": "aimarketcap-cron-dispatcher/1.0",
       "X-AIMC-Cron-Job": job.name,
       "X-AIMC-Scheduled-Time": at.toISOString(),
     },
+    body: JSON.stringify({
+      name: job.name,
+      path: job.path,
+      scheduledTime: at.toISOString(),
+    }),
   });
 
   if (!response.ok) {
     const body = await response.text();
     throw new Error(
-      `${job.name} -> HTTP ${response.status} from ${targetUrl}: ${body.slice(0, 300)}`
+      `${job.name} -> HTTP ${response.status} from ${dispatchUrl}: ${body.slice(0, 300)}`
     );
   }
 
@@ -63,7 +69,8 @@ async function dispatchJob(job: CronJobDefinition, at: Date, env: Env) {
     name: job.name,
     path: job.path,
     status: response.status,
-    targetUrl,
+    targetUrl: buildTargetUrl(env, job.path),
+    dispatchUrl,
   };
 }
 

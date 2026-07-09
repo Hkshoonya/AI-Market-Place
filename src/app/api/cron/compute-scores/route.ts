@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
       modelsWithExpertScore: results.expertRankMap.size,
       staleDataSources: inputs.staleCount,
       pricingSynced: results.pricingSynced,
+      pricingUnchanged: results.pricingUnchanged,
       stats: results.stats,
     });
   } catch (err) {

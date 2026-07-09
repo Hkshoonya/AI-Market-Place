@@ -42,6 +42,46 @@ import {
   computeCapabilityScoreMultiplier,
 } from "./ranking-penalties";
 
+const CURATED_PRICING_COMPARE_FIELDS = [
+  "pricing_model",
+  "input_price_per_million",
+  "output_price_per_million",
+  "price_per_call",
+  "price_per_gpu_second",
+  "subscription_monthly",
+  "blended_price_per_million",
+  "effective_date",
+  "source",
+] as const;
+
+function normalizedPricingValue(field: string, value: unknown) {
+  if (value === null || value === undefined) return null;
+  if (
+    field === "input_price_per_million" ||
+    field === "output_price_per_million" ||
+    field === "price_per_call" ||
+    field === "price_per_gpu_second" ||
+    field === "subscription_monthly" ||
+    field === "blended_price_per_million"
+  ) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
+  }
+  return value;
+}
+
+function pricingEntryMatches(
+  existing: Record<string, unknown> | undefined,
+  next: Record<string, unknown>
+) {
+  if (!existing) return false;
+  return CURATED_PRICING_COMPARE_FIELDS.every(
+    (field) =>
+      normalizedPricingValue(field, existing[field]) ===
+      normalizedPricingValue(field, next[field])
+  );
+}
+
 /**
  * Orchestrate all scoring lenses for all models.
  *
@@ -121,9 +161,17 @@ export async function computeAllLenses(
 
   // 5b. Sync curated pricing to model_pricing table
   let pricingSynced = 0;
+  let pricingUnchanged = 0;
   const { data: allPricing } = await supabase
     .from("model_pricing")
-    .select("model_id, input_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, provider_name, source, effective_date, updated_at");
+    .select("model_id, provider_name, pricing_model, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, blended_price_per_million, source, effective_date, updated_at");
+
+  const existingPricingByModelAndProvider = new Map(
+    (allPricing ?? []).map((pricing) => [
+      `${pricing.model_id}:${pricing.provider_name}`,
+      pricing as Record<string, unknown>,
+    ])
+  );
 
   const cheapestPriceMap = new Map<string, number>();
   const pricingSourceMap = new Map<string, Set<string>>();
@@ -172,28 +220,38 @@ export async function computeAllLenses(
               ? "subscription"
               : "token_based";
 
-    const { error: upsertErr } = await supabase.from("model_pricing").upsert(
-      {
-        model_id: m.id,
-        provider_name: curatedPrice.provider,
-        pricing_model: pricingModel,
-        input_price_per_million: curatedPrice.inputPricePerMillion,
-        output_price_per_million: curatedPrice.outputPricePerMillion,
-        price_per_call: curatedPrice.pricePerCall ?? null,
-        price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
-        subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
-        blended_price_per_million:
-          curatedPrice.inputPricePerMillion != null && curatedPrice.outputPricePerMillion != null
-            ? curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4
-            : null,
-        effective_date: curatedPrice.lastUpdated,
-        source: curatedPrice.source,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "model_id,provider_name" }
+    const pricingPayload = {
+      model_id: m.id,
+      provider_name: curatedPrice.provider,
+      pricing_model: pricingModel,
+      input_price_per_million: curatedPrice.inputPricePerMillion,
+      output_price_per_million: curatedPrice.outputPricePerMillion,
+      price_per_call: curatedPrice.pricePerCall ?? null,
+      price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
+      subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
+      blended_price_per_million:
+        curatedPrice.inputPricePerMillion != null && curatedPrice.outputPricePerMillion != null
+          ? curatedPrice.inputPricePerMillion * 0.6 + curatedPrice.outputPricePerMillion * 0.4
+          : null,
+      effective_date: curatedPrice.lastUpdated,
+      source: curatedPrice.source,
+    };
+    const pricingKey = `${m.id}:${curatedPrice.provider}`;
+    const unchanged = pricingEntryMatches(
+      existingPricingByModelAndProvider.get(pricingKey),
+      pricingPayload
     );
+    let pricingPersisted = unchanged;
 
-    if (!upsertErr) {
+    if (!unchanged) {
+      const { error: upsertErr } = await supabase.from("model_pricing").upsert(
+        { ...pricingPayload, updated_at: new Date().toISOString() },
+        { onConflict: "model_id,provider_name" }
+      );
+      pricingPersisted = !upsertErr;
+    }
+
+    if (pricingPersisted) {
       const curatedEntryIsFresh = isFreshVerifiedPricingEntry({
         provider_name: curatedPrice.provider,
         input_price_per_million: curatedPrice.inputPricePerMillion,
@@ -231,7 +289,8 @@ export async function computeAllLenses(
           })
         );
       }
-      pricingSynced++;
+      if (unchanged) pricingUnchanged++;
+      else pricingSynced++;
     }
   }
 
@@ -556,6 +615,7 @@ export async function computeAllLenses(
     normalizedValueMap,
     valueRankMap,
     pricingSynced,
+    pricingUnchanged,
     pricingSourceMap,
     stats,
   };

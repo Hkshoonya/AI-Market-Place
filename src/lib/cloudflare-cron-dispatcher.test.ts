@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import cronDispatcher from "../../cloudflare/cron-dispatcher/src/index";
 import {
   dueJobsForTime,
   matchesCronExpression,
 } from "../../cloudflare/cron-dispatcher/src/schedule";
 
 describe("cloudflare cron dispatcher schedule", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("matches reachable staggered schedules on the five-minute Worker trigger", () => {
     const atTop = new Date("2026-05-18T04:00:00.000Z");
     const atDeploy = new Date("2026-05-18T04:05:00.000Z");
@@ -82,5 +87,53 @@ describe("cloudflare cron dispatcher schedule", () => {
     expect(dueJobsForTime(oddHour).map((job) => job.name)).not.toContain(
       "Compute Scores"
     );
+  });
+
+  it("submits due jobs through the authenticated background dispatcher", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          status: "healthy",
+          cron: { mode: "external" },
+          release: { commitSha: "test-sha" },
+        })
+      )
+      .mockResolvedValue(
+        Response.json({ accepted: true }, { status: 202 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const waitUntil = vi.fn();
+    const scheduledTime = new Date("2026-05-18T04:20:00.000Z").getTime();
+
+    await cronDispatcher.scheduled(
+      { cron: "*/5 * * * *", scheduledTime },
+      {
+        CRON_SECRET: "test-secret",
+        TARGET_BASE_URL: "https://aimarketcap.tech",
+      },
+      { waitUntil }
+    );
+
+    expect(waitUntil).toHaveBeenCalledOnce();
+    await waitUntil.mock.calls[0]?.[0];
+
+    const dispatchCalls = fetchMock.mock.calls.slice(1);
+    expect(dispatchCalls.length).toBeGreaterThan(0);
+    for (const [url, init] of dispatchCalls) {
+      expect(url).toBe("https://aimarketcap.tech/api/cron/dispatch");
+      expect(init).toEqual(
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer test-secret",
+            "Content-Type": "application/json",
+          }),
+        })
+      );
+      const body = JSON.parse(String(init?.body));
+      expect(body.path).toMatch(/^\/api\//);
+      expect(body.scheduledTime).toBe("2026-05-18T04:20:00.000Z");
+    }
   });
 });

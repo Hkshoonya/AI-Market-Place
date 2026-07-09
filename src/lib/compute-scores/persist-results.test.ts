@@ -119,6 +119,7 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
     normalizedValueMap: new Map(modelIds.map((id) => [id, 65])),
     valueRankMap: new Map(modelIds.map((id, i) => [id, i + 1])),
     pricingSynced: 0,
+    pricingUnchanged: 0,
     pricingSourceMap: new Map(modelIds.map((id) => [id, new Set(["openrouter"])])),
     stats: {
       maxDownloads: 500000,

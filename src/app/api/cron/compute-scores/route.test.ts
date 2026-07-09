@@ -94,6 +94,7 @@ describe("GET /api/cron/compute-scores", () => {
       expertScoreMap: new Map([["m1", 63]]),
       valueRankMap: new Map([["m1", 1]]),
       pricingSynced: 1,
+      pricingUnchanged: 2,
       pricingSourceMap: new Map([["m1", new Set(["openrouter"])]]),
       stats: {},
     });
