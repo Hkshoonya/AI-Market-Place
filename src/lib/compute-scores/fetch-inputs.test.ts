@@ -158,6 +158,7 @@ describe("fetchInputs", () => {
     // Models
     expect(result.models).toHaveLength(2);
     expect(result.models[0].id).toBe("m1");
+    expect(result.pricingModels).toHaveLength(2);
 
     // Benchmark maps
     expect(result.benchmarkMap.has("m1")).toBe(true);
@@ -234,6 +235,37 @@ describe("fetchInputs", () => {
     expect(result.eloMap.size).toBe(0);
     expect(result.newsMentionMap.size).toBe(0);
     expect(typeof result.staleCount).toBe("number");
+  });
+
+  it("includes preview models for pricing without ranking them", async () => {
+    const supabase = createMockSupabase({
+      models: {
+        data: [
+          {
+            id: "active-model",
+            slug: "active-model",
+            status: "active",
+          },
+          {
+            id: "preview-model",
+            slug: "preview-model",
+            status: "preview",
+          },
+        ],
+        error: null,
+      },
+      benchmark_scores: { data: [], error: null },
+      elo_ratings: { data: [], error: null },
+      model_news: { data: [], error: null },
+    });
+
+    const result = await fetchInputs(supabase);
+
+    expect(result.models.map((model) => model.id)).toEqual(["active-model"]);
+    expect(result.pricingModels).toEqual([
+      { id: "active-model", slug: "active-model" },
+      { id: "preview-model", slug: "preview-model" },
+    ]);
   });
 
   it("paginates model input queries beyond the 1000-row default", async () => {

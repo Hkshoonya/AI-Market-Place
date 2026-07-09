@@ -62,17 +62,25 @@ async function fetchAllPages<T>(
  * @throws Error if the models query fails
  */
 export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInputs> {
-  // 1. Fetch all active models
-  const models = await fetchAllPages(
+  // 1. Fetch models eligible for ranking or provider pricing. Preview/beta
+  // rows receive current pricing but are excluded from public score updates.
+  const catalogModels = await fetchAllPages(
     () =>
       supabase
         .from("models")
         .select(
           "id, name, slug, provider, category, status, description, short_description, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, license, license_name, context_window, is_api_available, hf_trending_score, parameter_count, github_stars"
         )
-        .eq("status", "active"),
+        .in("status", ["active", "beta", "preview"]),
     "models"
   );
+  const models = catalogModels.filter(
+    (model) => model.status === "active" || model.status == null
+  );
+  const pricingModels = catalogModels.map((model) => ({
+    id: model.id,
+    slug: model.slug,
+  }));
 
   // 2. Fetch benchmark scores per model (with benchmark slug for weighted avg)
   const BenchmarkScoreWithSlugSchema = z.object({
@@ -222,6 +230,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
 
   return {
     models: models as ScoringInputs["models"],
+    pricingModels,
     benchmarkMap,
     benchmarkDetailMap,
     eloMap,

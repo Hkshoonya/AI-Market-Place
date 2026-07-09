@@ -498,6 +498,41 @@ describe("computeAllLenses", () => {
     expect(result.pricingUnchanged).toBe(1);
   });
 
+  it("persists curated pricing for preview models without ranking them", async () => {
+    vi.mocked(lookupProviderPrice).mockImplementation((slug: string) =>
+      slug === "openai-gpt-5-6-sol"
+        ? {
+            provider: "OpenAI",
+            inputPricePerMillion: 5,
+            outputPricePerMillion: 30,
+            source: "openai.com/index/previewing-gpt-5-6-sol",
+            lastUpdated: "2026-06-26",
+          }
+        : null
+    );
+    const inputs = buildFixtureInputs();
+    inputs.pricingModels = [
+      ...inputs.models.map(({ id, slug }) => ({ id, slug })),
+      { id: "gpt-5-6-sol", slug: "openai-gpt-5-6-sol" },
+    ];
+    const captured: Array<Record<string, unknown>> = [];
+
+    const result = await computeAllLenses(
+      inputs,
+      createUpsertCapturingSupabase(captured)
+    );
+
+    expect(captured).toContainEqual(
+      expect.objectContaining({
+        model_id: "gpt-5-6-sol",
+        provider_name: "OpenAI",
+        input_price_per_million: 5,
+        output_price_per_million: 30,
+      })
+    );
+    expect(result.scoredModels.some((model) => model.id === "gpt-5-6-sol")).toBe(false);
+  });
+
   it("demotes superseded lifecycle rows below the current replacement in capability and balanced ranks", async () => {
     const inputs = buildLifecyclePenaltyFixture();
     const supabase = createMockSupabase();

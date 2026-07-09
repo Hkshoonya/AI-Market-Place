@@ -103,6 +103,7 @@ export async function computeAllLenses(
     newsMentionMap,
     providerBenchmarkAvg,
   } = inputs;
+  const pricingModels = inputs.pricingModels ?? models;
   const sourceCoverageMap = inputs.sourceCoverageMap ?? new Map();
 
   // 4. Compute normalization stats
@@ -205,7 +206,7 @@ export async function computeAllLenses(
     pricingSourceMap.set(p.model_id, pricingSources);
   }
 
-  for (const m of models) {
+  for (const m of pricingModels) {
     const curatedPrice = lookupProviderPrice(m.slug as string);
     if (!curatedPrice) continue;
 
