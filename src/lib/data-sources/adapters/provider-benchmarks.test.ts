@@ -252,7 +252,39 @@ describe("provider-benchmarks helpers", () => {
     expect(sources.get("xai-grok-4-5")).toMatchObject({
       url: "https://x.ai/news/grok-4-5",
       requiresBenchmarkSignal: true,
+      verifiedFallback: {
+        publishedAt: "2026-07-08T00:00:00.000Z",
+      },
     });
+  });
+
+  it("uses reviewed official scores when a curated provider page blocks server fetches", () => {
+    const source = __testables.PROVIDER_BENCHMARK_SOURCES.find(
+      (entry) => entry.id === "xai-grok-4-5"
+    );
+
+    expect(source).toBeDefined();
+    const fallback = __testables.buildVerifiedFallbackContent(source!);
+
+    expect(fallback).toMatchObject({
+      title: "Introducing Grok 4.5",
+      publishedAt: "2026-07-08T00:00:00.000Z",
+      hasBenchmarkSignal: true,
+    });
+    expect(
+      __testables.extractStructuredBenchmarkScores(fallback?.text ?? "")
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 83.3,
+        }),
+        expect.objectContaining({
+          benchmarkSlug: "swe_bench",
+          score: 64.7,
+        }),
+      ])
+    );
   });
 
   it("extracts official page metadata for provider benchmark evidence", () => {
