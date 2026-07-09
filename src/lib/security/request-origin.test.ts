@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   hasTrustedRequestOrigin,
   rejectUntrustedRequestOrigin,
@@ -6,6 +6,10 @@ import {
 } from "./request-origin";
 
 describe("hasTrustedRequestOrigin", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("accepts matching origin headers", () => {
     const request = new Request("https://aimarketcap.tech/api/example", {
       method: "POST",
@@ -62,6 +66,29 @@ describe("hasTrustedRequestOrigin", () => {
         "x-forwarded-host": "evil.example",
         "x-forwarded-proto": "https",
       },
+    });
+
+    expect(hasTrustedRequestOrigin(request)).toBe(false);
+  });
+
+  it("accepts loopback origins in explicit production E2E mode", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_TEST_MODE", "true");
+    const request = new Request("http://127.0.0.1:3000/api/example", {
+      method: "POST",
+      headers: { origin: "http://127.0.0.1:3000" },
+    });
+
+    expect(hasTrustedRequestOrigin(request)).toBe(true);
+  });
+
+  it("rejects loopback origins in production outside explicit E2E mode", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_TEST_MODE", "false");
+    vi.stubEnv("NEXT_PUBLIC_E2E_MSW", "false");
+    const request = new Request("http://127.0.0.1:3000/api/example", {
+      method: "POST",
+      headers: { origin: "http://127.0.0.1:3000" },
     });
 
     expect(hasTrustedRequestOrigin(request)).toBe(false);

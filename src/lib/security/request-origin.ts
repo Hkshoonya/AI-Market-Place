@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/constants/site";
+import { isE2ETestMode } from "@/lib/runtime-environment";
 
 function isLoopbackOrigin(value: string) {
   try {
@@ -22,7 +23,7 @@ function getTrustedOrigins(request: Request) {
     trusted.add("https://www.aimarketcap.tech");
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" || isE2ETestMode()) {
     const requestOrigin = new URL(request.url).origin;
     if (isLoopbackOrigin(requestOrigin)) trusted.add(requestOrigin);
 
