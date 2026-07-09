@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthButton } from "./auth-button";
+import { AuthButton, MobileAuthControls } from "./auth-button";
 
 const mockUseAuth = vi.fn();
 const pushMock = vi.fn();
@@ -63,6 +63,32 @@ describe("AuthButton", () => {
     await user.click(screen.getByRole("button", { name: /user menu for admin/i }));
     await user.click(screen.getByRole("menuitem", { name: /sign out/i }));
 
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith("/");
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders stable in-sheet account actions without a nested dropdown", async () => {
+    const user = userEvent.setup();
+    const signOutMock = vi.fn().mockResolvedValue(undefined);
+    const onNavigate = vi.fn();
+
+    mockUseAuth.mockReturnValue({
+      user: { email: "admin@example.com" },
+      profile: { display_name: "Admin", avatar_url: null },
+      loading: false,
+      signOut: signOutMock,
+    });
+
+    render(<MobileAuthControls onNavigate={onNavigate} />);
+
+    expect(screen.getByRole("link", { name: /profile/i })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("link", { name: /activity/i })).toHaveAttribute("href", "/activity");
+    expect(screen.queryByRole("button", { name: /user menu/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
+
+    expect(onNavigate).toHaveBeenCalledTimes(1);
     expect(signOutMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith("/");
     expect(refreshMock).toHaveBeenCalledTimes(1);

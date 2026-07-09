@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -31,7 +31,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "@/components/search-dialog";
-import { AuthButton } from "@/components/auth/auth-button";
+import { AuthButton, MobileAuthControls } from "@/components/auth/auth-button";
 import { useAuth } from "@/components/auth/auth-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
@@ -60,6 +60,19 @@ export function Header() {
   const { user, profile } = useAuth();
   const desktopMoreActive = SECONDARY_NAV_ITEMS.some((item) => pathname.startsWith(item.href));
 
+  const handleNavigation = (
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+    closeMobile = false
+  ) => {
+    if (pathname === href) {
+      event.preventDefault();
+    }
+    if (closeMobile) {
+      setMobileOpen(false);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-4 px-4">
@@ -81,6 +94,8 @@ export function Header() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={pathname === item.href ? "page" : undefined}
+                onClick={(event) => handleNavigation(event, item.href)}
                 className={cn(
                   "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
@@ -113,7 +128,12 @@ export function Header() {
               <DropdownMenuSeparator />
               {SECONDARY_NAV_ITEMS.map((item) => (
                 <DropdownMenuItem key={item.href} asChild>
-                  <Link href={item.href} className="flex items-center gap-2">
+                  <Link
+                    href={item.href}
+                    aria-current={pathname === item.href ? "page" : undefined}
+                    onClick={(event) => handleNavigation(event, item.href)}
+                    className="flex items-center gap-2"
+                  >
                     <item.icon className="h-4 w-4" />
                     {item.label}
                   </Link>
@@ -205,7 +225,8 @@ export function Header() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setMobileOpen(false)}
+                      aria-current={pathname === item.href ? "page" : undefined}
+                      onClick={(event) => handleNavigation(event, item.href, true)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
@@ -269,7 +290,7 @@ export function Header() {
                 )}
                 <div className="my-4 border-t border-border" />
                 <div className="flex flex-col gap-2">
-                  <AuthButton />
+                  <MobileAuthControls onNavigate={() => setMobileOpen(false)} />
                   <NotificationBell />
                 </div>
                 <div className="my-4 border-t border-border" />

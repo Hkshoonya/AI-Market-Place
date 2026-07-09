@@ -44,6 +44,8 @@ const CONTEXT_ENRICHMENT_PROVIDERS = new Set([
   "Z.ai",
 ]);
 const GAP_FETCH_PAGE_SIZE = 1000;
+const DEFAULT_HISTORICAL_REFRESH_LIMIT = 50;
+const DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS = 24 * 7;
 
 // ────────────────────────────────────────────────────────────────
 // Mapping helpers (kept from the original Edge Function)
@@ -671,6 +673,164 @@ async function backfillHfMetadataGaps(
   return { updated, errors };
 }
 
+interface HfHistoricalRefreshRow {
+  slug: string;
+  hf_model_id: string | null;
+  data_refreshed_at: string | null;
+}
+
+interface HfHistoricalRefreshResult {
+  attempted: number;
+  updated: number;
+  archived: number;
+  skipped: number;
+  warnings: SyncError[];
+  errors: SyncError[];
+}
+
+function isOlderThanHours(value: string | null, hours: number) {
+  if (!value) return true;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return true;
+  return timestamp < Date.now() - hours * 60 * 60 * 1000;
+}
+
+function readFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readReleaseDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString().split("T")[0] : null;
+}
+
+async function refreshHistoricalHfModels(
+  ctx: SyncContext,
+  options: { limit: number; refreshAfterHours: number }
+): Promise<HfHistoricalRefreshResult> {
+  const result: HfHistoricalRefreshResult = {
+    attempted: 0,
+    updated: 0,
+    archived: 0,
+    skipped: 0,
+    warnings: [],
+    errors: [],
+  };
+
+  if (options.limit <= 0) return result;
+
+  const { data, error } = await ctx.supabase
+    .from("models")
+    .select("slug, hf_model_id, data_refreshed_at")
+    .eq("status", "active")
+    .not("hf_model_id", "is", null)
+    .order("data_refreshed_at", { ascending: true, nullsFirst: true })
+    .limit(options.limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch stale HF models: ${error.message}`);
+  }
+
+  const rows = ((data ?? []) as HfHistoricalRefreshRow[]).filter((row) =>
+    isOlderThanHours(row.data_refreshed_at, options.refreshAfterHours)
+  );
+  result.attempted = rows.length;
+
+  for (let index = 0; index < rows.length; index += HF_CONTEXT_FETCH_CONCURRENCY) {
+    await Promise.all(
+      rows.slice(index, index + HF_CONTEXT_FETCH_CONCURRENCY).map(async (row) => {
+        const hfModelId = row.hf_model_id;
+        if (!hfModelId) {
+          result.skipped += 1;
+          return;
+        }
+
+        let lookup: HfModelInfoLookup;
+        try {
+          lookup = await fetchHfModelInfoLookup(
+            hfModelId,
+            ctx.signal,
+            ctx.secrets.HUGGINGFACE_API_TOKEN ?? ""
+          );
+        } catch (error) {
+          result.skipped += 1;
+          result.warnings.push({
+            message: error instanceof Error ? error.message : String(error),
+            context: `historical-refresh:${row.slug}`,
+          });
+          return;
+        }
+
+        const refreshedAt = new Date().toISOString();
+        if (lookup.status === 404 || lookup.status === 410) {
+          const { error: updateError } = await ctx.supabase
+            .from("models")
+            .update({ status: "archived", data_refreshed_at: refreshedAt })
+            .eq("slug", row.slug);
+
+          if (updateError) {
+            result.errors.push({
+              message: `Failed to archive missing HF repository: ${updateError.message}`,
+              context: `historical-refresh:${row.slug}`,
+            });
+            return;
+          }
+
+          result.updated += 1;
+          result.archived += 1;
+          return;
+        }
+
+        if (!lookup.data || lookup.status < 200 || lookup.status >= 300) {
+          result.skipped += 1;
+          result.warnings.push({
+            message: `HF model lookup returned HTTP ${lookup.status}`,
+            context: `historical-refresh:${row.slug}`,
+          });
+          return;
+        }
+
+        const patch: Record<string, string | number> = {
+          website_url: buildHfModelPageUrl(hfModelId),
+          data_refreshed_at: refreshedAt,
+        };
+        const downloads = readFiniteNumber(lookup.data.downloads);
+        const likes = readFiniteNumber(lookup.data.likes);
+        const trendingScore = readFiniteNumber(lookup.data.trendingScore);
+        const releaseDate = readReleaseDate(lookup.data.createdAt);
+
+        if (downloads !== null) patch.hf_downloads = downloads;
+        if (likes !== null) patch.hf_likes = likes;
+        if (trendingScore !== null) patch.hf_trending_score = trendingScore;
+        if (typeof lookup.data.library_name === "string" && lookup.data.library_name) {
+          patch.architecture = lookup.data.library_name;
+        }
+        if (releaseDate) patch.release_date = releaseDate;
+        if (lookup.data.disabled === true) patch.status = "archived";
+
+        const { error: updateError } = await ctx.supabase
+          .from("models")
+          .update(patch)
+          .eq("slug", row.slug);
+
+        if (updateError) {
+          result.errors.push({
+            message: `Failed to refresh historical HF model: ${updateError.message}`,
+            context: `historical-refresh:${row.slug}`,
+          });
+          return;
+        }
+
+        result.updated += 1;
+        if (patch.status === "archived") result.archived += 1;
+      })
+    );
+  }
+
+  return result;
+}
+
 // ────────────────────────────────────────────────────────────────
 // Transform a single HF model into our DB record shape
 // ────────────────────────────────────────────────────────────────
@@ -730,6 +890,8 @@ const adapter: DataSourceAdapter = {
     maxPages: 50,
     pageSize: 100,
     rateLimitDelayMs: 200,
+    historicalRefreshLimit: DEFAULT_HISTORICAL_REFRESH_LIMIT,
+    historicalRefreshAfterHours: DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS,
   },
   requiredSecrets: [],
 
@@ -737,6 +899,23 @@ const adapter: DataSourceAdapter = {
     const maxPages = (ctx.config.maxPages as number) ?? 50;
     const pageSize = (ctx.config.pageSize as number) ?? 100;
     const rateLimitDelayMs = (ctx.config.rateLimitDelayMs as number) ?? 200;
+    const historicalRefreshLimit = Math.min(
+      200,
+      Math.max(
+        0,
+        Math.floor(
+          typeof ctx.config.historicalRefreshLimit === "number"
+            ? ctx.config.historicalRefreshLimit
+            : DEFAULT_HISTORICAL_REFRESH_LIMIT
+        )
+      )
+    );
+    const historicalRefreshAfterHours = Math.max(
+      1,
+      typeof ctx.config.historicalRefreshAfterHours === "number"
+        ? ctx.config.historicalRefreshAfterHours
+        : DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS
+    );
     const token = ctx.secrets.HUGGINGFACE_API_TOKEN ?? "";
 
     const rateLimitedFetch = createRateLimitedFetch(rateLimitDelayMs);
@@ -749,6 +928,15 @@ const adapter: DataSourceAdapter = {
     let totalProcessed = 0;
     let totalCreated = 0;
     let totalUpdated = 0;
+    let gapBackfilled = 0;
+    let historicalRefresh: HfHistoricalRefreshResult = {
+      attempted: 0,
+      updated: 0,
+      archived: 0,
+      skipped: 0,
+      warnings: [],
+      errors: [],
+    };
     const errors: SyncError[] = [];
 
     for (let page = 0; page < maxPages; page++) {
@@ -821,8 +1009,24 @@ const adapter: DataSourceAdapter = {
     }
 
     try {
+      historicalRefresh = await refreshHistoricalHfModels(ctx, {
+        limit: historicalRefreshLimit,
+        refreshAfterHours: historicalRefreshAfterHours,
+      });
+      totalProcessed += historicalRefresh.attempted;
+      totalUpdated += historicalRefresh.updated;
+      errors.push(...historicalRefresh.errors);
+    } catch (error) {
+      errors.push({
+        message: error instanceof Error ? error.message : String(error),
+        context: "hf-historical-refresh",
+      });
+    }
+
+    try {
       const gapBackfill = await backfillHfMetadataGaps(ctx);
-      totalUpdated += gapBackfill.updated;
+      gapBackfilled = gapBackfill.updated;
+      totalUpdated += gapBackfilled;
       errors.push(...gapBackfill.errors);
     } catch (error) {
       errors.push({
@@ -849,7 +1053,12 @@ const adapter: DataSourceAdapter = {
           maxPages,
           Math.ceil(totalProcessed / pageSize) + (hasErrors ? 1 : 0)
         ),
-        gapBackfilled: totalUpdated,
+        gapBackfilled,
+        historicalRefreshAttempted: historicalRefresh.attempted,
+        historicalRefreshed: historicalRefresh.updated,
+        historicalArchived: historicalRefresh.archived,
+        historicalSkipped: historicalRefresh.skipped,
+        historicalWarnings: historicalRefresh.warnings,
       },
     };
   },
@@ -904,6 +1113,7 @@ export const __testables = {
   fetchHfModelInfoLookup,
   fetchContextWindowForHfId,
   normalizeContextWindow,
+  refreshHistoricalHfModels,
   shouldAttemptContextEnrichment,
   transformModel,
 };

@@ -385,4 +385,80 @@ describe("huggingface metadata helpers", () => {
       website_url: "https://huggingface.co/Tesslate/OmniCoder-2-9B",
     });
   });
+
+  it("rotates through stale HF rows and refreshes source-owned fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        expect(String(input)).toBe(
+          "https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct"
+        );
+        return new Response(
+          JSON.stringify({
+            downloads: 123456,
+            likes: 789,
+            trendingScore: 42,
+            library_name: "transformers",
+            createdAt: "2024-09-16T00:00:00.000Z",
+            disabled: false,
+          }),
+          { status: 200 }
+        );
+      })
+    );
+
+    const limit = vi.fn(async () => ({
+      data: [
+        {
+          slug: "qwen-qwen2-5-7b-instruct",
+          hf_model_id: "Qwen/Qwen2.5-7B-Instruct",
+          data_refreshed_at: "2024-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    }));
+    const order = vi.fn(() => ({ limit }));
+    const not = vi.fn(() => ({ order }));
+    const eqSelect = vi.fn(() => ({ not }));
+    const select = vi.fn(() => ({ eq: eqSelect }));
+    let appliedUpdate: Record<string, unknown> | null = null;
+    const eqUpdate = vi.fn(async () => ({ error: null }));
+    const update = vi.fn((payload: Record<string, unknown>) => {
+      appliedUpdate = payload;
+      return { eq: eqUpdate };
+    });
+    const from = vi.fn(() => ({ select, update }));
+
+    const result = await __testables.refreshHistoricalHfModels(
+      {
+        supabase: { from } as never,
+        config: {},
+        secrets: { HUGGINGFACE_API_TOKEN: "hf_test_token" },
+        lastSyncAt: null,
+      },
+      { limit: 10, refreshAfterHours: 24 }
+    );
+
+    expect(result).toMatchObject({
+      attempted: 1,
+      updated: 1,
+      archived: 0,
+      skipped: 0,
+      warnings: [],
+      errors: [],
+    });
+    expect(order).toHaveBeenCalledWith("data_refreshed_at", {
+      ascending: true,
+      nullsFirst: true,
+    });
+    expect(appliedUpdate).toMatchObject({
+      hf_downloads: 123456,
+      hf_likes: 789,
+      hf_trending_score: 42,
+      architecture: "transformers",
+      release_date: "2024-09-16",
+      website_url: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+    });
+    expect(appliedUpdate).toHaveProperty("data_refreshed_at");
+  });
 });

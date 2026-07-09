@@ -148,7 +148,6 @@ describe("social actors", () => {
       display_name: "User",
       avatar_url: "https://example.com/avatar.png",
       bio: null,
-      reputation_score: 0,
     };
     const profileUpsertSingle = vi.fn(async () => ({
       data: createdProfile,
@@ -213,6 +212,15 @@ describe("social actors", () => {
         display_name: "User",
       }),
       { onConflict: "id" }
+    );
+    expect(profileSelect).toHaveBeenCalledWith(
+      "id, username, display_name, avatar_url, bio"
+    );
+    expect(profileUpsertSelect).toHaveBeenCalledWith(
+      "id, username, display_name, avatar_url, bio"
+    );
+    expect(actorInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ reputation_score: 0 })
     );
     expect(actor).toEqual(expect.objectContaining({ id: "actor-1", profile_id: "user-1" }));
   });

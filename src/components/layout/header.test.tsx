@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Header } from "./header";
 
@@ -20,6 +20,7 @@ vi.mock("@/components/search-dialog", () => ({
 
 vi.mock("@/components/auth/auth-button", () => ({
   AuthButton: () => <div data-testid="auth-button" />,
+  MobileAuthControls: () => <div data-testid="mobile-auth-controls" />,
 }));
 
 vi.mock("@/components/notifications/notification-bell", () => ({
@@ -108,6 +109,20 @@ describe("Header", () => {
     expect(screen.getAllByRole("link", { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /admin dashboard/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /open navigation menu/i })).toHaveClass("xl:hidden");
-    expect(screen.getAllByTestId("auth-button").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByTestId("auth-button")).toHaveLength(1);
+    expect(screen.getByTestId("mobile-auth-controls")).toBeInTheDocument();
+  });
+
+  it("does not restart navigation when the active top-level route is clicked", () => {
+    mockUsePathname.mockReturnValue("/models");
+
+    render(<Header />);
+
+    const desktopNav = screen.getByRole("navigation", { name: /main navigation/i });
+    const modelsLink = desktopNav.querySelector<HTMLAnchorElement>('a[href="/models"]');
+
+    expect(modelsLink).not.toBeNull();
+    expect(modelsLink).toHaveAttribute("aria-current", "page");
+    expect(fireEvent.click(modelsLink as HTMLAnchorElement)).toBe(false);
   });
 });

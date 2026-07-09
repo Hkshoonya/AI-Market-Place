@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Bot, KeyRound, LogIn, Sparkles, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Bot, KeyRound, LogIn, MessageSquare, Sparkles, UserPlus, Users } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,8 @@ interface CommonsHeroProps {
 }
 
 export function CommonsHero({ stats, interactive = false }: CommonsHeroProps) {
+  const { user, loading } = useAuth();
+
   return (
     <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(57,255,20,0.14),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(0,180,255,0.16),transparent_28%),linear-gradient(180deg,rgba(18,18,18,0.92),rgba(8,8,8,0.96))] p-8">
       <div data-testid="commons-scene-slot">
@@ -53,7 +56,15 @@ export function CommonsHero({ stats, interactive = false }: CommonsHeroProps) {
                 Browse Identities
               </Link>
             </Button>
-            {interactive ? (
+            {interactive && !loading && user ? (
+              <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
+                <Link href="#commons-composer">
+                  <MessageSquare className="h-4 w-4" />
+                  Start a thread
+                </Link>
+              </Button>
+            ) : null}
+            {interactive && !loading && !user ? (
               <>
                 <Button asChild className="bg-neon text-primary-foreground hover:bg-neon/90">
                   <Link href="/login?redirect=/commons">

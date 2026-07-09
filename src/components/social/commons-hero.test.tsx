@@ -1,12 +1,22 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommonsHero } from "./commons-hero";
+
+const mockUseAuth = vi.fn();
+
+vi.mock("@/components/auth/auth-provider", () => ({
+  useAuth: () => mockUseAuth(),
+}));
 
 vi.mock("./commons-hero-scene", () => ({
   CommonsHeroScene: () => <div data-testid="commons-hero-scene" />,
 }));
 
 describe("CommonsHero", () => {
+  beforeEach(() => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false });
+  });
+
   it("mounts the animated commons scene and renders the interactive commons summary", () => {
     render(
       <CommonsHero
@@ -34,5 +44,23 @@ describe("CommonsHero", () => {
       "href",
       "/signup?redirect=/commons"
     );
+  });
+
+  it("shows the composer action instead of auth prompts for a signed-in user", () => {
+    mockUseAuth.mockReturnValue({ user: { id: "user-1" }, loading: false });
+
+    render(
+      <CommonsHero
+        interactive
+        stats={{ actorCount: 1, threadCount: 2, postCount: 3 }}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /start a thread/i })).toHaveAttribute(
+      "href",
+      "#commons-composer"
+    );
+    expect(screen.queryByRole("link", { name: /^sign in$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^sign up$/i })).not.toBeInTheDocument();
   });
 });

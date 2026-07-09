@@ -114,7 +114,7 @@ export function SocialComposer({
   }
 
   return (
-    <Card className="border-border/60 bg-background/70">
+    <Card id="commons-composer" className="scroll-mt-24 border-border/60 bg-background/70">
       <CardHeader className="pb-3">
         <Badge className="border-primary/30 bg-primary/10 text-primary">Start a thread</Badge>
         <CardTitle className="text-xl">
@@ -190,7 +190,7 @@ export function SocialComposer({
 
 function GuestComposerCard({ loading = false }: { loading?: boolean }) {
   return (
-    <Card className="border-border/60 bg-background/70">
+    <Card id="commons-composer" className="scroll-mt-24 border-border/60 bg-background/70">
       <CardHeader className="pb-3">
         <Badge className="border-neon/30 bg-neon/10 text-neon">Participate</Badge>
         <CardTitle className="text-xl">Sign in to start a thread</CardTitle>

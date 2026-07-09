@@ -5,6 +5,7 @@ import type {
   SyncResult,
 } from "../types";
 import { registerAdapter } from "../registry";
+import { classifyFetchFailures } from "../fetch-failure-budget";
 import { fetchWithRetry, upsertBatch, makeSlug } from "../utils";
 import {
   buildModelLookup,
@@ -1854,7 +1855,9 @@ const adapter: DataSourceAdapter = {
     ];
     const records: Record<string, unknown>[] = [];
     const errors: Array<{ message: string; context?: string }> = [];
+    const fetchFailures: Array<{ message: string; context?: string }> = [];
     let recordsProcessed = 0;
+    let successfulFetches = 0;
     let autoSkippedWithoutBenchmarkSignal = 0;
     let benchmarkScoreRecordsCreated = 0;
 
@@ -1875,7 +1878,7 @@ const adapter: DataSourceAdapter = {
       ).catch((error) => error);
 
       if (response instanceof Error) {
-        errors.push({
+        fetchFailures.push({
           message: `Failed to fetch ${source.url}: ${response.message}`,
           context: source.id,
         });
@@ -1884,12 +1887,14 @@ const adapter: DataSourceAdapter = {
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");
-        errors.push({
+        fetchFailures.push({
           message: `${source.url} returned HTTP ${response.status}: ${body.slice(0, 160)}`,
           context: source.id,
         });
         continue;
       }
+
+      successfulFetches += 1;
 
       const parsedContent = await parseProviderSourceContent(source, response);
       if (
@@ -2007,13 +2012,19 @@ const adapter: DataSourceAdapter = {
       "source,source_id",
       50
     );
+    const fetchOutcome = classifyFetchFailures({
+      attempted: recordsProcessed,
+      succeeded: successfulFetches,
+      failures: fetchFailures,
+    });
+    const blockingErrors = [...errors, ...fetchOutcome.errors, ...upsertErrors];
 
     return {
-      success: errors.length === 0 && upsertErrors.length === 0,
+      success: blockingErrors.length === 0,
       recordsProcessed,
       recordsCreated: created,
       recordsUpdated: 0,
-      errors: [...errors, ...upsertErrors],
+      errors: blockingErrors,
       metadata: {
         sourceCount: sources.length,
         curatedSourceCount: Math.min(maxPages, PROVIDER_BENCHMARK_SOURCES.length),
@@ -2023,6 +2034,10 @@ const adapter: DataSourceAdapter = {
         ),
         autoSkippedWithoutBenchmarkSignal,
         pagesFetched: records.length,
+        fetchFailureCount: fetchFailures.length,
+        fetchFailureRatio: fetchOutcome.failureRatio,
+        fetchFailuresBlocking: fetchOutcome.blocking,
+        fetchWarnings: fetchOutcome.warnings,
         benchmarkScoreRecordsCreated,
       },
     };

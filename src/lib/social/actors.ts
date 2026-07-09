@@ -233,7 +233,7 @@ export async function resolveOrCreateHumanActor(
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, reputation_score")
+    .select("id, username, display_name, avatar_url, bio")
     .eq("id", userId)
     .single();
 
@@ -258,7 +258,7 @@ export async function resolveOrCreateHumanActor(
         },
         { onConflict: "id" }
       )
-      .select("id, username, display_name, avatar_url, bio, reputation_score")
+      .select("id, username, display_name, avatar_url, bio")
       .single();
 
     if (insertProfileError || !insertedProfile) {
@@ -295,7 +295,7 @@ export async function resolveOrCreateHumanActor(
       avatar_url: resolvedProfile.avatar_url ?? null,
       bio: resolvedProfile.bio ?? null,
       trust_tier: "trusted",
-      reputation_score: resolvedProfile.reputation_score ?? 0,
+      reputation_score: 0,
       autonomy_enabled: true,
       metadata: {},
     })

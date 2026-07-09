@@ -21,6 +21,7 @@ import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getKnownModelMeta } from "@/lib/models/known-model-meta";
 import { resolveAnthropicKnownModelMeta } from "../shared/known-models/anthropic";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
 import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
@@ -120,16 +121,44 @@ interface OpenRouterModelsResponse {
 
 function resolveCuratedKnownMeta(id: string) {
   const [providerPrefix, modelPart = ""] = id.split("/");
-  if (providerPrefix === "anthropic") return resolveAnthropicKnownModelMeta(modelPart);
-  if (providerPrefix === "openai") return resolveOpenAIKnownModelMeta(modelPart);
-  if (providerPrefix === "google") return resolveGoogleKnownModelMeta(modelPart);
-  if (providerPrefix === "minimax") return resolveMiniMaxKnownModelMeta(modelPart);
-  if (providerPrefix === "moonshotai" || providerPrefix === "moonshot" || providerPrefix === "kimi") {
-    return resolveMoonshotKnownModelMeta(modelPart);
+  if (providerPrefix === "anthropic") {
+    const meta = resolveAnthropicKnownModelMeta(modelPart);
+    if (meta) return meta;
   }
-  if (providerPrefix === "x-ai" || providerPrefix === "xai") return XAI_KNOWN_MODELS[modelPart];
-  if (providerPrefix === "z-ai") return resolveZAIKnownModelMeta(modelPart);
-  return undefined;
+  if (providerPrefix === "openai") {
+    const meta = resolveOpenAIKnownModelMeta(modelPart);
+    if (meta) return meta;
+  }
+  if (providerPrefix === "google") {
+    const meta = resolveGoogleKnownModelMeta(modelPart);
+    if (meta) return meta;
+  }
+  if (providerPrefix === "minimax") {
+    const meta = resolveMiniMaxKnownModelMeta(modelPart);
+    if (meta) return meta;
+  }
+  if (
+    providerPrefix === "moonshotai" ||
+    providerPrefix === "moonshot" ||
+    providerPrefix === "kimi"
+  ) {
+    const meta = resolveMoonshotKnownModelMeta(modelPart);
+    if (meta) return meta;
+  }
+  if (providerPrefix === "x-ai" || providerPrefix === "xai") {
+    const meta = XAI_KNOWN_MODELS[modelPart];
+    if (meta) return meta;
+  }
+  if (providerPrefix === "z-ai") {
+    const meta = resolveZAIKnownModelMeta(modelPart);
+    if (meta) return meta;
+  }
+
+  return getKnownModelMeta({
+    slug: makeSlug(id),
+    name: modelPart,
+    provider: extractProvider(id),
+  }) ?? undefined;
 }
 
 function resolveProviderCategoryDefaults(id: string) {

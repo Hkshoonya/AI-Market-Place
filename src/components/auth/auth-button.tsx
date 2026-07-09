@@ -14,6 +14,83 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "./auth-provider";
 
+interface MobileAuthControlsProps {
+  onNavigate?: () => void;
+}
+
+export function MobileAuthControls({ onNavigate }: MobileAuthControlsProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, profile, loading, signOut } = useAuth();
+  const redirectTarget = pathname || "/";
+  const loginHref =
+    redirectTarget !== "/" ? `/login?redirect=${encodeURIComponent(redirectTarget)}` : "/login";
+  const signupHref =
+    redirectTarget !== "/" ? `/signup?redirect=${encodeURIComponent(redirectTarget)}` : "/signup";
+
+  if (loading) {
+    return <div className="h-20 animate-pulse rounded-xl bg-secondary" aria-label="Loading account" />;
+  }
+
+  if (!user) {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={loginHref} onClick={onNavigate}>
+            <LogIn className="h-4 w-4" />
+            Sign In
+          </Link>
+        </Button>
+        <Button size="sm" className="bg-neon text-primary-foreground hover:bg-neon/90" asChild>
+          <Link href={signupHref} onClick={onNavigate}>Sign Up</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const displayName = profile?.display_name || user.email?.split("@")[0] || "User";
+
+  const handleSignOut = async () => {
+    onNavigate?.();
+    await signOut();
+    router.push("/");
+    router.refresh();
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-xl border border-border/60 bg-secondary/20 px-3 py-2.5">
+        <p className="truncate text-sm font-medium">{displayName}</p>
+        <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="ghost" size="sm" className="justify-start" asChild>
+          <Link href="/profile" onClick={onNavigate}>
+            <User className="h-4 w-4" />
+            Profile
+          </Link>
+        </Button>
+        <Button variant="ghost" size="sm" className="justify-start" asChild>
+          <Link href="/activity" onClick={onNavigate}>
+            <Bell className="h-4 w-4" />
+            Activity
+          </Link>
+        </Button>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-full justify-start text-loss hover:text-loss"
+        onClick={() => void handleSignOut()}
+      >
+        <LogOut className="h-4 w-4" />
+        Sign Out
+      </Button>
+    </div>
+  );
+}
+
 export function AuthButton() {
   const pathname = usePathname();
   const router = useRouter();

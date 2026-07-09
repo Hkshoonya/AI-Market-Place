@@ -19,6 +19,27 @@ describe("openrouter model record mapping", () => {
     expect(record.is_open_weights).toBe(true);
   });
 
+  it("uses the complete curated catalog for Meta release metadata", () => {
+    const record = __testables.buildModelRecord({
+      id: "meta-llama/llama-3.1-405b-instruct",
+      name: "Meta: Llama 3.1 405B Instruct",
+      created: 1772496000,
+      description: "Generic router metadata",
+      architecture: {
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record).toMatchObject({
+      name: "Llama 3.1 405B Instruct",
+      release_date: "2024-07-23",
+      context_window: 131072,
+      hf_model_id: "meta-llama/Llama-3.1-405B-Instruct",
+      is_open_weights: true,
+    });
+  });
+
   it("canonicalizes provider names for known router prefixes", () => {
     const record = __testables.buildModelRecord({
       id: "openai/gpt-4o",
