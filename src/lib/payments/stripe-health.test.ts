@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getStripePaymentsHealth,
   getStripeWebhookDeliveryHealth,
+  recordStripeWebhookEvent,
 } from "./stripe-health";
 
 const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -65,6 +66,7 @@ function createSupabaseMock(
         order: () => chain,
         limit: () => chain,
         insert: () => Promise.resolve({ error: result.error }),
+        upsert: () => Promise.resolve({ error: result.error }),
         then: (resolve: (value: unknown) => void) =>
           resolve({ data: currentData, error: result.error }),
       };
@@ -145,6 +147,38 @@ describe("getStripeWebhookDeliveryHealth", () => {
     expect(health.latestFailedAt).toBe("2026-04-12T09:00:00.000Z");
   });
 
+  it("returns healthy when a newer ignored delivery resolves a prior failure", async () => {
+    const supabase = createSupabaseMock({
+      payment_webhook_events: {
+        data: [
+          {
+            provider: "stripe",
+            delivery_status: "ignored",
+            created_at: "2026-04-12T10:00:00.000Z",
+          },
+          {
+            provider: "stripe",
+            delivery_status: "failed",
+            created_at: "2026-04-12T09:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const health = await getStripeWebhookDeliveryHealth(supabase as never, {
+      status: "ready",
+      checkoutConfigured: true,
+      webhookConfigured: true,
+      publishableKeyConfigured: true,
+      blockingIssues: [],
+    });
+
+    expect(health.status).toBe("healthy");
+    expect(health.latestProcessedAt).toBeNull();
+    expect(health.latestFailedAt).toBe("2026-04-12T09:00:00.000Z");
+  });
+
   it("returns unknown when the webhook telemetry table is unavailable", async () => {
     const supabase = createSupabaseMock({
       payment_webhook_events: {
@@ -164,6 +198,30 @@ describe("getStripeWebhookDeliveryHealth", () => {
     expect(health.status).toBe("unknown");
     expect(health.tableAvailable).toBe(false);
     expect(health.warning).toContain("payment_webhook_events");
+  });
+});
+
+describe("recordStripeWebhookEvent", () => {
+  it("upserts by provider and event id so retries do not create duplicate rows", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      from: vi.fn(() => ({ upsert })),
+    };
+
+    await recordStripeWebhookEvent(supabase as never, {
+      eventId: "evt_123",
+      eventType: "payment_intent.succeeded",
+      deliveryStatus: "ignored",
+    });
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "stripe",
+        event_id: "evt_123",
+        delivery_status: "ignored",
+      }),
+      { onConflict: "provider,event_id" }
+    );
   });
 });
 

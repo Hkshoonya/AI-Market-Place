@@ -1149,6 +1149,20 @@ describe("provider-benchmarks helpers", () => {
     });
   });
 
+  it("includes the GPT-5.6 preview system card in the benchmark watchlist", () => {
+    const source = __testables.PROVIDER_BENCHMARK_SOURCES.find(
+      (entry) => entry.id === "openai-gpt-5-6-preview"
+    );
+
+    expect(source).toMatchObject({
+      provider: "OpenAI",
+      url: "https://deploymentsafety.openai.com/gpt-5-6-preview/gpt-5-6-preview.pdf",
+      modelHints: ["GPT-5.6 Sol", "GPT-5.6 Terra", "GPT-5.6 Luna"],
+      contentType: "pdf",
+      requiresBenchmarkSignal: true,
+    });
+  });
+
   it("prefers curated hint matches when source text is noisy navigation", () => {
     const aliasModels = [
       {

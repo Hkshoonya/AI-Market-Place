@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { resolveOpenAIKnownModelMeta } from "./openai";
 
 describe("resolveOpenAIKnownModelMeta", () => {
+  it("tracks GPT-5.6 tiers as proprietary limited-preview models", () => {
+    expect(resolveOpenAIKnownModelMeta("gpt-5.6-sol")).toMatchObject({
+      name: "GPT-5.6 Sol",
+      status: "preview",
+      release_date: "2026-06-26",
+      context_window: 1050000,
+      is_api_available: true,
+      is_open_weights: false,
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-5-6-terra")).toMatchObject({
+      name: "GPT-5.6 Terra",
+      status: "preview",
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-5.6-luna")).toMatchObject({
+      name: "GPT-5.6 Luna",
+      status: "preview",
+    });
+  });
+
   it("inherits metadata for dated GPT-4.1 variants", () => {
     const meta = resolveOpenAIKnownModelMeta("gpt-4-1-mini-2025-04-14");
     expect(meta?.release_date).toBe("2025-04-14");

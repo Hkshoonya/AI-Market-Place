@@ -77,7 +77,7 @@ export async function recordStripeWebhookEvent(
   supabase: TypedSupabaseClient,
   input: StripeWebhookEventInput
 ): Promise<void> {
-  const { error } = await supabase.from("payment_webhook_events").insert({
+  const { error } = await supabase.from("payment_webhook_events").upsert({
     provider: "stripe",
     event_id: input.eventId ?? null,
     event_type: input.eventType ?? null,
@@ -90,6 +90,9 @@ export async function recordStripeWebhookEvent(
     livemode: input.livemode ?? null,
     error_message: input.errorMessage ?? null,
     metadata: input.metadata ?? null,
+    created_at: new Date().toISOString(),
+  }, {
+    onConflict: "provider,event_id",
   });
 
   if (!error || isMissingRelationError(error)) {
@@ -142,6 +145,10 @@ export async function getStripeWebhookDeliveryHealth(
   const latestEventAt = rows[0]?.created_at ?? null;
   const latestProcessedAt =
     rows.find((row) => row.delivery_status === "processed")?.created_at ?? null;
+  const latestHandledAt =
+    rows.find(
+      (row) => row.delivery_status === "processed" || row.delivery_status === "ignored"
+    )?.created_at ?? null;
   const latestFailedAt =
     rows.find((row) => row.delivery_status === "failed")?.created_at ?? null;
   const recentFailures24h = rows.filter((row) => row.delivery_status === "failed").length;
@@ -158,7 +165,7 @@ export async function getStripeWebhookDeliveryHealth(
   const degraded =
     consecutiveFailures >= 3 ||
     (latestFailedAt !== null &&
-      (latestProcessedAt === null || latestFailedAt > latestProcessedAt));
+      (latestHandledAt === null || latestFailedAt > latestHandledAt));
 
   return {
     status: degraded ? "degraded" : "healthy",

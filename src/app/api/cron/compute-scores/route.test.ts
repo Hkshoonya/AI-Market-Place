@@ -99,8 +99,10 @@ describe("GET /api/cron/compute-scores", () => {
     });
     mockPersistResults.mockResolvedValue({
       updated: 1,
+      unchanged: 0,
       errors: 0,
       snapshotsCreated: 1,
+      snapshotsSkipped: 0,
       snapshotErrors: 0,
     });
   });
@@ -124,8 +126,10 @@ describe("GET /api/cron/compute-scores", () => {
       expect.objectContaining({
         totalModels: 1,
         updated: 1,
+        unchanged: 0,
         errors: 0,
         snapshotsCreated: 1,
+        snapshotsSkipped: 0,
         snapshotErrors: 0,
       })
     );
@@ -135,8 +139,10 @@ describe("GET /api/cron/compute-scores", () => {
   it("fails the cron run when model updates are incomplete", async () => {
     mockPersistResults.mockResolvedValueOnce({
       updated: 1,
+      unchanged: 0,
       errors: 2,
       snapshotsCreated: 1,
+      snapshotsSkipped: 0,
       snapshotErrors: 0,
     });
 
@@ -155,8 +161,10 @@ describe("GET /api/cron/compute-scores", () => {
   it("fails the cron run when snapshot persistence is incomplete", async () => {
     mockPersistResults.mockResolvedValueOnce({
       updated: 1,
+      unchanged: 0,
       errors: 0,
       snapshotsCreated: 0,
+      snapshotsSkipped: 0,
       snapshotErrors: 1,
     });
 

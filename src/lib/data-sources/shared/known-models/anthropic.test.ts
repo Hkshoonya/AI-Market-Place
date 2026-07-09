@@ -96,6 +96,7 @@ describe("resolveAnthropicKnownModelMeta", () => {
       is_open_weights: false,
       license: "commercial",
       license_name: null,
+      website_url: "https://www.anthropic.com/claude/fable",
     });
     expect(resolveAnthropicKnownModelMeta("claude-fable-latest")).toMatchObject({
       name: "Claude Fable 5",
@@ -106,6 +107,12 @@ describe("resolveAnthropicKnownModelMeta", () => {
     expect(canonicalizeAnthropicModelId("claude-fable-latest")).toBe(
       "claude-fable-5"
     );
+    expect(
+      resolveAnthropicKnownModelMeta("claude-fable-5")?.capabilities
+    ).toMatchObject({
+      safety_routing: true,
+      data_retention_required: true,
+    });
   });
 
   it("tracks Mythos 5 as proprietary limited availability", () => {

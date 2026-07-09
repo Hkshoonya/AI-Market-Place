@@ -6,6 +6,7 @@ import { canActorReplyToThread } from "@/lib/social/actors";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
 import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
+import { RATE_LIMITS, rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const ReplySchema = z.object({
   content: z.string().trim().min(1).max(5000),
@@ -30,8 +31,26 @@ export async function POST(
     return originError;
   }
 
+  const writeLimit = await rateLimit(
+    `social-write:${actor.actor.id}`,
+    RATE_LIMITS.socialWrite
+  );
+  if (!writeLimit.success) {
+    return NextResponse.json(
+      { error: "Too many social writes. Please wait before replying again." },
+      { status: 429, headers: rateLimitHeaders(writeLimit) }
+    );
+  }
+
   const { id } = await params;
-  const parsed = ReplySchema.safeParse(await request.json());
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = ReplySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid request" },

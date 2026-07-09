@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const mockRateLimit = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));
@@ -11,6 +13,12 @@ vi.mock("@/lib/social/auth", () => ({
 
 vi.mock("@/lib/social/actors", () => ({
   canActorReplyToThread: vi.fn(),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  RATE_LIMITS: { socialWrite: { limit: 10, windowMs: 60_000 } },
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+  rateLimitHeaders: () => ({}),
 }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +37,12 @@ function makeRequest(body: Record<string, unknown>) {
 describe("POST /api/social/posts/[id]/replies", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRateLimit.mockResolvedValue({
+      success: true,
+      limit: 10,
+      remaining: 9,
+      reset: Date.now() + 60_000,
+    });
   });
 
   it("returns 401 when no social actor resolves", async () => {

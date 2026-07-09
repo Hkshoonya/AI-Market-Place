@@ -1,53 +1,72 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const insertMock = vi.fn();
-const selectMock = vi.fn(() => ({ single: vi.fn() }));
-const fromMock = vi.fn(() => ({
-  insert: insertMock,
-}));
-const hasAdminClientConfigMock = vi.fn(() => true);
-const createAdminClientMock = vi.fn(() => ({
-  from: fromMock,
-}));
+const mockCreateAdminClient = vi.fn();
+const mockHasAdminClientConfig = vi.fn(() => true);
 
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: createAdminClientMock,
-  hasAdminClientConfig: hasAdminClientConfigMock,
+  createAdminClient: () => mockCreateAdminClient(),
+  hasAdminClientConfig: () => mockHasAdminClientConfig(),
 }));
 
-describe("logging", () => {
-  let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
+vi.mock("@/lib/runtime-environment", () => ({
+  isE2ETestMode: () => false,
+}));
 
+function createAdminStub() {
+  const single = vi.fn().mockResolvedValue({ data: { id: "log-1" }, error: null });
+  const select = vi.fn(() => ({ single }));
+  const insert = vi.fn(() => ({ select }));
+  return {
+    insert,
+    client: { from: vi.fn(() => ({ insert })) },
+  };
+}
+
+describe("systemLog persistence", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
-    insertMock.mockReturnValue({ select: selectMock });
-    hasAdminClientConfigMock.mockReturnValue(true);
-    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    delete process.env.PERSIST_INFO_LOGS;
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleInfoSpy.mockRestore();
-    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    delete process.env.PERSIST_INFO_LOGS;
   });
 
-  it("skips durable log writes during e2e mode", async () => {
-    vi.stubEnv("E2E_TEST_MODE", "true");
+  it("keeps routine info logs in the platform console by default", async () => {
     const { systemLog } = await import("./logging");
 
-    const result = await systemLog.info("test", "hello");
+    await systemLog.info("test", "routine event");
 
-    expect(result).toBeNull();
-    expect(createAdminClientMock).not.toHaveBeenCalled();
+    expect(console.info).toHaveBeenCalled();
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
   });
 
-  it("skips durable log writes when admin Supabase config is missing", async () => {
-    hasAdminClientConfigMock.mockReturnValue(false);
+  it("persists warnings for operational diagnostics", async () => {
+    const admin = createAdminStub();
+    mockCreateAdminClient.mockReturnValue(admin.client);
     const { systemLog } = await import("./logging");
 
-    const result = await systemLog.info("test", "hello");
+    await systemLog.warn("test", "attention required");
 
-    expect(result).toBeNull();
-    expect(createAdminClientMock).not.toHaveBeenCalled();
+    expect(admin.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "warn", source: "test" })
+    );
+  });
+
+  it("allows explicit info persistence when diagnostics require it", async () => {
+    process.env.PERSIST_INFO_LOGS = "true";
+    const admin = createAdminStub();
+    mockCreateAdminClient.mockReturnValue(admin.client);
+    const { systemLog } = await import("./logging");
+
+    await systemLog.info("test", "persisted event");
+
+    expect(admin.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "info", source: "test" })
+    );
   });
 });

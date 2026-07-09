@@ -54,6 +54,7 @@ export interface Model {
   capabilities: Record<string, boolean>;
   provider_id: number | null;
   overall_rank: number | null;
+  category_rank: number | null;
   popularity_score: number | null;
   adoption_score: number | null;
   quality_score: number | null;
@@ -1893,6 +1894,20 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      reserve_autonomous_marketplace_order: {
+        Args: {
+          p_buyer_id: string;
+          p_listing_id: string;
+          p_expected_price: number;
+        };
+        Returns: string;
+      };
+      bulk_update_model_scores: {
+        Args: {
+          p_updates: Record<string, unknown>[];
+        };
+        Returns: number;
+      };
       credit_wallet: {
         Args: {
           p_wallet_id: string;

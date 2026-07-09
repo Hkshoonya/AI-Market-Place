@@ -39,7 +39,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-fable-5": {
     name: "Claude Fable 5",
     description:
-      "Anthropic's most capable generally available model for demanding reasoning, coding, and long-horizon agentic work. Access was restored on July 1, 2026; it remains proprietary closed-weight software and cannot run as an open local model.",
+      "Anthropic's most capable generally available model for demanding reasoning, coding, and long-horizon agentic work. It is proprietary closed-weight software and cannot run locally as an open model. Anthropic included it for up to 50% of weekly usage limits on eligible subscriptions through July 7, 2026, with continued access through usage credits unless an allowance is extended. It is also available through the API. Flagged cyber or biology requests can route to Opus 4.8, and Fable use requires 30-day safety retention.",
     category: "multimodal",
     context_window: 1000000,
     release_date: "2026-06-09",
@@ -49,7 +49,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     is_open_weights: false,
     license: "commercial",
     license_name: null,
-    website_url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+    website_url: "https://www.anthropic.com/claude/fable",
     modalities: ["text", "image"],
     capabilities: {
       vision: true,
@@ -59,6 +59,8 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       reasoning: true,
       computer_use: true,
       streaming: true,
+      safety_routing: true,
+      data_retention_required: true,
     },
   },
   "claude-mythos-5": {

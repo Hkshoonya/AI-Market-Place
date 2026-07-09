@@ -2,6 +2,7 @@ import type { PublicSurfaceReadinessModel } from "./public-surface-readiness";
 
 export const MODEL_PUBLIC_RANKING_FIELDS = [
   "overall_rank",
+  "category_rank",
   "popularity_score",
   "adoption_score",
   "quality_score",
@@ -24,6 +25,7 @@ export const MODEL_PUBLIC_RANKING_FIELDS = [
 ] as const;
 
 export type PublicRankingInputRecord = PublicSurfaceReadinessModel & {
+  category_rank?: number | null;
   value_score?: number | null;
   market_cap_estimate?: number | null;
   popularity_rank?: number | null;

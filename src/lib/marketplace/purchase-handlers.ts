@@ -38,6 +38,12 @@ export interface ListingData {
   slug: string;
   status?: string;
   title?: string;
+  description?: string | null;
+  short_description?: string | null;
+  tags?: string[] | null;
+  agent_config?: Record<string, unknown> | null;
+  mcp_manifest?: Record<string, unknown> | null;
+  preview_manifest?: Record<string, unknown> | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +61,25 @@ async function createOrderRecord(
     authMethod?: string;
   }
 ): Promise<{ id: string } | null> {
+  if (orderData.buyerId && orderData.authMethod === "api_key") {
+    const { data: orderId, error } = await sb.rpc("reserve_autonomous_marketplace_order", {
+      p_buyer_id: orderData.buyerId,
+      p_listing_id: listing.id,
+      p_expected_price: orderData.price,
+    });
+
+    if (error || !orderId) {
+      void log.error("Autonomous order reservation failed", {
+        listingId: listing.id,
+        buyerId: orderData.buyerId,
+        error: error?.message ?? "Reservation returned no order id",
+      });
+      return null;
+    }
+
+    return { id: String(orderId) };
+  }
+
   const baseInsert = {
     listing_id: listing.id,
     seller_id: listing.seller_id,
@@ -92,7 +117,7 @@ async function findExistingActiveOrder(
     .select("id, status")
     .eq("listing_id", listingId)
     .eq("buyer_id", buyerId)
-    .in("status", ["pending", "completed"])
+    .in("status", ["pending", "approved", "completed"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -219,7 +244,7 @@ export async function handleGuestCheckout(
   }
 
   if (isAccountBoundProduct) {
-    if (isRuntimeFlagEnabled("BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY")) {
+    if (isRuntimeFlagEnabled("BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY", true)) {
       return {
         success: false,
         orderId: "",
@@ -333,9 +358,7 @@ export async function handleAuthenticatedCheckout(
     buyerId: userId,
     authMethod: authMethod === "api_key" ? "api_key" : "session",
     listing: {
-      id: listing.id,
-      seller_id: listing.seller_id,
-      listing_type: listing.listing_type,
+      ...listing,
       price,
     },
   });
@@ -416,6 +439,23 @@ export async function handleAuthenticatedCheckout(
   });
 
   if (!order) {
+    const racedOrder = await findExistingActiveOrder(sb, listing.id, userId);
+    if (racedOrder) {
+      return {
+        success: false,
+        orderId: racedOrder.id,
+        status: racedOrder.status === "completed" ? "completed" : "pending",
+        escrowId: null,
+        delivery: null,
+        payment: null,
+        httpStatus: 409,
+        error:
+          racedOrder.status === "completed"
+            ? "You have already purchased this listing."
+            : "A purchase for this listing is already in progress.",
+      };
+    }
+
     return {
       success: false,
       orderId: "",

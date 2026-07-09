@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
+const MAX_STRIPE_WEBHOOK_BYTES = 1_000_000;
 
 type StripeMetadata = Record<string, string>;
 
@@ -118,6 +119,10 @@ function normalizeCurrency(currency: unknown) {
   return typeof currency === "string" ? currency.toLowerCase() : "";
 }
 
+function hasWalletTarget(metadata: StripeMetadata) {
+  return Boolean(metadata.wallet_id || metadata.owner_id);
+}
+
 function getCheckoutFundingDetails(object: Record<string, unknown>) {
   const paymentStatus = typeof object.payment_status === "string" ? object.payment_status : null;
   if (paymentStatus !== "paid") return null;
@@ -127,6 +132,10 @@ function getCheckoutFundingDetails(object: Record<string, unknown>) {
   const metadata = parseStripeMetadata(object.metadata);
   const paymentIntentId =
     extractStripeObjectId(object.payment_intent) ?? extractStripeObjectId(object.id);
+
+  // This Stripe account can serve products outside AIMC. Only wallet-targeted
+  // payments belong to this integration; acknowledging the rest stops retries.
+  if (!hasWalletTarget(metadata)) return null;
 
   if (!paymentIntentId || amountTotal === null) {
     throw new ApiError(400, "Stripe checkout session is missing payment details");
@@ -150,6 +159,8 @@ function getPaymentIntentFundingDetails(object: Record<string, unknown>) {
   const currency = normalizeCurrency(object.currency);
   const metadata = parseStripeMetadata(object.metadata);
   const paymentIntentId = typeof object.id === "string" ? object.id : null;
+
+  if (!hasWalletTarget(metadata)) return null;
 
   if (!paymentIntentId || amountReceived === null) {
     throw new ApiError(400, "Stripe payment intent is missing payment details");
@@ -257,22 +268,33 @@ async function handleFundingEvent(object: Record<string, unknown>, type: string)
 
 export async function POST(request: NextRequest) {
   let parsedEvent: StripeEvent | null = null;
+  let signatureVerified = false;
 
   try {
     if (!env.STRIPE_WEBHOOK_SECRET) {
       throw new ApiError(500, "Stripe webhook is not configured");
     }
 
+    const contentLength = Number.parseInt(request.headers.get("content-length") ?? "", 10);
+    if (Number.isFinite(contentLength) && contentLength > MAX_STRIPE_WEBHOOK_BYTES) {
+      throw new ApiError(413, "Stripe webhook payload is too large");
+    }
+
     const payload = await request.text();
-    parsedEvent = tryParseStripeEvent(payload);
+    if (Buffer.byteLength(payload, "utf8") > MAX_STRIPE_WEBHOOK_BYTES) {
+      throw new ApiError(413, "Stripe webhook payload is too large");
+    }
+
     verifyStripeSignature(
       payload,
       request.headers.get("stripe-signature"),
       env.STRIPE_WEBHOOK_SECRET
     );
+    signatureVerified = true;
+    parsedEvent = tryParseStripeEvent(payload);
 
     const event = parsedEvent;
-    if (!event) {
+    if (!event || typeof event.id !== "string" || typeof event.type !== "string") {
       throw new ApiError(400, "Invalid Stripe event payload");
     }
     const object = event?.data?.object;
@@ -297,13 +319,15 @@ export async function POST(request: NextRequest) {
       ...result,
     });
   } catch (error) {
-    const admin = createAdminClient();
-    const auditRecord = buildStripeWebhookAuditRecord(parsedEvent);
-    await recordStripeWebhookEvent(admin, {
-      ...auditRecord,
-      deliveryStatus: "failed",
-      errorMessage: error instanceof Error ? error.message : String(error),
-    }).catch(() => {});
+    if (signatureVerified && parsedEvent?.id) {
+      const admin = createAdminClient();
+      const auditRecord = buildStripeWebhookAuditRecord(parsedEvent);
+      await recordStripeWebhookEvent(admin, {
+        ...auditRecord,
+        deliveryStatus: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }).catch(() => {});
+    }
 
     return handleApiError(error, "api/webhooks/stripe");
   }

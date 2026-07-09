@@ -60,6 +60,14 @@ function makeRequest(payload: Record<string, unknown>, signature?: string) {
   });
 }
 
+function makeRawRequest(body: string, headers: Record<string, string> = {}) {
+  return new NextRequest("https://aimarketcap.tech/api/webhooks/stripe", {
+    method: "POST",
+    headers,
+    body,
+  });
+}
+
 function createWalletLookupStub(walletId = "wallet-1") {
   const builder = {
     select: vi.fn().mockReturnThis(),
@@ -106,6 +114,20 @@ describe("POST /api/webhooks/stripe", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Missing Stripe signature",
     });
+    expect(mockRecordStripeWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized payloads without recording attacker-controlled telemetry", async () => {
+    const { POST } = await import("./route");
+    const response = await POST(
+      makeRawRequest("{}", {
+        "content-length": "1000001",
+        "stripe-signature": "invalid",
+      })
+    );
+
+    expect(response.status).toBe(413);
+    expect(mockRecordStripeWebhookEvent).not.toHaveBeenCalled();
   });
 
   it("credits the wallet for a paid checkout session", async () => {
@@ -307,6 +329,36 @@ describe("POST /api/webhooks/stripe", () => {
       data: {
         object: {
           id: "cus_123",
+        },
+      },
+    };
+    const signature = signStripePayload(JSON.stringify(payload), "whsec_test");
+
+    const { POST } = await import("./route");
+    const response = await POST(makeRequest(payload, signature));
+
+    expect(response.status).toBe(200);
+    expect(mockCreditWallet).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        received: true,
+        processed: false,
+        ignored: true,
+      })
+    );
+  });
+
+  it("acknowledges successful payment intents that do not target an AIMC wallet", async () => {
+    const payload = {
+      id: "evt_other_product",
+      type: "payment_intent.succeeded",
+      data: {
+        object: {
+          id: "pi_other_product",
+          status: "succeeded",
+          amount_received: 9900,
+          currency: "usd",
+          metadata: {},
         },
       },
     };

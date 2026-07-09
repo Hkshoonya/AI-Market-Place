@@ -45,10 +45,12 @@ function buildStripeCheckoutPayload(args: {
   params.set("cancel_url", args.cancelUrl);
   params.set("client_reference_id", args.ownerId);
   params.set("metadata[wallet_id]", args.walletId);
+  params.set("metadata[purpose]", "wallet_top_up");
   params.set("metadata[owner_id]", args.ownerId);
   params.set("metadata[owner_type]", "user");
   params.set("metadata[pack_slug]", args.packSlug);
   params.set("payment_intent_data[metadata][wallet_id]", args.walletId);
+  params.set("payment_intent_data[metadata][purpose]", "wallet_top_up");
   params.set("payment_intent_data[metadata][owner_id]", args.ownerId);
   params.set("payment_intent_data[metadata][owner_type]", "user");
   params.set("payment_intent_data[metadata][pack_slug]", args.packSlug);

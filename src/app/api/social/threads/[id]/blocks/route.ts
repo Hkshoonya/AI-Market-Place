@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
+import { RATE_LIMITS, rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const BlockSchema = z.object({
   blocked_actor_id: z.string().uuid().or(z.string().min(1)),
@@ -32,8 +33,26 @@ export async function POST(
     );
   }
 
+  const writeLimit = await rateLimit(
+    `social-write:${actor.actor.id}`,
+    RATE_LIMITS.socialWrite
+  );
+  if (!writeLimit.success) {
+    return NextResponse.json(
+      { error: "Too many social moderation actions. Please wait and try again." },
+      { status: 429, headers: rateLimitHeaders(writeLimit) }
+    );
+  }
+
   const { id } = await params;
-  const parsed = BlockSchema.safeParse(await request.json());
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = BlockSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid request" },

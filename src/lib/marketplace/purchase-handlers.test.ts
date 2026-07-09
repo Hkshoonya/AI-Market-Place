@@ -53,6 +53,10 @@ function createMockSupabase(existingOrder: { id: string; status: string } | null
   };
 
   return {
+    rpc: vi.fn(async (functionName: string) => ({
+      data: functionName === "reserve_autonomous_marketplace_order" ? "order-1" : null,
+      error: null,
+    })),
     from: (table: string) => {
       if (table === "marketplace_orders") {
         return {
@@ -103,9 +107,7 @@ describe("handleGuestCheckout", () => {
     }
   });
 
-  it("blocks guest auto-delivery for account-bound products when the flag is enabled", async () => {
-    process.env.BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY = "true";
-
+  it("blocks guest auto-delivery for account-bound products by default", async () => {
     const result = await handleGuestCheckout(
       createMockSupabase() as never,
       {
@@ -126,6 +128,8 @@ describe("handleGuestCheckout", () => {
   });
 
   it("allows the legacy path temporarily and logs a deprecation warning when the flag is off", async () => {
+    process.env.BLOCK_GUEST_ACCOUNT_BOUND_DELIVERY = "false";
+
     const result = await handleGuestCheckout(
       createMockSupabase() as never,
       {
@@ -162,6 +166,10 @@ describe("handleGuestCheckout", () => {
         pricing_type: "one_time",
         listing_type: "agent",
         slug: "agent-listing",
+        title: "Managed analytics agent",
+        description: "Creates trusted analytics reports.",
+        tags: ["analytics"],
+        preview_manifest: { schema_version: "1.0" },
       },
       "buyer-1",
       "api_key"
@@ -170,15 +178,64 @@ describe("handleGuestCheckout", () => {
     expect(result.success).toBe(false);
     expect(result.httpStatus).toBe(403);
     expect(result.error).toMatch(/cap/i);
+    expect(mockEnforceAutonomousCommerceGuardrails).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        listing: expect.objectContaining({
+          title: "Managed analytics agent",
+          description: "Creates trusted analytics reports.",
+          tags: ["analytics"],
+          preview_manifest: { schema_version: "1.0" },
+        }),
+      })
+    );
   });
 
-  it("rejects duplicate authenticated purchases when an active order already exists", async () => {
+  it("reserves API-key purchases atomically before creating escrow", async () => {
+    const supabase = createMockSupabase();
+
+    const result = await handleAuthenticatedCheckout(
+      supabase as never,
+      {
+        id: "listing-1",
+        seller_id: "seller-2",
+        price: 25,
+        pricing_type: "monthly_subscription",
+        listing_type: "agent",
+        slug: "agent-listing",
+        title: "Managed analytics agent",
+        preview_manifest: { schema_version: "1.0" },
+      },
+      "buyer-1",
+      "api_key"
+    );
+
+    expect(result.success).toBe(true);
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "reserve_autonomous_marketplace_order",
+      {
+        p_buyer_id: "buyer-1",
+        p_listing_id: "listing-1",
+        p_expected_price: 25,
+      }
+    );
+    expect(mockCreatePurchaseEscrow).toHaveBeenCalledWith(
+      "buyer-1",
+      "seller-2",
+      25,
+      "order-1"
+    );
+  });
+
+  it.each(["pending", "approved"])(
+    "rejects duplicate authenticated purchases when an active %s order already exists",
+    async (status) => {
     mockEnforceAutonomousCommerceGuardrails.mockResolvedValue({
       allowed: true,
     });
 
     const result = await handleAuthenticatedCheckout(
-      createMockSupabase({ id: "order-existing", status: "pending" }) as never,
+      createMockSupabase({ id: "order-existing", status }) as never,
       {
         id: "listing-1",
         seller_id: "seller-2",
@@ -196,5 +253,6 @@ describe("handleGuestCheckout", () => {
     expect(result.orderId).toBe("order-existing");
     expect(result.error).toMatch(/already in progress/i);
     expect(mockCreatePurchaseEscrow).not.toHaveBeenCalled();
-  });
+    }
+  );
 });

@@ -20,6 +20,11 @@ import type {
 import { upsertBatch, fetchWithRetry } from "../utils";
 import type { KnownModelMeta } from "./build-record";
 
+export interface ScrapedModelEntry {
+  id: string;
+  overrides?: Partial<KnownModelMeta>;
+}
+
 // ---------------------------------------------------------------------------
 // Configuration interface
 // ---------------------------------------------------------------------------
@@ -56,7 +61,9 @@ export interface AdapterSyncerConfig<TApiResult> {
    * Attempt to scrape the provider's public docs page for model IDs.
    * Returns an empty array on failure (never throws).
    */
-  scrapeFn: (signal?: AbortSignal) => Promise<string[]>;
+  scrapeFn: (
+    signal?: AbortSignal
+  ) => Promise<Array<string | ScrapedModelEntry>>;
 
   /**
    * Attempt to fetch live model data from the provider's API.
@@ -139,12 +146,17 @@ export function createAdapterSyncer<TApiResult>(
     const sources: string[] = ["static_known_models"];
 
     // ── Step 2: Scrape public docs page (optional enrichment) ───────────────
-    const scrapedIds = await config.scrapeFn(ctx.signal);
-    if (scrapedIds.length > 0) {
+    const scrapedModels = await config.scrapeFn(ctx.signal);
+    if (scrapedModels.length > 0) {
       sources.push("html_scrape");
-      for (const modelId of scrapedIds) {
-        if (!recordMap.has(modelId)) {
-          recordMap.set(modelId, config.buildRecordFn(modelId));
+      for (const scrapedModel of scrapedModels) {
+        const modelId =
+          typeof scrapedModel === "string" ? scrapedModel : scrapedModel.id;
+        const overrides =
+          typeof scrapedModel === "string" ? undefined : scrapedModel.overrides;
+
+        if (!recordMap.has(modelId) || overrides) {
+          recordMap.set(modelId, config.buildRecordFn(modelId, overrides));
         }
       }
     }
@@ -226,7 +238,7 @@ export function createAdapterSyncer<TApiResult>(
       metadata: {
         sources,
         staticModels: config.staticModelCount,
-        scrapedIds: scrapedIds.length,
+        scrapedIds: scrapedModels.length,
         apiModels: getApiResultSize(apiResult),
         totalRecords: records.length,
         deactivatedStale,

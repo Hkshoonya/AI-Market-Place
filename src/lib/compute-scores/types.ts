@@ -72,7 +72,9 @@ export interface ScoringResults {
 
 export interface PersistStats {
   updated: number;
+  unchanged: number;
   errors: number;
   snapshotsCreated: number;
+  snapshotsSkipped: number;
   snapshotErrors: number;
 }

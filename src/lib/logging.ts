@@ -14,6 +14,7 @@
 
 import { createAdminClient, hasAdminClientConfig } from "@/lib/supabase/admin";
 import { isE2ETestMode } from "@/lib/runtime-environment";
+import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -36,6 +37,12 @@ async function writeLog(entry: LogEntry): Promise<string | null> {
   consoleFn(`[${level.toUpperCase()}] [${source}] ${message}`, metadata ?? "");
 
   if (isE2ETestMode()) {
+    return null;
+  }
+
+  // Railway already retains console output. Persist warnings and errors for the
+  // admin dashboard, but avoid duplicating high-volume routine logs in Postgres.
+  if (level === "info" && !isRuntimeFlagEnabled("PERSIST_INFO_LOGS", false)) {
     return null;
   }
 

@@ -54,6 +54,19 @@ describe("hasTrustedRequestOrigin", () => {
     expect(hasTrustedRequestOrigin(request)).toBe(false);
   });
 
+  it("does not trust caller-controlled forwarded host headers", () => {
+    const request = new Request("https://aimarketcap.tech/api/example", {
+      method: "POST",
+      headers: {
+        origin: "https://evil.example",
+        "x-forwarded-host": "evil.example",
+        "x-forwarded-proto": "https",
+      },
+    });
+
+    expect(hasTrustedRequestOrigin(request)).toBe(false);
+  });
+
   it("rejects requests without origin signals", () => {
     const request = new Request("https://aimarketcap.tech/api/example", {
       method: "POST",

@@ -130,69 +130,73 @@ function buildFixtureResults(modelIds: string[]): ScoringResults {
 
 /**
  * Creates a mock Supabase client for persist operations.
- * Supports .from("models").update().eq().then() and .from("model_snapshots").upsert().then()
+ * Supports bulk score RPC calls and daily model snapshot lookup/upserts.
  */
 function createPersistMockSupabase(options?: {
-  failUpdateForId?: string;
+  failModelUpdates?: boolean;
+  changedUpdateCount?: number;
   failSnapshot?: boolean;
   failSnapshotTimesById?: Record<string, number>;
+  existingSnapshotModelIds?: string[];
   snapshotCollector?: Array<Record<string, unknown>>;
   modelUpdateCollector?: Array<Record<string, unknown>>;
+  updateBatchCollector?: Array<Array<Record<string, unknown>>>;
+  snapshotBatchCollector?: Array<Array<Record<string, unknown>>>;
 }) {
-  /** Wrap a value as a thenable (PromiseLike) so .then() chains work with await/Promise.all */
-  function thenable<T>(value: T) {
-    return {
-      then: <R>(onFulfilled: (v: T) => R) =>
-        Promise.resolve(onFulfilled(value)),
-    };
-  }
-
   return {
-    from: (table: string) => {
-      if (table === "models") {
-        return {
-          update: (data: unknown) => ({
-            eq: (_col: string, id: string) => {
-              if (options?.modelUpdateCollector && data && typeof data === "object") {
-                options.modelUpdateCollector.push({ id, ...(data as Record<string, unknown>) });
-              }
-              const error =
-                options?.failUpdateForId === id
-                  ? { message: "Update failed" }
-                  : null;
-              return thenable({ error });
-            },
-          }),
-        };
+    rpc: async (functionName: string, args: { p_updates?: Array<Record<string, unknown>> }) => {
+      if (functionName !== "bulk_update_model_scores") {
+        throw new Error(`Unexpected RPC ${functionName}`);
       }
+
+      const updates = args.p_updates ?? [];
+      options?.updateBatchCollector?.push(updates);
+      options?.modelUpdateCollector?.push(...updates);
+      if (options?.failModelUpdates) {
+        return { data: null, error: { message: "Update failed" } };
+      }
+
+      return {
+        data: options?.changedUpdateCount ?? updates.length,
+        error: null,
+      };
+    },
+    from: (table: string) => {
       if (table === "model_snapshots") {
         return {
+          select: () => {
+            const query = {
+              eq: () => query,
+              in: async (_column: string, ids: string[]) => ({
+                data: (options?.existingSnapshotModelIds ?? [])
+                  .filter((id) => ids.includes(id))
+                  .map((model_id) => ({ model_id })),
+                error: null,
+              }),
+            };
+            return query;
+          },
           upsert: (data: unknown, _opts?: unknown) => {
-            if (options?.snapshotCollector && data && typeof data === "object") {
-              options.snapshotCollector.push(data as Record<string, unknown>);
-            }
-            const modelId =
-              data && typeof data === "object" && "model_id" in data
-                ? String((data as { model_id: unknown }).model_id)
-                : null;
+            const snapshots = Array.isArray(data)
+              ? (data as Array<Record<string, unknown>>)
+              : [data as Record<string, unknown>];
+            options?.snapshotBatchCollector?.push(snapshots);
+            options?.snapshotCollector?.push(...snapshots);
             let error = options?.failSnapshot ? { message: "Snapshot failed" } : null;
-            if (
-              !error &&
-              modelId &&
-              options?.failSnapshotTimesById &&
-              (options.failSnapshotTimesById[modelId] ?? 0) > 0
-            ) {
-              options.failSnapshotTimesById[modelId] -= 1;
-              error = { message: "Transient snapshot failure" };
+            if (!error && options?.failSnapshotTimesById) {
+              const transientId = snapshots
+                .map((snapshot) => String(snapshot.model_id))
+                .find((id) => (options.failSnapshotTimesById?.[id] ?? 0) > 0);
+              if (transientId) {
+                options.failSnapshotTimesById[transientId] -= 1;
+                error = { message: "Transient snapshot failure" };
+              }
             }
-            return thenable({ error });
+            return Promise.resolve({ error });
           },
         };
       }
-      // Fallback
-      return {
-        select: () => thenable({ data: [], error: null }),
-      };
+      throw new Error(`Unexpected table ${table}`);
     },
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 }
@@ -211,8 +215,10 @@ describe("persistResults", () => {
     );
 
     expect(stats.updated).toBe(2);
+    expect(stats.unchanged).toBe(0);
     expect(stats.errors).toBe(0);
     expect(stats.snapshotsCreated).toBe(2);
+    expect(stats.snapshotsSkipped).toBe(0);
     expect(stats.snapshotErrors).toBe(0);
   });
 
@@ -220,12 +226,12 @@ describe("persistResults", () => {
     const modelIds = ["m1", "m2"];
     const inputs = buildFixtureInputs(modelIds);
     const results = buildFixtureResults(modelIds);
-    const supabase = createPersistMockSupabase({ failUpdateForId: "m2" });
+    const supabase = createPersistMockSupabase({ failModelUpdates: true });
 
     const stats = await persistResults(supabase, inputs, results);
 
-    expect(stats.updated).toBe(1);
-    expect(stats.errors).toBe(1);
+    expect(stats.updated).toBe(0);
+    expect(stats.errors).toBe(2);
     expect(stats.snapshotsCreated).toBe(2);
     expect(stats.snapshotErrors).toBe(0);
   });
@@ -269,13 +275,72 @@ describe("persistResults", () => {
     const stats = await persistResults(supabase, inputs, results);
 
     expect(stats).toHaveProperty("updated");
+    expect(stats).toHaveProperty("unchanged");
     expect(stats).toHaveProperty("errors");
     expect(stats).toHaveProperty("snapshotsCreated");
+    expect(stats).toHaveProperty("snapshotsSkipped");
     expect(stats).toHaveProperty("snapshotErrors");
     expect(typeof stats.updated).toBe("number");
+    expect(typeof stats.unchanged).toBe("number");
     expect(typeof stats.errors).toBe("number");
     expect(typeof stats.snapshotsCreated).toBe("number");
+    expect(typeof stats.snapshotsSkipped).toBe("number");
     expect(typeof stats.snapshotErrors).toBe("number");
+  });
+
+  it("reports unchanged models without rewriting them", async () => {
+    const modelIds = ["m1", "m2"];
+    const supabase = createPersistMockSupabase({ changedUpdateCount: 0 });
+
+    const stats = await persistResults(
+      supabase,
+      buildFixtureInputs(modelIds),
+      buildFixtureResults(modelIds)
+    );
+
+    expect(stats.updated).toBe(0);
+    expect(stats.unchanged).toBe(2);
+    expect(stats.errors).toBe(0);
+  });
+
+  it("skips snapshots that already exist for the current UTC day", async () => {
+    const modelIds = ["m1", "m2"];
+    const snapshots: Array<Record<string, unknown>> = [];
+    const supabase = createPersistMockSupabase({
+      existingSnapshotModelIds: ["m1", "m2"],
+      snapshotCollector: snapshots,
+    });
+
+    const stats = await persistResults(
+      supabase,
+      buildFixtureInputs(modelIds),
+      buildFixtureResults(modelIds)
+    );
+
+    expect(stats.snapshotsCreated).toBe(0);
+    expect(stats.snapshotsSkipped).toBe(2);
+    expect(snapshots).toHaveLength(0);
+  });
+
+  it("bounds database calls by batching model updates and snapshots", async () => {
+    const modelIds = Array.from({ length: 501 }, (_, index) => `m${index}`);
+    const updateBatches: Array<Array<Record<string, unknown>>> = [];
+    const snapshotBatches: Array<Array<Record<string, unknown>>> = [];
+    const supabase = createPersistMockSupabase({
+      updateBatchCollector: updateBatches,
+      snapshotBatchCollector: snapshotBatches,
+    });
+
+    const stats = await persistResults(
+      supabase,
+      buildFixtureInputs(modelIds),
+      buildFixtureResults(modelIds)
+    );
+
+    expect(updateBatches.map((batch) => batch.length)).toEqual([250, 250, 1]);
+    expect(snapshotBatches.map((batch) => batch.length)).toEqual([250, 250, 1]);
+    expect(stats.updated).toBe(501);
+    expect(stats.snapshotsCreated).toBe(501);
   });
 
   it("persists source_coverage into model snapshots", async () => {

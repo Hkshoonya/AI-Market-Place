@@ -241,6 +241,8 @@ export const RATE_LIMITS = {
   search: { limit: 30, windowMs: 60_000 },
   /** Write endpoints (POST/PUT/DELETE): 20 req/min */
   write: { limit: 20, windowMs: 60_000 },
+  /** Social posts, replies, and moderation actions: 10 writes/min per actor */
+  socialWrite: { limit: 10, windowMs: 60_000 },
   /** Auth endpoints: 10 req/min */
   auth: { limit: 10, windowMs: 60_000 },
   /** API / programmatic endpoints (MCP, agent chat): 30 req/min */

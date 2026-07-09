@@ -378,6 +378,16 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     contentType: "pdf",
   },
   {
+    id: "openai-gpt-5-6-preview",
+    provider: "OpenAI",
+    url: "https://deploymentsafety.openai.com/gpt-5-6-preview/gpt-5-6-preview.pdf",
+    titleHint: "GPT-5.6 Sol, Terra, and Luna benchmark update",
+    modelHints: ["GPT-5.6 Sol", "GPT-5.6 Terra", "GPT-5.6 Luna"],
+    publishedAtHint: "2026-06-26T00:00:00.000Z",
+    contentType: "pdf",
+    requiresBenchmarkSignal: true,
+  },
+  {
     id: "openai-gpt-5-5",
     provider: "OpenAI",
     url: "https://openai.com/index/introducing-gpt-5-5/",

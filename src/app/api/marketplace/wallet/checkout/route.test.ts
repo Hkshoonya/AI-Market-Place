@@ -89,8 +89,10 @@ describe("POST /api/marketplace/wallet/checkout", () => {
 
     const stripeBody = mockFetch.mock.calls[0]?.[1]?.body as URLSearchParams;
     expect(stripeBody.get("metadata[wallet_id]")).toBe("wallet-1");
+    expect(stripeBody.get("metadata[purpose]")).toBe("wallet_top_up");
     expect(stripeBody.get("metadata[owner_id]")).toBe("user-1");
     expect(stripeBody.get("payment_intent_data[metadata][wallet_id]")).toBe("wallet-1");
+    expect(stripeBody.get("payment_intent_data[metadata][purpose]")).toBe("wallet_top_up");
     expect(stripeBody.get("line_items[0][price_data][unit_amount]")).toBe("2000");
     expect(body.url).toBe("https://checkout.stripe.com/c/pay/cs_test_123");
   });

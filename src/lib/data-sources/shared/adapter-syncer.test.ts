@@ -170,3 +170,46 @@ describe("createAdapterSyncer — stale provider row cleanup", () => {
     expect(result.metadata?.deactivatedStale).toBe(1);
   });
 });
+
+describe("createAdapterSyncer — public docs lifecycle enrichment", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("applies verified scrape overrides to an existing static model", async () => {
+    let persistedRecords: Array<Record<string, unknown>> = [];
+    vi.spyOn(utils, "upsertBatch").mockImplementation(
+      async (_supabase, _table, records) => {
+        persistedRecords = records;
+        return { created: 0, errors: [] };
+      }
+    );
+
+    const { sync } = createAdapterSyncer({
+      ...makeConfig(),
+      knownModelIds: ["model-a"],
+      staticModelCount: 1,
+      buildRecordFn: (id, overrides = {}) => ({
+        slug: id,
+        name: id,
+        status: "active",
+        ...overrides,
+      }),
+      scrapeFn: async () => [
+        { id: "model-a", overrides: { status: "preview" } },
+      ],
+    });
+
+    const result = await sync({
+      supabase: {} as never,
+      config: {},
+      secrets: {},
+      lastSyncAt: null,
+    });
+
+    expect(result.success).toBe(true);
+    expect(persistedRecords).toEqual([
+      expect.objectContaining({ slug: "model-a", status: "preview" }),
+    ]);
+  });
+});

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { trackCronRun } from "@/lib/cron-tracker";
@@ -13,17 +14,144 @@ const HIGH_FREQUENCY_NEWS_SOURCES = [
 ] as const;
 const DELETE_CHUNK_SIZE = 400;
 
+type RetentionFilter =
+  | { operator: "eq"; column: string; value: string }
+  | { operator: "in"; column: string; values: readonly string[] }
+  | { operator: "not-in"; column: string; values: readonly string[] };
+
+type RetentionPolicy = {
+  key: string;
+  table: string;
+  dateColumn: string;
+  retentionDays: number;
+  weight: number;
+  filters?: RetentionFilter[];
+};
+
+const RETENTION_POLICIES: RetentionPolicy[] = [
+  {
+    key: "highFrequencyNewsDeleted",
+    table: "model_news",
+    dateColumn: "published_at",
+    retentionDays: 60,
+    weight: 4,
+    filters: [
+      { operator: "in", column: "source", values: HIGH_FREQUENCY_NEWS_SOURCES },
+    ],
+  },
+  {
+    key: "nonOfficialNewsDeleted",
+    table: "model_news",
+    dateColumn: "published_at",
+    retentionDays: 180,
+    weight: 2,
+    filters: [
+      {
+        operator: "not-in",
+        column: "source",
+        values: ["provider-blog", "x-twitter"],
+      },
+    ],
+  },
+  {
+    key: "officialNewsDeleted",
+    table: "model_news",
+    dateColumn: "published_at",
+    retentionDays: 365,
+    weight: 1,
+    filters: [
+      {
+        operator: "in",
+        column: "source",
+        values: ["provider-blog", "x-twitter"],
+      },
+    ],
+  },
+  {
+    key: "cronRunsDeleted",
+    table: "cron_runs",
+    dateColumn: "created_at",
+    retentionDays: 14,
+    weight: 3,
+  },
+  {
+    key: "systemInfoLogsDeleted",
+    table: "system_logs",
+    dateColumn: "created_at",
+    retentionDays: 7,
+    weight: 8,
+    filters: [{ operator: "eq", column: "level", value: "info" }],
+  },
+  {
+    key: "systemWarningLogsDeleted",
+    table: "system_logs",
+    dateColumn: "created_at",
+    retentionDays: 30,
+    weight: 2,
+    filters: [{ operator: "in", column: "level", values: ["warn", "error"] }],
+  },
+  {
+    key: "agentLogsDeleted",
+    table: "agent_logs",
+    dateColumn: "created_at",
+    retentionDays: 14,
+    weight: 4,
+  },
+  {
+    key: "terminalAgentTasksDeleted",
+    table: "agent_tasks",
+    dateColumn: "created_at",
+    retentionDays: 30,
+    weight: 2,
+    filters: [
+      {
+        operator: "in",
+        column: "status",
+        values: ["completed", "failed", "cancelled"],
+      },
+    ],
+  },
+  {
+    key: "syncJobsDeleted",
+    table: "sync_jobs",
+    dateColumn: "created_at",
+    retentionDays: 30,
+    weight: 3,
+  },
+  {
+    key: "paymentWebhookEventsDeleted",
+    table: "payment_webhook_events",
+    dateColumn: "created_at",
+    retentionDays: 90,
+    weight: 1,
+  },
+  {
+    key: "modelSnapshotsDeleted",
+    table: "model_snapshots",
+    dateColumn: "snapshot_date",
+    retentionDays: 365,
+    weight: 1,
+  },
+];
+
+const TOTAL_POLICY_WEIGHT = RETENTION_POLICIES.reduce(
+  (total, policy) => total + policy.weight,
+  0
+);
+
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-async function deleteBatchByIds(
-  supabase: ReturnType<typeof createAdminClient>,
-  table: "model_news" | "cron_runs",
-  ids: string[]
-) {
-  if (ids.length === 0) return 0;
+function formatPostgrestList(values: readonly string[]) {
+  return `(${values.map((value) => `"${value.replaceAll('"', '\\"')}"`).join(",")})`;
+}
 
+async function deleteBatchByIds(
+  supabase: SupabaseClient,
+  table: string,
+  ids: Array<string | number>
+) {
   for (let index = 0; index < ids.length; index += DELETE_CHUNK_SIZE) {
     const chunk = ids.slice(index, index + DELETE_CHUNK_SIZE);
     const { error } = await supabase.from(table).delete().in("id", chunk);
@@ -35,101 +163,37 @@ async function deleteBatchByIds(
   return ids.length;
 }
 
-async function deleteHighFrequencyNewsBatch(
-  supabase: ReturnType<typeof createAdminClient>,
+async function applyRetentionPolicy(
+  supabase: SupabaseClient,
+  policy: RetentionPolicy,
   limit: number
 ) {
-  const { data, error } = await supabase
-    .from("model_news")
-    .select("id")
-    .in("source", [...HIGH_FREQUENCY_NEWS_SOURCES])
-    .lt("published_at", daysAgo(60))
-    .order("published_at", { ascending: true })
+  let query = supabase.from(policy.table).select("id");
+
+  for (const filter of policy.filters ?? []) {
+    if (filter.operator === "eq") {
+      query = query.eq(filter.column, filter.value);
+    } else if (filter.operator === "in") {
+      query = query.in(filter.column, [...filter.values]);
+    } else {
+      query = query.not(filter.column, "in", formatPostgrestList(filter.values));
+    }
+  }
+
+  const { data, error } = await query
+    .lt(policy.dateColumn, daysAgo(policy.retentionDays))
+    .order(policy.dateColumn, { ascending: true })
     .limit(limit);
 
   if (error) {
-    throw new Error(
-      `Failed selecting high-frequency model_news retention batch: ${error.message}`
-    );
+    throw new Error(`Failed selecting ${policy.key}: ${error.message}`);
   }
 
-  return deleteBatchByIds(
-    supabase,
-    "model_news",
-    (data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string")
-  );
-}
+  const ids = ((data ?? []) as Array<{ id?: unknown }>)
+    .map((row) => row.id)
+    .filter((id): id is string | number => typeof id === "string" || typeof id === "number");
 
-async function deleteNonOfficialNewsBatch(
-  supabase: ReturnType<typeof createAdminClient>,
-  limit: number
-) {
-  const { data, error } = await supabase
-    .from("model_news")
-    .select("id")
-    .not("source", "in", '("provider-blog","x-twitter")')
-    .lt("published_at", daysAgo(180))
-    .order("published_at", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(
-      `Failed selecting non-official model_news retention batch: ${error.message}`
-    );
-  }
-
-  return deleteBatchByIds(
-    supabase,
-    "model_news",
-    (data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string")
-  );
-}
-
-async function deleteOfficialNewsBatch(
-  supabase: ReturnType<typeof createAdminClient>,
-  limit: number
-) {
-  const { data, error } = await supabase
-    .from("model_news")
-    .select("id")
-    .in("source", ["provider-blog", "x-twitter"])
-    .lt("published_at", daysAgo(365))
-    .order("published_at", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(
-      `Failed selecting official model_news retention batch: ${error.message}`
-    );
-  }
-
-  return deleteBatchByIds(
-    supabase,
-    "model_news",
-    (data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string")
-  );
-}
-
-async function deleteCronRunsBatch(
-  supabase: ReturnType<typeof createAdminClient>,
-  limit: number
-) {
-  const { data, error } = await supabase
-    .from("cron_runs")
-    .select("id")
-    .lt("created_at", daysAgo(30))
-    .order("created_at", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    throw new Error(`Failed selecting cron_runs retention batch: ${error.message}`);
-  }
-
-  return deleteBatchByIds(
-    supabase,
-    "cron_runs",
-    (data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string")
-  );
+  return deleteBatchByIds(supabase, policy.table, ids);
 }
 
 export async function GET(request: NextRequest) {
@@ -146,33 +210,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createAdminClient();
+    const supabase = createAdminClient() as unknown as SupabaseClient;
     const { searchParams } = new URL(request.url);
     const limit = Math.max(
-      100,
-      Math.min(Number(searchParams.get("limit") ?? 1500), 5000)
+      500,
+      Math.min(Number(searchParams.get("limit") ?? 5000), 20_000)
     );
-    const perPolicyLimit = Math.max(50, Math.floor(limit / 4));
+    const deleted: Record<string, number> = {};
 
-    const highFrequencyNewsDeleted = await deleteHighFrequencyNewsBatch(
-      supabase,
-      perPolicyLimit
-    );
-    const nonOfficialNewsDeleted = await deleteNonOfficialNewsBatch(
-      supabase,
-      perPolicyLimit
-    );
-    const officialNewsDeleted = await deleteOfficialNewsBatch(
-      supabase,
-      perPolicyLimit
-    );
-    const cronRunsDeleted = await deleteCronRunsBatch(supabase, perPolicyLimit);
+    for (const policy of RETENTION_POLICIES) {
+      const policyLimit = Math.max(
+        50,
+        Math.floor((limit * policy.weight) / TOTAL_POLICY_WEIGHT)
+      );
+      deleted[policy.key] = await applyRetentionPolicy(supabase, policy, policyLimit);
+    }
 
     return tracker.complete({
-      highFrequencyNewsDeleted,
-      nonOfficialNewsDeleted,
-      officialNewsDeleted,
-      cronRunsDeleted,
+      ...deleted,
       limit,
     });
   } catch (error) {

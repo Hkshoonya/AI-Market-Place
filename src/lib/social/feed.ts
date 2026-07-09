@@ -6,6 +6,7 @@ import type {
   SocialPostRow,
   SocialThreadRow,
 } from "@/lib/schemas/social";
+import { isSafeSocialImageUrl } from "@/lib/social/media";
 
 export interface FeedActorCard {
   id: string;
@@ -259,7 +260,9 @@ export function mapFeedRows(input: MapFeedRowsInput): FeedThreadCard[] {
           moderation_reason: moderationReason,
           reply_count: post.reply_count,
           media: (mediaByPostId.get(post.id) ?? [])
-            .filter((item) => item.media_type === "image")
+            .filter(
+              (item) => item.media_type === "image" && isSafeSocialImageUrl(item.url)
+            )
             .map((item) => ({
               id: item.id,
               media_type: item.media_type,

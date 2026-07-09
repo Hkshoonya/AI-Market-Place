@@ -40,7 +40,7 @@ export interface ListingPolicyInput {
 }
 
 export const DEFAULT_AUTONOMOUS_COMMERCE_POLICY = {
-  is_enabled: true,
+  is_enabled: false,
   max_order_amount: 100,
   daily_spend_limit: 250,
   allowed_listing_types: [
@@ -327,6 +327,37 @@ export async function enforceAutonomousCommerceGuardrails(
     };
   }
 
+  const { data: reviewRows, error: reviewError } = await supabase
+    .from("listing_policy_reviews")
+    .select("decision, review_status")
+    .eq("listing_id", input.listing.id)
+    .eq("review_status", "open")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (reviewError) {
+    throw new Error(`Failed to load listing policy review: ${reviewError.message}`);
+  }
+
+  const activeReview = reviewRows?.[0];
+  if (activeReview?.decision === "block") {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "listing_blocked_by_policy",
+      error: "This listing is blocked by marketplace policy and cannot be purchased.",
+    };
+  }
+
+  if (activeReview?.decision === "review") {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "listing_under_review",
+      error: "This listing is under marketplace review and cannot be purchased yet.",
+    };
+  }
+
   if (input.authMethod !== "api_key") {
     return { allowed: true };
   }
@@ -345,6 +376,15 @@ export async function enforceAutonomousCommerceGuardrails(
     ...DEFAULT_AUTONOMOUS_COMMERCE_POLICY,
     ...(policyRow ?? {}),
   };
+
+  if (!policy.is_enabled) {
+    return {
+      allowed: false,
+      httpStatus: 403,
+      code: "autonomous_commerce_disabled",
+      error: "Autonomous marketplace purchases are disabled for this identity.",
+    };
+  }
 
   if (policyEvaluation.autonomyMode === "manual_only") {
     if (!policy.allow_manual_only_listings) {
@@ -387,15 +427,6 @@ export async function enforceAutonomousCommerceGuardrails(
 
   const price = numericPrice(input.listing.price);
 
-  if (!policy.is_enabled) {
-    return {
-      allowed: false,
-      httpStatus: 403,
-      code: "autonomous_commerce_disabled",
-      error: "Autonomous marketplace purchases are disabled for this identity.",
-    };
-  }
-
   if (price > Number(policy.max_order_amount)) {
     return {
       allowed: false,
@@ -431,39 +462,6 @@ export async function enforceAutonomousCommerceGuardrails(
         httpStatus: 403,
         code: "seller_not_verified",
         error: "Autonomous purchases currently require a verified seller.",
-      };
-    }
-  }
-
-  if (policy.block_flagged_listings) {
-    const { data: reviewRows, error: reviewError } = await supabase
-      .from("listing_policy_reviews")
-      .select("decision, review_status")
-      .eq("listing_id", input.listing.id)
-      .eq("review_status", "open")
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (reviewError) {
-      throw new Error(`Failed to load listing policy review: ${reviewError.message}`);
-    }
-
-    const activeReview = reviewRows?.[0];
-    if (activeReview?.decision === "block") {
-      return {
-        allowed: false,
-        httpStatus: 403,
-        code: "listing_blocked_by_policy",
-        error: "This listing is blocked by marketplace policy and cannot be purchased autonomously.",
-      };
-    }
-
-    if (activeReview?.decision === "review") {
-      return {
-        allowed: false,
-        httpStatus: 403,
-        code: "listing_under_review",
-        error: "This listing is under marketplace review and cannot be purchased autonomously yet.",
       };
     }
   }

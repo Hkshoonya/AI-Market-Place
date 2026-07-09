@@ -192,7 +192,7 @@ describe("enforceAutonomousCommerceGuardrails", () => {
   it("rejects API-key purchases above the per-order cap", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 100 },
+        policy: { is_enabled: true, max_order_amount: 100 },
       }) as never,
       {
         buyerId: "buyer-1",
@@ -208,7 +208,11 @@ describe("enforceAutonomousCommerceGuardrails", () => {
   it("rejects API-key purchases when the seller is not verified and policy requires it", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 250, require_verified_sellers: true },
+        policy: {
+          is_enabled: true,
+          max_order_amount: 250,
+          require_verified_sellers: true,
+        },
         sellerVerified: false,
       }) as never,
       {
@@ -225,7 +229,11 @@ describe("enforceAutonomousCommerceGuardrails", () => {
   it("rejects API-key purchases when a listing has an unresolved policy review", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 250, block_flagged_listings: true },
+        policy: {
+          is_enabled: true,
+          max_order_amount: 250,
+          block_flagged_listings: true,
+        },
         flaggedDecision: "review",
       }) as never,
       {
@@ -239,10 +247,38 @@ describe("enforceAutonomousCommerceGuardrails", () => {
     expect(result.code).toBe("listing_under_review");
   });
 
+  it("rejects human session purchases when a stored policy review is unresolved", async () => {
+    const result = await enforceAutonomousCommerceGuardrails(
+      createGuardrailSupabase({ flaggedDecision: "block" }) as never,
+      {
+        buyerId: "buyer-1",
+        authMethod: "session",
+        listing,
+      }
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe("listing_blocked_by_policy");
+  });
+
+  it("keeps API-key commerce disabled when no explicit buyer policy exists", async () => {
+    const result = await enforceAutonomousCommerceGuardrails(
+      createGuardrailSupabase() as never,
+      {
+        buyerId: "buyer-1",
+        authMethod: "api_key",
+        listing,
+      }
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe("autonomous_commerce_disabled");
+  });
+
   it("allows human session purchases for manual-only autonomy risk listings", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 250 },
+        policy: { is_enabled: true, max_order_amount: 250 },
       }) as never,
       {
         buyerId: "buyer-1",
@@ -262,7 +298,7 @@ describe("enforceAutonomousCommerceGuardrails", () => {
   it("rejects API-key purchases for legitimate manual-only listings", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 250 },
+        policy: { is_enabled: true, max_order_amount: 250 },
       }) as never,
       {
         buyerId: "buyer-1",
@@ -282,7 +318,11 @@ describe("enforceAutonomousCommerceGuardrails", () => {
   it("rejects API-key purchases when the daily spend cap would be exceeded", async () => {
     const result = await enforceAutonomousCommerceGuardrails(
       createGuardrailSupabase({
-        policy: { max_order_amount: 250, daily_spend_limit: 200 },
+        policy: {
+          is_enabled: true,
+          max_order_amount: 250,
+          daily_spend_limit: 200,
+        },
         dailyOrders: [
           { price_at_time: 75, status: "completed", message: "Purchased via API" },
           { price_at_time: 60, status: "pending", message: "Purchased via API" },

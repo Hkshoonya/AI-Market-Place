@@ -5,15 +5,16 @@ import {
 } from "../../cloudflare/cron-dispatcher/src/schedule";
 
 describe("cloudflare cron dispatcher schedule", () => {
-  it("matches every-five-minute and offset-five-minute jobs correctly", () => {
+  it("matches reachable staggered schedules on the five-minute Worker trigger", () => {
     const atTop = new Date("2026-05-18T04:00:00.000Z");
-    const atOffset = new Date("2026-05-18T04:02:00.000Z");
+    const atDeploy = new Date("2026-05-18T04:05:00.000Z");
+    const atAuction = new Date("2026-05-18T04:10:00.000Z");
+    const atTrending = new Date("2026-05-18T04:20:00.000Z");
 
-    expect(matchesCronExpression("*/5 * * * *", atTop)).toBe(true);
-    expect(matchesCronExpression("2-59/5 * * * *", atTop)).toBe(false);
-
-    expect(matchesCronExpression("*/5 * * * *", atOffset)).toBe(false);
-    expect(matchesCronExpression("2-59/5 * * * *", atOffset)).toBe(true);
+    expect(matchesCronExpression("*/10 * * * *", atTop)).toBe(true);
+    expect(matchesCronExpression("5-59/15 * * * *", atDeploy)).toBe(true);
+    expect(matchesCronExpression("10-59/15 * * * *", atAuction)).toBe(true);
+    expect(matchesCronExpression("20-59/30 * * * *", atTrending)).toBe(true);
   });
 
   it("preserves standard weekday semantics for the weekly UX monitor job", () => {
@@ -33,11 +34,11 @@ describe("cloudflare cron dispatcher schedule", () => {
         "Tier 1 Sync",
         "Tier 2 Sync",
         "Launch Signals (X Announcements)",
-        "Auction Settlement",
-        "Deployment Reconcile",
+        "Wallet Chain Deposit Scan",
       ])
     );
-    expect(dueJobs).not.toContain("Wallet Chain Deposit Scan");
+    expect(dueJobs).not.toContain("Auction Settlement");
+    expect(dueJobs).not.toContain("Deployment Reconcile");
     expect(dueJobs).not.toContain("Launch Signals (Provider News)");
   });
 
@@ -55,8 +56,11 @@ describe("cloudflare cron dispatcher schedule", () => {
     expect(dueJobsForTime(atFive).map((job) => job.name)).toEqual(
       expect.arrayContaining([
         "Launch Signals (Provider News)",
-        "Auction Settlement",
+        "Deployment Reconcile",
       ])
+    );
+    expect(dueJobsForTime(atFive).map((job) => job.name)).not.toContain(
+      "Auction Settlement"
     );
   });
 

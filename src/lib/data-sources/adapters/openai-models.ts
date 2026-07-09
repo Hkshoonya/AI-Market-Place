@@ -23,6 +23,7 @@ import {
   resolveOpenAIKnownModelMeta,
 } from "../shared/known-models/openai";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
+import type { ScrapedModelEntry } from "../shared/adapter-syncer";
 
 // ---------------------------------------------------------------------------
 // Provider-level defaults
@@ -114,7 +115,9 @@ async function tryFetchLiveApi(
  * Try to scrape the OpenAI models docs page for model IDs.
  * Returns an empty array on failure.
  */
-async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
+async function tryScrapeDocsPage(
+  signal?: AbortSignal
+): Promise<ScrapedModelEntry[]> {
   try {
     const res = await fetchWithRetry(
       "https://platform.openai.com/docs/models",
@@ -136,18 +139,34 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       found.add(match[1]);
     }
 
-    return [...found].filter((modelId) => {
-      if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
-        return false;
-      }
-      if (/(\.png|\.jpe?g|\.svg|\.webp)$/i.test(modelId)) {
-        return false;
-      }
-      if (modelId === "gpt-oss") {
-        return false;
-      }
-      return true;
-    });
+    const pageText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    const hasLimitedGpt56Notice =
+      /gpt-5\.6[^<]{0,180}(?:limited preview|select trusted partners|trusted partners in preview)/i.test(
+        pageText
+      );
+
+    return [...found]
+      .filter((modelId) => {
+        if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
+          return false;
+        }
+        if (/(\.png|\.jpe?g|\.svg|\.webp)$/i.test(modelId)) {
+          return false;
+        }
+        if (modelId === "gpt-oss") {
+          return false;
+        }
+        return true;
+      })
+      .map((modelId) => ({
+        id: modelId,
+        overrides: /^gpt-5\.6-(sol|terra|luna)$/.test(modelId)
+          ? {
+              status: hasLimitedGpt56Notice ? "preview" : "active",
+              is_api_available: true,
+            }
+          : undefined,
+      }));
   } catch {
     return [];
   }

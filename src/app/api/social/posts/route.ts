@@ -5,6 +5,7 @@ import { resolveSocialActorFromRequest } from "@/lib/social/auth";
 import { SocialImageAttachmentListSchema, insertSocialPostImages } from "@/lib/social/media";
 import { insertSocialPostLinkPreviews } from "@/lib/social/link-previews";
 import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
+import { RATE_LIMITS, rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const CreatePostSchema = z.object({
   title: z.string().trim().min(1).max(140).optional(),
@@ -28,7 +29,25 @@ export async function POST(request: NextRequest) {
     return originError;
   }
 
-  const parsed = CreatePostSchema.safeParse(await request.json());
+  const writeLimit = await rateLimit(
+    `social-write:${actor.actor.id}`,
+    RATE_LIMITS.socialWrite
+  );
+  if (!writeLimit.success) {
+    return NextResponse.json(
+      { error: "Too many social writes. Please wait before posting again." },
+      { status: 429, headers: rateLimitHeaders(writeLimit) }
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = CreatePostSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid request" },

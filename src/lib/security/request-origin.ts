@@ -1,34 +1,52 @@
 import { NextResponse } from "next/server";
+import { SITE_URL } from "@/lib/constants/site";
 
-function getExpectedOrigin(request: Request) {
-  const requestUrl = new URL(request.url);
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
+function isLoopbackOrigin(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1")
+    );
+  } catch {
+    return false;
+  }
+}
 
-  if (forwardedProto && forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`;
+function getTrustedOrigins(request: Request) {
+  const canonicalOrigin = new URL(SITE_URL).origin;
+  const trusted = new Set([canonicalOrigin]);
+
+  if (canonicalOrigin === "https://aimarketcap.tech") {
+    trusted.add("https://www.aimarketcap.tech");
   }
 
-  const host = request.headers.get("host");
-  if (host) {
-    return `${forwardedProto ?? requestUrl.protocol.replace(/:$/, "")}://${host}`;
+  if (process.env.NODE_ENV !== "production") {
+    const requestOrigin = new URL(request.url).origin;
+    if (isLoopbackOrigin(requestOrigin)) trusted.add(requestOrigin);
+
+    const host = request.headers.get("host");
+    const protocol = requestOrigin.startsWith("https:") ? "https" : "http";
+    const hostOrigin = host ? `${protocol}://${host}` : null;
+    if (hostOrigin && isLoopbackOrigin(hostOrigin)) trusted.add(hostOrigin);
   }
 
-  return requestUrl.origin;
+  return trusted;
 }
 
 export function hasTrustedRequestOrigin(request: Request): boolean {
-  const expectedOrigin = getExpectedOrigin(request);
+  const trustedOrigins = getTrustedOrigins(request);
   const origin = request.headers.get("origin");
 
   if (origin) {
-    return origin === expectedOrigin;
+    return trustedOrigins.has(origin);
   }
 
   const referer = request.headers.get("referer");
   if (referer) {
     try {
-      return new URL(referer).origin === expectedOrigin;
+      return trustedOrigins.has(new URL(referer).origin);
     } catch {
       return false;
     }

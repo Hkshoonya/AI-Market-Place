@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const mockRateLimit = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(),
 }));
 
 vi.mock("@/lib/social/auth", () => ({
   resolveSocialActorFromRequest: vi.fn(),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  RATE_LIMITS: { socialWrite: { limit: 10, windowMs: 60_000 } },
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
+  rateLimitHeaders: () => ({}),
 }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,6 +35,12 @@ function makeRequest(body: Record<string, unknown>) {
 describe("POST /api/social/threads/[id]/blocks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRateLimit.mockResolvedValue({
+      success: true,
+      limit: 10,
+      remaining: 9,
+      reset: Date.now() + 60_000,
+    });
   });
 
   it("rejects non-human actors", async () => {
