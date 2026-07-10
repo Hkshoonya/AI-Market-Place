@@ -35,6 +35,12 @@ interface ModelRanks {
   rankPenalty?: number;
 }
 
+function compareModelIds(left: string, right: string) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 /**
  * Compute balanced rankings for all models.
  * Unranked models (null capabilityRank) use worst-case rank for that signal.
@@ -62,7 +68,10 @@ export function computeBalancedRankings(
     return { id: m.id, category: m.category, composite };
   });
 
-  scored.sort((a, b) => a.composite - b.composite);
+  scored.sort(
+    (a, b) =>
+      a.composite - b.composite || compareModelIds(a.id, b.id)
+  );
 
   const result = scored.map((m, i) => ({
     id: m.id,

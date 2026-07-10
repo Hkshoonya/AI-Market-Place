@@ -319,17 +319,28 @@ export function computeRankings(
   overall_rank: number;
   category_rank: number;
 }> {
+  const compareModelIds = (left: string, right: string) => {
+    if (left < right) return -1;
+    if (left > right) return 1;
+    return 0;
+  };
+
   // Composite ranking: 50% market cap rank + 30% quality rank + 20% popularity rank
   const withSignals = models.filter((m) => m.qualityScore > 0);
 
   const byMarketCap = [...withSignals].sort(
-    (a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0)
+    (a, b) =>
+      (b.marketCap ?? 0) - (a.marketCap ?? 0) ||
+      compareModelIds(a.id, b.id)
   );
   const byQuality = [...withSignals].sort(
-    (a, b) => b.qualityScore - a.qualityScore
+    (a, b) =>
+      b.qualityScore - a.qualityScore || compareModelIds(a.id, b.id)
   );
   const byPopularity = [...withSignals].sort(
-    (a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0)
+    (a, b) =>
+      (b.popularityScore ?? 0) - (a.popularityScore ?? 0) ||
+      compareModelIds(a.id, b.id)
   );
 
   const mcapRank = new Map(byMarketCap.map((m, i) => [m.id, i + 1]));
@@ -344,7 +355,10 @@ export function computeRankings(
       0.2 * (popRank.get(m.id) ?? withSignals.length),
   }));
 
-  const sorted = compositeScores.sort((a, b) => a.compositeRank - b.compositeRank);
+  const sorted = compositeScores.sort(
+    (a, b) =>
+      a.compositeRank - b.compositeRank || compareModelIds(a.id, b.id)
+  );
 
   const result = sorted.map((m, i) => ({
     id: m.id,

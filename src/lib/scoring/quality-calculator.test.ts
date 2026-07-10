@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import {
   calculateQualityScore,
   computeNormalizationStats,
+  computeRankings,
   QualityInputs,
   NormalizationStats,
 } from "./quality-calculator";
@@ -220,5 +221,31 @@ describe("calculateQualityScore", () => {
     const singleSourceScore = calculateQualityScore(singleSource, stats);
 
     expect(singleSourceScore).toBeLessThan(corroboratedScore);
+  });
+});
+
+describe("computeRankings", () => {
+  it("uses model id as a stable tie-breaker", () => {
+    const tiedModels = [
+      {
+        id: "model-z",
+        category: "llm",
+        qualityScore: 80,
+        marketCap: 100,
+        popularityScore: 50,
+      },
+      {
+        id: "model-a",
+        category: "llm",
+        qualityScore: 80,
+        marketCap: 100,
+        popularityScore: 50,
+      },
+    ];
+
+    expect(computeRankings(tiedModels)).toEqual(
+      computeRankings([...tiedModels].reverse())
+    );
+    expect(computeRankings(tiedModels)[0].id).toBe("model-a");
   });
 });

@@ -84,6 +84,22 @@ function pricingEntryMatches(
   );
 }
 
+function compareModelIds(left: string, right: string) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+function compareScoreEntriesDescending(
+  left: readonly [string, number | null],
+  right: readonly [string, number | null]
+) {
+  const scoreDifference =
+    (right[1] ?? Number.NEGATIVE_INFINITY) -
+    (left[1] ?? Number.NEGATIVE_INFINITY);
+  return scoreDifference || compareModelIds(left[0], right[0]);
+}
+
 /**
  * Orchestrate all scoring lenses for all models.
  *
@@ -376,7 +392,7 @@ export async function computeAllLenses(
   }
 
   const agentRankedModels = Array.from(agentScoreMap.entries())
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const agentRankMap = new Map(agentRankedModels.map((r) => [r.id, r.rank]));
 
@@ -404,7 +420,7 @@ export async function computeAllLenses(
   // Capability ranks (only ranked models)
   const capRanked = Array.from(capabilityScoreMap.entries())
     .filter(([, score]) => score != null)
-    .sort((a, b) => b[1]! - a[1]!)
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const capRankMap = new Map(capRanked.map(r => [r.id, r.rank]));
 
@@ -428,7 +444,7 @@ export async function computeAllLenses(
   // Usage ranks
   const usageRanked = Array.from(usageScoreMap.entries())
     .filter(([, score]) => score > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const usageRankMap = new Map(usageRanked.map(r => [r.id, r.rank]));
 
@@ -464,7 +480,7 @@ export async function computeAllLenses(
   // Expert ranks
   const expertRanked = Array.from(expertScoreMap.entries())
     .filter(([, score]) => score > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const expertRankMap = new Map(expertRanked.map(r => [r.id, r.rank]));
 
@@ -548,19 +564,19 @@ export async function computeAllLenses(
   // Compute popularity ranks
   const popRankedModels = Array.from(popularityMap.entries())
     .filter(([, score]) => score > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const popRankMap = new Map(popRankedModels.map((r) => [r.id, r.rank]));
 
   const adoptionRankedModels = Array.from(adoptionScoreMap.entries())
     .filter(([, score]) => score > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const adoptionRankMap = new Map(adoptionRankedModels.map((r) => [r.id, r.rank]));
 
   const economicFootprintRankedModels = Array.from(economicFootprintMap.entries())
     .filter(([, score]) => score > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort(compareScoreEntriesDescending)
     .map(([id], i) => ({ id, rank: i + 1 }));
   const economicFootprintRankMap = new Map(
     economicFootprintRankedModels.map((r) => [r.id, r.rank])
@@ -570,7 +586,7 @@ export async function computeAllLenses(
   // Pre-compute value ranks (sorted descending by value score)
   const valueRankMap = new Map<string, number>();
   const valueSorted = Array.from(normalizedValueMap.entries())
-    .sort((a, b) => b[1] - a[1]);
+    .sort(compareScoreEntriesDescending);
   valueSorted.forEach(([id], i) => { valueRankMap.set(id, i + 1); });
 
   const defaultRank = models.length;

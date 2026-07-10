@@ -420,6 +420,62 @@ describe("computeAllLenses", () => {
     expect(result.expertRankMap.size).toBe(nonZeroExpert.length);
   });
 
+  it("assigns identical ranks when tied model input order changes", async () => {
+    const buildTiedInputs = (ids: string[]): ScoringInputs => ({
+      models: ids.map((id) => ({
+        id,
+        name: id,
+        slug: id,
+        provider: "test-provider",
+        category: "llm",
+        status: "active",
+        description: null,
+        short_description: null,
+        quality_score: null,
+        value_score: null,
+        hf_downloads: 1_000,
+        hf_likes: 100,
+        release_date: "2026-01-01",
+        is_open_weights: true,
+        is_api_available: true,
+        hf_trending_score: 1,
+        parameter_count: null,
+        github_stars: 50,
+      })),
+      benchmarkMap: new Map(ids.map((id) => [id, [80]])),
+      benchmarkDetailMap: new Map(
+        ids.map((id) => [id, [{ slug: "mmlu", score: 80 }]])
+      ),
+      eloMap: new Map(ids.map((id) => [id, 1_100])),
+      newsMentionMap: new Map(ids.map((id) => [id, 1])),
+      providerBenchmarkAvg: new Map([["test-provider", 80]]),
+      staleCount: 0,
+      sourceCoverageMap: new Map(),
+    });
+    const snapshotRanks = (result: ScoringResults) => ({
+      capability: [...result.capRankMap].sort(),
+      usage: [...result.usageRankMap].sort(),
+      expert: [...result.expertRankMap].sort(),
+      popularity: [...result.popRankMap].sort(),
+      adoption: [...result.adoptionRankMap].sort(),
+      economic: [...result.economicFootprintRankMap].sort(),
+      balanced: [...result.balancedRankMap].sort(),
+    });
+
+    const forward = await computeAllLenses(
+      buildTiedInputs(["model-z", "model-a"]),
+      createMockSupabase()
+    );
+    const reversed = await computeAllLenses(
+      buildTiedInputs(["model-a", "model-z"]),
+      createMockSupabase()
+    );
+
+    expect(snapshotRanks(forward)).toEqual(snapshotRanks(reversed));
+    expect(forward.capRankMap.get("model-a")).toBe(1);
+    expect(forward.balancedRankMap.get("model-a")?.overall).toBe(1);
+  });
+
   it("computes adoption and economic-footprint maps for all active models", async () => {
     const inputs = buildFixtureInputs();
     const supabase = createMockSupabase();

@@ -71,7 +71,8 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
         .select(
           "id, name, slug, provider, category, status, description, short_description, quality_score, value_score, hf_downloads, hf_likes, release_date, is_open_weights, license, license_name, context_window, is_api_available, hf_trending_score, parameter_count, github_stars"
         )
-        .in("status", ["active", "beta", "preview"]),
+        .in("status", ["active", "beta", "preview"])
+        .order("id", { ascending: true }),
     "models"
   );
   const models = catalogModels.filter(
@@ -97,7 +98,8 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     () =>
       supabase
         .from("benchmark_scores")
-        .select("model_id, score_normalized, source, benchmarks(slug, category, source)"),
+        .select("model_id, score_normalized, source, benchmarks(slug, category, source)")
+        .order("id", { ascending: true }),
     "benchmark_scores"
   );
 
@@ -143,7 +145,8 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     () =>
       supabase
         .from("elo_ratings")
-        .select("model_id, elo_score, arena_name"),
+        .select("model_id, elo_score, arena_name")
+        .order("id", { ascending: true }),
     "elo_ratings"
   );
 
@@ -173,7 +176,8 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
         .select("title, related_provider, related_model_ids, source, category, published_at, metadata")
         .in("source", [...SCORING_NEWS_SOURCES])
         .gte("published_at", thirtyDaysAgo)
-        .not("related_model_ids", "is", null),
+        .not("related_model_ids", "is", null)
+        .order("id", { ascending: true }),
     "model_news"
   );
 

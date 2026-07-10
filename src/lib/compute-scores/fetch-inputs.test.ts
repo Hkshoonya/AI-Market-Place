@@ -74,6 +74,7 @@ function createPagedMockSupabase(
         in: () => chain,
         gte: () => chain,
         not: () => chain,
+        order: () => chain,
         range: () => resolvePage(),
       };
 

@@ -65,6 +65,27 @@ describe("computeBalancedRankings", () => {
     expect(result[0].category_balanced_rank).toBe(1);
   });
 
+  it("uses model id as a stable tie-breaker", () => {
+    const tiedRanks = {
+      category: "llm",
+      capabilityRank: 1,
+      usageRank: 1,
+      expertRank: 1,
+      valueRank: 1,
+    };
+    const forward = computeBalancedRankings([
+      { id: "model-z", ...tiedRanks },
+      { id: "model-a", ...tiedRanks },
+    ]);
+    const reversed = computeBalancedRankings([
+      { id: "model-a", ...tiedRanks },
+      { id: "model-z", ...tiedRanks },
+    ]);
+
+    expect(forward).toEqual(reversed);
+    expect(forward.map((model) => model.id)).toEqual(["model-a", "model-z"]);
+  });
+
   it("category-balanced ranks are within-category orderings", () => {
     const models = [
       { id: "llm1", category: "llm", capabilityRank: 1, usageRank: 1, expertRank: 1, valueRank: 1 },
