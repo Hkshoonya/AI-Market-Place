@@ -184,7 +184,7 @@ describe("openrouter model record mapping", () => {
       },
     });
     const latestAlias = __testables.buildModelRecord({
-      id: "anthropic/claude-fable-latest",
+      id: "~anthropic/claude-fable-latest",
       name: "Anthropic: Claude Fable Latest",
       description: "Router alias for Fable.",
       architecture: {},

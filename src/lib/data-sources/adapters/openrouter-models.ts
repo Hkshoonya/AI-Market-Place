@@ -122,12 +122,17 @@ interface OpenRouterModelsResponse {
   data: OpenRouterModelEntry[];
 }
 
+function normalizeOpenRouterId(id: string) {
+  return id.replace(/^~(?=[^/]+\/)/, "");
+}
+
 function resolveCuratedKnownMeta(
   id: string,
   upstreamName?: string,
   upstreamDescription?: string
 ) {
-  const [providerPrefix, modelPart = ""] = id.split("/");
+  const normalizedId = normalizeOpenRouterId(id);
+  const [providerPrefix, modelPart = ""] = normalizedId.split("/");
   if (providerPrefix === "anthropic") {
     const meta = resolveAnthropicKnownModelMeta(modelPart);
     if (meta) return meta;
@@ -176,23 +181,24 @@ function resolveCuratedKnownMeta(
   }
 
   return getKnownModelMeta({
-    slug: makeSlug(id),
+    slug: makeSlug(normalizedId),
     name: modelPart,
-    provider: extractProvider(id),
+    provider: extractProvider(normalizedId),
   }) ?? undefined;
 }
 
 function getCanonicalModelSlug(id: string) {
-  const [providerPrefix, modelPart = ""] = id.split("/");
+  const normalizedId = normalizeOpenRouterId(id);
+  const [providerPrefix, modelPart = ""] = normalizedId.split("/");
   if (providerPrefix === "anthropic") {
     return makeSlug(`${providerPrefix}/${canonicalizeAnthropicModelId(modelPart)}`);
   }
 
-  return makeSlug(id);
+  return makeSlug(normalizedId);
 }
 
 function resolveProviderCategoryDefaults(id: string) {
-  const [providerPrefix] = id.split("/");
+  const [providerPrefix] = normalizeOpenRouterId(id).split("/");
 
   if (providerPrefix === "anthropic") {
     return {
@@ -224,7 +230,7 @@ function inferCategoryFromOpenRouterModel(model: OpenRouterModelEntry) {
  * Returns a mapped display name or a title-cased version of the prefix.
  */
 function extractProvider(id: string): string {
-  const prefix = id.split("/")[0];
+  const prefix = normalizeOpenRouterId(id).split("/")[0];
   return getCanonicalProviderName(
     PROVIDER_NAMES[prefix] ||
     prefix.charAt(0).toUpperCase() + prefix.slice(1)
@@ -294,8 +300,9 @@ const OPEN_WEIGHT_MODEL_PATTERNS = [
 ] as const;
 
 function inferOpenLicenseName(id: string, description: string | undefined): string | null {
-  if (id.startsWith("meta-llama/")) return "Llama Community License";
-  if (/^cohere\/command-r(?:\+|$|[-/])/i.test(id)) return "CC-BY-NC-4.0";
+  const normalizedId = normalizeOpenRouterId(id);
+  if (normalizedId.startsWith("meta-llama/")) return "Llama Community License";
+  if (/^cohere\/command-r(?:\+|$|[-/])/i.test(normalizedId)) return "CC-BY-NC-4.0";
 
   const desc = (description ?? "").toLowerCase();
   if (desc.includes("apache 2.0") || desc.includes("apache-2.0")) return "Apache 2.0";
@@ -307,14 +314,15 @@ function inferOpenLicenseName(id: string, description: string | undefined): stri
  * Infer whether a model has open weights based on provider prefix and description.
  */
 function inferOpenWeights(id: string, description: string | undefined): boolean {
-  const prefix = id.split("/")[0];
-  if (OPEN_WEIGHT_MODEL_PATTERNS.some((pattern) => pattern.test(id))) return true;
+  const normalizedId = normalizeOpenRouterId(id);
+  const prefix = normalizedId.split("/")[0];
+  if (OPEN_WEIGHT_MODEL_PATTERNS.some((pattern) => pattern.test(normalizedId))) return true;
   if (PROPRIETARY_PROVIDERS.has(prefix)) return false;
   if (OPEN_WEIGHT_PROVIDERS.has(prefix)) return true;
 
   // Google catalog is mixed. Only Gemma-family style releases are open-weight.
   if (prefix === "google") {
-    const modelPart = id.split("/")[1] ?? "";
+    const modelPart = normalizedId.split("/")[1] ?? "";
     const normalized = modelPart.toLowerCase();
     return (
       normalized.startsWith("gemma") ||
@@ -672,5 +680,6 @@ export const __testables = {
   buildModelRecord,
   getCanonicalModelSlug,
   inferOpenWeights,
+  normalizeOpenRouterId,
 };
 export default adapter;
