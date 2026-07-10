@@ -170,6 +170,7 @@ export async function GET(
       supabase,
       modelSlug: modelRaw.slug,
       runtimeExecution: resolveWorkspaceRuntimeExecution(modelRaw.slug),
+      allowLiveCatalogDiscovery: false,
     });
 
     return NextResponse.json({

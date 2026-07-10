@@ -149,6 +149,7 @@ export async function GET(request: Request) {
       supabase: auth.supabase,
       modelSlug,
       runtimeExecution: resolveWorkspaceRuntimeExecution(modelSlug),
+      allowLiveCatalogDiscovery: false,
     });
 
     const { data: deployment, error: deploymentError } = await auth.supabase
@@ -212,6 +213,7 @@ export async function POST(request: Request) {
       supabase: auth.supabase,
       modelSlug: parsed.data.modelSlug,
       runtimeExecution: execution,
+      allowLiveCatalogDiscovery: true,
     });
     if (!provisioning.canCreate) {
       return NextResponse.json(

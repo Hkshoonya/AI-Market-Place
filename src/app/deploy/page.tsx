@@ -168,6 +168,7 @@ export default async function DeployPage({
                 hf_model_id: model.hf_model_id,
               },
               runtimeExecution,
+              allowLiveCatalogDiscovery: false,
             });
 
         return { model, provisioning };

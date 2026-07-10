@@ -184,6 +184,32 @@ describe("resolveWorkspaceProvisioningOption", () => {
     );
   });
 
+  it("does not scan the live Replicate catalog for read-only provisioning", async () => {
+    process.env.REPLICATE_API_TOKEN = "test-token";
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    await resolveWorkspaceProvisioningOption({
+      supabase: createSupabaseModelLookup({
+        slug: "novel-labs-unique-chat-32b",
+        name: "Unique Chat 32B",
+        provider: "Novel Labs",
+        category: "llm",
+        parameter_count: 32_000_000_000,
+        hf_model_id: null,
+      }),
+      modelSlug: "novel-labs-unique-chat-32b",
+      runtimeExecution: {
+        available: false,
+        label: "Unavailable",
+        summary: "Unavailable",
+      },
+      allowLiveCatalogDiscovery: false,
+    });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("rejects live catalog models that do not expose a chat-style text input", async () => {
     process.env.REPLICATE_API_TOKEN = "test-token";
     const mockFetch = vi

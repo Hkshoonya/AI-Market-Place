@@ -303,7 +303,8 @@ async function loadReplicateModelCapability(input: {
 }
 
 async function resolveReplicateTarget(
-  model: ModelProvisioningRecord
+  model: ModelProvisioningRecord,
+  allowLiveCatalogDiscovery = true
 ): Promise<ExternalDeploymentTarget | null> {
   if (!isChatDeployableCategory(model.category)) {
     return null;
@@ -329,6 +330,10 @@ async function resolveReplicateTarget(
     if (capability.hasChatInput) {
       return toReplicateTarget(bestStatic);
     }
+  }
+
+  if (!allowLiveCatalogDiscovery) {
+    return null;
   }
 
   const catalog = await loadReplicateCatalog();
@@ -494,6 +499,7 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     label: string;
     summary: string;
   };
+  allowLiveCatalogDiscovery?: boolean;
 }): Promise<WorkspaceProvisioningOption> {
   const staticHint = resolveWorkspaceProvisioningHint({
     modelSlug: input.model.slug,
@@ -507,8 +513,17 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     return staticHint;
   }
 
+  const allowLiveCatalogDiscovery =
+    input.allowLiveCatalogDiscovery ?? true;
+  if (!allowLiveCatalogDiscovery && staticHint.canCreate) {
+    return staticHint;
+  }
+
   const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
-    ? await resolveReplicateTarget(input.model)
+    ? await resolveReplicateTarget(
+        input.model,
+        allowLiveCatalogDiscovery
+      )
     : null;
   if (replicateTarget) {
     return {
@@ -544,6 +559,7 @@ export async function resolveWorkspaceProvisioningOption(input: {
     label: string;
     summary: string;
   };
+  allowLiveCatalogDiscovery?: boolean;
 }): Promise<WorkspaceProvisioningOption> {
   const lookupClient = input.supabase as ModelLookupClient;
 
@@ -566,6 +582,7 @@ export async function resolveWorkspaceProvisioningOption(input: {
   return resolveWorkspaceProvisioningForModel({
     model,
     runtimeExecution: input.runtimeExecution,
+    allowLiveCatalogDiscovery: input.allowLiveCatalogDiscovery,
   });
 }
 

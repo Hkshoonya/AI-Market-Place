@@ -219,6 +219,7 @@ export default async function ModelDetailPage({
     supabase,
     modelSlug: model.slug,
     runtimeExecution,
+    allowLiveCatalogDiscovery: false,
   });
   const deployStartPlan = getDeployStartPlan({
     modelSlug: slug,
