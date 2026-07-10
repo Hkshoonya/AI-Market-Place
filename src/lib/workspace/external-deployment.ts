@@ -229,7 +229,9 @@ async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        next: { revalidate: 3600 },
+        // Replicate pages can exceed Next.js's 2 MB data-cache limit. The
+        // module-level TTL above already prevents repeated catalog fetches.
+        cache: "no-store",
       });
     } catch {
       break;

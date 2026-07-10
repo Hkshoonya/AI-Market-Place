@@ -177,6 +177,11 @@ describe("resolveWorkspaceProvisioningOption", () => {
     expect(option.target?.owner).toBe("qwen");
     expect(option.target?.name).toBe("qwen3-32b");
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.replicate.com/v1/models?limit=100",
+      expect.objectContaining({ cache: "no-store" })
+    );
   });
 
   it("rejects live catalog models that do not expose a chat-style text input", async () => {
