@@ -568,8 +568,12 @@ describe("computeAllLenses", () => {
     );
     const inputs = buildFixtureInputs();
     inputs.pricingModels = [
-      ...inputs.models.map(({ id, slug }) => ({ id, slug })),
-      { id: "gpt-5-6-sol", slug: "openai-gpt-5-6-sol" },
+      ...inputs.models.map(({ id, slug, provider }) => ({ id, slug, provider })),
+      {
+        id: "gpt-5-6-sol",
+        slug: "openai-gpt-5-6-sol",
+        provider: "OpenAI",
+      },
     ];
     const captured: Array<Record<string, unknown>> = [];
 

@@ -223,7 +223,7 @@ export async function computeAllLenses(
   }
 
   for (const m of pricingModels) {
-    const curatedPrice = lookupProviderPrice(m.slug as string);
+    const curatedPrice = lookupProviderPrice(m.slug as string, m.provider as string);
     if (!curatedPrice) continue;
 
     const pricingModel =
@@ -319,7 +319,7 @@ export async function computeAllLenses(
     const sm = scoredModels.find((s) => s.id === m.id);
     if (!sm || sm.qualityScore <= 0) continue;
 
-    const curatedPrice = lookupProviderPrice(m.slug as string);
+    const curatedPrice = lookupProviderPrice(m.slug as string, m.provider as string);
     const freshCuratedPrice =
       curatedPrice &&
       isFreshVerifiedPricingEntry({
@@ -520,7 +520,9 @@ export async function computeAllLenses(
     });
     adoptionScoreMap.set(input.id, adoptionScore);
 
-    const curatedPrice = m ? lookupProviderPrice(m.slug as string) : null;
+    const curatedPrice = m
+      ? lookupProviderPrice(m.slug as string, m.provider as string)
+      : null;
     const dbPrice = cheapestPriceMap.get(input.id);
     const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? 0;
     const blendedPrice = inputPrice;

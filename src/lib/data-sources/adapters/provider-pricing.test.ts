@@ -187,4 +187,22 @@ describe("lookupProviderPrice", () => {
       source: "platform.openai.com/docs/pricing",
     });
   });
+
+  it("does not attach direct-provider prices to derivatives or unknown modes", () => {
+    expect(
+      lookupProviderPrice(
+        "empero-ai-qwable-9b-claude-fable-5",
+        "empero-ai"
+      )
+    ).toBeNull();
+    expect(
+      lookupProviderPrice("sao10k-l3-1-euryale-70b", "Sao10k")
+    ).toBeNull();
+    expect(
+      lookupProviderPrice("openai-gpt-5-6-sol-pro", "OpenAI")
+    ).toBeNull();
+    expect(
+      lookupProviderPrice("anthropic-claude-fable-5", "Anthropic")
+    ).toMatchObject({ provider: "Anthropic" });
+  });
 });

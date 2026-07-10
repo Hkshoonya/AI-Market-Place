@@ -81,6 +81,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
   const pricingModels = catalogModels.map((model) => ({
     id: model.id,
     slug: model.slug,
+    provider: model.provider,
   }));
 
   // 2. Fetch benchmark scores per model (with benchmark slug for weighted avg)

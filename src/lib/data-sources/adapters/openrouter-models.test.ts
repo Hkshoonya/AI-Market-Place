@@ -191,6 +191,7 @@ describe("openrouter model record mapping", () => {
     });
 
     expect(fable5).toMatchObject({
+      slug: "anthropic-claude-fable-5",
       name: "Claude Fable 5",
       category: "multimodal",
       status: "active",
@@ -199,13 +200,42 @@ describe("openrouter model record mapping", () => {
       license: "commercial",
       license_name: null,
       release_date: "2026-06-09",
+      capabilities: expect.objectContaining({
+        safety_routing: true,
+        data_retention_required: true,
+      }),
     });
     expect(latestAlias).toMatchObject({
+      slug: "anthropic-claude-fable-5",
       name: "Claude Fable 5",
       status: "active",
       is_api_available: true,
       is_open_weights: false,
     });
+  });
+
+  it("keeps GPT-5.6 pro reasoning modes distinct from base model names", () => {
+    const record = __testables.buildModelRecord({
+      id: "openai/gpt-5.6-sol-pro",
+      name: "OpenAI: GPT-5.6 Sol Pro",
+      description:
+        "The same underlying GPT-5.6 Sol model served with reasoning.mode set to pro.",
+      context_length: 1050000,
+      architecture: {
+        input_modalities: ["text", "image"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record).toMatchObject({
+      slug: "openai-gpt-5-6-sol-pro",
+      name: "GPT-5.6 Sol Pro",
+      status: "preview",
+      is_api_available: true,
+      is_open_weights: false,
+      license: "commercial",
+    });
+    expect(record.description).toContain("reasoning.mode set to pro");
   });
 
   it("canonicalizes Z.ai router prefixes", () => {

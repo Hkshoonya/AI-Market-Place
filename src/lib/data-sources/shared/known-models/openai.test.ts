@@ -19,6 +19,7 @@ describe("resolveOpenAIKnownModelMeta", () => {
       name: "GPT-5.6 Luna",
       status: "preview",
     });
+    expect(resolveOpenAIKnownModelMeta("gpt-5.6-sol-pro")).toBeUndefined();
   });
 
   it("inherits metadata for dated GPT-4.1 variants", () => {

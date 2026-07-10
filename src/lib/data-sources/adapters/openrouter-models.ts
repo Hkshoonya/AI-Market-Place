@@ -22,7 +22,10 @@ import { fetchWithRetry, makeSlug, upsertBatch } from "../utils";
 import { inferCategory } from "../shared/infer-category";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 import { getKnownModelMeta } from "@/lib/models/known-model-meta";
-import { resolveAnthropicKnownModelMeta } from "../shared/known-models/anthropic";
+import {
+  canonicalizeAnthropicModelId,
+  resolveAnthropicKnownModelMeta,
+} from "../shared/known-models/anthropic";
 import { resolveGoogleKnownModelMeta } from "../shared/known-models/google";
 import { resolveMiniMaxKnownModelMeta } from "../shared/known-models/minimax";
 import { resolveMoonshotKnownModelMeta } from "../shared/known-models/moonshot";
@@ -119,7 +122,11 @@ interface OpenRouterModelsResponse {
   data: OpenRouterModelEntry[];
 }
 
-function resolveCuratedKnownMeta(id: string) {
+function resolveCuratedKnownMeta(
+  id: string,
+  upstreamName?: string,
+  upstreamDescription?: string
+) {
   const [providerPrefix, modelPart = ""] = id.split("/");
   if (providerPrefix === "anthropic") {
     const meta = resolveAnthropicKnownModelMeta(modelPart);
@@ -128,6 +135,20 @@ function resolveCuratedKnownMeta(id: string) {
   if (providerPrefix === "openai") {
     const meta = resolveOpenAIKnownModelMeta(modelPart);
     if (meta) return meta;
+
+    const gpt56ProMatch = modelPart.match(/^(gpt-5\.6-(?:sol|terra|luna))-pro$/);
+    if (gpt56ProMatch) {
+      const baseMeta = resolveOpenAIKnownModelMeta(gpt56ProMatch[1]);
+      if (baseMeta) {
+        return {
+          ...baseMeta,
+          name: upstreamName ?? `${baseMeta.name} Pro`,
+          description:
+            upstreamDescription ??
+            `${baseMeta.name} served with the provider's pro reasoning mode.`,
+        };
+      }
+    }
   }
   if (providerPrefix === "google") {
     const meta = resolveGoogleKnownModelMeta(modelPart);
@@ -159,6 +180,15 @@ function resolveCuratedKnownMeta(id: string) {
     name: modelPart,
     provider: extractProvider(id),
   }) ?? undefined;
+}
+
+function getCanonicalModelSlug(id: string) {
+  const [providerPrefix, modelPart = ""] = id.split("/");
+  if (providerPrefix === "anthropic") {
+    return makeSlug(`${providerPrefix}/${canonicalizeAnthropicModelId(modelPart)}`);
+  }
+
+  return makeSlug(id);
 }
 
 function resolveProviderCategoryDefaults(id: string) {
@@ -310,15 +340,20 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
   const isOpen = inferOpenWeights(model.id, model.description);
   const licenseName = inferOpenLicenseName(model.id, model.description) ?? (isOpen ? "Open weights" : null);
   const license = isOpen ? "open_source" : "commercial";
-  const knownMeta = resolveCuratedKnownMeta(model.id);
+  const upstreamName = extractModelName(model.name, model.id);
+  const knownMeta = resolveCuratedKnownMeta(
+    model.id,
+    upstreamName,
+    model.description
+  );
   const providerDefaults = resolveProviderCategoryDefaults(model.id);
   const status = knownMeta?.status ?? "active";
   const isApiAvailable =
     knownMeta?.is_api_available ?? (status === "archived" ? false : true);
 
   return {
-    slug: makeSlug(model.id),
-    name: knownMeta?.name ?? extractModelName(model.name, model.id),
+    slug: getCanonicalModelSlug(model.id),
+    name: knownMeta?.name ?? upstreamName,
     provider: extractProvider(model.id),
     category:
       knownMeta?.category ??
@@ -339,7 +374,7 @@ function buildModelRecord(model: OpenRouterModelEntry): Record<string, unknown> 
     hf_model_id: knownMeta?.hf_model_id ?? null,
     website_url: knownMeta?.website_url ?? null,
     modalities: knownMeta?.modalities ?? providerDefaults?.modalities ?? mergeModalities(arch),
-    capabilities: {},
+    capabilities: knownMeta?.capabilities ?? {},
     data_refreshed_at: new Date().toISOString(),
   };
 }
@@ -466,7 +501,12 @@ const adapter: DataSourceAdapter = {
     const skippedFreeVariants = totalFromApi - filteredCount;
 
     // ---- 3. Build model records and upsert to models table ----
-    const modelRecords = models.map(buildModelRecord);
+    const modelRecordsBySlug = new Map<string, Record<string, unknown>>();
+    for (const model of models) {
+      const record = buildModelRecord(model);
+      modelRecordsBySlug.set(String(record.slug), record);
+    }
+    const modelRecords = Array.from(modelRecordsBySlug.values());
 
     const { created: modelsCreated, errors: modelUpsertErrors } =
       await upsertBatch(ctx.supabase, "models", modelRecords, "slug");
@@ -484,7 +524,7 @@ const adapter: DataSourceAdapter = {
     let pricingSkipped = 0;
 
     for (const model of modelsWithPricing) {
-      const slug = makeSlug(model.id);
+      const slug = getCanonicalModelSlug(model.id);
       const pricing = model.pricing!; // hasPricing guard above ensures this exists
 
       // Look up the model UUID
@@ -630,6 +670,7 @@ const adapter: DataSourceAdapter = {
 registerAdapter(adapter);
 export const __testables = {
   buildModelRecord,
+  getCanonicalModelSlug,
   inferOpenWeights,
 };
 export default adapter;

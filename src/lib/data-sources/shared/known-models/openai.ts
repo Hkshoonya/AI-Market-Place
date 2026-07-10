@@ -1115,14 +1115,14 @@ export function resolveOpenAIKnownModelMeta(
 
   const withoutLatest = normalized.replace(/-latest$/, "");
   candidates.add(withoutLatest);
-  candidates.add(withoutLatest.replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(withoutLatest.replace(/-(chat|codex|structured|instant)$/, ""));
   candidates.add(withoutLatest.replace(/-(max)$/, ""));
   candidates.add(withoutLatest.replace(/-(mini|nano|search-api)$/, ""));
   candidates.add(withoutLatest.replace(/-\d{4}-\d{2}-\d{2}$/, ""));
   candidates.add(
     withoutLatest
       .replace(/-\d{4}-\d{2}-\d{2}$/, "")
-      .replace(/-(chat|codex|pro|structured|instant)$/, "")
+      .replace(/-(chat|codex|structured|instant)$/, "")
   );
   candidates.add(
     withoutLatest
@@ -1137,7 +1137,7 @@ export function resolveOpenAIKnownModelMeta(
   candidates.add(normalized.replace(/-\d{8}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-instruct$/, "-instruct"));
-  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(chat|codex|pro|structured|instant)$/, ""));
+  candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(chat|codex|structured|instant)$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(max)$/, ""));
   candidates.add(normalized.replace(/-\d{4}$/, "").replace(/-(mini|nano|search-api)$/, ""));
 

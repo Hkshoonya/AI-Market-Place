@@ -245,11 +245,13 @@ describe("fetchInputs", () => {
           {
             id: "active-model",
             slug: "active-model",
+            provider: "Active Provider",
             status: "active",
           },
           {
             id: "preview-model",
             slug: "preview-model",
+            provider: "Preview Provider",
             status: "preview",
           },
         ],
@@ -264,8 +266,16 @@ describe("fetchInputs", () => {
 
     expect(result.models.map((model) => model.id)).toEqual(["active-model"]);
     expect(result.pricingModels).toEqual([
-      { id: "active-model", slug: "active-model" },
-      { id: "preview-model", slug: "preview-model" },
+      {
+        id: "active-model",
+        slug: "active-model",
+        provider: "Active Provider",
+      },
+      {
+        id: "preview-model",
+        slug: "preview-model",
+        provider: "Preview Provider",
+      },
     ]);
   });
 

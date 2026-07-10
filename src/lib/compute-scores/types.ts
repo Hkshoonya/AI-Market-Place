@@ -34,7 +34,7 @@ export interface ScoringInputs {
     parameter_count: number | null;
     github_stars: number | null;
   }>;
-  pricingModels?: Array<{ id: string; slug: string }>;
+  pricingModels?: Array<{ id: string; slug: string; provider: string }>;
   benchmarkMap: Map<string, number[]>;
   benchmarkDetailMap: Map<string, Array<{ slug: string; score: number }>>;
   eloMap: Map<string, number>;

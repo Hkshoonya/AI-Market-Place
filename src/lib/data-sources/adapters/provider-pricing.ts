@@ -17,6 +17,8 @@
  *   - Mistral:   mistral.ai/pricing
  */
 
+import { providerMatchesCanonical } from "@/lib/constants/providers";
+
 export interface ProviderPrice {
   provider: string;
   inputPricePerMillion: number | null;
@@ -207,32 +209,44 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
 
 /**
  * Look up pricing for a model by slug.
- * Tries exact match first, then checks if the model slug contains a known pricing key.
- * Only matches in one direction (model slug contains known key) to avoid
- * short slugs like "o1" matching unrelated models like "audio-1".
+ * Tries exact match first, then permits provider prefixes and version/date
+ * suffixes. When a model provider is supplied, direct-provider pricing is
+ * never attached to a third-party derivative that happens to contain the
+ * original model name.
  */
-export function lookupProviderPrice(slug: string): ProviderPrice | null {
-  // Exact match
-  if (KNOWN_PRICES[slug]) return KNOWN_PRICES[slug];
-
-  // Normalize slug for matching
+export function lookupProviderPrice(
+  slug: string,
+  modelProvider?: string | null
+): ProviderPrice | null {
   const normalizedSlug = slug.toLowerCase().replace(/[_\s]/g, "-");
-  if (KNOWN_PRICES[normalizedSlug]) return KNOWN_PRICES[normalizedSlug];
+  const lookupSlugs = new Set([
+    normalizedSlug,
+    normalizedSlug.replace(/gpt-realtime-1-5$/, "gpt-realtime"),
+  ]);
 
-  // Partial match: model slug contains a known pricing key at a word boundary.
-  // Sort keys by length descending so longer (more specific) keys match first.
+  const providerMatches = (price: ProviderPrice) =>
+    !modelProvider || providerMatchesCanonical(modelProvider, price.provider);
+
+  for (const lookupSlug of lookupSlugs) {
+    const exact = KNOWN_PRICES[lookupSlug];
+    if (exact && providerMatches(exact)) return exact;
+  }
+
   const sortedKeys = Object.keys(KNOWN_PRICES).sort((a, b) => b.length - a.length);
-  for (const key of sortedKeys) {
-    // Only match if the known key appears as a suffix or standalone segment in the slug
-    // e.g. "anthropic-claude-4-opus" contains "claude-4-opus" ✓
-    // but "gpt-4-1" should NOT match "o1" via key.includes(normalizedSlug)
-    if (
-      normalizedSlug === key ||
-      normalizedSlug.endsWith("-" + key) ||
-      normalizedSlug.startsWith(key + "-") ||
-      normalizedSlug.includes("-" + key + "-")
-    ) {
-      return KNOWN_PRICES[key];
+  for (const lookupSlug of lookupSlugs) {
+    for (const key of sortedKeys) {
+      const price = KNOWN_PRICES[key];
+      if (!providerMatches(price)) continue;
+
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const providerPrefixedExact = lookupSlug.endsWith(`-${key}`);
+      const recognizedVersion = new RegExp(
+        `(?:^|-)${escapedKey}-(?:v\\d+|\\d{4}|\\d{8}|\\d{4}-\\d{2}-\\d{2})$`
+      ).test(lookupSlug);
+
+      if (providerPrefixedExact || recognizedVersion) {
+        return price;
+      }
     }
   }
 
