@@ -40,6 +40,33 @@ describe("openrouter model record mapping", () => {
     });
   });
 
+  it("uses official metadata for Meta Muse Spark instead of its router listing date", () => {
+    const record = __testables.buildModelRecord({
+      id: "meta/muse-spark-1.1",
+      name: "Meta: Muse Spark 1.1",
+      created: 1784215741,
+      description: "Generic router metadata",
+      context_length: 1048576,
+      architecture: {
+        input_modalities: ["text", "image", "video", "audio", "file"],
+        output_modalities: ["text"],
+      },
+    });
+
+    expect(record).toMatchObject({
+      slug: "meta-muse-spark-1-1",
+      name: "Muse Spark 1.1",
+      provider: "Meta",
+      release_date: "2026-07-09",
+      context_window: 1048576,
+      is_api_available: true,
+      is_open_weights: false,
+      license: "commercial",
+      website_url:
+        "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/",
+    });
+  });
+
   it("canonicalizes provider names for known router prefixes", () => {
     const record = __testables.buildModelRecord({
       id: "openai/gpt-4o",

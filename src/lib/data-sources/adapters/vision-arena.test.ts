@@ -11,7 +11,7 @@ const VISION_TABLE_HTML = `
       <td>
         <div>
           <div>
-            <a href="https://example.com/gemini-3-pro">gemini-3-pro</a>
+            <span title="gemini-3-pro">gemini-3-pro</span>
           </div>
           <div>Google · Proprietary</div>
         </div>
@@ -55,7 +55,7 @@ describe("vision-arena helpers", () => {
         votes: 12595,
         rank: 1,
         metadata: expect.objectContaining({
-          sourceUrl: "https://example.com/gemini-3-pro",
+          sourceUrl: null,
         }),
       }),
       expect.objectContaining({
@@ -66,6 +66,28 @@ describe("vision-arena helpers", () => {
         confidenceIntervalHigh: 1254,
         votes: 81050,
         rank: 9,
+      }),
+    ]);
+  });
+
+  it("continues to support linked model names", () => {
+    const rows = __testables.extractVisionArenaRows(`
+      <table>
+        <tbody>
+          <tr>
+            <td>1</td><td>1</td>
+            <td><a href="https://example.com/model">linked-model</a></td>
+            <td>1200 ± 5</td><td>1,234</td>
+          </tr>
+        </tbody>
+      </table>
+    `);
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        modelName: "linked-model",
+        eloScore: 1200,
+        metadata: { sourceUrl: "https://example.com/model" },
       }),
     ]);
   });

@@ -913,6 +913,38 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("auto-discovers Meta's official Muse Spark evaluation page", () => {
+    const sources = __testables.buildAutoBenchmarkSources(
+      [
+        {
+          id: "1",
+          slug: "meta-muse-spark-1-1",
+          name: "Muse Spark 1.1",
+          provider: "Meta",
+          category: "multimodal",
+          hf_model_id: null,
+          website_url:
+            "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/",
+          release_date: "2026-07-09",
+        },
+      ],
+      new Map<string, number>(),
+      new Set<string>(),
+      10
+    );
+
+    expect(sources).toEqual([
+      expect.objectContaining({
+        id: "auto-web-meta-muse-spark-1-1",
+        provider: "Meta",
+        url:
+          "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/",
+        sourceType: "official_provider_page",
+        requiresBenchmarkSignal: true,
+      }),
+    ]);
+  });
+
   it("skips generic provider overview pages for noisy auto benchmark sources", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [

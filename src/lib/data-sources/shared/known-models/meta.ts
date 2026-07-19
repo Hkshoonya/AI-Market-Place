@@ -1,6 +1,32 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const META_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "muse-spark-1-1": {
+    name: "Muse Spark 1.1",
+    description:
+      "Meta's proprietary multimodal reasoning model for agentic tasks, coding, tool use, computer use, and long-context workflows. It is available through the Meta Model API public preview and supports a 1 million token context window.",
+    category: "multimodal",
+    context_window: 1048576,
+    release_date: "2026-07-09",
+    status: "active",
+    modalities: ["text", "image", "video", "audio", "file"],
+    capabilities: {
+      vision: true,
+      audio: true,
+      video: true,
+      tool_use: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url:
+      "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/",
+  },
   "llama-3-8b-instruct": {
     name: "Meta-Llama-3-8B-Instruct",
     description:

@@ -29,10 +29,10 @@ interface VisionArenaRow {
 
 interface VisionArenaCellNode {
   textContent: string | null;
-  querySelector(selector: string): VisionArenaLinkNode | null;
+  querySelector(selector: string): VisionArenaModelNode | null;
 }
 
-interface VisionArenaLinkNode {
+interface VisionArenaModelNode {
   textContent: string | null;
   getAttribute(name: string): string | null;
 }
@@ -83,8 +83,13 @@ export function extractVisionArenaRows(html: string): VisionArenaRow[] {
       if (cells.length < 5) return null;
 
       const rank = parseInteger(cells[0]?.textContent ?? "");
-      const modelLink = cells[2]?.querySelector("a");
-      const modelName = modelLink?.textContent?.trim() ?? "";
+      const modelNode =
+        cells[2]?.querySelector("span[title]") ??
+        cells[2]?.querySelector("a");
+      const modelName =
+        modelNode?.getAttribute("title")?.trim() ||
+        modelNode?.textContent?.trim() ||
+        "";
       const scoreText = cells[3]?.textContent?.replace(/\s+/g, " ").trim() ?? "";
       const scoreMatch = scoreText.match(/(\d+)\s*±\s*(\d+)/);
       const eloScore = scoreMatch ? Number(scoreMatch[1]) : null;
@@ -102,7 +107,7 @@ export function extractVisionArenaRows(html: string): VisionArenaRow[] {
         votes,
         rank,
         metadata: {
-          sourceUrl: modelLink?.getAttribute("href") ?? null,
+          sourceUrl: modelNode?.getAttribute("href") ?? null,
         },
       };
     })
