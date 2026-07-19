@@ -252,8 +252,10 @@ describe("provider-benchmarks helpers", () => {
     expect(sources.get("xai-grok-4-5")).toMatchObject({
       url: "https://x.ai/news/grok-4-5",
       requiresBenchmarkSignal: true,
+      strictModelHints: true,
+      verificationUrl: "https://docs.x.ai/developers/grok-4-5.md",
       verifiedFallback: {
-        publishedAt: "2026-07-08T00:00:00.000Z",
+        publishedAt: "2026-07-16T00:00:00.000Z",
       },
     });
   });
@@ -268,7 +270,7 @@ describe("provider-benchmarks helpers", () => {
 
     expect(fallback).toMatchObject({
       title: "Introducing Grok 4.5",
-      publishedAt: "2026-07-08T00:00:00.000Z",
+      publishedAt: "2026-07-16T00:00:00.000Z",
       hasBenchmarkSignal: true,
     });
     expect(
@@ -285,6 +287,29 @@ describe("provider-benchmarks helpers", () => {
         }),
       ])
     );
+  });
+
+  it("validates a protected xAI announcement through official docs", async () => {
+    const source = __testables.PROVIDER_BENCHMARK_SOURCES.find(
+      (entry) => entry.id === "xai-grok-4-5"
+    );
+
+    expect(source).toBeDefined();
+    expect(__testables.getProviderFetchUrl(source!)).toBe(
+      "https://docs.x.ai/developers/grok-4-5.md"
+    );
+
+    const resolved = await __testables.resolveSuccessfulProviderContent(
+      source!,
+      new Response("# Grok 4.5\n\n[Announcement](https://x.ai/news/grok-4-5)")
+    );
+
+    expect(resolved.usedVerifiedFallback).toBe(true);
+    expect(resolved.content).toMatchObject({
+      title: "Introducing Grok 4.5",
+      publishedAt: "2026-07-16T00:00:00.000Z",
+      hasBenchmarkSignal: true,
+    });
   });
 
   it("extracts official page metadata for provider benchmark evidence", () => {
@@ -1138,6 +1163,45 @@ describe("provider-benchmarks helpers", () => {
     );
 
     expect(relatedModelIds).toEqual(["gemma-family", "gemma-31b-it"]);
+  });
+
+  it("keeps strict single-model evidence off older family releases", () => {
+    const models = [
+      {
+        id: "grok-4-5",
+        slug: "x-ai-grok-4-5",
+        name: "Grok 4.5",
+        provider: "xAI",
+      },
+      {
+        id: "grok-4",
+        slug: "x-ai-grok-4",
+        name: "Grok 4",
+        provider: "xAI",
+      },
+    ];
+    const aliasIndex = __testables.buildModelAliasIndex(models);
+    const lookup = models.map((model) => ({
+      ...model,
+      aliases: generateAliases(model.name),
+    }));
+
+    const relatedModelIds = __testables.buildModelRelations(
+      {
+        id: "xai-grok-4-5",
+        provider: "xAI",
+        url: "https://x.ai/news/grok-4-5",
+        titleHint: "Grok 4.5 benchmark update",
+        modelHints: ["Grok 4.5", "grok-4.5"],
+        strictModelHints: true,
+      },
+      "Introducing Grok 4.5",
+      "Grok 4.5 improves coding benchmarks over Grok 4.",
+      lookup,
+      aliasIndex
+    );
+
+    expect(relatedModelIds).toEqual(["grok-4-5"]);
   });
 
   it("keeps exact hint matches when another hint is too broad", () => {

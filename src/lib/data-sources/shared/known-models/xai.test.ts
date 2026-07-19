@@ -7,7 +7,7 @@ describe("XAI_KNOWN_MODELS", () => {
     expect(XAI_KNOWN_MODELS["grok-4-5"]).toMatchObject({
       name: "Grok 4.5",
       category: "multimodal",
-      release_date: "2026-07-08",
+      release_date: "2026-07-16",
       context_window: 500000,
       is_open_weights: false,
       website_url: "https://x.ai/news/grok-4-5",

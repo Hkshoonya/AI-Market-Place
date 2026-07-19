@@ -7,7 +7,7 @@ export const XAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       "SpaceXAI's frontier model for coding, agentic tasks, knowledge work, and configurable reasoning.",
     category: "multimodal",
     context_window: 500000,
-    release_date: "2026-07-08",
+    release_date: "2026-07-16",
     architecture: "Transformer",
     status: "active",
     modalities: ["text", "image"],

@@ -35,6 +35,9 @@ interface ProviderBenchmarkSource {
   contentType?: "html" | "pdf";
   sourceType?: "official_provider_page" | "official_model_card";
   requiresBenchmarkSignal?: boolean;
+  strictModelHints?: boolean;
+  /** Reachable official page used to validate a reviewed snapshot. */
+  verificationUrl?: string;
   verifiedFallback?: {
     title: string;
     summary: string;
@@ -548,13 +551,15 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     url: "https://x.ai/news/grok-4-5",
     titleHint: "Grok 4.5 benchmark update",
     modelHints: ["Grok 4.5", "grok-4.5"],
-    publishedAtHint: "2026-07-08T00:00:00.000Z",
+    publishedAtHint: "2026-07-16T00:00:00.000Z",
     requiresBenchmarkSignal: true,
+    strictModelHints: true,
+    verificationUrl: "https://docs.x.ai/developers/grok-4-5.md",
     verifiedFallback: {
       title: "Introducing Grok 4.5",
       summary:
         "xAI reports that Grok 4.5 scored 83.3% on Terminal-Bench 2.1 and resolved 64.7% of SWE-Bench Pro tasks.",
-      publishedAt: "2026-07-08T00:00:00.000Z",
+      publishedAt: "2026-07-16T00:00:00.000Z",
       text:
         "Grok 4.5 scored 83.3% on Terminal-Bench. Grok 4.5 scored 64.7% on SWE-Bench Pro.",
     },
@@ -1548,6 +1553,28 @@ function buildVerifiedFallbackContent(
   };
 }
 
+function getProviderFetchUrl(source: ProviderBenchmarkSource) {
+  return source.verificationUrl ?? source.url;
+}
+
+async function resolveSuccessfulProviderContent(
+  source: ProviderBenchmarkSource,
+  response: Response
+) {
+  if (source.verificationUrl && source.verifiedFallback) {
+    await response.text();
+    return {
+      content: buildVerifiedFallbackContent(source),
+      usedVerifiedFallback: true,
+    };
+  }
+
+  return {
+    content: await parseProviderSourceContent(source, response),
+    usedVerifiedFallback: false,
+  };
+}
+
 async function parseProviderSourceContent(
   source: ProviderBenchmarkSource,
   response: Response
@@ -1674,6 +1701,13 @@ function buildModelRelations(
   );
   const hintedUniqueIds = [...new Set(hintedIds)];
   const resolvedIds = [...new Set([...hintedUniqueIds, ...relation.modelIds])];
+
+  if (source.strictModelHints && hintedUniqueIds.length > 0) {
+    return limitProviderScopedModelIds(
+      hintedUniqueIds,
+      MAX_RELATED_BENCHMARK_MODELS
+    );
+  }
 
   if (
     resolvedIds.length > MAX_RELATED_BENCHMARK_MODELS &&
@@ -1950,11 +1984,12 @@ const adapter: DataSourceAdapter = {
 
     for (const source of sources) {
       recordsProcessed++;
+      const fetchUrl = getProviderFetchUrl(source);
 
       const response = await fetchWithRetry(
-        source.url,
+        fetchUrl,
         {
-          headers: getProviderPageHeaders(source.url),
+          headers: getProviderPageHeaders(fetchUrl),
           signal: buildRequestSignal(ctx.signal, PROVIDER_FETCH_TIMEOUT_MS),
         },
         {
@@ -1965,27 +2000,32 @@ const adapter: DataSourceAdapter = {
       ).catch((error) => error);
 
       let parsedContent: ParsedProviderSourceContent | null = null;
+      let usedVerifiedFallback = false;
 
       if (response instanceof Error) {
         fetchFailures.push({
-          message: `Failed to fetch ${source.url}: ${response.message}`,
+          message: `Failed to fetch ${fetchUrl}: ${response.message}`,
           context: source.id,
         });
         parsedContent = buildVerifiedFallbackContent(source);
+        usedVerifiedFallback = parsedContent !== null;
       } else if (!response.ok) {
         const body = await response.text().catch(() => "");
         fetchFailures.push({
-          message: `${source.url} returned HTTP ${response.status}: ${body.slice(0, 160)}`,
+          message: `${fetchUrl} returned HTTP ${response.status}: ${body.slice(0, 160)}`,
           context: source.id,
         });
         parsedContent = buildVerifiedFallbackContent(source);
+        usedVerifiedFallback = parsedContent !== null;
       } else {
         successfulFetches += 1;
-        parsedContent = await parseProviderSourceContent(source, response);
+        const resolved = await resolveSuccessfulProviderContent(source, response);
+        parsedContent = resolved.content;
+        usedVerifiedFallback = resolved.usedVerifiedFallback;
       }
 
       if (!parsedContent) continue;
-      if (source.verifiedFallback && !response.ok) {
+      if (usedVerifiedFallback) {
         verifiedFallbacksUsed += 1;
       }
 
@@ -2089,6 +2129,8 @@ const adapter: DataSourceAdapter = {
           source_key: source.id,
           model_hints: source.modelHints,
           extracted_title: parsedContent.title,
+          verification_url: source.verificationUrl,
+          verified_snapshot: usedVerifiedFallback,
           extracted_benchmark_scores: structuredScores.map((score) => ({
             benchmark_slug: score.benchmarkSlug,
             score: score.score,
@@ -2140,11 +2182,12 @@ const adapter: DataSourceAdapter = {
     const checks = await Promise.all(
       PROVIDER_BENCHMARK_SOURCES.slice(0, 3).map(async (source) => {
         const startedAt = Date.now();
+        const fetchUrl = getProviderFetchUrl(source);
         try {
           const response = await fetchWithRetry(
-            source.url,
+            fetchUrl,
             {
-              headers: getProviderPageHeaders(source.url),
+              headers: getProviderPageHeaders(fetchUrl),
               signal: buildRequestSignal(undefined, PROVIDER_HEALTHCHECK_TIMEOUT_MS),
             },
             {
@@ -2198,6 +2241,8 @@ export const __testables = {
   extractPdfSummary,
   buildPdfFallbackRecord,
   buildVerifiedFallbackContent,
+  getProviderFetchUrl,
+  resolveSuccessfulProviderContent,
   extractStructuredBenchmarkScores,
   extractStructuredBenchmarkScoresFromHuggingFaceEvalResults,
   extractStructuredBenchmarkScoresFromHtmlTables,
