@@ -21,7 +21,11 @@ vi.mock("@/lib/payments/chains/solana", () => ({
   isSolanaConfigured: (...args: unknown[]) => mockIsSolanaConfigured(...args),
 }));
 
-import { ensureWalletDepositAddresses, getOrCreateWallet } from "./wallet";
+import {
+  creditWallet,
+  ensureWalletDepositAddresses,
+  getOrCreateWallet,
+} from "./wallet";
 import type { Wallet } from "@/types/database";
 
 describe("wallet chain defaults", () => {
@@ -151,5 +155,25 @@ describe("wallet chain defaults", () => {
         primary_chain: "base",
       })
     );
+  });
+});
+
+describe("wallet credit denomination", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects native-token credits before calling the ledger RPC", async () => {
+    await expect(
+      creditWallet("wallet-1", 1, "deposit", { token: "SOL" })
+    ).rejects.toThrow(/USDC-denominated/i);
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid credit amounts before calling the ledger RPC", async () => {
+    await expect(
+      creditWallet("wallet-1", Number.NaN, "deposit", { token: "USDC" })
+    ).rejects.toThrow(/positive finite number/i);
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
   });
 });

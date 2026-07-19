@@ -9,7 +9,10 @@ import {
   type Chain,
   type Token,
 } from "./wallet";
-import { sendSolanaTransfer, isSolanaConfigured } from "./chains/solana";
+import {
+  sendSolanaTransfer,
+  isSolanaWithdrawalConfigured,
+} from "./chains/solana";
 import { sendEvmTransfer, isEvmConfigured } from "./chains/evm";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createTaggedLogger } from "@/lib/logging";
@@ -68,9 +71,15 @@ export async function processWithdrawal(
 ): Promise<WithdrawalResult> {
   const { walletId, amount, chain, toAddress, token = "USDC" } = req;
 
+  // Wallet balances are denominated in USDC. Native-token withdrawals would
+  // otherwise treat a dollar amount as SOL/ETH/MATIC and can overpay users.
+  if (token !== "USDC") {
+    return { success: false, error: "Only USDC withdrawals are supported" };
+  }
+
   // Validate chain is configured
-  if (chain === "solana" && !isSolanaConfigured()) {
-    return { success: false, error: "Solana withdrawals not configured" };
+  if (chain === "solana" && !isSolanaWithdrawalConfigured()) {
+    return { success: false, error: "Solana USDC withdrawals are not supported" };
   }
   if (
     (chain === "base" || chain === "polygon") &&
@@ -207,7 +216,7 @@ export function getSupportedChains(): Array<{
   return [
     {
       chain: "solana",
-      configured: isSolanaConfigured(),
+      configured: isSolanaWithdrawalConfigured(),
       minWithdrawal: MIN_WITHDRAWAL.solana,
       fee: WITHDRAWAL_FEE.solana,
     },

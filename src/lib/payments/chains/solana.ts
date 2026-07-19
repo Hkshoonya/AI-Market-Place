@@ -2,19 +2,30 @@
  * Solana Chain Integration
  * Handles deposit address generation, deposit detection, and withdrawal execution.
  *
- * Uses @solana/web3.js for Solana blockchain interactions.
+ * Uses @solana/kit for Solana blockchain interactions.
  * Designed to work with USDC (SPL token) and native SOL.
  */
 
 import {
-  Connection,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  sendAndConfirmTransaction,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
+  address as toSolanaAddress,
+  appendTransactionMessageInstruction,
+  assertIsTransactionWithBlockhashLifetime,
+  createKeyPairSignerFromBytes,
+  createKeyPairSignerFromPrivateKeyBytes,
+  createSolanaRpc,
+  createSolanaRpcSubscriptions,
+  createTransactionMessage,
+  getSignatureFromTransaction,
+  pipe,
+  sendAndConfirmTransactionFactory,
+  setTransactionMessageFeePayerSigner,
+  setTransactionMessageLifetimeUsingBlockhash,
+  signature as toSolanaSignature,
+  signTransactionMessageWithSigners,
+  type Address,
+  type KeyPairSigner,
+} from "@solana/kit";
+import { getTransferSolInstruction } from "@solana-program/system";
 import { createHash } from "crypto";
 import bs58 from "bs58";
 import type { Chain, Token } from "../wallet";
@@ -22,6 +33,8 @@ import { createTaggedLogger } from "@/lib/logging";
 import { isRuntimeFlagEnabled } from "@/lib/runtime-flags";
 
 const log = createTaggedLogger("payments/solana");
+const LAMPORTS_PER_SOL = BigInt(1_000_000_000);
+const MIN_SOL_DEPOSIT_LAMPORTS = BigInt(1_000_000);
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -58,6 +71,7 @@ export interface PendingDeposit {
 function getSolanaEnv() {
   return {
     rpcUrl: process.env.SOLANA_RPC_URL || "",
+    wsUrl: process.env.SOLANA_WS_URL || "",
     masterKey: process.env.SOLANA_MASTER_PRIVATE_KEY || "",
     usdcMint:
       process.env.SOLANA_USDC_MINT ||
@@ -70,25 +84,76 @@ export function isSolanaEnabled(): boolean {
 }
 
 export function isSolanaConfigured(): boolean {
-  return isSolanaEnabled() && !!process.env.SOLANA_RPC_URL;
+  const env = getSolanaEnv();
+  return isSolanaEnabled() && !!env.rpcUrl && !!env.masterKey;
 }
 
-function getConnection(): Connection {
+/** Solana withdrawals remain disabled until USDC transfers are implemented and tested. */
+export function isSolanaWithdrawalConfigured(): boolean {
+  return false;
+}
+
+function getRpc() {
   const env = getSolanaEnv();
   if (!env.rpcUrl) throw new Error("SOLANA_RPC_URL not configured");
-  return new Connection(env.rpcUrl, "confirmed");
+  return createSolanaRpc(env.rpcUrl);
 }
 
-function getMasterKeypair(): Keypair {
+function getWebsocketUrl(): string {
   const env = getSolanaEnv();
-  if (!env.masterKey) throw new Error("SOLANA_MASTER_PRIVATE_KEY not configured");
+  if (env.wsUrl) return env.wsUrl;
+
   try {
-    // Support both base58 and JSON array formats
-    if (env.masterKey.startsWith("[")) {
-      return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(env.masterKey)));
-    }
-    return Keypair.fromSecretKey(bs58.decode(env.masterKey));
+    const url = new URL(env.rpcUrl);
+    if (url.protocol === "https:") url.protocol = "wss:";
+    else if (url.protocol === "http:") url.protocol = "ws:";
+    else throw new Error("Unsupported Solana RPC protocol");
+    return url.toString();
   } catch {
+    throw new Error("SOLANA_WS_URL is required when SOLANA_RPC_URL is not HTTP(S)");
+  }
+}
+
+function parseMasterSecretKey(): Uint8Array {
+  const { masterKey } = getSolanaEnv();
+  if (!masterKey) throw new Error("SOLANA_MASTER_PRIVATE_KEY not configured");
+
+  try {
+    let secretKey: Uint8Array;
+    if (masterKey.startsWith("[")) {
+      const parsed: unknown = JSON.parse(masterKey);
+      if (
+        !Array.isArray(parsed) ||
+        parsed.length !== 64 ||
+        parsed.some(
+          (value) =>
+            !Number.isInteger(value) || Number(value) < 0 || Number(value) > 255
+        )
+      ) {
+        throw new Error("Invalid JSON secret key");
+      }
+      secretKey = Uint8Array.from(parsed as number[]);
+    } else {
+      secretKey = bs58.decode(masterKey);
+    }
+
+    if (secretKey.length !== 64) throw new Error("Invalid secret key length");
+    return secretKey;
+  } catch {
+    throw new Error("Invalid SOLANA_MASTER_PRIVATE_KEY format (expected base58 or JSON array)");
+  }
+}
+
+async function getMasterSigner(): Promise<KeyPairSigner> {
+  try {
+    return await createKeyPairSignerFromBytes(parseMasterSecretKey());
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Invalid SOLANA_MASTER_PRIVATE_KEY")
+    ) {
+      throw error;
+    }
     throw new Error("Invalid SOLANA_MASTER_PRIVATE_KEY format (expected base58 or JSON array)");
   }
 }
@@ -102,14 +167,19 @@ function getMasterKeypair(): Keypair {
  * This is a simplified approach: SHA-512(masterSecretKey + "solana-deposit" + index)
  * truncated to 32 bytes for the child seed.
  */
-function deriveChildKeypair(derivationIndex: number): Keypair {
-  const master = getMasterKeypair();
+async function deriveChildSigner(
+  derivationIndex: number
+): Promise<KeyPairSigner> {
+  if (!Number.isSafeInteger(derivationIndex) || derivationIndex < 0) {
+    throw new Error("Solana derivation index must be a non-negative safe integer");
+  }
+
   const seed = createHash("sha512")
-    .update(Buffer.from(master.secretKey))
+    .update(Buffer.from(parseMasterSecretKey()))
     .update(`solana-deposit-${derivationIndex}`)
     .digest()
     .subarray(0, 32);
-  return Keypair.fromSeed(seed);
+  return createKeyPairSignerFromPrivateKeyBytes(seed);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -124,10 +194,10 @@ export async function generateSolanaDepositAddress(
   derivationIndex: number
 ): Promise<string> {
   if (!isSolanaConfigured()) {
-    throw new Error("SOLANA_RPC_URL not configured");
+    throw new Error("Solana chain not configured");
   }
-  const child = deriveChildKeypair(derivationIndex);
-  return child.publicKey.toBase58();
+  const child = await deriveChildSigner(derivationIndex);
+  return child.address;
 }
 
 /**
@@ -135,24 +205,64 @@ export async function generateSolanaDepositAddress(
  * Looks for both SOL transfers and USDC SPL token transfers.
  */
 export async function checkSolanaDeposits(
-  address: string,
+  walletAddress: string,
   sinceTimestamp?: number
 ): Promise<PendingDeposit[]> {
   if (!isSolanaConfigured()) return [];
 
-  const connection = getConnection();
-  const pubkey = new PublicKey(address);
+  const rpc = getRpc();
+  const ownerAddress = toSolanaAddress(walletAddress);
+  const { usdcMint: configuredUsdcMint } = getSolanaEnv();
   const deposits: PendingDeposit[] = [];
+  const usdcTokenAccounts: Address[] = [];
+  let usdcMint: Address | null = null;
 
   try {
-    // Get recent confirmed signatures for this address
-    const signatures = await connection.getSignaturesForAddress(pubkey, {
-      limit: 20,
+    usdcMint = toSolanaAddress(configuredUsdcMint);
+    const { value: tokenAccounts } = await rpc
+      .getTokenAccountsByOwner(
+        ownerAddress,
+        { mint: usdcMint },
+        {
+          commitment: "confirmed",
+          dataSlice: { offset: 0, length: 0 },
+          encoding: "base64",
+        }
+      )
+      .send();
+    usdcTokenAccounts.push(...tokenAccounts.map((account) => account.pubkey));
+  } catch (err) {
+    void log.warn("Unable to resolve Solana USDC token accounts", {
+      address: walletAddress,
+      error: err instanceof Error ? err.message : String(err),
     });
+  }
 
-    for (const sigInfo of signatures) {
+  try {
+    const scanAddresses = [ownerAddress, ...usdcTokenAccounts];
+    const signaturePages = await Promise.all(
+      scanAddresses.map((scanAddress) =>
+        rpc
+          .getSignaturesForAddress(scanAddress, {
+            commitment: "confirmed",
+            limit: 20,
+          })
+          .send()
+      )
+    );
+    const seenSignatures = new Set<string>();
+    const tokenAccountSet = new Set<string>(usdcTokenAccounts);
+
+    for (const sigInfo of signaturePages.flat()) {
+      if (seenSignatures.has(sigInfo.signature)) continue;
+      seenSignatures.add(sigInfo.signature);
+
       // Skip if before our cutoff timestamp
-      if (sinceTimestamp && sigInfo.blockTime && sigInfo.blockTime < sinceTimestamp) {
+      if (
+        sinceTimestamp &&
+        sigInfo.blockTime !== null &&
+        Number(sigInfo.blockTime) < sinceTimestamp
+      ) {
         continue;
       }
 
@@ -160,9 +270,13 @@ export async function checkSolanaDeposits(
       if (sigInfo.err) continue;
 
       try {
-        const tx = await connection.getParsedTransaction(sigInfo.signature, {
-          maxSupportedTransactionVersion: 0,
-        });
+        const tx = await rpc
+          .getTransaction(sigInfo.signature, {
+            commitment: "confirmed",
+            encoding: "jsonParsed",
+            maxSupportedTransactionVersion: 0,
+          })
+          .send();
         if (!tx?.meta || !tx.transaction) continue;
 
         // Check for native SOL transfers
@@ -171,54 +285,90 @@ export async function checkSolanaDeposits(
         const accountKeys = tx.transaction.message.accountKeys;
 
         const addrIndex = accountKeys.findIndex(
-          (k) => k.pubkey.toBase58() === address
+          (account) => account.pubkey === ownerAddress
         );
 
         if (addrIndex >= 0 && postBalances[addrIndex] > preBalances[addrIndex]) {
           const lamportsDiff = postBalances[addrIndex] - preBalances[addrIndex];
-          const solAmount = lamportsDiff / LAMPORTS_PER_SOL;
+          const solAmount = Number(lamportsDiff) / Number(LAMPORTS_PER_SOL);
 
-          if (solAmount > 0.001) {
+          if (lamportsDiff > MIN_SOL_DEPOSIT_LAMPORTS) {
             // Minimum deposit threshold
             deposits.push({
               txHash: sigInfo.signature,
-              fromAddress: accountKeys[0]?.pubkey.toBase58() ?? "unknown",
-              toAddress: address,
+              fromAddress: accountKeys[0]?.pubkey ?? "unknown",
+              toAddress: walletAddress,
               amount: solAmount,
               token: "SOL",
               confirmations: sigInfo.confirmationStatus === "finalized" ? 32 : 1,
-              timestamp: sigInfo.blockTime ?? Math.floor(Date.now() / 1000),
+              timestamp:
+                sigInfo.blockTime !== null
+                  ? Number(sigInfo.blockTime)
+                  : Math.floor(Date.now() / 1000),
             });
           }
         }
 
-        // Check for USDC SPL token transfers (parsed instructions)
-        const innerInstructions = tx.meta.innerInstructions ?? [];
-        const allInstructions = [
-          ...tx.transaction.message.instructions,
-          ...innerInstructions.flatMap((ii) => ii.instructions),
-        ];
+        if (!usdcMint) continue;
 
-        for (const ix of allInstructions) {
-          if ("parsed" in ix && ix.parsed?.type === "transferChecked") {
-            const info = ix.parsed.info;
-            if (
-              info.mint === getSolanaEnv().usdcMint &&
-              info.destination === address
-            ) {
-              const amount = parseFloat(info.tokenAmount?.uiAmount ?? "0");
-              if (amount > 0) {
-                deposits.push({
-                  txHash: sigInfo.signature,
-                  fromAddress: info.source ?? "unknown",
-                  toAddress: address,
-                  amount,
-                  token: "USDC",
-                  confirmations: sigInfo.confirmationStatus === "finalized" ? 32 : 1,
-                  timestamp: sigInfo.blockTime ?? Math.floor(Date.now() / 1000),
-                });
-              }
-            }
+        const preTokenBalances = tx.meta.preTokenBalances ?? [];
+        const postTokenBalances = tx.meta.postTokenBalances ?? [];
+        const relevantAccountIndexes = new Set<number>();
+
+        for (const balance of [...preTokenBalances, ...postTokenBalances]) {
+          const accountKey = accountKeys[balance.accountIndex]?.pubkey;
+          if (
+            balance.mint === usdcMint &&
+            (balance.owner === ownerAddress ||
+              (accountKey && tokenAccountSet.has(accountKey)))
+          ) {
+            relevantAccountIndexes.add(balance.accountIndex);
+          }
+        }
+
+        let rawUsdcDelta = BigInt(0);
+        let usdcDecimals: number | null = null;
+        let sourceAddress = "unknown";
+
+        for (const accountIndex of relevantAccountIndexes) {
+          const preBalance = preTokenBalances.find(
+            (balance) =>
+              balance.accountIndex === accountIndex && balance.mint === usdcMint
+          );
+          const postBalance = postTokenBalances.find(
+            (balance) =>
+              balance.accountIndex === accountIndex && balance.mint === usdcMint
+          );
+          const preAmount = BigInt(preBalance?.uiTokenAmount.amount ?? "0");
+          const postAmount = BigInt(postBalance?.uiTokenAmount.amount ?? "0");
+          const accountDelta = postAmount - preAmount;
+
+          rawUsdcDelta += accountDelta;
+          usdcDecimals ??=
+            postBalance?.uiTokenAmount.decimals ??
+            preBalance?.uiTokenAmount.decimals ??
+            null;
+
+          if (accountDelta < BigInt(0)) {
+            sourceAddress = accountKeys[accountIndex]?.pubkey ?? sourceAddress;
+          }
+        }
+
+        if (rawUsdcDelta > BigInt(0) && usdcDecimals !== null) {
+          const amount = Number(rawUsdcDelta) / 10 ** usdcDecimals;
+          if (Number.isFinite(amount) && amount > 0) {
+            deposits.push({
+              txHash: sigInfo.signature,
+              fromAddress: sourceAddress,
+              toAddress: walletAddress,
+              amount,
+              token: "USDC",
+              confirmations: sigInfo.confirmationStatus === "finalized" ? 32 : 1,
+              timestamp:
+                sigInfo.blockTime !== null
+                  ? Number(sigInfo.blockTime)
+                  : Math.floor(Date.now() / 1000),
+            });
           }
         }
       } catch {
@@ -242,24 +392,51 @@ export async function sendSolanaTransfer(
   amount: number,
   token: Token = "USDC"
 ): Promise<TransferResult> {
-  const connection = getConnection();
-  const masterKeypair = getMasterKeypair();
+  if (!isSolanaConfigured()) {
+    throw new Error("Solana chain not configured");
+  }
 
   if (token === "SOL") {
-    // Native SOL transfer
-    const lamports = Math.round(amount * LAMPORTS_PER_SOL);
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: masterKeypair.publicKey,
-        toPubkey: new PublicKey(toAddress),
-        lamports,
-      })
-    );
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Solana transfer amount must be a positive finite number");
+    }
+    const lamportsAsNumber = Math.round(amount * Number(LAMPORTS_PER_SOL));
+    if (!Number.isSafeInteger(lamportsAsNumber)) {
+      throw new Error("Solana transfer amount exceeds the safe transaction limit");
+    }
+
+    const rpc = getRpc();
+    const masterSigner = await getMasterSigner();
+    const destination = toSolanaAddress(toAddress);
+    const transferInstruction = getTransferSolInstruction({
+      amount: BigInt(lamportsAsNumber),
+      destination,
+      source: masterSigner,
+    });
 
     try {
-      const txHash = await sendAndConfirmTransaction(connection, transaction, [
-        masterKeypair,
-      ]);
+      const { value: latestBlockhash } = await rpc
+        .getLatestBlockhash({ commitment: "confirmed" })
+        .send();
+      const transactionMessage = pipe(
+        createTransactionMessage({ version: "legacy" }),
+        (message) => setTransactionMessageFeePayerSigner(masterSigner, message),
+        (message) =>
+          setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
+        (message) =>
+          appendTransactionMessageInstruction(transferInstruction, message)
+      );
+      const transaction = await signTransactionMessageWithSigners(
+        transactionMessage
+      );
+      assertIsTransactionWithBlockhashLifetime(transaction);
+      const txHash = getSignatureFromTransaction(transaction);
+      const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({
+        rpc,
+        rpcSubscriptions: createSolanaRpcSubscriptions(getWebsocketUrl()),
+      });
+      await sendAndConfirmTransaction(transaction, { commitment: "confirmed" });
+
       return {
         txHash,
         status: "confirmed",
@@ -279,12 +456,7 @@ export async function sendSolanaTransfer(
     }
   }
 
-  // USDC transfer requires SPL token program instructions
-  // For now, use a simplified approach via @solana/spl-token if available
-  // In production, you'd use createTransferCheckedInstruction from @solana/spl-token
-  throw new Error(
-    "USDC SPL token transfers require @solana/spl-token. Install with: npm install @solana/spl-token"
-  );
+  throw new Error("Solana USDC withdrawals are not supported");
 }
 
 /**
@@ -296,11 +468,17 @@ export async function confirmSolanaTransaction(
   if (!isSolanaConfigured()) return false;
 
   try {
-    const connection = getConnection();
-    const status = await connection.getSignatureStatus(txHash);
+    const rpc = getRpc();
+    const { value: statuses } = await rpc
+      .getSignatureStatuses([toSolanaSignature(txHash)], {
+        searchTransactionHistory: true,
+      })
+      .send();
+    const status = statuses[0];
     return (
-      status.value?.confirmationStatus === "finalized" ||
-      status.value?.confirmationStatus === "confirmed"
+      status?.err === null &&
+      (status.confirmationStatus === "finalized" ||
+        status.confirmationStatus === "confirmed")
     );
   } catch {
     return false;

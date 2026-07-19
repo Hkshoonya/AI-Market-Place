@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockDebitWallet = vi.fn();
 const mockCreditWallet = vi.fn();
 const mockSendSolanaTransfer = vi.fn();
-const mockIsSolanaConfigured = vi.fn();
+const mockIsSolanaWithdrawalConfigured = vi.fn();
 const mockSendEvmTransfer = vi.fn();
 const mockIsEvmConfigured = vi.fn();
 const mockCreateAdminClient = vi.fn();
@@ -16,7 +16,8 @@ vi.mock("./wallet", () => ({
 
 vi.mock("./chains/solana", () => ({
   sendSolanaTransfer: (...args: unknown[]) => mockSendSolanaTransfer(...args),
-  isSolanaConfigured: (...args: unknown[]) => mockIsSolanaConfigured(...args),
+  isSolanaWithdrawalConfigured: (...args: unknown[]) =>
+    mockIsSolanaWithdrawalConfigured(...args),
 }));
 
 vi.mock("./chains/evm", () => ({
@@ -51,7 +52,7 @@ function createAdminClientStub() {
 describe("processWithdrawal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsSolanaConfigured.mockReturnValue(true);
+    mockIsSolanaWithdrawalConfigured.mockReturnValue(true);
     mockIsEvmConfigured.mockReturnValue(true);
     mockDebitWallet.mockResolvedValue("tx-1");
     mockCreditWallet.mockResolvedValue("refund-1");
@@ -114,6 +115,42 @@ describe("processWithdrawal", () => {
       })
     );
   });
+
+  it("rejects native-token withdrawals before debiting a USDC wallet", async () => {
+    const result = await processWithdrawal({
+      walletId: "wallet-1",
+      amount: 1,
+      chain: "solana",
+      toAddress: "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB",
+      token: "SOL",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Only USDC withdrawals are supported",
+    });
+    expect(mockDebitWallet).not.toHaveBeenCalled();
+    expect(mockSendSolanaTransfer).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported Solana USDC withdrawals before debiting", async () => {
+    mockIsSolanaWithdrawalConfigured.mockReturnValue(false);
+
+    const result = await processWithdrawal({
+      walletId: "wallet-1",
+      amount: 10,
+      chain: "solana",
+      toAddress: "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB",
+      token: "USDC",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Solana USDC withdrawals are not supported",
+    });
+    expect(mockDebitWallet).not.toHaveBeenCalled();
+    expect(mockSendSolanaTransfer).not.toHaveBeenCalled();
+  });
 });
 
 describe("getSupportedChains", () => {
@@ -122,7 +159,7 @@ describe("getSupportedChains", () => {
   });
 
   it("reflects the active Solana and EVM chain configuration", () => {
-    mockIsSolanaConfigured.mockReturnValue(false);
+    mockIsSolanaWithdrawalConfigured.mockReturnValue(false);
     mockIsEvmConfigured.mockImplementation((chain?: string) => chain === "base");
 
     expect(getSupportedChains()).toEqual([

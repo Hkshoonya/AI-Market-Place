@@ -10,6 +10,7 @@ const mockIsEvmConfigured = vi.fn();
 const mockTrackerComplete = vi.fn();
 const mockTrackerFail = vi.fn();
 const mockTrackerSkip = vi.fn();
+const mockLogWarn = vi.fn();
 const mockTrackCronRun = vi.fn().mockResolvedValue({
   complete: (...args: unknown[]) => mockTrackerComplete(...args),
   fail: (...args: unknown[]) => mockTrackerFail(...args),
@@ -38,6 +39,14 @@ vi.mock("@/lib/payments/chains/evm", () => ({
 
 vi.mock("@/lib/cron-tracker", () => ({
   trackCronRun: (...args: unknown[]) => mockTrackCronRun(...args),
+}));
+
+vi.mock("@/lib/logging", () => ({
+  createTaggedLogger: () => ({
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: (...args: unknown[]) => mockLogWarn(...args),
+  }),
 }));
 
 function makeWalletsQuery<T extends Record<string, unknown>>(rows: T[]) {
@@ -273,6 +282,44 @@ describe("chain deposit cron route", () => {
         credited: 1,
         errors: [],
       })
+    );
+  });
+
+  it("does not credit native-token deposits into a USDC wallet", async () => {
+    mockCreateAdminClient.mockReturnValue(
+      createAdminClient({
+        walletRows: [{ id: "wallet-1", deposit_address_evm: "0xabc" }],
+      })
+    );
+    mockIsEvmConfigured.mockImplementation((chain?: string) => chain === "base");
+    mockCheckEvmDeposits.mockResolvedValue([
+      {
+        txHash: "0xnative",
+        fromAddress: "0xfrom",
+        toAddress: "0xabc",
+        amount: 1,
+        token: "ETH",
+        chain: "base",
+        blockNumber: 123,
+        confirmations: 5,
+      },
+    ]);
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      makeGetRequest(
+        "https://aimarketcap.tech/api/webhooks/chain-deposits?chain=base"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockCreditWallet).not.toHaveBeenCalled();
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      "Skipping non-USDC EVM deposit",
+      expect.objectContaining({ token: "ETH", txHash: "0xnative" })
+    );
+    expect(mockTrackerComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ processed: 1, credited: 0, errors: [] })
     );
   });
 });

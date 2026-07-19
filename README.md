@@ -328,7 +328,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ANTHROPIC_API_KEY` | Optional | Anthropic model metadata sync |
 | `HUGGINGFACE_API_TOKEN` | Optional | HuggingFace Hub sync |
 | `STRIPE_SECRET_KEY` | Optional | Marketplace payments |
-| `SOLANA_RPC_URL` | Optional | Crypto settlement |
+| `ENABLE_SOLANA_CHAIN` | Optional | Explicitly enables Solana deposit infrastructure (default `false`) |
+| `SOLANA_RPC_URL` | Optional | Solana JSON-RPC endpoint |
+| `SOLANA_WS_URL` | Optional | Provider-specific Solana WebSocket endpoint |
+| `SOLANA_MASTER_PRIVATE_KEY` | Optional | Server-only key for deterministic Solana deposit addresses |
 
 See [`.env.example`](./.env.example) for the complete list with documentation.
 

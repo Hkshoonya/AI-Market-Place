@@ -175,6 +175,15 @@ async function processSolanaDeposits(
       summary.processed += deposits.length;
 
       for (const deposit of deposits) {
+        if (deposit.token !== "USDC") {
+          void log.warn("Skipping non-USDC Solana deposit", {
+            token: deposit.token,
+            txHash: deposit.txHash,
+            walletId: wallet.id,
+          });
+          continue;
+        }
+
         // De-duplicate: skip if tx_hash already exists in wallet_transactions
         const alreadyProcessed = await isTxHashProcessed(
           supabase,
@@ -237,6 +246,16 @@ async function processEvmDeposits(
       summary.processed += deposits.length;
 
       for (const deposit of deposits) {
+        if (deposit.token !== "USDC") {
+          void log.warn("Skipping non-USDC EVM deposit", {
+            chain,
+            token: deposit.token,
+            txHash: deposit.txHash,
+            walletId: wallet.id,
+          });
+          continue;
+        }
+
         // De-duplicate: skip if tx_hash already exists in wallet_transactions
         const alreadyProcessed = await isTxHashProcessed(
           supabase,

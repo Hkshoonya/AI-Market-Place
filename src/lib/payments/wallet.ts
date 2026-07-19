@@ -264,6 +264,16 @@ export async function creditWallet(
     description?: string;
   }
 ): Promise<string> {
+  const token = opts?.token ?? "USDC";
+  if (token !== "USDC") {
+    throw new Error(
+      `Wallet balances are USDC-denominated; cannot credit ${token} without conversion`
+    );
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Wallet credit amount must be a positive finite number");
+  }
+
   const sb = adminClient();
 
   const { data, error } = await sb.rpc("credit_wallet", {
@@ -272,7 +282,7 @@ export async function creditWallet(
     p_tx_type: txType,
     p_chain: opts?.chain ?? "internal",
     p_tx_hash: opts?.txHash ?? null,
-    p_token: opts?.token ?? "USDC",
+    p_token: token,
     p_reference_type: opts?.referenceType ?? null,
     p_reference_id: opts?.referenceId ?? null,
     p_description: opts?.description ?? null,
