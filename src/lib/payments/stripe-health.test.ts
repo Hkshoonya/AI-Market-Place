@@ -10,6 +10,8 @@ const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const ORIGINAL_STRIPE_PAYMENTS_ENABLED =
+  process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
 const NOW = new Date("2026-04-12T12:00:00.000Z").getTime();
 
 beforeEach(() => {
@@ -29,6 +31,13 @@ afterEach(() => {
   } else {
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
       ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  }
+
+  if (ORIGINAL_STRIPE_PAYMENTS_ENABLED === undefined) {
+    delete process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED =
+      ORIGINAL_STRIPE_PAYMENTS_ENABLED;
   }
 
   vi.useRealTimers();
@@ -227,6 +236,7 @@ describe("recordStripeWebhookEvent", () => {
 
 describe("getStripePaymentsHealth", () => {
   it("preserves readiness failures while reporting unknown webhook delivery health", async () => {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "true";
     process.env.STRIPE_SECRET_KEY = "sk_test_configured";
     delete process.env.STRIPE_WEBHOOK_SECRET;
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
@@ -239,5 +249,17 @@ describe("getStripePaymentsHealth", () => {
       "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
     );
     expect(health.webhookDelivery.status).toBe("unknown");
+  });
+
+  it("reports payments disabled when credentials exist without the launch flag", async () => {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "false";
+    process.env.STRIPE_SECRET_KEY = "sk_test_configured";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_configured";
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+
+    const health = await getStripePaymentsHealth(createSupabaseMock({}) as never);
+
+    expect(health.status).toBe("disabled");
+    expect(health.checkoutConfigured).toBe(false);
   });
 });

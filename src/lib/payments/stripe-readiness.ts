@@ -12,9 +12,23 @@ function hasConfiguredEnvValue(name: string) {
 }
 
 export function getStripePaymentsReadiness(): StripePaymentsReadiness {
-  const checkoutConfigured = hasConfiguredEnvValue("STRIPE_SECRET_KEY");
+  const paymentsEnabled =
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED?.trim() === "true";
+  const checkoutCredentialConfigured = hasConfiguredEnvValue("STRIPE_SECRET_KEY");
   const webhookConfigured = hasConfiguredEnvValue("STRIPE_WEBHOOK_SECRET");
   const publishableKeyConfigured = hasConfiguredEnvValue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+
+  if (!paymentsEnabled) {
+    return {
+      status: "disabled",
+      checkoutConfigured: false,
+      webhookConfigured,
+      publishableKeyConfigured,
+      blockingIssues: [],
+    };
+  }
+
+  const checkoutConfigured = checkoutCredentialConfigured;
   const anyConfigured = checkoutConfigured || webhookConfigured || publishableKeyConfigured;
 
   const blockingIssues: string[] = [];

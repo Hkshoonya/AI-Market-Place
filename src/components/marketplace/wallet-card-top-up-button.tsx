@@ -65,6 +65,8 @@ export function WalletCardTopUpButton({
   onCheckoutStarted,
 }: WalletCardTopUpButtonProps) {
   const pack = getWalletTopUpPackForAmount(amount ?? 20);
+  const paymentsEnabled =
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED === "true";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +99,26 @@ export function WalletCardTopUpButton({
       <p className="text-xs text-red-400" role="alert">
         No wallet top-up pack is available for this amount.
       </p>
+    );
+  }
+
+  if (!paymentsEnabled) {
+    return (
+      <div className="min-w-0">
+        <Button
+          type="button"
+          size={size}
+          variant={variant}
+          className={cn("w-full", className)}
+          disabled
+        >
+          <CreditCard className="h-4 w-4" />
+          Card funding coming later
+        </Button>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Card checkout stays disabled until AI Market Cap billing is verified.
+        </p>
+      </div>
     );
   }
 

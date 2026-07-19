@@ -4,6 +4,10 @@ import { NextRequest } from "next/server";
 const mockCreateClient = vi.fn();
 const mockGetOrCreateWallet = vi.fn();
 const mockFetch = vi.fn();
+const mockEnv = vi.hoisted(() => ({
+  NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: true,
+  STRIPE_SECRET_KEY: "sk_test_123",
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
@@ -21,9 +25,7 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    STRIPE_SECRET_KEY: "sk_test_123",
-  },
+  env: mockEnv,
 }));
 
 vi.mock("@/lib/logging", () => ({
@@ -37,6 +39,7 @@ describe("POST /api/marketplace/wallet/checkout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    mockEnv.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = true;
 
     mockCreateClient.mockResolvedValue({
       auth: {
@@ -57,6 +60,24 @@ describe("POST /api/marketplace/wallet/checkout", () => {
         url: "https://checkout.stripe.com/c/pay/cs_test_123",
       }),
     });
+  });
+
+  it("fails closed when Stripe payments are not explicitly enabled", async () => {
+    mockEnv.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = false;
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
+        method: "POST",
+        headers: { origin: "https://aimarketcap.tech" },
+        body: JSON.stringify({ pack: "starter" }),
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Card checkout is not enabled" });
+    expect(mockGetOrCreateWallet).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("creates a Stripe checkout session for a wallet pack", async () => {

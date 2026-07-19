@@ -111,6 +111,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (!env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED) {
+      throw new ApiError(503, "Card checkout is not enabled");
+    }
     if (!env.STRIPE_SECRET_KEY) {
       throw new ApiError(503, "Stripe checkout is not configured");
     }

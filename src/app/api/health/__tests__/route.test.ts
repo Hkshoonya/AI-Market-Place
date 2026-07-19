@@ -98,6 +98,8 @@ const ORIGINAL_STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const ORIGINAL_STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const ORIGINAL_STRIPE_PAYMENTS_ENABLED =
+  process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
 
 function restoreStripeEnv() {
   if (ORIGINAL_STRIPE_SECRET_KEY === undefined) delete process.env.STRIPE_SECRET_KEY;
@@ -112,9 +114,17 @@ function restoreStripeEnv() {
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY =
       ORIGINAL_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   }
+
+  if (ORIGINAL_STRIPE_PAYMENTS_ENABLED === undefined) {
+    delete process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED =
+      ORIGINAL_STRIPE_PAYMENTS_ENABLED;
+  }
 }
 
 function clearStripeEnv() {
+  delete process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
   delete process.env.STRIPE_SECRET_KEY;
   delete process.env.STRIPE_WEBHOOK_SECRET;
   delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -563,6 +573,7 @@ describe("GET /api/health", () => {
     it("marks authenticated health degraded when Stripe checkout is configured without the webhook secret", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
+      process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "true";
       process.env.STRIPE_SECRET_KEY = "sk_test_configured";
       delete process.env.STRIPE_WEBHOOK_SECRET;
       process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
@@ -618,6 +629,7 @@ describe("GET /api/health", () => {
     it("marks authenticated health degraded when recent Stripe webhook deliveries are failing", async () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
+      process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "true";
       process.env.STRIPE_SECRET_KEY = "sk_test_configured";
       process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_configured";
       process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";

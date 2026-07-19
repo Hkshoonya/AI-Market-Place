@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DeployWorkspacePanel } from "./deploy-workspace-panel";
 
@@ -8,6 +8,8 @@ const mockUseSWR = vi.fn();
 const mockUseAuth = vi.fn();
 const mockUseOptionalWorkspace = vi.fn();
 let mockPathname = "/deploy";
+const originalStripePaymentsEnabled =
+  process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
 
 vi.mock("swr", () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
@@ -72,6 +74,7 @@ function createWorkspaceValue(overrides?: Record<string, unknown>) {
 
 describe("DeployWorkspacePanel", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "true";
     mockPathname = "/deploy";
     mockUseAuth.mockReturnValue({
       user: { id: "user_123" },
@@ -122,6 +125,15 @@ describe("DeployWorkspacePanel", () => {
 
       return { data: undefined, mutate: vi.fn() };
     });
+  });
+
+  afterEach(() => {
+    if (originalStripePaymentsEnabled === undefined) {
+      delete process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED =
+        originalStripePaymentsEnabled;
+    }
   });
 
   it("renders the minimized launcher when the panel is collapsed", () => {
@@ -200,6 +212,20 @@ describe("DeployWorkspacePanel", () => {
       "href",
       "/models/openai-gpt-5-5?tab=deploy#model-tabs"
     );
+  });
+
+  it("keeps card funding disabled until Stripe is explicitly approved", () => {
+    process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "false";
+    mockUseOptionalWorkspace.mockReturnValue(createWorkspaceValue());
+
+    render(<DeployWorkspacePanel />);
+
+    expect(
+      screen.getByRole("button", { name: /Card funding coming later/i })
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /Add \$20 by card/i })
+    ).not.toBeInTheDocument();
   });
 
   it("replaces account-loading steps without leaving duplicate workflow cards", () => {
