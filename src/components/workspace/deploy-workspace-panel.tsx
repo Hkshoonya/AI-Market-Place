@@ -950,7 +950,7 @@ export function DeployWorkspacePanel() {
 
                       return (
                       <div
-                        key={item.label}
+                        key={`workspace-step-${index}`}
                         className={cn("rounded-md border px-3 py-3", toneClass)}
                       >
                         <div className="flex items-center justify-between gap-3">

@@ -202,6 +202,22 @@ describe("DeployWorkspacePanel", () => {
     );
   });
 
+  it("replaces account-loading steps without leaving duplicate workflow cards", () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: true });
+    mockUseOptionalWorkspace.mockReturnValue(createWorkspaceValue());
+
+    const view = render(<DeployWorkspacePanel />);
+    expect(screen.getAllByText("Checking account")).toHaveLength(3);
+
+    mockUseAuth.mockReturnValue({ user: null, loading: false });
+    view.rerender(<DeployWorkspacePanel />);
+
+    expect(screen.queryByText("Checking account")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Step 1")).toHaveLength(1);
+    expect(screen.getAllByText("Step 2")).toHaveLength(1);
+    expect(screen.getAllByText("Step 3")).toHaveLength(1);
+  });
+
   it("bounds the restored panel to the visual viewport and scrolls only its body", () => {
     mockUseOptionalWorkspace.mockReturnValue(createWorkspaceValue());
 
