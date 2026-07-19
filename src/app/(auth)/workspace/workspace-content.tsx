@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -17,6 +17,7 @@ import useSWR from "swr";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { WorkspaceStartRecommendation } from "@/components/workspace/workspace-start-recommendation";
+import { WalletCardTopUpButton } from "@/components/marketplace/wallet-card-top-up-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
 import { WORKSPACE_DEPLOYMENT_STARTED_EVENT } from "@/lib/workspace/session";
 
 interface WorkspaceWalletSnapshot {
@@ -88,6 +90,21 @@ interface DeploymentListSnapshot {
 }
 
 interface WorkspaceDeploymentSnapshot {
+  execution: {
+    available: boolean;
+    mode: "native_model" | "assistant_only";
+    provider: string | null;
+    model: string | null;
+    label: string;
+    summary: string;
+    pricing?: {
+      inputPerToken: number | null;
+      outputPerToken: number | null;
+      request: number;
+      currency: "USD";
+      source: "openrouter";
+    } | null;
+  } | null;
   deployment: {
     id: string;
     runtimeId: string | null;
@@ -150,6 +167,7 @@ type WorkspaceTab = "runtime" | "assistant" | "usage";
 export default function WorkspaceContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
   const workspace = useWorkspace();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("runtime");
@@ -189,7 +207,7 @@ export default function WorkspaceContent() {
     user ? "/api/workspace/deployments" : null,
     { ...SWR_TIERS.MEDIUM }
   );
-  const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
+  const { data: walletSnapshot, mutate: mutateWalletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
     user && workspace.session ? "/api/marketplace/wallet?limit=1" : null,
     { ...SWR_TIERS.MEDIUM }
   );
@@ -236,9 +254,11 @@ export default function WorkspaceContent() {
   const runtime = deploymentSnapshot?.runtime ?? runtimeSnapshot?.runtime ?? null;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
-  const deploymentExecution = workspace.session?.modelSlug
-    ? resolveWorkspaceRuntimeExecution(workspace.session.modelSlug)
-    : null;
+  const deploymentExecution =
+    deploymentSnapshot?.execution ??
+    (workspace.session?.modelSlug
+      ? resolveWorkspaceRuntimeExecution(workspace.session.modelSlug)
+      : null);
   const canCreateManagedDeployment = Boolean(provisioning?.canCreate);
   const hasManagedDeployment = Boolean(deployment);
   const deploymentModeLabel = deployment?.deploymentLabel ?? provisioning?.label ?? "Deployment";
@@ -253,6 +273,23 @@ export default function WorkspaceContent() {
         : deployment?.billing.budgetStatus === "exhausted"
           ? "border-red-500/20 bg-red-500/10 text-red-300"
           : "border-border/50 bg-card/40";
+  const walletBalance = walletSnapshot?.balance ?? 0;
+  const requiresSiteWallet =
+    hasManagedDeployment || canCreateManagedDeployment || Boolean(deploymentExecution?.available);
+  const provisionalDeploymentKind =
+    deployment?.deploymentKind ??
+    provisioning?.deploymentKind ??
+    (deploymentExecution?.available ? "managed_api" : "assistant_only");
+  const minimumRequestCharge =
+    deployment?.billing.requestCharge ??
+    getWorkspaceDeploymentRequestCharge({
+      deploymentKind: provisionalDeploymentKind,
+      runtimePricing: deploymentExecution?.pricing,
+    });
+  const walletReady =
+    !requiresSiteWallet ||
+    (typeof walletSnapshot?.balance === "number" && walletBalance >= minimumRequestCharge);
+  const stripeResult = searchParams.get("stripe");
 
   const updateSuggestedAmount = (nextAmount: number | null) => {
     const nextPack = getWalletTopUpPackForAmount(nextAmount);
@@ -326,6 +363,17 @@ export default function WorkspaceContent() {
       setWorkflowGuideCollapsed(true);
     }
   }, [hasManagedDeployment]);
+
+  useEffect(() => {
+    if (!user || stripeResult !== "success") return;
+
+    void mutateWalletSnapshot();
+    const retryId = window.setTimeout(() => {
+      void mutateWalletSnapshot();
+    }, 1500);
+
+    return () => window.clearTimeout(retryId);
+  }, [mutateWalletSnapshot, stripeResult, user]);
 
   if (loading) {
     return (
@@ -405,7 +453,6 @@ export default function WorkspaceContent() {
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
   const isSponsoredSession = session.sponsored === true;
-  const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
   const assistantUsage = chatMessages.reduce(
@@ -419,24 +466,29 @@ export default function WorkspaceContent() {
   );
   const stepItems = [
     {
-      label: "Fund credits",
-      done: events.some((event) => /wallet|deposit/i.test(`${event.title} ${event.detail}`)),
-      detail: session.suggestedPack
-        ? `Use ${session.suggestedPack} if this path still needs balance.`
-        : "Top up the wallet only if this access path is paid.",
-      ctaLabel: "Open wallet",
+      kind: "funding" as const,
+      label: requiresSiteWallet ? "Fund credits" : "Review provider billing",
+      done: walletReady,
+      detail: requiresSiteWallet
+        ? typeof walletSnapshot?.balance === "number"
+          ? `Available balance: $${walletBalance.toFixed(2)}. This path is $${minimumRequestCharge.toFixed(2)} per request and stops before the wallet can go negative.`
+          : "Checking the wallet balance before enabling paid requests."
+        : "This model uses an external provider path, so provider-side pricing applies instead of AI Market Cap credits.",
+      ctaLabel: walletReady ? "Review wallet" : "Add credits",
       href: walletHref,
       external: false,
     },
     {
+      kind: "api" as const,
       label: "Prepare API access",
-      done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
+      done: activeApiKeys > 0,
       detail: "Create account-side API keys and keep them attached to the same workspace.",
       ctaLabel: "Open API keys",
       href: apiHref,
       external: false,
     },
     {
+      kind: "deployment" as const,
       label: canCreateManagedDeployment ? "Start on this site" : "Use provider path",
       done: canCreateManagedDeployment ? hasManagedDeployment : false,
       detail: canCreateManagedDeployment
@@ -917,6 +969,16 @@ export default function WorkspaceContent() {
         </CardContent>
       </Card>
 
+      {stripeResult === "success" ? (
+        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
+          Checkout returned successfully. The wallet balance refreshes only after AI Market Cap receives and verifies Stripe&apos;s signed payment webhook.
+        </div>
+      ) : stripeResult === "cancelled" ? (
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" role="status">
+          Card checkout was cancelled. No wallet credits were added.
+        </div>
+      ) : null}
+
       {hasSavedDeployments ? (
         <Card className="mt-6 border-cyan-500/30 bg-cyan-500/10">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1173,7 +1235,24 @@ export default function WorkspaceContent() {
                             </Badge>
                           </div>
                         </div>
-                        {item.href ? (
+                        {item.kind === "funding" && !item.done && requiresSiteWallet ? (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <WalletCardTopUpButton
+                              amount={session.suggestedAmount ?? 20}
+                              returnPath="/workspace"
+                              className={cn(actionClassName, "bg-cyan-500 text-background hover:bg-cyan-400")}
+                              onCheckoutStarted={() =>
+                                workspace.addWorkspaceEvent(
+                                  "Card checkout started",
+                                  "Opened secure Stripe Checkout to add wallet credits."
+                                )
+                              }
+                            />
+                            <Button type="button" asChild variant="outline" className={actionClassName}>
+                              <Link href={walletHref}>Other funding options</Link>
+                            </Button>
+                          </div>
+                        ) : item.href ? (
                           <div className="mt-3">
                             {item.external ? (
                               <Button type="button" asChild variant="outline" className={actionClassName}>

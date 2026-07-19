@@ -163,6 +163,8 @@ describe("DeployWorkspacePanel", () => {
     expect(screen.getByText("Step 1")).toBeInTheDocument();
     expect(screen.getByText("Step 2")).toBeInTheDocument();
     expect(screen.getByText("Step 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add \$20 by card/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Other options/i })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Wallet" }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: "API Keys" }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "Create site setup" })).toBeInTheDocument();
@@ -170,6 +172,22 @@ describe("DeployWorkspacePanel", () => {
     await user.click(screen.getByRole("button", { name: /Hide workflow guide/i }));
 
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
+  });
+
+  it("bounds the restored panel to the visual viewport and scrolls only its body", () => {
+    mockUseOptionalWorkspace.mockReturnValue(createWorkspaceValue());
+
+    render(<DeployWorkspacePanel />);
+
+    expect(screen.getByTestId("workspace-floating-panel")).toHaveClass(
+      "h-[min(48rem,calc(100dvh-2rem))]"
+    );
+    expect(screen.getByTestId("workspace-floating-panel-scroll")).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-contain"
+    );
   });
 
   it("keeps a dedicated minimize rail visible in maximized mode", () => {

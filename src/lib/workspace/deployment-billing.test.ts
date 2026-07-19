@@ -10,27 +10,39 @@ describe("getWorkspaceDeploymentRequestCharge", () => {
     expect(
       getWorkspaceDeploymentRequestCharge({
         deploymentKind: "assistant_only",
-        monthlyPriceEstimate: 20,
       })
     ).toBe(0);
   });
 
-  it("uses a sensible floor for managed deployments", () => {
+  it("derives managed pricing from server-verified provider rates", () => {
     expect(
       getWorkspaceDeploymentRequestCharge({
         deploymentKind: "managed_api",
-        monthlyPriceEstimate: 20,
+        runtimePricing: {
+          inputPerToken: 0.000002,
+          outputPerToken: 0.000008,
+          request: 0,
+          currency: "USD",
+          source: "openrouter",
+        },
       })
-    ).toBe(0.02);
+    ).toBe(0.06);
   });
 
-  it("scales up with larger monthly estimates", () => {
+  it("uses a conservative managed fallback when live pricing is unavailable", () => {
     expect(
       getWorkspaceDeploymentRequestCharge({
         deploymentKind: "managed_api",
-        monthlyPriceEstimate: 100,
       })
-    ).toBe(0.1);
+    ).toBe(0.25);
+  });
+
+  it("charges hosted deployments instead of passing provider cost through for free", () => {
+    expect(
+      getWorkspaceDeploymentRequestCharge({
+        deploymentKind: "hosted_external",
+      })
+    ).toBe(0.5);
   });
 });
 
@@ -39,14 +51,20 @@ describe("getWorkspaceDeploymentBudgetSummary", () => {
     expect(
       getWorkspaceDeploymentBudgetSummary({
         deploymentKind: "managed_api",
-        monthlyPriceEstimate: 20,
+        runtimePricing: {
+          inputPerToken: 0.000002,
+          outputPerToken: 0.000008,
+          request: 0,
+          currency: "USD",
+          source: "openrouter",
+        },
         creditsBudget: 20,
         totalRequests: 10,
       })
     ).toEqual({
-      requestCharge: 0.02,
-      estimatedSpend: 0.2,
-      budgetRemaining: 19.8,
+      requestCharge: 0.06,
+      estimatedSpend: 0.6,
+      budgetRemaining: 19.4,
       budgetStatus: "healthy",
     });
   });
@@ -55,13 +73,19 @@ describe("getWorkspaceDeploymentBudgetSummary", () => {
     expect(
       getWorkspaceDeploymentBudgetSummary({
         deploymentKind: "managed_api",
-        monthlyPriceEstimate: 20,
-        creditsBudget: 0.04,
+        runtimePricing: {
+          inputPerToken: 0.000002,
+          outputPerToken: 0.000008,
+          request: 0,
+          currency: "USD",
+          source: "openrouter",
+        },
+        creditsBudget: 0.12,
         totalRequests: 2,
       })
     ).toEqual({
-      requestCharge: 0.02,
-      estimatedSpend: 0.04,
+      requestCharge: 0.06,
+      estimatedSpend: 0.12,
       budgetRemaining: 0,
       budgetStatus: "exhausted",
     });

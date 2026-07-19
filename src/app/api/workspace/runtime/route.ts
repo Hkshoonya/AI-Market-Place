@@ -7,7 +7,8 @@ import {
   buildWorkspaceRuntimeEndpointPath,
   buildWorkspaceRuntimeEndpointSlug,
 } from "@/lib/workspace/runtime";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import type { WorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
@@ -33,18 +34,21 @@ async function requireUser() {
   return { supabase, user };
 }
 
-function toRuntimeResponse(runtime: {
-  id: string;
-  model_slug: string;
-  model_name: string;
-  provider_name: string | null;
-  status: string;
-  endpoint_slug: string;
-  total_requests: number;
-  total_tokens: number;
-  last_used_at: string | null;
-  updated_at: string;
-}) {
+function toRuntimeResponse(
+  runtime: {
+    id: string;
+    model_slug: string;
+    model_name: string;
+    provider_name: string | null;
+    status: string;
+    endpoint_slug: string;
+    total_requests: number;
+    total_tokens: number;
+    last_used_at: string | null;
+    updated_at: string;
+  },
+  execution: WorkspaceRuntimeExecution
+) {
   return {
     id: runtime.id,
     modelSlug: runtime.model_slug,
@@ -58,7 +62,7 @@ function toRuntimeResponse(runtime: {
     totalTokens: runtime.total_tokens,
     lastUsedAt: runtime.last_used_at,
     updatedAt: runtime.updated_at,
-    execution: resolveWorkspaceRuntimeExecution(runtime.model_slug),
+    execution,
   };
 }
 
@@ -84,8 +88,10 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(modelSlug);
+
     return NextResponse.json({
-      runtime: data ? toRuntimeResponse(data) : null,
+      runtime: data ? toRuntimeResponse(data, execution) : null,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/runtime");
@@ -107,6 +113,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid request" },
         { status: 400 }
+      );
+    }
+
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(parsed.data.modelSlug);
+    if (!execution.available) {
+      return NextResponse.json(
+        { error: execution.summary, execution },
+        { status: 422 }
       );
     }
 
@@ -142,7 +156,7 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     return NextResponse.json({
-      runtime: toRuntimeResponse(data),
+      runtime: toRuntimeResponse(data, execution),
       activation: {
         message:
           "Runtime session prepared inside AI Market Cap. Chat, API keys, and future model usage can attach to this same runtime record.",

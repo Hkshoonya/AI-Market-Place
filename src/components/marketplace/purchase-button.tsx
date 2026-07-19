@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ShoppingCart,
   Loader2,
@@ -50,6 +50,7 @@ export function PurchaseButton({
 }: PurchaseButtonProps) {
   const { user } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState("");
@@ -138,6 +139,17 @@ export function PurchaseButton({
 
   const insufficientBalance =
     walletData != null && price != null && walletData.balance < price;
+  const resumedCheckoutResult =
+    searchParams.get("purchase") === listingId ? searchParams.get("stripe") : null;
+
+  useEffect(() => {
+    if (
+      searchParams.get("purchase") === listingId &&
+      (searchParams.get("stripe") === "success" || searchParams.get("stripe") === "cancelled")
+    ) {
+      setOpen(true);
+    }
+  }, [listingId, searchParams]);
 
   if (pricingType === "contact") return null;
 
@@ -155,6 +167,7 @@ export function PurchaseButton({
           ? "Confirm Free Access"
         : "Confirm Purchase";
   const redirectPath = pathname || "/marketplace";
+  const purchaseReturnPath = `${redirectPath}?purchase=${encodeURIComponent(listingId)}`;
   const loginHref = `/login?redirect=${encodeURIComponent(redirectPath)}`;
   const signupHref = `/signup?redirect=${encodeURIComponent(redirectPath)}`;
 
@@ -282,6 +295,16 @@ export function PurchaseButton({
               )}
             </DialogHeader>
 
+            {resumedCheckoutResult === "success" ? (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100" role="status">
+                Returned from Stripe Checkout. Your balance appears after the signed payment webhook is verified; reopen this dialog if it is still updating.
+              </div>
+            ) : resumedCheckoutResult === "cancelled" ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100" role="status">
+                Card checkout was cancelled. No wallet credits were added.
+              </div>
+            ) : null}
+
             <div className="rounded-lg border border-border/50 bg-secondary/30 p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Item Price</span>
@@ -317,7 +340,13 @@ export function PurchaseButton({
             )}
 
             {insufficientBalance && (
-              <WalletDepositPanel walletData={walletData} price={price} copiedField={copiedField} onCopy={copyToClipboard} />
+              <WalletDepositPanel
+                walletData={walletData}
+                price={price}
+                copiedField={copiedField}
+                onCopy={copyToClipboard}
+                returnPath={purchaseReturnPath}
+              />
             )}
 
             <div className="flex gap-2 pt-2">

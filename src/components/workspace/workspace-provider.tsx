@@ -54,16 +54,20 @@ interface WorkspaceContextValue extends WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
+const HYDRATION_SAFE_EMPTY_STATE: WorkspaceState = {
+  open: false,
+  minimized: false,
+  maximized: false,
+  activePanel: "setup",
+  session: null,
+  updatedAt: "1970-01-01T00:00:00.000Z",
+};
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const autoStartInFlightRef = useRef(false);
-  const [state, setState] = useState<WorkspaceState>(() => {
-    if (typeof window === "undefined") {
-      return createEmptyWorkspaceState();
-    }
-
-    return parseWorkspaceState(window.localStorage.getItem(WORKSPACE_STORAGE_KEY)) ?? createEmptyWorkspaceState();
-  });
+  const [state, setState] = useState<WorkspaceState>(HYDRATION_SAFE_EMPTY_STATE);
+  const [localStateLoaded, setLocalStateLoaded] = useState(false);
   const [persistenceStatus, setPersistenceStatus] = useState<
     "local" | "loading" | "saving" | "saved" | "error"
   >("local");
@@ -71,8 +75,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const saveReadyRef = useRef(false);
 
   useEffect(() => {
+    const localState = parseWorkspaceState(window.localStorage.getItem(WORKSPACE_STORAGE_KEY));
+    setState((current) =>
+      pickNewerWorkspaceState(current, localState ?? createEmptyWorkspaceState()) ?? current
+    );
+    setLocalStateLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!localStateLoaded) return;
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  }, [localStateLoaded, state]);
 
   useEffect(() => {
     if (!user?.id) {

@@ -3,8 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 const mockCreatePublicClient = vi.fn();
 const mockParseQueryResultPartial = vi.fn();
-const mockResolveWorkspaceRuntimeExecution = vi.fn();
-const mockResolveWorkspaceProvisioningForModel = vi.fn();
+const mockResolveAvailableWorkspaceRuntimeExecution = vi.fn();
 const mockResolveWorkspaceProvisioningHint = vi.fn();
 const mockGetPublicPricingSummary = vi.fn();
 const mockGetSelfHostRequirements = vi.fn();
@@ -25,13 +24,12 @@ vi.mock("@/lib/models/public-surface-readiness", () => ({
   preferDefaultPublicSurfaceReady: (models: unknown[]) => models,
 }));
 
-vi.mock("@/lib/workspace/runtime-execution", () => ({
-  resolveWorkspaceRuntimeExecution: (...args: unknown[]) => mockResolveWorkspaceRuntimeExecution(...args),
+vi.mock("@/lib/workspace/runtime-availability", () => ({
+  resolveAvailableWorkspaceRuntimeExecution: (...args: unknown[]) =>
+    mockResolveAvailableWorkspaceRuntimeExecution(...args),
 }));
 
 vi.mock("@/lib/workspace/external-deployment", () => ({
-  resolveWorkspaceProvisioningForModel: (...args: unknown[]) =>
-    mockResolveWorkspaceProvisioningForModel(...args),
   resolveWorkspaceProvisioningHint: (...args: unknown[]) =>
     mockResolveWorkspaceProvisioningHint(...args),
 }));
@@ -66,8 +64,10 @@ function createSupabaseStub() {
     from: () => ({
       select: () => ({
         eq: () => ({
-          range: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
+          in: () => ({
+            range: () => ({
+              order: () => Promise.resolve({ data: [], error: null }),
+            }),
           }),
         }),
       }),
@@ -112,7 +112,7 @@ describe("DeployPage", () => {
 
     mockCreatePublicClient.mockReturnValue(createSupabaseStub());
     mockParseQueryResultPartial.mockReturnValue(baseModels);
-    mockResolveWorkspaceRuntimeExecution.mockReturnValue({
+    mockResolveAvailableWorkspaceRuntimeExecution.mockResolvedValue({
       available: true,
       mode: "native_model",
       provider: "AI Market Cap",
@@ -121,13 +121,6 @@ describe("DeployPage", () => {
       summary: "Launch inside AI Market Cap.",
     });
     mockResolveWorkspaceProvisioningHint.mockReturnValue({
-      canCreate: true,
-      deploymentKind: "managed_api",
-      label: "AI Market Cap runtime",
-      summary: "Create one saved site setup so usage stays here.",
-      target: null,
-    });
-    mockResolveWorkspaceProvisioningForModel.mockResolvedValue({
       canCreate: true,
       deploymentKind: "managed_api",
       label: "AI Market Cap runtime",
@@ -217,5 +210,34 @@ describe("DeployPage", () => {
 
     expect(screen.getByText(/No launchable models found/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse full model directory/i })).toBeInTheDocument();
+  });
+
+  it("does not advertise a managed runtime when live provider verification fails", async () => {
+    mockParseQueryResultPartial.mockReturnValue([baseModels[0]]);
+    mockResolveAvailableWorkspaceRuntimeExecution.mockResolvedValue({
+      available: false,
+      mode: "assistant_only",
+      provider: null,
+      model: null,
+      label: "Provider path",
+      summary: "Managed runtime is not currently available.",
+    });
+    mockResolveWorkspaceProvisioningHint.mockReturnValue({
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "Provider path",
+      summary: "Use the verified provider path.",
+      target: null,
+    });
+
+    const { default: DeployPage } = await import("./page");
+    render(await DeployPage({ searchParams: Promise.resolve({ focus: "api" }) }));
+
+    expect(screen.getByText(/No launchable models found/i)).toBeInTheDocument();
+    expect(mockResolveWorkspaceProvisioningHint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeExecution: expect.objectContaining({ available: false }),
+      })
+    );
   });
 });

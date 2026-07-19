@@ -11,21 +11,58 @@ import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateWallet } from "@/lib/payments/wallet";
 import { WALLET_TOP_UP_PACKS } from "@/lib/constants/wallet";
-import { buildCanonicalUrl } from "@/lib/constants/site";
+import { getCanonicalOrigin } from "@/lib/constants/site";
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
+
+function isSafeLocalReturnPath(value: string | undefined) {
+  if (!value) return true;
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return false;
+  }
+
+  try {
+    let decoded = value;
+    for (let pass = 0; pass < 4; pass += 1) {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    }
+    if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\")) {
+      return false;
+    }
+
+    const canonical = new URL(getCanonicalOrigin());
+    const candidate = new URL(value, canonical);
+    return candidate.origin === canonical.origin && !candidate.username && !candidate.password;
+  } catch {
+    return false;
+  }
+}
 
 const checkoutSchema = z.object({
   pack: z.enum(["starter", "builder", "growth", "scale"]),
   return_path: z
     .string()
     .trim()
+    .max(2048)
     .optional()
-    .refine((value) => !value || (value.startsWith("/") && !value.startsWith("//")), {
+    .refine(isSafeLocalReturnPath, {
       message: "return_path must be a local path",
     }),
 });
+
+function buildCheckoutReturnUrl(
+  returnPath: string,
+  status: "success" | "cancelled",
+  packSlug: string
+) {
+  const url = new URL(returnPath, `${getCanonicalOrigin()}/`);
+  url.searchParams.set("stripe", status);
+  url.searchParams.set("pack", packSlug);
+  return url.toString();
+}
 
 function buildStripeCheckoutPayload(args: {
   amount: number;
@@ -114,9 +151,8 @@ export async function POST(request: NextRequest) {
 
     const wallet = await getOrCreateWallet(user.id);
     const returnPath = parsed.data.return_path || "/wallet";
-    const separator = returnPath.includes("?") ? "&" : "?";
-    const successUrl = buildCanonicalUrl(`${returnPath}${separator}stripe=success&pack=${pack.slug}`);
-    const cancelUrl = buildCanonicalUrl(`${returnPath}${separator}stripe=cancelled&pack=${pack.slug}`);
+    const successUrl = buildCheckoutReturnUrl(returnPath, "success", pack.slug);
+    const cancelUrl = buildCheckoutReturnUrl(returnPath, "cancelled", pack.slug);
     const payload = buildStripeCheckoutPayload({
       amount: pack.amount,
       packLabel: pack.label,

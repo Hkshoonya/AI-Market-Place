@@ -94,22 +94,35 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     expect(stripeBody.get("payment_intent_data[metadata][wallet_id]")).toBe("wallet-1");
     expect(stripeBody.get("payment_intent_data[metadata][purpose]")).toBe("wallet_top_up");
     expect(stripeBody.get("line_items[0][price_data][unit_amount]")).toBe("2000");
+    expect(stripeBody.get("success_url")).toBe(
+      "https://aimarketcap.tech/wallet?intent=deploy&model=GPT-4.1&stripe=success&pack=starter"
+    );
+    expect(stripeBody.get("cancel_url")).toBe(
+      "https://aimarketcap.tech/wallet?intent=deploy&model=GPT-4.1&stripe=cancelled&pack=starter"
+    );
     expect(body.url).toBe("https://checkout.stripe.com/c/pay/cs_test_123");
   });
 
-  it("rejects invalid return paths", async () => {
+  it.each([
+    "https://evil.example",
+    "//evil.example/path",
+    "/\\evil.example/path",
+    "/%5Cevil.example/path",
+    "/%252F%252Fevil.example/path",
+  ])("rejects the unsafe return path %s", async (returnPath) => {
     const { POST } = await import("./route");
     const response = await POST(
       new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
         method: "POST",
         body: JSON.stringify({
           pack: "starter",
-          return_path: "https://evil.example",
+          return_path: returnPath,
         }),
       })
     );
 
     expect(response.status).toBe(400);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the user is not authenticated", async () => {

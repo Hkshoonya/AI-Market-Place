@@ -7,7 +7,7 @@ import {
   type ModelDeployment,
 } from "@/lib/models/deployments";
 import { resolveWorkspaceProvisioningOption } from "@/lib/workspace/external-deployment";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
 import { buildLaunchRadar, getNewsSignalType } from "@/lib/news/presentation";
 import {
   compareDeploymentSignalSummaries,
@@ -166,10 +166,11 @@ export async function GET(
       pricingProviderNames,
       allowRelatedAccess: allowsLiveAccessSignals,
     });
+    const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(modelRaw.slug);
     const provisioning = await resolveWorkspaceProvisioningOption({
       supabase,
       modelSlug: modelRaw.slug,
-      runtimeExecution: resolveWorkspaceRuntimeExecution(modelRaw.slug),
+      runtimeExecution,
       allowLiveCatalogDiscovery: false,
     });
 

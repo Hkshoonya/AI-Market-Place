@@ -82,8 +82,8 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      deployments: reconciledDeployments.map(
-        toWorkspaceDeploymentResponse
+      deployments: reconciledDeployments.map((deployment) =>
+        toWorkspaceDeploymentResponse(deployment)
       ),
     });
   } catch (error) {

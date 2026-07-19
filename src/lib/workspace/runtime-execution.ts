@@ -12,6 +12,15 @@ export interface WorkspaceRuntimeExecution {
   model: string | null;
   label: string;
   summary: string;
+  pricing?: WorkspaceRuntimePricing | null;
+}
+
+export interface WorkspaceRuntimePricing {
+  inputPerToken: number | null;
+  outputPerToken: number | null;
+  request: number;
+  currency: "USD";
+  source: "openrouter";
 }
 
 interface RuntimeCatalogRoute {

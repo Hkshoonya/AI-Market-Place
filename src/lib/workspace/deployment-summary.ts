@@ -1,5 +1,8 @@
 import { getWorkspaceDeploymentBudgetSummary } from "@/lib/workspace/deployment-billing";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import {
+  resolveWorkspaceRuntimeExecution,
+  type WorkspaceRuntimeExecution,
+} from "@/lib/workspace/runtime-execution";
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
 
 export interface WorkspaceDeploymentRecord {
@@ -53,7 +56,11 @@ function getPublicProviderName(deployment: WorkspaceDeploymentRecord) {
   return deployment.provider_name;
 }
 
-export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRecord) {
+export function toWorkspaceDeploymentResponse(
+  deployment: WorkspaceDeploymentRecord,
+  executionOverride?: WorkspaceRuntimeExecution
+) {
+  const execution = executionOverride ?? resolveWorkspaceRuntimeExecution(deployment.model_slug);
   const totalAttempts = deployment.successful_requests + deployment.failed_requests;
   const healthStatus =
     deployment.status === "paused"
@@ -104,10 +111,10 @@ export function toWorkspaceDeploymentResponse(deployment: WorkspaceDeploymentRec
         : null,
     healthStatus,
     updatedAt: deployment.updated_at,
-    execution: resolveWorkspaceRuntimeExecution(deployment.model_slug),
+    execution,
     billing: getWorkspaceDeploymentBudgetSummary({
       deploymentKind: deployment.deployment_kind,
-      monthlyPriceEstimate: deployment.monthly_price_estimate,
+      runtimePricing: execution.pricing,
       creditsBudget: deployment.credits_budget,
       totalRequests: deployment.total_requests,
     }),

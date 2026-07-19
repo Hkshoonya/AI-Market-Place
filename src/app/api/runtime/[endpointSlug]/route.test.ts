@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 const resolveAuthUser = vi.fn();
 const single = vi.fn();
+const deploymentMaybeSingle = vi.fn();
 const eq = vi.fn();
 const updateEq = vi.fn();
 const update = vi.fn();
 const from = vi.fn();
-const callAgentModel = vi.fn();
+const resolveAvailableWorkspaceRuntimeExecution = vi.fn();
 
 vi.mock("@/lib/auth/resolve-user", () => ({
   resolveAuthUser: (...args: unknown[]) => resolveAuthUser(...args),
@@ -18,14 +20,18 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-vi.mock("@/lib/agents/provider-router", () => ({
-  callAgentModel: (...args: unknown[]) => callAgentModel(...args),
+vi.mock("@/lib/workspace/runtime-availability", () => ({
+  resolveAvailableWorkspaceRuntimeExecution: (modelSlug: string) =>
+    resolveAvailableWorkspaceRuntimeExecution(modelSlug),
 }));
 
 describe("GET /api/runtime/[endpointSlug]", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    resolveAvailableWorkspaceRuntimeExecution.mockImplementation(async (modelSlug: string) =>
+      resolveWorkspaceRuntimeExecution(modelSlug)
+    );
 
     updateEq.mockResolvedValue({ error: null });
     update.mockImplementation(() => ({
@@ -34,18 +40,31 @@ describe("GET /api/runtime/[endpointSlug]", () => {
     eq.mockImplementation(() => ({
       eq,
       single,
+      maybeSingle: deploymentMaybeSingle,
     }));
     from.mockImplementation((table: string) => {
-      if (table !== "workspace_runtimes") {
-        throw new Error(`Unexpected table ${table}`);
+      if (table === "workspace_runtimes") {
+        return {
+          select: () => ({
+            eq,
+          }),
+          update,
+        };
       }
 
-      return {
-        select: () => ({
-          eq,
-        }),
-        update,
-      };
+      if (table === "workspace_deployments") {
+        return {
+          select: () => ({
+            eq,
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    });
+    deploymentMaybeSingle.mockResolvedValue({
+      data: { endpoint_slug: "openai-gpt-4-1-metered" },
+      error: null,
     });
   });
 
@@ -82,7 +101,7 @@ describe("GET /api/runtime/[endpointSlug]", () => {
     expect(body.runtime.assistantPath).toBe("/api/runtime/openai-gpt-4-1-abc12345/assistant");
   });
 
-  it("allows api-key runtime invocations without an origin header", async () => {
+  it("moves legacy runtime invocations to the metered deployment endpoint", async () => {
     resolveAuthUser.mockResolvedValue({
       userId: "user-1",
       authMethod: "api_key",
@@ -104,14 +123,6 @@ describe("GET /api/runtime/[endpointSlug]", () => {
       },
       error: null,
     });
-    callAgentModel.mockResolvedValue({
-      content: "Hello from GPT-4.1",
-      provider: "openrouter",
-      model: "openai/gpt-4.1",
-      usage: { totalTokens: 25, inputTokens: 10, outputTokens: 15 },
-      raw: {},
-    });
-
     const { POST } = await import("./route");
     const response = await POST(
       new Request("https://aimarketcap.tech/api/runtime/openai-gpt-4-1-abc12345", {
@@ -122,8 +133,11 @@ describe("GET /api/runtime/[endpointSlug]", () => {
       { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
     );
 
-    expect(response.status).toBe(200);
-    expect(callAgentModel).toHaveBeenCalled();
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "metered_deployment_required",
+      endpointPath: "/api/deployments/openai-gpt-4-1-metered",
+    });
   });
 
   it("rejects cross-origin session runtime invocations", async () => {
@@ -146,6 +160,6 @@ describe("GET /api/runtime/[endpointSlug]", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(callAgentModel).not.toHaveBeenCalled();
+    expect(deploymentMaybeSingle).not.toHaveBeenCalled();
   });
 });

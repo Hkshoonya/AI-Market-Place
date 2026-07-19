@@ -11,6 +11,7 @@ import {
   buildWorkspaceDeploymentEndpointSlug,
 } from "@/lib/workspace/deployment";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
 import {
   toWorkspaceDeploymentResponse,
   type WorkspaceDeploymentRecord,
@@ -24,6 +25,8 @@ import {
   updateHostedDeploymentScale,
 } from "@/lib/workspace/external-deployment";
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
+import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
+import { getWalletByOwner } from "@/lib/payments/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -60,18 +63,21 @@ async function requireUser() {
   return { supabase, user };
 }
 
-function toRuntimeResponse(runtime: {
-  id: string;
-  model_slug: string;
-  model_name: string;
-  provider_name: string | null;
-  status: string;
-  endpoint_slug: string;
-  total_requests: number;
-  total_tokens: number;
-  last_used_at: string | null;
-  updated_at: string;
-}) {
+function toRuntimeResponse(
+  runtime: {
+    id: string;
+    model_slug: string;
+    model_name: string;
+    provider_name: string | null;
+    status: string;
+    endpoint_slug: string;
+    total_requests: number;
+    total_tokens: number;
+    last_used_at: string | null;
+    updated_at: string;
+  },
+  execution = resolveWorkspaceRuntimeExecution(runtime.model_slug)
+) {
   return {
     id: runtime.id,
     modelSlug: runtime.model_slug,
@@ -85,7 +91,7 @@ function toRuntimeResponse(runtime: {
     totalTokens: runtime.total_tokens,
     lastUsedAt: runtime.last_used_at,
     updatedAt: runtime.updated_at,
-    execution: resolveWorkspaceRuntimeExecution(runtime.model_slug),
+    execution,
   };
 }
 
@@ -142,13 +148,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const modelSlug = url.searchParams.get("modelSlug");
     if (!modelSlug) {
-      return NextResponse.json({ deployment: null, runtime: null, provisioning: null });
+      return NextResponse.json({ deployment: null, runtime: null, provisioning: null, execution: null });
     }
 
+    const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(modelSlug);
     const provisioning = await resolveWorkspaceProvisioningOption({
       supabase: auth.supabase,
       modelSlug,
-      runtimeExecution: resolveWorkspaceRuntimeExecution(modelSlug),
+      runtimeExecution,
       allowLiveCatalogDiscovery: false,
     });
 
@@ -171,7 +178,7 @@ export async function GET(request: Request) {
         .eq("id", deployment.runtime_id)
         .maybeSingle();
       if (runtimeError) throw runtimeError;
-      runtime = runtimeData ? toRuntimeResponse(runtimeData) : null;
+      runtime = runtimeData ? toRuntimeResponse(runtimeData, runtimeExecution) : null;
     }
 
     const reconciledDeployment = deployment
@@ -180,10 +187,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       deployment: reconciledDeployment
-        ? toWorkspaceDeploymentResponse(reconciledDeployment)
+        ? toWorkspaceDeploymentResponse(reconciledDeployment, runtimeExecution)
         : null,
       runtime,
       provisioning,
+      execution: runtimeExecution,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");
@@ -208,7 +216,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const execution = resolveWorkspaceRuntimeExecution(parsed.data.modelSlug);
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(parsed.data.modelSlug);
     const provisioning = await resolveWorkspaceProvisioningOption({
       supabase: auth.supabase,
       modelSlug: parsed.data.modelSlug,
@@ -225,6 +233,26 @@ export async function POST(request: Request) {
         },
         { status: 422 }
       );
+    }
+
+    const requestCharge = getWorkspaceDeploymentRequestCharge({
+      deploymentKind: provisioning.deploymentKind,
+      runtimePricing: execution.pricing,
+    });
+    if (requestCharge > 0) {
+      const wallet = await getWalletByOwner(auth.user.id);
+      const availableBalance = Number(wallet?.balance ?? 0);
+      if (!wallet || availableBalance < requestCharge) {
+        return NextResponse.json(
+          {
+            error: `Fund your wallet before creating this paid deployment. Required for the first request: $${requestCharge.toFixed(2)}. Available: $${availableBalance.toFixed(2)}.`,
+            code: "wallet_funding_required",
+            required: requestCharge,
+            balance: availableBalance,
+          },
+          { status: 402 }
+        );
+      }
     }
 
     const { data: existingRuntime, error: existingRuntimeError } = await auth.supabase
@@ -378,8 +406,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      deployment: toWorkspaceDeploymentResponse(deploymentData as WorkspaceDeploymentRecord),
-      runtime: runtimeData ? toRuntimeResponse(runtimeData) : null,
+      deployment: toWorkspaceDeploymentResponse(
+        deploymentData as WorkspaceDeploymentRecord,
+        execution
+      ),
+      runtime: runtimeData ? toRuntimeResponse(runtimeData, execution) : null,
       activation: {
         message:
           provisioning.deploymentKind === "hosted_external"
@@ -389,6 +420,7 @@ export async function POST(request: Request) {
             : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
       provisioning,
+      execution,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");
@@ -424,7 +456,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
     }
 
-    const execution = resolveWorkspaceRuntimeExecution(deployment.model_slug);
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(deployment.model_slug);
     const updatePayload: {
       status?: "ready" | "paused";
       credits_budget?: number | null;
@@ -495,7 +527,8 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({
       deployment: toWorkspaceDeploymentResponse(
-        updatedDeployment as WorkspaceDeploymentRecord
+        updatedDeployment as WorkspaceDeploymentRecord,
+        execution
       ),
       update: {
         action: parsed.data.action,

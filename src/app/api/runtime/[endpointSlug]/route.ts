@@ -3,12 +3,12 @@ import { z } from "zod";
 import { handleApiError } from "@/lib/api-error";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { callAgentModel } from "@/lib/agents/provider-router";
 import {
   buildWorkspaceRuntimeAssistantPath,
   buildWorkspaceRuntimeEndpointPath,
 } from "@/lib/workspace/runtime";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
 import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export async function GET(
       return NextResponse.json({ error: "Runtime not found" }, { status: 404 });
     }
 
-    const execution = resolveWorkspaceRuntimeExecution(runtime.model_slug);
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(runtime.model_slug);
 
     return NextResponse.json({
       runtime: {
@@ -105,61 +105,26 @@ export async function POST(
       return NextResponse.json({ error: "Runtime not found" }, { status: 404 });
     }
 
-    const execution = resolveWorkspaceRuntimeExecution(runtime.model_slug);
-    if (!execution.available || !execution.provider || !execution.model) {
-      return NextResponse.json(
-        { error: execution.summary, runtime: { execution } },
-        { status: 400 }
-      );
-    }
+    const { data: deployment } = await admin
+      .from("workspace_deployments")
+      .select("endpoint_slug")
+      .eq("user_id", auth.userId)
+      .eq("runtime_id", runtime.id)
+      .maybeSingle();
+    const endpointPath = deployment?.endpoint_slug
+      ? buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug)
+      : null;
 
-    const response = await callAgentModel({
-      preferredProviders: [execution.provider],
-      providerModels: {
-        [execution.provider]: execution.model,
+    return NextResponse.json(
+      {
+        error:
+          "Direct runtime execution is read-only. Send model requests to the metered deployment endpoint so wallet balance, budget, usage, and refunds are enforced.",
+        code: "metered_deployment_required",
+        endpointPath,
+        deploymentsPath: "/deployments",
       },
-      messages: [
-        ...(parsed.data.system ? [{ role: "system" as const, content: parsed.data.system }] : []),
-        { role: "user", content: parsed.data.message },
-      ],
-      temperature: 0.2,
-      maxTokens: 2048,
-    });
-
-    const totalTokens = response.usage?.totalTokens ?? 0;
-
-    await admin
-      .from("workspace_runtimes")
-      .update({
-        total_requests: (runtime.total_requests ?? 0) + 1,
-        total_tokens: Number(runtime.total_tokens ?? 0) + totalTokens,
-        last_used_at: new Date().toISOString(),
-      })
-      .eq("id", runtime.id);
-
-    return NextResponse.json({
-      response: {
-        content: response.content,
-        provider: response.provider,
-        model: response.model,
-        usage: response.usage,
-      },
-      runtime: {
-        id: runtime.id,
-        modelSlug: runtime.model_slug,
-        modelName: runtime.model_name,
-        providerName: runtime.provider_name,
-        status: runtime.status,
-        endpointSlug: runtime.endpoint_slug,
-        endpointPath: buildWorkspaceRuntimeEndpointPath(runtime.endpoint_slug),
-        assistantPath: buildWorkspaceRuntimeAssistantPath(runtime.endpoint_slug),
-        totalRequests: (runtime.total_requests ?? 0) + 1,
-        totalTokens: Number(runtime.total_tokens ?? 0) + totalTokens,
-        lastUsedAt: new Date().toISOString(),
-        updatedAt: runtime.updated_at,
-        execution,
-      },
-    });
+      { status: 409 }
+    );
   } catch (error) {
     return handleApiError(error, "api/runtime/[endpointSlug]");
   }

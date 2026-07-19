@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 const getUser = vi.fn();
 const maybeSingle = vi.fn();
@@ -7,6 +8,7 @@ const eq = vi.fn();
 const upsert = vi.fn();
 const upsertSelect = vi.fn();
 const from = vi.fn();
+const resolveAvailableWorkspaceRuntimeExecution = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -17,10 +19,18 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/workspace/runtime-availability", () => ({
+  resolveAvailableWorkspaceRuntimeExecution: (modelSlug: string) =>
+    resolveAvailableWorkspaceRuntimeExecution(modelSlug),
+}));
+
 describe("workspace runtime API", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    resolveAvailableWorkspaceRuntimeExecution.mockImplementation(async (modelSlug: string) =>
+      resolveWorkspaceRuntimeExecution(modelSlug)
+    );
 
     eq.mockImplementation(() => ({
       eq,

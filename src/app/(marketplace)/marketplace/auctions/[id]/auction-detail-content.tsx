@@ -439,6 +439,7 @@ export default function AuctionDetailContent({
                           price={minimumActionAmount}
                           copiedField={copiedField}
                           onCopy={copyToClipboard}
+                          returnPath={`/marketplace/auctions/${auctionId}`}
                         />
                       )}
 

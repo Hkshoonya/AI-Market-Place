@@ -14,11 +14,8 @@ import { ModelBaseSchema } from "@/lib/schemas/models";
 import { z } from "zod";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
-import {
-  resolveWorkspaceProvisioningForModel,
-  resolveWorkspaceProvisioningHint,
-} from "@/lib/workspace/external-deployment";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
+import { resolveWorkspaceProvisioningHint } from "@/lib/workspace/external-deployment";
 import { getPublicPricingSummary } from "@/lib/models/pricing";
 import { getSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import {
@@ -45,6 +42,7 @@ export const revalidate = 300;
 
 const PAGE_SIZE = 24;
 const MAX_DEPLOY_PROVISIONING_CANDIDATES = 120;
+const MAX_DEPLOY_SOURCE_MODELS = 360;
 const DEPLOY_FOCUS_OPTIONS = ["all", "chat", "api", "open", "cost"] as const;
 type DeployFocus = (typeof DEPLOY_FOCUS_OPTIONS)[number];
 
@@ -76,23 +74,61 @@ function buildWorkspaceStartDefaults(entry: LaunchableEntry) {
       entry.provisioning.deploymentKind === "hosted_external"
         ? "Deploy on AI Market Cap"
         : "Use on AI Market Cap",
-    autoStartDeployment: true,
+    autoStartDeployment: false,
     suggestedAmount,
     suggestedPackSlug: suggestedPack?.slug ?? null,
     suggestedPack: suggestedPack?.label ?? null,
   };
 }
 
+const DeployPageSchema = ModelBaseSchema.pick({
+  id: true,
+  slug: true,
+  name: true,
+  provider: true,
+  category: true,
+  architecture: true,
+  parameter_count: true,
+  context_window: true,
+  release_date: true,
+  hf_model_id: true,
+  hf_downloads: true,
+  hf_likes: true,
+  hf_trending_score: true,
+  website_url: true,
+  license: true,
+  license_name: true,
+  is_open_weights: true,
+  is_api_available: true,
+  modalities: true,
+  overall_rank: true,
+  popularity_score: true,
+  adoption_score: true,
+  quality_score: true,
+  capability_score: true,
+  economic_footprint_score: true,
+}).extend({
+  model_pricing: z
+    .array(
+      z.object({
+        provider_name: z.string().nullable().optional(),
+        input_price_per_million: z.coerce.number().nullable(),
+        output_price_per_million: z.coerce.number().nullable().optional(),
+        price_per_call: z.coerce.number().nullable().optional(),
+        price_per_gpu_second: z.coerce.number().nullable().optional(),
+        subscription_monthly: z.coerce.number().nullable().optional(),
+        source: z.string().nullable().optional(),
+        pricing_model: z.string().nullable().optional(),
+        currency: z.string().nullable().optional(),
+        effective_date: z.string().nullable().optional(),
+        updated_at: z.string().nullable().optional(),
+      })
+    )
+    .optional(),
+});
+
 type LaunchableEntry = {
-  model: z.infer<typeof ModelBaseSchema> & {
-    model_pricing?: Array<{
-      provider_name?: string | null;
-      input_price_per_million: number | null;
-      source?: string | null;
-      output_price_per_million?: number | null;
-      currency?: string | null;
-    }>;
-  };
+  model: z.infer<typeof DeployPageSchema>;
   provisioning: ReturnType<typeof resolveWorkspaceProvisioningHint>;
 };
 
@@ -119,24 +155,13 @@ export default async function DeployPage({
   const supabase = createPublicClient();
   const response = await supabase
     .from("models")
-    .select("*, model_pricing(*)")
+    .select(
+      "id, slug, name, provider, category, architecture, parameter_count, context_window, release_date, hf_model_id, hf_downloads, hf_likes, hf_trending_score, website_url, license, license_name, is_open_weights, is_api_available, modalities, overall_rank, popularity_score, adoption_score, quality_score, capability_score, economic_footprint_score, model_pricing(provider_name, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, source, pricing_model, currency, effective_date, updated_at)"
+    )
     .eq("status", "active")
-    .range(0, 1999)
+    .in("category", ["llm", "multimodal"])
+    .range(0, MAX_DEPLOY_SOURCE_MODELS - 1)
     .order("overall_rank", { ascending: true, nullsFirst: false });
-
-  const DeployPageSchema = ModelBaseSchema.extend({
-    model_pricing: z
-      .array(
-        z.object({
-          provider_name: z.string().nullable().optional(),
-          input_price_per_million: z.number().nullable(),
-          source: z.string().nullable().optional(),
-          output_price_per_million: z.number().nullable().optional(),
-          currency: z.string().nullable().optional(),
-        })
-      )
-      .optional(),
-  });
 
   const parsedModels = parseQueryResultPartial(response, DeployPageSchema, "DeployPage");
   const candidateModels = preferDefaultPublicSurfaceReady(
@@ -148,28 +173,15 @@ export default async function DeployPage({
   const launchableModels: LaunchableEntry[] = (
     await Promise.all(
       provisioningCandidates.map(async (model) => {
-        const runtimeExecution = resolveWorkspaceRuntimeExecution(model.slug);
-        const provisioning = runtimeExecution.available
-          ? resolveWorkspaceProvisioningHint({
-              modelSlug: model.slug,
-              modelName: model.name,
-              provider: model.provider,
-              category: model.category,
-              hfModelId: model.hf_model_id,
-              runtimeExecution,
-            })
-          : await resolveWorkspaceProvisioningForModel({
-              model: {
-                slug: model.slug,
-                name: model.name,
-                provider: model.provider,
-                category: model.category,
-                parameter_count: model.parameter_count,
-                hf_model_id: model.hf_model_id,
-              },
-              runtimeExecution,
-              allowLiveCatalogDiscovery: false,
-            });
+        const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(model.slug);
+        const provisioning = resolveWorkspaceProvisioningHint({
+          modelSlug: model.slug,
+          modelName: model.name,
+          provider: model.provider,
+          category: model.category,
+          hfModelId: model.hf_model_id,
+          runtimeExecution,
+        });
 
         return { model, provisioning };
       })

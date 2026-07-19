@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearReplicateCatalogCacheForTests } from "@/lib/workspace/external-deployment";
+import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
 
 const getUser = vi.fn();
+const getWalletByOwner = vi.fn();
 const runtimeMaybeSingle = vi.fn();
 const deploymentMaybeSingle = vi.fn();
 const deploymentSingle = vi.fn();
@@ -21,6 +23,7 @@ const deleteEqFirst = vi.fn();
 const deleteEqSecond = vi.fn();
 const insert = vi.fn();
 const from = vi.fn();
+const resolveAvailableWorkspaceRuntimeExecution = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -31,10 +34,35 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/payments/wallet", () => ({
+  getWalletByOwner: (...args: unknown[]) => getWalletByOwner(...args),
+}));
+
+vi.mock("@/lib/workspace/runtime-availability", () => ({
+  resolveAvailableWorkspaceRuntimeExecution: (modelSlug: string) =>
+    resolveAvailableWorkspaceRuntimeExecution(modelSlug),
+}));
+
 describe("workspace deployment API", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
+    resolveAvailableWorkspaceRuntimeExecution.mockImplementation(async (modelSlug: string) => {
+      const execution = resolveWorkspaceRuntimeExecution(modelSlug);
+      return execution.provider === "openrouter"
+        ? {
+            ...execution,
+            pricing: {
+              inputPerToken: 0.000002,
+              outputPerToken: 0.000008,
+              request: 0,
+              currency: "USD",
+              source: "openrouter",
+            },
+          }
+        : execution;
+    });
+    getWalletByOwner.mockResolvedValue({ balance: 100 });
 
     runtimeEqSecond.mockImplementation(() => ({
       maybeSingle: runtimeMaybeSingle,
@@ -166,7 +194,7 @@ describe("workspace deployment API", () => {
           modelName: "GPT-4.1",
           providerName: "ChatGPT Plus",
           creditsBudget: 20,
-          monthlyPriceEstimate: 20,
+          monthlyPriceEstimate: 0,
         }),
       })
     );
@@ -177,6 +205,43 @@ describe("workspace deployment API", () => {
     expect(body.deployment.endpointPath).toBe("/api/deployments/openai-gpt-4-1-abc12345");
     expect(body.deployment.providerName).toBe("AI Market Cap");
     expect(body.deployment.deploymentLabel).toBe("AI Market Cap in-site runtime");
+    expect(body.deployment.billing.requestCharge).toBe(0.06);
+    expect(body.execution.pricing.source).toBe("openrouter");
+  });
+
+  it("requires enough wallet balance before creating a paid deployment", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    getWalletByOwner.mockResolvedValue({ balance: 0 });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/workspace/deployment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "https://aimarketcap.tech",
+        },
+        body: JSON.stringify({
+          modelSlug: "openai-gpt-4-1",
+          modelName: "GPT-4.1",
+          providerName: "ChatGPT Plus",
+          creditsBudget: 20,
+          monthlyPriceEstimate: 0,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(402);
+    expect(getWalletByOwner).toHaveBeenCalledWith("user-1");
+    expect(upsert).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      code: "wallet_funding_required",
+      balance: 0,
+      required: 0.06,
+    });
   });
 
   it("rejects models without a mapped in-site runtime", async () => {

@@ -1,6 +1,8 @@
+import type { WorkspaceRuntimePricing } from "./runtime-execution";
+
 export interface WorkspaceDeploymentChargeInput {
   deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
-  monthlyPriceEstimate: number | null | undefined;
+  runtimePricing?: WorkspaceRuntimePricing | null;
 }
 
 export interface WorkspaceDeploymentBudgetSummary {
@@ -13,29 +15,41 @@ export interface WorkspaceDeploymentBudgetSummary {
 export function getWorkspaceDeploymentRequestCharge(
   input: WorkspaceDeploymentChargeInput
 ): number {
-  if (input.deploymentKind !== "managed_api") {
+  if (input.deploymentKind === "assistant_only") {
     return 0;
   }
 
-  const monthlyEstimate =
-    input.monthlyPriceEstimate != null && Number.isFinite(input.monthlyPriceEstimate)
-      ? Number(input.monthlyPriceEstimate)
-      : 20;
+  if (input.deploymentKind === "hosted_external") {
+    return 0.5;
+  }
 
-  const estimated = monthlyEstimate / 1000;
-  const rounded = Math.round(Math.max(0.02, estimated) * 100) / 100;
-  return Math.min(rounded, 1);
+  const pricing = input.runtimePricing;
+  if (!pricing) {
+    return 0.25;
+  }
+
+  const inputRate = pricing.inputPerToken ?? pricing.outputPerToken;
+  const outputRate = pricing.outputPerToken ?? pricing.inputPerToken;
+  if (inputRate === null || outputRate === null) {
+    return 0.25;
+  }
+
+  // Reserve for the route's enforced 12k input-character and 2,048 output-token limits.
+  // One token per input character is intentionally conservative for multilingual/code input.
+  const providerCost = pricing.request + inputRate * 12_000 + outputRate * 2_048;
+  const withMargin = Math.max(0.02, providerCost * 1.3);
+  return Math.ceil(withMargin * 100 - 1e-9) / 100;
 }
 
 export function getWorkspaceDeploymentBudgetSummary(input: {
   deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
-  monthlyPriceEstimate: number | null | undefined;
+  runtimePricing?: WorkspaceRuntimePricing | null;
   creditsBudget: number | null | undefined;
   totalRequests: number | null | undefined;
 }): WorkspaceDeploymentBudgetSummary {
   const requestCharge = getWorkspaceDeploymentRequestCharge({
     deploymentKind: input.deploymentKind,
-    monthlyPriceEstimate: input.monthlyPriceEstimate,
+    runtimePricing: input.runtimePricing,
   });
   const totalRequests =
     input.totalRequests != null && Number.isFinite(input.totalRequests)

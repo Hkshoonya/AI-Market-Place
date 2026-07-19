@@ -24,9 +24,11 @@ import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { cn } from "@/lib/utils";
 import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
 import { WORKSPACE_DEPLOYMENT_STARTED_EVENT } from "@/lib/workspace/session";
 import { WorkspaceStartRecommendation } from "./workspace-start-recommendation";
 import { useOptionalWorkspace } from "./workspace-provider";
+import { WalletCardTopUpButton } from "@/components/marketplace/wallet-card-top-up-button";
 
 interface WorkspaceWalletSnapshot {
   balance: number;
@@ -55,6 +57,21 @@ interface WorkspaceChatSnapshot {
 }
 
 interface WorkspaceDeploymentSnapshot {
+  execution: {
+    available: boolean;
+    mode: "native_model" | "assistant_only";
+    provider: string | null;
+    model: string | null;
+    label: string;
+    summary: string;
+    pricing?: {
+      inputPerToken: number | null;
+      outputPerToken: number | null;
+      request: number;
+      currency: "USD";
+      source: "openrouter";
+    } | null;
+  } | null;
   deployment: {
     id: string;
     runtimeId: string | null;
@@ -201,9 +218,9 @@ export function DeployWorkspacePanel() {
   const isSponsoredSession = session.sponsored === true;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
-  const deploymentExecution = session.modelSlug
-    ? resolveWorkspaceRuntimeExecution(session.modelSlug)
-    : null;
+  const deploymentExecution =
+    deploymentSnapshot?.execution ??
+    (session.modelSlug ? resolveWorkspaceRuntimeExecution(session.modelSlug) : null);
   const canCreateManagedDeployment = Boolean(provisioning?.canCreate);
   const hasManagedDeployment = Boolean(deployment);
   const isDeploymentPaused = deployment?.status === "paused";
@@ -215,6 +232,22 @@ export function DeployWorkspacePanel() {
         : deployment?.billing.budgetStatus === "exhausted"
           ? "border-red-500/20 bg-red-500/10 text-red-300"
           : "border-border/50 bg-card/40";
+  const walletBalance = walletSnapshot?.balance ?? 0;
+  const requiresSiteWallet =
+    hasManagedDeployment || canCreateManagedDeployment || Boolean(deploymentExecution?.available);
+  const provisionalDeploymentKind =
+    deployment?.deploymentKind ??
+    provisioning?.deploymentKind ??
+    (deploymentExecution?.available ? "managed_api" : "assistant_only");
+  const minimumRequestCharge =
+    deployment?.billing.requestCharge ??
+    getWorkspaceDeploymentRequestCharge({
+      deploymentKind: provisionalDeploymentKind,
+      runtimePricing: deploymentExecution?.pricing,
+    });
+  const walletReady =
+    !requiresSiteWallet ||
+    (typeof walletSnapshot?.balance === "number" && walletBalance >= minimumRequestCharge);
   const updateSuggestedAmount = (nextAmount: number | null) => {
     const nextPack = getWalletTopUpPackForAmount(nextAmount);
     workspace.updateWorkspaceSession({
@@ -223,7 +256,6 @@ export function DeployWorkspacePanel() {
       suggestedPack: nextPack?.label ?? null,
     });
   };
-  const events = session.events;
   const activeApiKeys = (apiKeysSnapshot?.keys ?? []).filter((key) => key.is_active).length;
   const chatMessages = chatSnapshot?.messages ?? [];
   const assistantUsage = chatMessages.reduce(
@@ -238,24 +270,29 @@ export function DeployWorkspacePanel() {
 
   const stepItems = [
     {
-      label: "Funding",
-      done: events.some((event) => /wallet|deposit/i.test(`${event.title} ${event.detail}`)),
-      detail: session.suggestedPack
-        ? `Use ${session.suggestedPack} if you still need balance.`
-        : "Open wallet funding only if this path still needs credits.",
-      ctaLabel: "Wallet",
+      kind: "funding" as const,
+      label: requiresSiteWallet ? "Funding" : "Provider billing",
+      done: walletReady,
+      detail: requiresSiteWallet
+        ? typeof walletSnapshot?.balance === "number"
+          ? `Available balance: $${walletBalance.toFixed(2)}. This path is $${minimumRequestCharge.toFixed(2)} per request and stops before the wallet goes negative.`
+          : "Checking your wallet balance before paid requests are enabled."
+        : "This model uses provider-side billing instead of AI Market Cap credits.",
+      ctaLabel: walletReady ? "Review wallet" : "Add credits",
       href: walletHref,
       external: false,
     },
     {
+      kind: "api" as const,
       label: "API Access",
-      done: events.some((event) => /api/i.test(`${event.title} ${event.detail}`)),
+      done: activeApiKeys > 0,
       detail: "Create account-side API keys without losing the workspace session.",
       ctaLabel: "API keys",
       href: apiHref,
       external: false,
     },
     {
+      kind: "deployment" as const,
       label: canCreateManagedDeployment ? "Start on this site" : "Use provider path",
       done: canCreateManagedDeployment ? hasManagedDeployment : false,
       detail: canCreateManagedDeployment
@@ -486,11 +523,12 @@ export function DeployWorkspacePanel() {
 
   return (
     <div
+      data-testid="workspace-floating-panel"
       className={cn(
-        "fixed z-[140]",
+        "fixed z-[140] flex flex-col",
         maximized
-          ? "left-4 right-4 bottom-4 top-20 xl:left-auto xl:right-4 xl:w-[min(42rem,calc(100vw-2rem))]"
-          : "right-4 bottom-4 w-[min(26rem,calc(100vw-2rem))]"
+          ? "left-4 right-4 bottom-4 top-20 h-[calc(100dvh-6rem)] xl:left-auto xl:right-4 xl:w-[min(42rem,calc(100vw-2rem))]"
+          : "left-4 right-4 bottom-4 h-[min(48rem,calc(100dvh-2rem))] sm:left-auto sm:w-[min(26rem,calc(100vw-2rem))]"
       )}
     >
       {maximized ? (
@@ -507,13 +545,10 @@ export function DeployWorkspacePanel() {
           Minimize workflow
         </Button>
       ) : null}
-      <Card className="border-neon/20 bg-background/95 shadow-2xl backdrop-blur">
-        <CardContent className={cn("p-0", maximized ? "flex h-full flex-col" : "")}>
+      <Card className="h-full min-h-0 gap-0 overflow-hidden border-neon/20 bg-background/95 py-0 shadow-2xl backdrop-blur">
+        <CardContent className="flex h-full min-h-0 flex-col p-0">
           <div
-            className={cn(
-              "flex items-start justify-between gap-3 border-b border-border/50 p-4",
-              maximized ? "sticky top-0 z-[1] bg-background/95 backdrop-blur" : ""
-            )}
+            className="z-[1] flex shrink-0 items-start justify-between gap-3 border-b border-border/50 bg-background/95 p-4 backdrop-blur"
           >
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -584,7 +619,10 @@ export function DeployWorkspacePanel() {
             </div>
           </div>
 
-          <div className="space-y-4 p-4">
+          <div
+            data-testid="workspace-floating-panel-scroll"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4"
+          >
             <div className="rounded-lg border border-border/50 bg-card/30 p-3">
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 Target outcome
@@ -613,7 +651,7 @@ export function DeployWorkspacePanel() {
               onValueChange={(value) =>
                 workspace.setActivePanel(value as "setup" | "assistant" | "usage")
               }
-              className={cn(maximized ? "min-h-0 flex-1" : "")}
+              className="shrink-0"
             >
               <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/40 p-1">
                 <TabsTrigger
@@ -648,7 +686,7 @@ export function DeployWorkspacePanel() {
               <TabsContent
                 forceMount
                 value="setup"
-                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+                className="space-y-4"
               >
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -754,7 +792,25 @@ export function DeployWorkspacePanel() {
                                   : "Later"}
                           </Badge>
                         </div>
-                        {item.href ? (
+                        {item.kind === "funding" && !item.done && requiresSiteWallet ? (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <WalletCardTopUpButton
+                              amount={session.suggestedAmount ?? 20}
+                              returnPath="/workspace"
+                              size="sm"
+                              className={cn(actionClassName, "bg-cyan-500 text-background hover:bg-cyan-400")}
+                              onCheckoutStarted={() =>
+                                workspace.addWorkspaceEvent(
+                                  "Card checkout started",
+                                  "Opened secure Stripe Checkout to add wallet credits."
+                                )
+                              }
+                            />
+                            <Button type="button" asChild variant="outline" size="sm" className={actionClassName}>
+                              <Link href={walletHref}>Other options</Link>
+                            </Button>
+                          </div>
+                        ) : item.href ? (
                           <div className="mt-3">
                             {item.external ? (
                               <Button type="button" asChild variant="outline" size="sm" className={actionClassName}>
@@ -966,7 +1022,7 @@ export function DeployWorkspacePanel() {
               <TabsContent
                 forceMount
                 value="assistant"
-                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+                className="space-y-4"
               >
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                   {hasManagedDeployment ? (
@@ -1108,7 +1164,7 @@ export function DeployWorkspacePanel() {
               <TabsContent
                 forceMount
                 value="usage"
-                className={cn("space-y-4", maximized ? "min-h-0 overflow-y-auto pr-1" : "")}
+                className="space-y-4"
               >
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="rounded-lg border border-border/50 bg-card/20 p-3">

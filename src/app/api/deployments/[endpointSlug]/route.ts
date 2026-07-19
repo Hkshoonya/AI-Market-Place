@@ -4,7 +4,7 @@ import { handleApiError } from "@/lib/api-error";
 import { resolveAuthUser } from "@/lib/auth/resolve-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callAgentModel } from "@/lib/agents/provider-router";
-import { resolveWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-execution";
+import { resolveAvailableWorkspaceRuntimeExecution } from "@/lib/workspace/runtime-availability";
 import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment";
 import {
   refreshHostedDeploymentStatus,
@@ -102,6 +102,10 @@ export async function GET(
       deployment as WorkspaceDeploymentRecord
     );
 
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(
+      reconciledDeployment.model_slug
+    );
+
     return NextResponse.json({
       deployment: {
         id: reconciledDeployment.id,
@@ -131,10 +135,10 @@ export async function GET(
         totalTokens: reconciledDeployment.total_tokens,
         lastUsedAt: reconciledDeployment.last_used_at,
         updatedAt: reconciledDeployment.updated_at,
-        execution: resolveWorkspaceRuntimeExecution(reconciledDeployment.model_slug),
+        execution,
         billing: getWorkspaceDeploymentBudgetSummary({
           deploymentKind: reconciledDeployment.deployment_kind,
-          monthlyPriceEstimate: reconciledDeployment.monthly_price_estimate,
+          runtimePricing: execution.pricing,
           creditsBudget: reconciledDeployment.credits_budget,
           totalRequests: reconciledDeployment.total_requests,
         }),
@@ -186,10 +190,12 @@ export async function POST(
       deployment as WorkspaceDeploymentRecord
     );
 
-    const execution = resolveWorkspaceRuntimeExecution(reconciledDeployment.model_slug);
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(
+      reconciledDeployment.model_slug
+    );
     const billing = getWorkspaceDeploymentBudgetSummary({
       deploymentKind: reconciledDeployment.deployment_kind,
-      monthlyPriceEstimate: reconciledDeployment.monthly_price_estimate,
+      runtimePricing: execution.pricing,
       creditsBudget: reconciledDeployment.credits_budget,
       totalRequests: reconciledDeployment.total_requests,
     });
@@ -220,7 +226,7 @@ export async function POST(
 
     const requestCharge = getWorkspaceDeploymentRequestCharge({
       deploymentKind: reconciledDeployment.deployment_kind,
-      monthlyPriceEstimate: reconciledDeployment.monthly_price_estimate,
+      runtimePricing: execution.pricing,
     });
 
     if (
@@ -318,7 +324,6 @@ export async function POST(
       await admin
         .from("workspace_deployments")
         .update({
-          status: "failed",
           failed_requests: (reconciledDeployment.failed_requests ?? 0) + 1,
           last_response_latency_ms: durationMs,
           last_error_at: new Date().toISOString(),
@@ -431,7 +436,7 @@ export async function POST(
         execution,
         billing: getWorkspaceDeploymentBudgetSummary({
           deploymentKind: reconciledDeployment.deployment_kind,
-          monthlyPriceEstimate: reconciledDeployment.monthly_price_estimate,
+          runtimePricing: execution.pricing,
           creditsBudget: reconciledDeployment.credits_budget,
           totalRequests: (reconciledDeployment.total_requests ?? 0) + 1,
         }),

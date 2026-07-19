@@ -9,12 +9,14 @@ import {
   getRecommendedWalletTopUpAmount,
   SUGGESTED_WALLET_TOP_UP_LABELS,
 } from "@/lib/constants/wallet";
+import { WalletCardTopUpButton } from "./wallet-card-top-up-button";
 
 interface WalletDepositPanelProps {
   walletData: WalletBalance | null;
   price: number | null;
   copiedField: string | null;
   onCopy: (text: string, field: string) => void;
+  returnPath: string;
 }
 
 export function WalletDepositPanel({
@@ -22,15 +24,17 @@ export function WalletDepositPanel({
   price,
   copiedField,
   onCopy,
+  returnPath,
 }: WalletDepositPanelProps) {
-  const recommendedAmount = getRecommendedWalletTopUpAmount(price);
+  const amountNeeded = Math.max((price ?? 0) - (walletData?.balance ?? 0), 0);
+  const recommendedAmount = getRecommendedWalletTopUpAmount(amountNeeded);
 
   return (
     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <p className="text-sm font-medium text-amber-400">Insufficient balance</p>
       <p className="text-xs text-muted-foreground">
-        Deposit USDC to one of your active chain addresses to top up your wallet. Common top-up packs are{" "}
-        {formatWalletTopUpList()}.
+        Add wallet credits by card for the fastest checkout, or deposit USDC to an active chain
+        address. Common top-up packs are {formatWalletTopUpList()}.
       </p>
       {recommendedAmount ? (
         <p className="text-xs text-amber-200">
@@ -48,6 +52,16 @@ export function WalletDepositPanel({
           </span>
         ))}
       </div>
+
+      <WalletCardTopUpButton
+        amount={amountNeeded}
+        returnPath={returnPath}
+        className="bg-neon text-background hover:bg-neon/90"
+      />
+
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        Or deposit USDC on-chain
+      </p>
 
       {walletData?.solana_deposit_address && (
         <div className="space-y-1 min-w-0">
@@ -97,8 +111,8 @@ export function WalletDepositPanel({
         </div>
       )}
 
-      <Button asChild variant="outline" size="sm" className="w-full mt-2">
-        <Link href="/wallet">Go to Wallet</Link>
+      <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+        <Link href="/wallet">View all wallet options</Link>
       </Button>
     </div>
   );
