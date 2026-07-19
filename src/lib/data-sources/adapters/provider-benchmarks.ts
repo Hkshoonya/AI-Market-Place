@@ -110,6 +110,22 @@ const PROVIDER_PAGE_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 };
+const META_PROVIDER_PAGE_HEADERS = {
+  Accept: "text/html,application/xhtml+xml",
+  "User-Agent": "AI-Market-Cap-Bot/1.0",
+};
+
+function getProviderPageHeaders(url: string) {
+  try {
+    if (new URL(url).hostname.toLowerCase() === "ai.meta.com") {
+      return META_PROVIDER_PAGE_HEADERS;
+    }
+  } catch {
+    // Invalid source URLs will fail in the fetch layer with the normal headers.
+  }
+
+  return PROVIDER_PAGE_HEADERS;
+}
 const PROVIDER_FETCH_TIMEOUT_MS = 15000;
 const PROVIDER_HEALTHCHECK_TIMEOUT_MS = 8000;
 const BENCHMARK_MODEL_PAGE_SIZE = 1000;
@@ -1935,7 +1951,7 @@ const adapter: DataSourceAdapter = {
       const response = await fetchWithRetry(
         source.url,
         {
-          headers: PROVIDER_PAGE_HEADERS,
+          headers: getProviderPageHeaders(source.url),
           signal: buildRequestSignal(ctx.signal, PROVIDER_FETCH_TIMEOUT_MS),
         },
         {
@@ -2125,7 +2141,7 @@ const adapter: DataSourceAdapter = {
           const response = await fetchWithRetry(
             source.url,
             {
-              headers: PROVIDER_PAGE_HEADERS,
+              headers: getProviderPageHeaders(source.url),
               signal: buildRequestSignal(undefined, PROVIDER_HEALTHCHECK_TIMEOUT_MS),
             },
             {
@@ -2188,6 +2204,7 @@ export const __testables = {
   buildAutoBenchmarkModelHints,
   buildModelAliasIndex,
   buildModelRelations,
+  getProviderPageHeaders,
   PROVIDER_BENCHMARK_SOURCES,
   PROVIDER_PAGE_HEADERS,
 };

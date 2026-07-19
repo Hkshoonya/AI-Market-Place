@@ -945,6 +945,22 @@ describe("provider-benchmarks helpers", () => {
     ]);
   });
 
+  it("uses Meta-compatible headers without changing other provider requests", () => {
+    expect(
+      __testables.getProviderPageHeaders(
+        "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/"
+      )
+    ).toEqual({
+      Accept: "text/html,application/xhtml+xml",
+      "User-Agent": "AI-Market-Cap-Bot/1.0",
+    });
+    expect(
+      __testables.getProviderPageHeaders(
+        "https://openai.com/index/introducing-gpt-5-4/"
+      )
+    ).toBe(__testables.PROVIDER_PAGE_HEADERS);
+  });
+
   it("skips generic provider overview pages for noisy auto benchmark sources", () => {
     const sources = __testables.buildAutoBenchmarkSources(
       [
