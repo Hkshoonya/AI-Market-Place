@@ -128,6 +128,32 @@ interface WorkspaceDeploymentSnapshot {
   } | null;
 }
 
+interface WorkspaceStepItem {
+  kind: "account" | "funding" | "api" | "deployment";
+  label: string;
+  done: boolean;
+  detail: string;
+  ctaLabel?: string;
+  href?: string;
+  external: boolean;
+  onClick?: () => void;
+}
+
+function getWorkspaceDestination(value: string | null) {
+  if (!value) return null;
+  if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) {
+    return { href: value, external: false };
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return null;
+    return { href: url.toString(), external: true };
+  } catch {
+    return null;
+  }
+}
+
 export function DeployWorkspacePanel() {
   const pathname = usePathname();
   const [noteDraft, setNoteDraft] = useState("");
@@ -143,7 +169,7 @@ export function DeployWorkspacePanel() {
     provider: string;
     model: string;
   } | null>(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const workspace = useOptionalWorkspace();
   const initialUpdatedAtRef = useRef<string | null>(workspace?.updatedAt ?? null);
   const { data: walletSnapshot } = useSWR<WorkspaceWalletSnapshot>(
@@ -160,8 +186,12 @@ export function DeployWorkspacePanel() {
       : null,
     { ...SWR_TIERS.MEDIUM }
   );
-  const { data: deploymentSnapshot, mutate: mutateDeploymentSnapshot } =
-    useSWR<WorkspaceDeploymentSnapshot>(
+  const {
+    data: deploymentSnapshot,
+    error: deploymentSnapshotError,
+    isLoading: deploymentSnapshotLoading,
+    mutate: mutateDeploymentSnapshot,
+  } = useSWR<WorkspaceDeploymentSnapshot>(
       user && workspace?.session?.modelSlug
         ? `/api/workspace/deployment?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}`
         : null,
@@ -215,6 +245,10 @@ export function DeployWorkspacePanel() {
 
   const walletHref = `/wallet?${params.toString()}#deposit-addresses`;
   const apiHref = `/settings/api-keys?${params.toString()}`;
+  const loginHref = `/login?redirect=${encodeURIComponent(pathname || "/workspace")}`;
+  const nextDestination = getWorkspaceDestination(session.nextUrl);
+  const authIsLoading = authLoading === true;
+  const signInRequired = !authIsLoading && !user;
   const isSponsoredSession = session.sponsored === true;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
@@ -223,6 +257,12 @@ export function DeployWorkspacePanel() {
     (session.modelSlug ? resolveWorkspaceRuntimeExecution(session.modelSlug) : null);
   const canCreateManagedDeployment = Boolean(provisioning?.canCreate);
   const hasManagedDeployment = Boolean(deployment);
+  const deploymentLookupPending = Boolean(
+    user &&
+      session.modelSlug &&
+      (deploymentSnapshotLoading || (!deploymentSnapshot && !deploymentSnapshotError))
+  );
+  const deploymentLookupFailed = Boolean(user && deploymentSnapshotError);
   const isDeploymentPaused = deployment?.status === "paused";
   const budgetStatusTone =
     deployment?.billing.budgetStatus === "healthy"
@@ -234,7 +274,10 @@ export function DeployWorkspacePanel() {
           : "border-border/50 bg-card/40";
   const walletBalance = walletSnapshot?.balance ?? 0;
   const requiresSiteWallet =
-    hasManagedDeployment || canCreateManagedDeployment || Boolean(deploymentExecution?.available);
+    hasManagedDeployment ||
+    canCreateManagedDeployment ||
+    deploymentLookupPending ||
+    Boolean(deploymentExecution?.available);
   const provisionalDeploymentKind =
     deployment?.deploymentKind ??
     provisioning?.deploymentKind ??
@@ -268,56 +311,195 @@ export function DeployWorkspacePanel() {
     { turns: 0, totalTokens: 0 }
   );
 
-  const stepItems = [
-    {
-      kind: "funding" as const,
-      label: requiresSiteWallet ? "Funding" : "Provider billing",
-      done: walletReady,
-      detail: requiresSiteWallet
-        ? typeof walletSnapshot?.balance === "number"
-          ? `Available balance: $${walletBalance.toFixed(2)}. This path is $${minimumRequestCharge.toFixed(2)} per request and stops before the wallet goes negative.`
-          : "Checking your wallet balance before paid requests are enabled."
-        : "This model uses provider-side billing instead of AI Market Cap credits.",
-      ctaLabel: walletReady ? "Review wallet" : "Add credits",
-      href: walletHref,
-      external: false,
-    },
-    {
-      kind: "api" as const,
-      label: "API Access",
-      done: activeApiKeys > 0,
-      detail: "Create account-side API keys without losing the workspace session.",
-      ctaLabel: "API keys",
-      href: apiHref,
-      external: false,
-    },
-    {
-      kind: "deployment" as const,
-      label: canCreateManagedDeployment ? "Start on this site" : "Use provider path",
-      done: canCreateManagedDeployment ? hasManagedDeployment : false,
-      detail: canCreateManagedDeployment
-        ? hasManagedDeployment
+  const fundingStep: WorkspaceStepItem = authIsLoading
+    ? {
+        kind: "account",
+        label: "Checking account",
+        done: false,
+        detail: "Confirming whether you already have a signed-in AI Market Cap session.",
+        external: false,
+      }
+    : signInRequired
+      ? {
+          kind: "account",
+          label: "Sign in",
+          done: false,
+          detail:
+            "Sign in before adding credits so the wallet, deployment, and usage history belong to your account.",
+          ctaLabel: "Sign in to continue",
+          href: loginHref,
+          external: false,
+        }
+      : {
+          kind: "funding",
+          label: requiresSiteWallet ? "Funding" : "Provider billing",
+          done: walletReady,
+          detail: requiresSiteWallet
+            ? typeof walletSnapshot?.balance === "number"
+              ? `Available balance: $${walletBalance.toFixed(2)}. This path is $${minimumRequestCharge.toFixed(2)} per request and stops before the wallet goes negative.`
+              : "Checking your wallet balance before paid requests are enabled."
+            : "This model uses provider-side billing instead of AI Market Cap credits.",
+          ctaLabel: walletReady ? "Review wallet" : "Add credits",
+          href: walletHref,
+          external: false,
+        };
+  const apiStep: WorkspaceStepItem = {
+    kind: "api",
+    label: "API Access",
+    done: Boolean(user) && activeApiKeys > 0,
+    detail: signInRequired
+      ? "API keys become available after you sign in."
+      : "Create account-side API keys without losing the workspace session.",
+    ctaLabel: user ? "API keys" : undefined,
+    href: user ? apiHref : undefined,
+    external: false,
+  };
+  const deploymentStep: WorkspaceStepItem = (() => {
+    if (authIsLoading) {
+      return {
+        kind: "deployment",
+        label: "Checking account",
+        done: false,
+        detail: "Launch availability will be verified after the account check finishes.",
+        external: false,
+      };
+    }
+    if (signInRequired) {
+      return {
+        kind: "deployment",
+        label: "Sign in to launch",
+        done: false,
+        detail:
+          "AI Market Cap will verify the live runtime and show the exact request price after you sign in.",
+        ctaLabel: "Sign in to continue",
+        href: loginHref,
+        external: false,
+      };
+    }
+    if (deploymentLookupPending) {
+      return {
+        kind: "deployment",
+        label: "Checking launch availability",
+        done: false,
+        detail: "Verifying the current provider route and price before enabling deployment.",
+        external: false,
+      };
+    }
+    if (deploymentLookupFailed) {
+      return {
+        kind: "deployment",
+        label: "Launch check failed",
+        done: false,
+        detail:
+          "AI Market Cap could not verify this route right now. Retry before funding or creating anything; no charge was made.",
+        ctaLabel: "Retry availability",
+        external: false,
+        onClick: () => {
+          void mutateDeploymentSnapshot();
+        },
+      };
+    }
+    if (canCreateManagedDeployment) {
+      return {
+        kind: "deployment",
+        label: "Start on this site",
+        done: hasManagedDeployment,
+        detail: hasManagedDeployment
           ? "Your saved site setup is ready. Use the AI Market Cap endpoint for requests."
           : provisioning?.summary ??
-            "Create the site-hosted setup after funding and API access are ready."
-        : provisioning?.summary ??
-          "This model does not have a mapped in-site runtime yet, so use the verified provider path instead.",
-      ctaLabel: canCreateManagedDeployment
-        ? hasManagedDeployment
-          ? "Refresh site setup"
-          : "Create site setup"
-        : session.nextUrl
+            "Create the site-hosted setup after funding and API access are ready.",
+        ctaLabel: hasManagedDeployment ? "Refresh site setup" : "Create site setup",
+        external: false,
+        onClick: createDeployment,
+      };
+    }
+
+    return {
+      kind: "deployment",
+      label: nextDestination?.external ? "Use provider path" : "Review model availability",
+      done: false,
+      detail:
+        provisioning?.summary ??
+        deploymentExecution?.summary ??
+        "A verified in-site launch is not available for this model right now.",
+      ctaLabel: nextDestination
+        ? nextDestination.external
           ? "Open provider"
-          : undefined,
-      href: canCreateManagedDeployment ? undefined : session.nextUrl ?? undefined,
-      external: !canCreateManagedDeployment,
-      onClick: canCreateManagedDeployment ? createDeployment : undefined,
-    },
-  ];
+          : "Review model details"
+        : undefined,
+      href: nextDestination?.href,
+      external: nextDestination?.external ?? false,
+    };
+  })();
+  const stepItems: WorkspaceStepItem[] = [fundingStep, apiStep, deploymentStep];
   const nextStepIndex = stepItems.findIndex((item) => !item.done);
+  const deploymentStatusLabel = hasManagedDeployment
+    ? deployment?.deploymentLabel ?? "Site-hosted model setup"
+    : authIsLoading
+      ? "Checking your account"
+      : signInRequired
+        ? "Sign in to create this setup"
+        : deploymentLookupPending
+          ? "Checking live availability"
+          : deploymentLookupFailed
+            ? "Availability check failed"
+            : canCreateManagedDeployment
+              ? "Not created yet"
+              : "No verified in-site route right now";
+  const deploymentStatusSummary = hasManagedDeployment
+    ? "This is your saved AI Market Cap setup for running this model here with budget and usage tracking."
+    : authIsLoading
+      ? "Waiting for the account check before showing wallet and deployment actions."
+      : signInRequired
+        ? "Sign in first. AI Market Cap will then re-check the live runtime and its server-owned request price before anything can be funded or created."
+        : deploymentLookupPending
+          ? "Verifying the current provider route and price. No deployment or charge is created during this check."
+          : deploymentLookupFailed
+            ? "AI Market Cap could not verify the current route. Retry the availability check; no deployment or charge was created."
+            : canCreateManagedDeployment
+              ? "Create a site-hosted setup to get a stable endpoint, usage tracking, and budget controls."
+              : provisioning?.summary ??
+                deploymentExecution?.summary ??
+                "A verified in-site launch is not available for this model right now.";
+  const deploymentNotice = hasManagedDeployment || canCreateManagedDeployment
+    ? null
+    : authIsLoading
+      ? {
+          title: "Checking account",
+          detail: "Launch and assistant actions will unlock after the account check finishes.",
+          tone: "border-cyan-500/20 bg-cyan-500/10 text-cyan-100/80",
+        }
+      : signInRequired
+        ? {
+            title: "Sign in to continue",
+            detail:
+              "Your wallet, API keys, deployment, paid requests, and assistant history must belong to a signed-in account.",
+            tone: "border-cyan-500/20 bg-cyan-500/10 text-cyan-100/80",
+          }
+        : deploymentLookupPending
+          ? {
+              title: "Checking live availability",
+              detail: "AI Market Cap is verifying the runtime before enabling paid actions.",
+              tone: "border-cyan-500/20 bg-cyan-500/10 text-cyan-100/80",
+            }
+          : deploymentLookupFailed
+            ? {
+                title: "Availability check failed",
+                detail:
+                  "Retry the launch check from Setup. Paid deployment actions remain disabled until verification succeeds.",
+                tone: "border-amber-500/20 bg-amber-500/10 text-amber-100/80",
+              }
+            : {
+                title: "No verified in-site route right now",
+                detail:
+                  provisioning?.summary ??
+                  deploymentExecution?.summary ??
+                  "Use the model details page until a verified runtime is available.",
+                tone: "border-amber-500/20 bg-amber-500/10 text-amber-100/80",
+              };
 
   const canAddNote = noteDraft.trim().length > 0;
-  const canSendAssistant = assistantDraft.trim().length > 0 && !assistantLoading;
+  const canSendAssistant = Boolean(user) && assistantDraft.trim().length > 0 && !assistantLoading;
 
   const saveNote = () => {
     const trimmed = noteDraft.trim();
@@ -328,7 +510,7 @@ export function DeployWorkspacePanel() {
 
   const askAssistant = async () => {
     const trimmed = assistantDraft.trim();
-    if (!trimmed || assistantLoading) return;
+    if (!user || !trimmed || assistantLoading) return;
 
     workspace.addWorkspaceEvent("Workspace question", trimmed, "user");
     setAssistantLoading(true);
@@ -866,58 +1048,81 @@ export function DeployWorkspacePanel() {
                       View Deployments
                     </Link>
                   </Button>
-                  <Button asChild className="bg-neon text-background hover:bg-neon/90">
-                    <Link href={walletHref}>
-                      <Wallet className="h-4 w-4" />
-                      Wallet
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href={apiHref}>
-                      <KeyRound className="h-4 w-4" />
-                      API Keys
-                    </Link>
-                  </Button>
-                  {canCreateManagedDeployment ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="sm:col-span-2"
-                      onClick={createDeployment}
-                      disabled={deploymentLoading}
-                    >
-                      {deploymentLoading
-                        ? "Creating..."
-                        : hasManagedDeployment
-                          ? "Refresh Site Setup"
-                          : "Start on This Site"}
+                  {authIsLoading ? (
+                    <Button type="button" disabled className="sm:col-span-2">
+                      Checking account...
                     </Button>
-                  ) : null}
-                  {hasManagedDeployment ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="sm:col-span-2"
-                      onClick={() => updateDeployment(isDeploymentPaused ? "resume" : "pause")}
-                      disabled={deploymentLoading}
-                    >
-                      {deploymentLoading
-                        ? "Updating..."
-                        : isDeploymentPaused
-                          ? "Resume Deployment"
-                          : "Pause Deployment"}
+                  ) : signInRequired ? (
+                    <Button asChild className="bg-neon text-background hover:bg-neon/90 sm:col-span-2">
+                      <Link href={loginHref}>Sign in to Continue</Link>
                     </Button>
-                  ) : null}
-                  {session.nextUrl ? (
+                  ) : (
+                    <>
+                      <Button asChild className="bg-neon text-background hover:bg-neon/90">
+                        <Link href={walletHref}>
+                          <Wallet className="h-4 w-4" />
+                          Wallet
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href={apiHref}>
+                          <KeyRound className="h-4 w-4" />
+                          API Keys
+                        </Link>
+                      </Button>
+                      {canCreateManagedDeployment ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="sm:col-span-2"
+                          onClick={createDeployment}
+                          disabled={deploymentLoading}
+                        >
+                          {deploymentLoading
+                            ? "Creating..."
+                            : hasManagedDeployment
+                              ? "Refresh Site Setup"
+                              : "Start on This Site"}
+                        </Button>
+                      ) : null}
+                      {hasManagedDeployment ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="sm:col-span-2"
+                          onClick={() => updateDeployment(isDeploymentPaused ? "resume" : "pause")}
+                          disabled={deploymentLoading}
+                        >
+                          {deploymentLoading
+                            ? "Updating..."
+                            : isDeploymentPaused
+                              ? "Resume Deployment"
+                              : "Pause Deployment"}
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                  {nextDestination ? (
                     <Button asChild variant="outline" className="sm:col-span-2">
-                      <a
-                        href={session.nextUrl}
-                        target="_blank"
-                        rel={isSponsoredSession ? "noopener noreferrer sponsored nofollow" : "noopener noreferrer"}
-                      >
-                        <ArrowUpRight className="h-4 w-4" />
-                        Continue to Provider
-                      </a>
+                      {nextDestination.external ? (
+                        <a
+                          href={nextDestination.href}
+                          target="_blank"
+                          rel={
+                            isSponsoredSession
+                              ? "noopener noreferrer sponsored nofollow"
+                              : "noopener noreferrer"
+                          }
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                          Continue to Provider
+                        </a>
+                      ) : (
+                        <Link href={nextDestination.href}>
+                          <ArrowUpRight className="h-4 w-4" />
+                          Review Model Details
+                        </Link>
+                      )}
                     </Button>
                   ) : null}
                 </div>
@@ -928,19 +1133,10 @@ export function DeployWorkspacePanel() {
                       Deployment
                     </p>
                     <p className="mt-1 text-sm font-medium text-white">
-                      {hasManagedDeployment
-                        ? deployment?.deploymentLabel ?? "Site-hosted model setup"
-                        : canCreateManagedDeployment
-                          ? "Not created yet"
-                          : "Run on this site not available"}
+                      {deploymentStatusLabel}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {hasManagedDeployment
-                        ? "This is your saved AI Market Cap setup for running this model here with budget and usage tracking."
-                        : canCreateManagedDeployment
-                          ? "Create a site-hosted setup to get a stable endpoint, usage tracking, and budget controls."
-                          : deploymentExecution?.summary ??
-                            "Use the verified provider path until a direct in-site runtime is mapped."}
+                      {deploymentStatusSummary}
                     </p>
                     {hasManagedDeployment && deployment?.endpointPath ? (
                       <code className="mt-2 block text-[11px] text-foreground">
@@ -1070,14 +1266,17 @@ export function DeployWorkspacePanel() {
                       ) : null}
                     </div>
                   ) : null}
-                  {!canCreateManagedDeployment ? (
-                    <div className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">
-                        Run on this site is unavailable
+                  {deploymentNotice ? (
+                    <div className={cn("mb-3 rounded-md border px-3 py-2", deploymentNotice.tone)}>
+                      <p className="text-[11px] uppercase tracking-[0.14em]">
+                        {deploymentNotice.title}
                       </p>
-                      <p className="mt-1 text-xs text-amber-100/80">
-                        {deploymentExecution?.summary}
-                      </p>
+                      <p className="mt-1 text-xs">{deploymentNotice.detail}</p>
+                      {signInRequired ? (
+                        <Button asChild size="sm" className="mt-3 bg-cyan-500 text-background hover:bg-cyan-400">
+                          <Link href={loginHref}>Sign in to use Workspace</Link>
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null}
                   <div className="mb-2 flex items-center gap-2">
@@ -1091,6 +1290,7 @@ export function DeployWorkspacePanel() {
                     <textarea
                       value={assistantDraft}
                       onChange={(event) => setAssistantDraft(event.target.value)}
+                      disabled={!user}
                       rows={maximized ? 4 : 3}
                       placeholder="Example: What should I do first to start using this model here?"
                       className="w-full resize-none rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-neon/30"

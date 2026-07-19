@@ -75,6 +75,7 @@ describe("DeployWorkspacePanel", () => {
     mockPathname = "/deploy";
     mockUseAuth.mockReturnValue({
       user: { id: "user_123" },
+      loading: false,
     });
 
     mockUseSWR.mockImplementation((key: string | null) => {
@@ -172,6 +173,33 @@ describe("DeployWorkspacePanel", () => {
     await user.click(screen.getByRole("button", { name: /Hide workflow guide/i }));
 
     expect(screen.getByRole("button", { name: /Show workflow guide/i })).toBeInTheDocument();
+  });
+
+  it("requires sign-in before showing paid actions without claiming the runtime is unavailable", () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false });
+    mockUseOptionalWorkspace.mockReturnValue(
+      createWorkspaceValue({
+        session: {
+          ...createWorkspaceValue().session,
+          model: "GPT-5.5",
+          modelSlug: "openai-gpt-5-5",
+          nextUrl: "/models/openai-gpt-5-5?tab=deploy#model-tabs",
+        },
+      })
+    );
+
+    render(<DeployWorkspacePanel />);
+
+    const signInLinks = screen.getAllByRole("link", { name: /sign in/i });
+    expect(signInLinks.length).toBeGreaterThan(0);
+    expect(signInLinks[0]).toHaveAttribute("href", "/login?redirect=%2Fdeploy");
+    expect(screen.getByText("Sign in to create this setup")).toBeInTheDocument();
+    expect(screen.queryByText("Run on this site not available")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add \$20 by card/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review Model Details" })).toHaveAttribute(
+      "href",
+      "/models/openai-gpt-5-5?tab=deploy#model-tabs"
+    );
   });
 
   it("bounds the restored panel to the visual viewport and scrolls only its body", () => {
