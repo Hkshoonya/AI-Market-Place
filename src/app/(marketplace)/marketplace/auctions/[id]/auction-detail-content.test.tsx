@@ -144,7 +144,12 @@ describe("AuctionDetailContent", () => {
 
     expect(screen.getByText(/needs funding/i)).toBeInTheDocument();
     expect(screen.getByText(/insufficient balance/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add \$100 by card/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /card funding coming later/i })
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /add \$100 by card/i })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /view all wallet options/i })).toBeInTheDocument();
   });
 });

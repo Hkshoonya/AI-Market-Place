@@ -514,7 +514,12 @@ describe("WorkspaceContent", () => {
     expect(screen.getByText("Step 1")).toBeInTheDocument();
     expect(screen.getByText("Step 2")).toBeInTheDocument();
     expect(screen.getByText("Step 3")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add \$20 by card/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Card funding coming later/i })
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /Add \$20 by card/i })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Other funding options/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open API keys/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Create site setup/i })).toBeInTheDocument();
