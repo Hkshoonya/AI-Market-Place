@@ -19,6 +19,13 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getWalletTopUpPackForAmount } from "@/lib/constants/wallet";
 import { SWR_TIERS } from "@/lib/swr/config";
@@ -57,6 +64,13 @@ interface WorkspaceChatSnapshot {
 }
 
 interface WorkspaceDeploymentSnapshot {
+  connections: Array<{
+    id: string;
+    provider: "openrouter" | "replicate" | "huggingface";
+    displayName: string;
+    externalAccountName: string | null;
+    status: "active" | "invalid" | "revoked";
+  }>;
   execution: {
     available: boolean;
     mode: "native_model" | "assistant_only";
@@ -81,8 +95,14 @@ interface WorkspaceDeploymentSnapshot {
     status: "provisioning" | "ready" | "paused" | "failed";
     endpointSlug: string;
     endpointPath: string;
-    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+    deploymentKind:
+      | "managed_api"
+      | "assistant_only"
+      | "hosted_external"
+      | "connected_inference";
     deploymentLabel: string | null;
+    providerConnectionId: string | null;
+    billingSource: "platform_wallet" | "provider_account";
     target: {
       platformSlug: string;
       provider: string;
@@ -114,7 +134,11 @@ interface WorkspaceDeploymentSnapshot {
   } | null;
   provisioning: {
     canCreate: boolean;
-    deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+    deploymentKind:
+      | "managed_api"
+      | "assistant_only"
+      | "hosted_external"
+      | "connected_inference";
     label: string;
     summary: string;
     target: {
@@ -163,6 +187,8 @@ export function DeployWorkspacePanel() {
   const [deploymentLoading, setDeploymentLoading] = useState(false);
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [runtimeDraft, setRuntimeDraft] = useState("");
+  const [selectedProviderConnectionId, setSelectedProviderConnectionId] =
+    useState("platform");
   const [workflowGuideCollapsed, setWorkflowGuideCollapsed] = useState(false);
   const [runtimeResponse, setRuntimeResponse] = useState<{
     content: string;
@@ -193,10 +219,25 @@ export function DeployWorkspacePanel() {
     mutate: mutateDeploymentSnapshot,
   } = useSWR<WorkspaceDeploymentSnapshot>(
       user && workspace?.session?.modelSlug
-        ? `/api/workspace/deployment?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}`
+        ? `/api/workspace/deployment?modelSlug=${encodeURIComponent(workspace.session.modelSlug)}${
+            selectedProviderConnectionId === "platform"
+              ? ""
+              : `&providerConnectionId=${encodeURIComponent(selectedProviderConnectionId)}`
+          }`
         : null,
       { ...SWR_TIERS.MEDIUM }
     );
+
+  useEffect(() => {
+    setSelectedProviderConnectionId("platform");
+  }, [workspace?.session?.modelSlug]);
+
+  useEffect(() => {
+    if (!deploymentSnapshot?.deployment) return;
+    setSelectedProviderConnectionId(
+      deploymentSnapshot.deployment.providerConnectionId ?? "platform"
+    );
+  }, [deploymentSnapshot?.deployment]);
 
   useEffect(() => {
     if (!user || !workspace?.session?.modelSlug) {
@@ -252,6 +293,16 @@ export function DeployWorkspacePanel() {
   const isSponsoredSession = session.sponsored === true;
   const deployment = deploymentSnapshot?.deployment ?? null;
   const provisioning = deploymentSnapshot?.provisioning ?? null;
+  const providerConnections = (deploymentSnapshot?.connections ?? []).filter(
+    (connection) => connection.status === "active"
+  );
+  const selectedProviderConnection =
+    providerConnections.find(
+      (connection) => connection.id === selectedProviderConnectionId
+    ) ?? null;
+  const billingSource: "platform_wallet" | "provider_account" =
+    deployment?.billingSource ??
+    (selectedProviderConnection ? "provider_account" : "platform_wallet");
   const deploymentExecution =
     deploymentSnapshot?.execution ??
     (session.modelSlug ? resolveWorkspaceRuntimeExecution(session.modelSlug) : null);
@@ -274,10 +325,11 @@ export function DeployWorkspacePanel() {
           : "border-border/50 bg-card/40";
   const walletBalance = walletSnapshot?.balance ?? 0;
   const requiresSiteWallet =
-    hasManagedDeployment ||
-    canCreateManagedDeployment ||
-    deploymentLookupPending ||
-    Boolean(deploymentExecution?.available);
+    billingSource === "platform_wallet" &&
+    (hasManagedDeployment ||
+      canCreateManagedDeployment ||
+      deploymentLookupPending ||
+      Boolean(deploymentExecution?.available));
   const provisionalDeploymentKind =
     deployment?.deploymentKind ??
     provisioning?.deploymentKind ??
@@ -286,6 +338,7 @@ export function DeployWorkspacePanel() {
     deployment?.billing.requestCharge ??
     getWorkspaceDeploymentRequestCharge({
       deploymentKind: provisionalDeploymentKind,
+      billingSource,
       runtimePricing: deploymentExecution?.pricing,
     });
   const walletReady =
@@ -339,8 +392,8 @@ export function DeployWorkspacePanel() {
               ? `Available balance: $${walletBalance.toFixed(2)}. This path is $${minimumRequestCharge.toFixed(2)} per request and stops before the wallet goes negative.`
               : "Checking your wallet balance before paid requests are enabled."
             : "This model uses provider-side billing instead of AI Market Cap credits.",
-          ctaLabel: walletReady ? "Review wallet" : "Add credits",
-          href: walletHref,
+          ctaLabel: requiresSiteWallet ? (walletReady ? "Review wallet" : "Add credits") : "Manage providers",
+          href: requiresSiteWallet ? walletHref : "/settings/providers",
           external: false,
         };
   const apiStep: WorkspaceStepItem = {
@@ -588,6 +641,10 @@ export function DeployWorkspacePanel() {
           conversationId: activeSession.conversationId,
           creditsBudget: activeSession.suggestedAmount,
           monthlyPriceEstimate: activeSession.suggestedAmount,
+          providerConnectionId:
+            selectedProviderConnectionId === "platform"
+              ? null
+              : selectedProviderConnectionId,
         }),
       });
 
@@ -818,15 +875,22 @@ export function DeployWorkspacePanel() {
               </div>
             </div>
 
-            <WorkspaceStartRecommendation
-              action={session.action}
-              provider={session.provider}
-              suggestedAmount={session.suggestedAmount}
-              suggestedPack={session.suggestedPack}
-              suggestedPackSlug={session.suggestedPackSlug}
-              onSuggestedAmountChange={updateSuggestedAmount}
-              compact
-            />
+            {selectedProviderConnection ? (
+              <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-cyan-100/80">
+                {selectedProviderConnection.displayName} bills usage directly. Set a provider-side
+                spending limit before production traffic.
+              </div>
+            ) : (
+              <WorkspaceStartRecommendation
+                action={session.action}
+                provider={session.provider}
+                suggestedAmount={session.suggestedAmount}
+                suggestedPack={session.suggestedPack}
+                suggestedPackSlug={session.suggestedPackSlug}
+                onSuggestedAmountChange={updateSuggestedAmount}
+                compact
+              />
+            )}
 
             <Tabs
               value={activePanel}
@@ -906,6 +970,46 @@ export function DeployWorkspacePanel() {
                       <Badge className="bg-amber-500/10 text-amber-100">Provider step</Badge>
                     </div>
                   ) : null}
+                </div>
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-white">Runtime and billing account</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Choose platform credits or a provider account you already pay for.
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/settings/providers">Manage</Link>
+                    </Button>
+                  </div>
+                  <Select
+                    value={selectedProviderConnectionId}
+                    onValueChange={(value) => {
+                      setDeploymentError(null);
+                      setSelectedProviderConnectionId(value);
+                    }}
+                    disabled={hasManagedDeployment || deploymentLoading}
+                  >
+                    <SelectTrigger className="mt-3 w-full bg-background/70">
+                      <SelectValue placeholder="Choose billing account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platform">AI Market Cap wallet credits</SelectItem>
+                      {providerConnections.map((connection) => (
+                        <SelectItem key={connection.id} value={connection.id}>
+                          {connection.displayName} ({connection.externalAccountName ?? connection.provider})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {hasManagedDeployment
+                      ? "Remove the current deployment before changing its billing account."
+                      : selectedProviderConnection
+                        ? "Provider usage is billed by the connected provider; AI Market Cap wallet request charges are disabled for this deployment."
+                        : "The managed route uses AI Market Cap wallet credits."}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border/50 bg-card/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
@@ -1150,7 +1254,9 @@ export function DeployWorkspacePanel() {
                             Per request
                           </p>
                           <p className="mt-1 text-xs font-medium text-white">
-                            ${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}
+                            {deployment?.billingSource === "provider_account"
+                              ? "$0.00 AIMC"
+                              : `$${deployment?.billing.requestCharge.toFixed(2) ?? "0.00"}`}
                           </p>
                         </div>
                         <div className="rounded-md border border-border/40 bg-card/30 px-3 py-2">

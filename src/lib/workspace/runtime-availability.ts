@@ -42,7 +42,40 @@ function parseOpenRouterPricing(value: unknown): WorkspaceRuntimePricing | null 
   };
 }
 
-async function loadOpenRouterModels() {
+async function fetchOpenRouterModels(apiKey: string) {
+  const response = await fetch(OPENROUTER_MODELS_URL, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://aimarketcap.tech",
+      "X-Title": "AI Market Cap",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | { data?: Array<{ id?: unknown; pricing?: unknown }> }
+    | null;
+
+  if (!response.ok || !Array.isArray(payload?.data)) {
+    throw new Error(`OpenRouter model catalog returned HTTP ${response.status}`);
+  }
+
+  const models = new Map<string, { pricing: WorkspaceRuntimePricing | null }>();
+  for (const item of payload.data) {
+    if (typeof item.id !== "string" || !item.id) continue;
+    models.set(item.id, { pricing: parseOpenRouterPricing(item.pricing) });
+  }
+
+  return models;
+}
+
+async function loadOpenRouterModels(explicitApiKey?: string) {
+  const userApiKey = explicitApiKey?.trim();
+  if (userApiKey) {
+    // Provider catalogs can differ by account. Never share a user-key result.
+    return fetchOpenRouterModels(userApiKey);
+  }
+
   const now = Date.now();
   if (openRouterCatalogCache && openRouterCatalogCache.expiresAt > now) {
     return openRouterCatalogCache.models;
@@ -52,34 +85,13 @@ async function loadOpenRouterModels() {
     return openRouterCatalogRequest;
   }
 
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OpenRouter is not configured");
+  }
+
   openRouterCatalogRequest = (async () => {
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error("OpenRouter is not configured");
-    }
-
-    const response = await fetch(OPENROUTER_MODELS_URL, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://aimarketcap.tech",
-        "X-Title": "AI Market Cap",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    const payload = (await response.json().catch(() => null)) as
-      | { data?: Array<{ id?: unknown; pricing?: unknown }> }
-      | null;
-
-    if (!response.ok || !Array.isArray(payload?.data)) {
-      throw new Error(`OpenRouter model catalog returned HTTP ${response.status}`);
-    }
-
-    const models = new Map<string, { pricing: WorkspaceRuntimePricing | null }>();
-    for (const item of payload.data) {
-      if (typeof item.id !== "string" || !item.id) continue;
-      models.set(item.id, { pricing: parseOpenRouterPricing(item.pricing) });
-    }
+    const models = await fetchOpenRouterModels(apiKey);
     openRouterCatalogCache = {
       expiresAt: Date.now() + CATALOG_TTL_MS,
       models,
@@ -111,7 +123,8 @@ function unavailableExecution(
 }
 
 export async function resolveAvailableWorkspaceRuntimeExecution(
-  modelSlug: string
+  modelSlug: string,
+  options?: { openRouterApiKey?: string }
 ): Promise<WorkspaceRuntimeExecution> {
   const candidate = resolveWorkspaceRuntimeExecution(modelSlug);
   if (!candidate.available || candidate.provider !== "openrouter" || !candidate.model) {
@@ -119,7 +132,7 @@ export async function resolveAvailableWorkspaceRuntimeExecution(
   }
 
   try {
-    const models = await loadOpenRouterModels();
+    const models = await loadOpenRouterModels(options?.openRouterApiKey);
     const liveModel = models.get(candidate.model);
     if (liveModel) {
       return { ...candidate, pricing: liveModel.pricing };

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CreditCard, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowRight, CreditCard, Database, Gauge, ShieldCheck, Wallet } from "lucide-react";
 
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 export const metadata: Metadata = {
   title: `Pricing & Access | ${SITE_NAME}`,
   description:
-    "Compare verified subscription access and platform plans for top AI models.",
+    "Compare AI Market Cap data API plans and verified subscription access for top AI models.",
   alternates: {
     canonical: `${SITE_URL}/pricing`,
   },
@@ -28,6 +28,42 @@ export const metadata: Metadata = {
 function sumCoveredModels(offers: RankedAccessOffer[]) {
   return offers.reduce((total, offer) => total + offer.modelCount, 0);
 }
+
+const DATA_API_PLANS = [
+  {
+    name: "Explorer",
+    price: "$0",
+    requests: "2,500 requests / month",
+    rate: "30 requests / minute",
+    history: "30 days of model history",
+    pageSize: "Up to 100 models per page",
+    cta: "Create a data key",
+    href: "/settings/api-keys",
+    featured: false,
+  },
+  {
+    name: "Data Pro",
+    price: "$49",
+    requests: "100,000 requests / month",
+    rate: "300 requests / minute",
+    history: "One year of model history",
+    pageSize: "Up to 500 models per page",
+    cta: "Request Pro pilot",
+    href: "/contact?category=partnership&subject=Data%20Pro%20pilot",
+    featured: true,
+  },
+  {
+    name: "Data Business",
+    price: "$199",
+    requests: "1,000,000 requests / month",
+    rate: "1,000 requests / minute",
+    history: "One year of model history",
+    pageSize: "Up to 1,000 models per page",
+    cta: "Request Business pilot",
+    href: "/contact?category=partnership&subject=Data%20Business%20pilot",
+    featured: false,
+  },
+] as const;
 
 export default async function PricingPage() {
   const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
@@ -112,6 +148,68 @@ export default async function PricingPage() {
           <Button variant="outline" asChild>
             <Link href="/api-docs">Use the API instead</Link>
           </Button>
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neon">
+              First-party data API
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold md:text-3xl">
+              Build with rankings, model records, search, and history
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Every plan uses scoped API keys, monthly quotas, and per-minute controls. Pro and
+              Business are pilot grants for now; online checkout is intentionally disabled until
+              the correct AI Market Cap payment account is connected.
+            </p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/api-docs">Read API documentation</Link>
+          </Button>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {DATA_API_PLANS.map((plan) => (
+            <Card
+              key={plan.name}
+              className={
+                plan.featured
+                  ? "relative overflow-hidden border-neon/40 bg-gradient-to-b from-neon/10 to-card"
+                  : "border-border/50 bg-card"
+              }
+            >
+              {plan.featured ? (
+                <div className="absolute right-0 top-0 rounded-bl-xl bg-neon px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-background">
+                  Production pilot
+                </div>
+              ) : null}
+              <CardHeader>
+                <CardTitle className="text-xl">{plan.name}</CardTitle>
+                <div className="flex items-end gap-1">
+                  <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+                  <span className="pb-1 text-sm text-muted-foreground">/ month</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p className="flex items-center gap-2"><Database className="h-4 w-4 text-neon" />{plan.requests}</p>
+                  <p className="flex items-center gap-2"><Gauge className="h-4 w-4 text-neon" />{plan.rate}</p>
+                  <p>{plan.history}</p>
+                  <p>{plan.pageSize}</p>
+                </div>
+                <Button
+                  className={plan.featured ? "w-full bg-neon text-background hover:bg-neon/90" : "w-full"}
+                  variant={plan.featured ? "default" : "outline"}
+                  asChild
+                >
+                  <Link href={plan.href}>{plan.cta}<ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 

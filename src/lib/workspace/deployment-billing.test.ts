@@ -44,6 +44,24 @@ describe("getWorkspaceDeploymentRequestCharge", () => {
       })
     ).toBe(0.5);
   });
+
+  it("does not add a wallet charge to provider-billed deployments", () => {
+    expect(
+      getWorkspaceDeploymentRequestCharge({
+        deploymentKind: "hosted_external",
+        billingSource: "provider_account",
+      })
+    ).toBe(0);
+  });
+
+  it("uses the connected-inference platform rate when the site provides access", () => {
+    expect(
+      getWorkspaceDeploymentRequestCharge({
+        deploymentKind: "connected_inference",
+        billingSource: "platform_wallet",
+      })
+    ).toBe(0.25);
+  });
 });
 
 describe("getWorkspaceDeploymentBudgetSummary", () => {

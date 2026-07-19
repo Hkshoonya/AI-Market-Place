@@ -136,4 +136,29 @@ describe("callAgentModel", () => {
       })
     ).rejects.toThrow(/No agent model providers are configured/i);
   });
+
+  it("does not fall back to platform credentials when an explicit key fails", async () => {
+    process.env.DEEPSEEK_API_KEY = "platform-deepseek-key";
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { message: "user key rejected" } }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    const { callAgentModel } = await import("./provider-router");
+
+    await expect(
+      callAgentModel({
+        prompt: "Say hello.",
+        preferredProviders: ["openrouter"],
+        apiKeys: { openrouter: "user-openrouter-key" },
+      })
+    ).rejects.toThrow(/All agent model providers failed/i);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const request = vi.mocked(fetch).mock.calls[0];
+    expect(new Headers(request?.[1]?.headers).get("authorization")).toBe(
+      "Bearer user-openrouter-key"
+    );
+  });
 });

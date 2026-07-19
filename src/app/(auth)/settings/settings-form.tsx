@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Key, Settings, User } from "lucide-react";
+import { ArrowLeft, Key, Plug, Settings, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/components/auth/auth-provider";
 import { AccountInfoCard } from "./_components/account-info-card";
@@ -61,6 +61,13 @@ export default function SettingsForm() {
 
       {/* Quick links */}
       <div className="flex flex-wrap gap-3 mb-6">
+        <Link
+          href="/settings/providers"
+          className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-3 text-sm font-medium hover:bg-secondary/50 transition-colors"
+        >
+          <Plug className="h-4 w-4 text-neon" />
+          Provider Connections
+        </Link>
         <Link
           href="/settings/api-keys"
           className="flex items-center gap-2 rounded-lg border border-border/50 bg-card px-4 py-3 text-sm font-medium hover:bg-secondary/50 transition-colors"

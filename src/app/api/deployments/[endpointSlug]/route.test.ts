@@ -17,6 +17,7 @@ const getWalletByOwner = vi.fn();
 const debitWallet = vi.fn();
 const creditWallet = vi.fn();
 const resolveAvailableWorkspaceRuntimeExecution = vi.fn();
+const getProviderConnectionSecret = vi.fn();
 
 vi.mock("@/lib/auth/resolve-user", () => ({
   resolveAuthUser: (...args: unknown[]) => resolveAuthUser(...args),
@@ -47,8 +48,15 @@ vi.mock("@/lib/payments/wallet", () => ({
 }));
 
 vi.mock("@/lib/workspace/runtime-availability", () => ({
-  resolveAvailableWorkspaceRuntimeExecution: (modelSlug: string) =>
-    resolveAvailableWorkspaceRuntimeExecution(modelSlug),
+  resolveAvailableWorkspaceRuntimeExecution: (
+    modelSlug: string,
+    options?: Record<string, unknown>
+  ) => resolveAvailableWorkspaceRuntimeExecution(modelSlug, options),
+}));
+
+vi.mock("@/lib/provider-connections/server", () => ({
+  getProviderConnectionSecret: (...args: unknown[]) =>
+    getProviderConnectionSecret(...args),
 }));
 
 describe("POST /api/deployments/[endpointSlug]", () => {
@@ -190,6 +198,91 @@ describe("POST /api/deployments/[endpointSlug]", () => {
       "api_charge",
       expect.objectContaining({ referenceId: "deployment-1" })
     );
+  });
+
+  it("uses only the owner's connected OpenRouter key without wallet billing", async () => {
+    resolveAuthUser.mockResolvedValue({
+      userId: "user-1",
+      authMethod: "api_key",
+      apiKeyId: "key-1",
+      apiKeyScopes: ["agent"],
+    });
+    getProviderConnectionSecret.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      provider: "openrouter",
+      secret: "user-openrouter-key",
+    });
+    deploymentSingle.mockResolvedValueOnce({
+      data: {
+        id: "deployment-1",
+        runtime_id: null,
+        model_slug: "openai-gpt-4-1",
+        model_name: "GPT-4.1",
+        provider_name: "OpenAI",
+        status: "ready",
+        endpoint_slug: "openai-gpt-4-1-abc12345",
+        deployment_kind: "managed_api",
+        deployment_label: "Connected OpenRouter runtime",
+        provider_connection_id: "11111111-1111-4111-8111-111111111111",
+        billing_source: "provider_account",
+        external_platform_slug: null,
+        external_provider: null,
+        external_owner: null,
+        external_name: null,
+        external_model_ref: null,
+        external_web_url: null,
+        credits_budget: null,
+        monthly_price_estimate: null,
+        total_requests: 0,
+        successful_requests: 0,
+        failed_requests: 0,
+        total_tokens: 0,
+        avg_response_latency_ms: null,
+        last_response_latency_ms: null,
+        last_used_at: null,
+        last_success_at: null,
+        last_error_at: null,
+        last_error_message: null,
+        updated_at: "2026-07-19T12:00:00.000Z",
+      },
+      error: null,
+    });
+    callAgentModel.mockResolvedValue({
+      content: "Connected account response",
+      provider: "openrouter",
+      model: "openai/gpt-4.1",
+      usage: { totalTokens: 10, inputTokens: 4, outputTokens: 6 },
+      raw: {},
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("https://aimarketcap.tech/api/deployments/openai-gpt-4-1-abc12345", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Hello" }),
+      }) as never,
+      { params: Promise.resolve({ endpointSlug: "openai-gpt-4-1-abc12345" }) }
+    );
+
+    expect(response.status).toBe(200);
+    expect(getProviderConnectionSecret).toHaveBeenCalledWith({
+      connectionId: "11111111-1111-4111-8111-111111111111",
+      userId: "user-1",
+      expectedProvider: "openrouter",
+    });
+    expect(resolveAvailableWorkspaceRuntimeExecution).toHaveBeenCalledWith(
+      "openai-gpt-4-1",
+      { openRouterApiKey: "user-openrouter-key" }
+    );
+    expect(callAgentModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preferredProviders: ["openrouter"],
+        apiKeys: { openrouter: "user-openrouter-key" },
+      })
+    );
+    expect(getWalletByOwner).not.toHaveBeenCalled();
+    expect(debitWallet).not.toHaveBeenCalled();
   });
 
   it("refunds the server-derived charge when provider execution fails", async () => {
@@ -388,8 +481,10 @@ describe("POST /api/deployments/[endpointSlug]", () => {
         provider_name: "Qwen",
         status: "ready",
         endpoint_slug: "qwen-qwen2-5-7b-instruct-abc12345",
-        deployment_kind: "hosted_external",
+        deployment_kind: "connected_inference",
         deployment_label: "Hugging Face hosted inference",
+        provider_connection_id: null,
+        billing_source: "platform_wallet",
         external_platform_slug: "huggingface",
         external_provider: "huggingface",
         external_owner: "Qwen",
@@ -429,7 +524,7 @@ describe("POST /api/deployments/[endpointSlug]", () => {
     expect(body.response.content).toBe("Hello from HF route");
     expect(debitWallet).toHaveBeenCalledWith(
       "wallet-1",
-      0.5,
+      0.25,
       "api_charge",
       expect.objectContaining({ referenceId: "deployment-1" })
     );

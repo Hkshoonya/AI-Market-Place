@@ -5,7 +5,12 @@ const HUGGING_FACE_API_BASE = "https://huggingface.co/api/models";
 const HUGGING_FACE_INFERENCE_BASE = "https://api-inference.huggingface.co/models";
 
 type ExternalPlatformSlug = "replicate" | "huggingface";
-type ExternalProviderSlug = "replicate" | "huggingface";
+export type ExternalProviderSlug = "replicate" | "huggingface";
+
+export interface WorkspaceProviderCredentials {
+  replicate?: string;
+  huggingface?: string;
+}
 
 export interface ExternalDeploymentTarget {
   platformSlug: ExternalPlatformSlug;
@@ -19,7 +24,11 @@ export interface ExternalDeploymentTarget {
 
 export interface WorkspaceProvisioningOption {
   canCreate: boolean;
-  deploymentKind: "managed_api" | "hosted_external" | "assistant_only";
+  deploymentKind:
+    | "managed_api"
+    | "hosted_external"
+    | "connected_inference"
+    | "assistant_only";
   label: string;
   summary: string;
   target: ExternalDeploymentTarget | null;
@@ -210,8 +219,8 @@ let replicateCatalogCache:
 const replicateCapabilityCache = new Map<string, ReplicateModelCapability>();
 const huggingFaceCapabilityCache = new Map<string, HuggingFaceModelCapability>();
 
-async function loadReplicateCatalog(): Promise<ReplicateCatalogEntry[]> {
-  const token = getOptionalEnv("REPLICATE_API_TOKEN");
+async function loadReplicateCatalog(explicitToken?: string): Promise<ReplicateCatalogEntry[]> {
+  const token = explicitToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN");
   if (!token) return [];
 
   const now = Date.now();
@@ -269,12 +278,12 @@ function getReplicatePromptField(properties: Record<string, unknown>) {
 async function loadReplicateModelCapability(input: {
   owner: string;
   name: string;
-}): Promise<ReplicateModelCapability> {
+}, explicitToken?: string): Promise<ReplicateModelCapability> {
   const cacheKey = `${input.owner}/${input.name}`;
   const cached = replicateCapabilityCache.get(cacheKey);
   if (cached) return cached;
 
-  const token = getOptionalEnv("REPLICATE_API_TOKEN");
+  const token = explicitToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN");
   if (!token) {
     return { hasChatInput: false };
   }
@@ -304,7 +313,8 @@ async function loadReplicateModelCapability(input: {
 
 async function resolveReplicateTarget(
   model: ModelProvisioningRecord,
-  allowLiveCatalogDiscovery = true
+  allowLiveCatalogDiscovery = true,
+  explicitToken?: string
 ): Promise<ExternalDeploymentTarget | null> {
   if (!isChatDeployableCategory(model.category)) {
     return null;
@@ -326,7 +336,7 @@ async function resolveReplicateTarget(
   }
 
   if (bestStatic && bestStatic.score >= 5) {
-    const capability = await loadReplicateModelCapability(bestStatic);
+    const capability = await loadReplicateModelCapability(bestStatic, explicitToken);
     if (capability.hasChatInput) {
       return toReplicateTarget(bestStatic);
     }
@@ -336,7 +346,7 @@ async function resolveReplicateTarget(
     return null;
   }
 
-  const catalog = await loadReplicateCatalog();
+  const catalog = await loadReplicateCatalog(explicitToken);
   const rankedCatalog = catalog
     .map((candidate) => ({
       owner: candidate.owner,
@@ -348,7 +358,7 @@ async function resolveReplicateTarget(
     .slice(0, 5);
 
   for (const candidate of rankedCatalog) {
-    const capability = await loadReplicateModelCapability(candidate);
+    const capability = await loadReplicateModelCapability(candidate, explicitToken);
     if (capability.hasChatInput) {
       return toReplicateTarget(candidate);
     }
@@ -362,15 +372,19 @@ function isHuggingFaceHostedEligible(model: ModelProvisioningRecord) {
 }
 
 async function loadHuggingFaceModelCapability(
-  modelRef: string
+  modelRef: string,
+  explicitToken?: string
 ): Promise<HuggingFaceModelCapability> {
-  const cached = huggingFaceCapabilityCache.get(modelRef);
+  const cached = explicitToken ? null : huggingFaceCapabilityCache.get(modelRef);
   if (cached) return cached;
 
   try {
     const response = await fetch(
       `${HUGGING_FACE_API_BASE}/${encodeURIComponent(modelRef)}?expand[]=inference&expand[]=pipeline_tag&expand[]=disabled&expand[]=gated`,
       {
+        headers: explicitToken
+          ? { Authorization: `Bearer ${explicitToken}` }
+          : undefined,
         next: { revalidate: 3600 },
       }
     );
@@ -386,7 +400,9 @@ async function loadHuggingFaceModelCapability(
           task === "conversational"),
       task,
     };
-    huggingFaceCapabilityCache.set(modelRef, capability);
+    if (!explicitToken) {
+      huggingFaceCapabilityCache.set(modelRef, capability);
+    }
     return capability;
   } catch {
     return { hasHostedInference: false, task: null };
@@ -394,11 +410,13 @@ async function loadHuggingFaceModelCapability(
 }
 
 async function resolveHuggingFaceTarget(
-  model: ModelProvisioningRecord
+  model: ModelProvisioningRecord,
+  explicitToken?: string
 ): Promise<ExternalDeploymentTarget | null> {
+  const token = explicitToken?.trim() || getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN");
   if (
     !isHuggingFaceHostedEligible(model) ||
-    !getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN")
+    !token
   ) {
     return null;
   }
@@ -407,7 +425,7 @@ async function resolveHuggingFaceTarget(
   const parts = splitModelRef(modelRef);
   if (!parts) return null;
 
-  const capability = await loadHuggingFaceModelCapability(modelRef);
+  const capability = await loadHuggingFaceModelCapability(modelRef, token);
   if (!capability.hasHostedInference) {
     return null;
   }
@@ -496,10 +514,13 @@ export async function resolveWorkspaceProvisioningForModel(input: {
   model: ModelProvisioningRecord;
   runtimeExecution: {
     available: boolean;
+    provider?: string | null;
     label: string;
     summary: string;
   };
   allowLiveCatalogDiscovery?: boolean;
+  preferredProvider?: "openrouter" | ExternalProviderSlug;
+  providerCredentials?: WorkspaceProviderCredentials;
 }): Promise<WorkspaceProvisioningOption> {
   const staticHint = resolveWorkspaceProvisioningHint({
     modelSlug: input.model.slug,
@@ -509,42 +530,109 @@ export async function resolveWorkspaceProvisioningForModel(input: {
     hfModelId: input.model.hf_model_id,
     runtimeExecution: input.runtimeExecution,
   });
-  if (staticHint.canCreate && staticHint.deploymentKind === "managed_api") {
+  if (input.preferredProvider === "openrouter") {
+    if (
+      staticHint.canCreate &&
+      staticHint.deploymentKind === "managed_api" &&
+      input.runtimeExecution.provider === "openrouter"
+    ) {
+      return {
+        ...staticHint,
+        label: "Connected OpenRouter runtime",
+        summary:
+          "Requests use your connected OpenRouter account, while AI Market Cap keeps the endpoint and usage history together.",
+      };
+    }
+
+    return {
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "OpenRouter model unavailable",
+      summary:
+        "This model is not currently mapped to an OpenRouter runtime. Choose another provider path.",
+      target: null,
+    };
+  }
+
+  if (
+    !input.preferredProvider &&
+    staticHint.canCreate &&
+    staticHint.deploymentKind === "managed_api"
+  ) {
     return staticHint;
   }
 
   const allowLiveCatalogDiscovery =
     input.allowLiveCatalogDiscovery ?? true;
-  if (!allowLiveCatalogDiscovery && staticHint.canCreate) {
+  if (!input.preferredProvider && !allowLiveCatalogDiscovery && staticHint.canCreate) {
     return staticHint;
   }
 
-  const replicateTarget = getOptionalEnv("REPLICATE_API_TOKEN")
+  const replicateToken =
+    input.providerCredentials?.replicate?.trim() || getOptionalEnv("REPLICATE_API_TOKEN");
+  const replicateTarget =
+    input.preferredProvider !== "huggingface" && replicateToken
     ? await resolveReplicateTarget(
         input.model,
-        allowLiveCatalogDiscovery
+        allowLiveCatalogDiscovery,
+        replicateToken
       )
     : null;
   if (replicateTarget) {
     return {
       canCreate: true,
       deploymentKind: "hosted_external",
-      label: "AI Market Cap dedicated runtime",
+      label:
+        input.preferredProvider === "replicate"
+          ? "Dedicated runtime in your Replicate account"
+          : "AI Market Cap dedicated runtime",
       summary:
-        "AI Market Cap can launch a dedicated runtime for this model and keep chat, API access, and usage tracking in one place.",
+        input.preferredProvider === "replicate"
+          ? "AI Market Cap will create and manage a real Replicate deployment owned and billed by your connected account."
+          : "AI Market Cap can launch a dedicated runtime for this model and keep chat, API access, and usage tracking in one place.",
       target: replicateTarget,
     };
   }
 
-  const huggingFaceTarget = await resolveHuggingFaceTarget(input.model);
+  if (input.preferredProvider === "replicate") {
+    return {
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "Replicate deployment unavailable",
+      summary:
+        "AI Market Cap could not verify a compatible Replicate deployment target for this model.",
+      target: null,
+    };
+  }
+
+  const huggingFaceToken =
+    input.providerCredentials?.huggingface?.trim() ||
+    getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN");
+  const huggingFaceTarget = huggingFaceToken
+    ? await resolveHuggingFaceTarget(input.model, huggingFaceToken)
+    : null;
   if (huggingFaceTarget) {
     return {
       canCreate: true,
-      deploymentKind: "hosted_external",
-      label: "AI Market Cap dedicated runtime",
+      deploymentKind: "connected_inference",
+      label:
+        input.preferredProvider === "huggingface"
+          ? "Connected Hugging Face inference"
+          : "Hugging Face hosted inference",
       summary:
-        "AI Market Cap can connect this model to a dedicated runtime and keep chat, API access, and usage tracking in one place.",
+        "This uses Hugging Face routed inference. It is not a dedicated server; provider availability and account limits still apply.",
       target: huggingFaceTarget,
+    };
+  }
+
+  if (input.preferredProvider === "huggingface") {
+    return {
+      canCreate: false,
+      deploymentKind: "assistant_only",
+      label: "Hugging Face inference unavailable",
+      summary:
+        "Hugging Face does not currently report hosted inference for this model under the connected account.",
+      target: null,
     };
   }
 
@@ -556,10 +644,13 @@ export async function resolveWorkspaceProvisioningOption(input: {
   modelSlug: string;
   runtimeExecution: {
     available: boolean;
+    provider?: string | null;
     label: string;
     summary: string;
   };
   allowLiveCatalogDiscovery?: boolean;
+  preferredProvider?: "openrouter" | ExternalProviderSlug;
+  providerCredentials?: WorkspaceProviderCredentials;
 }): Promise<WorkspaceProvisioningOption> {
   const lookupClient = input.supabase as ModelLookupClient;
 
@@ -583,22 +674,28 @@ export async function resolveWorkspaceProvisioningOption(input: {
     model,
     runtimeExecution: input.runtimeExecution,
     allowLiveCatalogDiscovery: input.allowLiveCatalogDiscovery,
+    preferredProvider: input.preferredProvider,
+    providerCredentials: input.providerCredentials,
   });
 }
 
-function buildReplicateHeaders() {
+function buildReplicateHeaders(explicitToken?: string) {
   return {
-    Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+    Authorization: `Bearer ${explicitToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN")}`,
     "Content-Type": "application/json",
   };
 }
 
-async function fetchReplicateDeployment(input: { owner: string; name: string }) {
+async function fetchReplicateDeployment(input: {
+  owner: string;
+  name: string;
+  apiToken?: string;
+}) {
   const response = await fetch(
     `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}`,
     {
       headers: {
-        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+        Authorization: `Bearer ${input.apiToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN")}`,
       },
       cache: "no-store",
     }
@@ -611,10 +708,11 @@ export async function refreshHostedDeploymentStatus(input: {
   provider: string | null;
   owner: string | null;
   name: string | null;
+  apiToken?: string;
 }): Promise<HostedDeploymentStatusSnapshot | null> {
   if (input.provider === "huggingface" && input.owner && input.name) {
     const modelRef = `${input.owner}/${input.name}`;
-    const capability = await loadHuggingFaceModelCapability(modelRef);
+    const capability = await loadHuggingFaceModelCapability(modelRef, input.apiToken);
     return {
       status: capability.hasHostedInference ? "ready" : "failed",
       externalWebUrl: buildHuggingFaceModelWebUrl(modelRef),
@@ -632,6 +730,7 @@ export async function refreshHostedDeploymentStatus(input: {
   const { response, raw } = await fetchReplicateDeployment({
     owner: input.owner,
     name: input.name,
+    apiToken: input.apiToken,
   });
 
   if (response.status === 404) {
@@ -666,6 +765,7 @@ export async function updateHostedDeploymentScale(input: {
   name: string | null;
   minInstances: number;
   maxInstances: number;
+  apiToken?: string;
 }) {
   if (input.provider === "huggingface" && input.owner && input.name) {
     const modelRef = `${input.owner}/${input.name}`;
@@ -683,7 +783,7 @@ export async function updateHostedDeploymentScale(input: {
     `${REPLICATE_API_BASE}/deployments/${input.owner}/${input.name}`,
     {
       method: "PATCH",
-      headers: buildReplicateHeaders(),
+      headers: buildReplicateHeaders(input.apiToken),
       body: JSON.stringify({
         min_instances: input.minInstances,
         max_instances: input.maxInstances,
@@ -710,6 +810,7 @@ export async function deleteHostedDeployment(input: {
   provider: string | null;
   owner: string | null;
   name: string | null;
+  apiToken?: string;
 }) {
   if (input.provider === "huggingface" && input.owner && input.name) {
     return {
@@ -730,6 +831,7 @@ export async function deleteHostedDeployment(input: {
       name: input.name,
       minInstances: 0,
       maxInstances: 0,
+      apiToken: input.apiToken,
     });
   } catch {
     // Keep going so already-paused or already-missing deployments can still be removed.
@@ -740,7 +842,7 @@ export async function deleteHostedDeployment(input: {
     {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+        Authorization: `Bearer ${input.apiToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN")}`,
       },
     }
   );
@@ -794,10 +896,14 @@ export async function provisionReplicateDeployment(input: {
   modelSlug: string;
   category: string | null;
   parameterCount: number | null;
+  apiToken?: string;
 }) {
+  const apiToken = input.apiToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN");
+  if (!apiToken) throw new Error("Replicate is not configured");
+
   const accountResponse = await fetch(`${REPLICATE_API_BASE}/account`, {
     headers: {
-      Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+      Authorization: `Bearer ${apiToken}`,
     },
   });
   const accountRaw = await accountResponse.json().catch(() => null);
@@ -809,7 +915,7 @@ export async function provisionReplicateDeployment(input: {
     `${REPLICATE_API_BASE}/models/${input.target.owner}/${input.target.name}`,
     {
       headers: {
-        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+        Authorization: `Bearer ${apiToken}`,
       },
     }
   );
@@ -821,7 +927,7 @@ export async function provisionReplicateDeployment(input: {
   const deploymentName = buildDeploymentName(input.modelSlug);
   const createResponse = await fetch(`${REPLICATE_API_BASE}/deployments`, {
     method: "POST",
-    headers: buildReplicateHeaders(),
+    headers: buildReplicateHeaders(apiToken),
     body: JSON.stringify({
       name: deploymentName,
       model: input.target.modelRef,
@@ -876,7 +982,11 @@ export async function runReplicateDeployment(input: {
   message: string;
   system?: string;
   modelRef: string;
+  apiToken?: string;
 }) {
+  const apiToken = input.apiToken?.trim() || getOptionalEnv("REPLICATE_API_TOKEN");
+  if (!apiToken) throw new Error("Replicate is not configured");
+
   const modelRefParts = input.modelRef.split("/");
   if (modelRefParts.length !== 2) {
     throw new Error("Replicate deployment is missing a valid model reference");
@@ -886,7 +996,7 @@ export async function runReplicateDeployment(input: {
     `${REPLICATE_API_BASE}/models/${modelRefParts[0]}/${modelRefParts[1]}`,
     {
       headers: {
-        Authorization: `Bearer ${getOptionalEnv("REPLICATE_API_TOKEN")}`,
+        Authorization: `Bearer ${apiToken}`,
       },
     }
   );
@@ -919,7 +1029,7 @@ export async function runReplicateDeployment(input: {
     {
       method: "POST",
       headers: {
-        ...buildReplicateHeaders(),
+        ...buildReplicateHeaders(apiToken),
         Prefer: "wait",
       },
       body: JSON.stringify({
@@ -963,13 +1073,15 @@ export async function runHuggingFaceDeployment(input: {
   modelRef: string;
   message: string;
   system?: string;
+  apiToken?: string;
 }) {
-  const token = getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN");
+  const token =
+    input.apiToken?.trim() || getOptionalEnv("HUGGINGFACE_API_TOKEN", "HF_TOKEN");
   if (!token) {
     throw new Error("Hugging Face hosted inference is not configured");
   }
 
-  const capability = await loadHuggingFaceModelCapability(input.modelRef);
+  const capability = await loadHuggingFaceModelCapability(input.modelRef, token);
   if (!capability.hasHostedInference) {
     throw new Error("This Hugging Face model is not available for hosted inference");
   }

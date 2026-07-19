@@ -92,11 +92,26 @@ describe("workspace deployment API", () => {
           endpoint_slug: "openai-gpt-4-1-abc12345",
           deployment_kind: "managed_api",
           deployment_label: "OpenRouter-backed runtime",
+          provider_connection_id: null,
+          billing_source: "platform_wallet",
+          external_platform_slug: null,
+          external_provider: null,
+          external_owner: null,
+          external_name: null,
+          external_model_ref: null,
+          external_web_url: null,
           credits_budget: 20,
           monthly_price_estimate: 20,
           total_requests: 0,
+          successful_requests: 0,
+          failed_requests: 0,
           total_tokens: 0,
+          avg_response_latency_ms: null,
+          last_response_latency_ms: null,
           last_used_at: null,
+          last_success_at: null,
+          last_error_at: null,
+          last_error_message: null,
           updated_at: "2026-04-01T13:30:00.000Z",
         },
         error: null,
@@ -321,7 +336,7 @@ describe("workspace deployment API", () => {
     expect(body.update.message).toMatch(/Deployment paused/i);
   });
 
-  it("creates a hosted Hugging Face deployment when warm inference is available", async () => {
+  it("creates a connected Hugging Face inference route when warm inference is available", async () => {
     process.env.HUGGINGFACE_API_TOKEN = "hf-test-token";
     getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
@@ -366,8 +381,10 @@ describe("workspace deployment API", () => {
           provider_name: "Qwen",
           status: "ready",
           endpoint_slug: "qwen-qwen2-5-7b-instruct-abc12345",
-          deployment_kind: "hosted_external",
+          deployment_kind: "connected_inference",
           deployment_label: "Hugging Face hosted inference",
+          provider_connection_id: null,
+          billing_source: "platform_wallet",
           external_platform_slug: "huggingface",
           external_provider: "huggingface",
           external_owner: "Qwen",
@@ -412,11 +429,11 @@ describe("workspace deployment API", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.deployment.deploymentKind).toBe("hosted_external");
-    expect(body.deployment.providerName).toBe("AI Market Cap");
-    expect(body.deployment.deploymentLabel).toBe("AI Market Cap dedicated runtime");
+    expect(body.deployment.deploymentKind).toBe("connected_inference");
+    expect(body.deployment.providerName).toBe("Qwen");
+    expect(body.deployment.deploymentLabel).toBe("Hugging Face hosted inference");
     expect(body.deployment.target.provider).toBe("huggingface");
-    expect(body.activation.message).toMatch(/AI Market Cap endpoint/i);
+    expect(body.activation.message).toMatch(/provider inference/i);
   });
 
   it("creates a hosted deployment in provisioning state until the backend is ready", async () => {

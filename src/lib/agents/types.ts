@@ -15,6 +15,7 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 export type MessageType = "text" | "tool_call" | "tool_result" | "system";
 export type ApiKeyScope =
   | "read"
+  | "data"
   | "write"
   | "agent"
   | "mcp"

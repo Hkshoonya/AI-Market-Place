@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
@@ -21,15 +20,6 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const ip = getClientIp(request);
-  const rl = await rateLimit(`model-detail:${ip}`, RATE_LIMITS.public);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Too many requests." },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
-  }
-
   try {
     // Paywall check
     const pw = await checkPaywall(request);

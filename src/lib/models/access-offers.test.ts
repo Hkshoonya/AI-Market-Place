@@ -136,7 +136,9 @@ describe("buildAccessOffersCatalog", () => {
     });
 
     expect(result.subscriptionOffers[0]?.actionLabel).toBe("Subscribe");
-    expect(result.subscriptionOffers[0]?.actionUrl).toBe("https://perplexity.ai/?ref=aimarketcap");
+    expect(result.subscriptionOffers[0]?.actionUrl).toBe(
+      "/go/perplexity-pro?source=access-offer"
+    );
     expect(result.subscriptionOffers[0]?.partnerDisclosure).toBe("Partner-supported link");
   });
 

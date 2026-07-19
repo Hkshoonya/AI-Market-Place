@@ -27,6 +27,11 @@ import {
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
 import { getWorkspaceDeploymentRequestCharge } from "@/lib/workspace/deployment-billing";
 import { getWalletByOwner } from "@/lib/payments/wallet";
+import {
+  getProviderConnectionSecret,
+  listProviderConnections,
+} from "@/lib/provider-connections/server";
+import type { ProviderConnectionProvider } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +42,7 @@ const RequestSchema = z.object({
   conversationId: z.string().trim().min(1).nullable().optional(),
   creditsBudget: z.number().finite().nonnegative().nullable().optional(),
   monthlyPriceEstimate: z.number().finite().nonnegative().nullable().optional(),
+  providerConnectionId: z.string().uuid().nullable().optional(),
 });
 
 const UpdateSchema = z.object({
@@ -96,20 +102,29 @@ function toRuntimeResponse(
 }
 
 const DEPLOYMENT_SELECT =
-  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
+  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, provider_connection_id, billing_source, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
 
 async function reconcileHostedDeployment(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  deployment: WorkspaceDeploymentRecord | null
+  deployment: WorkspaceDeploymentRecord | null,
+  userId: string
 ) {
   if (!deployment || deployment.deployment_kind !== "hosted_external") {
     return deployment;
   }
 
+  const connectedCredential = deployment.provider_connection_id
+    ? await getProviderConnectionSecret({
+        connectionId: deployment.provider_connection_id,
+        userId,
+        expectedProvider: deployment.external_provider as ProviderConnectionProvider,
+      })
+    : null;
   const snapshot = await refreshHostedDeploymentStatus({
     provider: deployment.external_provider,
     owner: deployment.external_owner,
     name: deployment.external_name,
+    apiToken: connectedCredential?.secret,
   });
 
   if (!snapshot) return deployment;
@@ -147,17 +162,29 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const modelSlug = url.searchParams.get("modelSlug");
-    if (!modelSlug) {
-      return NextResponse.json({ deployment: null, runtime: null, provisioning: null, execution: null });
+    const requestedConnectionId = url.searchParams.get("providerConnectionId");
+    const connections = await listProviderConnections(auth.user.id);
+    if (requestedConnectionId && !z.string().uuid().safeParse(requestedConnectionId).success) {
+      return NextResponse.json({ error: "Invalid provider connection" }, { status: 400 });
     }
-
-    const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(modelSlug);
-    const provisioning = await resolveWorkspaceProvisioningOption({
-      supabase: auth.supabase,
-      modelSlug,
-      runtimeExecution,
-      allowLiveCatalogDiscovery: false,
-    });
+    if (
+      requestedConnectionId &&
+      !connections.some(
+        (connection) =>
+          connection.id === requestedConnectionId && connection.status === "active"
+      )
+    ) {
+      return NextResponse.json({ error: "Provider connection not found" }, { status: 404 });
+    }
+    if (!modelSlug) {
+      return NextResponse.json({
+        deployment: null,
+        runtime: null,
+        provisioning: null,
+        execution: null,
+        connections,
+      });
+    }
 
     const { data: deployment, error: deploymentError } = await auth.supabase
       .from("workspace_deployments")
@@ -167,6 +194,34 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (deploymentError) throw deploymentError;
+
+    const provisioningConnectionId =
+      deployment?.provider_connection_id ?? requestedConnectionId;
+    const deploymentCredential = provisioningConnectionId
+      ? await getProviderConnectionSecret({
+          connectionId: provisioningConnectionId,
+          userId: auth.user.id,
+        })
+      : null;
+    const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(modelSlug, {
+      openRouterApiKey:
+        deploymentCredential?.provider === "openrouter"
+          ? deploymentCredential.secret
+          : undefined,
+    });
+    const provisioning = await resolveWorkspaceProvisioningOption({
+      supabase: auth.supabase,
+      modelSlug,
+      runtimeExecution,
+      allowLiveCatalogDiscovery: Boolean(deploymentCredential),
+      preferredProvider: deploymentCredential?.provider,
+      providerCredentials:
+        deploymentCredential?.provider === "replicate"
+          ? { replicate: deploymentCredential.secret }
+          : deploymentCredential?.provider === "huggingface"
+            ? { huggingface: deploymentCredential.secret }
+            : undefined,
+    });
 
     let runtime = null;
     if (deployment?.runtime_id) {
@@ -182,7 +237,11 @@ export async function GET(request: Request) {
     }
 
     const reconciledDeployment = deployment
-      ? await reconcileHostedDeployment(auth.supabase, deployment as WorkspaceDeploymentRecord)
+      ? await reconcileHostedDeployment(
+          auth.supabase,
+          deployment as WorkspaceDeploymentRecord,
+          auth.user.id
+        )
       : null;
 
     return NextResponse.json({
@@ -192,6 +251,7 @@ export async function GET(request: Request) {
       runtime,
       provisioning,
       execution: runtimeExecution,
+      connections,
     });
   } catch (error) {
     return handleApiError(error, "api/workspace/deployment");
@@ -216,12 +276,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const execution = await resolveAvailableWorkspaceRuntimeExecution(parsed.data.modelSlug);
+    const connectedCredential = parsed.data.providerConnectionId
+      ? await getProviderConnectionSecret({
+          connectionId: parsed.data.providerConnectionId,
+          userId: auth.user.id,
+        })
+      : null;
+    const billingSource: "provider_account" | "platform_wallet" = connectedCredential
+      ? "provider_account"
+      : "platform_wallet";
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(parsed.data.modelSlug, {
+      openRouterApiKey:
+        connectedCredential?.provider === "openrouter"
+          ? connectedCredential.secret
+          : undefined,
+    });
     const provisioning = await resolveWorkspaceProvisioningOption({
       supabase: auth.supabase,
       modelSlug: parsed.data.modelSlug,
       runtimeExecution: execution,
       allowLiveCatalogDiscovery: true,
+      preferredProvider: connectedCredential?.provider,
+      providerCredentials:
+        connectedCredential?.provider === "replicate"
+          ? { replicate: connectedCredential.secret }
+          : connectedCredential?.provider === "huggingface"
+            ? { huggingface: connectedCredential.secret }
+            : undefined,
     });
     if (!provisioning.canCreate) {
       return NextResponse.json(
@@ -237,6 +318,7 @@ export async function POST(request: Request) {
 
     const requestCharge = getWorkspaceDeploymentRequestCharge({
       deploymentKind: provisioning.deploymentKind,
+      billingSource,
       runtimePricing: execution.pricing,
     });
     if (requestCharge > 0) {
@@ -253,6 +335,28 @@ export async function POST(request: Request) {
           { status: 402 }
         );
       }
+    }
+
+    const { data: existingDeployment, error: existingDeploymentError } = await auth.supabase
+      .from("workspace_deployments")
+      .select(DEPLOYMENT_SELECT)
+      .eq("user_id", auth.user.id)
+      .eq("model_slug", parsed.data.modelSlug)
+      .maybeSingle();
+    if (existingDeploymentError) throw existingDeploymentError;
+
+    const requestedConnectionId = connectedCredential?.id ?? null;
+    if (
+      existingDeployment &&
+      (existingDeployment.provider_connection_id ?? null) !== requestedConnectionId
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This model already has a deployment using a different billing account. Remove it before changing provider ownership.",
+        },
+        { status: 409 }
+      );
     }
 
     const { data: existingRuntime, error: existingRuntimeError } = await auth.supabase
@@ -301,14 +405,6 @@ export async function POST(request: Request) {
       runtimeData = runtimeUpsertResult.data;
     }
 
-    const { data: existingDeployment, error: existingDeploymentError } = await auth.supabase
-      .from("workspace_deployments")
-      .select(DEPLOYMENT_SELECT)
-      .eq("user_id", auth.user.id)
-      .eq("model_slug", parsed.data.modelSlug)
-      .maybeSingle();
-    if (existingDeploymentError) throw existingDeploymentError;
-
     let externalFields = {
       external_platform_slug: existingDeployment?.external_platform_slug ?? null,
       external_provider: existingDeployment?.external_provider ?? null,
@@ -335,11 +431,15 @@ export async function POST(request: Request) {
         modelSlug: parsed.data.modelSlug,
         category: modelMetadata?.category ?? null,
         parameterCount: modelMetadata?.parameter_count ?? null,
+        apiToken:
+          connectedCredential?.provider === "replicate"
+            ? connectedCredential.secret
+            : undefined,
       });
     }
 
     if (
-      provisioning.deploymentKind === "hosted_external" &&
+      provisioning.deploymentKind === "connected_inference" &&
       provisioning.target?.provider === "huggingface" &&
       !externalFields.external_owner
     ) {
@@ -359,6 +459,10 @@ export async function POST(request: Request) {
         provider: externalFields.external_provider,
         owner: externalFields.external_owner,
         name: externalFields.external_name,
+        apiToken:
+          connectedCredential?.provider === "replicate"
+            ? connectedCredential.secret
+            : undefined,
       });
       if (snapshot) {
         deploymentStatus = snapshot.status === "ready" ? "ready" : "provisioning";
@@ -385,9 +489,15 @@ export async function POST(request: Request) {
         buildWorkspaceDeploymentEndpointSlug(parsed.data.modelSlug),
       deployment_kind: provisioning.deploymentKind,
       deployment_label: provisioning.label,
+      provider_connection_id: connectedCredential?.id ?? null,
+      billing_source: billingSource,
       ...externalFields,
-      credits_budget: parsed.data.creditsBudget ?? null,
-      monthly_price_estimate: parsed.data.monthlyPriceEstimate ?? null,
+      credits_budget:
+        billingSource === "platform_wallet" ? parsed.data.creditsBudget ?? null : null,
+      monthly_price_estimate:
+        billingSource === "platform_wallet"
+          ? parsed.data.monthlyPriceEstimate ?? null
+          : null,
     };
 
     const { data: deploymentData, error: deploymentUpsertError } = await auth.supabase
@@ -417,7 +527,11 @@ export async function POST(request: Request) {
             ? deploymentStatus === "ready"
               ? "Hosted deployment connected through AI Market Cap. You can now use it through the AI Market Cap endpoint."
               : "AI Market Cap started the hosted deployment. It is still provisioning and will become usable here once the backend is ready."
-            : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
+            : provisioning.deploymentKind === "connected_inference"
+              ? "Connected provider inference is ready through your AI Market Cap endpoint. Provider-side limits and billing apply."
+              : connectedCredential
+                ? "Connected provider runtime created. Requests use your provider account instead of AI Market Cap wallet credits."
+                : "Deployment created inside AI Market Cap. This model now has a managed in-site endpoint you can use from the workspace.",
       },
       provisioning,
       execution,
@@ -456,7 +570,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
     }
 
-    const execution = await resolveAvailableWorkspaceRuntimeExecution(deployment.model_slug);
+    const connectedCredential = deployment.provider_connection_id
+      ? await getProviderConnectionSecret({
+          connectionId: deployment.provider_connection_id,
+          userId: auth.user.id,
+        })
+      : null;
+    const execution = await resolveAvailableWorkspaceRuntimeExecution(deployment.model_slug, {
+      openRouterApiKey:
+        connectedCredential?.provider === "openrouter"
+          ? connectedCredential.secret
+          : undefined,
+    });
     const updatePayload: {
       status?: "ready" | "paused";
       credits_budget?: number | null;
@@ -470,6 +595,7 @@ export async function PATCH(request: Request) {
           name: deployment.external_name,
           minInstances: 0,
           maxInstances: 0,
+          apiToken: connectedCredential?.secret,
         });
       }
       updatePayload.status = "paused";
@@ -492,6 +618,7 @@ export async function PATCH(request: Request) {
           name: deployment.external_name,
           minInstances: 0,
           maxInstances: 1,
+          apiToken: connectedCredential?.secret,
         });
       }
       updatePayload.status = "ready";
@@ -575,10 +702,17 @@ export async function DELETE(request: Request) {
     }
 
     if (deployment.deployment_kind === "hosted_external") {
+      const connectedCredential = deployment.provider_connection_id
+        ? await getProviderConnectionSecret({
+            connectionId: deployment.provider_connection_id,
+            userId: auth.user.id,
+          })
+        : null;
       await deleteHostedDeployment({
         provider: deployment.external_provider,
         owner: deployment.external_owner,
         name: deployment.external_name,
+        apiToken: connectedCredential?.secret,
       });
     }
 

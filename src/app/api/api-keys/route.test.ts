@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockCreateClient = vi.fn();
 const mockGenerateApiKey = vi.fn();
+const mockGetDataApiEntitlement = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
@@ -10,6 +11,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/agents/auth", () => ({
   generateApiKey: (...args: unknown[]) => mockGenerateApiKey(...args),
+}));
+
+vi.mock("@/lib/data-api/entitlements", () => ({
+  getDataApiEntitlement: (...args: unknown[]) => mockGetDataApiEntitlement(...args),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -91,6 +96,11 @@ describe("POST /api/api-keys", () => {
       plaintext: "aimk_plaintext",
       hash: "hashed-key",
       prefix: "aimk_test",
+    });
+    mockGetDataApiEntitlement.mockResolvedValue({
+      plan: {
+        rateLimitPerMinute: 30,
+      },
     });
   });
 

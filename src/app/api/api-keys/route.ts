@@ -5,6 +5,7 @@ import { generateApiKey } from "@/lib/agents/auth";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error";
 import { hasTrustedRequestOrigin } from "@/lib/security/request-origin";
+import { getDataApiEntitlement } from "@/lib/data-api/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const apiKeySchema = z.object({
       name: z.string().min(2, "Name must be at least 2 characters").max(100),
-      scopes: z.array(z.enum(["read", "write", "agent", "mcp", "marketplace", "withdraw"])).optional(),
+      scopes: z.array(z.enum(["read", "data", "write", "agent", "mcp", "marketplace", "withdraw"])).optional(),
       rate_limit: z.number().int().min(1).max(1000).optional(),
       expires_in_days: z.number().int().min(1).max(365).optional(),
     });
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     const { plaintext, hash, prefix } = generateApiKey();
 
-    const validScopes = ["read", "write", "agent", "mcp", "marketplace", "withdraw"];
+    const validScopes = ["read", "data", "write", "agent", "mcp", "marketplace", "withdraw"];
     const scopes = (body.scopes ?? ["read"]).filter((s) =>
       validScopes.includes(s)
     );
@@ -137,6 +138,14 @@ export async function POST(request: NextRequest) {
         ).toISOString()
       : null;
 
+    const dataEntitlement = scopes.some((scope) => scope === "read" || scope === "data")
+      ? await getDataApiEntitlement(user.id)
+      : null;
+    const requestedRateLimit = body.rate_limit ?? dataEntitlement?.plan.rateLimitPerMinute ?? 60;
+    const effectiveRateLimit = dataEntitlement
+      ? Math.min(requestedRateLimit, dataEntitlement.plan.rateLimitPerMinute)
+      : requestedRateLimit;
+
     const { data, error } = await supabase
       .from("api_keys")
       .insert({
@@ -145,7 +154,7 @@ export async function POST(request: NextRequest) {
         key_prefix: prefix,
         key_hash: hash,
         scopes,
-        rate_limit_per_minute: body.rate_limit ?? 60,
+        rate_limit_per_minute: effectiveRateLimit,
         expires_at: expiresAt,
         is_active: true,
       })

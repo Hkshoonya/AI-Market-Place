@@ -7,14 +7,17 @@ import { buildWorkspaceDeploymentEndpointPath } from "@/lib/workspace/deployment
 
 export interface WorkspaceDeploymentRecord {
   id: string;
+  user_id?: string;
   runtime_id: string | null;
   model_slug: string;
   model_name: string;
   provider_name: string | null;
   status: "provisioning" | "ready" | "paused" | "failed";
   endpoint_slug: string;
-  deployment_kind: "managed_api" | "assistant_only" | "hosted_external";
+  deployment_kind: "managed_api" | "assistant_only" | "hosted_external" | "connected_inference";
   deployment_label: string | null;
+  provider_connection_id: string | null;
+  billing_source: "platform_wallet" | "provider_account";
   external_platform_slug: string | null;
   external_provider: string | null;
   external_owner: string | null;
@@ -38,18 +41,27 @@ export interface WorkspaceDeploymentRecord {
 
 function getPublicDeploymentLabel(deployment: WorkspaceDeploymentRecord) {
   if (deployment.deployment_kind === "hosted_external") {
-    return "AI Market Cap dedicated runtime";
+    return deployment.billing_source === "provider_account"
+      ? deployment.deployment_label ?? "Connected provider dedicated runtime"
+      : "AI Market Cap dedicated runtime";
   }
   if (deployment.deployment_kind === "managed_api") {
-    return "AI Market Cap in-site runtime";
+    return deployment.billing_source === "provider_account"
+      ? deployment.deployment_label ?? "Connected provider runtime"
+      : "AI Market Cap in-site runtime";
+  }
+  if (deployment.deployment_kind === "connected_inference") {
+    return deployment.deployment_label ?? "Connected provider inference";
   }
   return deployment.deployment_label;
 }
 
 function getPublicProviderName(deployment: WorkspaceDeploymentRecord) {
   if (
-    deployment.deployment_kind === "hosted_external" ||
-    deployment.deployment_kind === "managed_api"
+    (deployment.deployment_kind === "hosted_external" &&
+      deployment.billing_source === "platform_wallet") ||
+    (deployment.deployment_kind === "managed_api" &&
+      deployment.billing_source === "platform_wallet")
   ) {
     return "AI Market Cap";
   }
@@ -82,6 +94,8 @@ export function toWorkspaceDeploymentResponse(
     endpointPath: buildWorkspaceDeploymentEndpointPath(deployment.endpoint_slug),
     deploymentKind: deployment.deployment_kind,
     deploymentLabel: getPublicDeploymentLabel(deployment),
+    providerConnectionId: deployment.provider_connection_id,
+    billingSource: deployment.billing_source,
     target:
       deployment.external_platform_slug && deployment.external_provider
         ? {
@@ -114,6 +128,7 @@ export function toWorkspaceDeploymentResponse(
     execution,
     billing: getWorkspaceDeploymentBudgetSummary({
       deploymentKind: deployment.deployment_kind,
+      billingSource: deployment.billing_source,
       runtimePricing: execution.pricing,
       creditsBudget: deployment.credits_budget,
       totalRequests: deployment.total_requests,

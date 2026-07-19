@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { collapseArenaRatings } from "@/lib/models/arena-family";
@@ -27,15 +26,6 @@ const LENS_SORT_MAP: Record<string, { sortCol: string; ascending: boolean }> = {
 };
 
 export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
-  const rl = await rateLimit(`rankings:${ip}`, RATE_LIMITS.public);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Too many requests." },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
-  }
-
   try {
     const pw = await checkPaywall(request);
     if (!pw.allowed) return paywallErrorResponse(pw);
@@ -48,7 +38,11 @@ export async function GET(request: NextRequest) {
     const lens = searchParams.get("lens") || "capability";
     const category = searchParams.get("category");
     const lifecycleFilter = parseLifecycleFilter(searchParams.get("lifecycle"));
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Math.min(
+      Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 50,
+      pw.maxPageSize ?? 200
+    );
 
     const lensConfig = LENS_SORT_MAP[lens];
     if (!lensConfig) {

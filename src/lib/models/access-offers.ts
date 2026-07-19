@@ -116,7 +116,7 @@ export function getAccessOfferActionLabel(
 }
 
 export function getPartnerDisclosure(platform: AccessOfferPlatform): string | null {
-  if (platform.has_affiliate || platform.affiliate_url) {
+  if (platform.has_affiliate) {
     return "Partner-supported link";
   }
 
@@ -124,7 +124,8 @@ export function getPartnerDisclosure(platform: AccessOfferPlatform): string | nu
 }
 
 function getActionUrl(platform: AccessOfferPlatform): string {
-  return platform.affiliate_url || platform.base_url;
+  const params = new URLSearchParams({ source: "access-offer" });
+  return `/go/${encodeURIComponent(platform.slug)}?${params.toString()}`;
 }
 
 function summarizeBestFor(models: AccessOfferModel[]): string {

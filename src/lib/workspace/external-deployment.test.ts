@@ -336,8 +336,8 @@ describe("resolveWorkspaceProvisioningOption", () => {
     });
 
     expect(option.canCreate).toBe(true);
-    expect(option.deploymentKind).toBe("hosted_external");
-    expect(option.label).toBe("AI Market Cap dedicated runtime");
+    expect(option.deploymentKind).toBe("connected_inference");
+    expect(option.label).toBe("Hugging Face hosted inference");
     expect(option.target?.provider).toBe("huggingface");
     expect(option.target?.modelRef).toBe("Qwen/Qwen2.5-7B-Instruct");
   });

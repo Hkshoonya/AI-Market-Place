@@ -114,4 +114,43 @@ describe("resolveAvailableWorkspaceRuntimeExecution", () => {
     expect(anthropic.available).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("does not reuse the platform catalog for a user-provided key", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [{ id: "openai/gpt-4.1" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { resolveAvailableWorkspaceRuntimeExecution } = await import(
+      "./runtime-availability"
+    );
+
+    const platformResult = await resolveAvailableWorkspaceRuntimeExecution(
+      "openai-gpt-4-1"
+    );
+    const userResult = await resolveAvailableWorkspaceRuntimeExecution(
+      "openai-gpt-4-1",
+      { openRouterApiKey: "user-openrouter-key" }
+    );
+
+    expect(platformResult.available).toBe(true);
+    expect(userResult.available).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: "Bearer test-openrouter-key" }),
+    });
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: "Bearer user-openrouter-key" }),
+    });
+  });
 });

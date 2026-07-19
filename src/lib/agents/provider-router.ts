@@ -25,6 +25,8 @@ export interface AgentModelRequest {
   responseFormat?: "text" | "json";
   preferredProviders?: AgentProviderName[];
   providerModels?: Partial<Record<AgentProviderName, string>>;
+  /** Explicit server-side credentials. When present, environment keys are not used. */
+  apiKeys?: Partial<Record<AgentProviderName, string>>;
 }
 
 export interface AgentModelResponse {
@@ -48,8 +50,19 @@ function getOptionalEnv(name: string): string {
   return process.env[name] ?? "";
 }
 
-function getConfiguredProviders(): ProviderCandidate[] {
+function getConfiguredProviders(
+  explicitApiKeys?: Partial<Record<AgentProviderName, string>>
+): ProviderCandidate[] {
   const candidates: ProviderCandidate[] = [];
+
+  if (explicitApiKeys) {
+    for (const [name, apiKey] of Object.entries(explicitApiKeys)) {
+      if (apiKey?.trim()) {
+        candidates.push({ name: name as AgentProviderName, apiKey: apiKey.trim() });
+      }
+    }
+    return candidates;
+  }
 
   if (getOptionalEnv("OPENROUTER_API_KEY")) {
     candidates.push({ name: "openrouter", apiKey: getOptionalEnv("OPENROUTER_API_KEY") });
@@ -68,9 +81,10 @@ function getConfiguredProviders(): ProviderCandidate[] {
 }
 
 function resolveCandidates(
-  preferredProviders?: AgentProviderName[]
+  preferredProviders?: AgentProviderName[],
+  explicitApiKeys?: Partial<Record<AgentProviderName, string>>
 ): ProviderCandidate[] {
-  const configured = getConfiguredProviders();
+  const configured = getConfiguredProviders(explicitApiKeys);
   if (!preferredProviders || preferredProviders.length === 0) {
     return configured;
   }
@@ -298,7 +312,7 @@ async function callAnthropicProvider(
 export async function callAgentModel(
   request: AgentModelRequest
 ): Promise<AgentModelResponse> {
-  const candidates = resolveCandidates(request.preferredProviders);
+  const candidates = resolveCandidates(request.preferredProviders, request.apiKeys);
 
   if (candidates.length === 0) {
     throw new Error(

@@ -40,5 +40,6 @@ export async function loadAllAgents(): Promise<void> {
     import("./residents/code-quality"),
     import("./residents/ux-monitor"),
     import("./residents/verifier"),
+    import("./residents/affiliate-maintainer"),
   ]);
 }

@@ -18,6 +18,10 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Database } from "@/types/database";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import {
+  consumeDataApiQuota,
+  getDataApiEntitlement,
+} from "@/lib/data-api/entitlements";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +40,11 @@ export interface PaywallResult {
   ownerId?: string;
   /** Amount charged in USD (for bots on paid endpoints) */
   charged?: number;
+  planSlug?: string;
+  quotaRemaining?: number;
+  quotaLimit?: number;
+  maxPageSize?: number;
+  historyDays?: number;
   /** Human-readable error message when `allowed` is false */
   error?: string;
   /** HTTP status code to return when `allowed` is false */
@@ -70,10 +79,15 @@ async function loadPricingRules(): Promise<PricingRule[]> {
 
   const sb = createAdminClient();
 
-  const { data } = await sb
+  const { data, error } = await sb
     .from("api_endpoint_pricing")
     .select("id, path_pattern, method, price_per_call, is_free_for_humans, rate_limit_free, rate_limit_paid")
     .eq("is_active", true);
+
+  if (error) {
+    if (pricingRulesCache.length > 0) return pricingRulesCache;
+    throw error;
+  }
 
   if (data) {
     pricingRulesCache = data as PricingRule[];
@@ -81,6 +95,17 @@ async function loadPricingRules(): Promise<PricingRule[]> {
   }
 
   return pricingRulesCache;
+}
+
+function isDataApiRequest(path: string, method: string) {
+  if (method !== "GET") return false;
+
+  return [
+    /^\/api\/models(?:\/|$)/,
+    /^\/api\/rankings(?:\/|$)/,
+    /^\/api\/benchmarks(?:\/|$)/,
+    /^\/api\/search(?:\/|$)/,
+  ].some((pattern) => pattern.test(path));
 }
 
 /**
@@ -189,10 +214,39 @@ async function handleBotRequest(
     };
   }
 
+  const path = new URL(request.url).pathname;
+  const isDataRequest = isDataApiRequest(path, request.method);
+  const scopes = Array.isArray(keyRecord.scopes)
+    ? keyRecord.scopes.filter((scope): scope is string => typeof scope === "string")
+    : [];
+  if (
+    isDataRequest &&
+    !scopes.includes("read") &&
+    !scopes.includes("data")
+  ) {
+    return {
+      allowed: false,
+      callerType: "bot",
+      error: "API key missing 'data' or 'read' scope",
+      statusCode: 403,
+      apiKeyId: keyRecord.id,
+      ownerId: keyRecord.owner_id,
+    };
+  }
+
+  const entitlement = isDataRequest
+    ? await getDataApiEntitlement(keyRecord.owner_id)
+    : null;
+
   // Rate limit bots by key id + IP
   const ip = getClientIp(request);
   const rateLimitValue =
-    rule?.rate_limit_paid || keyRecord.rate_limit_per_minute || 300;
+    entitlement
+      ? Math.min(
+          entitlement.plan.rateLimitPerMinute,
+          keyRecord.rate_limit_per_minute || entitlement.plan.rateLimitPerMinute
+        )
+      : rule?.rate_limit_paid || keyRecord.rate_limit_per_minute || 300;
 
   const rl = await rateLimit(`bot:${keyRecord.id}:${ip}`, {
     limit: rateLimitValue,
@@ -217,6 +271,41 @@ async function handleBotRequest(
     .then(() => {
       /* intentionally ignored */
     });
+
+  if (isDataRequest) {
+    const quota = await consumeDataApiQuota({
+      userId: keyRecord.owner_id,
+      apiKeyId: keyRecord.id,
+      endpoint: `${request.method} ${new URL(request.url).pathname}`,
+    });
+    if (!quota.allowed) {
+      return {
+        allowed: false,
+        callerType: "bot",
+        error: `Monthly data API quota exhausted for the ${quota.planSlug} plan`,
+        statusCode: 429,
+        apiKeyId: keyRecord.id,
+        ownerId: keyRecord.owner_id,
+        planSlug: quota.planSlug,
+        quotaRemaining: 0,
+        quotaLimit: quota.requestLimit,
+        maxPageSize: entitlement?.plan.maxPageSize,
+        historyDays: entitlement?.plan.historyDays,
+      };
+    }
+
+    return {
+      allowed: true,
+      callerType: "bot",
+      apiKeyId: keyRecord.id,
+      ownerId: keyRecord.owner_id,
+      planSlug: quota.planSlug,
+      quotaRemaining: Math.max(0, quota.requestLimit - quota.requestCount),
+      quotaLimit: quota.requestLimit,
+      maxPageSize: entitlement?.plan.maxPageSize,
+      historyDays: entitlement?.plan.historyDays,
+    };
+  }
 
   // Check if this endpoint has a price
   const price = rule?.price_per_call || 0;

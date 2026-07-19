@@ -88,5 +88,10 @@
     "name": "Verifier Agent",
     "cron": "15 */4 * * *",
     "path": "/api/cron/agents/verifier"
+  },
+  {
+    "name": "Affiliate Link Maintainer",
+    "cron": "30 2 * * *",
+    "path": "/api/cron/agents/affiliate-links"
   }
 ]

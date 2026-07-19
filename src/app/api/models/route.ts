@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { handleApiError } from "@/lib/api-error";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
@@ -33,16 +32,6 @@ function buildModelSearchFilter(rawSearch: string) {
 }
 
 export async function GET(request: NextRequest) {
-  // Rate limit: public endpoints
-  const ip = getClientIp(request);
-  const rl = await rateLimit(`models:${ip}`, RATE_LIMITS.public);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
-  }
-
   try {
     // Paywall check
     const pw = await checkPaywall(request);
@@ -55,8 +44,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const sort = searchParams.get("sort") || "rank";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const requestedPage = Number.parseInt(searchParams.get("page") || "1", 10);
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "20", 10);
+    const limit = Math.min(
+      Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 20,
+      pw.maxPageSize ?? 100
+    );
     const search = searchParams.get("q");
     const openOnly = searchParams.get("open") === "true";
 

@@ -1,8 +1,10 @@
 import { refreshHostedDeploymentStatus } from "@/lib/workspace/external-deployment";
 import type { WorkspaceDeploymentRecord } from "@/lib/workspace/deployment-summary";
+import { getProviderConnectionSecret } from "@/lib/provider-connections/server";
+import type { ProviderConnectionProvider } from "@/types/database";
 
 const DEPLOYMENT_SELECT =
-  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
+  "id, user_id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, provider_connection_id, billing_source, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
 
 type AdminLike = {
   from: (table: string) => {
@@ -51,10 +53,20 @@ export async function reconcileHostedDeployments(
 
   for (const deployment of deployments) {
     try {
+      const connectedCredential =
+        deployment.provider_connection_id && deployment.user_id
+          ? await getProviderConnectionSecret({
+              connectionId: deployment.provider_connection_id,
+              userId: deployment.user_id,
+              expectedProvider:
+                deployment.external_provider as ProviderConnectionProvider,
+            })
+          : null;
       const snapshot = await refreshHostedDeploymentStatus({
         provider: deployment.external_provider,
         owner: deployment.external_owner,
         name: deployment.external_name,
+        apiToken: connectedCredential?.secret,
       });
 
       if (!snapshot) {

@@ -772,6 +772,103 @@ export interface ApiKeyRecord {
   created_at: string;
 }
 
+export type ProviderConnectionProvider = "openrouter" | "replicate" | "huggingface";
+export type ProviderConnectionStatus = "active" | "invalid" | "revoked";
+
+export interface ProviderConnectionRecord {
+  id: string;
+  user_id: string;
+  provider: ProviderConnectionProvider;
+  display_name: string;
+  encrypted_secret: string;
+  secret_hint: string;
+  external_account_id: string | null;
+  external_account_name: string | null;
+  capabilities: string[];
+  status: ProviderConnectionStatus;
+  last_validated_at: string | null;
+  last_used_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataApiPlanRecord {
+  slug: string;
+  name: string;
+  description: string;
+  monthly_price_cents: number;
+  monthly_request_limit: number;
+  rate_limit_per_minute: number;
+  max_page_size: number;
+  history_days: number;
+  features: string[];
+  is_public: boolean;
+  is_active: boolean;
+  checkout_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataApiSubscriptionRecord {
+  id: string;
+  user_id: string;
+  plan_slug: string;
+  status: "active" | "trialing" | "past_due" | "canceled" | "expired";
+  source: "admin" | "stripe" | "promotion" | "migration";
+  current_period_start: string;
+  current_period_end: string | null;
+  external_customer_id: string | null;
+  external_subscription_id: string | null;
+  granted_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataApiUsageMonthlyRecord {
+  user_id: string;
+  period_start: string;
+  request_count: number;
+  last_api_key_id: string | null;
+  last_endpoint: string | null;
+  last_request_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AffiliateLinkRecord {
+  id: string;
+  platform_id: string;
+  model_id: string | null;
+  destination_url: string;
+  program_name: string;
+  campaign_name: string | null;
+  commission_details: string | null;
+  disclosure_text: string;
+  status: "draft" | "active" | "paused" | "invalid";
+  priority: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  last_checked_at: string | null;
+  last_check_status: "healthy" | "redirected" | "failed" | null;
+  last_http_status: number | null;
+  consecutive_failures: number;
+  last_error: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AffiliateClickDailyRecord {
+  affiliate_link_id: string;
+  click_date: string;
+  source: string;
+  clicks: number;
+  updated_at: string;
+}
+
 export interface AgentConversation {
   id: string;
   participant_a: string;
@@ -828,8 +925,10 @@ export interface WorkspaceDeploymentRecord {
   provider_name: string | null;
   status: "provisioning" | "ready" | "paused" | "failed";
   endpoint_slug: string;
-  deployment_kind: "managed_api" | "assistant_only" | "hosted_external";
+  deployment_kind: "managed_api" | "assistant_only" | "hosted_external" | "connected_inference";
   deployment_label: string | null;
+  provider_connection_id: string | null;
+  billing_source: "platform_wallet" | "provider_account";
   external_platform_slug: string | null;
   external_provider: string | null;
   external_owner: string | null;
@@ -986,6 +1085,8 @@ export interface DeploymentPlatform {
   logo_url: string | null;
   type: DeploymentPlatformType;
   affiliate_url_template: string | null;
+  affiliate_url: string | null;
+  affiliate_tag: string | null;
   has_affiliate: boolean;
   affiliate_commission: string | null;
   base_url: string;
@@ -1437,6 +1538,42 @@ export interface Database {
         Row: AsRow<ApiKeyRecord>;
         Insert: Partial<ApiKeyRecord> & Pick<ApiKeyRecord, "owner_id" | "name" | "key_prefix" | "key_hash">;
         Update: Partial<ApiKeyRecord>;
+        Relationships: [];
+      };
+      provider_connections: {
+        Row: AsRow<ProviderConnectionRecord>;
+        Insert: Partial<ProviderConnectionRecord> & Pick<ProviderConnectionRecord, "user_id" | "provider" | "display_name" | "encrypted_secret" | "secret_hint">;
+        Update: Partial<ProviderConnectionRecord>;
+        Relationships: [];
+      };
+      data_api_plans: {
+        Row: AsRow<DataApiPlanRecord>;
+        Insert: Partial<DataApiPlanRecord> & Pick<DataApiPlanRecord, "slug" | "name" | "description" | "monthly_request_limit" | "rate_limit_per_minute" | "max_page_size" | "history_days">;
+        Update: Partial<DataApiPlanRecord>;
+        Relationships: [];
+      };
+      data_api_subscriptions: {
+        Row: AsRow<DataApiSubscriptionRecord>;
+        Insert: Partial<DataApiSubscriptionRecord> & Pick<DataApiSubscriptionRecord, "user_id" | "plan_slug">;
+        Update: Partial<DataApiSubscriptionRecord>;
+        Relationships: [];
+      };
+      data_api_usage_monthly: {
+        Row: AsRow<DataApiUsageMonthlyRecord>;
+        Insert: Partial<DataApiUsageMonthlyRecord> & Pick<DataApiUsageMonthlyRecord, "user_id" | "period_start">;
+        Update: Partial<DataApiUsageMonthlyRecord>;
+        Relationships: [];
+      };
+      affiliate_links: {
+        Row: AsRow<AffiliateLinkRecord>;
+        Insert: Partial<AffiliateLinkRecord> & Pick<AffiliateLinkRecord, "platform_id" | "destination_url" | "program_name">;
+        Update: Partial<AffiliateLinkRecord>;
+        Relationships: [];
+      };
+      affiliate_click_daily: {
+        Row: AsRow<AffiliateClickDailyRecord>;
+        Insert: Partial<AffiliateClickDailyRecord> & Pick<AffiliateClickDailyRecord, "affiliate_link_id" | "click_date" | "source">;
+        Update: Partial<AffiliateClickDailyRecord>;
         Relationships: [];
       };
       agent_conversations: {
@@ -2003,6 +2140,29 @@ export interface Database {
           remaining: number;
           reset: number;
         }[];
+      };
+      consume_data_api_quota: {
+        Args: {
+          p_user_id: string;
+          p_api_key_id: string;
+          p_endpoint: string;
+        };
+        Returns: {
+          allowed: boolean;
+          plan_slug: string;
+          request_count: number;
+          request_limit: number;
+          rate_limit_per_minute: number;
+          period_start: string;
+          period_end: string;
+        }[];
+      };
+      record_affiliate_click: {
+        Args: {
+          p_affiliate_link_id: string;
+          p_source: string;
+        };
+        Returns: void;
       };
     };
     Enums: {

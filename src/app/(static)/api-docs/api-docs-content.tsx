@@ -32,7 +32,7 @@ interface Section {
 // Tab definitions
 // ---------------------------------------------------------------------------
 const TABS = [
-  { id: "public", label: "Public API", icon: Globe },
+  { id: "public", label: "Public & Data API", icon: Globe },
   { id: "marketplace", label: "Marketplace", icon: ShoppingBag },
   { id: "agents", label: "Agents & Bots", icon: Bot },
   { id: "mcp", label: "MCP Protocol", icon: Server },
@@ -67,7 +67,7 @@ const PUBLIC_SECTIONS: Section[] = [
           { name: "q", type: "string", description: "Search query for name, provider, or description" },
           { name: "sort", type: "string", description: "Sort by: rank, downloads, newest, quality" },
           { name: "page", type: "number", description: "Page number (default: 1)" },
-          { name: "limit", type: "number", description: "Results per page (default: 20, max: 100)" },
+          { name: "limit", type: "number", description: "Results per page (default: 20; public max: 100; keyed plan limits apply)" },
         ],
         example: `{
   "data": [
@@ -92,6 +92,22 @@ const PUBLIC_SECTIONS: Section[] = [
   "rank": 1,
   "benchmarks": { "mmlu": 88.7 },
   "pricing": { "input": 2.5, "output": 10.0 }
+}`,
+      },
+      {
+        method: "GET",
+        path: "/api/models/[slug]/history",
+        description:
+          "Get daily rank, score, adoption, usage, popularity, market-cap estimate, and source-coverage snapshots for a model.",
+        params: [
+          { name: "slug", type: "string", description: "Model slug identifier (URL path parameter)", required: true },
+          { name: "days", type: "number", description: "Requested lookback; the active data plan history limit is enforced" },
+        ],
+        example: `{
+  "model": { "slug": "gpt-4o", "name": "GPT-4o", "provider": "OpenAI" },
+  "data": [{ "snapshot_date": "2026-07-18", "overall_rank": 4, "quality_score": 91.2 }],
+  "period": { "days": 30, "availableFrom": "2026-06-19" },
+  "access": { "plan": "free", "quotaRemaining": 2499, "quotaLimit": 2500 }
 }`,
       },
     ],
@@ -120,7 +136,7 @@ const PUBLIC_SECTIONS: Section[] = [
           { name: "lens", type: "string", description: "Ranking lens: capability, popularity, adoption, economic, value, plus compatibility aliases such as economic_footprint" },
           { name: "category", type: "string", description: "Filter by category slug such as llm or agentic_browser" },
           { name: "lifecycle", type: "string", description: "Filter lifecycle scope: active or all" },
-          { name: "limit", type: "number", description: "Max results (default: 50, max: 200)" },
+          { name: "limit", type: "number", description: "Max results (default: 50; public max: 200; keyed plan limits apply)" },
         ],
         example: `{
   "data": [
@@ -498,7 +514,8 @@ export function ApiDocsContent() {
       <h1 className="text-3xl font-bold mb-1">API Documentation</h1>
       <p className="text-muted-foreground mb-8 max-w-2xl">
         Access AI Market Cap data programmatically. Public endpoints require no
-        authentication. Protected endpoints use API key authentication.
+        authentication at low-volume limits. API keys provide monthly plan quotas for
+        production data access and scoped authentication for protected endpoints.
       </p>
 
       {/* Base URL banner */}
@@ -848,7 +865,8 @@ function AuthSection() {
             </thead>
             <tbody>
               {[
-                { scope: "read", access: "Read-only access to all public endpoints" },
+                { scope: "data", access: "Models, rankings, benchmarks, and search under your data plan" },
+                { scope: "read", access: "Broader read-only access including marketplace resources" },
                 { scope: "write", access: "Create and update resources (listings, reviews)" },
                 { scope: "agent", access: "Chat with AI agents, manage conversations" },
                 { scope: "mcp", access: "Access the MCP JSON-RPC endpoint" },
@@ -881,9 +899,10 @@ function AuthSection() {
             </thead>
             <tbody>
               {[
-                { tier: "Unauthenticated", limit: "30 req", window: "per minute" },
-                { tier: "Authenticated (default)", limit: "60 req", window: "per minute" },
-                { tier: "Agent / MCP", limit: "30 req", window: "per minute" },
+                { tier: "Public", limit: "Up to 10 req", window: "per minute" },
+                { tier: "Explorer", limit: "30 req / 2,500 req", window: "minute / month" },
+                { tier: "Data Pro", limit: "300 req / 100,000 req", window: "minute / month" },
+                { tier: "Data Business", limit: "1,000 req / 1,000,000 req", window: "minute / month" },
               ].map((r) => (
                 <tr key={r.tier} className="border-b border-border/20 last:border-0">
                   <td className="px-5 py-2 text-xs text-foreground">{r.tier}</td>
@@ -895,10 +914,10 @@ function AuthSection() {
           </table>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          Rate limit headers (<code className="text-neon">X-RateLimit-Limit</code>,{" "}
-          <code className="text-neon">X-RateLimit-Remaining</code>,{" "}
-          <code className="text-neon">X-RateLimit-Reset</code>) are included in every response.
-          Exceeding the limit returns <code className="text-neon">429 Too Many Requests</code>.
+          An API key&apos;s own rate cap can be lower than its plan cap. Minute or monthly
+          exhaustion returns <code className="text-neon">429 Too Many Requests</code>. Paid
+          checkout is currently disabled; Pro and Business pilots are granted by an admin until
+          the correct payment account is connected.
         </p>
       </div>
 
@@ -908,6 +927,14 @@ function AuthSection() {
         <pre className="rounded-lg bg-black/60 border border-border/30 p-4 text-xs font-mono text-foreground/80 overflow-x-auto">
 {`# Public endpoint (no auth needed)
 curl https://aimarketcap.tech/api/models?category=llm&limit=5
+
+# Data plan request
+curl -H "Authorization: Bearer aimk_your_data_key" \\
+  "https://aimarketcap.tech/api/rankings?category=llm"
+
+# Plan-aware historical data
+curl -H "Authorization: Bearer aimk_your_data_key" \\
+  "https://aimarketcap.tech/api/models/gpt-4o/history?days=365"
 
 # Signed-in wallet view
 curl -H "Authorization: Bearer <session-or-cookie-backed request>" \\

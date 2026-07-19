@@ -14,6 +14,8 @@ import {
   Check,
   AlertTriangle,
   ArrowRight,
+  BarChart3,
+  Database,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
@@ -39,11 +41,41 @@ interface ApiKeysResponse {
   keys: ApiKeyRecord[];
 }
 
+interface DataAccessResponse {
+  entitlement: {
+    plan: {
+      slug: string;
+      name: string;
+      description: string;
+      monthlyPriceCents: number;
+      monthlyRequestLimit: number;
+      rateLimitPerMinute: number;
+      historyDays: number;
+    };
+    usage: {
+      requestCount: number;
+      requestLimit: number;
+      remaining: number;
+      percentUsed: number;
+      periodStart: string;
+    };
+  };
+  billing: {
+    checkoutEnabled: boolean;
+    message: string;
+  };
+}
+
 const AVAILABLE_SCOPES = [
+  {
+    value: "data",
+    label: "Data API",
+    description: "Models, rankings, benchmarks, and search",
+  },
   {
     value: "read",
     label: "Read",
-    description: "Query models, rankings, marketplace",
+    description: "Broader read access including marketplace",
   },
   {
     value: "write",
@@ -104,11 +136,15 @@ export default function ApiKeysContent() {
     ? `${activeWorkspace.runtimeEndpointPath}/assistant`
     : null;
   const [newKeyScopes, setNewKeyScopes] = useState<string[]>(() =>
-    hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]
+    hasRuntimeContext ? [...recommendedRuntimeScopes] : ["data"]
   );
 
   const { data, isLoading, mutate } = useSWR<ApiKeysResponse>(
     user ? "/api/api-keys" : null,
+    { ...SWR_TIERS.SLOW }
+  );
+  const { data: dataAccess, isLoading: dataAccessLoading } = useSWR<DataAccessResponse>(
+    user ? "/api/data-access/subscription" : null,
     { ...SWR_TIERS.SLOW }
   );
 
@@ -179,7 +215,7 @@ export default function ApiKeysContent() {
       setCreatedKey(respData.plaintext_key);
       setShowCreate(false);
       setNewKeyName("");
-      setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
+      setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["data"]);
       setNewKeyExpiry("");
       toast.success("API key created");
       addWorkspaceEvent(
@@ -222,7 +258,7 @@ export default function ApiKeysContent() {
     );
   };
 
-  if (loading || isLoading) {
+  if (loading || isLoading || dataAccessLoading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="animate-pulse space-y-4">
@@ -283,13 +319,13 @@ export default function ApiKeysContent() {
           <div>
             <h1 className="text-xl font-bold">API Keys</h1>
             <p className="text-xs text-muted-foreground">
-              Manage keys for bot access, MCP protocol, and marketplace API
+              Manage keys for data, deployed models, agents, MCP, and marketplace access
             </p>
           </div>
         </div>
         <button
           onClick={() => {
-            setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
+            setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["data"]);
             setShowCreate(true);
           }}
           className="flex items-center gap-2 rounded-lg bg-neon px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-neon/90"
@@ -298,6 +334,61 @@ export default function ApiKeysContent() {
           Create Key
         </button>
       </div>
+
+      {dataAccess ? (
+        <Card className="mb-6 overflow-hidden border-cyan-500/20 bg-card/70">
+          <CardContent className="p-0">
+            <div className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Database className="h-4 w-4 text-cyan-300" />
+                  <p className="font-semibold text-white">{dataAccess.entitlement.plan.name}</p>
+                  <Badge
+                    variant="outline"
+                    className="border-cyan-500/20 bg-cyan-500/10 text-cyan-200"
+                  >
+                    {dataAccess.entitlement.plan.slug}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {dataAccess.entitlement.plan.description}
+                </p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-cyan-400 transition-[width]"
+                    style={{ width: `${dataAccess.entitlement.usage.percentUsed}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>
+                    {dataAccess.entitlement.usage.requestCount.toLocaleString()} /{" "}
+                    {dataAccess.entitlement.usage.requestLimit.toLocaleString()} requests this month
+                  </span>
+                  <span>{dataAccess.entitlement.plan.rateLimitPerMinute} requests/minute</span>
+                  <span>{dataAccess.entitlement.plan.historyDays} days history</span>
+                </div>
+              </div>
+              <div className="flex gap-2 md:flex-col">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/api-docs">
+                    <BarChart3 className="h-4 w-4" />
+                    API docs
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/pricing">View plans</Link>
+                </Button>
+              </div>
+            </div>
+            {!dataAccess.billing.checkoutEnabled ? (
+              <div className="border-t border-amber-500/15 bg-amber-500/5 px-5 py-3 text-xs text-amber-100/80">
+                Paid plan checkout is not enabled yet. Admin-granted pilots are available without
+                using the connected Stripe account.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Created key banner - show once */}
       {createdKey && (
@@ -423,7 +514,7 @@ export default function ApiKeysContent() {
               <button
                 onClick={() => {
                   setShowCreate(false);
-                  setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["read"]);
+                  setNewKeyScopes(hasRuntimeContext ? [...recommendedRuntimeScopes] : ["data"]);
                   setError(null);
                 }}
                 className="rounded-lg bg-secondary px-4 py-2 text-sm transition-colors hover:bg-secondary/80"

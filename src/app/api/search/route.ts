@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { handleApiError } from "@/lib/api-error";
@@ -66,16 +65,6 @@ async function searchMarketplaceWithFallback(
 }
 
 export async function GET(request: NextRequest) {
-  // Rate limit: search endpoints
-  const ip = getClientIp(request);
-  const rl = await rateLimit(`search:${ip}`, RATE_LIMITS.search);
-  if (!rl.success) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: rateLimitHeaders(rl) }
-    );
-  }
-
   try {
     // Paywall check
     const pw = await checkPaywall(request);
@@ -85,7 +74,12 @@ export async function GET(request: NextRequest) {
     const supabase = createOptionalPublicClient() ?? admin;
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "10", 10);
+    const limit = Math.min(
+      Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 10,
+      pw.maxPageSize ?? 50,
+      250
+    );
     const includeMarketplace = searchParams.get("marketplace") !== "false";
 
     if (!query || query.length < 2) {

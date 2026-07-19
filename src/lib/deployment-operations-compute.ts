@@ -6,7 +6,11 @@ type DeploymentOpsRow = {
   model_name: string;
   provider_name: string | null;
   status: "provisioning" | "ready" | "paused" | "failed";
-  deployment_kind: "managed_api" | "assistant_only" | "hosted_external";
+  deployment_kind:
+    | "managed_api"
+    | "assistant_only"
+    | "hosted_external"
+    | "connected_inference";
   created_at: string;
   updated_at: string;
   last_error_message: string | null;
@@ -67,7 +71,11 @@ export function computeDeploymentOperationsSummary(
     totals: {
       total: rows.length,
       managedCount: rows.filter((row) => row.deployment_kind === "managed_api").length,
-      hostedCount: rows.filter((row) => row.deployment_kind === "hosted_external").length,
+      hostedCount: rows.filter(
+        (row) =>
+          row.deployment_kind === "hosted_external" ||
+          row.deployment_kind === "connected_inference"
+      ).length,
       readyCount: rows.filter((row) => row.status === "ready").length,
       pausedCount: rows.filter((row) => row.status === "paused").length,
       provisioningCount: rows.filter((row) => row.status === "provisioning").length,

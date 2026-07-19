@@ -1,7 +1,8 @@
 import type { WorkspaceRuntimePricing } from "./runtime-execution";
 
 export interface WorkspaceDeploymentChargeInput {
-  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+  deploymentKind: "managed_api" | "assistant_only" | "hosted_external" | "connected_inference";
+  billingSource?: "platform_wallet" | "provider_account";
   runtimePricing?: WorkspaceRuntimePricing | null;
 }
 
@@ -15,12 +16,20 @@ export interface WorkspaceDeploymentBudgetSummary {
 export function getWorkspaceDeploymentRequestCharge(
   input: WorkspaceDeploymentChargeInput
 ): number {
+  if (input.billingSource === "provider_account") {
+    return 0;
+  }
+
   if (input.deploymentKind === "assistant_only") {
     return 0;
   }
 
   if (input.deploymentKind === "hosted_external") {
     return 0.5;
+  }
+
+  if (input.deploymentKind === "connected_inference") {
+    return 0.25;
   }
 
   const pricing = input.runtimePricing;
@@ -42,13 +51,15 @@ export function getWorkspaceDeploymentRequestCharge(
 }
 
 export function getWorkspaceDeploymentBudgetSummary(input: {
-  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+  deploymentKind: "managed_api" | "assistant_only" | "hosted_external" | "connected_inference";
+  billingSource?: "platform_wallet" | "provider_account";
   runtimePricing?: WorkspaceRuntimePricing | null;
   creditsBudget: number | null | undefined;
   totalRequests: number | null | undefined;
 }): WorkspaceDeploymentBudgetSummary {
   const requestCharge = getWorkspaceDeploymentRequestCharge({
     deploymentKind: input.deploymentKind,
+    billingSource: input.billingSource,
     runtimePricing: input.runtimePricing,
   });
   const totalRequests =

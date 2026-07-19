@@ -18,20 +18,37 @@ import {
 } from "@/lib/workspace/deployment-billing";
 import { creditWallet, debitWallet, getWalletByOwner } from "@/lib/payments/wallet";
 import { rejectUntrustedSessionOrigin } from "@/lib/security/request-origin";
+import { getProviderConnectionSecret } from "@/lib/provider-connections/server";
+import type { ProviderConnectionProvider } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 const DEPLOYMENT_SELECT =
-  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
+  "id, runtime_id, model_slug, model_name, provider_name, status, endpoint_slug, deployment_kind, deployment_label, provider_connection_id, billing_source, external_platform_slug, external_provider, external_owner, external_name, external_model_ref, external_web_url, credits_budget, monthly_price_estimate, total_requests, successful_requests, failed_requests, total_tokens, avg_response_latency_ms, last_response_latency_ms, last_used_at, last_success_at, last_error_at, last_error_message, updated_at";
 
 const RequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),
   system: z.string().trim().max(4000).optional(),
 });
 
+function expectedConnectionProvider(
+  deployment: WorkspaceDeploymentRecord
+): ProviderConnectionProvider | undefined {
+  if (deployment.billing_source !== "provider_account") return undefined;
+  if (deployment.deployment_kind === "managed_api") return "openrouter";
+  if (
+    deployment.external_provider === "replicate" ||
+    deployment.external_provider === "huggingface"
+  ) {
+    return deployment.external_provider;
+  }
+  throw new Error("Deployment provider configuration is invalid");
+}
+
 async function reconcileHostedDeployment(
   admin: ReturnType<typeof createAdminClient>,
-  deployment: WorkspaceDeploymentRecord
+  deployment: WorkspaceDeploymentRecord,
+  apiToken?: string
 ): Promise<WorkspaceDeploymentRecord> {
   if (deployment.deployment_kind !== "hosted_external") {
     return deployment;
@@ -41,6 +58,7 @@ async function reconcileHostedDeployment(
     provider: deployment.external_provider,
     owner: deployment.external_owner,
     name: deployment.external_name,
+    apiToken,
   });
 
   if (!snapshot) return deployment;
@@ -97,13 +115,30 @@ export async function GET(
       return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
     }
 
+    const connectedCredential = deployment.provider_connection_id
+      ? await getProviderConnectionSecret({
+          connectionId: deployment.provider_connection_id,
+          userId: auth.userId,
+          expectedProvider: expectedConnectionProvider(
+            deployment as WorkspaceDeploymentRecord
+          ),
+        })
+      : null;
+
     const reconciledDeployment = await reconcileHostedDeployment(
       admin,
-      deployment as WorkspaceDeploymentRecord
+      deployment as WorkspaceDeploymentRecord,
+      connectedCredential?.secret
     );
 
     const execution = await resolveAvailableWorkspaceRuntimeExecution(
-      reconciledDeployment.model_slug
+      reconciledDeployment.model_slug,
+      {
+        openRouterApiKey:
+          connectedCredential?.provider === "openrouter"
+            ? connectedCredential.secret
+            : undefined,
+      }
     );
 
     return NextResponse.json({
@@ -118,6 +153,8 @@ export async function GET(
         endpointPath: buildWorkspaceDeploymentEndpointPath(reconciledDeployment.endpoint_slug),
         deploymentKind: reconciledDeployment.deployment_kind,
         deploymentLabel: reconciledDeployment.deployment_label,
+        providerConnectionId: reconciledDeployment.provider_connection_id,
+        billingSource: reconciledDeployment.billing_source,
         target:
           reconciledDeployment.external_platform_slug && reconciledDeployment.external_provider
             ? {
@@ -138,6 +175,7 @@ export async function GET(
         execution,
         billing: getWorkspaceDeploymentBudgetSummary({
           deploymentKind: reconciledDeployment.deployment_kind,
+          billingSource: reconciledDeployment.billing_source,
           runtimePricing: execution.pricing,
           creditsBudget: reconciledDeployment.credits_budget,
           totalRequests: reconciledDeployment.total_requests,
@@ -185,16 +223,34 @@ export async function POST(
       return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
     }
 
+    const connectedCredential = deployment.provider_connection_id
+      ? await getProviderConnectionSecret({
+          connectionId: deployment.provider_connection_id,
+          userId: auth.userId,
+          expectedProvider: expectedConnectionProvider(
+            deployment as WorkspaceDeploymentRecord
+          ),
+        })
+      : null;
+
     const reconciledDeployment = await reconcileHostedDeployment(
       admin,
-      deployment as WorkspaceDeploymentRecord
+      deployment as WorkspaceDeploymentRecord,
+      connectedCredential?.secret
     );
 
     const execution = await resolveAvailableWorkspaceRuntimeExecution(
-      reconciledDeployment.model_slug
+      reconciledDeployment.model_slug,
+      {
+        openRouterApiKey:
+          connectedCredential?.provider === "openrouter"
+            ? connectedCredential.secret
+            : undefined,
+      }
     );
     const billing = getWorkspaceDeploymentBudgetSummary({
       deploymentKind: reconciledDeployment.deployment_kind,
+      billingSource: reconciledDeployment.billing_source,
       runtimePricing: execution.pricing,
       creditsBudget: reconciledDeployment.credits_budget,
       totalRequests: reconciledDeployment.total_requests,
@@ -226,6 +282,7 @@ export async function POST(
 
     const requestCharge = getWorkspaceDeploymentRequestCharge({
       deploymentKind: reconciledDeployment.deployment_kind,
+      billingSource: reconciledDeployment.billing_source,
       runtimePricing: execution.pricing,
     });
 
@@ -276,7 +333,10 @@ export async function POST(
     const startedAt = Date.now();
     let response;
     try {
-      if (reconciledDeployment.deployment_kind === "hosted_external") {
+      if (
+        reconciledDeployment.deployment_kind === "hosted_external" ||
+        reconciledDeployment.deployment_kind === "connected_inference"
+      ) {
         if (
           !reconciledDeployment.external_provider ||
           !reconciledDeployment.external_owner ||
@@ -291,6 +351,7 @@ export async function POST(
                 modelRef: reconciledDeployment.external_model_ref,
                 message: parsed.data.message,
                 system: parsed.data.system,
+                apiToken: connectedCredential?.secret,
               })
             : await runReplicateDeployment({
                 owner: reconciledDeployment.external_owner,
@@ -298,6 +359,7 @@ export async function POST(
                 modelRef: reconciledDeployment.external_model_ref,
                 message: parsed.data.message,
                 system: parsed.data.system,
+                apiToken: connectedCredential?.secret,
               });
       } else {
         if (!execution.available || !execution.provider || !execution.model) {
@@ -314,6 +376,10 @@ export async function POST(
           ],
           temperature: 0.2,
           maxTokens: 2048,
+          apiKeys:
+            connectedCredential?.provider === "openrouter"
+              ? { openrouter: connectedCredential.secret }
+              : undefined,
         });
       }
     } catch (error) {
@@ -436,6 +502,7 @@ export async function POST(
         execution,
         billing: getWorkspaceDeploymentBudgetSummary({
           deploymentKind: reconciledDeployment.deployment_kind,
+          billingSource: reconciledDeployment.billing_source,
           runtimePricing: execution.pricing,
           creditsBudget: reconciledDeployment.credits_budget,
           totalRequests: (reconciledDeployment.total_requests ?? 0) + 1,

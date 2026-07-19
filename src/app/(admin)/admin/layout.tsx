@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Flag,
+  CircleDollarSign,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -28,6 +29,7 @@ const ADMIN_NAV = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/data-sources", label: "Sources", icon: Database },
   { href: "/admin/agents", label: "Agents", icon: Bot },
+  { href: "/admin/monetization", label: "Revenue", icon: CircleDollarSign },
 ];
 
 export default function AdminLayout({

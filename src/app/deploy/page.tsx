@@ -46,9 +46,12 @@ const MAX_DEPLOY_SOURCE_MODELS = 360;
 const DEPLOY_FOCUS_OPTIONS = ["all", "chat", "api", "open", "cost"] as const;
 type DeployFocus = (typeof DEPLOY_FOCUS_OPTIONS)[number];
 
-function getProvisioningBadgeLabel(kind: "managed_api" | "hosted_external" | "assistant_only") {
+function getProvisioningBadgeLabel(
+  kind: "managed_api" | "hosted_external" | "connected_inference" | "assistant_only"
+) {
   if (kind === "managed_api") return "Runs here";
   if (kind === "hosted_external") return "Dedicated runtime";
+  if (kind === "connected_inference") return "Connected inference";
   return "Guided setup";
 }
 

@@ -54,7 +54,11 @@ interface DeployTabProps {
 
 interface WorkspaceProvisioning {
   canCreate: boolean;
-  deploymentKind: "managed_api" | "assistant_only" | "hosted_external";
+  deploymentKind:
+    | "managed_api"
+    | "assistant_only"
+    | "hosted_external"
+    | "connected_inference";
   label: string;
   summary: string;
   target: {
@@ -67,17 +71,14 @@ interface WorkspaceProvisioning {
   } | null;
 }
 
-const UTM_PARAMS = "?ref=aimarketcap&utm_source=aimarketcap&utm_medium=deploy_tab";
-
-/** Returns the best URL for a platform: affiliate_url if set, otherwise base_url + UTM */
-function getPlatformUrl(platform: Platform, deployUrl?: string | null): string {
-  if (platform.affiliate_url) return platform.affiliate_url;
-  return `${deployUrl || platform.base_url}${UTM_PARAMS}`;
+function getPlatformUrl(platform: Platform, modelSlug: string): string {
+  const params = new URLSearchParams({ source: "model-deploy", model: modelSlug });
+  return `/go/${encodeURIComponent(platform.slug)}?${params.toString()}`;
 }
 
 /** Returns proper rel attribute: sponsored for affiliate links */
 function getLinkRel(platform: Platform): string {
-  return platform.affiliate_url
+  return platform.has_affiliate
     ? "noopener noreferrer sponsored nofollow"
     : "noopener noreferrer";
 }
@@ -237,7 +238,7 @@ export function DeployTab({
           actionLabel: quickStart?.actionLabel,
           actionUrl: getPlatformUrl(
             primaryDeployment.platform,
-            primaryDeployment.deployment?.deploy_url
+            modelSlug
           ),
           monthlyPrice: primaryDeployment.deployment?.price_per_unit ?? null,
           freeTier: primaryDeployment.deployment?.free_tier ?? null,
@@ -644,7 +645,7 @@ export function DeployTab({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <a
-                          href={getPlatformUrl(platform, deployment?.deploy_url)}
+                          href={getPlatformUrl(platform, modelSlug)}
                           target="_blank"
                           rel={getLinkRel(platform)}
                           className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition-colors"
@@ -829,7 +830,7 @@ export function DeployTab({
                     </div>
                   )}
                   <a
-                    href={getPlatformUrl(platform, item.deployment?.deploy_url)}
+                    href={getPlatformUrl(platform, modelSlug)}
                     target="_blank"
                     rel={getLinkRel(platform)}
                     className="inline-flex items-center gap-1 text-xs text-[#00d4aa] hover:text-[#00d4aa]/80 transition-colors"
