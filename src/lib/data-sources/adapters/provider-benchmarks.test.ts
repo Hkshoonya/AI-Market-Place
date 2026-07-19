@@ -939,6 +939,7 @@ describe("provider-benchmarks helpers", () => {
         provider: "Meta",
         url:
           "https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/",
+        publishedAtHint: "2026-07-09T00:00:00.000Z",
         sourceType: "official_provider_page",
         requiresBenchmarkSignal: true,
       }),

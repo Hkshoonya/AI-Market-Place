@@ -1865,6 +1865,9 @@ function buildAutoBenchmarkSources(
         url: locator.url,
         titleHint: `${model.name} benchmark update`,
         modelHints,
+        publishedAtHint: model.release_date
+          ? `${model.release_date}T00:00:00.000Z`
+          : undefined,
         sourceType: locator.sourceType,
         requiresBenchmarkSignal: true,
         releaseDate: model.release_date,
