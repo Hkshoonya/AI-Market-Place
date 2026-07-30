@@ -76,4 +76,14 @@ describe("benchmark seed configuration", () => {
     expect(source.is_enabled).toBe(true);
     expect(source.output_types).toEqual(["models"]);
   });
+
+  it("verifies official provider pricing every four hours", () => {
+    const source = getSeed("official-provider-pricing");
+
+    expect(source.tier).toBe(2);
+    expect(source.sync_interval_hours).toBe(4);
+    expect(source.is_enabled).toBe(true);
+    expect(source.output_types).toEqual(["pricing"]);
+    expect(source.secret_env_keys).toEqual([]);
+  });
 });

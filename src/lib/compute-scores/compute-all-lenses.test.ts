@@ -29,6 +29,7 @@ vi.mock("@/lib/pipeline-health", () => ({
 // Mock provider-pricing to return null (no curated prices)
 vi.mock("@/lib/data-sources/adapters/provider-pricing", () => ({
   lookupProviderPrice: vi.fn().mockReturnValue(null),
+  preferNewerOfficialProviderPrice: vi.fn((fallback) => fallback),
 }));
 
 /**

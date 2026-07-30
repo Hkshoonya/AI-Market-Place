@@ -1,4 +1,5 @@
 import { getNewsSignalType } from "@/lib/news/presentation";
+import type { NewsSignalType } from "@/lib/news/signals";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
 import { collapsePublicModelFamilies } from "@/lib/models/public-families";
 import { limitProviderBurst } from "@/lib/homepage/deployments";
@@ -39,6 +40,24 @@ export interface HomepageLaunchNewsItem {
 export interface HomepageLaunchSelection<TModel extends HomepageLaunchModel> {
   model: TModel;
   surfacedAt: string | null;
+  signalType: NewsSignalType;
+}
+
+const HOMEPAGE_SIGNAL_LABELS: Record<NewsSignalType, string> = {
+  launch: "NEW",
+  pricing: "PRICE UPDATE",
+  benchmark: "BENCHMARK",
+  api: "ACCESS UPDATE",
+  open_source: "OPEN SOURCE",
+  safety: "SAFETY UPDATE",
+  research: "RESEARCH",
+  general: "UPDATE",
+};
+
+export function getHomepageSignalBadgeLabel(
+  signalType: NewsSignalType
+): string {
+  return HOMEPAGE_SIGNAL_LABELS[signalType];
 }
 
 function canCollapseLaunchFamilies<TModel extends HomepageLaunchModel>(models: TModel[]) {
@@ -124,8 +143,18 @@ function providersMatch(
 }
 
 function compareLaunchSelections<TModel extends HomepageLaunchModel>(
-  left: { score: number; model: TModel; surfacedAt: string | null },
-  right: { score: number; model: TModel; surfacedAt: string | null }
+  left: {
+    score: number;
+    model: TModel;
+    surfacedAt: string | null;
+    signalType: NewsSignalType;
+  },
+  right: {
+    score: number;
+    model: TModel;
+    surfacedAt: string | null;
+    signalType: NewsSignalType;
+  }
 ) {
   const leftSpecialized = isSpecializedHomepageLaunch(left.model);
   const rightSpecialized = isSpecializedHomepageLaunch(right.model);
@@ -161,7 +190,12 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
   const modelsById = new Map(models.map((model) => [model.id, model]));
   const selectedById = new Map<
     string,
-    { score: number; model: TModel; surfacedAt: string | null }
+    {
+      score: number;
+      model: TModel;
+      surfacedAt: string | null;
+      signalType: NewsSignalType;
+    }
   >();
 
   for (const item of newsItems) {
@@ -188,6 +222,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
           score,
           model,
           surfacedAt: publishedAt,
+          signalType,
         });
       }
     }
@@ -208,12 +243,14 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
         .map((entry) => ({
           model: entry.model,
           surfacedAt: entry.surfacedAt,
+          signalType: entry.signalType,
         }))
     : [...selectedById.values()]
         .sort(compareLaunchSelections)
         .map((entry) => ({
           model: entry.model,
           surfacedAt: entry.surfacedAt,
+          signalType: entry.signalType,
         }));
 
   if (prioritized.length >= limit) {
@@ -262,6 +299,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     .map((model) => ({
       model,
       surfacedAt: model.release_date ?? model.created_at ?? null,
+      signalType: "launch" as const,
     }));
 
   return limitProviderBurst(

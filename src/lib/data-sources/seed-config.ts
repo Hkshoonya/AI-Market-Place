@@ -105,6 +105,20 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     config: {},
   },
   {
+    slug: "official-provider-pricing",
+    name: "Official Provider Pricing",
+    adapter_type: "official-provider-pricing",
+    description:
+      "Verifies direct-provider token prices from official model documentation",
+    tier: 2,
+    sync_interval_hours: 4,
+    priority: 47,
+    secret_env_keys: [],
+    output_types: ["pricing"],
+    is_enabled: true,
+    config: {},
+  },
+  {
     slug: "provider-news",
     name: "Provider News",
     adapter_type: "provider-news",

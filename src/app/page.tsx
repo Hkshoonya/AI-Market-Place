@@ -48,7 +48,10 @@ import {
   getUsageUpdateBadgeLabel,
 } from "@/lib/models/deployability";
 import { createOptionalAdminClient } from "@/lib/supabase/admin";
-import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
+import {
+  buildHomepageLaunchSelections,
+  getHomepageSignalBadgeLabel,
+} from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
 import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
@@ -680,13 +683,13 @@ export default async function HomePage() {
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
-          Track new launches and newly verified ways to run or buy access to important models,
-          without burning half the page on two lookalike card walls.
+          Track launches, pricing changes, and newly verified ways to run or buy access to
+          important models, without burning half the page on two lookalike card walls.
         </p>
 
         <Tabs defaultValue="launches" className="mt-6">
           <TabsList variant="line" className="w-full rounded-xl border border-border/50 bg-card/35 p-1 sm:w-fit">
-            <TabsTrigger value="launches">Launches</TabsTrigger>
+            <TabsTrigger value="launches">Launches &amp; Updates</TabsTrigger>
             {newDeploymentPaths.length > 0 ? (
               <TabsTrigger value="deployments">Deployments</TabsTrigger>
             ) : null}
@@ -695,7 +698,7 @@ export default async function HomePage() {
           <TabsContent value="launches" className="mt-5">
             <div className="overflow-x-auto pb-2">
               <div className="flex min-w-full gap-4">
-                {newModels?.map(({ model, surfacedAt }) => {
+                {newModels?.map(({ model, surfacedAt, signalType }) => {
                   const catConfig = CATEGORIES.find((c) => c.slug === model.category);
                   const parameterDisplay = getParameterDisplay(model);
                   const surfaceDateValue = surfacedAt ?? model.release_date ?? null;
@@ -719,7 +722,7 @@ export default async function HomePage() {
                               variant="outline"
                               className="border-gain/30 bg-gain/10 text-[11px] text-gain"
                             >
-                              NEW
+                              {getHomepageSignalBadgeLabel(signalType)}
                             </Badge>
                             <span className="text-[11px] text-muted-foreground">{dateLabel}</span>
                           </div>

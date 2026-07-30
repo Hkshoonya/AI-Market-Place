@@ -16,7 +16,11 @@ import { computeCapabilityScore, type CapabilityInputs } from "@/lib/scoring/cap
 import { computeUsageScore, computeUsageNormStats, type UsageInputs } from "@/lib/scoring/usage-calculator";
 import { computeExpertScore, computeExpertNormStats, type ExpertInputs } from "@/lib/scoring/expert-calculator";
 import { computeBalancedRankings } from "@/lib/scoring/balanced-calculator";
-import { lookupProviderPrice } from "@/lib/data-sources/adapters/provider-pricing";
+import {
+  lookupProviderPrice,
+  preferNewerOfficialProviderPrice,
+  type ProviderPrice,
+} from "@/lib/data-sources/adapters/provider-pricing";
 import {
   computeAgentBenchmarkWeights,
   computeAgentScore,
@@ -46,6 +50,7 @@ const CURATED_PRICING_COMPARE_FIELDS = [
   "pricing_model",
   "input_price_per_million",
   "output_price_per_million",
+  "cached_input_price_per_million",
   "price_per_call",
   "price_per_gpu_second",
   "subscription_monthly",
@@ -59,6 +64,7 @@ function normalizedPricingValue(field: string, value: unknown) {
   if (
     field === "input_price_per_million" ||
     field === "output_price_per_million" ||
+    field === "cached_input_price_per_million" ||
     field === "price_per_call" ||
     field === "price_per_gpu_second" ||
     field === "subscription_monthly" ||
@@ -183,7 +189,7 @@ export async function computeAllLenses(
   let pricingUnchanged = 0;
   const { data: allPricing } = await supabase
     .from("model_pricing")
-    .select("model_id, provider_name, pricing_model, input_price_per_million, output_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, blended_price_per_million, source, effective_date, updated_at");
+    .select("model_id, provider_name, pricing_model, input_price_per_million, output_price_per_million, cached_input_price_per_million, price_per_call, price_per_gpu_second, subscription_monthly, blended_price_per_million, source, effective_date, updated_at");
 
   const existingPricingByModelAndProvider = new Map(
     (allPricing ?? []).map((pricing) => [
@@ -191,6 +197,31 @@ export async function computeAllLenses(
       pricing as Record<string, unknown>,
     ])
   );
+  const effectiveProviderPriceByModelId = new Map<string, ProviderPrice | null>();
+  const getEffectiveProviderPrice = (model: {
+    id: string;
+    slug: unknown;
+    provider: unknown;
+  }): ProviderPrice | null => {
+    if (effectiveProviderPriceByModelId.has(model.id)) {
+      return effectiveProviderPriceByModelId.get(model.id) ?? null;
+    }
+
+    const modelProvider =
+      typeof model.provider === "string" ? model.provider : null;
+    const fallback = lookupProviderPrice(String(model.slug), modelProvider);
+    const effective = fallback
+      ? preferNewerOfficialProviderPrice(
+          fallback,
+          existingPricingByModelAndProvider.get(
+            `${model.id}:${fallback.provider}`
+          ),
+          modelProvider
+        )
+      : null;
+    effectiveProviderPriceByModelId.set(model.id, effective);
+    return effective;
+  };
 
   const cheapestPriceMap = new Map<string, number>();
   const pricingSourceMap = new Map<string, Set<string>>();
@@ -223,7 +254,7 @@ export async function computeAllLenses(
   }
 
   for (const m of pricingModels) {
-    const curatedPrice = lookupProviderPrice(m.slug as string, m.provider as string);
+    const curatedPrice = getEffectiveProviderPrice(m);
     if (!curatedPrice) continue;
 
     const pricingModel =
@@ -245,6 +276,8 @@ export async function computeAllLenses(
       pricing_model: pricingModel,
       input_price_per_million: curatedPrice.inputPricePerMillion,
       output_price_per_million: curatedPrice.outputPricePerMillion,
+      cached_input_price_per_million:
+        curatedPrice.cachedInputPricePerMillion ?? null,
       price_per_call: curatedPrice.pricePerCall ?? null,
       price_per_gpu_second: curatedPrice.pricePerGpuSecond ?? null,
       subscription_monthly: curatedPrice.subscriptionMonthly ?? null,
@@ -319,7 +352,7 @@ export async function computeAllLenses(
     const sm = scoredModels.find((s) => s.id === m.id);
     if (!sm || sm.qualityScore <= 0) continue;
 
-    const curatedPrice = lookupProviderPrice(m.slug as string, m.provider as string);
+    const curatedPrice = getEffectiveProviderPrice(m);
     const freshCuratedPrice =
       curatedPrice &&
       isFreshVerifiedPricingEntry({
@@ -520,9 +553,7 @@ export async function computeAllLenses(
     });
     adoptionScoreMap.set(input.id, adoptionScore);
 
-    const curatedPrice = m
-      ? lookupProviderPrice(m.slug as string, m.provider as string)
-      : null;
+    const curatedPrice = m ? getEffectiveProviderPrice(m) : null;
     const dbPrice = cheapestPriceMap.get(input.id);
     const inputPrice = curatedPrice?.inputPricePerMillion ?? dbPrice ?? 0;
     const blendedPrice = inputPrice;

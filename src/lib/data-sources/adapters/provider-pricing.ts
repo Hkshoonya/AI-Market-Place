@@ -2,8 +2,9 @@
  * Curated provider pricing data.
  *
  * Maps known model slugs to official pricing from their providers.
- * This supplements the dynamic OpenRouter pricing with direct provider data.
- * Updated manually when providers change pricing (infrequent).
+ * This supplements dynamic pricing sources with a safe fallback for direct
+ * provider data. Newer observations from approved official sources take
+ * precedence during score computation.
  *
  * Sources verified March 2026:
  *   - OpenAI:    developers.openai.com/api/docs/pricing
@@ -23,6 +24,7 @@ export interface ProviderPrice {
   provider: string;
   inputPricePerMillion: number | null;
   outputPricePerMillion: number | null;
+  cachedInputPricePerMillion?: number | null;
   pricePerCall?: number | null;
   pricePerGpuSecond?: number | null;
   subscriptionMonthly?: number | null;
@@ -30,7 +32,7 @@ export interface ProviderPrice {
   lastUpdated: string;
 }
 
-// Prices as of March 2026. Most entries are input/output token prices in USD;
+// Fallback prices. Most entries are input/output token prices in USD;
 // service-style models may use pricePerCall when the provider only publishes
 // request/image pricing rather than token pricing.
 export const KNOWN_PRICES: Record<string, ProviderPrice> = {
@@ -78,12 +80,14 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "gpt-4.5": { provider: "OpenAI", inputPricePerMillion: 75.00, outputPricePerMillion: 150.00, source: "openai.com/pricing", lastUpdated: "2026-03-01" },
 
   // ─── OpenAI — GPT-5 family (CORRECTED) ─────────────────────────
-  "gpt-5-6-sol": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
-  "gpt-5.6-sol": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
-  "gpt-5-6-terra": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 15.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
-  "gpt-5.6-terra": { provider: "OpenAI", inputPricePerMillion: 2.50, outputPricePerMillion: 15.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
-  "gpt-5-6-luna": { provider: "OpenAI", inputPricePerMillion: 1.00, outputPricePerMillion: 6.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
-  "gpt-5.6-luna": { provider: "OpenAI", inputPricePerMillion: 1.00, outputPricePerMillion: 6.00, source: "openai.com/index/previewing-gpt-5-6-sol", lastUpdated: "2026-06-26" },
+  "gpt-5-6": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, cachedInputPricePerMillion: 0.50, source: "https://developers.openai.com/api/docs/models/gpt-5.6-sol", lastUpdated: "2026-07-30" },
+  "gpt-5.6": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, cachedInputPricePerMillion: 0.50, source: "https://developers.openai.com/api/docs/models/gpt-5.6-sol", lastUpdated: "2026-07-30" },
+  "gpt-5-6-sol": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, cachedInputPricePerMillion: 0.50, source: "https://developers.openai.com/api/docs/models/gpt-5.6-sol", lastUpdated: "2026-07-30" },
+  "gpt-5.6-sol": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, cachedInputPricePerMillion: 0.50, source: "https://developers.openai.com/api/docs/models/gpt-5.6-sol", lastUpdated: "2026-07-30" },
+  "gpt-5-6-terra": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 12.00, cachedInputPricePerMillion: 0.20, source: "https://developers.openai.com/api/docs/models/gpt-5.6-terra", lastUpdated: "2026-07-30" },
+  "gpt-5.6-terra": { provider: "OpenAI", inputPricePerMillion: 2.00, outputPricePerMillion: 12.00, cachedInputPricePerMillion: 0.20, source: "https://developers.openai.com/api/docs/models/gpt-5.6-terra", lastUpdated: "2026-07-30" },
+  "gpt-5-6-luna": { provider: "OpenAI", inputPricePerMillion: 0.20, outputPricePerMillion: 1.20, cachedInputPricePerMillion: 0.02, source: "https://developers.openai.com/api/docs/models/gpt-5.6-luna", lastUpdated: "2026-07-30" },
+  "gpt-5.6-luna": { provider: "OpenAI", inputPricePerMillion: 0.20, outputPricePerMillion: 1.20, cachedInputPricePerMillion: 0.02, source: "https://developers.openai.com/api/docs/models/gpt-5.6-luna", lastUpdated: "2026-07-30" },
   "gpt-5-5": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
   "gpt-5.5": { provider: "OpenAI", inputPricePerMillion: 5.00, outputPricePerMillion: 30.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
   "gpt-5-5-pro": { provider: "OpenAI", inputPricePerMillion: 30.00, outputPricePerMillion: 180.00, source: "platform.openai.com/docs/pricing", lastUpdated: "2026-04-24" },
@@ -251,4 +255,105 @@ export function lookupProviderPrice(
   }
 
   return null;
+}
+
+const OFFICIAL_PRICING_HOSTS: Partial<Record<string, ReadonlySet<string>>> = {
+  OpenAI: new Set([
+    "developers.openai.com",
+    "platform.openai.com",
+    "openai.com",
+  ]),
+};
+
+export interface ObservedProviderPrice {
+  provider_name?: unknown;
+  input_price_per_million?: unknown;
+  output_price_per_million?: unknown;
+  cached_input_price_per_million?: unknown;
+  price_per_call?: unknown;
+  price_per_gpu_second?: unknown;
+  subscription_monthly?: unknown;
+  source?: unknown;
+  effective_date?: unknown;
+}
+
+function toOptionalPrice(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 ? price : null;
+}
+
+function isApprovedOfficialPricingSource(provider: string, source: string): boolean {
+  try {
+    const url = new URL(source);
+    return (
+      url.protocol === "https:" &&
+      OFFICIAL_PRICING_HOSTS[provider]?.has(url.hostname.toLowerCase()) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Prefer a newer observed direct-provider price only when its provider, date,
+ * numeric fields, and source origin can all be verified.
+ */
+export function preferNewerOfficialProviderPrice(
+  fallback: ProviderPrice,
+  observed: ObservedProviderPrice | null | undefined,
+  modelProvider?: string | null
+): ProviderPrice {
+  if (!observed) return fallback;
+
+  const observedProvider =
+    typeof observed.provider_name === "string" ? observed.provider_name : "";
+  if (
+    !providerMatchesCanonical(observedProvider, fallback.provider) ||
+    (modelProvider &&
+      !providerMatchesCanonical(modelProvider, observedProvider))
+  ) {
+    return fallback;
+  }
+
+  const source = typeof observed.source === "string" ? observed.source : "";
+  if (!isApprovedOfficialPricingSource(fallback.provider, source)) {
+    return fallback;
+  }
+
+  const effectiveDate =
+    typeof observed.effective_date === "string" ? observed.effective_date : "";
+  const observedTimestamp = Date.parse(effectiveDate);
+  const fallbackTimestamp = Date.parse(fallback.lastUpdated);
+  if (
+    !Number.isFinite(observedTimestamp) ||
+    !Number.isFinite(fallbackTimestamp) ||
+    observedTimestamp < fallbackTimestamp
+  ) {
+    return fallback;
+  }
+
+  const inputPricePerMillion = toOptionalPrice(
+    observed.input_price_per_million
+  );
+  const outputPricePerMillion = toOptionalPrice(
+    observed.output_price_per_million
+  );
+  if (inputPricePerMillion === null || outputPricePerMillion === null) {
+    return fallback;
+  }
+
+  return {
+    provider: observedProvider,
+    inputPricePerMillion,
+    outputPricePerMillion,
+    cachedInputPricePerMillion: toOptionalPrice(
+      observed.cached_input_price_per_million
+    ),
+    pricePerCall: toOptionalPrice(observed.price_per_call),
+    pricePerGpuSecond: toOptionalPrice(observed.price_per_gpu_second),
+    subscriptionMonthly: toOptionalPrice(observed.subscription_monthly),
+    source,
+    lastUpdated: effectiveDate,
+  };
 }

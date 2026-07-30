@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { buildHomepageDeploymentSelections } from "./deployments";
-import { buildHomepageLaunchSelections } from "./launches";
+import {
+  buildHomepageLaunchSelections,
+  getHomepageSignalBadgeLabel,
+} from "./launches";
 
 describe("buildHomepageLaunchSelections", () => {
   it("prefers recent provider launch signals over raw release-date ordering", () => {
@@ -38,6 +41,40 @@ describe("buildHomepageLaunchSelections", () => {
       expect.objectContaining({ model: expect.objectContaining({ id: "second-launch" }) }),
       expect.objectContaining({ model: expect.objectContaining({ id: "older-direct-launch" }) }),
     ]);
+  });
+
+  it("preserves pricing signals so the homepage does not label them as launches", () => {
+    const result = buildHomepageLaunchSelections(
+      [
+        {
+          id: "gpt-5-6-luna",
+          slug: "openai-gpt-5-6-luna",
+          name: "GPT-5.6 Luna",
+          provider: "OpenAI",
+          release_date: "2026-07-09",
+          quality_score: 72,
+        },
+      ],
+      [
+        {
+          source: "x-twitter",
+          published_at: "2026-07-30T17:17:00.000Z",
+          related_provider: "OpenAI",
+          related_model_ids: ["gpt-5-6-luna"],
+          metadata: { signal_type: "pricing", signal_importance: "high" },
+        },
+      ],
+      1,
+      Date.parse("2026-07-30T18:00:00.000Z")
+    );
+
+    expect(result[0]).toMatchObject({
+      signalType: "pricing",
+      surfacedAt: "2026-07-30T17:17:00.000Z",
+    });
+    expect(getHomepageSignalBadgeLabel(result[0].signalType)).toBe(
+      "PRICE UPDATE"
+    );
   });
 
   it("drops provider-news matches when the linked model belongs to a different provider", () => {

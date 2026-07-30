@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { lookupProviderPrice } from "./provider-pricing";
+import {
+  lookupProviderPrice,
+  preferNewerOfficialProviderPrice,
+} from "./provider-pricing";
 
 describe("lookupProviderPrice", () => {
   it("matches current provider-prefixed slugs for newly covered providers", () => {
@@ -140,16 +143,25 @@ describe("lookupProviderPrice", () => {
       provider: "OpenAI",
       inputPricePerMillion: 5,
       outputPricePerMillion: 30,
+      cachedInputPricePerMillion: 0.5,
+      source: "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+    });
+    expect(lookupProviderPrice("openai-gpt-5-6")).toMatchObject({
+      provider: "OpenAI",
+      inputPricePerMillion: 5,
+      outputPricePerMillion: 30,
     });
     expect(lookupProviderPrice("openai-gpt-5-6-terra")).toMatchObject({
       provider: "OpenAI",
-      inputPricePerMillion: 2.5,
-      outputPricePerMillion: 15,
+      inputPricePerMillion: 2,
+      outputPricePerMillion: 12,
+      cachedInputPricePerMillion: 0.2,
     });
     expect(lookupProviderPrice("openai-gpt-5-6-luna")).toMatchObject({
       provider: "OpenAI",
-      inputPricePerMillion: 1,
-      outputPricePerMillion: 6,
+      inputPricePerMillion: 0.2,
+      outputPricePerMillion: 1.2,
+      cachedInputPricePerMillion: 0.02,
     });
 
     expect(lookupProviderPrice("openai-gpt-5-5")).toMatchObject({
@@ -204,5 +216,55 @@ describe("lookupProviderPrice", () => {
     expect(
       lookupProviderPrice("anthropic-claude-fable-5", "Anthropic")
     ).toMatchObject({ provider: "Anthropic" });
+  });
+
+  it("prefers a newer observed price only from the matching official origin", () => {
+    const fallback = lookupProviderPrice(
+      "openai-gpt-5-6-luna",
+      "OpenAI"
+    )!;
+    const observed = {
+      provider_name: "OpenAI",
+      input_price_per_million: 0.15,
+      output_price_per_million: 0.9,
+      cached_input_price_per_million: 0.015,
+      effective_date: "2026-08-01",
+      source:
+        "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+    };
+
+    expect(
+      preferNewerOfficialProviderPrice(fallback, observed, "OpenAI")
+    ).toMatchObject({
+      inputPricePerMillion: 0.15,
+      outputPricePerMillion: 0.9,
+      cachedInputPricePerMillion: 0.015,
+      lastUpdated: "2026-08-01",
+    });
+    expect(
+      preferNewerOfficialProviderPrice(
+        fallback,
+        {
+          ...observed,
+          source:
+            "https://developers.openai.com.attacker.example/api/docs/models/gpt-5.6-luna",
+        },
+        "OpenAI"
+      )
+    ).toBe(fallback);
+    expect(
+      preferNewerOfficialProviderPrice(
+        fallback,
+        { ...observed, effective_date: "2026-07-01" },
+        "OpenAI"
+      )
+    ).toBe(fallback);
+    expect(
+      preferNewerOfficialProviderPrice(
+        fallback,
+        { ...observed, provider_name: "OpenRouter" },
+        "OpenAI"
+      )
+    ).toBe(fallback);
   });
 });
