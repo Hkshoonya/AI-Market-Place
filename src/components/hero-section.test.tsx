@@ -27,7 +27,8 @@ describe("HeroSection", () => {
           totalDownloads: 4_200_000,
           totalLikes: 91_000,
         }}
-        marketSignalsTimestamp="2026-05-07T11:45:00.000Z"
+        marketSignalsRelative="15m ago"
+        marketSignalsAbsolute="May 7, 2026"
         marketSignalsDetail="pipeline sync"
       />
     );

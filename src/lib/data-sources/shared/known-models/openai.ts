@@ -84,7 +84,7 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gpt-5.5": {
     name: "GPT-5.5",
     description:
-      "OpenAI's flagship frontier model for complex reasoning, coding, and professional work. Supports a 1M-token context window, advanced tool use, and stronger long-horizon task execution than GPT-5.4.",
+      "Previous OpenAI frontier release retained for compatibility after GPT-5.6. It supports a 1M-token context window, advanced tool use, and strong long-horizon reasoning, coding, and professional workflows.",
     category: "llm",
     parameter_count: null,
     context_window: 1050000,
@@ -104,7 +104,7 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gpt-5.5-pro": {
     name: "GPT-5.5 Pro",
     description:
-      "Higher-compute GPT-5.5 variant optimized for the hardest professional workloads, producing more precise answers at significantly higher latency and cost.",
+      "Previous higher-compute GPT-5.5 variant retained for compatibility after GPT-5.6, optimized for difficult professional workloads at higher latency and cost.",
     category: "llm",
     parameter_count: null,
     context_window: 1050000,

@@ -335,6 +335,138 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids).toEqual(["current-openai-flagship"]);
   });
 
+  it("uses the newest verified flagship for a provider while its computed scores catch up", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "proven-market-leader",
+          slug: "moonshotai-kimi-k2-6",
+          name: "Kimi K2.6",
+          provider: "Moonshot AI",
+          category: "multimodal",
+          is_api_available: true,
+          overall_rank: 2,
+          economic_footprint_score: 50.7,
+          adoption_score: 68.4,
+          capability_score: 80.9,
+          quality_score: 80.9,
+          popularity_score: 52,
+          release_date: "2026-04-20",
+        },
+        {
+          id: "previous-openai",
+          slug: "openai-gpt-5-5",
+          name: "GPT-5.5",
+          provider: "OpenAI",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 1,
+          economic_footprint_score: 55.2,
+          adoption_score: 59.6,
+          capability_score: 85.1,
+          quality_score: 67.6,
+          popularity_score: 59,
+          release_date: "2026-04-23",
+        },
+        {
+          id: "current-openai",
+          slug: "openai-gpt-5-6-sol",
+          name: "GPT-5.6 Sol",
+          provider: "OpenAI",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 596,
+          economic_footprint_score: 38,
+          adoption_score: 47,
+          capability_score: 43,
+          quality_score: 38.6,
+          popularity_score: 31,
+          release_date: "2026-07-09",
+        },
+        {
+          id: "previous-anthropic",
+          slug: "anthropic-claude-fable-5",
+          name: "Claude Fable 5",
+          provider: "Anthropic",
+          category: "multimodal",
+          is_api_available: true,
+          overall_rank: 119,
+          economic_footprint_score: 67.1,
+          adoption_score: 76.9,
+          capability_score: 66.6,
+          quality_score: 59,
+          popularity_score: 47,
+          release_date: "2026-06-09",
+        },
+        {
+          id: "current-anthropic",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
+          provider: "Anthropic",
+          category: "multimodal",
+          is_api_available: true,
+          overall_rank: 57,
+          economic_footprint_score: 46,
+          adoption_score: 52,
+          capability_score: 52,
+          quality_score: 57.5,
+          popularity_score: 40,
+          release_date: "2026-07-24",
+        },
+      ],
+      3,
+      Date.parse("2026-07-30T12:00:00Z")
+    );
+
+    expect(ids).toContain("current-openai");
+    expect(ids).toContain("current-anthropic");
+    expect(ids).not.toContain("previous-openai");
+    expect(ids).not.toContain("previous-anthropic");
+  });
+
+  it("does not replace a newer provider leader with an older verified catalog entry", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "older-verified-zai",
+          slug: "z-ai-glm-5-1",
+          name: "GLM-5.1",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 120,
+          economic_footprint_score: 45,
+          adoption_score: 54,
+          capability_score: 70,
+          quality_score: 60,
+          popularity_score: 45,
+          release_date: "2026-04-03",
+        },
+        {
+          id: "newer-zai-leader",
+          slug: "zai-org-glm-5-2",
+          name: "GLM-5.2",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 10,
+          economic_footprint_score: 62,
+          adoption_score: 68,
+          capability_score: 92,
+          quality_score: 90,
+          popularity_score: 58,
+          release_date: "2026-06-16",
+          description:
+            "Z.ai's latest flagship model for advanced reasoning and agentic coding.",
+        },
+      ],
+      1,
+      Date.parse("2026-07-30T12:00:00Z")
+    );
+
+    expect(ids).toEqual(["newer-zai-leader"]);
+  });
+
   it("uses known-model lifecycle metadata when a previous generation row still has stale live copy", () => {
     const ids = selectHomepageTopModelIds(
       [

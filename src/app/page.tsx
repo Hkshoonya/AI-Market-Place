@@ -27,7 +27,7 @@ import { CATEGORIES } from "@/lib/constants/categories";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { HomeTopModelSchema } from "@/lib/schemas/models";
-import { formatNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatRelativeTimeAt } from "@/lib/format";
 import { HeroSection } from "@/components/hero-section";
 import { ProviderLogo } from "@/components/shared/provider-logo";
 import { MarketValueBadge } from "@/components/models/market-value-badge";
@@ -230,7 +230,7 @@ export default async function HomePage() {
   const marketSignalsRefreshedAt =
     coreSourcesRefreshedAt ?? latestLaunchSignalAt;
 
-  const topModelIds = selectHomepageTopModelIds(activeModels, 10);
+  const topModelIds = selectHomepageTopModelIds(homepageActiveModels, 10, now);
 
   const topModelsResponse =
     supabase && topModelIds.length > 0
@@ -359,7 +359,14 @@ export default async function HomePage() {
           totalDownloads,
           totalLikes,
         }}
-        marketSignalsTimestamp={marketSignalsRefreshedAt}
+        marketSignalsRelative={
+          marketSignalsRefreshedAt
+            ? formatRelativeTimeAt(marketSignalsRefreshedAt, now)
+            : null
+        }
+        marketSignalsAbsolute={
+          marketSignalsRefreshedAt ? formatDate(marketSignalsRefreshedAt) : null
+        }
         marketSignalsDetail={
           coreSourcesRefreshedAt ? "model and launch sources" : "market updates"
         }

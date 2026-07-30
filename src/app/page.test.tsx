@@ -6,15 +6,18 @@ const mockCreateOptionalPublicClient = vi.fn();
 const mockCreateOptionalAdminClient = vi.fn();
 const mockHeroSection = vi.fn(
   ({
-    marketSignalsTimestamp,
+    marketSignalsRelative,
+    marketSignalsAbsolute,
     marketSignalsDetail,
   }: {
-    marketSignalsTimestamp?: string | null;
+    marketSignalsRelative?: string | null;
+    marketSignalsAbsolute?: string | null;
     marketSignalsDetail?: string | null;
   }) => (
     <div
       data-testid="hero-section"
-      data-market-signals-timestamp={marketSignalsTimestamp ?? ""}
+      data-market-signals-relative={marketSignalsRelative ?? ""}
+      data-market-signals-absolute={marketSignalsAbsolute ?? ""}
       data-market-signals-detail={marketSignalsDetail ?? ""}
     />
   )
@@ -192,17 +195,25 @@ function createMockSupabase({
           select: () => ({
             eq: () => ({
               is: () => ({
-                not: () => ({
-                  order: () => ({
-                    limit: () =>
-                      Promise.resolve({
-                        data: latestPipelineSyncAt
-                          ? [{ last_sync_at: latestPipelineSyncAt }]
-                          : [],
-                        error: null,
-                      }),
+                in: () =>
+                  Promise.resolve({
+                    data: latestPipelineSyncAt
+                      ? [
+                          "openrouter-models",
+                          "openai-models",
+                          "anthropic-models",
+                          "google-models",
+                          "official-provider-models",
+                          "provider-news",
+                          "x-announcements",
+                        ].map((slug) => ({
+                          slug,
+                          last_success_at: latestPipelineSyncAt,
+                          last_sync_at: latestPipelineSyncAt,
+                        }))
+                      : [],
+                    error: null,
                   }),
-                }),
               }),
             }),
           }),
@@ -221,7 +232,7 @@ describe("HomePage", () => {
     mockCreateOptionalAdminClient.mockReturnValue(null);
   });
 
-  it("forwards the freshest pipeline sync metadata into the hero", async () => {
+  it("forwards complete core-source freshness metadata into the hero", async () => {
     mockCreateOptionalPublicClient.mockReturnValue(
       createMockSupabase({
         latestSignalAt: "2026-03-19T16:10:00.000Z",
@@ -233,12 +244,15 @@ describe("HomePage", () => {
     render(await HomePage());
 
     expect(screen.getByTestId("hero-section")).toHaveAttribute(
-      "data-market-signals-timestamp",
-      "2026-03-19T16:00:00.000Z"
+      "data-market-signals-relative"
+    );
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-absolute",
+      "Mar 19, 2026"
     );
     expect(screen.getByTestId("hero-section")).toHaveAttribute(
       "data-market-signals-detail",
-      "pipeline sync"
+      "model and launch sources"
     );
   });
 
@@ -254,8 +268,11 @@ describe("HomePage", () => {
     render(await HomePage());
 
     expect(screen.getByTestId("hero-section")).toHaveAttribute(
-      "data-market-signals-timestamp",
-      "2026-03-19T16:10:00.000Z"
+      "data-market-signals-relative"
+    );
+    expect(screen.getByTestId("hero-section")).toHaveAttribute(
+      "data-market-signals-absolute",
+      "Mar 19, 2026"
     );
     expect(screen.getByTestId("hero-section")).toHaveAttribute(
       "data-market-signals-detail",

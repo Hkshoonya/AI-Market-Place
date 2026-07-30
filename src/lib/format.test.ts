@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { formatRelativeTime } from "./format";
+import { formatRelativeTime, formatRelativeTimeAt } from "./format";
 
 // Fixed "now" for deterministic time calculations
 // 2026-03-12T12:00:00Z
@@ -118,5 +118,11 @@ describe("formatRelativeTime", () => {
       // formatRelativeDate returns "1mo ago" for ~30 days
       expect(result).toMatch(/\d+mo ago/);
     });
+  });
+});
+
+describe("formatRelativeTimeAt", () => {
+  it("uses the supplied clock instead of the render environment clock", () => {
+    expect(formatRelativeTimeAt(dateMinAgo(15), NOW)).toBe("15m ago");
   });
 });

@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { formatDate, formatRelativeTime } from "@/lib/format";
 
 // Dynamic import with SSR disabled — Three.js only runs in browser
 const NeuralNetworkScene = dynamic(
@@ -40,7 +39,8 @@ interface HeroStats {
 
 interface HeroSectionProps {
   stats: HeroStats;
-  marketSignalsTimestamp?: string | null;
+  marketSignalsRelative?: string | null;
+  marketSignalsAbsolute?: string | null;
   marketSignalsDetail?: string | null;
 }
 
@@ -62,20 +62,14 @@ const STAT_CONFIGS = [
 
 export function HeroSection({
   stats,
-  marketSignalsTimestamp = null,
+  marketSignalsRelative = null,
+  marketSignalsAbsolute = null,
   marketSignalsDetail = null,
 }: HeroSectionProps) {
   const [showScene, setShowScene] = useState(false);
   const statEntries = STAT_CONFIGS.filter(
     (s) => stats[s.key as keyof HeroStats] != null && stats[s.key as keyof HeroStats]! > 0
   ).slice(0, 6);
-  const freshnessRelative = marketSignalsTimestamp
-    ? formatRelativeTime(marketSignalsTimestamp)
-    : null;
-  const freshnessAbsolute = marketSignalsTimestamp
-    ? formatDate(marketSignalsTimestamp)
-    : null;
-
   useEffect(() => {
     if (window.innerWidth < 768) {
       return;
@@ -169,12 +163,12 @@ export function HeroSection({
             available, provider-reported evidence, pricing intelligence, and a
             marketplace in one place.
           </p>
-          {marketSignalsTimestamp ? (
+          {marketSignalsRelative ? (
             <p
               className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground"
-              title={freshnessAbsolute ?? undefined}
+              title={marketSignalsAbsolute ?? undefined}
             >
-              Market signals refreshed {freshnessRelative}
+              Market signals refreshed {marketSignalsRelative}
               {marketSignalsDetail ? (
                 <span className="text-muted-foreground/80">
                   {" "}

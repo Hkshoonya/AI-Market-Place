@@ -165,10 +165,15 @@ function hasIncompleteCapabilityEvidence(
   return numeric(model.capability_score) <= 0;
 }
 
-function hasTrustedOfficialLeadershipLaunch(
+function hasVerifiedOfficialLeadershipLaunch(
   model: HomepageTopModelCandidate,
   now = Date.now()
 ): boolean {
+  if (!isPrimaryHomepageCategory(model)) return false;
+  if (isSpecializedHomepageCandidate(model)) return false;
+  if (isPreviewLikeModel(model) || isEfficiencyTierModel(model)) return false;
+  if (hasLifecycleWarningLanguage(model)) return false;
+
   const knownMeta = getKnownModelMeta(model);
   if (!knownMeta || knownMeta.status !== "active" || !knownMeta.website_url) {
     return false;
@@ -176,9 +181,18 @@ function hasTrustedOfficialLeadershipLaunch(
 
   const ageDays = releaseAgeDays(model.release_date ?? knownMeta.release_date, now);
   if (ageDays == null || ageDays > 120) return false;
-  if (!hasIncompleteCapabilityEvidence(model)) return false;
 
   return hasLeadershipUpgradeLanguage(model) && hasCurrentHomepageAccess(model);
+}
+
+function hasTrustedOfficialLeadershipLaunch(
+  model: HomepageTopModelCandidate,
+  now = Date.now()
+): boolean {
+  return (
+    hasVerifiedOfficialLeadershipLaunch(model, now) &&
+    hasIncompleteCapabilityEvidence(model)
+  );
 }
 
 export function isRecentLeadershipHomepageCandidate(
@@ -363,7 +377,7 @@ export function selectHomepageTopModelIds<
   const familyRepresentatives = collapsePublicModelFamilies(familyCandidates).map(
     (family) => {
       const verifiedCurrentLaunch = family.variants
-        .filter((model) => hasTrustedOfficialLeadershipLaunch(model, now))
+        .filter((model) => hasVerifiedOfficialLeadershipLaunch(model, now))
         .sort((left, right) => {
           const leftRelease = Date.parse(left.release_date ?? "");
           const rightRelease = Date.parse(right.release_date ?? "");
@@ -389,6 +403,30 @@ export function selectHomepageTopModelIds<
       isRecentLeadershipHomepageCandidate(model, now)
     );
   });
+  const latestOfficialLeadershipByProvider = new Map<string, T>();
+
+  for (const model of rankedCandidates) {
+    if (!hasVerifiedOfficialLeadershipLaunch(model, now)) continue;
+
+    const providerBucket = normalizeProviderBucket(model.provider);
+    if (!providerBucket) continue;
+
+    const current = latestOfficialLeadershipByProvider.get(providerBucket);
+    const modelReleasedAt = Date.parse(model.release_date ?? "");
+    const currentReleasedAt = Date.parse(current?.release_date ?? "");
+    const modelTimestamp = Number.isFinite(modelReleasedAt) ? modelReleasedAt : 0;
+    const currentTimestamp = Number.isFinite(currentReleasedAt) ? currentReleasedAt : 0;
+
+    if (
+      !current ||
+      modelTimestamp > currentTimestamp ||
+      (modelTimestamp === currentTimestamp &&
+        computeHomepageTopModelScore(model, now) >
+          computeHomepageTopModelScore(current, now))
+    ) {
+      latestOfficialLeadershipByProvider.set(providerBucket, model);
+    }
+  }
 
   const highConfidenceCandidates = rankedCandidates.filter((model) =>
     isHighConfidenceHomepageTopModelCandidate(model, now)
@@ -418,6 +456,25 @@ export function selectHomepageTopModelIds<
   const selectedIds = new Set<string>();
   const providerCounts = new Map<string, number>();
   const diversityTarget = Math.min(limit, 8);
+  const getProviderRepresentative = (model: T) => {
+    const providerBucket = normalizeProviderBucket(model.provider);
+    const verifiedLeadership = providerBucket
+      ? latestOfficialLeadershipByProvider.get(providerBucket)
+      : undefined;
+    if (!verifiedLeadership) return model;
+
+    const modelReleasedAt = Date.parse(model.release_date ?? "");
+    const verifiedReleasedAt = Date.parse(verifiedLeadership.release_date ?? "");
+    if (
+      Number.isFinite(modelReleasedAt) &&
+      Number.isFinite(verifiedReleasedAt) &&
+      modelReleasedAt > verifiedReleasedAt
+    ) {
+      return model;
+    }
+
+    return verifiedLeadership;
+  };
 
   for (const model of prioritizedHighConfidence) {
     if (selected.length >= diversityTarget) {
@@ -431,8 +488,9 @@ export function selectHomepageTopModelIds<
       continue;
     }
 
-    selected.push(model);
-    selectedIds.add(model.id);
+    const providerRepresentative = getProviderRepresentative(model);
+    selected.push(providerRepresentative);
+    selectedIds.add(providerRepresentative.id);
     if (providerBucket) {
       providerCounts.set(providerBucket, providerCount + 1);
     }
@@ -448,8 +506,9 @@ export function selectHomepageTopModelIds<
       const providerBucket = normalizeProviderBucket(model.provider);
       if (providerBucket && providerCounts.has(providerBucket)) continue;
 
-      selected.push(model);
-      selectedIds.add(model.id);
+      const providerRepresentative = getProviderRepresentative(model);
+      selected.push(providerRepresentative);
+      selectedIds.add(providerRepresentative.id);
       if (providerBucket) {
         providerCounts.set(providerBucket, 1);
       }
