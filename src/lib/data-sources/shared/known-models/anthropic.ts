@@ -11,6 +11,31 @@ import type { KnownModelMeta } from "../build-record";
 
 export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   // ---- Claude 5 / latest generation ----
+  "claude-opus-5": {
+    name: "Claude Opus 5",
+    description:
+      "Anthropic's current flagship Opus model for complex agentic work, enterprise workflows, advanced coding, and demanding reasoning. It is a proprietary, API-accessible model with a 1M-token context window.",
+    category: "multimodal",
+    context_window: 1000000,
+    release_date: "2026-07-24",
+    architecture: "Transformer",
+    status: "active",
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://www.anthropic.com/news/claude-opus-5",
+    modalities: ["text", "image"],
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      adaptive_thinking: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+  },
   "claude-sonnet-5": {
     name: "Claude Sonnet 5",
     description:
@@ -89,11 +114,11 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
     },
   },
 
-  // ---- Claude 4.8 series (current Opus) ----
+  // ---- Claude 4.8 series ----
   "claude-opus-4-8": {
     name: "Claude Opus 4.8",
     description:
-      "Anthropic's latest generally available Opus-tier model for complex reasoning, long-horizon agentic coding, high-autonomy work, and computer-use workflows. Builds on Opus 4.7 with stronger coding reliability, better uncertainty handling, 1M-token context on supported platforms, adaptive thinking, and unchanged standard pricing.",
+      "Previous generally available Opus release retained for compatibility after Claude Opus 5. It remains strong for complex reasoning, long-horizon agentic coding, high-autonomy work, and computer-use workflows.",
     context_window: 1000000,
     release_date: "2026-05-28",
     architecture: "Transformer",
@@ -114,7 +139,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-opus-4-7": {
     name: "Claude Opus 4.7",
     description:
-      "Previous generally available Opus release retained for compatibility after the Claude Opus 4.8 launch. Still strong for advanced software engineering, long-running task reliability, self-verification, and high-resolution vision, but superseded by Opus 4.8 for Anthropic's latest Opus-tier performance.",
+      "Previous generally available Opus release retained for compatibility. Still strong for advanced software engineering, long-running task reliability, self-verification, and high-resolution vision, but superseded by Claude Opus 5 for Anthropic's latest Opus-tier performance.",
     context_window: 1000000,
     release_date: "2026-04-16",
     architecture: "Transformer",
@@ -135,7 +160,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-opus-4-6": {
     name: "Claude Opus 4.6",
     description:
-      "Previous flagship Claude Opus release retained for compatibility after later Claude Opus launches. Still strong for advanced reasoning, extended thinking, computer use, and coding, but superseded by Opus 4.8 for Anthropic's latest Opus-tier performance.",
+      "Previous flagship Claude Opus release retained for compatibility after later Claude Opus launches. Still strong for advanced reasoning, extended thinking, computer use, and coding, but superseded by Claude Opus 5 for Anthropic's latest Opus-tier performance.",
     context_window: 1000000,
     release_date: "2025-12-12",
     architecture: "Transformer",
@@ -187,7 +212,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-4-5-opus": {
     name: "Claude 4.5 Opus",
     description:
-      "Previous Opus-tier flagship retained for compatibility after newer Claude Opus releases. Still strong on deep reasoning, extended thinking, and advanced coding, but superseded by Claude Opus 4.8 for Anthropic's latest Opus-tier performance.",
+      "Previous Opus-tier flagship retained for compatibility after newer Claude Opus releases. Still strong on deep reasoning, extended thinking, and advanced coding, but superseded by Claude Opus 5 for Anthropic's latest Opus-tier performance.",
     context_window: 200000,
     release_date: "2025-08-01",
     architecture: "Transformer",
@@ -221,7 +246,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-4-opus": {
     name: "Claude 4 Opus",
     description:
-      "Previous Claude 4 flagship retained for compatibility after later Claude Opus releases. Delivers strong reasoning and multi-step problem solving, but superseded by Claude Opus 4.8 for Anthropic's latest Opus-tier performance.",
+      "Previous Claude 4 flagship retained for compatibility after later Claude Opus releases. Delivers strong reasoning and multi-step problem solving, but superseded by Claude Opus 5 for Anthropic's latest Opus-tier performance.",
     context_window: 200000,
     release_date: "2025-05-22",
     architecture: "Transformer",
@@ -255,7 +280,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "claude-opus-4-1": {
     name: "Claude Opus 4.1",
     description:
-      "Previous Claude Opus 4.1 release retained for compatibility after later Opus upgrades. Still strong for reasoning, coding, and agentic tasks, but superseded by Claude Opus 4.8 for Anthropic's latest Opus-tier capability.",
+      "Previous Claude Opus 4.1 release retained for compatibility after later Opus upgrades. Still strong for reasoning, coding, and agentic tasks, but superseded by Claude Opus 5 for Anthropic's latest Opus-tier capability.",
     context_window: 200000,
     release_date: "2025-08-05",
     architecture: "Transformer",
@@ -360,6 +385,9 @@ export function canonicalizeAnthropicModelId(modelId: string): string {
   ]);
 
   const familyAliasMatches: Array<[RegExp, string]> = [
+    [/^claude-opus-latest$/, "claude-opus-5"],
+    [/^claude-opus-5(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-5"],
+    [/^claude-5-opus(?:-\d{8})?(?:-v\d+)?$/, "claude-opus-5"],
     [/^claude-sonnet-5(?:-\d{8})?(?:-v\d+)?$/, "claude-sonnet-5"],
     [/^claude-fable-latest$/, "claude-fable-5"],
     [/^claude-fable-5(?:-\d{8})?(?:-v\d+)?$/, "claude-fable-5"],

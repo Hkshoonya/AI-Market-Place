@@ -52,6 +52,10 @@ import { buildHomepageLaunchSelections } from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
 import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
+import {
+  getCoreSourceRefreshTimestamp,
+  HOMEPAGE_CORE_SOURCE_SLUGS,
+} from "@/lib/homepage/source-freshness";
 import { HomepageMoverStrip } from "@/components/home/homepage-mover-strip";
 
 const TopMovers = dynamic(() => import("@/components/charts/top-movers"), {
@@ -128,7 +132,7 @@ export default async function HomePage() {
     { data: latestSignalNewsRaw },
     { data: recentLaunchNewsRaw },
     { data: recentDeploymentNewsRaw },
-    { data: latestPipelineSyncRaw },
+    { data: coreSourceFreshnessRaw },
   ] = supabase
     ? await Promise.all([
         allActiveModelsPromise,
@@ -168,12 +172,10 @@ export default async function HomePage() {
           .limit(200),
         supabase
           .from("data_sources")
-          .select("last_sync_at")
+          .select("slug, last_success_at, last_sync_at")
           .eq("is_enabled", true)
           .is("quarantined_at", null)
-          .not("last_sync_at", "is", null)
-          .order("last_sync_at", { ascending: false })
-          .limit(1),
+          .in("slug", [...HOMEPAGE_CORE_SOURCE_SLUGS]),
       ])
     : await Promise.all([
         allActiveModelsPromise,
@@ -222,11 +224,11 @@ export default async function HomePage() {
     typeof latestSignalNewsRaw?.[0]?.published_at === "string"
       ? latestSignalNewsRaw[0].published_at
       : null;
-  const latestPipelineSyncAt =
-    typeof latestPipelineSyncRaw?.[0]?.last_sync_at === "string"
-      ? latestPipelineSyncRaw[0].last_sync_at
-      : null;
-  const marketSignalsRefreshedAt = latestPipelineSyncAt ?? latestLaunchSignalAt;
+  const coreSourcesRefreshedAt = getCoreSourceRefreshTimestamp(
+    coreSourceFreshnessRaw ?? []
+  );
+  const marketSignalsRefreshedAt =
+    coreSourcesRefreshedAt ?? latestLaunchSignalAt;
 
   const topModelIds = selectHomepageTopModelIds(activeModels, 10);
 
@@ -358,7 +360,9 @@ export default async function HomePage() {
           totalLikes,
         }}
         marketSignalsTimestamp={marketSignalsRefreshedAt}
-        marketSignalsDetail={latestPipelineSyncAt ? "pipeline sync" : "market updates"}
+        marketSignalsDetail={
+          coreSourcesRefreshedAt ? "model and launch sources" : "market updates"
+        }
       />
 
       {/* Top 10 Leaderboard */}

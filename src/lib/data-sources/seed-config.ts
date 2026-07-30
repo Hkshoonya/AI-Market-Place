@@ -30,7 +30,7 @@ export interface SeedEntry {
 }
 
 /**
- * All 26 registered adapters, in registry.ts import order.
+ * All registered adapters, in registry.ts import order.
  * Tiers sourced from migration 015_tiered_sync_pg_cron.sql.
  * Priorities sourced from migration 002_enable_free_pipeline.sql.
  */
@@ -85,6 +85,20 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     tier: 1,
     sync_interval_hours: 2,
     priority: 45,
+    secret_env_keys: [],
+    output_types: ["models"],
+    is_enabled: true,
+    config: {},
+  },
+  {
+    slug: "official-provider-models",
+    name: "Official Provider Models",
+    adapter_type: "official-provider-models",
+    description:
+      "Official Meta, Mistral AI, and Cohere model catalogs with curated launch metadata",
+    tier: 2,
+    sync_interval_hours: 4,
+    priority: 46,
     secret_env_keys: [],
     output_types: ["models"],
     is_enabled: true,

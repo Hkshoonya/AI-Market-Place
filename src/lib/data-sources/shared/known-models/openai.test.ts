@@ -2,22 +2,26 @@ import { describe, expect, it } from "vitest";
 import { resolveOpenAIKnownModelMeta } from "./openai";
 
 describe("resolveOpenAIKnownModelMeta", () => {
-  it("tracks GPT-5.6 tiers as proprietary limited-preview models", () => {
+  it("tracks GPT-5.6 tiers as generally available proprietary models", () => {
     expect(resolveOpenAIKnownModelMeta("gpt-5.6-sol")).toMatchObject({
       name: "GPT-5.6 Sol",
-      status: "preview",
-      release_date: "2026-06-26",
+      status: "active",
+      release_date: "2026-07-09",
       context_window: 1050000,
       is_api_available: true,
       is_open_weights: false,
     });
     expect(resolveOpenAIKnownModelMeta("gpt-5-6-terra")).toMatchObject({
       name: "GPT-5.6 Terra",
-      status: "preview",
+      status: "active",
     });
     expect(resolveOpenAIKnownModelMeta("gpt-5.6-luna")).toMatchObject({
       name: "GPT-5.6 Luna",
-      status: "preview",
+      status: "active",
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-5.6")).toMatchObject({
+      name: "GPT-5.6 Sol",
+      context_window: 1050000,
     });
     expect(resolveOpenAIKnownModelMeta("gpt-5.6-sol-pro")).toBeUndefined();
   });
@@ -72,6 +76,27 @@ describe("resolveOpenAIKnownModelMeta", () => {
     );
     expect(resolveOpenAIKnownModelMeta("gpt-image")?.release_date).toBe(
       "2025-12-16"
+    );
+  });
+
+  it("classifies current realtime and transcription models", () => {
+    expect(resolveOpenAIKnownModelMeta("gpt-realtime-2.1")).toMatchObject({
+      category: "speech_audio",
+      context_window: 128000,
+      release_date: "2026-06-23",
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-realtime-whisper")).toMatchObject({
+      category: "speech_audio",
+      context_window: 16000,
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-live-transcribe")).toMatchObject({
+      category: "speech_audio",
+      release_date: "2026-07-27",
+    });
+    expect(resolveOpenAIKnownModelMeta("gpt-transcribe")?.capabilities).toMatchObject(
+      {
+        transcription: true,
+      }
     );
   });
 

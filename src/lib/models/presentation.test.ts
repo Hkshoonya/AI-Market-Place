@@ -51,6 +51,43 @@ describe("model presentation helpers", () => {
     expect(zai.text).toMatch(/flagship reasoning and coding model family/i);
   });
 
+  it("uses secondary official catalogs for sparse provider records", () => {
+    const mistral = getModelDisplayDescription({
+      slug: "mistralai-mistral-ocr-4-0",
+      name: "mistral-ocr-4-0",
+      provider: "Mistral AI",
+      category: "specialized",
+      description: null,
+      short_description: null,
+      is_open_weights: false,
+    });
+    const cohere = getModelDisplayDescription({
+      slug: "coherelabs-north-mini-code-1-0",
+      name: "North-Mini-Code-1.0",
+      provider: "Cohere",
+      category: "code",
+      description: null,
+      short_description: null,
+      is_open_weights: true,
+    });
+    const meta = getModelDisplayDescription({
+      slug: "meta-muse-video",
+      name: "Muse Video",
+      provider: "Meta",
+      category: "video",
+      description: null,
+      short_description: null,
+      is_open_weights: false,
+    });
+
+    expect(mistral.source).toBe("official_catalog");
+    expect(mistral.text).toMatch(/Document AI OCR service/i);
+    expect(cohere.source).toBe("official_catalog");
+    expect(cohere.text).toMatch(/agentic software engineering/i);
+    expect(meta.source).toBe("official_catalog");
+    expect(meta.text).toMatch(/coming soon/i);
+  });
+
   it("matches dated and reordered Claude variants to the official catalog", () => {
     const result = getModelDisplayDescription({
       slug: "anthropic-claude-opus-4-5-20251101-v1",
@@ -63,7 +100,7 @@ describe("model presentation helpers", () => {
     });
 
     expect(result.source).toBe("official_catalog");
-    expect(result.text).toMatch(/superseded by Claude Opus 4\.8/i);
+    expect(result.text).toMatch(/superseded by Claude Opus 5/i);
   });
 
   it("matches provider variants like MiniMax highspeed builds to the base official model", () => {

@@ -5,6 +5,24 @@ import {
 } from "./anthropic";
 
 describe("resolveAnthropicKnownModelMeta", () => {
+  it("resolves Claude Opus 5 and its provider aliases", () => {
+    expect(resolveAnthropicKnownModelMeta("claude-opus-5")).toMatchObject({
+      name: "Claude Opus 5",
+      release_date: "2026-07-24",
+      context_window: 1000000,
+      status: "active",
+      is_api_available: true,
+      is_open_weights: false,
+      website_url: "https://www.anthropic.com/news/claude-opus-5",
+    });
+    expect(resolveAnthropicKnownModelMeta("claude-opus-latest")?.name).toBe(
+      "Claude Opus 5"
+    );
+    expect(
+      canonicalizeAnthropicModelId("claude-opus-5-20260724-v1")
+    ).toBe("claude-opus-5");
+  });
+
   it("resolves Claude Sonnet 5 and dated aliases to current release metadata", () => {
     expect(resolveAnthropicKnownModelMeta("claude-sonnet-5")).toMatchObject({
       name: "Claude Sonnet 5",
@@ -24,7 +42,7 @@ describe("resolveAnthropicKnownModelMeta", () => {
     );
   });
 
-  it("resolves Claude Opus 4.8 canonical and generic aliases to the current Opus release metadata", () => {
+  it("resolves Claude Opus 4.8 canonical and generic aliases", () => {
     const canonical = resolveAnthropicKnownModelMeta("claude-opus-4-8");
     const genericAlias = resolveAnthropicKnownModelMeta("claude-4-8");
     const compressedAlias = resolveAnthropicKnownModelMeta("claude-opus-48");
@@ -73,15 +91,15 @@ describe("resolveAnthropicKnownModelMeta", () => {
     expect(meta?.context_window).toBe(200000);
   });
 
-  it("marks older Opus-family releases as superseded by Claude Opus 4.8", () => {
+  it("marks older Opus-family releases as superseded by Claude Opus 5", () => {
     expect(resolveAnthropicKnownModelMeta("claude-4-opus")?.description).toMatch(
-      /superseded by Claude Opus 4\.8/i
+      /superseded by Claude Opus 5/i
     );
     expect(resolveAnthropicKnownModelMeta("claude-4-5-opus")?.description).toMatch(
-      /superseded by Claude Opus 4\.8/i
+      /superseded by Claude Opus 5/i
     );
     expect(resolveAnthropicKnownModelMeta("claude-opus-4-1")?.description).toMatch(
-      /superseded by Claude Opus 4\.8/i
+      /superseded by Claude Opus 5/i
     );
   });
 

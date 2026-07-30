@@ -311,6 +311,8 @@ async function executeAdapter(
 }
 
 /** Run all enabled sources for a given tier */
+const SCHEDULE_TOLERANCE_MINUTES = 15;
+
 export async function runTierSync(
   tier: number
 ): Promise<OrchestratorResult> {
@@ -343,7 +345,13 @@ export async function runTierSync(
 
   for (const source of ((sources ?? []) as DataSourceRecord[])) {
     // Check if sync is due
-    if (!needsSync(source.last_sync_at, source.sync_interval_hours)) {
+    if (
+      !needsSync(
+        source.last_sync_at,
+        source.sync_interval_hours,
+        SCHEDULE_TOLERANCE_MINUTES
+      )
+    ) {
       result.details.push({
         source: source.slug,
         status: "skipped",

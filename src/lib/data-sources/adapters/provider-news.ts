@@ -136,6 +136,11 @@ interface ParsedArticle {
   date: string | null;
 }
 
+interface ExistingNewsTimestamp {
+  source_id: string;
+  published_at: string;
+}
+
 interface ProviderHealthResult {
   name: string;
   ok: boolean;
@@ -310,7 +315,8 @@ function buildNewsRecords(
   articles: ParsedArticle[],
   maxPerProvider: number,
   modelLookup: ModelLookupEntry[],
-  tagHints: string[] = []
+  tagHints: string[] = [],
+  firstSeenAt = new Date().toISOString()
 ): Array<Record<string, unknown>> {
   const relevant = articles
     .filter((article) => isModelRelated(article.title))
@@ -319,12 +325,18 @@ function buildNewsRecords(
   return relevant.map((article) => {
     const signal = classifyNewsSignal(article.title);
     const publishedAt = inferPublishedAt(article);
+    const publishedAtSource = article.date
+      ? "listing"
+      : publishedAt
+        ? "title"
+        : "first_seen";
     const metadata: Record<string, unknown> = {
       provider: blog.provider,
       blog_url: blog.url,
       signal_type: signal.signalType,
       signal_importance: signal.importance,
       signal_flags: signal.flags,
+      published_at_source: publishedAtSource,
     };
     if (blog.rssUrl && tagHints.includes("rss")) {
       metadata.rss_url = blog.rssUrl;
@@ -345,13 +357,41 @@ function buildNewsRecords(
       title: article.title.slice(0, 500),
       summary: null,
       url: article.url,
-      published_at: publishedAt ?? new Date().toISOString(),
+      published_at: publishedAt ?? firstSeenAt,
       category: signal.category,
       related_provider: blog.provider,
       related_model_ids: relatedModelIds,
       tags: [...new Set([blog.provider.toLowerCase(), "blog", ...tagHints, ...signal.tags])],
       metadata,
     };
+  });
+}
+
+function isFirstSeenTimestampRecord(record: Record<string, unknown>): boolean {
+  const metadata = record.metadata;
+  return Boolean(
+    metadata &&
+      typeof metadata === "object" &&
+      !Array.isArray(metadata) &&
+      (metadata as Record<string, unknown>).published_at_source === "first_seen"
+  );
+}
+
+function preserveExistingPublishedAt(
+  records: Record<string, unknown>[],
+  existingRows: ExistingNewsTimestamp[]
+): Record<string, unknown>[] {
+  const existingBySourceId = new Map(
+    existingRows.map((row) => [row.source_id, row.published_at])
+  );
+
+  return records.map((record) => {
+    if (!isFirstSeenTimestampRecord(record)) return record;
+
+    const sourceId =
+      typeof record.source_id === "string" ? record.source_id : null;
+    const publishedAt = sourceId ? existingBySourceId.get(sourceId) : null;
+    return publishedAt ? { ...record, published_at: publishedAt } : record;
   });
 }
 
@@ -514,11 +554,42 @@ const adapter: DataSourceAdapter = {
       }
     }
 
-    if (allRecords.length > 0) {
+    let recordsToUpsert = allRecords;
+    const firstSeenSourceIds = allRecords
+      .filter(isFirstSeenTimestampRecord)
+      .map((record) =>
+        typeof record.source_id === "string" ? record.source_id : null
+      )
+      .filter((sourceId): sourceId is string => Boolean(sourceId));
+
+    if (firstSeenSourceIds.length > 0) {
+      const { data: existingRows, error: existingRowsError } = await ctx.supabase
+        .from("model_news")
+        .select("source_id, published_at")
+        .eq("source", "provider-blog")
+        .in("source_id", firstSeenSourceIds);
+
+      if (existingRowsError) {
+        errors.push({
+          message: `Failed to preserve provider-news publication timestamps: ${existingRowsError.message}`,
+          context: "published_at_preservation",
+        });
+        recordsToUpsert = allRecords.filter(
+          (record) => !isFirstSeenTimestampRecord(record)
+        );
+      } else {
+        recordsToUpsert = preserveExistingPublishedAt(
+          allRecords,
+          (existingRows ?? []) as ExistingNewsTimestamp[]
+        );
+      }
+    }
+
+    if (recordsToUpsert.length > 0) {
       const { errors: ue } = await upsertBatch(
         ctx.supabase,
         "model_news",
-        allRecords,
+        recordsToUpsert,
         "source,source_id"
       );
       errors.push(...ue);
@@ -529,7 +600,7 @@ const adapter: DataSourceAdapter = {
         errors.filter((e) => !e.context?.startsWith("url=")).length === 0 &&
         reachableProviders > 0,
       recordsProcessed,
-      recordsCreated: allRecords.length,
+      recordsCreated: recordsToUpsert.length,
       recordsUpdated: 0,
       errors,
       metadata: {
@@ -618,11 +689,13 @@ const adapter: DataSourceAdapter = {
 };
 
 export const __testables = {
+  buildNewsRecords,
   inferPublishedAt,
   isModelRelated,
   isBotChallengeResponse,
   parseRssArticles,
   parseZaiReleaseNotes,
+  preserveExistingPublishedAt,
   providerBlogs: PROVIDER_BLOGS,
   summarizeHealthChecks,
 };

@@ -10,13 +10,13 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "gpt-5.6-sol": {
     name: "GPT-5.6 Sol",
     description:
-      "OpenAI's flagship GPT-5.6 model for complex reasoning, coding, computer use, science, and professional work. It is proprietary and currently in limited preview for select trusted organizations through the API and Codex, not generally available in ChatGPT.",
+      "OpenAI's flagship GPT-5.6 model for complex reasoning, coding, computer use, science, and professional work. Sol is generally available through ChatGPT, Codex, and the API.",
     category: "llm",
     parameter_count: null,
     context_window: 1050000,
-    release_date: "2026-06-26",
+    release_date: "2026-07-09",
     architecture: "Transformer (reasoning)",
-    status: "preview",
+    status: "active",
     is_api_available: true,
     is_open_weights: false,
     modalities: ["text", "image"],
@@ -31,18 +31,18 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       multi_agent: true,
       safety_guardrails: true,
     },
-    website_url: "https://openai.com/index/previewing-gpt-5-6-sol/",
+    website_url: "https://openai.com/index/gpt-5-6/",
   },
   "gpt-5.6-terra": {
     name: "GPT-5.6 Terra",
     description:
-      "OpenAI's balanced GPT-5.6 tier for strong professional and agentic performance at lower cost than Sol. It is proprietary and currently limited to approved organizations through the API and Codex.",
+      "OpenAI's balanced GPT-5.6 tier for strong professional and agentic performance at lower cost than Sol. Terra is generally available through ChatGPT, Codex, and the API.",
     category: "llm",
     parameter_count: null,
     context_window: 1050000,
-    release_date: "2026-06-26",
+    release_date: "2026-07-09",
     architecture: "Transformer (reasoning)",
-    status: "preview",
+    status: "active",
     is_api_available: true,
     is_open_weights: false,
     modalities: ["text", "image"],
@@ -55,18 +55,18 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
       safety_guardrails: true,
     },
-    website_url: "https://openai.com/index/previewing-gpt-5-6-sol/",
+    website_url: "https://openai.com/index/gpt-5-6/",
   },
   "gpt-5.6-luna": {
     name: "GPT-5.6 Luna",
     description:
-      "OpenAI's fastest and most cost-efficient GPT-5.6 tier for high-volume workloads. It is proprietary and currently limited to approved organizations through the API and Codex.",
+      "OpenAI's fastest and most cost-efficient GPT-5.6 tier for high-volume workloads. Luna is generally available through ChatGPT, Codex, and the API.",
     category: "llm",
     parameter_count: null,
     context_window: 1050000,
-    release_date: "2026-06-26",
+    release_date: "2026-07-09",
     architecture: "Transformer (reasoning)",
-    status: "preview",
+    status: "active",
     is_api_available: true,
     is_open_weights: false,
     modalities: ["text", "image"],
@@ -79,7 +79,7 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
       safety_guardrails: true,
     },
-    website_url: "https://openai.com/index/previewing-gpt-5-6-sol/",
+    website_url: "https://openai.com/index/gpt-5-6/",
   },
   "gpt-5.5": {
     name: "GPT-5.5",
@@ -781,6 +781,106 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
       streaming: true,
     },
   },
+  "gpt-realtime-2.1": {
+    name: "GPT Realtime 2.1",
+    description:
+      "OpenAI's current full-size realtime model for low-latency text, image, and bidirectional audio interactions.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2026-06-23",
+    architecture: "Transformer (realtime)",
+    status: "active",
+    is_api_available: true,
+    modalities: ["text", "image", "audio"],
+    capabilities: {
+      vision: true,
+      transcription: true,
+      text_to_speech: true,
+      streaming: true,
+      function_calling: true,
+    },
+    website_url:
+      "https://developers.openai.com/api/docs/models/gpt-realtime-2.1",
+  },
+  "gpt-realtime-2.1-mini": {
+    name: "GPT Realtime 2.1 Mini",
+    description:
+      "Lower-cost GPT Realtime 2.1 variant for responsive multimodal voice agents and high-volume interactive applications.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 128000,
+    release_date: "2026-06-23",
+    architecture: "Transformer (realtime)",
+    status: "active",
+    is_api_available: true,
+    modalities: ["text", "image", "audio"],
+    capabilities: {
+      vision: true,
+      transcription: true,
+      text_to_speech: true,
+      streaming: true,
+      function_calling: true,
+    },
+    website_url:
+      "https://developers.openai.com/api/docs/models/gpt-realtime-2.1-mini",
+  },
+  "gpt-realtime-whisper": {
+    name: "GPT Realtime Whisper",
+    description:
+      "OpenAI realtime speech-to-text model for streaming transcription and voice applications.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: 16000,
+    release_date: "2026-05-05",
+    architecture: "Transformer (audio)",
+    status: "active",
+    is_api_available: true,
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+      streaming: true,
+    },
+    website_url:
+      "https://developers.openai.com/api/docs/models/gpt-realtime-whisper",
+  },
+  "gpt-live-transcribe": {
+    name: "GPT Live Transcribe",
+    description:
+      "OpenAI speech-to-text model for live, low-latency transcription workflows.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2026-07-27",
+    architecture: "Transformer (audio)",
+    status: "active",
+    is_api_available: true,
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+      streaming: true,
+    },
+    website_url:
+      "https://developers.openai.com/api/docs/models/gpt-live-transcribe",
+  },
+  "gpt-transcribe": {
+    name: "GPT Transcribe",
+    description:
+      "OpenAI general-purpose speech-to-text model for transcription and audio understanding workflows.",
+    category: "speech_audio",
+    parameter_count: null,
+    context_window: null,
+    release_date: "2026-07-27",
+    architecture: "Transformer (audio)",
+    status: "active",
+    is_api_available: true,
+    modalities: ["audio", "text"],
+    capabilities: {
+      transcription: true,
+    },
+    website_url:
+      "https://developers.openai.com/api/docs/models/gpt-transcribe",
+  },
   "gpt-audio-mini": {
     name: "GPT Audio Mini",
     description:
@@ -1095,6 +1195,7 @@ export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
 function normalizeOpenAiFamilyId(modelId: string) {
   return modelId
     .replace(/^gpt-(\d)-(\d)(?=-|$)/, "gpt-$1.$2")
+    .replace(/^gpt-5\.6$/, "gpt-5.6-sol")
     .replace(/^gpt-image$/, "gpt-image-1.5")
     .replace(/^gpt-image-1-5$/, "gpt-image-1.5")
     .replace(/^gpt-image-1\.5$/, "gpt-image-1.5")

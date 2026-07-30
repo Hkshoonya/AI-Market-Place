@@ -45,7 +45,7 @@ export interface KnownModelMeta {
   license_name?: string | null;
   hf_model_id?: string | null;
   website_url?: string | null;
-  /** Parameter count in billions (OpenAI only). */
+  /** Total parameter count as an absolute number (for example 70_000_000_000). */
   parameter_count?: number | null;
 }
 

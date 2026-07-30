@@ -52,15 +52,26 @@ const ID_PREFIX_CATEGORY: Array<[string, string]> = [
   // OpenAI image generation (gpt-image MUST appear before gpt- so prefix matching is correct)
   ["gpt-image", "image_generation"],
   ["dall-e", "image_generation"],
-  // OpenAI GPT (broad match — comes after more-specific gpt-image)
+  // OpenAI speech/audio (must appear before the broad gpt- match)
+  ["gpt-realtime", "speech_audio"],
+  ["gpt-live-transcribe", "speech_audio"],
+  ["gpt-transcribe", "speech_audio"],
+  ["gpt-audio", "speech_audio"],
+  ["gpt-4o-audio", "speech_audio"],
+  ["gpt-4o-transcribe", "speech_audio"],
+  ["gpt-4o-mini-transcribe", "speech_audio"],
+  ["gpt-4o-mini-tts", "speech_audio"],
+  // OpenAI GPT (broad match comes after specific GPT product families)
   ["gpt-", "llm"],
-  // OpenAI speech / audio
   ["whisper", "speech_audio"],
   ["tts-", "speech_audio"],
   // OpenAI embeddings
   ["text-embedding", "embeddings"],
   // OpenAI code
   ["codex", "code"],
+  // Google specialist models (must appear before broad Gemini matching)
+  ["gemini-embedding", "embeddings"],
+  ["lyria", "speech_audio"],
   // Google Gemini multimodal
   ["gemini", "multimodal"],
   // Google Gemma open-weights LLM
@@ -227,6 +238,35 @@ export function inferCategory(opts: InferCategoryOptions): string {
 export function inferModalities(modelId: string): string[] {
   const id = modelId.toLowerCase();
 
+  if (id.startsWith("gpt-realtime")) return ["text", "image", "audio"];
+
+  if (
+    id.startsWith("gpt-live-transcribe") ||
+    id.startsWith("gpt-transcribe") ||
+    id.startsWith("gpt-4o-transcribe") ||
+    id.startsWith("gpt-4o-mini-transcribe")
+  ) {
+    return ["audio", "text"];
+  }
+
+  if (
+    id.startsWith("gpt-audio") ||
+    id.startsWith("gpt-4o-audio") ||
+    id.startsWith("gpt-4o-mini-tts")
+  ) {
+    return ["text", "audio"];
+  }
+
+  if (id.startsWith("lyria")) return ["text", "audio"];
+
+  if (
+    id.startsWith("text-embedding") ||
+    id.startsWith("gemini-embedding") ||
+    id.startsWith("embedding")
+  ) {
+    return ["text"];
+  }
+
   // Image generation models
   if (id.startsWith("dall-e") || id.includes("image") || id.startsWith("imagen")) {
     return ["text", "image"];
@@ -237,9 +277,6 @@ export function inferModalities(modelId: string): string[] {
 
   // Text-to-speech (text input → audio output)
   if (id.startsWith("tts-")) return ["text", "audio"];
-
-  // Embeddings
-  if (id.startsWith("text-embedding") || id.includes("embedding")) return ["text"];
 
   // GPT-4o family has audio capabilities
   if (id.startsWith("gpt-4o")) return ["text", "image", "audio"];

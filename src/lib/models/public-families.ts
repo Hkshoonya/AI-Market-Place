@@ -383,10 +383,20 @@ export function collapsePublicModelFamilies<T extends PublicModelFamilyCandidate
   }
 
   for (const model of models) {
+    const providerKey = normalizeProviderKey(
+      getCanonicalProviderName(model.provider)
+    );
     const familyIds = resolveAliasFamilyModelIds(index, {
       slugCandidates: [model.slug],
       nameCandidates: [model.name],
-    }).filter((id) => byId.has(id));
+    }).filter((id) => {
+      const candidate = byId.get(id);
+      return (
+        candidate != null &&
+        normalizeProviderKey(getCanonicalProviderName(candidate.provider)) ===
+          providerKey
+      );
+    });
 
     if (familyIds.length < 2) continue;
 

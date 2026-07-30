@@ -1,7 +1,10 @@
 import { formatParams } from "@/lib/format";
 import { ANTHROPIC_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/anthropic";
+import { COHERE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/cohere";
 import { GOOGLE_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/google";
+import { META_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/meta";
 import { MINIMAX_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/minimax";
+import { MISTRAL_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/mistral";
 import { MOONSHOT_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/moonshot";
 import { OPENAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/openai";
 import { XAI_KNOWN_MODELS } from "@/lib/data-sources/shared/known-models/xai";
@@ -12,9 +15,16 @@ type KnownCatalog = Record<string, KnownModelMeta>;
 
 const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   openai: OPENAI_KNOWN_MODELS,
+  cohere: COHERE_KNOWN_MODELS,
+  coherelabs: COHERE_KNOWN_MODELS,
+  "cohere labs": COHERE_KNOWN_MODELS,
   google: GOOGLE_KNOWN_MODELS,
   anthropic: ANTHROPIC_KNOWN_MODELS,
+  meta: META_KNOWN_MODELS,
+  "meta-llama": META_KNOWN_MODELS,
   minimax: MINIMAX_KNOWN_MODELS,
+  "mistral ai": MISTRAL_KNOWN_MODELS,
+  mistralai: MISTRAL_KNOWN_MODELS,
   "moonshot ai": MOONSHOT_KNOWN_MODELS,
   kimi: MOONSHOT_KNOWN_MODELS,
   xai: XAI_KNOWN_MODELS,
@@ -71,7 +81,10 @@ export interface FallbackOverview {
 }
 
 function canonicalize(value: string | null | undefined): string {
-  return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/\+/g, "plus")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 const IGNORED_MATCH_TOKENS = new Set([
@@ -127,6 +140,7 @@ function tokenizeModelIdentity(value: string | null | undefined, provider?: stri
   const providerTokens = provider ? buildProviderTokens(provider) : new Set<string>();
   const stripped = stripTrailingVariantSuffixes(value ?? "")
     .toLowerCase()
+    .replace(/\+/g, " plus ")
     .replace(/[^a-z0-9]+/g, " ");
 
   return stripped

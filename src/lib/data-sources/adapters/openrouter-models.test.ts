@@ -191,7 +191,9 @@ describe("openrouter model record mapping", () => {
     expect(record.category).toBe("multimodal");
     expect(record.modalities).toEqual(["text", "image"]);
     expect(record.release_date).toBe("2026-05-28");
-    expect(record.description).toContain("Builds on Opus 4.7");
+    expect(record.description).toContain(
+      "retained for compatibility after Claude Opus 5"
+    );
     expect(record.website_url).toBe("https://www.anthropic.com/news/claude-opus-4-8");
   });
 
@@ -257,7 +259,7 @@ describe("openrouter model record mapping", () => {
     expect(record).toMatchObject({
       slug: "openai-gpt-5-6-sol-pro",
       name: "GPT-5.6 Sol Pro",
-      status: "preview",
+      status: "active",
       is_api_available: true,
       is_open_weights: false,
       license: "commercial",

@@ -570,11 +570,18 @@ export function sleep(ms: number): Promise<void> {
 /** Check if a source needs syncing based on last_sync_at and interval */
 export function needsSync(
   lastSyncAt: string | null,
-  intervalHours: number
+  intervalHours: number,
+  scheduleToleranceMinutes = 0,
+  now = Date.now()
 ): boolean {
   if (!lastSyncAt) return true;
   const lastSync = new Date(lastSyncAt).getTime();
-  const now = Date.now();
+  if (!Number.isFinite(lastSync)) return true;
+
   const intervalMs = intervalHours * 60 * 60 * 1000;
-  return now - lastSync >= intervalMs;
+  const toleranceMs = Math.min(
+    intervalMs,
+    Math.max(0, scheduleToleranceMinutes) * 60 * 1000
+  );
+  return now - lastSync >= intervalMs - toleranceMs;
 }

@@ -211,8 +211,8 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "previous-flagship-row",
-          slug: "anthropic-claude-opus-4-7",
-          name: "Claude Opus 4.7",
+          slug: "anthropic-claude-opus-4-8",
+          name: "Claude Opus 4.8",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 14,
@@ -221,29 +221,29 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 80.2,
           quality_score: 60.3,
           popularity_score: 47.8,
-          release_date: "2026-04-16",
+          release_date: "2026-05-28",
           description:
-            "Previous generally available Opus release retained for compatibility after the Claude Opus 4.8 launch. Superseded by Opus 4.8 for Anthropic's latest Opus-tier performance.",
+            "Previous generally available Opus release retained for compatibility after Claude Opus 5.",
         },
         {
           id: "recent-flagship-upgrade",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 312,
-          economic_footprint_score: 0,
+          economic_footprint_score: 47,
           adoption_score: 61.6,
           capability_score: 49.2,
           quality_score: 44.8,
           popularity_score: 39,
-          release_date: "2026-05-28",
+          release_date: "2026-07-24",
           description:
-            "Anthropic's latest generally available Opus-tier model. Improves on Opus 4.7 for advanced software engineering, long-running task reliability, uncertainty handling, and high-autonomy work while keeping the same standard pricing.",
+            "Anthropic's current Opus model. It improves on Opus 4.8 for advanced software engineering, reliability, and high-autonomy work.",
         },
       ],
       2,
-      Date.parse("2026-06-01T12:00:00Z")
+      Date.parse("2026-07-30T12:00:00Z")
     );
 
     expect(ids[0]).toBe("recent-flagship-upgrade");
@@ -254,8 +254,8 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "previous-opus",
-          slug: "anthropic-claude-opus-4-7",
-          name: "Claude Opus 4.7",
+          slug: "anthropic-claude-opus-4-8",
+          name: "Claude Opus 4.8",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 94,
@@ -264,29 +264,75 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 76,
           quality_score: 66.5,
           popularity_score: 47.4,
-          release_date: "2026-04-16",
-          context_window: 1000000,
-          description:
-            "Previous generally available Opus release retained for compatibility after the Claude Opus 4.8 launch.",
-        },
-        {
-          id: "official-opus-48",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
-          provider: "Anthropic",
-          category: "multimodal",
           release_date: "2026-05-28",
           context_window: 1000000,
           description:
-            "Anthropic's current generally available Opus-tier model for complex reasoning and long-horizon agentic coding.",
+            "Previous generally available Opus release retained for compatibility after Claude Opus 5.",
+        },
+        {
+          id: "official-opus-5",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
+          provider: "Anthropic",
+          category: "multimodal",
+          release_date: "2026-07-24",
+          context_window: 1000000,
+          description:
+            "Anthropic's current Opus model for complex reasoning and long-horizon agentic coding.",
         },
       ],
       1,
-      Date.parse("2026-06-01T12:00:00Z")
+      Date.parse("2026-07-30T12:00:00Z")
     );
 
-    expect(ids[0]).toBe("official-opus-48");
+    expect(ids[0]).toBe("official-opus-5");
     expect(ids).not.toContain("previous-opus");
+  });
+
+  it("surfaces a verified flagship when capability evidence is missing but partial scores exist", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "previous-openai-flagship",
+          slug: "openai-gpt-5-5",
+          name: "GPT-5.5",
+          provider: "OpenAI",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 21,
+          economic_footprint_score: 55,
+          adoption_score: 65,
+          capability_score: 72,
+          quality_score: 58,
+          popularity_score: 50,
+          release_date: "2026-04-23",
+          context_window: 1050000,
+          description: "Previous OpenAI flagship for complex professional work.",
+        },
+        {
+          id: "current-openai-flagship",
+          slug: "openai-gpt-5-6-sol",
+          name: "GPT-5.6 Sol",
+          provider: "OpenAI",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 260,
+          economic_footprint_score: 38,
+          adoption_score: 47,
+          capability_score: null,
+          quality_score: 22,
+          popularity_score: 31,
+          release_date: "2026-07-09",
+          context_window: 1050000,
+          description:
+            "OpenAI's current flagship for complex reasoning, coding, and professional work.",
+        },
+      ],
+      1,
+      Date.parse("2026-07-30T12:00:00Z")
+    );
+
+    expect(ids).toEqual(["current-openai-flagship"]);
   });
 
   it("uses known-model lifecycle metadata when a previous generation row still has stale live copy", () => {
@@ -294,8 +340,8 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "previous-flagship-row",
-          slug: "anthropic-claude-opus-4-7",
-          name: "Claude Opus 4.7",
+          slug: "anthropic-claude-opus-4-8",
+          name: "Claude Opus 4.8",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 7,
@@ -304,14 +350,14 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 81.2,
           quality_score: 63,
           popularity_score: 49.6,
-          release_date: "2026-04-16",
+          release_date: "2026-05-28",
           description:
-            "Opus 4.7 is Anthropic's strongest model for coding and long-running professional tasks.",
+            "Opus 4.8 is Anthropic's strongest model for coding and long-running professional tasks.",
         },
         {
           id: "current-flagship-row",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 199,
@@ -320,13 +366,13 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 68.9,
           quality_score: 57.3,
           popularity_score: 40.7,
-          release_date: "2026-05-28",
+          release_date: "2026-07-24",
           description:
-            "Opus 4.8 is the next generation of Anthropic's Opus family, building on Opus 4.7.",
+            "Opus 5 is the next generation of Anthropic's Opus family, building on Opus 4.8.",
         },
       ],
       2,
-      Date.parse("2026-06-01T12:00:00Z")
+      Date.parse("2026-07-30T12:00:00Z")
     );
 
     expect(ids[0]).toBe("current-flagship-row");
@@ -353,8 +399,8 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "next-generation-opus",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 195,
@@ -363,13 +409,13 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 68.9,
           quality_score: 57.3,
           popularity_score: 40.7,
-          release_date: "2026-05-28",
+          release_date: "2026-07-24",
           description:
-            "Opus 4.8 is the next generation of Anthropic's Opus family, built for long-running asynchronous agents. Building on Opus 4.7, it improves advanced software engineering, reliability, and high-autonomy work.",
+            "Opus 5 is the next generation of Anthropic's Opus family, built for long-running asynchronous agents. Building on Opus 4.8, it improves advanced software engineering, reliability, and high-autonomy work.",
         },
       ],
       2,
-      Date.parse("2026-06-01T12:00:00Z")
+      Date.parse("2026-07-30T12:00:00Z")
     );
 
     expect(ids[0]).toBe("next-generation-opus");
@@ -793,8 +839,8 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "strong-anthropic",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 120,
@@ -803,10 +849,10 @@ describe("selectHomepageTopModelIds", () => {
           capability_score: 68.9,
           quality_score: 57.3,
           popularity_score: 40.7,
-          release_date: "2026-04-16",
+          release_date: "2026-07-24",
           context_window: 1000000,
           description:
-            "Opus 4.8 is the next generation of Anthropic's Opus family, building on Opus 4.7.",
+            "Claude Opus 5 is Anthropic's current flagship, building on Opus 4.8.",
         },
         {
           id: "strong-qwen",
@@ -828,7 +874,7 @@ describe("selectHomepageTopModelIds", () => {
         },
       ],
       2,
-      now
+      Date.parse("2026-07-30T12:00:00Z")
     );
 
     expect(ids).not.toContain("specialized-agent-row");
@@ -929,8 +975,8 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "provider-b-1",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-frontier-a",
+          name: "Anthropic Frontier A",
           provider: "Anthropic",
           category: "llm",
           overall_rank: 5,
@@ -944,8 +990,8 @@ describe("selectHomepageTopModelIds", () => {
         },
         {
           id: "provider-c-1",
-          slug: "google-gemini-3-1-pro",
-          name: "Gemini 3.1 Pro",
+          slug: "google-frontier-a",
+          name: "Google Frontier A",
           provider: "Google",
           category: "llm",
           overall_rank: 7,
@@ -1062,8 +1108,8 @@ describe("selectHomepageTopModelIds", () => {
       [
         {
           id: "anthropic-current",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-current-general",
+          name: "Anthropic Current General",
           provider: "Anthropic",
           category: "multimodal",
           is_api_available: true,

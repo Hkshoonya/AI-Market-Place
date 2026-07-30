@@ -114,4 +114,64 @@ describe("provider-news health aggregation", () => {
       })
     ).toBe("2026-02-05T00:00:00.000Z");
   });
+
+  it("marks undated articles as first-seen timestamps", () => {
+    const [record] = __testables.buildNewsRecords(
+      {
+        name: "Meta AI",
+        url: "https://ai.meta.com/blog/",
+        provider: "Meta",
+      },
+      [
+        {
+          url: "https://ai.meta.com/blog/example-model/",
+          title: "Introducing Example Model",
+          date: null,
+        },
+      ],
+      10,
+      [],
+      [],
+      "2026-07-30T16:05:00.000Z"
+    );
+
+    expect(record).toMatchObject({
+      published_at: "2026-07-30T16:05:00.000Z",
+      metadata: {
+        published_at_source: "first_seen",
+      },
+    });
+  });
+
+  it("preserves the original first-seen timestamp on later syncs", () => {
+    const records = [
+      {
+        source: "provider-blog",
+        source_id: "provider-news-meta-example",
+        published_at: "2026-07-30T16:05:00.000Z",
+        metadata: { published_at_source: "first_seen" },
+      },
+      {
+        source: "provider-blog",
+        source_id: "provider-news-google-dated",
+        published_at: "2026-07-21T00:00:00.000Z",
+        metadata: { published_at_source: "listing" },
+      },
+    ];
+
+    expect(
+      __testables.preserveExistingPublishedAt(records, [
+        {
+          source_id: "provider-news-meta-example",
+          published_at: "2026-07-07T20:05:54.405Z",
+        },
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        source_id: "provider-news-meta-example",
+        published_at: "2026-07-07T20:05:54.405Z",
+      }),
+      records[1],
+    ]);
+  });
 });

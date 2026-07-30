@@ -3,27 +3,87 @@ import { describe, expect, it } from "vitest";
 import { resolveGoogleKnownModelMeta } from "./google";
 
 describe("resolveGoogleKnownModelMeta", () => {
-  it("returns current Gemini 3.1 release metadata for official latest model pages", () => {
-    expect(resolveGoogleKnownModelMeta("gemini-3.1-pro")).toMatchObject({
-      name: "Gemini 3.1 Pro",
+  it("returns current stable Gemini 3.5 and 3.6 metadata", () => {
+    expect(resolveGoogleKnownModelMeta("gemini-3.6-flash")).toMatchObject({
+      name: "Gemini 3.6 Flash",
+      release_date: "2026-07-21",
+      status: "active",
+      context_window: 1048576,
+    });
+    expect(resolveGoogleKnownModelMeta("gemini-3.5-flash")).toMatchObject({
+      name: "Gemini 3.5 Flash",
+      release_date: "2026-05-19",
+      status: "active",
+    });
+    expect(resolveGoogleKnownModelMeta("gemini-3.5-flash-lite")).toMatchObject({
+      name: "Gemini 3.5 Flash-Lite",
+      release_date: "2026-07-21",
+      status: "active",
+    });
+    expect(resolveGoogleKnownModelMeta("gemini-flash-latest")?.name).toBe(
+      "Gemini 3.6 Flash"
+    );
+  });
+
+  it("returns exact Gemini 3.1 lifecycle metadata", () => {
+    expect(resolveGoogleKnownModelMeta("gemini-3.1-pro-preview")).toMatchObject({
+      name: "Gemini 3.1 Pro Preview",
       release_date: "2026-02-19",
+      status: "preview",
       website_url:
-        "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/",
+        "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview",
     });
 
     expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-lite")).toMatchObject({
       name: "Gemini 3.1 Flash Lite",
-      release_date: "2026-03-03",
+      release_date: "2026-05-07",
     });
 
-    expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-live")).toMatchObject({
-      name: "Gemini 3.1 Flash Live",
-      release_date: "2026-03-26",
+    expect(
+      resolveGoogleKnownModelMeta("gemini-3.1-flash-live-preview")
+    ).toMatchObject({
+      name: "Gemini 3.1 Flash Live Preview",
+      release_date: "2026-03-11",
+      status: "preview",
     });
 
     expect(resolveGoogleKnownModelMeta("gemini-3.1-flash-image")).toMatchObject({
       name: "Gemini 3.1 Flash Image",
-      release_date: "2026-02-26",
+      release_date: "2026-05-28",
+      status: "active",
+    });
+  });
+
+  it("tracks current Google specialist model endpoints", () => {
+    expect(
+      resolveGoogleKnownModelMeta("gemini-3.5-live-translate-preview")
+    ).toMatchObject({
+      category: "speech_audio",
+      context_window: 131072,
+      status: "preview",
+    });
+    expect(resolveGoogleKnownModelMeta("gemini-embedding-2")).toMatchObject({
+      category: "embeddings",
+      context_window: 8192,
+      release_date: "2026-04-22",
+      status: "active",
+    });
+    expect(
+      resolveGoogleKnownModelMeta("gemini-robotics-er-2-preview")
+    ).toMatchObject({
+      category: "specialized",
+      context_window: 131072,
+      status: "preview",
+    });
+    expect(
+      resolveGoogleKnownModelMeta("gemini-robotics-er-2-streaming-preview")
+    ).toMatchObject({
+      category: "specialized",
+      status: "preview",
+    });
+    expect(resolveGoogleKnownModelMeta("gemini-omni-flash-preview")).toMatchObject({
+      category: "video",
+      status: "preview",
     });
   });
 
@@ -92,25 +152,28 @@ describe("resolveGoogleKnownModelMeta", () => {
       license_name: "Apache 2.0",
     });
 
-    expect(resolveGoogleKnownModelMeta("lyria-3-pro")).toMatchObject({
-      name: "Lyria 3 Pro",
+    expect(resolveGoogleKnownModelMeta("lyria-3-pro-preview")).toMatchObject({
+      name: "Lyria 3 Pro Preview",
       category: "speech_audio",
       license: "commercial",
       is_open_weights: false,
+      status: "preview",
     });
   });
 
   it("resolves Google API wrapper IDs to canonical release metadata", () => {
     expect(resolveGoogleKnownModelMeta("imagen-4.0-generate-001")).toMatchObject({
       name: "Imagen 4",
-      release_date: "2025-05-20",
+      release_date: "2025-06-24",
       category: "image_generation",
+      status: "deprecated",
     });
 
     expect(resolveGoogleKnownModelMeta("veo-2.0-generate-001")).toMatchObject({
       name: "Veo 2",
-      release_date: "2024-12-01",
+      release_date: "2025-04-09",
       category: "video",
+      status: "archived",
     });
   });
 

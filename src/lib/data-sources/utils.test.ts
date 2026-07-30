@@ -12,6 +12,7 @@ import {
   fetchWithRetry,
   hasPermanentSyncError,
   isPermanentHttpFailure,
+  needsSync,
   normalizeModelRankingInputs,
   retryOperation,
   upsertBatch,
@@ -200,6 +201,36 @@ describe("hasPermanentSyncError", () => {
     expect(hasPermanentSyncError([
       { message: "timeout", context: "network_error" },
     ])).toBe(false);
+  });
+});
+
+describe("needsSync", () => {
+  const now = Date.parse("2026-07-30T16:00:00.000Z");
+
+  it("allows scheduled runs to start within the configured clock-drift tolerance", () => {
+    expect(
+      needsSync("2026-07-30T14:03:00.000Z", 2, 15, now)
+    ).toBe(true);
+  });
+
+  it("does not run materially before the configured interval", () => {
+    expect(
+      needsSync("2026-07-30T14:20:00.000Z", 2, 15, now)
+    ).toBe(false);
+  });
+
+  it("preserves exact interval behavior when no tolerance is supplied", () => {
+    expect(
+      needsSync("2026-07-30T14:03:00.000Z", 2, 0, now)
+    ).toBe(false);
+    expect(
+      needsSync("2026-07-30T14:00:00.000Z", 2, 0, now)
+    ).toBe(true);
+  });
+
+  it("treats missing or invalid timestamps as due", () => {
+    expect(needsSync(null, 2, 15, now)).toBe(true);
+    expect(needsSync("not-a-date", 2, 15, now)).toBe(true);
   });
 });
 

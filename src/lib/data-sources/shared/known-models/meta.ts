@@ -1,6 +1,47 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const META_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "muse-image": {
+    name: "Muse Image",
+    description:
+      "Meta's agentic image generation and editing model with search and coding tool use, self-refinement, and multi-reference composition. It is available in Meta products, but Meta has not announced a public model API.",
+    category: "image_generation",
+    release_date: "2026-07-07",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      image_generation: true,
+      image_editing: true,
+      tool_use: true,
+      coding: true,
+      reasoning: true,
+    },
+    is_api_available: false,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url:
+      "https://ai.meta.com/blog/introducing-muse-image-muse-video-msl/",
+  },
+  "muse-video": {
+    name: "Muse Video",
+    description:
+      "Meta's preview media generation model for high-fidelity video with native audio. Meta describes it as coming soon to creators and Meta AI, not as a currently available public API or open-weight release.",
+    category: "video",
+    release_date: "2026-07-07",
+    status: "preview",
+    modalities: ["text", "video", "audio"],
+    capabilities: {
+      video_generation: true,
+      audio_generation: true,
+    },
+    is_api_available: false,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url:
+      "https://ai.meta.com/blog/introducing-muse-image-muse-video-msl/",
+  },
   "muse-spark-1-1": {
     name: "Muse Spark 1.1",
     description:

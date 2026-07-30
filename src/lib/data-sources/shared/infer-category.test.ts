@@ -67,6 +67,27 @@ describe('inferCategory — "id" mode', () => {
     expect(inferCategory({ mode: "id", modelId: "gpt-image-1" })).toBe("image_generation");
   });
 
+  it("classifies GPT realtime and transcription families as speech/audio", () => {
+    expect(inferCategory({ mode: "id", modelId: "gpt-realtime-2.1" })).toBe(
+      "speech_audio"
+    );
+    expect(inferCategory({ mode: "id", modelId: "gpt-live-transcribe" })).toBe(
+      "speech_audio"
+    );
+    expect(inferCategory({ mode: "id", modelId: "gpt-transcribe" })).toBe(
+      "speech_audio"
+    );
+  });
+
+  it("classifies Google embedding and music model families", () => {
+    expect(inferCategory({ mode: "id", modelId: "gemini-embedding-2" })).toBe(
+      "embeddings"
+    );
+    expect(inferCategory({ mode: "id", modelId: "lyria-3-pro-preview" })).toBe(
+      "speech_audio"
+    );
+  });
+
   it('handles empty modelId by returning "specialized"', () => {
     expect(inferCategory({ mode: "id", modelId: "" })).toBe("specialized");
   });
@@ -324,5 +345,19 @@ describe("inferModalities", () => {
 
   it('returns ["audio","text"] for whisper', () => {
     expect(inferModalities("whisper-1")).toEqual(["audio", "text"]);
+  });
+
+  it("infers current realtime and transcription modalities", () => {
+    expect(inferModalities("gpt-realtime-2.1")).toEqual([
+      "text",
+      "image",
+      "audio",
+    ]);
+    expect(inferModalities("gpt-live-transcribe")).toEqual(["audio", "text"]);
+  });
+
+  it("keeps Google embeddings text-only and Lyria audio-capable", () => {
+    expect(inferModalities("gemini-embedding-2")).toEqual(["text"]);
+    expect(inferModalities("lyria-3-pro-preview")).toEqual(["text", "audio"]);
   });
 });

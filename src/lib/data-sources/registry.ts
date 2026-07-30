@@ -41,6 +41,7 @@ export async function loadAllAdapters(): Promise<void> {
     import("./adapters/openai-models"),
     import("./adapters/anthropic-models"),
     import("./adapters/google-models"),
+    import("./adapters/official-provider-models"),
     import("./adapters/z-ai-models"),
     import("./adapters/minimax-models"),
     import("./adapters/ollama-library"),

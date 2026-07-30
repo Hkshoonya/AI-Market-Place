@@ -3,7 +3,7 @@
  *
  * Data sourcing strategy (highest to lowest priority):
  *   1. Live Google Generative Language API — if GOOGLE_AI_API_KEY is present in ctx.secrets
- *   2. Public HTML scrape — https://ai.google.dev/gemini-api/docs/models/gemini
+ *   2. Public HTML scrape — Google model catalog and robotics documentation
  *   3. Static known-models data — always available, guarantees at least one sync
  *
  * No API key is required. The static map alone is sufficient to produce a
@@ -68,11 +68,43 @@ interface GoogleModelsResponse {
 }
 
 const GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const GOOGLE_MODELS_DOCS_URL = "https://ai.google.dev/gemini-api/docs/models/gemini";
+const GOOGLE_MODELS_DOCS_URL = "https://ai.google.dev/gemini-api/docs/models";
+const GOOGLE_ROBOTICS_DOCS_URL =
+  "https://ai.google.dev/gemini-api/docs/robotics-overview";
 
 /** Extract the short model ID from "models/gemini-2.0-flash" -> "gemini-2.0-flash". */
 function extractModelId(name: string): string {
   return name.replace(/^models\//, "");
+}
+
+const GOOGLE_DOC_MODEL_ID_PATTERNS = [
+  /^gemini-\d+(?:\.\d+)*(?:-[a-z0-9]+)*$/,
+  /^gemini-(?:embedding-(?:001|2)|omni-flash-preview)$/,
+  /^gemini-robotics-er-\d+(?:\.\d+)?(?:-streaming)?-preview$/,
+  /^gemma-\d+[a-z]?(?:-[a-z0-9.]+)*$/,
+  /^imagen-\d+(?:\.\d+)?(?:-[a-z0-9]+)*$/,
+  /^veo-\d+(?:\.\d+)?(?:-[a-z0-9]+)*$/,
+  /^lyria-(?:3-(?:clip|pro)-preview|realtime-exp)$/,
+  /^(?:deep-research(?:-max)?-preview|antigravity-preview)-\d{2}-\d{4}$/,
+] as const;
+
+function extractGoogleModelIds(html: string): string[] {
+  const candidates =
+    html.toLowerCase().match(
+      /\b(?:gemini|gemma|imagen|veo|lyria|deep-research|antigravity)-[a-z0-9.-]+\b/g
+    ) ?? [];
+
+  return [
+    ...new Set(
+      candidates
+        .map((candidate) => candidate.replace(/[.]+$/, ""))
+        .filter((candidate) =>
+          GOOGLE_DOC_MODEL_ID_PATTERNS.some((pattern) =>
+            pattern.test(candidate)
+          )
+        )
+    ),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -129,31 +161,31 @@ async function tryFetchLiveApi(
  * Returns an empty array on failure.
  */
 async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
-  try {
-    const res = await fetchWithRetry(
-      "https://ai.google.dev/gemini-api/docs/models/gemini",
-      {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ModelIndexBot/1.0)" },
-        signal,
-      },
-      { maxRetries: 1, signal }
-    );
-    if (!res.ok) return [];
+  const found = new Set<string>();
 
-    const html = await res.text();
-    const modelPattern =
-      /\b(gemini-[\d.]+(?:-(?:pro|flash|ultra|nano|lite|exp|preview)(?:-[\w.]+)?)?|gemma-\d[\w.-]*|imagen-\d[\w.-]*|veo-\d[\w.-]*)\b/g;
+  for (const url of [GOOGLE_MODELS_DOCS_URL, GOOGLE_ROBOTICS_DOCS_URL]) {
+    try {
+      const res = await fetchWithRetry(
+        url,
+        {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; ModelIndexBot/1.0)",
+          },
+          signal,
+        },
+        { maxRetries: 1, signal }
+      );
+      if (!res.ok) continue;
 
-    const found = new Set<string>();
-    let match: RegExpExecArray | null;
-    while ((match = modelPattern.exec(html)) !== null) {
-      found.add(match[1]);
+      for (const modelId of extractGoogleModelIds(await res.text())) {
+        found.add(modelId);
+      }
+    } catch {
+      // Keep records found from other official pages and the static catalog.
     }
-
-    return [...found];
-  } catch {
-    return [];
   }
+
+  return [...found];
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +245,10 @@ const { sync, healthCheck } = createAdapterSyncer<
   healthCheckUrl: (apiKey) => `${GOOGLE_API_BASE}/models?key=${apiKey}&pageSize=1`,
   healthCheckHeaders: () => ({}),
   healthCheckSuccessMsg: "Google Generative Language API reachable",
+  deactivateMissing: {
+    provider: "Google",
+    slugPrefix: "google",
+  },
 });
 
 async function healthCheckWithFallback(
@@ -265,3 +301,7 @@ const adapter: DataSourceAdapter = {
 
 registerAdapter(adapter);
 export default adapter;
+
+export const __testables = {
+  extractGoogleModelIds,
+};

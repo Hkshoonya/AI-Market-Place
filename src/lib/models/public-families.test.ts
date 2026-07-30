@@ -114,6 +114,31 @@ describe("public model family dedupe", () => {
     ]);
   });
 
+  it("does not merge similarly named families across different providers", () => {
+    const families = collapsePublicModelFamilies([
+      {
+        id: "anthropic-frontier",
+        slug: "anthropic-frontier-a",
+        name: "Anthropic Frontier A",
+        provider: "Anthropic",
+        category: "llm",
+      },
+      {
+        id: "google-frontier",
+        slug: "google-frontier-a",
+        name: "Google Frontier A",
+        provider: "Google",
+        category: "llm",
+      },
+    ]);
+
+    expect(families).toHaveLength(2);
+    expect(families.map((family) => family.representative.id).sort()).toEqual([
+      "anthropic-frontier",
+      "google-frontier",
+    ]);
+  });
+
   it("prefers general-purpose rows over specialized duplicates inside the same family", () => {
     const deduped = dedupePublicModelFamilies([
       {
@@ -415,8 +440,8 @@ describe("public model family dedupe", () => {
     const deduped = dedupePublicModelFamilies([
       {
         id: "opus-current",
-        slug: "anthropic-claude-opus-4-8",
-        name: "Claude Opus 4.8",
+        slug: "anthropic-claude-opus-5",
+        name: "Claude Opus 5",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 312,
@@ -425,15 +450,15 @@ describe("public model family dedupe", () => {
         adoption_score: 61.6,
         popularity_score: 39,
         economic_footprint_score: 0,
-        release_date: "2026-05-28",
+        release_date: "2026-07-24",
         description:
-          "Opus 4.8 is the next generation of Anthropic's Opus family. Building on Opus 4.7, it improves advanced software engineering and reliability.",
+          "Opus 5 is the next generation of Anthropic's Opus family. Building on Opus 4.8, it improves advanced software engineering and reliability.",
         hf_downloads: 0,
       },
       {
         id: "opus-compat",
-        slug: "anthropic-claude-opus-4-8-older",
-        name: "Claude Opus 4.8 (older)",
+        slug: "anthropic-claude-opus-5-older",
+        name: "Claude Opus 5 (older)",
         provider: "Anthropic",
         category: "multimodal",
         overall_rank: 14,
@@ -444,13 +469,13 @@ describe("public model family dedupe", () => {
         economic_footprint_score: 53.6,
         release_date: "2025-12-12",
         description:
-          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 4.8 launch. Superseded by the latest release.",
+          "Previous flagship Claude Opus release retained for compatibility after the Claude Opus 5 launch. Superseded by the latest release.",
         hf_downloads: 0,
       },
     ]);
 
     expect(deduped).toHaveLength(1);
-    expect(deduped[0]?.slug).toBe("anthropic-claude-opus-4-8");
+    expect(deduped[0]?.slug).toBe("anthropic-claude-opus-5");
   });
 
   it("prefers the standard release over a preview sibling in the same family", () => {

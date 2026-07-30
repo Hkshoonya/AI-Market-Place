@@ -213,6 +213,7 @@ describe("orchestrator — Sentry alerting and structured failure logging", () =
     const { runTierSync } = await import("./orchestrator");
     await runTierSync(1);
 
+    expect(mockNeedsSync).toHaveBeenCalledWith(null, 24, 15);
     expect(mockUpdateFn).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "failed",

@@ -67,4 +67,13 @@ describe("benchmark seed configuration", () => {
     expect(xAnnouncements.sync_interval_hours).toBe(2);
     expect(xAnnouncements.is_enabled).toBe(true);
   });
+
+  it("refreshes secondary official provider catalogs every four hours", () => {
+    const source = getSeed("official-provider-models");
+
+    expect(source.tier).toBe(2);
+    expect(source.sync_interval_hours).toBe(4);
+    expect(source.is_enabled).toBe(true);
+    expect(source.output_types).toEqual(["models"]);
+  });
 });

@@ -159,15 +159,10 @@ function hasRecentLeadershipReadinessSignals(model: HomepageTopModelCandidate): 
   );
 }
 
-function hasSparseHomepageScoreSignals(model: HomepageTopModelCandidate): boolean {
-  return (
-    numeric(model.capability_score) <= 0 &&
-    numeric(model.quality_score) <= 0 &&
-    numeric(model.adoption_score) <= 0 &&
-    numeric(model.economic_footprint_score) <= 0 &&
-    numeric(model.popularity_score) <= 0 &&
-    numeric(model.overall_rank) <= 0
-  );
+function hasIncompleteCapabilityEvidence(
+  model: HomepageTopModelCandidate
+): boolean {
+  return numeric(model.capability_score) <= 0;
 }
 
 function hasTrustedOfficialLeadershipLaunch(
@@ -181,7 +176,7 @@ function hasTrustedOfficialLeadershipLaunch(
 
   const ageDays = releaseAgeDays(model.release_date ?? knownMeta.release_date, now);
   if (ageDays == null || ageDays > 120) return false;
-  if (!hasSparseHomepageScoreSignals(model)) return false;
+  if (!hasIncompleteCapabilityEvidence(model)) return false;
 
   return hasLeadershipUpgradeLanguage(model) && hasCurrentHomepageAccess(model);
 }
@@ -336,7 +331,7 @@ export function computeHomepageTopModelScore(
 
   const weightedScore = rawScore * homepageCandidateMultiplier(model, now);
   if (hasTrustedOfficialLeadershipLaunch(model, now)) {
-    return Math.max(weightedScore, 68);
+    return Math.max(weightedScore, 82);
   }
 
   return weightedScore;
@@ -366,7 +361,20 @@ export function selectHomepageTopModelIds<
       model.provider.length > 0
   );
   const familyRepresentatives = collapsePublicModelFamilies(familyCandidates).map(
-    (family) => family.representative
+    (family) => {
+      const verifiedCurrentLaunch = family.variants
+        .filter((model) => hasTrustedOfficialLeadershipLaunch(model, now))
+        .sort((left, right) => {
+          const leftRelease = Date.parse(left.release_date ?? "");
+          const rightRelease = Date.parse(right.release_date ?? "");
+          return (
+            (Number.isFinite(rightRelease) ? rightRelease : 0) -
+            (Number.isFinite(leftRelease) ? leftRelease : 0)
+          );
+        })[0];
+
+      return verifiedCurrentLaunch ?? family.representative;
+    }
   );
   const familyCandidateIds = new Set(familyCandidates.map((model) => model.id));
   const uncategorizedCandidates = discoveryPool.filter(

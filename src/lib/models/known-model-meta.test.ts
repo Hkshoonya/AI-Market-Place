@@ -45,9 +45,29 @@ describe("getKnownModelMeta", () => {
       })
     ).toMatchObject({
       category: "speech_audio",
-      release_date: "2026-04-15",
+      release_date: "2026-04-13",
       website_url:
-        "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/",
+        "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-tts-preview",
+    });
+  });
+
+  it("does not collapse plus-suffixed Cohere models into their base family", () => {
+    expect(
+      getKnownModelMeta({
+        slug: "cohere-command-a",
+        name: "Command A",
+        provider: "Cohere",
+      })
+    ).toBeNull();
+    expect(
+      getKnownModelMeta({
+        slug: "cohere-command-a-plus-05-2026",
+        name: "Command A+",
+        provider: "Cohere",
+      })
+    ).toMatchObject({
+      name: "Command A+",
+      release_date: "2026-05-20",
     });
   });
 
@@ -303,7 +323,7 @@ describe("buildKnownModelMetaPatch", () => {
       })
     ).toMatchObject({
       category: "speech_audio",
-      release_date: "2026-04-15",
+      release_date: "2026-04-13",
       license: "commercial",
     });
   });

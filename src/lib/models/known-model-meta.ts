@@ -98,7 +98,10 @@ const SPECIALIST_CATEGORY_OVERRIDES = new Set([
 ]);
 
 function canonicalize(value: string | null | undefined): string {
-  return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/\+/g, "plus")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function stripTrailingVariantSuffixes(value: string): string {
@@ -128,6 +131,7 @@ function tokenizeModelIdentity(
   const providerTokens = provider ? buildProviderTokens(provider) : new Set<string>();
   const stripped = stripTrailingVariantSuffixes(value ?? "")
     .toLowerCase()
+    .replace(/\+/g, " plus ")
     .replace(/[^a-z0-9]+/g, " ");
 
   return stripped

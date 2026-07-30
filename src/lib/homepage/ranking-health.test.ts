@@ -20,7 +20,7 @@ describe("computeHomepageRankingHealth", () => {
           popularity_score: 47.8,
           release_date: "2025-12-12",
           description:
-            "Previous flagship Claude Opus release retained for compatibility after later Claude Opus launches. Still strong, but superseded by Opus 4.8.",
+            "Previous flagship Claude Opus release retained for compatibility after later Claude Opus launches. Still strong, but superseded by Opus 5.",
         },
       ],
       1,
@@ -39,8 +39,8 @@ describe("computeHomepageRankingHealth", () => {
       [
         {
           id: "new-opus",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 10,
@@ -49,13 +49,13 @@ describe("computeHomepageRankingHealth", () => {
           capability_score: 69.2,
           quality_score: 54.8,
           popularity_score: 49,
-          release_date: "2026-05-28",
+          release_date: "2026-07-24",
           description:
-            "Anthropic's latest generally available Opus-tier model. Improves on Opus 4.7 for advanced software engineering and high-autonomy work.",
+            "Anthropic's current flagship Opus model for complex agentic work, advanced coding, and demanding reasoning.",
         },
       ],
       1,
-      Date.parse("2026-06-01T00:00:00Z")
+      Date.parse("2026-07-26T00:00:00Z")
     );
 
     expect(result.healthy).toBe(true);

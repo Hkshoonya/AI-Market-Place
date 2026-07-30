@@ -3,7 +3,7 @@
  *
  * Data sourcing strategy (highest to lowest priority):
  *   1. Live OpenAI API  — if OPENAI_API_KEY is present in ctx.secrets
- *   2. Public HTML scrape — https://platform.openai.com/docs/models
+ *   2. Public HTML scrape — https://developers.openai.com/api/docs/models
  *   3. Static known-models data — always available, guarantees at least one sync
  *
  * No API key is required. The static map alone is sufficient to produce a
@@ -80,7 +80,20 @@ interface OpenAIModelsResponse {
   data: OpenAIModelEntry[];
 }
 
+interface OpenAIApiModelMetadata {
+  releaseDate: string | null;
+}
+
 const ALLOWED_OWNERS = new Set(["openai", "system"]);
+
+function releaseDateFromUnixSeconds(timestamp: number): string | null {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+
+  const date = new Date(timestamp * 1000);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toISOString().slice(0, 10);
+}
 
 // ---------------------------------------------------------------------------
 // Provider-specific fetch and scrape functions
@@ -93,7 +106,7 @@ const ALLOWED_OWNERS = new Set(["openai", "system"]);
 async function tryFetchLiveApi(
   apiKey: string,
   signal?: AbortSignal
-): Promise<string[] | null> {
+): Promise<Map<string, OpenAIApiModelMetadata> | null> {
   try {
     const res = await fetchWithRetry(
       "https://api.openai.com/v1/models",
@@ -103,9 +116,14 @@ async function tryFetchLiveApi(
     if (!res.ok) return null;
 
     const json: OpenAIModelsResponse = await res.json();
-    return (json.data ?? [])
-      .filter((m) => ALLOWED_OWNERS.has(m.owned_by))
-      .map((m) => m.id);
+    return new Map(
+      (json.data ?? [])
+        .filter((m) => ALLOWED_OWNERS.has(m.owned_by))
+        .map((m) => [
+          m.id,
+          { releaseDate: releaseDateFromUnixSeconds(m.created) },
+        ])
+    );
   } catch {
     return null;
   }
@@ -120,7 +138,7 @@ async function tryScrapeDocsPage(
 ): Promise<ScrapedModelEntry[]> {
   try {
     const res = await fetchWithRetry(
-      "https://platform.openai.com/docs/models",
+      "https://developers.openai.com/api/docs/models",
       {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; ModelIndexBot/1.0)" },
         signal,
@@ -139,12 +157,6 @@ async function tryScrapeDocsPage(
       found.add(match[1]);
     }
 
-    const pageText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-    const hasLimitedGpt56Notice =
-      /gpt-5\.6[^<]{0,180}(?:limited preview|select trusted partners|trusted partners in preview)/i.test(
-        pageText
-      );
-
     return [...found]
       .filter((modelId) => {
         if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
@@ -158,15 +170,7 @@ async function tryScrapeDocsPage(
         }
         return true;
       })
-      .map((modelId) => ({
-        id: modelId,
-        overrides: /^gpt-5\.6-(sol|terra|luna)$/.test(modelId)
-          ? {
-              status: hasLimitedGpt56Notice ? "preview" : "active",
-              is_api_available: true,
-            }
-          : undefined,
-      }));
+      .map((modelId) => ({ id: modelId }));
   } catch {
     return [];
   }
@@ -178,20 +182,28 @@ async function tryScrapeDocsPage(
 
 function enrichFromApi(
   recordMap: Map<string, Record<string, unknown>>,
-  apiResult: string[],
+  apiResult: Map<string, OpenAIApiModelMetadata>,
   now: string,
   buildRecordFn: (
     modelId: string,
     overrides?: Partial<KnownModelMeta>
   ) => Record<string, unknown>
 ): void {
-  for (const modelId of apiResult) {
+  for (const [modelId, apiMetadata] of apiResult) {
     if (!recordMap.has(modelId)) {
-      recordMap.set(modelId, buildRecordFn(modelId));
+      recordMap.set(
+        modelId,
+        buildRecordFn(modelId, {
+          release_date: apiMetadata.releaseDate ?? undefined,
+        })
+      );
     }
-    // Stamp models confirmed live by the API
+
     const existing = recordMap.get(modelId);
     if (existing) {
+      if (!existing.release_date && apiMetadata.releaseDate) {
+        existing.release_date = apiMetadata.releaseDate;
+      }
       existing.data_refreshed_at = now;
     }
   }
@@ -201,7 +213,9 @@ function enrichFromApi(
 // Create sync + healthCheck via factory
 // ---------------------------------------------------------------------------
 
-const { sync, healthCheck } = createAdapterSyncer<string[]>({
+const { sync, healthCheck } = createAdapterSyncer<
+  Map<string, OpenAIApiModelMetadata>
+>({
   apiKeySecret: "OPENAI_API_KEY",
   apiSourceName: "openai_api",
   knownModelIds: Object.keys(OPENAI_KNOWN_MODELS),
@@ -235,3 +249,8 @@ const adapter: DataSourceAdapter = {
 
 registerAdapter(adapter);
 export default adapter;
+
+export const __testables = {
+  enrichFromApi,
+  releaseDateFromUnixSeconds,
+};

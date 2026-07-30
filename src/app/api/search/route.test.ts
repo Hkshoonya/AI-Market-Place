@@ -468,9 +468,9 @@ describe("GET /api/search", () => {
           market_cap_estimate: 700_000_000,
         },
         {
-          id: "model-claude-48",
-          slug: "anthropic-claude-opus-4-8",
-          name: "Claude Opus 4.8",
+          id: "model-claude-opus-5",
+          slug: "anthropic-claude-opus-5",
+          name: "Claude Opus 5",
           provider: "Anthropic",
           category: "multimodal",
           overall_rank: 199,
@@ -479,12 +479,12 @@ describe("GET /api/search", () => {
           adoption_score: 53.8,
           popularity_score: 40.7,
           economic_footprint_score: 57.7,
-          release_date: "2026-05-28",
+          release_date: "2026-07-24",
           is_open_weights: false,
           is_api_available: true,
           status: "active",
           description:
-            "Opus 4.8 is the next generation of Anthropic's Opus family, building on the coding and agentic strengths of Opus 4.7.",
+            "Claude Opus 5 is Anthropic's current flagship for complex agentic work, enterprise workflows, advanced coding, and demanding reasoning.",
           parameter_count: null,
           short_description: null,
           market_cap_estimate: 710_000_000,
@@ -501,8 +501,8 @@ describe("GET /api/search", () => {
     expect(response.status).toBe(200);
     expect(body.data[0]).toEqual(
       expect.objectContaining({
-        slug: "anthropic-claude-opus-4-8",
-        name: "Claude Opus 4.8",
+        slug: "anthropic-claude-opus-5",
+        name: "Claude Opus 5",
       })
     );
   });
