@@ -39,14 +39,15 @@ function numeric(value: number | null | undefined): number {
 }
 
 export function releaseAgeDays(
-  releaseDate: string | null | undefined
+  releaseDate: string | null | undefined,
+  now = Date.now()
 ): number | null {
   if (!releaseDate) return null;
 
   const timestamp = Date.parse(releaseDate);
   if (!Number.isFinite(timestamp)) return null;
 
-  return Math.max(0, (Date.now() - timestamp) / (24 * 60 * 60 * 1000));
+  return Math.max(0, (now - timestamp) / (24 * 60 * 60 * 1000));
 }
 
 export function isPreviewLikeModel(
@@ -133,9 +134,10 @@ export function hasRecentLeadershipReadinessSignals(
 }
 
 export function isRecentLeadershipPublicRankingCandidate(
-  model: PublicRankingConfidenceModel
+  model: PublicRankingConfidenceModel,
+  now = Date.now()
 ) {
-  const ageDays = releaseAgeDays(model.release_date);
+  const ageDays = releaseAgeDays(model.release_date, now);
 
   if (ageDays == null || ageDays > 120) return false;
   if (hasLifecycleWarningLanguage(model)) return false;

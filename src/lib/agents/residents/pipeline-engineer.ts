@@ -18,7 +18,6 @@ import type { DataSourceRecord } from "../../data-sources/types";
 import { recordAgentIssue, recordAgentIssueFailure, resolveAgentIssue } from "../ledger";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
-import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
 import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
 import {
   MODEL_PUBLIC_RANKING_FIELDS,
@@ -31,6 +30,10 @@ import {
 } from "../../models/public-surface-readiness";
 import { getPublicSourceTrustTier } from "../../models/public-source-trust";
 import { computePublicRankingHealth } from "../../models/public-ranking-health";
+import {
+  RANKING_HEALTH_MODEL_CANDIDATE_LIMIT,
+  selectRankingHealthModelCandidates,
+} from "../../models/ranking-health-candidates";
 import { buildKnownModelMetaPatch } from "../../models/known-model-meta";
 import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
@@ -67,6 +70,13 @@ const ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT = [
   "website_url",
   "description",
   "short_description",
+  "status",
+  "architecture",
+  "is_api_available",
+  "hf_downloads",
+  "hf_likes",
+  "benchmark_scores(source)",
+  "elo_ratings(id)",
   ...MODEL_PUBLIC_RANKING_FIELDS,
 ].join(", ");
 
@@ -85,6 +95,13 @@ type ActiveModelForPublicSurfaceRepair = {
   website_url: string | null;
   description: string | null;
   short_description: string | null;
+  status?: string | null;
+  architecture?: string | null;
+  is_api_available?: boolean | null;
+  hf_downloads?: number | null;
+  hf_likes?: number | null;
+  benchmark_scores?: unknown;
+  elo_ratings?: unknown;
 } & {
   [Field in (typeof MODEL_PUBLIC_RANKING_FIELDS)[number]]?: number | null;
 };
@@ -651,9 +668,11 @@ const pipelineEngineer: ResidentAgent = {
           }
         }
 
-        const homepageModels = (await fetchAllHomepageActiveModels(
-          sb as never
-        )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
+        const rankingHealthModels = selectRankingHealthModelCandidates(
+          activeModels as unknown as Parameters<
+            typeof selectRankingHealthModelCandidates
+          >[0]
+        );
         const lifecycleRepairCandidates = activeModels.filter(
           (model) =>
             hasLifecycleWarningLanguage(model) && hasPublicRankingInputs(model)
@@ -711,12 +730,23 @@ const pipelineEngineer: ResidentAgent = {
           }
         }
 
-        const homepageRankingHealth = computeHomepageRankingHealth(homepageModels);
+        const homepageRankingHealth = computeHomepageRankingHealth(
+          rankingHealthModels as unknown as Parameters<
+            typeof computeHomepageRankingHealth
+          >[0]
+        );
         const publicRankingHealth = computePublicRankingHealth(
-          homepageModels as unknown as Parameters<typeof computePublicRankingHealth>[0]
+          rankingHealthModels as unknown as Parameters<
+            typeof computePublicRankingHealth
+          >[0]
         );
         output.homepageRanking = homepageRankingHealth;
         output.publicRanking = publicRankingHealth;
+        output.rankingHealthCoverage = {
+          activeModels: activeModels.length,
+          candidates: rankingHealthModels.length,
+          candidateLimit: RANKING_HEALTH_MODEL_CANDIDATE_LIMIT,
+        };
         output.publicMetadataAutoRepair = {
           attempted: metadataRepairCandidates.length,
           repaired: metadataRepairs.length,

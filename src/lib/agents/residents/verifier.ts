@@ -20,9 +20,13 @@ import {
 } from "../../pipeline-health-compute";
 import { computeBenchmarkCoverage } from "../../benchmark-coverage-compute";
 import { computeBenchmarkMetadataCoverage } from "../../benchmark-metadata-coverage-compute";
-import { fetchAllHomepageActiveModels } from "../../homepage/fetch-active-models";
+import {
+  fetchAllRankingHealthActiveModels,
+  type HomepageActiveModelRow,
+} from "../../homepage/fetch-active-models";
 import { computeHomepageRankingHealth } from "../../homepage/ranking-health";
 import { computePublicRankingHealth } from "../../models/public-ranking-health";
+import { selectRankingHealthModelCandidates } from "../../models/ranking-health-candidates";
 import {
   buildContentQualityMetrics,
   countStaleSellerListings,
@@ -420,6 +424,7 @@ const verifier: ResidentAgent = {
       let publicRankingHealth:
         | ReturnType<typeof computePublicRankingHealth>
         | null = null;
+      let rankingHealthModels: HomepageActiveModelRow[] | null = null;
       let crawlSurfaceHealth:
         | {
             healthy: boolean;
@@ -428,6 +433,19 @@ const verifier: ResidentAgent = {
             warnings: string[];
           }
         | null = null;
+
+      const getRankingHealthModels = async () => {
+        if (rankingHealthModels == null) {
+          const activeModels = await fetchAllRankingHealthActiveModels(sb as never);
+          rankingHealthModels = selectRankingHealthModelCandidates(
+            activeModels as unknown as Parameters<
+              typeof selectRankingHealthModelCandidates
+            >[0]
+          ) as unknown as HomepageActiveModelRow[];
+        }
+
+        return rankingHealthModels;
+      };
 
       for (const issue of issueRows) {
         try {
@@ -871,10 +889,12 @@ const verifier: ResidentAgent = {
 
           if (issue.issue_type === "homepage_ranking_health") {
             homepageRankingHealth ??= await (async () => {
-              const homepageModels = (await fetchAllHomepageActiveModels(
-                sb as never
-              )) as unknown as Parameters<typeof computeHomepageRankingHealth>[0];
-              return computeHomepageRankingHealth(homepageModels);
+              const models = await getRankingHealthModels();
+              return computeHomepageRankingHealth(
+                models as unknown as Parameters<
+                  typeof computeHomepageRankingHealth
+                >[0]
+              );
             })();
             const resolved = isHomepageRankingIssueResolved(homepageRankingHealth);
 
@@ -908,10 +928,12 @@ const verifier: ResidentAgent = {
 
           if (issue.issue_type === "public_ranking_health") {
             publicRankingHealth ??= await (async () => {
-              const rankingModels = (await fetchAllHomepageActiveModels(
-                sb as never
-              )) as unknown as Parameters<typeof computePublicRankingHealth>[0];
-              return computePublicRankingHealth(rankingModels);
+              const models = await getRankingHealthModels();
+              return computePublicRankingHealth(
+                models as unknown as Parameters<
+                  typeof computePublicRankingHealth
+                >[0]
+              );
             })();
             const resolved = isPublicRankingIssueResolved(publicRankingHealth);
 

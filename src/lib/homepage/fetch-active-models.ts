@@ -35,7 +35,13 @@ export const HOMEPAGE_ACTIVE_MODELS_SELECT = [
   "license_name",
 ].join(", ");
 
-type HomepageActiveModelRow = Record<string, unknown>;
+export const RANKING_HEALTH_ACTIVE_MODELS_SELECT = [
+  HOMEPAGE_ACTIVE_MODELS_SELECT,
+  "benchmark_scores(source)",
+  "elo_ratings(id)",
+].join(", ");
+
+export type HomepageActiveModelRow = Record<string, unknown>;
 
 interface HomepageCandidateRow {
   id: string;
@@ -156,8 +162,10 @@ interface HomepageModelsClient {
   };
 }
 
-export async function fetchAllHomepageActiveModels(
-  supabase: HomepageModelsClient
+async function fetchAllActiveModels(
+  supabase: HomepageModelsClient,
+  columns: string,
+  surface: "homepage" | "ranking health"
 ): Promise<HomepageActiveModelRow[]> {
   const rows: HomepageActiveModelRow[] = [];
 
@@ -165,14 +173,14 @@ export async function fetchAllHomepageActiveModels(
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await supabase
       .from("models")
-      .select(HOMEPAGE_ACTIVE_MODELS_SELECT)
+      .select(columns)
       .eq("status", "active")
       .order("id", { ascending: true })
       .range(from, to);
 
     if (error) {
       throw new Error(
-        `Failed to fetch homepage active models: ${error.message ?? "unknown error"}`
+        `Failed to fetch ${surface} active models: ${error.message ?? "unknown error"}`
       );
     }
 
@@ -185,4 +193,24 @@ export async function fetchAllHomepageActiveModels(
   }
 
   return rows;
+}
+
+export async function fetchAllHomepageActiveModels(
+  supabase: HomepageModelsClient
+): Promise<HomepageActiveModelRow[]> {
+  return fetchAllActiveModels(
+    supabase,
+    HOMEPAGE_ACTIVE_MODELS_SELECT,
+    "homepage"
+  );
+}
+
+export async function fetchAllRankingHealthActiveModels(
+  supabase: HomepageModelsClient
+): Promise<HomepageActiveModelRow[]> {
+  return fetchAllActiveModels(
+    supabase,
+    RANKING_HEALTH_ACTIVE_MODELS_SELECT,
+    "ranking health"
+  );
 }

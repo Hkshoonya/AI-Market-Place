@@ -1,12 +1,10 @@
-import { dedupePublicModelFamilies } from "@/lib/models/public-families";
-import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
-
 import {
   computeHomepageTopModelScore,
   hasLifecycleWarningLanguage,
   isEfficiencyTierModel,
   isPreviewLikeModel,
   isRecentLeadershipHomepageCandidate,
+  prepareHomepageTopModelCandidates,
   releaseAgeDays,
   selectHomepageTopModelIds,
   type HomepageTopModelCandidate,
@@ -59,11 +57,10 @@ export function computeHomepageRankingHealth(
   limit = 10,
   now = Date.now()
 ): HomepageRankingHealth {
-  const activeModels = preferDefaultPublicSurfaceReady(
-    dedupePublicModelFamilies(models),
-    Math.min(limit, 5)
-  );
-  const shortlistIds = selectHomepageTopModelIds(activeModels, limit, now);
+  const activeModels = prepareHomepageTopModelCandidates(models, limit, now);
+  const shortlistIds = selectHomepageTopModelIds(activeModels, limit, now, {
+    modelsArePrepared: true,
+  });
   const shortlist = shortlistIds
     .map((id) => activeModels.find((model) => model.id === id) ?? null)
     .filter((model): model is HomepageRankingHealthModel => Boolean(model));

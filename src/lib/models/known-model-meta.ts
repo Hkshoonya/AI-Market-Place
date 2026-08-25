@@ -38,6 +38,9 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   "black forest labs": BLACK_FOREST_LABS_KNOWN_MODELS,
 };
 
+const KNOWN_MODEL_META_CACHE_MAX_ENTRIES = 20_000;
+const knownModelMetaCache = new Map<string, KnownModelMeta | null>();
+
 export interface KnownModelLookupInput {
   slug?: string | null;
   name?: string | null;
@@ -189,11 +192,28 @@ function getProviderCatalog(provider: string | null | undefined): KnownCatalog |
   return KNOWN_MODEL_CATALOGS[normalized] ?? null;
 }
 
+function getKnownModelCacheKey(model: KnownModelLookupInput) {
+  return [model.provider ?? "", model.slug ?? "", model.name ?? ""].join("\u0000");
+}
+
+function cacheKnownModelMeta(key: string, meta: KnownModelMeta | null) {
+  if (knownModelMetaCache.size >= KNOWN_MODEL_META_CACHE_MAX_ENTRIES) {
+    knownModelMetaCache.clear();
+  }
+  knownModelMetaCache.set(key, meta);
+  return meta;
+}
+
 export function getKnownModelMeta(
   model: KnownModelLookupInput
 ): KnownModelMeta | null {
+  const cacheKey = getKnownModelCacheKey(model);
+  if (knownModelMetaCache.has(cacheKey)) {
+    return knownModelMetaCache.get(cacheKey) ?? null;
+  }
+
   const catalog = getProviderCatalog(model.provider);
-  if (!catalog || !model.provider) return null;
+  if (!catalog || !model.provider) return cacheKnownModelMeta(cacheKey, null);
 
   const slugWithoutProvider = model.slug?.includes("-")
     ? model.slug.substring(model.slug.indexOf("-") + 1)
@@ -248,7 +268,7 @@ export function getKnownModelMeta(
       matchingNormalizedCandidates.length > 0 ||
       matchingTokenSignatures.length > 0
     ) {
-      return meta;
+      return cacheKnownModelMeta(cacheKey, meta);
     }
 
     if (
@@ -268,7 +288,7 @@ export function getKnownModelMeta(
     }
   }
 
-  return bestSubsetMatch?.meta ?? null;
+  return cacheKnownModelMeta(cacheKey, bestSubsetMatch?.meta ?? null);
 }
 
 function hasString(value: string | null | undefined): boolean {

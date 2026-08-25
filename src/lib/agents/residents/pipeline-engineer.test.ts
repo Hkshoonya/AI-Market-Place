@@ -120,6 +120,9 @@ vi.mock("../../payments/stripe-health", () => ({
 }));
 
 vi.mock("../../homepage/fetch-active-models", () => ({
+  selectHomepageActiveModelCandidates: vi.fn(
+    (models: Array<Record<string, unknown>>) => models
+  ),
   fetchAllHomepageActiveModels: vi.fn(async () => [
     {
       id: "previous-opus",
@@ -673,6 +676,11 @@ describe("pipelineEngineer", () => {
     expect(result.output.lowTrustCatalogAutoArchive).toMatchObject({
       attempted: 3,
       archived: 3,
+    });
+    expect(result.output.rankingHealthCoverage).toEqual({
+      activeModels: 7,
+      candidates: 7,
+      candidateLimit: 600,
     });
   });
 });

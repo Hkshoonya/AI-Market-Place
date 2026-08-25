@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   fetchAllHomepageActiveModels,
+  fetchAllRankingHealthActiveModels,
   HOMEPAGE_ACTIVE_MODELS_SELECT,
+  RANKING_HEALTH_ACTIVE_MODELS_SELECT,
   selectHomepageActiveModelCandidates,
 } from "./fetch-active-models";
 
 function createPagedMockSupabase<T>(
-  pages: Array<{ data: T[] | null; error: { message?: string } | null }>
+  pages: Array<{ data: T[] | null; error: { message?: string } | null }>,
+  expectedColumns = HOMEPAGE_ACTIVE_MODELS_SELECT
 ) {
   const ranges: Array<[number, number]> = [];
   let pageIndex = 0;
@@ -20,7 +23,7 @@ function createPagedMockSupabase<T>(
 
         const chain = {
           select: (columns: string) => {
-            expect(columns).toBe(HOMEPAGE_ACTIVE_MODELS_SELECT);
+            expect(columns).toBe(expectedColumns);
             return chain;
           },
           eq: (column: string, value: string) => {
@@ -77,6 +80,23 @@ describe("fetchAllHomepageActiveModels", () => {
     await expect(fetchAllHomepageActiveModels(client)).rejects.toThrow(
       "Failed to fetch homepage active models: db exploded"
     );
+  });
+
+  it("includes benchmark evidence for ranking health consumers", async () => {
+    const { client } = createPagedMockSupabase(
+      [{ data: [{ id: "model-1", benchmark_scores: { mmlu: 88 } }], error: null }],
+      RANKING_HEALTH_ACTIVE_MODELS_SELECT
+    );
+
+    const rows = await fetchAllRankingHealthActiveModels(client);
+
+    expect(rows).toEqual([
+      { id: "model-1", benchmark_scores: { mmlu: 88 } },
+    ]);
+    expect(RANKING_HEALTH_ACTIVE_MODELS_SELECT).toContain(
+      "benchmark_scores(source)"
+    );
+    expect(RANKING_HEALTH_ACTIVE_MODELS_SELECT).toContain("elo_ratings(id)");
   });
 });
 

@@ -351,9 +351,13 @@ export function computeHomepageTopModelScore(
   return weightedScore;
 }
 
-export function selectHomepageTopModelIds<
+interface HomepageTopModelSelectionOptions {
+  modelsArePrepared?: boolean;
+}
+
+export function prepareHomepageTopModelCandidates<
   T extends HomepageTopModelCandidate
->(models: T[], limit: number, now = Date.now()): string[] {
+>(models: T[], limit: number, now = Date.now()): T[] {
   const discoveryPool = preferDefaultPublicSurfaceReady(
     models,
     Math.min(limit, 5)
@@ -395,7 +399,21 @@ export function selectHomepageTopModelIds<
     (model) => !familyCandidateIds.has(model.id)
   );
 
-  const rankedCandidates = [...familyRepresentatives, ...uncategorizedCandidates].filter((model) => {
+  return [...familyRepresentatives, ...uncategorizedCandidates];
+}
+
+export function selectHomepageTopModelIds<
+  T extends HomepageTopModelCandidate
+>(
+  models: T[],
+  limit: number,
+  now = Date.now(),
+  options: HomepageTopModelSelectionOptions = {}
+): string[] {
+  const preparedCandidates = options.modelsArePrepared
+    ? models
+    : prepareHomepageTopModelCandidates(models, limit, now);
+  const rankedCandidates = preparedCandidates.filter((model) => {
     return (
       model.economic_footprint_score != null ||
       model.adoption_score != null ||
