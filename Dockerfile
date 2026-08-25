@@ -63,6 +63,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/server ./server
 COPY --from=builder --chown=nextjs:nodejs /app/config ./config
 # Copy node-cron from node_modules (needed at runtime)
 COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron
+# pdf-parse loads the optional native canvas package at runtime. Next.js
+# standalone tracing does not retain optional transitive dependencies.
+COPY --from=builder /app/node_modules/@napi-rs ./node_modules/@napi-rs
 
 USER nextjs
 
