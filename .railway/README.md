@@ -45,4 +45,4 @@ railway config apply
 - Use `group("Name", [resources])` to keep large projects organized on the Railway canvas.
 - Secrets imported from Railway are rendered as `preserve()` so existing values are retained without writing secret values to source. Use `railway config pull --omit-preserved-variables` for a smaller import.
 - Pull and review live configuration before applying after dashboard variable changes. Variables omitted from the desired graph are planned for deletion.
-- Railway IaC SDK 3.11 does not model restart policy fields. The production service keeps `ON_FAILURE` with five retries as a Railway service setting; verify it after infrastructure changes.
+- Keep the non-default restart retry count in the service's nested `deploy` block. The automatic importer omits it, and Railway otherwise falls back to ten retries on the next deployment. Railway canonicalizes the default `ON_FAILURE` policy type as an omitted value, so declaring that default causes a perpetual plan diff.

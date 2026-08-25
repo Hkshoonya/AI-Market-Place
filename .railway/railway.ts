@@ -11,6 +11,9 @@ export default defineRailway(() => {
     start: "node server/custom-server.js",
     healthcheck: "/api/health",
     healthcheckTimeout: 30,
+    deploy: {
+      restartPolicyMaxRetries: 5,
+    },
     replicas: { "us-west2": 1 },
     domains: ["aimarketcap.tech", "www.aimarketcap.tech"],
     networking: { privateNetworkEndpoint: "ai-market-place" },
