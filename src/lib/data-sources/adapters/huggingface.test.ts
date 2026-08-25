@@ -196,6 +196,100 @@ describe("huggingface metadata helpers", () => {
     ).toBeNull();
   });
 
+  it("preserves provider-owned metadata while refreshing HF-owned evidence", () => {
+    const candidate = __testables.transformModel({
+      id: "Example/Omni-12B",
+      pipeline_tag: "image-text-to-text",
+      tags: ["license:apache-2.0"],
+      safetensors: { total: 12_345_678_901 },
+      downloads: 25_000,
+      likes: 300,
+      trendingScore: 12,
+      library_name: "transformers",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    });
+    const existing = {
+      ...candidate,
+      name: "Omni 12B",
+      provider: "Example AI",
+      category: "llm",
+      architecture: "Official MoE",
+      parameter_count: null,
+      context_window: 131_072,
+      hf_downloads: 20_000,
+      license: "commercial",
+      license_name: "proprietary",
+      is_open_weights: false,
+      is_api_available: true,
+      supported_languages: ["en", "de"],
+      modalities: ["image-text-to-text"],
+      capabilities: { toolCalling: true },
+      website_url: "https://example.com/omni",
+      release_date: "2026-07-30",
+      data_refreshed_at: "2026-08-01T00:00:00.000Z",
+    };
+
+    const merged = __testables.mergeHfRecordWithExisting(
+      candidate,
+      existing as never
+    );
+
+    expect(merged).toMatchObject({
+      name: "Omni 12B",
+      provider: "Example AI",
+      category: "llm",
+      architecture: "Official MoE",
+      parameter_count: 12_345_678_901,
+      context_window: 131_072,
+      hf_downloads: 25_000,
+      license: "commercial",
+      license_name: "proprietary",
+      is_open_weights: false,
+      is_api_available: true,
+      supported_languages: ["en", "de"],
+      modalities: ["image", "text"],
+      capabilities: { toolCalling: true },
+      website_url: "https://example.com/omni",
+      release_date: "2026-07-30",
+    });
+  });
+
+  it("ignores small popularity drift but detects material metadata changes", () => {
+    const candidate = __testables.transformModel({
+      id: "Qwen/Qwen3-8B",
+      pipeline_tag: "text-generation",
+      tags: ["license:apache-2.0"],
+      safetensors: { total: 8_000_000_000 },
+      downloads: 10_050,
+      likes: 100,
+      trendingScore: 10.25,
+      library_name: "transformers",
+      createdAt: "2026-07-01T00:00:00.000Z",
+    });
+    const existing = {
+      ...candidate,
+      hf_downloads: 10_000,
+      hf_trending_score: 10,
+      data_refreshed_at: "2026-08-01T00:00:00.000Z",
+    };
+
+    expect(
+      __testables.hfRecordChanged(existing as never, candidate)
+    ).toBe(false);
+    expect(
+      __testables.hfRecordChanged(existing as never, {
+        ...candidate,
+        hf_downloads: 10_100,
+      })
+    ).toBe(true);
+    expect(
+      __testables.hfRecordChanged(existing as never, {
+        ...candidate,
+        parameter_count: 8_100_000_000,
+      })
+    ).toBe(true);
+  });
+
   it("extracts ordered base model ids from HF model info card data and tags", () => {
     expect(
       __testables.extractBaseModelIdsFromModelInfo({

@@ -309,6 +309,207 @@ interface HfModelRecord extends Record<string, unknown> {
   data_refreshed_at: string;
 }
 
+interface HfExistingModelRow {
+  slug: string;
+  name: string;
+  provider: string;
+  category: string;
+  status: string;
+  architecture: string | null;
+  parameter_count: number | null;
+  context_window: number | null;
+  hf_model_id: string | null;
+  hf_downloads: number;
+  hf_likes: number;
+  hf_trending_score: number | null;
+  license: string | null;
+  license_name: string | null;
+  is_open_weights: boolean | null;
+  is_api_available: boolean;
+  supported_languages: string[] | null;
+  modalities: string[] | null;
+  capabilities: Record<string, unknown> | null;
+  website_url: string | null;
+  release_date: string | null;
+  data_refreshed_at: string | null;
+}
+
+const CANONICAL_MODALITIES = new Set(["text", "image", "audio", "video"]);
+const HF_CHANGE_COMPARE_FIELDS = [
+  "name",
+  "provider",
+  "category",
+  "status",
+  "architecture",
+  "parameter_count",
+  "context_window",
+  "hf_model_id",
+  "hf_downloads",
+  "hf_likes",
+  "hf_trending_score",
+  "license",
+  "license_name",
+  "is_open_weights",
+  "is_api_available",
+  "supported_languages",
+  "modalities",
+  "capabilities",
+  "website_url",
+  "release_date",
+] as const;
+
+function hasCanonicalModalities(modalities: string[] | null): boolean {
+  return Boolean(
+    modalities?.length &&
+      modalities.every((modality) => CANONICAL_MODALITIES.has(modality))
+  );
+}
+
+function hasRecordValues(value: Record<string, unknown> | null): boolean {
+  return Boolean(value && Object.keys(value).length > 0);
+}
+
+function isHfOwnedRow(existing: HfExistingModelRow): boolean {
+  if (existing.is_api_available || !existing.hf_model_id) return false;
+  return (
+    !existing.website_url ||
+    existing.website_url.startsWith(`${HF_RAW_BASE}/`)
+  );
+}
+
+function mergeHfRecordWithExisting(
+  record: HfModelRecord,
+  existing: HfExistingModelRow | undefined
+): HfModelRecord {
+  if (!existing) return record;
+
+  const preserveProviderMetadata = !isHfOwnedRow(existing);
+
+  return {
+    ...record,
+    name: preserveProviderMetadata
+      ? existing.name || record.name
+      : record.name,
+    provider: preserveProviderMetadata
+      ? existing.provider || record.provider
+      : record.provider,
+    category:
+      preserveProviderMetadata &&
+      existing.category &&
+      existing.category !== "specialized"
+        ? existing.category
+        : record.category,
+    status:
+      record.status === "archived" || !preserveProviderMetadata
+        ? record.status
+        : existing.status,
+    architecture: preserveProviderMetadata
+      ? existing.architecture ?? record.architecture
+      : record.architecture ?? existing.architecture,
+    parameter_count: record.parameter_count ?? existing.parameter_count,
+    context_window: existing.context_window ?? record.context_window,
+    hf_model_id: record.hf_model_id ?? existing.hf_model_id,
+    license: preserveProviderMetadata
+      ? existing.license ?? record.license
+      : record.license,
+    license_name: preserveProviderMetadata
+      ? existing.license_name ?? record.license_name
+      : record.license_name,
+    is_open_weights: preserveProviderMetadata
+      ? existing.is_open_weights ?? record.is_open_weights
+      : record.is_open_weights,
+    is_api_available: existing.is_api_available,
+    supported_languages:
+      existing.supported_languages?.length
+        ? existing.supported_languages
+        : record.supported_languages,
+    modalities: hasCanonicalModalities(existing.modalities)
+      ? existing.modalities ?? []
+      : record.modalities,
+    capabilities: hasRecordValues(existing.capabilities)
+      ? existing.capabilities ?? {}
+      : record.capabilities,
+    website_url: existing.website_url ?? record.website_url,
+    release_date: existing.release_date ?? record.release_date,
+    data_refreshed_at:
+      existing.data_refreshed_at ?? record.data_refreshed_at,
+  };
+}
+
+function stableHfJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableHfJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableHfJson(entry)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+function hasMeaningfulCounterChange(
+  previous: number | null | undefined,
+  next: number | null | undefined,
+  minimumDelta: number
+): boolean {
+  const previousValue = Number(previous ?? 0);
+  const nextValue = Number(next ?? 0);
+  const threshold = Math.max(minimumDelta, Math.abs(previousValue) * 0.01);
+  return Math.abs(nextValue - previousValue) >= threshold;
+}
+
+function hfRecordChanged(
+  existing: HfExistingModelRow,
+  candidate: HfModelRecord
+): boolean {
+  return HF_CHANGE_COMPARE_FIELDS.some((field) => {
+    if (field === "hf_downloads") {
+      return hasMeaningfulCounterChange(
+        existing.hf_downloads,
+        candidate.hf_downloads,
+        25
+      );
+    }
+    if (field === "hf_likes") {
+      return hasMeaningfulCounterChange(existing.hf_likes, candidate.hf_likes, 1);
+    }
+    if (field === "hf_trending_score") {
+      return hasMeaningfulCounterChange(
+        existing.hf_trending_score,
+        candidate.hf_trending_score,
+        0.5
+      );
+    }
+
+    return (
+      stableHfJson(existing[field] ?? null) !==
+      stableHfJson(candidate[field] ?? null)
+    );
+  });
+}
+
+async function fetchExistingHfRows(
+  ctx: SyncContext,
+  slugs: string[]
+): Promise<Map<string, HfExistingModelRow>> {
+  if (slugs.length === 0) return new Map();
+
+  const { data, error } = await ctx.supabase
+    .from("models")
+    .select(
+      "slug, name, provider, category, status, architecture, parameter_count, context_window, hf_model_id, hf_downloads, hf_likes, hf_trending_score, license, license_name, is_open_weights, is_api_available, supported_languages, modalities, capabilities, website_url, release_date, data_refreshed_at"
+    )
+    .in("slug", slugs);
+
+  if (error) {
+    throw new Error(`Failed to fetch existing HF rows: ${error.message}`);
+  }
+
+  return new Map(
+    ((data ?? []) as HfExistingModelRow[]).map((row) => [row.slug, row])
+  );
+}
+
 function normalizeContextWindow(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   if (value <= 0 || value > MAX_REASONABLE_CONTEXT_WINDOW) return null;
@@ -1057,6 +1258,9 @@ const adapter: DataSourceAdapter = {
     let totalProcessed = 0;
     let totalCreated = 0;
     let totalUpdated = 0;
+    let topRecordsCreated = 0;
+    let topRecordsUpdated = 0;
+    let topRecordsUnchanged = 0;
     let gapBackfilled = 0;
     let historicalRefresh: HfHistoricalRefreshResult = {
       attempted: 0,
@@ -1101,9 +1305,17 @@ const adapter: DataSourceAdapter = {
         }
 
         // Filter out private / disabled models and transform
-        const records = models
+        const transformedRecords = models
           .filter((m) => !m.private && !m.disabled)
           .map(transformModel);
+
+        const existingBySlug = await fetchExistingHfRows(
+          ctx,
+          transformedRecords.map((record) => record.slug)
+        );
+        const records = transformedRecords.map((record) =>
+          mergeHfRecordWithExisting(record, existingBySlug.get(record.slug))
+        );
 
         await enrichRecordsWithOfficialContextWindow(
           records,
@@ -1114,14 +1326,40 @@ const adapter: DataSourceAdapter = {
         totalProcessed += models.length;
 
         if (records.length > 0) {
-          const { created, errors: upsertErrors } = await upsertBatch(
+          const changedAt = new Date().toISOString();
+          const newRecords = records
+            .filter((record) => !existingBySlug.has(record.slug))
+            .map((record) => ({ ...record, data_refreshed_at: changedAt }));
+          const updatedRecords = records
+            .filter((record) => {
+              const existing = existingBySlug.get(record.slug);
+              return existing ? hfRecordChanged(existing, record) : false;
+            })
+            .map((record) => ({ ...record, data_refreshed_at: changedAt }));
+
+          const newResult = await upsertBatch(
             ctx.supabase,
             "models",
-            records,
+            newRecords,
             "slug"
           );
-          totalCreated += created;
-          errors.push(...upsertErrors);
+          totalCreated += newResult.created;
+          topRecordsCreated += newResult.created;
+          errors.push(...newResult.errors);
+
+          const updateResult = await upsertBatch(
+            ctx.supabase,
+            "models",
+            updatedRecords,
+            "slug"
+          );
+          totalUpdated += updateResult.created;
+          topRecordsUpdated += updateResult.created;
+          topRecordsUnchanged += Math.max(
+            0,
+            records.length - newRecords.length - updatedRecords.length
+          );
+          errors.push(...updateResult.errors);
         }
 
         // Progress tracked via SyncResult metadata
@@ -1188,6 +1426,9 @@ const adapter: DataSourceAdapter = {
         historicalArchived: historicalRefresh.archived,
         historicalSkipped: historicalRefresh.skipped,
         historicalWarnings: historicalRefresh.warnings,
+        topRecordsCreated,
+        topRecordsUpdated,
+        topRecordsUnchanged,
       },
     };
   },
@@ -1242,8 +1483,11 @@ export const __testables = {
   extractContextWindowFromTokenizerConfig,
   extractParamCountFromModelInfo,
   extractStructuredParamCount,
+  fetchExistingHfRows,
   fetchHfModelInfoLookup,
   fetchContextWindowForHfId,
+  hfRecordChanged,
+  mergeHfRecordWithExisting,
   normalizeContextWindow,
   mapCategory,
   mapModalities,
