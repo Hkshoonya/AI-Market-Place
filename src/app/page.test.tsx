@@ -89,6 +89,7 @@ function createMockSupabase({
 
             const chain = {
               eq: () => chain,
+              order: () => chain,
               range: () =>
                 Promise.resolve({
                   data: activeModels,

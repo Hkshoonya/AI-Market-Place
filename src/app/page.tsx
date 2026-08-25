@@ -53,7 +53,11 @@ import {
   getHomepageSignalBadgeLabel,
 } from "@/lib/homepage/launches";
 import { buildHomepageDeploymentSelections } from "@/lib/homepage/deployments";
-import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
+import {
+  fetchAllHomepageActiveModels,
+  HOMEPAGE_ACTIVE_MODEL_CANDIDATE_LIMIT,
+  selectHomepageActiveModelCandidates,
+} from "@/lib/homepage/fetch-active-models";
 import { selectHomepageTopModelIds } from "@/lib/homepage/top-models";
 import {
   getCoreSourceRefreshTimestamp,
@@ -192,8 +196,23 @@ export default async function HomePage() {
         Promise.resolve({ data: [] }),
       ]);
 
-  const homepageActiveModels =
-    (allActiveModels ?? []) as unknown as Parameters<typeof dedupePublicModelFamilies>[0];
+  const preferredHomepageModelIds = [
+    ...(recentLaunchNewsRaw ?? []),
+    ...(recentDeploymentNewsRaw ?? []),
+  ].flatMap((item) =>
+    Array.isArray(item.related_model_ids)
+      ? item.related_model_ids.filter(
+          (id): id is string => typeof id === "string"
+        )
+      : []
+  );
+  const homepageActiveModels = selectHomepageActiveModelCandidates(
+    (allActiveModels ?? []) as unknown as Parameters<
+      typeof dedupePublicModelFamilies
+    >[0],
+    HOMEPAGE_ACTIVE_MODEL_CANDIDATE_LIMIT,
+    { preferredIds: preferredHomepageModelIds, now }
+  );
   const activeModels = preferDefaultPublicSurfaceReady(
     dedupePublicModelFamilies(homepageActiveModels),
     12
@@ -263,7 +282,7 @@ export default async function HomePage() {
   }).length;
 
   const newModels = buildHomepageLaunchSelections(
-    ((allActiveModels ?? []) as unknown as Parameters<
+    (homepageActiveModels as unknown as Parameters<
       typeof buildHomepageLaunchSelections
     >[0]),
     ((recentLaunchNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({
@@ -284,7 +303,7 @@ export default async function HomePage() {
     now
   );
   const newDeploymentPaths = buildHomepageDeploymentSelections(
-    ((allActiveModels ?? []) as unknown as Parameters<
+    (homepageActiveModels as unknown as Parameters<
       typeof buildHomepageDeploymentSelections
     >[0]),
     ((recentDeploymentNewsRaw ?? []) as Array<Record<string, unknown>>).map((item) => ({

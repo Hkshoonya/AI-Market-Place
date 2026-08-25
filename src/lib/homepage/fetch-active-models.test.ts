@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   fetchAllHomepageActiveModels,
   HOMEPAGE_ACTIVE_MODELS_SELECT,
+  selectHomepageActiveModelCandidates,
 } from "./fetch-active-models";
 
 function createPagedMockSupabase<T>(
@@ -25,6 +26,11 @@ function createPagedMockSupabase<T>(
           eq: (column: string, value: string) => {
             expect(column).toBe("status");
             expect(value).toBe("active");
+            return chain;
+          },
+          order: (column: string, options: { ascending: boolean }) => {
+            expect(column).toBe("id");
+            expect(options).toEqual({ ascending: true });
             return chain;
           },
           range: (from: number, to: number) => {
@@ -71,5 +77,41 @@ describe("fetchAllHomepageActiveModels", () => {
     await expect(fetchAllHomepageActiveModels(client)).rejects.toThrow(
       "Failed to fetch homepage active models: db exploded"
     );
+  });
+});
+
+describe("selectHomepageActiveModelCandidates", () => {
+  it("retains referenced, ranked, and API-accessible models before raw artifacts", () => {
+    const models = [
+      { id: "raw-a", release_date: "2026-08-20", is_open_weights: true },
+      { id: "api-model", is_api_available: true, release_date: "2025-01-01" },
+      { id: "raw-b", release_date: "2026-08-21", is_open_weights: true },
+      { id: "ranked-model", overall_rank: 4, release_date: "2025-01-01" },
+      { id: "news-model", release_date: "2024-01-01" },
+    ];
+
+    const selected = selectHomepageActiveModelCandidates(models, 3, {
+      preferredIds: ["news-model"],
+      now: Date.parse("2026-08-25T00:00:00.000Z"),
+    });
+
+    expect(selected.map((model) => model.id)).toEqual([
+      "news-model",
+      "ranked-model",
+      "api-model",
+    ]);
+    expect(models.map((model) => model.id)).toEqual([
+      "raw-a",
+      "api-model",
+      "raw-b",
+      "ranked-model",
+      "news-model",
+    ]);
+  });
+
+  it("returns every model when the catalog is already below the cap", () => {
+    const models = [{ id: "one" }, { id: "two" }];
+
+    expect(selectHomepageActiveModelCandidates(models, 2)).toBe(models);
   });
 });
