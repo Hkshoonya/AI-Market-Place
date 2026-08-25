@@ -90,7 +90,9 @@ export function getUnrecoveredFailedSourceSlugs(
     const source = enabledSources.get(job.source);
     if (!source) continue;
 
-    const failureAt = timestamp(job.completed_at) ?? timestamp(job.created_at);
+    // Stale jobs may be marked failed hours after a newer retry succeeds.
+    // The attempt start is the correct boundary for deciding whether it recovered.
+    const failureAt = timestamp(job.created_at) ?? timestamp(job.completed_at);
     const lastSuccessAt = timestamp(source.last_success_at);
     const recovered =
       source.last_sync_status === "success" &&

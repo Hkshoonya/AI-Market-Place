@@ -689,7 +689,7 @@ describe("pipelineEngineer", () => {
 });
 
 describe("pipeline failure recovery", () => {
-  it("ignores historical failures after a newer successful sync", () => {
+  it("ignores stale failures marked after a newer successful sync", () => {
     const failedSources = getUnrecoveredFailedSourceSlugs(
       [
         {
@@ -703,7 +703,7 @@ describe("pipeline failure recovery", () => {
         {
           source: "open-llm-leaderboard",
           created_at: "2026-08-25T16:02:00.000Z",
-          completed_at: "2026-08-25T16:04:00.000Z",
+          completed_at: "2026-08-25T22:46:56.000Z",
         },
       ]
     );
