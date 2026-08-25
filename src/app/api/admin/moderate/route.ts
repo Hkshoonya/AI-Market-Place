@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminSession } from "@/lib/auth/require-admin";
 import { rateLimit, RATE_LIMITS, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertUuid } from "@/lib/utils/sanitize";
@@ -28,26 +28,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const session = await requireAdminSession();
+    if (session.error) return session.error;
+
     const adminSupabase = createAdminClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Verify admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     let body: unknown;
     try {
@@ -70,12 +54,45 @@ export async function PATCH(request: NextRequest) {
     switch (`${target_type}:${action}`) {
       // User actions
       case "user:ban": {
+        if (target_id === session.user.id) {
+          return NextResponse.json(
+            { error: "You cannot suspend your own account." },
+            { status: 400 }
+          );
+        }
+
+        const { data: target, error: targetError } = await adminSupabase
+          .from("profiles")
+          .select("id")
+          .eq("id", target_id)
+          .single();
+        if (targetError || !target) {
+          return NextResponse.json({ error: "User not found." }, { status: 404 });
+        }
+
+        const { error: authBanError } =
+          await adminSupabase.auth.admin.updateUserById(target_id, {
+            ban_duration: "876000h",
+          });
+        if (authBanError) {
+          return NextResponse.json(
+            { error: "Could not suspend authentication for this user." },
+            { status: 500 }
+          );
+        }
+
         const { error: banError } = await adminSupabase
           .from("profiles")
           .update({ is_banned: true, updated_at: new Date().toISOString() })
           .eq("id", target_id);
         if (banError) {
-          return NextResponse.json({ error: banError.message }, { status: 500 });
+          await adminSupabase.auth.admin.updateUserById(target_id, {
+            ban_duration: "none",
+          });
+          return NextResponse.json(
+            { error: "Could not update the suspended user's profile." },
+            { status: 500 }
+          );
         }
 
         const { error: banNotifError } = await adminSupabase.from("notifications").insert({
@@ -91,12 +108,38 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "user:unban": {
+        const { data: target, error: targetError } = await adminSupabase
+          .from("profiles")
+          .select("id")
+          .eq("id", target_id)
+          .single();
+        if (targetError || !target) {
+          return NextResponse.json({ error: "User not found." }, { status: 404 });
+        }
+
+        const { error: authUnbanError } =
+          await adminSupabase.auth.admin.updateUserById(target_id, {
+            ban_duration: "none",
+          });
+        if (authUnbanError) {
+          return NextResponse.json(
+            { error: "Could not restore authentication for this user." },
+            { status: 500 }
+          );
+        }
+
         const { error: unbanError } = await adminSupabase
           .from("profiles")
           .update({ is_banned: false, updated_at: new Date().toISOString() })
           .eq("id", target_id);
         if (unbanError) {
-          return NextResponse.json({ error: unbanError.message }, { status: 500 });
+          await adminSupabase.auth.admin.updateUserById(target_id, {
+            ban_duration: "876000h",
+          });
+          return NextResponse.json(
+            { error: "Could not update the restored user's profile." },
+            { status: 500 }
+          );
         }
 
         const { error: unbanNotifError } = await adminSupabase.from("notifications").insert({

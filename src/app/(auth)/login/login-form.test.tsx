@@ -107,6 +107,28 @@ describe("LoginForm", () => {
     );
   });
 
+  it("uses the account dashboard as the default post-login destination", async () => {
+    mockSignInWithOAuth.mockResolvedValue({ error: null });
+
+    render(<LoginForm />);
+
+    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute(
+      "href",
+      "/signup?redirect=%2Fdashboard"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /continue with github/i }));
+
+    await waitFor(() => {
+      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=%2Fdashboard`,
+        },
+      });
+    });
+  });
+
   it("passes the sanitized redirect target into OAuth sign-in callbacks", async () => {
     mockSignInWithOAuth.mockResolvedValue({ error: null });
 

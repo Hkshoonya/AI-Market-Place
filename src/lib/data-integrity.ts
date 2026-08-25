@@ -687,7 +687,7 @@ export async function verifyDataIntegrity(
   // ── Fetch recent sync_jobs (last 2 per source) ────────────────────────────
   const { data: rawSyncJobs, error: sjError } = await supabase
     .from("sync_jobs")
-    .select("source_slug, records_processed, created_at, status, error_message, metadata")
+    .select("source_slug:source, records_processed, created_at, status, error_message, metadata")
     .order("created_at", { ascending: false })
     .limit(200); // fetch enough to get 2 per source across all sources
 

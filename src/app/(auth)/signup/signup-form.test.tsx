@@ -31,6 +31,26 @@ describe("SignupForm", () => {
     );
   });
 
+  it("uses the account dashboard as the default post-signup destination", async () => {
+    render(<SignupForm />);
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/login?redirect=%2Fdashboard"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /continue with github/i }));
+
+    await waitFor(() => {
+      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=%2Fdashboard`,
+        },
+      });
+    });
+  });
+
   it("passes the redirect target into email confirmation callbacks", async () => {
     render(<SignupForm initialRedirect="/commons" />);
 

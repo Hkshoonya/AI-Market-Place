@@ -59,6 +59,7 @@ vi.mock("lucide-react", () => ({
   Activity: (props: ComponentProps<"svg">) => <svg data-testid="activity-icon" {...props} />,
   BarChart3: (props: ComponentProps<"svg">) => <svg {...props} />,
   Building2: (props: ComponentProps<"svg">) => <svg {...props} />,
+  Gauge: (props: ComponentProps<"svg">) => <svg {...props} />,
   LayoutDashboard: (props: ComponentProps<"svg">) => <svg {...props} />,
   LogIn: (props: ComponentProps<"svg">) => <svg {...props} />,
   Menu: (props: ComponentProps<"svg">) => <svg {...props} />,
@@ -109,6 +110,7 @@ describe("Header", () => {
 
     expect(screen.getAllByRole("link", { name: /deploy/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /workspace/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link", { name: /account dashboard/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /account/i })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /wallet/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("link", { name: /profile/i }).length).toBeGreaterThanOrEqual(1);

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   BarChart3,
   Box,
   Download,
@@ -13,14 +14,12 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { z } from "zod";
 import useSWR from "swr";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
-import { parseQueryResult } from "@/lib/schemas/parse";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatNumber } from "@/lib/format";
-import { CATEGORIES } from "@/lib/constants/categories";
 
 interface TooltipEntry {
   name: string;
@@ -51,68 +50,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export default function AdminAnalyticsPage() {
-  const { data, isLoading } = useSWR<AnalyticsData>(
-    'supabase:admin-analytics',
-    async () => {
-      const supabase = createClient();
-
-      const ModelCatSchema = z.object({ category: z.string(), provider: z.string(), is_open_weights: z.boolean().nullable() });
-      const ModelDlSchema = z.object({ name: z.string(), provider: z.string(), hf_downloads: z.coerce.number().nullable() });
-      const ModelRatedSchema = z.object({ name: z.string(), provider: z.string(), quality_score: z.coerce.number().nullable() });
-
-      const [
-        allModelsResponse,
-        topDownloadedResponse,
-        topRatedResponse,
-      ] = await Promise.all([
-        supabase.from("models").select("category, provider, is_open_weights").eq("status", "active"),
-        supabase.from("models").select("name, provider, hf_downloads").eq("status", "active").order("hf_downloads", { ascending: false, nullsFirst: false }).limit(10),
-        supabase.from("models").select("name, provider, quality_score").eq("status", "active").not("quality_score", "is", null).order("quality_score", { ascending: false }).limit(10),
-      ]);
-
-      const allModels = parseQueryResult(allModelsResponse, ModelCatSchema, "AdminAnalyticsModelCat");
-      const topDownloaded = parseQueryResult(topDownloadedResponse, ModelDlSchema, "AdminAnalyticsModelDl");
-      const topRated = parseQueryResult(topRatedResponse, ModelRatedSchema, "AdminAnalyticsModelRated");
-
-      const models = allModels;
-
-      // Category breakdown
-      const catMap = new Map<string, number>();
-      models.forEach((m) => catMap.set(m.category, (catMap.get(m.category) ?? 0) + 1));
-      const categoryBreakdown = Array.from(catMap.entries())
-        .map(([cat, count]) => {
-          const config = CATEGORIES.find((c) => c.slug === cat);
-          return { category: cat, count, label: config?.label ?? cat, color: config?.color ?? "#666" };
-        })
-        .sort((a, b) => b.count - a.count);
-
-      // Provider breakdown
-      const provMap = new Map<string, number>();
-      models.forEach((m) => provMap.set(m.provider, (provMap.get(m.provider) ?? 0) + 1));
-      const providerBreakdown = Array.from(provMap.entries())
-        .map(([provider, count]) => ({ provider, count }))
-        .sort((a, b) => b.count - a.count);
-
-      // Open vs closed
-      const open = models.filter((m) => m.is_open_weights === true).length;
-      const closed = models.length - open;
-
-      return {
-        categoryBreakdown,
-        providerBreakdown,
-        topDownloaded: topDownloaded.map((m) => ({
-          name: m.name,
-          provider: m.provider,
-          hf_downloads: Number(m.hf_downloads) || 0,
-        })),
-        topRated: topRated.map((m) => ({
-          name: m.name,
-          provider: m.provider,
-          quality_score: Number(m.quality_score) || 0,
-        })),
-        openVsClosed: { open, closed },
-      };
-    },
+  const { data, error, isLoading, mutate } = useSWR<AnalyticsData>(
+    "/api/admin/analytics",
+    jsonFetcher<AnalyticsData>,
     { ...SWR_TIERS.SLOW }
   );
 
@@ -126,7 +66,27 @@ export default function AdminAnalyticsPage() {
     );
   }
 
-  if (!data && !isLoading) return null;
+  if (error) {
+    return (
+      <Card className="border-loss/30 bg-loss/5">
+        <CardContent className="flex items-start justify-between gap-4 p-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+            <div>
+              <p className="font-medium text-loss">Analytics could not load</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : "Unknown request error"}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void mutate()}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!data) return null;
 
   return (

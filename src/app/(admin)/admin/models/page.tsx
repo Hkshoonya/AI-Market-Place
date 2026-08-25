@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useDeferredValue, useState } from "react";
 import Link from "next/link";
 import {
   Bot,
   Box,
+  AlertTriangle,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -15,11 +16,11 @@ import {
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatNumber, formatDate } from "@/lib/format";
-import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Model } from "@/types/database";
@@ -27,46 +28,38 @@ import type { Model } from "@/types/database";
 const PAGE_SIZE = 20;
 
 interface AdminModelsData {
-  models: Model[];
+  models: Pick<
+    Model,
+    | "id"
+    | "slug"
+    | "name"
+    | "provider"
+    | "category"
+    | "status"
+    | "overall_rank"
+    | "quality_score"
+    | "hf_downloads"
+    | "created_at"
+    | "is_open_weights"
+  >[];
   totalCount: number;
 }
 
 export default function AdminModelsPage() {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDeferredValue(searchInput.trim());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { data, isLoading: loading, mutate } = useSWR<AdminModelsData>(
-    `supabase:admin-models:${page}:${statusFilter}:${search}`,
-    async () => {
-      const supabase = createClient();
-      let query = supabase
-        .from("models")
-        .select("id, slug, name, provider, category, status, overall_rank, quality_score, hf_downloads, created_at, is_open_weights", { count: "exact" });
+  const query = new URLSearchParams({
+    page: String(page),
+    status: statusFilter,
+  });
+  if (search) query.set("search", search);
 
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter as import("@/types/database").ModelStatus);
-      }
-      if (search) {
-        const safeSearch = sanitizeFilterValue(search);
-        if (safeSearch) {
-          query = query.or(`name.ilike.%${safeSearch}%,provider.ilike.%${safeSearch}%`);
-        }
-      }
-
-      query = query.order("created_at", { ascending: false });
-
-      const from = (page - 1) * PAGE_SIZE;
-      query = query.range(from, from + PAGE_SIZE - 1);
-
-      const { data: queryData, count, error } = await query;
-      if (error) throw error;
-      return {
-        models: (queryData as Model[]) ?? [],
-        totalCount: count ?? 0,
-      };
-    },
+  const { data, error, isLoading: loading, mutate } = useSWR<AdminModelsData>(
+    `/api/admin/models?${query.toString()}`,
+    jsonFetcher<AdminModelsData>,
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -75,14 +68,22 @@ export default function AdminModelsPage() {
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     try {
-      const supabase = createClient();
       const newStatus = (currentStatus === "active" ? "archived" : "active") as import("@/types/database").ModelStatus;
-      const { error } = await supabase.from("models").update({ status: newStatus }).eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/admin/models", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Request failed");
       toast.success(`Model ${newStatus === "active" ? "activated" : "deactivated"}`);
-      mutate();
-    } catch {
-      toast.error("Failed to update model status");
+      await mutate();
+    } catch (requestError) {
+      toast.error(
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to update model status"
+      );
     }
   };
 
@@ -103,20 +104,17 @@ export default function AdminModelsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search models..."
-            defaultValue={search}
+            aria-label="Search models"
+            value={searchInput}
             onChange={(e) => {
-              const value = e.target.value;
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => {
-                setSearch(value);
-                setPage(1);
-              }, 300);
+              setSearchInput(e.target.value);
+              setPage(1);
             }}
             className="pl-9 bg-secondary"
           />
         </div>
-        <div className="flex gap-1">
-          {["all", "active", "inactive", "draft"].map((s) => (
+        <div className="flex max-w-full gap-1 overflow-x-auto pb-1">
+          {["all", "active", "preview", "beta", "deprecated", "archived"].map((s) => (
             <Button
               key={s}
               variant={statusFilter === s ? "default" : "outline"}
@@ -130,8 +128,27 @@ export default function AdminModelsPage() {
         </div>
       </div>
 
+      {error ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex items-start justify-between gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Models could not load</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : "Unknown request error"}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void mutate()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border/50">
+      {!error ? <div className="overflow-hidden rounded-xl border border-border/50">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -246,7 +263,7 @@ export default function AdminModelsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div> : null}
 
       {/* Pagination */}
       {totalPages > 1 && (

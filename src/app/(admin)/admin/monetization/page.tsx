@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   Activity,
+  AlertTriangle,
   CircleDollarSign,
   ExternalLink,
   Link2,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 
 interface AffiliateResponse {
   links: Array<{
@@ -109,18 +111,24 @@ function statusTone(status: string) {
 export default function MonetizationAdminPage() {
   const {
     data: affiliateData,
+    error: affiliateError,
     isLoading: affiliateLoading,
     mutate: mutateAffiliates,
-  } = useSWR<AffiliateResponse>("/api/admin/affiliate-links", {
-    ...SWR_TIERS.MEDIUM,
-  });
+  } = useSWR<AffiliateResponse>(
+    "/api/admin/affiliate-links",
+    jsonFetcher<AffiliateResponse>,
+    { ...SWR_TIERS.MEDIUM }
+  );
   const {
     data: subscriptionData,
+    error: subscriptionError,
     isLoading: subscriptionLoading,
     mutate: mutateSubscriptions,
-  } = useSWR<DataSubscriptionsResponse>("/api/admin/data-subscriptions", {
-    ...SWR_TIERS.MEDIUM,
-  });
+  } = useSWR<DataSubscriptionsResponse>(
+    "/api/admin/data-subscriptions",
+    jsonFetcher<DataSubscriptionsResponse>,
+    { ...SWR_TIERS.MEDIUM }
+  );
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [linkForm, setLinkForm] = useState(EMPTY_LINK_FORM);
   const [savingLink, setSavingLink] = useState(false);
@@ -289,6 +297,34 @@ export default function MonetizationAdminPage() {
           No automated paid checkout
         </Badge>
       </div>
+
+      {affiliateError || subscriptionError ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Revenue data is incomplete</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {(affiliateError instanceof Error && affiliateError.message) ||
+                    (subscriptionError instanceof Error && subscriptionError.message) ||
+                    "One or more revenue requests failed."}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void mutateAffiliates();
+                void mutateSubscriptions();
+              }}
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">

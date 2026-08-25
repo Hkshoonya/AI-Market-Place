@@ -46,20 +46,22 @@ export async function GET(
       if (user) {
         const { data: profile } = await serverSupabase
           .from("profiles")
-          .select("is_admin")
+          .select("is_admin, is_banned")
           .eq("id", user.id)
           .single();
-        isAdmin = profile?.is_admin === true;
+        isAdmin = profile?.is_admin === true && profile.is_banned !== true;
       }
     } catch {
       // Ignore — fall back to public view
     }
   }
 
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = isAdmin
+    ? createAdminClient()
+    : createClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
 
   let query = supabase
     .from("marketplace_listings")

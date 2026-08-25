@@ -5,6 +5,10 @@ vi.mock("swr", () => ({
   default: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("./chart-controls", () => ({
   ChartControls: () => <div>chart controls</div>,
   useChartFilters: () => ({

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthButton, MobileAuthControls } from "./auth-button";
@@ -66,6 +66,25 @@ describe("AuthButton", () => {
     expect(signOutMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith("/");
     expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the account initial when a remote avatar fails", () => {
+    mockUseAuth.mockReturnValue({
+      user: { email: "admin@example.com" },
+      profile: {
+        display_name: "Admin",
+        avatar_url: "https://images.example.com/unavailable.png",
+      },
+      loading: false,
+      signOut: vi.fn(),
+    });
+
+    render(<AuthButton />);
+
+    fireEvent.error(screen.getByRole("img", { name: "Admin" }));
+
+    expect(screen.queryByRole("img", { name: "Admin" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /user menu for admin/i })).toHaveTextContent("A");
   });
 
   it("renders stable in-sheet account actions without a nested dropdown", async () => {

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useDeferredValue, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import {
   Archive,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -17,11 +18,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { LISTING_TYPE_MAP } from "@/lib/constants/marketplace";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -70,10 +73,10 @@ function formatPolicyValue(value: string) {
 }
 
 export default function AdminListingsPage() {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDeferredValue(searchInput.trim());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Build SWR key with page/status/search params
   const swrKey = (() => {
@@ -84,8 +87,9 @@ export default function AdminListingsPage() {
     return `/api/admin/listings?${params}`;
   })();
 
-  const { data, isLoading: loading, mutate } = useSWR<ListingsResponse>(
+  const { data, error, isLoading: loading, mutate } = useSWR<ListingsResponse>(
     swrKey,
+    jsonFetcher<ListingsResponse>,
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -102,11 +106,12 @@ export default function AdminListingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Request failed");
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Request failed");
       toast.success(`Listing ${newStatus === "active" ? "activated" : "paused"}`);
-      mutate();
-    } catch {
-      toast.error("Failed to update listing status");
+      await mutate();
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Failed to update listing status");
     }
   };
 
@@ -119,11 +124,12 @@ export default function AdminListingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_featured: !currentValue }),
       });
-      if (!res.ok) throw new Error("Request failed");
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Request failed");
       toast.success(currentValue ? "Listing unfeatured" : "Listing featured");
-      mutate();
-    } catch {
-      toast.error("Failed to update featured status");
+      await mutate();
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Failed to update featured status");
     }
   };
 
@@ -139,11 +145,12 @@ export default function AdminListingsPage() {
           reason: "Removed by admin",
         }),
       });
-      if (!res.ok) throw new Error("Request failed");
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Request failed");
       toast.success("Listing removed");
-      mutate();
-    } catch {
-      toast.error("Failed to remove listing");
+      await mutate();
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Failed to remove listing");
     }
   };
 
@@ -158,11 +165,12 @@ export default function AdminListingsPage() {
           target_id: id,
         }),
       });
-      if (!res.ok) throw new Error("Request failed");
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Request failed");
       toast.success("Listing restored");
-      mutate();
-    } catch {
-      toast.error("Failed to restore listing");
+      await mutate();
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Failed to restore listing");
     }
   };
 
@@ -183,19 +191,16 @@ export default function AdminListingsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search listings..."
-            defaultValue={search}
+            value={searchInput}
+            aria-label="Search marketplace listings"
             onChange={(e) => {
-              const value = e.target.value;
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => {
-                setSearch(value);
-                setPage(1);
-              }, 300);
+              setSearchInput(e.target.value);
+              setPage(1);
             }}
             className="pl-9 bg-secondary"
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex max-w-full gap-1 overflow-x-auto pb-1">
           {["all", "active", "draft", "paused", "archived"].map((s) => (
             <Button
               key={s}
@@ -210,8 +215,25 @@ export default function AdminListingsPage() {
         </div>
       </div>
 
+      {error ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex items-start justify-between gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Listings could not load</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : "Unknown request error"}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void mutate()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border/50">
+      {!error ? <div className="overflow-hidden rounded-xl border border-border/50">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -401,7 +423,7 @@ export default function AdminListingsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div> : null}
 
       {/* Pagination */}
       {totalPages > 1 && (

@@ -1,102 +1,32 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import {
-  BarChart3,
-  Bot,
-  Box,
-  Database,
-  LayoutDashboard,
-  MessageSquare,
-  ShieldCheck,
-  ShoppingBag,
-  Flag,
-  CircleDollarSign,
-  Users,
-} from "lucide-react";
-import { useAuth } from "@/components/auth/auth-provider";
+import { createClient } from "@/lib/supabase/server";
+import { AdminShell } from "./admin-shell";
 
-const ADMIN_NAV = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/models", label: "Models", icon: Box },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/listings", label: "Listings", icon: ShoppingBag },
-  { href: "/admin/verifications", label: "Verify", icon: ShieldCheck },
-  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
-  { href: "/admin/social", label: "Social", icon: Flag },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/data-sources", label: "Sources", icon: Database },
-  { href: "/admin/agents", label: "Agents", icon: Bot },
-  { href: "/admin/monetization", label: "Revenue", icon: CircleDollarSign },
-];
-
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, profile, loading } = useAuth();
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    if (!loading && (!user || !profile?.is_admin)) {
-      router.push("/");
-    }
-  }, [user, profile, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-16">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 rounded bg-secondary" />
-          <div className="h-64 rounded-xl bg-secondary" />
-        </div>
-      </div>
-    );
+  if (authError || !user) {
+    redirect("/login?redirect=%2Fadmin");
   }
 
-  if (!user || !profile?.is_admin) return null;
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("is_admin, is_banned")
+    .eq("id", user.id)
+    .single();
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neon/10">
-          <LayoutDashboard className="h-5 w-5 text-neon" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold">Admin Dashboard</h1>
-          <p className="text-xs text-muted-foreground">Manage your platform</p>
-        </div>
-      </div>
+  if (profileError || !profile?.is_admin || profile.is_banned) {
+    redirect("/");
+  }
 
-      {/* Navigation tabs */}
-      <nav className="mb-8 flex gap-1 overflow-x-auto rounded-lg bg-secondary/30 p-1 scrollbar-thin">
-        {ADMIN_NAV.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/admin" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap sm:px-4 ${
-                isActive
-                  ? "bg-neon/10 text-neon"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              }`}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">{item.label}</span>
-              <span className="sm:hidden">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {children}
-    </div>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   computePublicRankingConfidenceScore,
@@ -8,6 +8,15 @@ import {
 } from "./public-ranking-confidence";
 
 describe("public ranking confidence", () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T00:00:00.000Z"));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("scores benchmark-backed strong models above weak stale entries", () => {
     const strong = computePublicRankingConfidenceScore({
       slug: "anthropic-claude-opus-4-6",

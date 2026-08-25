@@ -283,8 +283,10 @@ export interface Profile {
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
-  reputation_score: number;
+  title: string | null;
+  bankroll: number;
   is_admin: boolean;
+  is_approved: boolean;
   is_banned: boolean;
   is_seller: boolean;
   seller_bio: string | null;
@@ -293,7 +295,10 @@ export interface Profile {
   total_sales: number;
   seller_rating: number | null;
   joined_at: string | null;
+  last_login: string | null;
   email: string | null;
+  preferences: Record<string, unknown>;
+  saved_layout: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -1223,8 +1228,10 @@ export interface Database {
           display_name?: string | null;
           avatar_url?: string | null;
           bio?: string | null;
-          reputation_score?: number;
+          title?: string | null;
+          bankroll?: number;
           is_admin?: boolean;
+          is_approved?: boolean;
           is_banned?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
@@ -1233,7 +1240,10 @@ export interface Database {
           total_sales?: number;
           seller_rating?: number | null;
           joined_at?: string | null;
+          last_login?: string | null;
           email?: string | null;
+          preferences?: Record<string, unknown>;
+          saved_layout?: Record<string, unknown> | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1243,8 +1253,10 @@ export interface Database {
           display_name?: string | null;
           avatar_url?: string | null;
           bio?: string | null;
-          reputation_score?: number;
+          title?: string | null;
+          bankroll?: number;
           is_admin?: boolean;
+          is_approved?: boolean;
           is_banned?: boolean;
           is_seller?: boolean;
           seller_bio?: string | null;
@@ -1253,7 +1265,10 @@ export interface Database {
           total_sales?: number;
           seller_rating?: number | null;
           joined_at?: string | null;
+          last_login?: string | null;
           email?: string | null;
+          preferences?: Record<string, unknown>;
+          saved_layout?: Record<string, unknown> | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import {
+  AlertTriangle,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -10,12 +11,14 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { getSafeExternalHref } from "@/lib/security/url";
 import type { SellerVerificationRequest } from "@/types/database";
 
@@ -32,8 +35,9 @@ export default function AdminVerificationsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
-  const { data, isLoading: loading, mutate } = useSWR<VerificationsResponse>(
+  const { data, error, isLoading: loading, mutate } = useSWR<VerificationsResponse>(
     `/api/admin/verifications?status=${statusFilter}`,
+    jsonFetcher<VerificationsResponse>,
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -51,11 +55,14 @@ export default function AdminVerificationsPage() {
           admin_notes: adminNotes[requestId] || "",
         }),
       });
-      if (res.ok) {
-        mutate();
-      }
-    } catch {
-      // ignore
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Verification update failed");
+      toast.success(action === "approve" ? "Seller approved" : "Request rejected");
+      await mutate();
+    } catch (requestError) {
+      toast.error(
+        requestError instanceof Error ? requestError.message : "Verification update failed"
+      );
     } finally {
       setActionLoading(null);
     }
@@ -77,7 +84,7 @@ export default function AdminVerificationsPage() {
       </div>
 
       {/* Status filters */}
-      <div className="flex gap-1">
+      <div className="flex max-w-full gap-1 overflow-x-auto pb-1">
         {Object.entries(statusCounts).map(([key, label]) => (
           <Button
             key={key}
@@ -91,8 +98,25 @@ export default function AdminVerificationsPage() {
         ))}
       </div>
 
+      {error ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex items-start justify-between gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Verification requests could not load</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : "Unknown request error"}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void mutate()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Requests */}
-      <div className="space-y-4">
+      {!error ? <div className="space-y-4">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-40 animate-pulse rounded-xl bg-secondary" />
@@ -232,7 +256,7 @@ export default function AdminVerificationsPage() {
             );
           })
         )}
-      </div>
+      </div> : null}
     </div>
   );
 }

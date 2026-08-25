@@ -5,7 +5,7 @@ import {
   renderRootSocialImage,
 } from "@/lib/seo/root-social-image";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = ROOT_SOCIAL_IMAGE_ALT;
 export const size = ROOT_SOCIAL_IMAGE_SIZE;
 export const contentType = "image/png";

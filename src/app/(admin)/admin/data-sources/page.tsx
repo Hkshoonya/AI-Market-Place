@@ -690,15 +690,19 @@ export default function AdminDataSourcesPage() {
   );
 
   // Pipeline health fetch
-  const { data: healthData, mutate: mutateHealth } = useSWR<PipelineHealthDetail>(
-    "/api/admin/pipeline/health",
-    { ...SWR_TIERS.SLOW }
-  );
+  const {
+    data: healthData,
+    error: healthError,
+    mutate: mutateHealth,
+  } = useSWR<PipelineHealthDetail>("/api/admin/pipeline/health", {
+    ...SWR_TIERS.SLOW,
+  });
 
   // Data integrity fetch
   const {
     data: integrityData,
     isLoading: integrityLoading,
+    error: integrityError,
     mutate: mutateIntegrity,
   } = useSWR<DataIntegrityReport>("/api/admin/data-integrity", {
     ...SWR_TIERS.SLOW,
@@ -886,13 +890,48 @@ export default function AdminDataSourcesPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { mutate(); mutateHealth(); }}
+          onClick={() => {
+            void mutate();
+            void mutateHealth();
+            void mutateIntegrity();
+          }}
           className="gap-2"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Refresh
         </Button>
       </div>
+
+      {(healthError || integrityError) && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-loss/30 bg-loss/5 p-4 text-loss sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Pipeline diagnostics are incomplete</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {integrityError instanceof Error
+                  ? integrityError.message
+                  : healthError instanceof Error
+                    ? healthError.message
+                    : "A diagnostics request failed."}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void mutateHealth();
+              void mutateIntegrity();
+            }}
+          >
+            Retry diagnostics
+          </Button>
+        </div>
+      )}
 
       {/* Pipeline status pill */}
       {healthData && (

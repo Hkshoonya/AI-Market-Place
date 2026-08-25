@@ -16,17 +16,26 @@ describe("AdminOverviewPage", () => {
 
   it("shows recent marketplace inquiries when they are available", () => {
     mockUseSWR.mockImplementation((key: string) => {
-      if (key === "supabase:admin-overview") {
+      if (key === "/api/admin/overview") {
         return {
           data: {
-            totalModels: 10,
-            activeModels: 8,
-            totalUsers: 5,
-            totalListings: 4,
-            activeListings: 3,
-            totalOrders: 2,
-            totalViews: 0,
-            totalDownloads: 50,
+            stats: {
+              totalModels: 10,
+              activeModels: 8,
+              totalUsers: 5,
+              totalListings: 4,
+              activeListings: 3,
+              totalOrders: 2,
+              totalDownloads: 50,
+            },
+            activation: {
+              activeApiKeys: 2,
+              activeProviderConnections: 1,
+              readyDeployments: 0,
+              paidDataCustomers: 0,
+              dataRequestsThisMonth: 25,
+              affiliateClicks30d: 3,
+            },
             recentModels: [],
             recentUsers: [],
           },

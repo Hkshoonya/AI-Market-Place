@@ -17,7 +17,7 @@ describe("root twitter image", () => {
   it("exports the expected metadata", async () => {
     const twitterImageModule = await import("./twitter-image");
 
-    expect(twitterImageModule.runtime).toBe("edge");
+    expect(twitterImageModule.runtime).toBe("nodejs");
     expect(twitterImageModule.contentType).toBe("image/png");
     expect(twitterImageModule.size).toEqual({ width: 1200, height: 630 });
     expect(twitterImageModule.alt).toContain("AI Market Cap");

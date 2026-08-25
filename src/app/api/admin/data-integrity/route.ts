@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminSession } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
 import { verifyDataIntegrity } from "@/lib/data-integrity";
@@ -268,27 +268,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // ── Admin session auth ──────────────────────────────────────────────────
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = await requireAdminSession();
+    if (session.error) return session.error;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // ── Data queries via admin client (bypasses RLS) ──────────────────────────
     const adminSupabase = createAdminClient();
 
     const report = await verifyDataIntegrity(adminSupabase);

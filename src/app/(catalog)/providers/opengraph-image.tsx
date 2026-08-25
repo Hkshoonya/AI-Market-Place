@@ -4,7 +4,7 @@ import { createPublicClient } from "@/lib/supabase/public-server";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = "AI Model Providers";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";

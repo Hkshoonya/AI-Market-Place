@@ -17,7 +17,7 @@ describe("root opengraph image", () => {
   it("exports the expected metadata", async () => {
     const ogImageModule = await import("./opengraph-image");
 
-    expect(ogImageModule.runtime).toBe("edge");
+    expect(ogImageModule.runtime).toBe("nodejs");
     expect(ogImageModule.contentType).toBe("image/png");
     expect(ogImageModule.size).toEqual({ width: 1200, height: 630 });
     expect(ogImageModule.alt).toContain("AI Market Cap");

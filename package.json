@@ -13,23 +13,25 @@
   "overrides": {
     "camera-controls": "3.1.0",
     "@sentry/bundler-plugin-core": {
-      "brace-expansion": "5.0.7"
+      "brace-expansion": "5.0.9"
     },
     "@babel/core": "7.29.7",
-    "@hono/node-server": "1.19.14",
-    "dompurify": "3.4.11",
+    "@hono/node-server": "1.19.17",
+    "body-parser": "2.3.0",
+    "brace-expansion": "1.1.18",
+    "dompurify": "3.4.14",
     "esbuild": "0.28.1",
-    "fast-uri": "3.1.3",
+    "fast-uri": "3.1.6",
     "flatted": "3.4.2",
-    "hono": "4.12.28",
-    "ip-address": "10.2.0",
-    "js-yaml": "4.3.0",
+    "hono": "4.13.4",
+    "ip-address": "10.5.0",
+    "js-yaml": "4.3.1",
     "path-to-regexp": "8.4.2",
     "picomatch": "4.0.4",
-    "postcss": "8.5.10",
+    "postcss": "8.5.26",
     "protobufjs": "7.6.5",
     "qs": "6.15.3",
-    "undici": "7.28.0",
+    "undici": "7.29.0",
     "uuid": "11.1.1",
     "vite": "7.3.6"
   },
@@ -76,11 +78,11 @@
     "fflate": "^0.8.2",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.575.0",
-    "next": "^16.2.10",
+    "next": "^16.3.2",
     "node-cron": "^4.2.1",
     "octokit": "^5.0.5",
     "pdf-parse": "^2.4.5",
-    "posthog-js": "^1.399.1",
+    "posthog-js": "^1.418.17",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -110,7 +112,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "dotenv": "^17.3.1",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.4",
+    "eslint-config-next": "^16.3.2",
     "jsdom": "^28.1.0",
     "msw": "^2.12.10",
     "shadcn": "^3.8.5",
@@ -120,6 +122,6 @@
     "typescript": "^5",
     "vitest": "^4.1.10",
     "webpack": "^5.108.2",
-    "wrangler": "4.112.0"
+    "wrangler": "4.125.0"
   }
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { LogIn, LogOut, User, Heart, List, Eye, Bell, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,38 @@ import { useAuth } from "./auth-provider";
 
 interface MobileAuthControlsProps {
   onNavigate?: () => void;
+}
+
+function AccountAvatar({
+  avatarUrl,
+  displayName,
+  initial,
+}: {
+  avatarUrl: string | null | undefined;
+  displayName: string;
+  initial: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (!avatarUrl || imageFailed) {
+    return (
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neon/10 text-sm font-bold text-neon">
+        {initial}
+      </span>
+    );
+  }
+
+  return (
+    // User avatars can be arbitrary remote URLs or SVGs.
+    // Render them directly instead of routing through next/image.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={avatarUrl}
+      alt={displayName}
+      className="h-8 w-8 rounded-full object-cover"
+      onError={() => setImageFailed(true)}
+    />
+  );
 }
 
 export function MobileAuthControls({ onNavigate }: MobileAuthControlsProps) {
@@ -153,20 +186,12 @@ export function AuthButton() {
           className="h-9 w-9 rounded-full"
           aria-label={`User menu for ${displayName}`}
         >
-          {avatarUrl ? (
-            // User avatars can be arbitrary remote URLs or SVGs.
-            // Render them directly instead of routing through next/image.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={displayName}
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neon/10 text-sm font-bold text-neon">
-              {initial}
-            </span>
-          )}
+          <AccountAvatar
+            key={avatarUrl || "account-avatar-fallback"}
+            avatarUrl={avatarUrl}
+            displayName={displayName}
+            initial={initial}
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 bg-card">

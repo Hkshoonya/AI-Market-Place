@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useDeferredValue, useState } from "react";
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
@@ -12,13 +13,11 @@ import {
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
-import { parseQueryResult } from "@/lib/schemas/parse";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatRelativeDate } from "@/lib/format";
-import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { MarketplaceReview, Profile, MarketplaceListing } from "@/types/database";
@@ -36,90 +35,20 @@ interface AdminReviewsData {
 const PAGE_SIZE = 20;
 
 export default function AdminReviewsPage() {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDeferredValue(searchInput.trim());
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { data, isLoading: loading, mutate } = useSWR<AdminReviewsData>(
-    `supabase:admin-reviews:${page}:${ratingFilter}:${search}`,
-    async () => {
-      const supabase = createClient();
-      // Two-query approach: marketplace_reviews may not have FK to profiles or listings
-      let query = supabase
-        .from("marketplace_reviews")
-        .select(
-          "id, rating, title, content, created_at, listing_id, reviewer_id",
-          { count: "exact" }
-        );
+  const query = new URLSearchParams({
+    page: String(page),
+    rating: ratingFilter,
+  });
+  if (search) query.set("search", search);
 
-      if (ratingFilter !== "all") {
-        query = query.eq("rating", parseInt(ratingFilter));
-      }
-      if (search) {
-        const safeSearch = sanitizeFilterValue(search);
-        if (safeSearch) {
-          query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
-        }
-      }
-
-      query = query.order("created_at", { ascending: false });
-
-      const from = (page - 1) * PAGE_SIZE;
-      query = query.range(from, from + PAGE_SIZE - 1);
-
-      const ReviewRowSchema = z.object({
-        id: z.string(),
-        rating: z.number(),
-        title: z.string().nullable(),
-        content: z.string().nullable(),
-        created_at: z.string(),
-        listing_id: z.string(),
-        reviewer_id: z.string(),
-      });
-      const reviewsResponse = await query;
-      const reviewsCount = reviewsResponse.count;
-      let enriched: EnrichedReview[] = parseQueryResult(reviewsResponse, ReviewRowSchema, "AdminReviews");
-
-      if (enriched.length > 0) {
-        // Enrich with reviewer profiles
-        const reviewerIds = [...new Set(enriched.map((r) => r.reviewer_id).filter(Boolean))];
-        if (reviewerIds.length > 0) {
-          const ProfileRowSchema = z.object({ id: z.string(), display_name: z.string().nullable(), username: z.string().nullable() });
-          const profilesResponse = await supabase
-            .from("profiles")
-            .select("id, display_name, username")
-            .in("id", reviewerIds);
-          const profiles = parseQueryResult(profilesResponse, ProfileRowSchema, "AdminReviewProfiles");
-          const profileMap = new Map(profiles.map((p) => [p.id, p]));
-          enriched = enriched.map((r) => ({
-            ...r,
-            profiles: r.reviewer_id ? (profileMap.get(r.reviewer_id) ?? null) : null,
-          }));
-        }
-
-        // Enrich with listing info
-        const listingIds = [...new Set(enriched.map((r) => r.listing_id).filter(Boolean))];
-        if (listingIds.length > 0) {
-          const ListingRowSchema = z.object({ id: z.string(), title: z.string(), slug: z.string() });
-          const listingsResponse = await supabase
-            .from("marketplace_listings")
-            .select("id, title, slug")
-            .in("id", listingIds);
-          const listings = parseQueryResult(listingsResponse, ListingRowSchema, "AdminReviewListings");
-          const listingMap = new Map(listings.map((l) => [l.id, l]));
-          enriched = enriched.map((r) => ({
-            ...r,
-            marketplace_listings: r.listing_id ? (listingMap.get(r.listing_id) ?? null) : null,
-          }));
-        }
-      }
-
-      return {
-        reviews: enriched,
-        totalCount: reviewsCount ?? 0,
-      };
-    },
+  const { data, error, isLoading: loading, mutate } = useSWR<AdminReviewsData>(
+    `/api/admin/reviews?${query.toString()}`,
+    jsonFetcher<AdminReviewsData>,
     { ...SWR_TIERS.MEDIUM }
   );
 
@@ -137,11 +66,14 @@ export default function AdminReviewsPage() {
           target_id: id,
         }),
       });
-      if (!res.ok) throw new Error("Request failed");
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(body?.error ?? "Request failed");
       toast.success("Review deleted");
-      mutate();
-    } catch {
-      toast.error("Failed to delete review");
+      await mutate();
+    } catch (requestError) {
+      toast.error(
+        requestError instanceof Error ? requestError.message : "Failed to delete review"
+      );
     }
   };
 
@@ -162,19 +94,16 @@ export default function AdminReviewsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search reviews..."
-            defaultValue={search}
+            aria-label="Search reviews"
+            value={searchInput}
             onChange={(e) => {
-              const value = e.target.value;
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => {
-                setSearch(value);
-                setPage(1);
-              }, 300);
+              setSearchInput(e.target.value);
+              setPage(1);
             }}
             className="pl-9 bg-secondary"
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex max-w-full gap-1 overflow-x-auto pb-1">
           {["all", "5", "4", "3", "2", "1"].map((r) => (
             <Button
               key={r}
@@ -193,7 +122,24 @@ export default function AdminReviewsPage() {
         </div>
       </div>
 
-      {/* Reviews List */}
+      {error ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex items-start justify-between gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Reviews could not load</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : "Unknown request error"}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void mutate()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
       <div className="space-y-3">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
@@ -270,6 +216,7 @@ export default function AdminReviewsPage() {
           ))
         )}
       </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

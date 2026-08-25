@@ -3,10 +3,12 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Flag, MessageSquareWarning, RotateCcw, ShieldBan } from "lucide-react";
+import { AlertTriangle, Flag, MessageSquareWarning, RotateCcw, ShieldBan } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeTime } from "@/lib/format";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 
 interface AdminSocialReportItem {
   id: string;
@@ -42,8 +44,9 @@ interface AdminSocialReportsResponse {
 
 export default function AdminSocialPage() {
   const [filter, setFilter] = useState<"queue" | "all" | "resolved">("queue");
-  const { data, isLoading, mutate } = useSWR<AdminSocialReportsResponse>(
-    "/api/admin/social/reports"
+  const { data, error, isLoading, mutate } = useSWR<AdminSocialReportsResponse>(
+    "/api/admin/social/reports",
+    jsonFetcher<AdminSocialReportsResponse>
   );
 
   const reports = data?.reports ?? [];
@@ -146,7 +149,24 @@ export default function AdminSocialPage() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/50">
+      {error ? (
+        <Card className="border-loss/30 bg-loss/5">
+          <CardContent className="flex items-start justify-between gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-loss" />
+              <div>
+                <p className="text-sm font-medium text-loss">Social reports could not load</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : "Unknown request error"}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void mutate()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!error ? <div className="overflow-hidden rounded-xl border border-border/50">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -270,7 +290,7 @@ export default function AdminSocialPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

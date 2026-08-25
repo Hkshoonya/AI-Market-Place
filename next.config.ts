@@ -5,6 +5,9 @@ import { buildContentSecurityPolicy } from "./src/lib/csp";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  typescript: {
+    tsconfigPath: "tsconfig.ci.json",
+  },
   experimental: {
     optimizePackageImports: ["recharts", "posthog-js", "lucide-react"],
   },

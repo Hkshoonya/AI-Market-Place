@@ -19,7 +19,9 @@ export interface SignupFormProps {
 }
 
 export default function SignupForm({ initialRedirect }: SignupFormProps) {
-  const redirectTo = sanitizeAuthRedirect(initialRedirect);
+  const redirectTo = initialRedirect
+    ? sanitizeAuthRedirect(initialRedirect)
+    : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -107,7 +109,7 @@ export default function SignupForm({ initialRedirect }: SignupFormProps) {
           </Link>
           <h1 className="mt-4 text-2xl font-bold">Create an account</h1>
           <p className="text-sm text-muted-foreground">
-            Join AI Market Cap to track, compare, and discuss AI models
+            Track models, use market data, and prepare deployments
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

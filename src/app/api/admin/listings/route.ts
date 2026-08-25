@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, is_banned")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) {
+    if (!profile?.is_admin || profile.is_banned === true) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -63,7 +63,13 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * PAGE_SIZE;
     query = query.range(from, from + PAGE_SIZE - 1);
 
-    const { data: rawData, count } = await query;
+    const { data: rawData, count, error: listingsError } = await query;
+    if (listingsError) {
+      return NextResponse.json(
+        { error: "Could not load marketplace listings." },
+        { status: 500 }
+      );
+    }
 
     // Enrich with seller profiles
     let enrichedData = rawData ?? [];
@@ -71,10 +77,16 @@ export async function GET(request: NextRequest) {
       const sellerIds = [...new Set(enrichedData.map((l) => l.seller_id).filter(Boolean))];
       const listingIds = enrichedData.map((listing) => listing.id);
       if (sellerIds.length > 0) {
-        const { data: profiles } = await admin
+        const { data: profiles, error: profilesError } = await admin
           .from("profiles")
           .select("id, display_name, username")
           .in("id", sellerIds);
+        if (profilesError) {
+          return NextResponse.json(
+            { error: "Could not load listing sellers." },
+            { status: 500 }
+          );
+        }
         const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
         enrichedData = enrichedData.map((l) => ({
           ...l,
@@ -82,13 +94,19 @@ export async function GET(request: NextRequest) {
         }));
       }
 
-      const { data: policyReviews } = await admin
+      const { data: policyReviews, error: policyReviewsError } = await admin
         .from("listing_policy_reviews")
         .select(
           "listing_id, decision, classifier_label, review_status, created_at, content_risk_level, autonomy_risk_level, purchase_mode, autonomy_mode, reason_codes"
         )
         .in("listing_id", listingIds)
         .order("created_at", { ascending: false });
+      if (policyReviewsError) {
+        return NextResponse.json(
+          { error: "Could not load listing policy reviews." },
+          { status: 500 }
+        );
+      }
 
       const reviewMap = new Map<
         string,

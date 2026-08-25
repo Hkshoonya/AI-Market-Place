@@ -7,6 +7,7 @@ import {
   Activity,
   BarChart3,
   Building2,
+  Gauge,
   LayoutDashboard,
   LogIn,
   Menu,
@@ -177,6 +178,9 @@ export function Header() {
                     <DropdownMenuLabel>Workspace and account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
+                      <Link href="/dashboard">Account Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/deployments">View Deployments</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -251,6 +255,19 @@ export function Header() {
                 {user && (
                   <>
                     <div className="my-4 border-t border-border" />
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/dashboard"
+                          ? "bg-neon/10 text-neon"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <Gauge className="h-5 w-5" />
+                      Account Dashboard
+                    </Link>
                     <Link
                       href="/workspace"
                       onClick={() => setMobileOpen(false)}

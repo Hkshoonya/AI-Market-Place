@@ -2,30 +2,44 @@
 
 import {
   Activity,
+  AlertTriangle,
   Box,
+  CircleDollarSign,
   Download,
+  KeyRound,
+  MousePointerClick,
+  PlugZap,
+  Rocket,
   ShoppingBag,
   TrendingUp,
   Users,
 } from "lucide-react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { formatNumber } from "@/lib/format";
-import type { Model } from "@/types/database";
 
-interface AdminStats {
-  totalModels: number;
-  activeModels: number;
-  totalUsers: number;
-  totalListings: number;
-  activeListings: number;
-  totalOrders: number;
-  totalViews: number;
-  totalDownloads: number;
+interface AdminOverviewResponse {
+  stats: {
+    totalModels: number;
+    activeModels: number;
+    totalUsers: number;
+    totalListings: number;
+    activeListings: number;
+    totalOrders: number;
+    totalDownloads: number;
+  };
+  activation: {
+    activeApiKeys: number;
+    activeProviderConnections: number;
+    readyDeployments: number;
+    paidDataCustomers: number;
+    dataRequestsThisMonth: number;
+    affiliateClicks30d: number;
+  };
   recentModels: { name: string; provider: string; slug: string; created_at: string }[];
-  recentUsers: { display_name: string | null; email: string | null; joined_at: string | null }[];
+  recentUsers: { id: string; display_name: string | null; email: string | null; joined_at: string | null }[];
 }
 
 interface AdminContactSubmission {
@@ -64,81 +78,29 @@ interface AdminCronOverviewResponse {
 }
 
 export default function AdminOverviewPage() {
-  const { data: stats, isLoading, error, mutate } = useSWR<AdminStats>(
-    'supabase:admin-overview',
-    async () => {
-      const supabase = createClient();
-
-      const [
-        { count: totalModels },
-        { count: activeModels },
-        { count: totalUsers },
-        { count: totalListings },
-        { count: activeListings },
-        { count: totalOrders },
-        { data: modelsAgg, error: modelsAggError },
-        { data: recentModels, error: recentModelsError },
-        { data: recentUsers, error: recentUsersError },
-      ] = await Promise.all([
-        supabase.from("models").select("*", { count: "exact", head: true }),
-        supabase.from("models").select("*", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("marketplace_listings").select("*", { count: "exact", head: true }),
-        supabase.from("marketplace_listings").select("*", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("marketplace_orders").select("*", { count: "exact", head: true }),
-        supabase.from("models").select("hf_downloads").eq("status", "active"),
-        supabase.from("models").select("name, provider, slug, created_at").order("created_at", { ascending: false }).limit(5),
-        supabase.from("profiles").select("display_name, email, joined_at").order("joined_at", { ascending: false }).limit(5),
-      ]);
-
-      if (modelsAggError) throw modelsAggError;
-      if (recentModelsError) throw recentModelsError;
-      if (recentUsersError) throw recentUsersError;
-
-      const totalDownloads = (modelsAgg ?? []).reduce(
-        (sum: number, m: Pick<Model, "hf_downloads">) => sum + (Number(m.hf_downloads) || 0),
-        0
-      );
-
-      return {
-        totalModels: totalModels ?? 0,
-        activeModels: activeModels ?? 0,
-        totalUsers: totalUsers ?? 0,
-        totalListings: totalListings ?? 0,
-        activeListings: activeListings ?? 0,
-        totalOrders: totalOrders ?? 0,
-        totalViews: 0,
-        totalDownloads,
-        recentModels: (recentModels ?? []) as AdminStats["recentModels"],
-        recentUsers: (recentUsers ?? []) as AdminStats["recentUsers"],
-      };
-    },
+  const { data: overview, isLoading, error, mutate } = useSWR<AdminOverviewResponse>(
+    "/api/admin/overview",
+    jsonFetcher<AdminOverviewResponse>,
     { ...SWR_TIERS.SLOW }
   );
-  const { data: inquiryResponse } = useSWR<AdminContactSubmissionsResponse>(
+  const {
+    data: inquiryResponse,
+    error: inquiryError,
+    mutate: mutateInquiries,
+  } = useSWR<AdminContactSubmissionsResponse>(
     "/api/admin/contact-submissions?limit=5",
-    async (key: string) => {
-      const response = await fetch(key);
-      if (!response.ok) {
-        throw new Error("Failed to load contact submissions");
-      }
-
-      return response.json() as Promise<AdminContactSubmissionsResponse>;
-    },
+    jsonFetcher<AdminContactSubmissionsResponse>,
     { ...SWR_TIERS.MEDIUM }
   );
 
   const recentInquiries = inquiryResponse?.data ?? [];
-  const { data: cronOverview } = useSWR<AdminCronOverviewResponse>(
+  const {
+    data: cronOverview,
+    error: cronError,
+    mutate: mutateCron,
+  } = useSWR<AdminCronOverviewResponse>(
     "/api/admin/cron",
-    async (key: string) => {
-      const response = await fetch(key, { credentials: "include" });
-      if (!response.ok) {
-        throw new Error("Failed to load cron health");
-      }
-
-      return response.json() as Promise<AdminCronOverviewResponse>;
-    },
+    jsonFetcher<AdminCronOverviewResponse>,
     { ...SWR_TIERS.MEDIUM }
   );
   const recentFailingRuns = cronOverview?.recentFailingRuns ?? [];
@@ -175,7 +137,7 @@ export default function AdminOverviewPage() {
     );
   }
 
-  if (!stats) {
+  if (!overview) {
     return (
       <Card className="border-border/50 bg-card">
         <CardHeader>
@@ -190,6 +152,7 @@ export default function AdminOverviewPage() {
     );
   }
 
+  const { stats } = overview;
   const statCards = [
     { label: "Total Models", value: stats.totalModels, sub: `${stats.activeModels} active`, icon: Box, color: "#00d4aa" },
     { label: "Total Users", value: stats.totalUsers, sub: "registered", icon: Users, color: "#f59e0b" },
@@ -197,9 +160,71 @@ export default function AdminOverviewPage() {
     { label: "Total Orders", value: stats.totalOrders, sub: "inquiries", icon: Activity, color: "#6366f1" },
     { label: "Total Downloads", value: formatNumber(stats.totalDownloads), sub: "across all models", icon: Download, color: "#06b6d4" },
   ];
+  const activationCards = [
+    {
+      label: "Active API keys",
+      value: overview.activation.activeApiKeys,
+      icon: KeyRound,
+    },
+    {
+      label: "Provider connections",
+      value: overview.activation.activeProviderConnections,
+      icon: PlugZap,
+    },
+    {
+      label: "Ready deployments",
+      value: overview.activation.readyDeployments,
+      icon: Rocket,
+    },
+    {
+      label: "Paid data customers",
+      value: overview.activation.paidDataCustomers,
+      icon: CircleDollarSign,
+    },
+    {
+      label: "Data requests this month",
+      value: overview.activation.dataRequestsThisMonth,
+      icon: Activity,
+    },
+    {
+      label: "Affiliate clicks (30d)",
+      value: overview.activation.affiliateClicks30d,
+      icon: MousePointerClick,
+    },
+  ];
 
   return (
     <div className="space-y-8">
+      {(inquiryError || cronError) && (
+        <Card role="alert" className="border-amber-400/30 bg-amber-400/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div>
+                <p className="text-sm font-medium">Some operational panels are unavailable</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {inquiryError instanceof Error
+                    ? `Marketplace inquiries: ${inquiryError.message}`
+                    : cronError instanceof Error
+                      ? `Cron health: ${cronError.message}`
+                      : "An operational request failed."}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void mutateInquiries();
+                void mutateCron();
+              }}
+              className="inline-flex w-fit rounded-lg border border-border/60 px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary"
+            >
+              Retry panels
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map((stat) => (
@@ -225,6 +250,36 @@ export default function AdminOverviewPage() {
         ))}
       </div>
 
+      <Card className="overflow-hidden border-border/50 bg-gradient-to-br from-card via-card to-neon/[0.04]">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CircleDollarSign className="h-5 w-5 text-neon" />
+            Activation and revenue signals
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            These are the actions that move registered users toward recurring or affiliate revenue.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {activationCards.map((signal) => (
+              <div
+                key={signal.label}
+                className="rounded-xl border border-border/50 bg-background/40 p-4"
+              >
+                <signal.icon className="h-4 w-4 text-neon" />
+                <p className="mt-4 text-2xl font-semibold tabular-nums">
+                  {formatNumber(signal.value)}
+                </p>
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                  {signal.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Recent activity */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Recent models */}
@@ -237,8 +292,8 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stats.recentModels.map((m, i) => (
-                <div key={i} className="flex items-center justify-between text-sm">
+              {overview.recentModels.map((m) => (
+                <div key={m.slug} className="flex items-center justify-between text-sm">
                   <div>
                     <span className="font-medium">{m.name}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{m.provider}</span>
@@ -262,8 +317,8 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stats.recentUsers.map((u, i) => (
-                <div key={i} className="flex items-center justify-between text-sm">
+              {overview.recentUsers.map((u) => (
+                <div key={u.id} className="flex items-center justify-between text-sm">
                   <span className="font-medium">
                     {u.display_name || u.email || "Unknown user"}
                   </span>

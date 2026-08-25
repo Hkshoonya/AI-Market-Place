@@ -477,27 +477,27 @@ export default function ProfileContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Complete the core setup once so your account is ready for marketplace purchases,
-              API access, and seller payouts.
+              Use the account dashboard to move from model research into API access and a
+              provider-connected deployment.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <Button variant="outline" size="sm" asChild>
-                <Link href="/wallet">1. Create Wallet</Link>
+                <Link href="/dashboard">1. Open Dashboard</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/settings/api-keys">2. Create API Keys</Link>
+                <Link href="/models">2. Track a Model</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/marketplace">3. Fund and Purchase</Link>
+                <Link href="/settings/api-keys">3. Create an API Key</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/sell" prefetch={false}>4. Enable Seller Flow</Link>
+                <Link href="/settings/providers">4. Connect a Provider</Link>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Wallet deposits and withdrawals use USDC. API keys are one-time reveal only, so
-              copy them when you create them. On-chain deposits are detected automatically on a
-              short cron cadence, so new wallet funding may take a few minutes to appear.
+              API keys are revealed once, so store a new key when it is created. Paid data
+              upgrades remain pilot access until checkout is enabled; the current dashboard does
+              not ask you to fund a wallet first.
             </p>
           </CardContent>
         </Card>

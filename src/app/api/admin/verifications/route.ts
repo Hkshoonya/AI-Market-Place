@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
     // Check admin
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, is_banned")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) {
+    if (!profile?.is_admin || profile.is_banned === true) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -110,11 +110,11 @@ export async function PATCH(request: NextRequest) {
     // Check admin
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, is_banned")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) {
+    if (!profile?.is_admin || profile.is_banned === true) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

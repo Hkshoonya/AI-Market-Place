@@ -17,10 +17,8 @@ import {
 } from "@/components/ui/select";
 import { LISTING_TYPES, PRICING_TYPE_LABELS } from "@/lib/constants/marketplace";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { parseQueryResultSingle } from "@/lib/schemas/parse";
-import { MarketplaceListingSchema } from "@/lib/schemas/marketplace";
 import { SWR_TIERS } from "@/lib/swr/config";
+import { jsonFetcher } from "@/lib/swr/fetcher";
 import { toast } from "sonner";
 import { use } from "react";
 import type { MarketplaceListingType } from "@/lib/schemas/marketplace";
@@ -60,18 +58,11 @@ export default function AdminEditListingPage({
   const [status, setStatus] = useState<StatusType>("active");
   const [isFeatured, setIsFeatured] = useState(false);
 
-  // SWR for listing data with inline Supabase fetcher
   const { data: listing, error: loadError, isLoading: loading } = useSWR<MarketplaceListingType | null>(
-    `supabase:admin-edit-listing:${slug}`,
-    async () => {
-      const supabase = createClient();
-      const listingResponse = await supabase
-        .from("marketplace_listings")
-        .select("*")
-        .eq("slug", slug)
-        .single();
-
-      return parseQueryResultSingle(listingResponse, MarketplaceListingSchema, "AdminEditListing");
+    `/api/marketplace/listings/${encodeURIComponent(slug)}?admin=true`,
+    async (url) => {
+      const response = await jsonFetcher<{ data: MarketplaceListingType }>(url);
+      return response.data;
     },
     { ...SWR_TIERS.SLOW }
   );

@@ -23,7 +23,9 @@ export default function LoginForm({
   initialRedirect,
   hasAuthError = false,
 }: LoginFormProps) {
-  const redirectTo = sanitizeAuthRedirect(initialRedirect);
+  const redirectTo = initialRedirect
+    ? sanitizeAuthRedirect(initialRedirect)
+    : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -99,7 +101,7 @@ export default function LoginForm({
           </Link>
           <h1 className="mt-4 text-2xl font-bold">Welcome back</h1>
           <p className="text-sm text-muted-foreground">
-            Sign in to your AI Market Cap account
+            Continue to your models, API access, and deployments
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { SWR_TIERS } from "@/lib/swr/config";
 import {
@@ -161,6 +162,7 @@ function formatAccessiblePrice(value: number | null): string {
 }
 
 export default function QualityPriceFrontier() {
+  const router = useRouter();
   const [logScale, setLogScale] = useState(false);
   const { filters, setFilters } = useChartFilters();
 
@@ -225,7 +227,7 @@ export default function QualityPriceFrontier() {
 
   const handleDotClick = (entry: QualityPriceDataPoint) => {
     if (entry?.slug) {
-      window.location.href = `/models/${entry.slug}`;
+      router.push(`/models/${entry.slug}`);
     }
   };
 

@@ -17,7 +17,7 @@ describe("compare opengraph image", () => {
   it("exports the expected metadata and image dimensions", async () => {
     const ogImageModule = await import("./opengraph-image");
 
-    expect(ogImageModule.runtime).toBe("edge");
+    expect(ogImageModule.runtime).toBe("nodejs");
     expect(ogImageModule.alt).toBe("Compare AI Models");
     expect(ogImageModule.contentType).toBe("image/png");
     expect(ogImageModule.size).toEqual({ width: 1200, height: 630 });
