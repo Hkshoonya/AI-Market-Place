@@ -401,7 +401,14 @@ interface SyncJobRow {
   source_slug: string;
   records_processed: number | null;
   created_at: string;
-  status: "success" | "partial" | "failed" | null;
+  status:
+    | "pending"
+    | "running"
+    | "completed"
+    | "success"
+    | "partial"
+    | "failed"
+    | null;
   error_message?: string | null;
   metadata?: Record<string, unknown> | null;
 }
@@ -460,8 +467,18 @@ function getArrayCount(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
 
+export function normalizeSyncJobStatus(
+  status: SyncJobRow["status"]
+): SyncDiagnostics["lastSyncStatus"] {
+  if (status === "completed" || status === "success") return "success";
+  if (status === "partial") return "partial";
+  if (status === "failed") return "failed";
+  return null;
+}
+
 function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
   const metadata = job?.metadata ?? null;
+  const lastSyncStatus = normalizeSyncJobStatus(job?.status ?? null);
   const matchRateScope = typeof metadata?.matchRateScope === "string"
     ? metadata.matchRateScope
     : null;
@@ -498,8 +515,8 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
   );
 
   let diagnosticPenalty = 0;
-  if (job?.status === "failed") diagnosticPenalty += 35;
-  else if (job?.status === "partial") diagnosticPenalty += 15;
+  if (lastSyncStatus === "failed") diagnosticPenalty += 35;
+  else if (lastSyncStatus === "partial") diagnosticPenalty += 15;
 
   if (job?.error_message) diagnosticPenalty += 10;
 
@@ -514,8 +531,8 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
   diagnosticPenalty = Math.min(45, diagnosticPenalty);
 
   let issueSummary: string | null = null;
-  if (job?.status === "failed") {
-    issueSummary = job.error_message ?? "Latest sync failed";
+  if (lastSyncStatus === "failed") {
+    issueSummary = job?.error_message ?? "Latest sync failed";
   } else if (matchRate !== null && matchRate < 15) {
     issueSummary = `Low match rate: ${matchRate.toFixed(1)}%`;
   } else if (structuralWarnings > 0) {
@@ -530,7 +547,7 @@ function extractSyncDiagnostics(job?: SyncJobRow): SyncDiagnostics {
     optionalSkipCount,
     knownCatalogGapCount,
     unmatchedModelCount,
-    lastSyncStatus: job?.status ?? null,
+    lastSyncStatus,
     diagnosticPenalty,
     issueSummary,
   };
@@ -698,9 +715,12 @@ export async function verifyDataIntegrity(
   // Build map: slug -> last 2 jobs
   const syncJobsBySlug = new Map<string, SyncJobRow[]>();
   for (const job of rawSyncJobs ?? []) {
+    const typedJob = job as SyncJobRow;
+    if (!normalizeSyncJobStatus(typedJob.status)) continue;
+
     const existing = syncJobsBySlug.get(job.source_slug) ?? [];
     if (existing.length < 2) {
-      existing.push(job as SyncJobRow);
+      existing.push(typedJob);
       syncJobsBySlug.set(job.source_slug, existing);
     }
   }

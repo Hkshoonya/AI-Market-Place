@@ -17,6 +17,7 @@ import {
   computeCompleteness,
   computeFreshness,
   computeTrend,
+  normalizeSyncJobStatus,
   TABLE_MAP,
   verifyDataIntegrity,
 } from "./data-integrity";
@@ -189,6 +190,21 @@ describe("computeTrend", () => {
   it("clamps minimum to 0 (never negative)", () => {
     const result = computeTrend(0, 100);
     expect(result).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("normalizeSyncJobStatus", () => {
+  it("maps persisted terminal statuses to the API vocabulary", () => {
+    expect(normalizeSyncJobStatus("completed")).toBe("success");
+    expect(normalizeSyncJobStatus("success")).toBe("success");
+    expect(normalizeSyncJobStatus("partial")).toBe("partial");
+    expect(normalizeSyncJobStatus("failed")).toBe("failed");
+  });
+
+  it("does not present in-flight jobs as completed diagnostics", () => {
+    expect(normalizeSyncJobStatus("pending")).toBeNull();
+    expect(normalizeSyncJobStatus("running")).toBeNull();
+    expect(normalizeSyncJobStatus(null)).toBeNull();
   });
 });
 
@@ -558,6 +574,28 @@ describe("verifyDataIntegrity", () => {
 
     expect(report.qualityScores).toHaveLength(1);
     expect(report.qualityScores[0].slug).toBe("openrouter-models");
+  });
+
+  it("reports completed database jobs as successful syncs", async () => {
+    const supabase = makeMockSupabase({
+      syncJobs: [
+        {
+          source_slug: "openrouter-models",
+          records_processed: 200,
+          created_at: syncedAgo(3),
+          status: "running",
+        },
+        {
+          source_slug: "openrouter-models",
+          records_processed: 190,
+          created_at: syncedAgo(4),
+          status: "completed",
+        },
+      ],
+    });
+    const report = await verifyDataIntegrity(supabase as never);
+
+    expect(report.qualityScores[0].lastSyncStatus).toBe("success");
   });
 
   it("quality score has all required fields", async () => {
