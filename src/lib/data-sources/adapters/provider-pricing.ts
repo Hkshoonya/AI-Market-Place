@@ -139,6 +139,8 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
 
   // ─── Anthropic — Claude 4.x / 5.x ────────────────────────────
   "claude-fable-5": { provider: "Anthropic", inputPricePerMillion: 10.00, outputPricePerMillion: 50.00, source: "platform.claude.com/docs/en/about-claude/pricing", lastUpdated: "2026-06-23" },
+  "claude-opus-5": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "platform.claude.com/docs/en/about-claude/models/overview", lastUpdated: "2026-07-24" },
+  "claude-sonnet-5": { provider: "Anthropic", inputPricePerMillion: 2.00, outputPricePerMillion: 10.00, source: "platform.claude.com/docs/en/about-claude/models/overview", lastUpdated: "2026-08-10" },
   "claude-4-opus": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-4-sonnet": { provider: "Anthropic", inputPricePerMillion: 3.00, outputPricePerMillion: 15.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
   "claude-opus-4": { provider: "Anthropic", inputPricePerMillion: 15.00, outputPricePerMillion: 75.00, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },

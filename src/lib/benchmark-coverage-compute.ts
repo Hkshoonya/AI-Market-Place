@@ -2,6 +2,10 @@ import { getCanonicalProviderName } from "./constants/providers";
 import { isBenchmarkMetadataCoverageCandidate } from "./benchmark-metadata-coverage-compute";
 import { OFFICIAL_PROVIDERS } from "./models/public-source-trust";
 import { getTrustedStructuredBenchmarkModelIds } from "./models/benchmark-score-trust";
+import {
+  buildPublicPriorityModelCohort,
+  type PublicPriorityModelCandidate,
+} from "./models/public-priority-cohort";
 import type { TypedSupabaseClient } from "@/types/database";
 
 type ProviderCoverage = {
@@ -23,10 +27,7 @@ type SparseCoverageEntry = {
 const PAGE_SIZE = 1000;
 const RECENT_RELEASE_CUTOFF = Date.parse("2025-12-01T00:00:00.000Z");
 
-type ModelCoverageRow = {
-  id: string;
-  slug: string;
-  provider: string;
+type ModelCoverageRow = PublicPriorityModelCandidate & {
   category: string | null;
   hf_model_id: string | null;
   website_url: string | null;
@@ -76,7 +77,9 @@ export async function computeBenchmarkCoverage(
     fetchAllRows<ModelCoverageRow>(async (from, to) => {
       const query = supabase
         .from("models")
-        .select("id, slug, provider, category, hf_model_id, website_url, release_date")
+        .select(
+          "id, slug, name, provider, category, architecture, hf_model_id, website_url, release_date, is_api_available, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
+        )
         .eq("status", "active");
       const { data, error } = await orderBy(query, "id").range(from, to);
 
@@ -126,7 +129,14 @@ export async function computeBenchmarkCoverage(
     string,
     { total: number; scored: number; evidenced: number; covered: number }
   >();
+  const priorityModels = buildPublicPriorityModelCohort(models);
+  const priorityBenchmarkModelIds = new Set(
+    priorityModels
+      .filter((model) => isBenchmarkMetadataCoverageCandidate(model))
+      .map((model) => model.id)
+  );
   const recentSparseBenchmarkExpectedOfficial: SparseCoverageEntry[] = [];
+  const rawRecentSparseBenchmarkExpectedOfficial: SparseCoverageEntry[] = [];
 
   for (const model of models) {
     const provider = getCanonicalProviderName(model.provider ?? "Unknown");
@@ -151,12 +161,16 @@ export async function computeBenchmarkCoverage(
       Date.parse(model.release_date) >= RECENT_RELEASE_CUTOFF &&
       isBenchmarkMetadataCoverageCandidate(model)
     ) {
-      recentSparseBenchmarkExpectedOfficial.push({
+      const sparseEntry = {
         slug: model.slug,
         provider,
         category: model.category,
         release_date: model.release_date,
-      });
+      };
+      rawRecentSparseBenchmarkExpectedOfficial.push(sparseEntry);
+      if (priorityBenchmarkModelIds.has(model.id)) {
+        recentSparseBenchmarkExpectedOfficial.push(sparseEntry);
+      }
     }
 
     providerStats.set(provider, stats);
@@ -196,11 +210,25 @@ export async function computeBenchmarkCoverage(
       ),
     },
     official_providers: officialProviders,
+    priority_models: priorityModels.length,
+    priority_benchmark_expected_models: priorityBenchmarkModelIds.size,
+    recent_sparse_benchmark_expected_official_count:
+      recentSparseBenchmarkExpectedOfficial.length,
     recent_sparse_benchmark_expected_official: recentSparseBenchmarkExpectedOfficial
       .sort(
         (left, right) =>
           Date.parse(right.release_date ?? "0") - Date.parse(left.release_date ?? "0")
       )
       .slice(0, 40),
+    raw_recent_sparse_benchmark_expected_official_count:
+      rawRecentSparseBenchmarkExpectedOfficial.length,
+    raw_recent_sparse_benchmark_expected_official:
+      rawRecentSparseBenchmarkExpectedOfficial
+        .sort(
+          (left, right) =>
+            Date.parse(right.release_date ?? "0") -
+            Date.parse(left.release_date ?? "0")
+        )
+        .slice(0, 40),
   };
 }

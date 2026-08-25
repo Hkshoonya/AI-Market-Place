@@ -264,5 +264,36 @@ describe("benchmark coverage helpers", () => {
         hf_model_id: null,
       })
     ).toBe("https://huggingface.co/ByteDance-Seed/UI-TARS-1.5-7B");
+
+    expect(
+      getTrustedBenchmarkHfUrl({
+        slug: "meta-muse-glimmer-30b",
+        provider: "Meta",
+        category: "multimodal",
+        hf_model_id: null,
+      })
+    ).toBe("https://huggingface.co/meta-models/Muse-Glimmer-30B");
+  });
+
+  it("infers exact official benchmark pages for source-backed model families", () => {
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "meta-muse-spark-1-2",
+        provider: "Meta",
+        category: "multimodal",
+        website_url: null,
+      })
+    ).toBe(
+      "https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2"
+    );
+
+    expect(
+      getTrustedBenchmarkWebsiteUrl({
+        slug: "mistralai-ministral-8b",
+        provider: "Mistral AI",
+        category: "llm",
+        website_url: null,
+      })
+    ).toBe("https://mistral.ai/news/ministraux/");
   });
 });

@@ -14,7 +14,7 @@ const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
   Bytedance: ["ByteDance-Seed"],
   DeepSeek: ["deepseek-ai"],
   Google: ["google"],
-  Meta: ["meta-llama"],
+  Meta: ["meta-llama", "meta-models"],
   "Mistral AI": ["mistralai"],
   Cohere: ["CohereLabs"],
   Microsoft: ["microsoft"],
@@ -30,7 +30,7 @@ const TRUSTED_BENCHMARK_WEBSITE_HOSTS: Record<string, string[]> = {
   Anthropic: ["anthropic.com"],
   Google: ["ai.google.dev", "blog.google", "cloud.google.com", "deepmind.google"],
   xAI: ["x.ai", "docs.x.ai", "data.x.ai"],
-  Meta: ["ai.meta.com", "llama.com", "meta.com"],
+  Meta: ["ai.meta.com", "research.meta.ai", "llama.com", "meta.com"],
   "Mistral AI": ["mistral.ai", "docs.mistral.ai"],
   Qwen: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
   Alibaba: ["qwen.ai", "qwenlm.github.io", "alibabacloud.com"],
@@ -66,6 +66,10 @@ function inferTrustedBenchmarkHfModelId(
 
   if (provider === "Bytedance" && slug.includes("ui-tars-1-5-7b")) {
     return "ByteDance-Seed/UI-TARS-1.5-7B";
+  }
+
+  if (provider === "Meta" && slug === "meta-muse-glimmer-30b") {
+    return "meta-models/Muse-Glimmer-30B";
   }
 
   return null;
@@ -126,8 +130,13 @@ function inferTrustedBenchmarkWebsiteCandidate(
     return "https://docs.z.ai/guides/llm";
   }
 
-  if (provider === "Mistral AI" && text.includes("saba")) {
-    return "https://mistral.ai/news/mistral-saba/";
+  if (provider === "Mistral AI") {
+    if (slug === "mistralai-ministral-8b") {
+      return "https://mistral.ai/news/ministraux/";
+    }
+    if (text.includes("saba")) {
+      return "https://mistral.ai/news/mistral-saba/";
+    }
   }
 
   if (provider === "NVIDIA") {
@@ -147,8 +156,16 @@ function inferTrustedBenchmarkWebsiteCandidate(
     }
   }
 
-  if (provider === "Meta" && text.includes("llama")) {
-    return "https://www.llama.com/";
+  if (provider === "Meta") {
+    if (slug.includes("muse-spark-1-2")) {
+      return "https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2";
+    }
+    if (slug === "meta-muse-glimmer-30b") {
+      return "https://research.meta.ai/blog/introducing-muse-glimmer-open-agentic-model";
+    }
+    if (text.includes("llama")) {
+      return "https://www.llama.com/";
+    }
   }
 
   return null;

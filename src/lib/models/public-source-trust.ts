@@ -65,6 +65,7 @@ export function isWrapperVariantSlug(slug: string | null | undefined) {
   return (
     /(?:^|-)latest$/i.test(String(slug ?? "")) ||
     /(?:^|-)(?:preview|exp|experimental)(?:-|$)/i.test(String(slug ?? "")) ||
+    /(?:^|-)contributor$/i.test(String(slug ?? "")) ||
     /(?:^|-)(?:generate|image|video)-\d{3}(?:$|-)/i.test(String(slug ?? ""))
   );
 }

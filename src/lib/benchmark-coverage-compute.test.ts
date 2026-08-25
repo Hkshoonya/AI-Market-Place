@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { computeBenchmarkCoverage } from "./benchmark-coverage-compute";
 
+function withPublicMetadata(row: Record<string, unknown>) {
+  return {
+    name: String(row.slug ?? "Test model"),
+    context_window: 128000,
+    is_open_weights: false,
+    is_api_available: true,
+    overall_rank: 10,
+    quality_score: 80,
+    ...row,
+  };
+}
+
 function createMockSupabase({
   models,
   scores = [],
@@ -16,7 +28,13 @@ function createMockSupabase({
         if (table === "models") {
           return {
             eq: () => ({
-              range: () => Promise.resolve({ data: models, error: null }),
+              range: () =>
+                Promise.resolve({
+                  data: models.map((row) =>
+                    withPublicMetadata(row as Record<string, unknown>)
+                  ),
+                  error: null,
+                }),
             }),
           };
         }
@@ -94,5 +112,38 @@ describe("computeBenchmarkCoverage", () => {
         release_date: "2026-02-10",
       },
     ]);
+  });
+
+  it("keeps non-public artifacts in raw diagnostics without opening an alert", async () => {
+    const supabase = createMockSupabase({
+      models: [
+        {
+          id: "ready-model",
+          slug: "openai-ready-model",
+          provider: "OpenAI",
+          category: "llm",
+          hf_model_id: null,
+          website_url: null,
+          release_date: "2026-04-01",
+        },
+        {
+          id: "incomplete-artifact",
+          slug: "openai-incomplete-artifact",
+          provider: "OpenAI",
+          category: "llm",
+          hf_model_id: null,
+          website_url: null,
+          release_date: "2026-04-02",
+          context_window: null,
+        },
+      ],
+    });
+
+    const coverage = await computeBenchmarkCoverage(supabase as never);
+
+    expect(coverage.recent_sparse_benchmark_expected_official).toHaveLength(1);
+    expect(
+      coverage.raw_recent_sparse_benchmark_expected_official
+    ).toHaveLength(2);
   });
 });

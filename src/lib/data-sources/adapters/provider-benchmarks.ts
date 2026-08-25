@@ -33,6 +33,7 @@ interface ProviderBenchmarkSource {
   modelHints: string[];
   publishedAtHint?: string;
   contentType?: "html" | "pdf";
+  pdfPages?: number[];
   sourceType?: "official_provider_page" | "official_model_card";
   requiresBenchmarkSignal?: boolean;
   strictModelHints?: boolean;
@@ -166,7 +167,19 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "terminal-bench",
-    labels: ["terminal-bench 2.0", "terminal-bench", "terminalbench 2.0", "terminalbench"],
+    labels: [
+      "terminal-bench 2.1",
+      "terminal-bench 2.0",
+      "terminal-bench",
+      "terminalbench 2.1",
+      "terminalbench 2.0",
+      "terminalbench",
+    ],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "browsecomp",
+    labels: ["browsecomp"],
     type: "percentage",
   },
   {
@@ -271,7 +284,15 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
   },
   {
     benchmarkSlug: "os-world",
-    labels: ["osworld-verified", "os-world-verified", "os-world", "os world", "osworld"],
+    labels: [
+      "osworld-verified",
+      "os-world-verified",
+      "osworld 2.0",
+      "os-world 2.0",
+      "os-world",
+      "os world",
+      "osworld",
+    ],
     type: "percentage",
   },
   {
@@ -463,13 +484,30 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Claude Opus 4.8", "claude-opus-4-8"],
   },
   {
+    id: "anthropic-claude-opus-5",
+    provider: "Anthropic",
+    url: "https://www.anthropic.com/claude-opus-5-system-card",
+    titleHint: "Claude Opus 5 benchmark update",
+    modelHints: ["Claude Opus 5", "claude-opus-5"],
+    publishedAtHint: "2026-07-24T00:00:00.000Z",
+    contentType: "pdf",
+    pdfPages: [1, 152, 153, 162, 177],
+    sourceType: "official_model_card",
+    requiresBenchmarkSignal: true,
+    strictModelHints: true,
+  },
+  {
     id: "anthropic-claude-sonnet-5",
     provider: "Anthropic",
-    url: "https://www.anthropic.com/news/claude-sonnet-5",
+    url: "https://www.anthropic.com/claude-sonnet-5-system-card",
     titleHint: "Claude Sonnet 5 benchmark update",
     modelHints: ["Claude Sonnet 5", "claude-sonnet-5"],
     publishedAtHint: "2026-06-30T00:00:00.000Z",
+    contentType: "pdf",
+    pdfPages: [1, 115, 116, 117, 118, 123, 126],
+    sourceType: "official_model_card",
     requiresBenchmarkSignal: true,
+    strictModelHints: true,
   },
   {
     id: "anthropic-claude-fable-5-mythos-5",
@@ -1455,6 +1493,58 @@ function extractTableCellScore(
   return numericValue;
 }
 
+function extractStructuredBenchmarkScoresFromTextTableRows(text: string) {
+  if (!text) return [];
+
+  const extracted = new Map<string, ExtractedProviderBenchmarkScore>();
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) =>
+      decodeHtml(line)
+        .replace(/[\u200b-\u200d\u2060\ufeff]/g, "")
+        .trim()
+    )
+    .filter(Boolean);
+
+  for (const line of lines) {
+    for (const rule of BENCHMARK_EXTRACTION_RULES) {
+      const labels = [...rule.labels].sort(
+        (left, right) => right.length - left.length
+      );
+      const matchedLabel = labels.find((label) =>
+        new RegExp(
+          `^${escapeRegExp(label).replace(/\s+/g, "\\s+")}`,
+          "i"
+        ).test(line)
+      );
+      if (!matchedLabel) continue;
+
+      const pattern = new RegExp(
+        `^${escapeRegExp(matchedLabel).replace(/\s+/g, "\\s+")}(?:\\d{1,2})?\\s+(\\d{1,4}(?:\\.\\d+)?)\\b`,
+        "i"
+      );
+      const match = pattern.exec(line);
+      if (!match) continue;
+
+      const numericValue = extractTableCellScore(match[1] ?? "", rule.type);
+      if (numericValue === null) continue;
+
+      recordStructuredBenchmarkScore(
+        extracted,
+        line,
+        rule.benchmarkSlug,
+        rule.type,
+        numericValue,
+        0,
+        line.length,
+        line
+      );
+    }
+  }
+
+  return [...extracted.values()];
+}
+
 async function extractStructuredBenchmarkScoresFromHtmlTables(
   source: ProviderBenchmarkSource,
   html: string
@@ -1591,7 +1681,11 @@ async function parseProviderSourceContent(
       const pdfBytes = new Uint8Array(await response.arrayBuffer());
       const parser = new PDFParse({ data: pdfBytes });
       try {
-        const textResult = await parser.getText({ first: 3 });
+        const textResult = await parser.getText(
+          source.pdfPages?.length
+            ? { partial: source.pdfPages }
+            : { first: 3 }
+        );
         const rawText = textResult.text.trim();
         const title = extractPdfTitle(rawText) ?? source.titleHint;
         return {
@@ -2061,7 +2155,11 @@ const adapter: DataSourceAdapter = {
                   parsedContent.html
                 )
               : []),
-            ...extractStructuredBenchmarkScores(parsedContent.text),
+            ...(source.pdfPages?.length
+              ? extractStructuredBenchmarkScoresFromTextTableRows(
+                  parsedContent.text
+                )
+              : extractStructuredBenchmarkScores(parsedContent.text)),
           ])
         : [];
 
@@ -2244,6 +2342,7 @@ export const __testables = {
   getProviderFetchUrl,
   resolveSuccessfulProviderContent,
   extractStructuredBenchmarkScores,
+  extractStructuredBenchmarkScoresFromTextTableRows,
   extractStructuredBenchmarkScoresFromHuggingFaceEvalResults,
   extractStructuredBenchmarkScoresFromHtmlTables,
   hasSingleStructuredTargetHint,

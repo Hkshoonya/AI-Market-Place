@@ -799,6 +799,7 @@ const verifier: ResidentAgent = {
 
               return {
                 officialGapCount:
+                  benchmarkCoverage.recent_sparse_benchmark_expected_official_count ??
                   benchmarkCoverage.recent_sparse_benchmark_expected_official.length,
                 missingTrustedLocatorCount:
                   benchmarkMetadataCoverage.missingTrustedLocatorCount,

@@ -4,6 +4,18 @@ import {
   isBenchmarkMetadataCoverageCandidate,
 } from "./benchmark-metadata-coverage-compute";
 
+function withPublicMetadata(row: Record<string, unknown>) {
+  return {
+    name: String(row.slug ?? "Test model"),
+    context_window: 128000,
+    is_open_weights: false,
+    is_api_available: true,
+    overall_rank: 10,
+    quality_score: 80,
+    ...row,
+  };
+}
+
 function createMockSupabase(rows: unknown[]) {
   return {
     from: (table: string) => ({
@@ -11,7 +23,13 @@ function createMockSupabase(rows: unknown[]) {
         if (table === "models") {
           return {
             eq: () => ({
-              range: () => Promise.resolve({ data: rows, error: null }),
+              range: () =>
+                Promise.resolve({
+                  data: rows.map((row) =>
+                    withPublicMetadata(row as Record<string, unknown>)
+                  ),
+                  error: null,
+                }),
             }),
           };
         }
@@ -143,7 +161,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
                 range: () =>
                   Promise.resolve({
                     data: [
-                      {
+                      withPublicMetadata({
                         slug: "anthropic-claude-next",
                         id: "anthropic-claude-next",
                         provider: "Anthropic",
@@ -151,7 +169,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
                         hf_model_id: null,
                         website_url: null,
                         release_date: "2026-02-10",
-                      },
+                      }),
                     ],
                     error: null,
                   }),
@@ -196,7 +214,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
                 range: () =>
                   Promise.resolve({
                     data: [
-                      {
+                      withPublicMetadata({
                         slug: "anthropic-claude-next",
                         id: "anthropic-claude-next",
                         provider: "Anthropic",
@@ -204,7 +222,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
                         hf_model_id: null,
                         website_url: null,
                         release_date: "2026-02-10",
-                      },
+                      }),
                     ],
                     error: null,
                   }),
@@ -236,5 +254,36 @@ describe("computeBenchmarkMetadataCoverage", () => {
     expect(coverage.withAnyTrustedBenchmarkLocator).toBe(0);
     expect(coverage.missingTrustedLocatorCount).toBe(1);
     expect(coverage.trustedLocatorCoveragePct).toBe(0);
+  });
+
+  it("reports raw locator debt separately from public-profile alerting", async () => {
+    const supabase = createMockSupabase([
+      {
+        id: "ready-model",
+        slug: "anthropic-ready-model",
+        provider: "Anthropic",
+        category: "llm",
+        hf_model_id: null,
+        website_url: null,
+        release_date: "2026-04-01",
+      },
+      {
+        id: "incomplete-artifact",
+        slug: "anthropic-incomplete-artifact",
+        provider: "Anthropic",
+        category: "llm",
+        hf_model_id: null,
+        website_url: null,
+        release_date: "2026-04-02",
+        context_window: null,
+      },
+    ]);
+
+    const coverage = await computeBenchmarkMetadataCoverage(supabase as never);
+
+    expect(coverage.benchmarkExpectedModels).toBe(1);
+    expect(coverage.missingTrustedLocatorCount).toBe(1);
+    expect(coverage.rawBenchmarkExpectedModels).toBe(2);
+    expect(coverage.rawMissingTrustedLocatorCount).toBe(2);
   });
 });

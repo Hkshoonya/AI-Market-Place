@@ -218,6 +218,21 @@ describe("lookupProviderPrice", () => {
     ).toMatchObject({ provider: "Anthropic" });
   });
 
+  it("uses current first-party prices for Claude 5 production models", () => {
+    expect(
+      lookupProviderPrice("anthropic-claude-opus-5", "Anthropic")
+    ).toMatchObject({
+      inputPricePerMillion: 5,
+      outputPricePerMillion: 25,
+    });
+    expect(
+      lookupProviderPrice("anthropic-claude-sonnet-5", "Anthropic")
+    ).toMatchObject({
+      inputPricePerMillion: 2,
+      outputPricePerMillion: 10,
+    });
+  });
+
   it("prefers a newer observed price only from the matching official origin", () => {
     const fallback = lookupProviderPrice(
       "openai-gpt-5-6-luna",

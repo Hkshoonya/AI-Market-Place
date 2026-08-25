@@ -29,6 +29,14 @@ Evaluations
 We evaluated Grok 4 Fast on abuse potential, coding, agent, and leaderboard-style reasoning tasks.
 `;
 
+const SAMPLE_ANTHROPIC_PDF_TABLE_TEXT = `
+SWE-bench Pro \t79.2 \t69.2 \t80 \t64.6
+Terminal-Bench 2.1 \t80.4 \t67.0 \t83.4
+BrowseComp \t90.8 \t84.3 \t87.4 \t90.4
+OSWorld 2.0 \t70.6 \t55.7 \t66.1 \t62.6
+OSWorld 2.027 is a multimodal benchmark that evaluates an agent's ability to complete tasks.
+`;
+
 const SAMPLE_SERVICE_CARD_TEXT = `
 Amazon Nova 2 Lite
 Overview of Amazon Nova 2 Lite
@@ -242,7 +250,7 @@ describe("provider-benchmarks helpers", () => {
     );
 
     expect(sources.get("anthropic-claude-sonnet-5")).toMatchObject({
-      url: "https://www.anthropic.com/news/claude-sonnet-5",
+      url: "https://www.anthropic.com/claude-sonnet-5-system-card",
       requiresBenchmarkSignal: true,
     });
     expect(sources.get("anthropic-claude-fable-5-mythos-5")).toMatchObject({
@@ -474,6 +482,24 @@ describe("provider-benchmarks helpers", () => {
           benchmarkSlug: "terminal-bench",
           score: 61.2,
         }),
+      ])
+    );
+  });
+
+  it("extracts the first model column from provider PDF table rows", () => {
+    expect(
+      __testables.extractStructuredBenchmarkScoresFromTextTableRows(
+        SAMPLE_ANTHROPIC_PDF_TABLE_TEXT
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ benchmarkSlug: "swe_bench", score: 79.2 }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 80.4,
+        }),
+        expect.objectContaining({ benchmarkSlug: "browsecomp", score: 90.8 }),
+        expect.objectContaining({ benchmarkSlug: "os-world", score: 70.6 }),
       ])
     );
   });
@@ -741,6 +767,29 @@ describe("provider-benchmarks helpers", () => {
           provider: "Anthropic",
           url: "https://www.anthropic.com/news/claude-opus-4-7",
           modelHints: ["Claude Opus 4.7"],
+        }),
+      ])
+    );
+  });
+
+  it("reads current Claude capability tables from bounded system-card pages", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "anthropic-claude-opus-5",
+          url: "https://www.anthropic.com/claude-opus-5-system-card",
+          contentType: "pdf",
+          pdfPages: [1, 152, 153, 162, 177],
+          sourceType: "official_model_card",
+          strictModelHints: true,
+        }),
+        expect.objectContaining({
+          id: "anthropic-claude-sonnet-5",
+          url: "https://www.anthropic.com/claude-sonnet-5-system-card",
+          contentType: "pdf",
+          pdfPages: [1, 115, 116, 117, 118, 123, 126],
+          sourceType: "official_model_card",
+          strictModelHints: true,
         }),
       ])
     );

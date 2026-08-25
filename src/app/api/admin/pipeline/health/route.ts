@@ -562,6 +562,7 @@ export async function GET(request: NextRequest) {
       coveredModels: benchmarkCoverage.totals.covered_models,
       activeModels: benchmarkCoverage.totals.active_models,
       officialGapCount:
+        benchmarkCoverage.recent_sparse_benchmark_expected_official_count ??
         benchmarkCoverage.recent_sparse_benchmark_expected_official.length,
       trustedLocatorCoveragePct:
         benchmarkMetadataCoverage.trustedLocatorCoveragePct,

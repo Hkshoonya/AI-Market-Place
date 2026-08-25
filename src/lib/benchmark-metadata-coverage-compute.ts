@@ -10,11 +10,15 @@ import {
   isWrapperVariantSlug,
 } from "@/lib/models/public-source-trust";
 import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
+import {
+  buildPublicPriorityModelCohort,
+  type PublicPriorityModelCandidate,
+} from "@/lib/models/public-priority-cohort";
 import type { TypedSupabaseClient } from "@/types/database";
 
 const PAGE_SIZE = 1000;
 
-export type BenchmarkMetadataCoverageModel = {
+type BenchmarkMetadataCoverageLocator = {
   id: string;
   slug: string;
   provider: string;
@@ -24,8 +28,11 @@ export type BenchmarkMetadataCoverageModel = {
   release_date: string | null;
 };
 
+export type BenchmarkMetadataCoverageModel = PublicPriorityModelCandidate &
+  BenchmarkMetadataCoverageLocator;
+
 export function isBenchmarkMetadataCoverageCandidate(
-  model: BenchmarkMetadataCoverageModel
+  model: BenchmarkMetadataCoverageLocator
 ) {
   if (!isBenchmarkExpectedModel(model)) {
     return false;
@@ -102,7 +109,7 @@ export async function computeBenchmarkMetadataCoverage(
       const query = supabase
         .from("models")
         .select(
-          "id, slug, provider, category, hf_model_id, website_url, release_date"
+          "id, slug, name, provider, category, architecture, hf_model_id, website_url, release_date, is_api_available, is_open_weights, license, license_name, context_window, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
         )
         .eq("status", "active");
       const { data, error } = await orderBy(query, "id").range(from, to);
@@ -150,7 +157,11 @@ export async function computeBenchmarkMetadataCoverage(
     benchmarkRows,
     benchmarkNewsRows
   );
-  const benchmarkExpectedModels = models.filter((model) =>
+  const rawBenchmarkExpectedModels = models.filter((model) =>
+    isBenchmarkMetadataCoverageCandidate(model)
+  );
+  const priorityModels = buildPublicPriorityModelCohort(models);
+  const benchmarkExpectedModels = priorityModels.filter((model) =>
     isBenchmarkMetadataCoverageCandidate(model)
   );
   const hasTrustedBenchmarkUpdatePath = (
@@ -160,6 +171,9 @@ export async function computeBenchmarkMetadataCoverage(
     Boolean(getTrustedBenchmarkHfUrl(model)) ||
     Boolean(getTrustedBenchmarkWebsiteUrl(model));
   const missingTrustedLocatorRows = benchmarkExpectedModels.filter(
+    (model) => !hasTrustedBenchmarkUpdatePath(model)
+  );
+  const rawMissingTrustedLocatorRows = rawBenchmarkExpectedModels.filter(
     (model) => !hasTrustedBenchmarkUpdatePath(model)
   );
 
@@ -182,15 +196,46 @@ export async function computeBenchmarkMetadataCoverage(
           ).toFixed(1)
         )
       : 100;
+  const rawWithAnyTrustedBenchmarkLocator = rawBenchmarkExpectedModels.filter(
+    hasTrustedBenchmarkUpdatePath
+  ).length;
+  const rawTrustedLocatorCoveragePct =
+    rawBenchmarkExpectedModels.length > 0
+      ? Number(
+          (
+            (rawWithAnyTrustedBenchmarkLocator /
+              rawBenchmarkExpectedModels.length) *
+            100
+          ).toFixed(1)
+        )
+      : 100;
 
   return {
+    priorityModels: priorityModels.length,
     benchmarkExpectedModels: benchmarkExpectedModels.length,
     withTrustedHfLocator,
     withTrustedWebsiteLocator,
     withAnyTrustedBenchmarkLocator,
     missingTrustedLocatorCount,
     trustedLocatorCoveragePct,
+    rawBenchmarkExpectedModels: rawBenchmarkExpectedModels.length,
+    rawWithAnyTrustedBenchmarkLocator,
+    rawMissingTrustedLocatorCount: rawMissingTrustedLocatorRows.length,
+    rawTrustedLocatorCoveragePct,
     recentMissingTrustedLocators: missingTrustedLocatorRows
+      .sort(
+        (left, right) =>
+          Date.parse(right.release_date ?? "0") -
+          Date.parse(left.release_date ?? "0")
+      )
+      .slice(0, 10)
+      .map((model) => ({
+        slug: model.slug,
+        provider: model.provider,
+        category: model.category,
+        release_date: model.release_date,
+      })),
+    rawRecentMissingTrustedLocators: rawMissingTrustedLocatorRows
       .sort(
         (left, right) =>
           Date.parse(right.release_date ?? "0") -

@@ -1,6 +1,60 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const META_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "muse-glimmer-30b": {
+    name: "Muse Glimmer 30B",
+    description:
+      "Meta's 30-billion-parameter open-weight multimodal agent model, distilled from Muse Spark for local long-horizon workflows, tool use, coding, visual understanding, and failure recovery on consumer hardware.",
+    category: "multimodal",
+    context_window: 131072,
+    parameter_count: 30000000000,
+    release_date: "2026-08-10",
+    architecture: "Transformer with dedicated perception encoder",
+    status: "active",
+    modalities: ["text", "image"],
+    capabilities: {
+      vision: true,
+      tool_use: true,
+      coding: true,
+      reasoning: true,
+      streaming: true,
+      local_inference: true,
+    },
+    is_api_available: true,
+    is_open_weights: true,
+    license: "open_source",
+    license_name: "Apache 2.0",
+    hf_model_id: "meta-models/Muse-Glimmer-30B",
+    website_url:
+      "https://research.meta.ai/blog/introducing-muse-glimmer-open-agentic-model",
+  },
+  "muse-spark-1-2": {
+    name: "Muse Spark 1.2",
+    description:
+      "Meta's proprietary coding-focused multimodal reasoning model for long-horizon agents, complex debugging, codebase understanding, tool and computer use, and audio-visual workflows through Meta Model API.",
+    category: "multimodal",
+    context_window: 1048576,
+    release_date: "2026-08-05",
+    architecture: "Transformer",
+    status: "active",
+    modalities: ["text", "image", "video", "audio", "file"],
+    capabilities: {
+      vision: true,
+      audio: true,
+      video: true,
+      tool_use: true,
+      coding: true,
+      reasoning: true,
+      computer_use: true,
+      streaming: true,
+    },
+    is_api_available: true,
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url:
+      "https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2",
+  },
   "muse-image": {
     name: "Muse Image",
     description:
@@ -45,7 +99,7 @@ export const META_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   "muse-spark-1-1": {
     name: "Muse Spark 1.1",
     description:
-      "Meta's proprietary multimodal reasoning model for agentic tasks, coding, tool use, computer use, and long-context workflows. It is available through the Meta Model API public preview and supports a 1 million token context window.",
+      "Previous Meta Muse Spark release retained for compatibility after Muse Spark 1.2. It supports multimodal agentic tasks, coding, tool and computer use, and a 1 million token context window, but is superseded by Muse Spark 1.2 for current development.",
     category: "multimodal",
     context_window: 1048576,
     release_date: "2026-07-09",

@@ -160,4 +160,17 @@ describe("public surface readiness", () => {
       })
     ).toBe(false);
   });
+
+  it("keeps provider pricing tiers off the canonical discovery surface", () => {
+    expect(
+      getDefaultPublicSurfaceReadinessBlockers({
+        slug: "meta-muse-spark-1-2-contributor",
+        provider: "Meta",
+        name: "Muse Spark 1.2 Contributor",
+        category: "multimodal",
+        release_date: "2026-08-21",
+        context_window: 1048576,
+      })
+    ).toContain("wrapper_variant");
+  });
 });

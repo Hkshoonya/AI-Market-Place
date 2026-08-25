@@ -15,8 +15,10 @@ import { isBenchmarkMetadataCoverageCandidate } from "@/lib/benchmark-metadata-c
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { hasUserVisibleDeploymentAccess } from "@/lib/models/deployments";
 import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
-import { dedupePublicModelFamilies } from "@/lib/models/public-families";
-import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import {
+  buildPublicPriorityModelCohort,
+  DEFAULT_PUBLIC_PRIORITY_MODEL_LIMIT,
+} from "@/lib/models/public-priority-cohort";
 
 export interface ActiveModelSummary {
   id: string;
@@ -85,7 +87,7 @@ interface ContentQualityMetrics {
   completenessScore: number;
 }
 
-export const UX_PRIORITY_MODEL_LIMIT = 300;
+export const UX_PRIORITY_MODEL_LIMIT = DEFAULT_PUBLIC_PRIORITY_MODEL_LIMIT;
 export const UX_BENCHMARK_MISSING_RATIO = 0.2;
 
 export function getDescriptionCoverageThreshold(totalActiveModels: number): number {
@@ -174,21 +176,7 @@ export function buildUxPriorityModelCohort(
   activeModels: ActiveModelSummary[],
   limit = UX_PRIORITY_MODEL_LIMIT
 ): ActiveModelSummary[] {
-  return dedupePublicModelFamilies(activeModels)
-    .filter(isDefaultPublicSurfaceReady)
-    .sort((left, right) => {
-      const rankDifference =
-        Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) -
-        Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
-      if (rankDifference !== 0) return rankDifference;
-
-      const qualityDifference =
-        Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
-      if (qualityDifference !== 0) return qualityDifference;
-
-      return Number(right.hf_downloads ?? 0) - Number(left.hf_downloads ?? 0);
-    })
-    .slice(0, Math.max(0, limit));
+  return buildPublicPriorityModelCohort(activeModels, limit);
 }
 
 export function filterUserVisiblePricedModelIds(input: {

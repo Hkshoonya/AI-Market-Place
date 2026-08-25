@@ -127,6 +127,16 @@ export const BENCHMARKS: BenchmarkConfig[] = [
     source: "aider",
   },
   {
+    slug: "browsecomp",
+    name: "BrowseComp",
+    category: "general",
+    scoreType: "percentage",
+    maxScore: 100,
+    description:
+      "Agentic web-research benchmark for finding difficult, verifiable information on the public web",
+    source: "provider-benchmarks",
+  },
+  {
     slug: "research-agent",
     name: "Research Agent",
     category: "general",

@@ -486,9 +486,20 @@ const pipelineEngineer: ResidentAgent = {
         ]);
         const benchmarkIssueSlug = "pipeline-benchmark-automation-gap";
         const officialGapCount =
+          benchmarkCoverage.recent_sparse_benchmark_expected_official_count ??
           benchmarkCoverage.recent_sparse_benchmark_expected_official.length;
         const missingTrustedLocatorCount =
           benchmarkMetadataCoverage.missingTrustedLocatorCount;
+        const rawOfficialGapCount =
+          benchmarkCoverage.raw_recent_sparse_benchmark_expected_official_count ??
+          benchmarkCoverage.raw_recent_sparse_benchmark_expected_official?.length ??
+          officialGapCount;
+        const rawMissingTrustedLocatorCount =
+          benchmarkMetadataCoverage.rawMissingTrustedLocatorCount ??
+          missingTrustedLocatorCount;
+        const rawTrustedLocatorCoveragePct =
+          benchmarkMetadataCoverage.rawTrustedLocatorCoveragePct ??
+          benchmarkMetadataCoverage.trustedLocatorCoveragePct;
         const benchmarkCoverageHealthy =
           officialGapCount === 0 && missingTrustedLocatorCount === 0;
 
@@ -496,6 +507,9 @@ const pipelineEngineer: ResidentAgent = {
           officialGapCount,
           missingTrustedLocatorCount,
           trustedLocatorCoveragePct: benchmarkMetadataCoverage.trustedLocatorCoveragePct,
+          rawOfficialGapCount,
+          rawMissingTrustedLocatorCount,
+          rawTrustedLocatorCoveragePct,
         };
 
         if (!benchmarkCoverageHealthy) {
@@ -518,6 +532,9 @@ const pipelineEngineer: ResidentAgent = {
                 benchmarkCoverage.recent_sparse_benchmark_expected_official,
               recentMissingTrustedLocators:
                 benchmarkMetadataCoverage.recentMissingTrustedLocators,
+              rawOfficialGapCount,
+              rawMissingTrustedLocatorCount,
+              rawTrustedLocatorCoveragePct,
             },
           });
         } else {
