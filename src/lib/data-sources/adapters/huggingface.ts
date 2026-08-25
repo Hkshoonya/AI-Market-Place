@@ -45,6 +45,8 @@ const CONTEXT_ENRICHMENT_PROVIDERS = new Set([
   "Z.ai",
 ]);
 const GAP_FETCH_PAGE_SIZE = 1000;
+const DEFAULT_TOP_CONTEXT_ENRICHMENT_LIMIT = 20;
+const DEFAULT_METADATA_GAP_BACKFILL_LIMIT = 25;
 const DEFAULT_HISTORICAL_REFRESH_LIMIT = 50;
 const DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS = 24 * 7;
 const HF_LIST_EXPANSIONS = [
@@ -865,11 +867,12 @@ async function enrichRecordWithContextWindow(
 async function enrichRecordsWithOfficialContextWindow(
   records: HfModelRecord[],
   signal?: AbortSignal,
-  token?: string
+  token?: string,
+  limit = DEFAULT_TOP_CONTEXT_ENRICHMENT_LIMIT
 ) {
-  const candidates = records.filter((record) =>
-    shouldAttemptContextEnrichment(record)
-  );
+  const candidates = records
+    .filter((record) => shouldAttemptContextEnrichment(record))
+    .slice(0, Math.max(0, limit));
 
   for (let index = 0; index < candidates.length; index += HF_CONTEXT_FETCH_CONCURRENCY) {
     await Promise.all(
@@ -877,9 +880,14 @@ async function enrichRecordsWithOfficialContextWindow(
         .slice(index, index + HF_CONTEXT_FETCH_CONCURRENCY)
         .map((record) =>
           enrichRecordWithContextWindow(record, signal, { token })
-        )
+      )
     );
   }
+
+  return {
+    attempted: candidates.length,
+    enriched: candidates.filter((record) => Boolean(record.context_window)).length,
+  };
 }
 
 interface HfMetadataGapRow {
@@ -889,6 +897,7 @@ interface HfMetadataGapRow {
   hf_model_id: string | null;
   context_window: number | null;
   website_url: string | null;
+  data_refreshed_at: string | null;
 }
 
 function shouldBackfillGapRow(row: HfMetadataGapRow) {
@@ -899,16 +908,20 @@ function shouldBackfillGapRow(row: HfMetadataGapRow) {
   );
 }
 
-async function fetchMetadataGapRows(ctx: SyncContext) {
+async function fetchMetadataGapRows(ctx: SyncContext, limit: number) {
+  if (limit <= 0) return [];
   const rows: HfMetadataGapRow[] = [];
 
   for (let from = 0; ; from += GAP_FETCH_PAGE_SIZE) {
     const to = from + GAP_FETCH_PAGE_SIZE - 1;
     const { data, error } = await ctx.supabase
       .from("models")
-      .select("slug, provider, category, hf_model_id, context_window, website_url")
+      .select(
+        "slug, provider, category, hf_model_id, context_window, website_url, data_refreshed_at"
+      )
       .eq("status", "active")
       .not("hf_model_id", "is", null)
+      .order("data_refreshed_at", { ascending: true, nullsFirst: true })
       .range(from, to);
 
     if (error) {
@@ -916,22 +929,42 @@ async function fetchMetadataGapRows(ctx: SyncContext) {
     }
 
     const page = ((data ?? []) as HfMetadataGapRow[]).filter(shouldBackfillGapRow);
-    rows.push(...page);
+    rows.push(...page.slice(0, limit - rows.length));
 
-    if ((data ?? []).length < GAP_FETCH_PAGE_SIZE) break;
+    if (
+      rows.length >= limit ||
+      (data ?? []).length < GAP_FETCH_PAGE_SIZE
+    ) {
+      break;
+    }
   }
 
   return rows;
 }
 
 async function backfillHfMetadataGaps(
-  ctx: SyncContext
-): Promise<{ updated: number; errors: SyncError[] }> {
-  const rows = await fetchMetadataGapRows(ctx);
+  ctx: SyncContext,
+  limit = DEFAULT_METADATA_GAP_BACKFILL_LIMIT
+): Promise<{
+  attempted: number;
+  updated: number;
+  enriched: number;
+  errors: SyncError[];
+}> {
+  const rows = await fetchMetadataGapRows(ctx, limit);
   const errors: SyncError[] = [];
   let updated = 0;
+  let enriched = 0;
 
   for (let index = 0; index < rows.length; index += HF_CONTEXT_FETCH_CONCURRENCY) {
+    if (ctx.signal?.aborted) {
+      errors.push({
+        message: "HF metadata gap backfill aborted by signal",
+        context: `checked=${updated}`,
+      });
+      break;
+    }
+
     const slice = rows.slice(index, index + HF_CONTEXT_FETCH_CONCURRENCY);
 
     await Promise.all(
@@ -971,17 +1004,21 @@ async function backfillHfMetadataGaps(
             }
           );
 
-          const changed =
+          const materiallyChanged =
             patch.context_window !== row.context_window ||
             patch.website_url !== row.website_url ||
             enrichment.repositoryMissing;
-          if (!changed) return;
 
           const updatePatch: Record<string, string | number | null> = {
-            context_window: patch.context_window ?? null,
-            website_url: patch.website_url ?? null,
             data_refreshed_at: patch.data_refreshed_at,
           };
+
+          if (patch.context_window !== row.context_window) {
+            updatePatch.context_window = patch.context_window ?? null;
+          }
+          if (patch.website_url !== row.website_url) {
+            updatePatch.website_url = patch.website_url ?? null;
+          }
 
           if (enrichment.repositoryMissing) {
             updatePatch.status = "archived";
@@ -1001,18 +1038,21 @@ async function backfillHfMetadataGaps(
           }
 
           updated += 1;
+          if (materiallyChanged) enriched += 1;
         } catch (error) {
-          errors.push({
-            message:
-              error instanceof Error ? error.message : String(error),
-            context: `slug=${row.slug}`,
-          });
+          if (!ctx.signal?.aborted) {
+            errors.push({
+              message:
+                error instanceof Error ? error.message : String(error),
+              context: `slug=${row.slug}`,
+            });
+          }
         }
       })
     );
   }
 
-  return { updated, errors };
+  return { attempted: rows.length, updated, enriched, errors };
 }
 
 interface HfHistoricalRefreshRow {
@@ -1246,6 +1286,8 @@ const adapter: DataSourceAdapter = {
     maxPages: 50,
     pageSize: 100,
     rateLimitDelayMs: 200,
+    topContextEnrichmentLimit: DEFAULT_TOP_CONTEXT_ENRICHMENT_LIMIT,
+    metadataGapBackfillLimit: DEFAULT_METADATA_GAP_BACKFILL_LIMIT,
     historicalRefreshLimit: DEFAULT_HISTORICAL_REFRESH_LIMIT,
     historicalRefreshAfterHours: DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS,
   },
@@ -1255,6 +1297,28 @@ const adapter: DataSourceAdapter = {
     const maxPages = (ctx.config.maxPages as number) ?? 50;
     const pageSize = (ctx.config.pageSize as number) ?? 100;
     const rateLimitDelayMs = (ctx.config.rateLimitDelayMs as number) ?? 200;
+    const topContextEnrichmentLimit = Math.min(
+      100,
+      Math.max(
+        0,
+        Math.floor(
+          typeof ctx.config.topContextEnrichmentLimit === "number"
+            ? ctx.config.topContextEnrichmentLimit
+            : DEFAULT_TOP_CONTEXT_ENRICHMENT_LIMIT
+        )
+      )
+    );
+    const metadataGapBackfillLimit = Math.min(
+      100,
+      Math.max(
+        0,
+        Math.floor(
+          typeof ctx.config.metadataGapBackfillLimit === "number"
+            ? ctx.config.metadataGapBackfillLimit
+            : DEFAULT_METADATA_GAP_BACKFILL_LIMIT
+        )
+      )
+    );
     const historicalRefreshLimit = Math.min(
       200,
       Math.max(
@@ -1286,6 +1350,10 @@ const adapter: DataSourceAdapter = {
     let topRecordsUnchanged = 0;
     let pagesAttempted = 0;
     let pagesFetched = 0;
+    let topContextAttempted = 0;
+    let topContextEnriched = 0;
+    let gapBackfillAttempted = 0;
+    let gapRowsUpdated = 0;
     let gapBackfilled = 0;
     let historicalRefresh: HfHistoricalRefreshResult = {
       attempted: 0,
@@ -1359,11 +1427,16 @@ const adapter: DataSourceAdapter = {
           mergeHfRecordWithExisting(record, existingBySlug.get(record.slug))
         );
 
-        await enrichRecordsWithOfficialContextWindow(
-          mergedRecords,
+        const contextResult = await enrichRecordsWithOfficialContextWindow(
+          mergedRecords.filter(
+            (record) => !existingBySlug.has(record.slug)
+          ),
           ctx.signal,
-          token
+          token,
+          topContextEnrichmentLimit - topContextAttempted
         );
+        topContextAttempted += contextResult.attempted;
+        topContextEnriched += contextResult.enriched;
         const records = mergedRecords.map(normalizeHfRecordForUpsert);
 
         totalProcessed += uniqueModels.length;
@@ -1416,7 +1489,8 @@ const adapter: DataSourceAdapter = {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push({ message: msg, context: `page=${page}` });
-        // Continue with next page rather than failing the whole sync
+        // Cursor pagination cannot safely advance after a failed page.
+        break;
       }
     }
 
@@ -1436,9 +1510,14 @@ const adapter: DataSourceAdapter = {
     }
 
     try {
-      const gapBackfill = await backfillHfMetadataGaps(ctx);
-      gapBackfilled = gapBackfill.updated;
-      totalUpdated += gapBackfilled;
+      const gapBackfill = await backfillHfMetadataGaps(
+        ctx,
+        metadataGapBackfillLimit
+      );
+      gapBackfillAttempted = gapBackfill.attempted;
+      gapRowsUpdated = gapBackfill.updated;
+      gapBackfilled = gapBackfill.enriched;
+      totalUpdated += gapRowsUpdated;
       errors.push(...gapBackfill.errors);
     } catch (error) {
       errors.push({
@@ -1448,11 +1527,10 @@ const adapter: DataSourceAdapter = {
       });
     }
 
-    // A sync with only upsert warnings is still considered partial success
     const nothingProcessed = totalProcessed === 0;
 
     return {
-      success: !nothingProcessed,
+      success: !nothingProcessed && errors.length === 0,
       recordsProcessed: totalProcessed,
       recordsCreated: totalCreated,
       recordsUpdated: totalUpdated,
@@ -1463,6 +1541,10 @@ const adapter: DataSourceAdapter = {
         pagesAttempted,
         pagesFetched,
         uniqueTopModels: seenModelIds.size,
+        topContextAttempted,
+        topContextEnriched,
+        gapBackfillAttempted,
+        gapRowsUpdated,
         gapBackfilled,
         historicalRefreshAttempted: historicalRefresh.attempted,
         historicalRefreshed: historicalRefresh.updated,

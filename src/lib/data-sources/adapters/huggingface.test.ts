@@ -550,7 +550,8 @@ describe("huggingface metadata helpers", () => {
       ],
       error: null,
     }));
-    const not = vi.fn(() => ({ range }));
+    const order = vi.fn(() => ({ range }));
+    const not = vi.fn(() => ({ order }));
     const eqSelect = vi.fn(() => ({ not }));
     let appliedUpdate: Record<string, unknown> | null = null;
     const eqUpdate = vi.fn(async () => ({ error: null }));
@@ -569,12 +570,82 @@ describe("huggingface metadata helpers", () => {
     });
 
     expect(result.updated).toBe(1);
+    expect(result.enriched).toBe(1);
+    expect(result.attempted).toBe(1);
     expect(result.errors).toEqual([]);
     expect(appliedUpdate).toMatchObject({
       status: "archived",
-      context_window: null,
       website_url: "https://huggingface.co/Tesslate/OmniCoder-2-9B",
     });
+    expect(appliedUpdate).toHaveProperty("data_refreshed_at");
+    expect(appliedUpdate).not.toHaveProperty("context_window");
+  });
+
+  it("rotates unresolved context gaps without rewriting unchanged columns", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.endsWith("/tokenizer_config.json")) {
+          return new Response("{}", { status: 404 });
+        }
+        if (url.endsWith("/config.json")) {
+          return new Response(JSON.stringify({ model_type: "qwen2" }), {
+            status: 200,
+          });
+        }
+        if (url === "https://huggingface.co/api/models/Example/No-Context") {
+          return new Response(JSON.stringify({ cardData: {} }), { status: 200 });
+        }
+        throw new Error(`Unexpected fetch URL in test: ${url}`);
+      })
+    );
+
+    const range = vi.fn(async () => ({
+      data: [
+        {
+          slug: "example-no-context",
+          provider: "Example",
+          category: "llm",
+          hf_model_id: "Example/No-Context",
+          context_window: null,
+          website_url: "https://huggingface.co/Example/No-Context",
+          data_refreshed_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    }));
+    const order = vi.fn(() => ({ range }));
+    const not = vi.fn(() => ({ order }));
+    const eqSelect = vi.fn(() => ({ not }));
+    const select = vi.fn(() => ({ eq: eqSelect }));
+    let appliedUpdate: Record<string, unknown> | null = null;
+    const eqUpdate = vi.fn(async () => ({ error: null }));
+    const update = vi.fn((payload: Record<string, unknown>) => {
+      appliedUpdate = payload;
+      return { eq: eqUpdate };
+    });
+    const from = vi.fn(() => ({ select, update }));
+
+    const result = await __testables.backfillHfMetadataGaps(
+      {
+        supabase: { from } as never,
+        config: {},
+        secrets: {},
+        lastSyncAt: null,
+      },
+      1
+    );
+
+    expect(result).toMatchObject({
+      attempted: 1,
+      updated: 1,
+      enriched: 0,
+      errors: [],
+    });
+    expect(appliedUpdate).toHaveProperty("data_refreshed_at");
+    expect(appliedUpdate).not.toHaveProperty("context_window");
+    expect(appliedUpdate).not.toHaveProperty("website_url");
   });
 
   it("rotates through stale HF rows and refreshes source-owned fields", async () => {

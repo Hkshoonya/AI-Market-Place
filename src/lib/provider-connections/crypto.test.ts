@@ -32,7 +32,11 @@ describe("provider credential encryption", () => {
   it("rejects a tampered authenticated-encryption envelope", () => {
     const encrypted = encryptProviderSecret("sk-provider-secret-1234");
     const parts = encrypted.split(".");
-    parts[3] = `${parts[3]?.slice(0, -1)}${parts[3]?.endsWith("A") ? "B" : "A"}`;
+    const authenticationTag = parts[3] ?? "";
+    const tamperIndex = Math.floor(authenticationTag.length / 2);
+    parts[3] = `${authenticationTag.slice(0, tamperIndex)}${
+      authenticationTag[tamperIndex] === "A" ? "B" : "A"
+    }${authenticationTag.slice(tamperIndex + 1)}`;
 
     expect(() => decryptProviderSecret(parts.join("."))).toThrow(
       /could not be decrypted/i
