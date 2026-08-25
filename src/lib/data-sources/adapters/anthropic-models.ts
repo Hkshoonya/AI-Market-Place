@@ -39,6 +39,24 @@ const PROVIDER_DEFAULTS: ProviderDefaults = {
   license_name: "Proprietary",
 };
 
+const ANTHROPIC_MODEL_FAMILY =
+  "(?:opus|sonnet|haiku|instant|fable|mythos)";
+const PLAUSIBLE_ANTHROPIC_MODEL_ID = new RegExp(
+  `^claude-(?:(?:${ANTHROPIC_MODEL_FAMILY})-(?:latest|\\d+(?:[.-]\\d+)*)|\\d+(?:[.-]\\d+)*(?:-${ANTHROPIC_MODEL_FAMILY})?)(?:-\\d{8})?(?:-v\\d+)?$`
+);
+
+export function normalizeScrapedAnthropicModelId(
+  modelId: string
+): string | null {
+  const normalized = modelId.trim().toLowerCase();
+  if (!PLAUSIBLE_ANTHROPIC_MODEL_ID.test(normalized)) return null;
+
+  const canonical = canonicalizeAnthropicModelId(normalized);
+  // Only known aliases may use "latest"; unknown aliases are documentation,
+  // not stable model identities that should enter the public catalog.
+  return canonical.endsWith("-latest") ? null : canonical;
+}
+
 function parseReleaseDateFromModelId(modelId: string): string | undefined {
   const compactMatch = modelId.match(/-(20\d{2})(\d{2})(\d{2})(?:-v\d+)?$/);
   if (!compactMatch) return undefined;
@@ -153,23 +171,16 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
 
     const html = await res.text();
     const modelPattern =
-      /\b(claude-(?:opus|sonnet|haiku|instant)[-\w.]*|claude-\d[\w.-]*)\b/g;
+      /\b(claude-(?:opus|sonnet|haiku|instant|fable|mythos)[-\w.]*|claude-\d[\w.-]*)\b/g;
 
     const found = new Set<string>();
     let match: RegExpExecArray | null;
     while ((match = modelPattern.exec(html)) !== null) {
-      found.add(match[1]);
+      const modelId = normalizeScrapedAnthropicModelId(match[1]);
+      if (modelId) found.add(modelId);
     }
 
-    return [...found].filter((modelId) => {
-      if (/^claude-(computer-use|4|4-6)$/.test(modelId)) {
-        return false;
-      }
-      if (modelId === "claude-sonnet-5-introductory-pricing") {
-        return false;
-      }
-      return true;
-    });
+    return [...found];
   } catch {
     return [];
   }
@@ -189,9 +200,10 @@ function enrichFromApi(
   ) => Record<string, unknown>
 ): void {
   for (const [modelId, meta] of apiResult) {
-    if (!recordMap.has(modelId)) {
+    const canonicalModelId = canonicalizeAnthropicModelId(modelId);
+    if (!recordMap.has(canonicalModelId)) {
       recordMap.set(
-        modelId,
+        canonicalModelId,
         buildRecordFn(modelId, {
           name: meta.displayName || undefined,
           release_date: meta.createdAt ? meta.createdAt.split("T")[0] : undefined,
@@ -199,7 +211,7 @@ function enrichFromApi(
       );
     }
     // Refresh timestamp for all API-confirmed models
-    const existing = recordMap.get(modelId);
+    const existing = recordMap.get(canonicalModelId);
     if (existing) existing.data_refreshed_at = now;
   }
 }

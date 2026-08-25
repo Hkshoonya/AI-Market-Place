@@ -408,6 +408,7 @@ export function canonicalizeAnthropicModelId(modelId: string): string {
     [/^claude-(opus|sonnet)-4(?:-0)?$/, "claude-4-$1"],
     [/^claude-(opus|sonnet|haiku)-4-5-(\d{8})(?:-v\d+)?$/, "claude-4-5-$1"],
     [/^claude-(opus|sonnet)-4-(\d{8})(?:-v\d+)?$/, "claude-4-$1"],
+    [/^claude-3-5-sonnet-20241022(?:-v\d+)?$/, "claude-3-5-sonnet-v2"],
   ];
 
   for (const [pattern, replacement] of familyAliasMatches) {
