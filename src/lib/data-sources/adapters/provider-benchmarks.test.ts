@@ -152,6 +152,13 @@ const SAMPLE_GLM_EVAL_RESULTS_HTML = `
   </div>
 `;
 
+const SAMPLE_QWEN_ASR_EVAL_RESULTS_HTML = `
+  <div
+    data-props="{&quot;evalResults&quot;:[{&quot;dataset&quot;:{&quot;id&quot;:&quot;hf-audio/open-asr-leaderboard&quot;,&quot;isBenchmark&quot;:true,&quot;task_id&quot;:&quot;mean_wer&quot;},&quot;value&quot;:6.42,&quot;label&quot;:&quot;Mean Wer&quot;,&quot;filename&quot;:&quot;.eval_results/open_asr_leaderboard.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;hf-audio/open-asr-leaderboard&quot;,&quot;isBenchmark&quot;:true,&quot;task_id&quot;:&quot;rtfx&quot;},&quot;value&quot;:166.23,&quot;label&quot;:&quot;Rtfx&quot;,&quot;filename&quot;:&quot;.eval_results/open_asr_leaderboard.yaml&quot;},{&quot;dataset&quot;:{&quot;id&quot;:&quot;hf-audio/open-asr-leaderboard&quot;,&quot;isBenchmark&quot;:true,&quot;task_id&quot;:&quot;ami_wer&quot;},&quot;value&quot;:11.66,&quot;label&quot;:&quot;Ami Wer&quot;,&quot;filename&quot;:&quot;.eval_results/open_asr_leaderboard.yaml&quot;}]}"
+  >
+  </div>
+`;
+
 const SAMPLE_META_TABLE_HTML = `
   <html>
     <body>
@@ -669,6 +676,20 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("extracts only Open ASR mean WER and normalizes lower scores as better", () => {
+    expect(
+      __testables.extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
+        SAMPLE_QWEN_ASR_EVAL_RESULTS_HTML
+      )
+    ).toEqual([
+      expect.objectContaining({
+        benchmarkSlug: "open-asr-mean-wer",
+        score: 6.42,
+        scoreNormalized: 93.58,
+      }),
+    ]);
+  });
+
   it("extracts benchmark rows when the model column is at the end of the table", async () => {
     const extracted =
       await __testables.extractStructuredBenchmarkScoresFromHtmlTables(
@@ -932,6 +953,21 @@ describe("provider-benchmarks helpers", () => {
           provider: "Moonshot AI",
           url: "https://www.kimi.com/blog/kimi-k2-6",
           modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
+        }),
+      ])
+    );
+  });
+
+  it("keeps Qwen3 ASR on the permanent official-card watchlist", () => {
+    expect(__testables.PROVIDER_BENCHMARK_SOURCES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "qwen-qwen3-asr-0-6b",
+          provider: "Qwen",
+          url: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B",
+          sourceType: "official_model_card",
+          requiresBenchmarkSignal: true,
+          strictModelHints: true,
         }),
       ])
     );

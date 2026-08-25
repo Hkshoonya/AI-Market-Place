@@ -49,6 +49,10 @@ const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string
     primary: ["swe-bench", "swe_bench", "terminal-bench", "terminal_bench", "os-world", "os_world"],
     secondary: ["gaia", "webarena", "web-arena", "tau-bench", "tau_bench"],
   },
+  speech_audio: {
+    primary: ["open-asr-mean-wer"],
+    secondary: [],
+  },
 };
 
 function getCategoryBenchmarks(category: string) {

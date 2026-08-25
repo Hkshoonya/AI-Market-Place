@@ -79,12 +79,15 @@ interface HuggingFaceEvalResult {
   dataset?: {
     id?: string | null;
     isBenchmark?: boolean | null;
+    task_id?: string | null;
   } | null;
   value?: number | null;
   filename?: string | null;
   label?: string | null;
   notes?: string | null;
 }
+
+type BenchmarkExtractionType = "percentage" | "elo" | "fractional" | "error_rate";
 
 type PdfParseModule = typeof import("pdf-parse");
 type JSDOMModule = typeof import("jsdom");
@@ -706,6 +709,17 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     modelHints: ["Kimi K2.6", "kimi-k2.6", "K2.6"],
   },
   {
+    id: "qwen-qwen3-asr-0-6b",
+    provider: "Qwen",
+    url: "https://huggingface.co/Qwen/Qwen3-ASR-0.6B",
+    titleHint: "Qwen3-ASR-0.6B benchmark update",
+    modelHints: ["Qwen3-ASR-0.6B", "qwen-qwen3-asr-0-6b"],
+    publishedAtHint: "2026-01-28T00:00:00.000Z",
+    sourceType: "official_model_card",
+    requiresBenchmarkSignal: true,
+    strictModelHints: true,
+  },
+  {
     id: "deepseek-v4-pro",
     provider: "DeepSeek",
     url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
@@ -1152,9 +1166,13 @@ function hasCompetingBenchmarkLabel(
 }
 
 function normalizeExtractedScore(
-  type: "percentage" | "elo" | "fractional",
+  type: BenchmarkExtractionType,
   numericValue: number
 ) {
+  if (type === "error_rate") {
+    return Math.round(Math.max(0, Math.min(100, 100 - numericValue)) * 100) / 100;
+  }
+
   if (type === "fractional") {
     return Math.round(numericValue * 1000) / 10;
   }
@@ -1170,7 +1188,7 @@ function recordStructuredBenchmarkScore(
   extracted: Map<string, ExtractedProviderBenchmarkScore>,
   normalizedText: string,
   benchmarkSlug: string,
-  type: "percentage" | "elo" | "fractional",
+  type: BenchmarkExtractionType,
   numericValue: number,
   matchIndex: number,
   matchLength: number,
@@ -1360,8 +1378,19 @@ function extractJsonArrayAfterToken(html: string, token: string) {
 }
 
 function resolveHuggingFaceEvalBenchmarkSlug(result: HuggingFaceEvalResult) {
+  const datasetId = result.dataset?.id?.toLowerCase() ?? "";
+  const taskId = result.dataset?.task_id?.toLowerCase() ?? "";
+  const label = result.label?.toLowerCase() ?? "";
+
+  if (/hf-audio\/open-asr-leaderboard/.test(datasetId)) {
+    return taskId === "mean_wer" || /^mean[ _-]?wer$/.test(label.trim())
+      ? "open-asr-mean-wer"
+      : null;
+  }
+
   const haystack = [
     result.dataset?.id,
+    result.dataset?.task_id,
     result.filename,
     result.label,
     result.notes,
@@ -1457,7 +1486,7 @@ function extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
       extracted,
       matchedLabel || benchmarkSlug,
       benchmarkSlug,
-      "percentage",
+      benchmarkSlug === "open-asr-mean-wer" ? "error_rate" : "percentage",
       numericValue,
       0,
       (matchedLabel || benchmarkSlug).length,
@@ -1538,7 +1567,7 @@ function resolveTargetTableHeaderIndex(
 
 function extractTableCellScore(
   value: string,
-  type: "percentage" | "elo" | "fractional"
+  type: BenchmarkExtractionType
 ) {
   const matches = [...normalizeTableText(value).matchAll(/\d{1,4}(?:\.\d+)?/g)];
   if (matches.length === 0) return null;
@@ -1553,6 +1582,9 @@ function extractTableCellScore(
     return null;
   }
   if (type === "fractional" && (numericValue < 0 || numericValue > 1)) {
+    return null;
+  }
+  if (type === "error_rate" && (numericValue < 0 || numericValue > 100)) {
     return null;
   }
 

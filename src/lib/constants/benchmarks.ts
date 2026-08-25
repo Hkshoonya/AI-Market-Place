@@ -1,8 +1,8 @@
 export interface BenchmarkConfig {
   slug: string;
   name: string;
-  category: "knowledge" | "coding" | "math" | "reasoning" | "general" | "safety";
-  scoreType: "percentage" | "elo" | "pass_rate" | "absolute";
+  category: "knowledge" | "coding" | "math" | "reasoning" | "general" | "safety" | "speech_audio";
+  scoreType: "percentage" | "elo" | "pass_rate" | "absolute" | "wer";
   maxScore: number;
   description: string;
   source: string;
@@ -180,6 +180,15 @@ export const BENCHMARKS: BenchmarkConfig[] = [
     maxScore: 100,
     description: "Computer-use visual fidelity benchmark reported by XBOW",
     source: "provider-benchmarks",
+  },
+  {
+    slug: "open-asr-mean-wer",
+    name: "Open ASR Mean WER",
+    category: "speech_audio",
+    scoreType: "wer",
+    maxScore: 100,
+    description: "Mean word error rate across the Hugging Face Open ASR Leaderboard evaluation suite",
+    source: "open-asr-leaderboard",
   },
   {
     slug: "arena-hard-auto",
