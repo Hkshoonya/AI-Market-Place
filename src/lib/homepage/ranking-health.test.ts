@@ -110,4 +110,77 @@ describe("computeHomepageRankingHealth", () => {
     expect(result.missingRecentLeadership).toHaveLength(0);
     expect(result.healthy).toBe(true);
   });
+
+  it("does not flag a third current model when the provider diversity cap is full", () => {
+    const now = Date.parse("2026-08-25T12:00:00Z");
+    const anthropicModels = [
+      {
+        id: "fable-5",
+        slug: "anthropic-claude-fable-5",
+        name: "Claude Fable 5",
+        release_date: "2026-06-09",
+      },
+      {
+        id: "opus-5",
+        slug: "anthropic-claude-opus-5",
+        name: "Claude Opus 5",
+        release_date: "2026-07-24",
+      },
+      {
+        id: "sonnet-5",
+        slug: "anthropic-claude-sonnet-5",
+        name: "Claude Sonnet 5",
+        release_date: "2026-08-12",
+      },
+    ].map((model, index) => ({
+      ...model,
+      provider: "Anthropic",
+      category: "multimodal",
+      is_api_available: true,
+      overall_rank: index + 1,
+      economic_footprint_score: 82 - index,
+      adoption_score: 84 - index,
+      capability_score: 90 - index,
+      quality_score: 88 - index,
+      popularity_score: 70 - index,
+      context_window: 1000000,
+    }));
+    const peerModels = [
+      "OpenAI",
+      "Google",
+      "Qwen",
+      "DeepSeek",
+      "Meta",
+      "Mistral AI",
+      "xAI",
+      "MiniMax",
+    ].map((provider, index) => ({
+      id: `peer-${index}`,
+      slug: `peer-${index}`,
+      name: `Peer ${index}`,
+      provider,
+      category: "llm",
+      is_api_available: true,
+      overall_rank: index + 10,
+      economic_footprint_score: 74 - index,
+      adoption_score: 76 - index,
+      capability_score: 82 - index,
+      quality_score: 80 - index,
+      popularity_score: 62 - index,
+      release_date: "2026-04-20",
+      context_window: 128000,
+    }));
+
+    const result = computeHomepageRankingHealth(
+      [...anthropicModels, ...peerModels],
+      10,
+      now
+    );
+
+    expect(result.shortlist.filter((model) => model.provider === "Anthropic")).toHaveLength(
+      2
+    );
+    expect(result.missingRecentLeadership).toHaveLength(0);
+    expect(result.healthy).toBe(true);
+  });
 });

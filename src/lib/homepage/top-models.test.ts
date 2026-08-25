@@ -335,7 +335,7 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids).toEqual(["current-openai-flagship"]);
   });
 
-  it("uses the newest verified flagship for a provider while its computed scores catch up", () => {
+  it("uses verified provider leadership while computed scores catch up", () => {
     const ids = selectHomepageTopModelIds(
       [
         {
@@ -384,7 +384,7 @@ describe("selectHomepageTopModelIds", () => {
           release_date: "2026-07-09",
         },
         {
-          id: "previous-anthropic",
+          id: "highest-capability-anthropic",
           slug: "anthropic-claude-fable-5",
           name: "Claude Fable 5",
           provider: "Anthropic",
@@ -419,9 +419,9 @@ describe("selectHomepageTopModelIds", () => {
     );
 
     expect(ids).toContain("current-openai");
-    expect(ids).toContain("current-anthropic");
+    expect(ids).toContain("highest-capability-anthropic");
     expect(ids).not.toContain("previous-openai");
-    expect(ids).not.toContain("previous-anthropic");
+    expect(ids).not.toContain("current-anthropic");
   });
 
   it("does not replace a newer provider leader with an older verified catalog entry", () => {

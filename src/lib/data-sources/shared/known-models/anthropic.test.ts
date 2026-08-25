@@ -114,7 +114,7 @@ describe("resolveAnthropicKnownModelMeta", () => {
       is_open_weights: false,
       license: "commercial",
       license_name: null,
-      website_url: "https://www.anthropic.com/claude/fable",
+      website_url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
     });
     expect(resolveAnthropicKnownModelMeta("claude-fable-latest")).toMatchObject({
       name: "Claude Fable 5",
@@ -144,6 +144,23 @@ describe("resolveAnthropicKnownModelMeta", () => {
     });
     expect(canonicalizeAnthropicModelId("claude-mythos-latest")).toBe(
       "claude-mythos-5"
+    );
+  });
+
+  it("collapses Haiku 4.5 snapshots and batch endpoints into one model", () => {
+    expect(resolveAnthropicKnownModelMeta("claude-haiku-4-5")).toMatchObject({
+      name: "Claude Haiku 4.5",
+      release_date: "2025-10-15",
+      context_window: 200000,
+      status: "active",
+      is_api_available: true,
+      is_open_weights: false,
+    });
+    expect(
+      canonicalizeAnthropicModelId("claude-haiku-4-5-20251001")
+    ).toBe("claude-haiku-4-5");
+    expect(canonicalizeAnthropicModelId("claude-haiku-4-5-batch")).toBe(
+      "claude-haiku-4-5"
     );
   });
 });

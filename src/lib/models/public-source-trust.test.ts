@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getPublicSourceTrustTier,
   isLowTrustPublicSourceTier,
+  isWrapperVariantSlug,
 } from "./public-source-trust";
 
 describe("public source trust", () => {
@@ -53,6 +54,8 @@ describe("public source trust", () => {
         slug: "google-gemini-flash-latest",
       })
     ).toBe("wrapper");
+
+    expect(isWrapperVariantSlug("anthropic-claude-haiku-4-5-batch")).toBe(true);
   });
 
   it("marks GGUF packaging rows as wrapper trust even when the slug lacks a gguf token", () => {

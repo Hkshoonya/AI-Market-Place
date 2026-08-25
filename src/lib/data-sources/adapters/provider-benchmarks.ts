@@ -537,18 +537,57 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     },
   },
   {
-    id: "anthropic-claude-fable-5-mythos-5",
+    id: "anthropic-claude-fable-5",
     provider: "Anthropic",
-    url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
-    titleHint: "Claude Fable 5 and Mythos 5 benchmark update",
-    modelHints: [
-      "Claude Fable 5",
-      "claude-fable-5",
-      "Claude Mythos 5",
-      "claude-mythos-5",
-    ],
+    url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+    titleHint: "Claude Fable 5 benchmark update",
+    modelHints: ["Claude Fable 5", "claude-fable-5"],
     publishedAtHint: "2026-06-09T00:00:00.000Z",
+    contentType: "pdf",
+    pdfPages: [1, 251, 253, 254, 280],
+    sourceType: "official_model_card",
     requiresBenchmarkSignal: true,
+    strictModelHints: true,
+    verificationUrl:
+      "https://www-cdn.anthropic.com/57a52ea7d8f0e54e8a542e908266086df425cdf5/Claude%20Fable%205%20%26%20Claude%20Mythos%205%20System%20Card.pdf",
+    verifiedFallback: {
+      title: "Claude Fable 5 and Claude Mythos 5 System Card",
+      summary:
+        "Anthropic reports Claude Fable 5 production-safeguard results for coding, terminal, and computer-use evaluations in its official system card.",
+      publishedAt: "2026-06-09T00:00:00.000Z",
+      text: [
+        "SWE-bench Pro 80.0",
+        "Terminal-Bench 2.1 84.3",
+        "OSWorld-Verified 85.0",
+      ].join("\n"),
+    },
+  },
+  {
+    id: "anthropic-claude-mythos-5",
+    provider: "Anthropic",
+    url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+    titleHint: "Claude Mythos 5 benchmark update",
+    modelHints: ["Claude Mythos 5", "claude-mythos-5"],
+    publishedAtHint: "2026-06-09T00:00:00.000Z",
+    contentType: "pdf",
+    pdfPages: [1, 251, 253, 254, 266, 280],
+    sourceType: "official_model_card",
+    requiresBenchmarkSignal: true,
+    strictModelHints: true,
+    verificationUrl:
+      "https://www-cdn.anthropic.com/57a52ea7d8f0e54e8a542e908266086df425cdf5/Claude%20Fable%205%20%26%20Claude%20Mythos%205%20System%20Card.pdf",
+    verifiedFallback: {
+      title: "Claude Fable 5 and Claude Mythos 5 System Card",
+      summary:
+        "Anthropic reports Claude Mythos 5 results for coding, terminal, research, and computer-use evaluations in its official system card.",
+      publishedAt: "2026-06-09T00:00:00.000Z",
+      text: [
+        "SWE-bench Pro 80.3",
+        "Terminal-Bench 2.1 88.0",
+        "BrowseComp 88.0",
+        "OSWorld-Verified 85.0",
+      ].join("\n"),
+    },
   },
   {
     id: "anthropic-claude-3-7-sonnet",

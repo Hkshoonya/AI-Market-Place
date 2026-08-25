@@ -29,12 +29,16 @@ export interface HomepageTopModelCandidate {
 }
 
 const PRIMARY_HOMEPAGE_CATEGORIES = new Set(["llm", "multimodal"]);
+export const HOMEPAGE_PROVIDER_DIVERSITY_TARGET = 8;
+export const HOMEPAGE_MAX_MODELS_PER_PROVIDER = 2;
 
 function numeric(value: number | null | undefined): number {
   return value == null || !Number.isFinite(Number(value)) ? 0 : Number(value);
 }
 
-function normalizeProviderBucket(provider: string | null | undefined): string | null {
+export function getHomepageProviderBucket(
+  provider: string | null | undefined
+): string | null {
   if (!provider) return null;
 
   const canonical = getCanonicalProviderName(provider).trim();
@@ -148,6 +152,23 @@ function hasLeadershipUpgradeLanguage(model: HomepageTopModelCandidate): boolean
     /improves on/.test(haystack) ||
     /stronger than prior/.test(haystack) ||
     /broad availability/.test(haystack)
+  );
+}
+
+function isVerifiedHighestCapabilityLaunch(
+  model: HomepageTopModelCandidate,
+  now = Date.now()
+): boolean {
+  if (!hasVerifiedOfficialLeadershipLaunch(model, now)) return false;
+
+  const knownMeta = getKnownModelMeta(model);
+  const officialDescription = `${knownMeta?.name ?? ""} ${
+    knownMeta?.description ?? ""
+  }`.toLowerCase();
+
+  return (
+    /\bmost capable\b/.test(officialDescription) ||
+    /\bhighest(?: available|-)? capability\b/.test(officialDescription)
   );
 }
 
@@ -441,10 +462,14 @@ export function selectHomepageTopModelIds<
   for (const model of rankedCandidates) {
     if (!hasVerifiedOfficialLeadershipLaunch(model, now)) continue;
 
-    const providerBucket = normalizeProviderBucket(model.provider);
+    const providerBucket = getHomepageProviderBucket(model.provider);
     if (!providerBucket) continue;
 
     const current = latestOfficialLeadershipByProvider.get(providerBucket);
+    const modelIsHighestCapability = isVerifiedHighestCapabilityLaunch(model, now);
+    const currentIsHighestCapability = current
+      ? isVerifiedHighestCapabilityLaunch(current, now)
+      : false;
     const modelReleasedAt = Date.parse(model.release_date ?? "");
     const currentReleasedAt = Date.parse(current?.release_date ?? "");
     const modelTimestamp = Number.isFinite(modelReleasedAt) ? modelReleasedAt : 0;
@@ -452,8 +477,11 @@ export function selectHomepageTopModelIds<
 
     if (
       !current ||
-      modelTimestamp > currentTimestamp ||
-      (modelTimestamp === currentTimestamp &&
+      (modelIsHighestCapability && !currentIsHighestCapability) ||
+      (modelIsHighestCapability === currentIsHighestCapability &&
+        modelTimestamp > currentTimestamp) ||
+      (modelIsHighestCapability === currentIsHighestCapability &&
+        modelTimestamp === currentTimestamp &&
         computeHomepageTopModelScore(model, now) >
           computeHomepageTopModelScore(current, now))
     ) {
@@ -488,9 +516,9 @@ export function selectHomepageTopModelIds<
   const selected: T[] = [];
   const selectedIds = new Set<string>();
   const providerCounts = new Map<string, number>();
-  const diversityTarget = Math.min(limit, 8);
+  const diversityTarget = Math.min(limit, HOMEPAGE_PROVIDER_DIVERSITY_TARGET);
   const getProviderRepresentative = (model: T) => {
-    const providerBucket = normalizeProviderBucket(model.provider);
+    const providerBucket = getHomepageProviderBucket(model.provider);
     const verifiedLeadership = providerBucket
       ? latestOfficialLeadershipByProvider.get(providerBucket)
       : undefined;
@@ -514,7 +542,7 @@ export function selectHomepageTopModelIds<
       break;
     }
 
-    const providerBucket = normalizeProviderBucket(model.provider);
+    const providerBucket = getHomepageProviderBucket(model.provider);
     const providerCount = providerBucket ? (providerCounts.get(providerBucket) ?? 0) : 0;
 
     if (providerBucket && providerCount >= 1) {
@@ -537,7 +565,7 @@ export function selectHomepageTopModelIds<
     for (const model of candidates) {
       if (selected.length >= diversityTarget) return;
       if (selectedIds.has(model.id)) continue;
-      const providerBucket = normalizeProviderBucket(model.provider);
+      const providerBucket = getHomepageProviderBucket(model.provider);
       if (providerBucket && providerCounts.has(providerBucket)) continue;
 
       const providerRepresentative = getProviderRepresentative(model);
@@ -563,11 +591,13 @@ export function selectHomepageTopModelIds<
   for (const candidates of [prioritizedHighConfidence, prioritizedFallback]) {
     for (const model of candidates) {
       if (selectedIds.has(model.id)) continue;
-      const providerBucket = normalizeProviderBucket(model.provider);
+      const providerBucket = getHomepageProviderBucket(model.provider);
       const providerCount = providerBucket
         ? (providerCounts.get(providerBucket) ?? 0)
         : 0;
-      if (providerBucket && providerCount >= 2) continue;
+      if (providerBucket && providerCount >= HOMEPAGE_MAX_MODELS_PER_PROVIDER) {
+        continue;
+      }
 
       selected.push(model);
       selectedIds.add(model.id);

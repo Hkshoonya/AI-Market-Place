@@ -1,5 +1,8 @@
 import {
   computeHomepageTopModelScore,
+  getHomepageProviderBucket,
+  HOMEPAGE_MAX_MODELS_PER_PROVIDER,
+  HOMEPAGE_PROVIDER_DIVERSITY_TARGET,
   hasLifecycleWarningLanguage,
   isEfficiencyTierModel,
   isPreviewLikeModel,
@@ -93,6 +96,19 @@ export function computeHomepageRankingHealth(
     .map((id) => activeModels.find((model) => model.id === id) ?? null)
     .filter((model): model is HomepageRankingHealthModel => Boolean(model));
   const shortlistIdSet = new Set(shortlist.map((model) => model.id));
+  const providerSelectionLimit =
+    limit > Math.min(limit, HOMEPAGE_PROVIDER_DIVERSITY_TARGET)
+      ? HOMEPAGE_MAX_MODELS_PER_PROVIDER
+      : 1;
+  const shortlistProviderCounts = new Map<string, number>();
+  for (const model of shortlist) {
+    const providerBucket = getHomepageProviderBucket(model.provider);
+    if (!providerBucket) continue;
+    shortlistProviderCounts.set(
+      providerBucket,
+      (shortlistProviderCounts.get(providerBucket) ?? 0) + 1
+    );
+  }
   const lowestShortlistScore =
     shortlist.length > 0
       ? Math.min(...shortlist.map((model) => computeHomepageTopModelScore(model, now)))
@@ -102,6 +118,13 @@ export function computeHomepageRankingHealth(
     .filter((model) => !shortlistIdSet.has(model.id))
     .filter((model) => isRecentLeadershipHomepageCandidate(model, now))
     .filter((model) => !isSupersededBySelectedSeries(model, shortlist))
+    .filter((model) => {
+      const providerBucket = getHomepageProviderBucket(model.provider);
+      return (
+        !providerBucket ||
+        (shortlistProviderCounts.get(providerBucket) ?? 0) < providerSelectionLimit
+      );
+    })
     .filter(
       (model) =>
         computeHomepageTopModelScore(model, now) >= lowestShortlistScore - 1

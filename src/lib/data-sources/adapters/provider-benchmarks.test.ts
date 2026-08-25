@@ -253,9 +253,17 @@ describe("provider-benchmarks helpers", () => {
       url: "https://www.anthropic.com/claude-sonnet-5-system-card",
       requiresBenchmarkSignal: true,
     });
-    expect(sources.get("anthropic-claude-fable-5-mythos-5")).toMatchObject({
-      url: "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+    expect(sources.get("anthropic-claude-fable-5")).toMatchObject({
+      url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
       requiresBenchmarkSignal: true,
+      strictModelHints: true,
+      verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
+    });
+    expect(sources.get("anthropic-claude-mythos-5")).toMatchObject({
+      url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+      requiresBenchmarkSignal: true,
+      strictModelHints: true,
+      verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
     });
     expect(sources.get("xai-grok-4-5")).toMatchObject({
       url: "https://x.ai/news/grok-4-5",
@@ -799,15 +807,42 @@ describe("provider-benchmarks helpers", () => {
             publishedAt: "2026-06-30T00:00:00.000Z",
           }),
         }),
+        expect.objectContaining({
+          id: "anthropic-claude-fable-5",
+          url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+          verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
+          contentType: "pdf",
+          pdfPages: [1, 251, 253, 254, 280],
+          sourceType: "official_model_card",
+          strictModelHints: true,
+          verifiedFallback: expect.objectContaining({
+            publishedAt: "2026-06-09T00:00:00.000Z",
+          }),
+        }),
+        expect.objectContaining({
+          id: "anthropic-claude-mythos-5",
+          url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+          verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
+          contentType: "pdf",
+          pdfPages: [1, 251, 253, 254, 266, 280],
+          sourceType: "official_model_card",
+          strictModelHints: true,
+          verifiedFallback: expect.objectContaining({
+            publishedAt: "2026-06-09T00:00:00.000Z",
+          }),
+        }),
       ])
     );
   });
 
   it("keeps reviewed Claude system-card snapshots machine-extractable", () => {
     const sources = __testables.PROVIDER_BENCHMARK_SOURCES.filter((source) =>
-      ["anthropic-claude-opus-5", "anthropic-claude-sonnet-5"].includes(
-        source.id
-      )
+      [
+        "anthropic-claude-opus-5",
+        "anthropic-claude-sonnet-5",
+        "anthropic-claude-fable-5",
+        "anthropic-claude-mythos-5",
+      ].includes(source.id)
     );
 
     expect(
@@ -830,6 +865,23 @@ describe("provider-benchmarks helpers", () => {
         }),
         expect.objectContaining({ benchmarkSlug: "browsecomp", score: 84.7 }),
         expect.objectContaining({ benchmarkSlug: "os-world", score: 81.2 }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ benchmarkSlug: "swe_bench", score: 80 }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 84.3,
+        }),
+        expect.objectContaining({ benchmarkSlug: "os-world", score: 85 }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ benchmarkSlug: "swe_bench", score: 80.3 }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 88,
+        }),
+        expect.objectContaining({ benchmarkSlug: "browsecomp", score: 88 }),
+        expect.objectContaining({ benchmarkSlug: "os-world", score: 85 }),
       ]),
     ]);
   });
