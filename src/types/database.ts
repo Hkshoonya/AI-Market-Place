@@ -175,6 +175,29 @@ export interface ModelUpdate {
   model?: Model;
 }
 
+export interface ModelMetadataEvidence {
+  id: string;
+  model_id: string;
+  source: string;
+  source_record_id: string;
+  source_name: string;
+  source_url: string | null;
+  publication_date: string | null;
+  parameter_count: number | null;
+  training_compute_flop: number | null;
+  training_dataset_size: number | null;
+  base_model: string | null;
+  accessibility: string | null;
+  is_open_weights: boolean | null;
+  confidence: string | null;
+  abstract: string | null;
+  source_last_modified_at: string | null;
+  metadata: Record<string, unknown>;
+  observed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Provider {
   id: number;
   slug: string;
@@ -1143,6 +1166,7 @@ export interface ModelWithDetails extends Model {
   elo_ratings?: EloRating[];
   rankings?: Ranking[];
   model_updates?: ModelUpdate[];
+  model_metadata_evidence?: ModelMetadataEvidence[];
   tags?: Tag[];
 }
 
@@ -1194,6 +1218,16 @@ export interface Database {
         Insert: Partial<ModelUpdate> &
           Pick<ModelUpdate, "model_id" | "update_type" | "title">;
         Update: Partial<ModelUpdate>;
+        Relationships: [];
+      };
+      model_metadata_evidence: {
+        Row: AsRow<ModelMetadataEvidence>;
+        Insert: Partial<ModelMetadataEvidence> &
+          Pick<
+            ModelMetadataEvidence,
+            "model_id" | "source" | "source_record_id" | "source_name"
+          >;
+        Update: Partial<ModelMetadataEvidence>;
         Relationships: [];
       };
       tags: {

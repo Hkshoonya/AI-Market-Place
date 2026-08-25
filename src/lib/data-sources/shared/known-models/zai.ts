@@ -1,6 +1,28 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const ZAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  "glm-5-3": {
+    name: "GLM-5.3",
+    description:
+      "Z.ai's frontier coding and cyber-reasoning model, built by scaling post-training on the GLM-5.2 base for long-horizon agentic work.",
+    category: "llm",
+    context_window: 1_000_000,
+    parameter_count: 744_000_000_000,
+    release_date: "2026-08-14",
+    architecture: "Mixture-of-Experts Transformer",
+    status: "active",
+    modalities: ["text"],
+    capabilities: {
+      reasoning: true,
+      coding: true,
+      function_calling: true,
+      streaming: true,
+    },
+    is_open_weights: false,
+    license: "commercial",
+    license_name: null,
+    website_url: "https://z.ai/blog/glm-5.3",
+  },
   "glm-5": {
     name: "GLM-5",
     description:

@@ -37,6 +37,7 @@ export function listAdapters(): string[] {
 export async function loadAllAdapters(): Promise<void> {
   await Promise.all([
     import("./adapters/huggingface"),
+    import("./adapters/epoch-ai-models"),
     import("./adapters/replicate"),
     import("./adapters/openai-models"),
     import("./adapters/anthropic-models"),

@@ -145,6 +145,57 @@ describe("huggingface metadata helpers", () => {
     expect(record.hf_model_id).toBe("Qwen/Qwen2.5-7B-Instruct");
   });
 
+  it("requests bounded list fields including structured safetensors metadata", () => {
+    const url = new URL(__testables.buildHfListUrl(100, 200));
+
+    expect(url.searchParams.get("limit")).toBe("100");
+    expect(url.searchParams.get("offset")).toBe("200");
+    expect(url.searchParams.has("full")).toBe(false);
+    expect(url.searchParams.getAll("expand")).toEqual(
+      expect.arrayContaining([
+        "pipeline_tag",
+        "safetensors",
+        "tags",
+        "trendingScore",
+      ])
+    );
+  });
+
+  it("uses safetensors totals for canonical repositories and canonicalizes modalities", () => {
+    const record = __testables.transformModel({
+      id: "Example/Omni-12B",
+      pipeline_tag: "image-text-to-text",
+      tags: ["license:apache-2.0"],
+      safetensors: { total: 12_345_678_901 },
+      downloads: 5,
+      likes: 2,
+      trendingScore: 1,
+      library_name: "transformers",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    expect(record.category).toBe("multimodal");
+    expect(record.modalities).toEqual(["image", "text"]);
+    expect(record.parameter_count).toBe(12_345_678_901);
+  });
+
+  it("does not treat quantized or adapter tensor totals as base-model parameters", () => {
+    expect(
+      __testables.extractStructuredParamCount(
+        "Example/Omni-NVFP4",
+        [],
+        { total: 4_600_000_000 }
+      )
+    ).toBeNull();
+    expect(
+      __testables.extractStructuredParamCount(
+        "Example/Omni-LoRA",
+        ["adapter"],
+        { total: 42_000_000 }
+      )
+    ).toBeNull();
+  });
+
   it("extracts ordered base model ids from HF model info card data and tags", () => {
     expect(
       __testables.extractBaseModelIdsFromModelInfo({

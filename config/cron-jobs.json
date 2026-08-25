@@ -16,7 +16,7 @@
   },
   {
     "name": "Tier 4 Sync",
-    "cron": "0 0 * * *",
+    "cron": "15 3 * * *",
     "path": "/api/cron/sync?tier=4"
   },
   {
@@ -46,7 +46,7 @@
   },
   {
     "name": "Compute Scores",
-    "cron": "25 */2 * * *",
+    "cron": "45 */2 * * *",
     "path": "/api/cron/compute-scores"
   },
   {

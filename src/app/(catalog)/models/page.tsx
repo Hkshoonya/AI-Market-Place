@@ -28,6 +28,7 @@ import { formatMarketValue } from "@/lib/models/market-value";
 import { sanitizeFilterValue } from "@/lib/utils/sanitize";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
+import { ModelCatalogCoverage } from "@/components/models/model-catalog-coverage";
 import { DeploymentMeaningLegend } from "@/components/models/deployment-meaning-legend";
 import { Pagination } from "@/components/models/pagination";
 import { ProviderLogo } from "@/components/shared/provider-logo";
@@ -56,6 +57,8 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 const PAGE_SIZE = 20;
+const CATALOG_FETCH_PAGE_SIZE = 1_000;
+const MAX_CATALOG_CANDIDATES = 10_000;
 
 export default async function ModelsPage({
   searchParams,
@@ -97,99 +100,117 @@ export default async function ModelsPage({
 
   const supabase = createPublicClient();
 
-  let dbQuery = supabase
-    .from("models")
-    .select(sort === "price" ? "*, model_pricing(*)" : "*", { count: "exact" });
-
-  dbQuery =
-    lifecycleFilter === "all"
-      ? dbQuery.in("status", getLifecycleStatuses("all"))
-      : dbQuery.eq("status", "active");
-
-  if (category) {
-    dbQuery = dbQuery.eq(
-      "category",
-      category as import("@/types/database").ModelCategory
-    );
-  }
-
-  if (openOnly) {
-    dbQuery = dbQuery.eq("is_open_weights", true);
-  }
-
-  if (providerFilter) {
-    dbQuery = dbQuery.eq("provider", providerFilter);
-  }
-
-  if (paramsFilter) {
-    const billion = 1_000_000_000;
-    if (paramsFilter === "0-10") {
-      dbQuery = dbQuery.lt("parameter_count", 10 * billion);
-    } else if (paramsFilter === "10-70") {
-      dbQuery = dbQuery.gte("parameter_count", 10 * billion).lt("parameter_count", 70 * billion);
-    } else if (paramsFilter === "70-200") {
-      dbQuery = dbQuery.gte("parameter_count", 70 * billion).lt("parameter_count", 200 * billion);
-    } else if (paramsFilter === "200+") {
-      dbQuery = dbQuery.gte("parameter_count", 200 * billion);
-    }
-  }
-
-  if (apiFilter) {
-    dbQuery = dbQuery.eq("is_api_available", true);
-  }
-
-  if (licenseFilter) {
-    dbQuery = dbQuery.eq(
-      "license",
-      licenseFilter as import("@/types/database").LicenseType
-    );
-  }
-
-  if (query) {
-    const sanitizedQuery = sanitizeFilterValue(query);
-    if (sanitizedQuery) {
-      dbQuery = dbQuery.or(
-        `name.ilike.%${sanitizedQuery}%,provider.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`
-      );
-    }
-  }
-
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
+  const buildCatalogQuery = (includeCount: boolean) => {
+    let catalogQuery = supabase
+      .from("models")
+      .select(
+        sort === "price" ? "*, model_pricing(*)" : "*",
+        includeCount ? { count: "exact" } : undefined
+      );
 
-  switch (sort) {
-    case "downloads":
-      dbQuery = dbQuery.order("hf_downloads", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "newest":
-      dbQuery = dbQuery.order("release_date", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "quality":
-      dbQuery = dbQuery.order("quality_score", {
-        ascending: false,
-        nullsFirst: false,
-      });
-      break;
-    case "rank":
-    case "price":
-    default:
-      dbQuery = dbQuery.order("overall_rank", {
-        ascending: true,
-        nullsFirst: false,
-      });
-      break;
-  }
+    catalogQuery =
+      lifecycleFilter === "all"
+        ? catalogQuery.in("status", getLifecycleStatuses("all"))
+        : catalogQuery.eq("status", "active");
 
-  dbQuery = dbQuery.range(0, 1999);
+    if (category) {
+      catalogQuery = catalogQuery.eq(
+        "category",
+        category as import("@/types/database").ModelCategory
+      );
+    }
+    if (openOnly) catalogQuery = catalogQuery.eq("is_open_weights", true);
+    if (providerFilter) catalogQuery = catalogQuery.eq("provider", providerFilter);
 
-  const modelsResponse = await dbQuery;
-  const count = modelsResponse.count;
+    if (paramsFilter) {
+      const billion = 1_000_000_000;
+      if (paramsFilter === "0-10") {
+        catalogQuery = catalogQuery.lt("parameter_count", 10 * billion);
+      } else if (paramsFilter === "10-70") {
+        catalogQuery = catalogQuery
+          .gte("parameter_count", 10 * billion)
+          .lt("parameter_count", 70 * billion);
+      } else if (paramsFilter === "70-200") {
+        catalogQuery = catalogQuery
+          .gte("parameter_count", 70 * billion)
+          .lt("parameter_count", 200 * billion);
+      } else if (paramsFilter === "200+") {
+        catalogQuery = catalogQuery.gte("parameter_count", 200 * billion);
+      }
+    }
+
+    if (apiFilter) catalogQuery = catalogQuery.eq("is_api_available", true);
+    if (licenseFilter) {
+      catalogQuery = catalogQuery.eq(
+        "license",
+        licenseFilter as import("@/types/database").LicenseType
+      );
+    }
+
+    if (query) {
+      const sanitizedQuery = sanitizeFilterValue(query);
+      if (sanitizedQuery) {
+        catalogQuery = catalogQuery.or(
+          `name.ilike.%${sanitizedQuery}%,provider.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`
+        );
+      }
+    }
+
+    switch (sort) {
+      case "downloads":
+        return catalogQuery.order("hf_downloads", {
+          ascending: false,
+          nullsFirst: false,
+        });
+      case "newest":
+        return catalogQuery.order("release_date", {
+          ascending: false,
+          nullsFirst: false,
+        });
+      case "quality":
+        return catalogQuery.order("quality_score", {
+          ascending: false,
+          nullsFirst: false,
+        });
+      case "rank":
+      case "price":
+      default:
+        return catalogQuery.order("overall_rank", {
+          ascending: true,
+          nullsFirst: false,
+        });
+    }
+  };
+
+  const firstModelsResponse = await buildCatalogQuery(true).range(
+    0,
+    CATALOG_FETCH_PAGE_SIZE - 1
+  );
+  const count = firstModelsResponse.count;
+  const rowsToLoad = Math.min(
+    count ?? firstModelsResponse.data?.length ?? 0,
+    MAX_CATALOG_CANDIDATES
+  );
+  const remainingStarts = Array.from(
+    { length: Math.max(0, Math.ceil(rowsToLoad / CATALOG_FETCH_PAGE_SIZE) - 1) },
+    (_, index) => (index + 1) * CATALOG_FETCH_PAGE_SIZE
+  );
+  const remainingResponses = await Promise.all(
+    remainingStarts.map((start) =>
+      buildCatalogQuery(false).range(start, start + CATALOG_FETCH_PAGE_SIZE - 1)
+    )
+  );
+  const firstPageError = firstModelsResponse.error;
+  const remainingError = remainingResponses.find((response) => response.error)?.error;
+  const modelsResponse = {
+    ...firstModelsResponse,
+    data: [firstModelsResponse, ...remainingResponses].flatMap(
+      (response) => response.data ?? []
+    ),
+    error: firstPageError ?? remainingError ?? null,
+  };
 
   const ModelsPageSchema = ModelBaseSchema.extend({
     model_pricing: z
@@ -215,6 +236,20 @@ export default async function ModelsPage({
     dedupePublicModelFamilies(parsedModels),
     Math.min(12, Math.max(parsedModels.length, 1))
   );
+  const catalogCoverage = {
+    trackedArtifacts: count ?? parsedModels.length,
+    canonicalProfiles: uniqueModels.length,
+    rankedProfiles: uniqueModels.filter((model) => model.overall_rank !== null).length,
+    technicalProfiles: uniqueModels.filter(
+      (model) =>
+        Boolean(model.description || model.short_description) &&
+        Boolean(
+          model.parameter_count !== null ||
+            model.context_window !== null ||
+            model.architecture
+        )
+    ).length,
+  };
   let sortedUniqueModels = [...uniqueModels].sort((left, right) => {
     switch (sort) {
       case "downloads":
@@ -394,6 +429,7 @@ export default async function ModelsPage({
         <p className="mt-2 text-muted-foreground">
           Browse, search, and compare AI models from providers worldwide.
         </p>
+        <ModelCatalogCoverage {...catalogCoverage} />
         <DeploymentMeaningLegend
           className="mt-4"
           intro="Deployment here means the real path to start using a model: through a managed runtime, on a rented server you control, or on your own machine."

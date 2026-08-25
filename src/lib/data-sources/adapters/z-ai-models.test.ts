@@ -33,4 +33,18 @@ describe("z-ai-models adapter", () => {
       })
     );
   });
+
+  it("builds GLM-5.3 from its exact release metadata", () => {
+    const record = __testables.buildModelRecord("glm-5-3");
+
+    expect(record).toMatchObject({
+      slug: "z-ai-glm-5-3",
+      name: "GLM-5.3",
+      release_date: "2026-08-14",
+      parameter_count: 744_000_000_000,
+      context_window: 1_000_000,
+      is_open_weights: false,
+      website_url: "https://z.ai/blog/glm-5.3",
+    });
+  });
 });

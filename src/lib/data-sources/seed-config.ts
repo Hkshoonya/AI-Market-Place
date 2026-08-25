@@ -35,6 +35,22 @@ export interface SeedEntry {
  * Priorities sourced from migration 002_enable_free_pipeline.sql.
  */
 export const DATA_SOURCE_SEEDS: SeedEntry[] = [
+  // ── Tier 4 (daily): Research metadata and provenance ───────────────────
+  {
+    slug: "epoch-ai-models",
+    name: "Epoch AI Models",
+    adapter_type: "epoch-ai-models",
+    description:
+      "Daily research metadata for model parameters, training compute, dataset scale, release dates, and provenance",
+    tier: 4,
+    sync_interval_hours: 24,
+    priority: 5,
+    secret_env_keys: [],
+    output_types: ["models"],
+    is_enabled: true,
+    config: {},
+  },
+
   // ── Tier 1 (every 2h): Provider model catalogs + launch signals ────────
   {
     slug: "openrouter-models",

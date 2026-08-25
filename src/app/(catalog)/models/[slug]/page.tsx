@@ -26,6 +26,7 @@ import { DeployTab } from "@/components/models/deploy-tab";
 import { ModelOverview } from "@/components/models/model-overview";
 import { ModelUpgradeNote } from "@/components/models/model-upgrade-note";
 import { ModelViewTracker } from "@/components/models/model-view-tracker";
+import { ModelEvidenceProfileCard } from "@/components/models/model-evidence-profile";
 import { ModelHeader } from "./_components/model-header";
 import { ModelStatsRow } from "./_components/model-stats-row";
 import { BenchmarksTab } from "./_components/benchmarks-tab";
@@ -55,6 +56,8 @@ import {
   countTrustedStructuredBenchmarkScores,
   filterTrustedStructuredBenchmarkScores,
 } from "@/lib/models/benchmark-score-trust";
+import { buildModelEvidenceProfile } from "@/lib/models/evidence-profile";
+import type { ModelMetadataEvidence } from "@/types/database";
 
 export const revalidate = 300;
 
@@ -96,9 +99,6 @@ export default async function ModelDetailPage({
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const requestedTab = resolvedSearchParams?.tab;
-  const activeTab = requestedTab && MODEL_DETAIL_TABS.has(requestedTab)
-    ? requestedTab
-    : "benchmarks";
   const supabase = createPublicClient();
 
   const modelResponse = await supabase
@@ -122,44 +122,64 @@ export default async function ModelDetailPage({
     notFound();
   }
 
-  const [deploymentsResponse, platformsResponse] = await Promise.all([
+  const newsFields = "id, title, summary, url, source, category, related_provider, tags, metadata, published_at";
+  const providerNewsPromise = model.provider
+    ? supabase
+        .from("model_news")
+        .select(newsFields)
+        .eq("related_provider", model.provider)
+        .or("related_model_ids.is.null,related_model_ids.eq.{}")
+        .order("published_at", { ascending: false })
+        .limit(10)
+    : Promise.resolve({ data: [], error: null });
+  const [
+    deploymentsResponse,
+    platformsResponse,
+    metadataEvidenceResponse,
+    snapshotsResponse,
+    similarResponse,
+    newsResponse,
+    providerNewsResponse,
+  ] = await Promise.all([
     supabase
       .from("model_deployments")
       .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
       .eq("model_id", model.id)
       .eq("status", "available"),
     supabase.from("deployment_platforms").select("*").order("name"),
+    supabase
+      .from("model_metadata_evidence")
+      .select("*")
+      .eq("model_id", model.id)
+      .order("source_last_modified_at", { ascending: false, nullsFirst: false }),
+    supabase
+      .from("model_snapshots")
+      .select("snapshot_date, quality_score, hf_downloads, hf_likes, overall_rank")
+      .eq("model_id", model.id)
+      .order("snapshot_date", { ascending: true }),
+    supabase
+      .from("models")
+      .select(
+        "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, parameter_count, is_open_weights"
+      )
+      .eq("status", "active")
+      .eq("category", model.category as import("@/types/database").ModelCategory)
+      .neq("id", model.id)
+      .order("quality_score", { ascending: false, nullsFirst: false })
+      .limit(5),
+    supabase
+      .from("model_news")
+      .select(newsFields)
+      .contains("related_model_ids", [model.id])
+      .order("published_at", { ascending: false })
+      .limit(20),
+    providerNewsPromise,
   ]);
-
-  // Fetch historical snapshots for trends
-  const { data: snapshotsRaw } = await supabase
-    .from("model_snapshots")
-    .select("snapshot_date, quality_score, hf_downloads, hf_likes, overall_rank")
-    .eq("model_id", model.id)
-    .order("snapshot_date", { ascending: true });
-  const snapshots = snapshotsRaw ?? [];
-
-  // Fetch similar models (same category, excluding current model)
-  const { data: similarRaw } = await supabase
-    .from("models")
-    .select(
-      "id, slug, name, provider, category, overall_rank, quality_score, hf_downloads, parameter_count, is_open_weights"
-    )
-    .eq("status", "active")
-    .eq("category", model.category as import("@/types/database").ModelCategory)
-    .neq("id", model.id)
-    .order("quality_score", { ascending: false, nullsFirst: false })
-    .limit(5);
-  const similarModels = similarRaw ?? [];
-
-  // Fetch news linked to this model + provider-level news
-  const newsFields = "id, title, summary, url, source, category, related_provider, tags, metadata, published_at";
-  const { data: newsRaw } = await supabase.from("model_news").select(newsFields)
-    .contains("related_model_ids", [model.id]).order("published_at", { ascending: false }).limit(20);
-  const { data: providerNewsRaw } = model.provider
-    ? await supabase.from("model_news").select(newsFields).eq("related_provider", model.provider)
-        .or("related_model_ids.is.null,related_model_ids.eq.{}").order("published_at", { ascending: false }).limit(10)
-    : { data: [] as typeof newsRaw };
+  const metadataEvidence = (metadataEvidenceResponse.data ?? []) as ModelMetadataEvidence[];
+  const snapshots = snapshotsResponse.data ?? [];
+  const similarModels = similarResponse.data ?? [];
+  const newsRaw = newsResponse.data ?? [];
+  const providerNewsRaw = providerNewsResponse.data ?? [];
   // Merge, deduplicate, sort by date
   const seen = new Set<string>();
   const modelNews = [...(newsRaw ?? []), ...(providerNewsRaw ?? [])]
@@ -242,7 +262,10 @@ export default async function ModelDetailPage({
       : null,
   });
   type UpdateEntry = import("./_components/changelog-tab").UpdateEntry;
-  const updates = (model.model_updates ?? []) as UpdateEntry[];
+  const updates = ([...(model.model_updates ?? [])] as UpdateEntry[]).sort(
+    (left, right) =>
+      Date.parse(right.published_at) - Date.parse(left.published_at)
+  );
   const latestModelUpdateAt =
     typeof modelNews[0]?.published_at === "string"
       ? modelNews[0].published_at
@@ -285,6 +308,29 @@ export default async function ModelDetailPage({
     name: model.name,
     slug: model.slug,
   });
+  const evidenceProfile = buildModelEvidenceProfile(model, {
+    benchmarkCount: benchmarkScores.length,
+    arenaCount: currentArenaRatings.length,
+    providerBenchmarkCount: recentBenchmarkEvidence.length,
+    pricingCount: pricingData.length,
+    deploymentCount: deploymentsResponse.data?.length ?? 0,
+    snapshotCount: snapshots.length,
+    newsCount: modelNews.length,
+    updateCount: updates.length,
+    metadataEvidenceCount: metadataEvidence.length,
+  });
+  const fallbackTab =
+    benchmarkScores.length + currentArenaRatings.length + recentBenchmarkEvidence.length > 0
+      ? "benchmarks"
+      : pricingData.length > 0
+        ? "pricing"
+        : modelNews.length > 0
+          ? "news"
+          : "details";
+  const activeTab =
+    requestedTab && MODEL_DETAIL_TABS.has(requestedTab)
+      ? requestedTab
+      : fallbackTab;
 
   const stats = [
     { label: "Quality Score", value: model.quality_score ? Number(model.quality_score).toFixed(1) : "---", icon: BarChart3 },
@@ -420,6 +466,11 @@ export default async function ModelDetailPage({
 
       {/* Quick Stats Row */}
       <ModelStatsRow stats={stats} />
+
+      <ModelEvidenceProfileCard
+        profile={evidenceProfile}
+        evidence={metadataEvidence}
+      />
 
       {/* Model Overview (AI-generated pros/cons) */}
       <div className="mt-8">

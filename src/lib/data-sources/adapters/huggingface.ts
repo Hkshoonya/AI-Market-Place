@@ -46,6 +46,23 @@ const CONTEXT_ENRICHMENT_PROVIDERS = new Set([
 const GAP_FETCH_PAGE_SIZE = 1000;
 const DEFAULT_HISTORICAL_REFRESH_LIMIT = 50;
 const DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS = 24 * 7;
+const HF_LIST_EXPANSIONS = [
+  "author",
+  "createdAt",
+  "disabled",
+  "downloads",
+  "gated",
+  "lastModified",
+  "library_name",
+  "likes",
+  "pipeline_tag",
+  "private",
+  "safetensors",
+  "tags",
+  "trendingScore",
+] as const;
+const PACKAGED_WEIGHT_REPOSITORY_PATTERN =
+  /(?:^|[-_.:/\s])(?:4bit|4-bit|8bit|8-bit|adapter|awq|bnb|exl2|fp4|fp8|gguf|gptq|int4|int8|lora|mlx|nf4|nvfp4|quantized|quantization)(?:$|[-_.:/\s])/i;
 
 // ────────────────────────────────────────────────────────────────
 // Mapping helpers (kept from the original Edge Function)
@@ -67,6 +84,7 @@ function mapCategory(pipelineTag: string | null): string {
     "object-detection": "vision",
     "image-segmentation": "vision",
     "image-to-text": "vision",
+    "image-text-to-text": "multimodal",
     "visual-question-answering": "multimodal",
     "document-question-answering": "multimodal",
     "feature-extraction": "embeddings",
@@ -79,6 +97,38 @@ function mapCategory(pipelineTag: string | null): string {
     "text-to-code": "code",
   };
   return mapping[pipelineTag ?? ""] ?? "specialized";
+}
+
+/** Convert HF task labels into the input/output modalities users recognize. */
+function mapModalities(pipelineTag: string | null): string[] {
+  const mapping: Record<string, string[]> = {
+    "text-generation": ["text"],
+    "text2text-generation": ["text"],
+    conversational: ["text"],
+    "fill-mask": ["text"],
+    summarization: ["text"],
+    translation: ["text"],
+    "question-answering": ["text"],
+    "text-to-image": ["text", "image"],
+    "image-to-image": ["image"],
+    "image-classification": ["image"],
+    "object-detection": ["image"],
+    "image-segmentation": ["image"],
+    "image-to-text": ["image", "text"],
+    "image-text-to-text": ["image", "text"],
+    "visual-question-answering": ["image", "text"],
+    "document-question-answering": ["image", "text"],
+    "feature-extraction": ["text"],
+    "sentence-similarity": ["text"],
+    "automatic-speech-recognition": ["audio", "text"],
+    "text-to-speech": ["text", "audio"],
+    "audio-classification": ["audio"],
+    "text-to-video": ["text", "video"],
+    "video-classification": ["video"],
+    "text-to-code": ["text"],
+  };
+
+  return mapping[pipelineTag ?? ""] ?? [];
 }
 
 /** Map HF license tags to our license type + name. */
@@ -162,26 +212,76 @@ function extractParamCount(tags: string[]): number | null {
   return null;
 }
 
+interface HFSafetensorsMetadata {
+  total?: number | null;
+  parameters?: Record<string, number> | null;
+}
+
+function isPackagedWeightRepository(hfId: string, tags: string[]): boolean {
+  return PACKAGED_WEIGHT_REPOSITORY_PATTERN.test(
+    `${hfId} ${tags.join(" ")}`
+  );
+}
+
+function extractStructuredParamCount(
+  hfId: string,
+  tags: string[],
+  safetensors?: HFSafetensorsMetadata | null
+): number | null {
+  const taggedCount = extractParamCount(tags);
+  if (taggedCount) return taggedCount;
+
+  if (isPackagedWeightRepository(hfId, tags)) return null;
+
+  const total = safetensors?.total;
+  if (
+    typeof total !== "number" ||
+    !Number.isFinite(total) ||
+    total < 1_000 ||
+    total > 10_000_000_000_000
+  ) {
+    return null;
+  }
+
+  return Math.round(total);
+}
+
+function extractParamCountFromModelInfo(
+  hfId: string,
+  modelInfo: Record<string, unknown>
+): number | null {
+  const tags = Array.isArray(modelInfo.tags)
+    ? modelInfo.tags.filter((tag): tag is string => typeof tag === "string")
+    : [];
+  const safetensors =
+    modelInfo.safetensors && typeof modelInfo.safetensors === "object"
+      ? (modelInfo.safetensors as HFSafetensorsMetadata)
+      : null;
+
+  return extractStructuredParamCount(hfId, tags, safetensors);
+}
+
 // ────────────────────────────────────────────────────────────────
 // HF API response shape
 // ────────────────────────────────────────────────────────────────
 
 interface HFModel {
   id: string; // e.g. "meta-llama/Llama-3-70B"
-  modelId: string;
-  author: string;
-  sha: string;
-  lastModified: string;
-  private: boolean;
-  disabled: boolean;
-  gated: boolean | string;
-  pipeline_tag: string | null;
-  tags: string[];
-  downloads: number;
-  likes: number;
-  trendingScore: number;
-  library_name: string;
-  createdAt: string;
+  modelId?: string;
+  author?: string;
+  sha?: string;
+  lastModified?: string;
+  private?: boolean;
+  disabled?: boolean;
+  gated?: boolean | string;
+  pipeline_tag?: string | null;
+  tags?: string[];
+  downloads?: number;
+  likes?: number;
+  trendingScore?: number;
+  library_name?: string;
+  createdAt?: string;
+  safetensors?: HFSafetensorsMetadata | null;
 }
 
 interface HfModelRecord extends Record<string, unknown> {
@@ -318,6 +418,21 @@ function buildHfApiModelInfoUrl(hfId: string) {
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/")}`;
+}
+
+function buildHfListUrl(limit: number, offset: number) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    sort: "trendingScore",
+    direction: "-1",
+  });
+
+  for (const field of HF_LIST_EXPANSIONS) {
+    params.append("expand", field);
+  }
+
+  return `${HF_API_BASE}/models?${params.toString()}`;
 }
 
 function buildHfHeaders(token?: string) {
@@ -676,6 +791,7 @@ async function backfillHfMetadataGaps(
 interface HfHistoricalRefreshRow {
   slug: string;
   hf_model_id: string | null;
+  parameter_count: number | null;
   data_refreshed_at: string | null;
 }
 
@@ -722,7 +838,7 @@ async function refreshHistoricalHfModels(
 
   const { data, error } = await ctx.supabase
     .from("models")
-    .select("slug, hf_model_id, data_refreshed_at")
+    .select("slug, hf_model_id, parameter_count, data_refreshed_at")
     .eq("status", "active")
     .not("hf_model_id", "is", null)
     .order("data_refreshed_at", { ascending: true, nullsFirst: true })
@@ -799,10 +915,17 @@ async function refreshHistoricalHfModels(
         const likes = readFiniteNumber(lookup.data.likes);
         const trendingScore = readFiniteNumber(lookup.data.trendingScore);
         const releaseDate = readReleaseDate(lookup.data.createdAt);
+        const parameterCount = extractParamCountFromModelInfo(
+          hfModelId,
+          lookup.data
+        );
 
         if (downloads !== null) patch.hf_downloads = downloads;
         if (likes !== null) patch.hf_likes = likes;
         if (trendingScore !== null) patch.hf_trending_score = trendingScore;
+        if (row.parameter_count === null && parameterCount !== null) {
+          patch.parameter_count = parameterCount;
+        }
         if (typeof lookup.data.library_name === "string" && lookup.data.library_name) {
           patch.architecture = lookup.data.library_name;
         }
@@ -839,14 +962,20 @@ function transformModel(hf: HFModel): HfModelRecord {
   const slug = makeSlug(hf.id);
   const [provider, ...nameParts] = hf.id.split("/");
   const name = nameParts.join("/") || hf.id;
-  const category = mapCategory(hf.pipeline_tag);
-  const license = mapLicense(hf.tags);
-  const paramCount = extractParamCount(hf.tags);
+  const pipelineTag = hf.pipeline_tag ?? null;
+  const tags = hf.tags ?? [];
+  const category = mapCategory(pipelineTag);
+  const license = mapLicense(tags);
+  const paramCount = extractStructuredParamCount(
+    hf.id,
+    tags,
+    hf.safetensors
+  );
 
   const isOpenWeights =
     license.type === "open_source" ||
     license.type === "research_only" ||
-    inferOpenWeightsFromHfModel(hf.id, hf.tags);
+    inferOpenWeightsFromHfModel(hf.id, tags);
   const resolvedLicense =
     isOpenWeights && license.type === "commercial"
       ? { type: "open_source", name: "Open weights" }
@@ -857,7 +986,7 @@ function transformModel(hf: HFModel): HfModelRecord {
     name,
     provider: getCanonicalProviderName(provider || "unknown"),
     category,
-    status: hf.disabled ? "archived" : "active",
+    status: hf.disabled === true ? "archived" : "active",
     architecture: hf.library_name || null,
     parameter_count: paramCount,
     hf_model_id: hf.id,
@@ -870,7 +999,7 @@ function transformModel(hf: HFModel): HfModelRecord {
     is_api_available: false,
     context_window: null,
     supported_languages: [],
-    modalities: hf.pipeline_tag ? [hf.pipeline_tag] : [],
+    modalities: mapModalities(pipelineTag),
     capabilities: {},
     website_url: buildHfModelPageUrl(hf.id),
     release_date: hf.createdAt ? hf.createdAt.split("T")[0] : null,
@@ -947,7 +1076,7 @@ const adapter: DataSourceAdapter = {
       }
 
       try {
-        const url = `${HF_API_BASE}/models?limit=${pageSize}&offset=${page * pageSize}&sort=trendingScore&direction=-1&full=true`;
+        const url = buildHfListUrl(pageSize, page * pageSize);
 
         const res = await rateLimitedFetch(url, { headers }, ctx.signal);
 
@@ -1105,14 +1234,19 @@ export const __testables = {
   backfillHfMetadataGaps,
   buildHfApiModelInfoUrl,
   buildHfHeaders,
+  buildHfListUrl,
   buildHfModelPageUrl,
   enrichRecordWithContextWindow,
   extractBaseModelIdsFromModelInfo,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,
+  extractParamCountFromModelInfo,
+  extractStructuredParamCount,
   fetchHfModelInfoLookup,
   fetchContextWindowForHfId,
   normalizeContextWindow,
+  mapCategory,
+  mapModalities,
   refreshHistoricalHfModels,
   shouldAttemptContextEnrichment,
   transformModel,

@@ -3,6 +3,17 @@ import { describe, expect, it } from "vitest";
 import { resolveZAIKnownModelMeta } from "./zai";
 
 describe("resolveZAIKnownModelMeta", () => {
+  it("keeps GLM-5.3 distinct from the older GLM-5 release", () => {
+    expect(resolveZAIKnownModelMeta("glm-5-3")).toMatchObject({
+      name: "GLM-5.3",
+      release_date: "2026-08-14",
+      parameter_count: 744_000_000_000,
+      context_window: 1_000_000,
+      is_open_weights: false,
+      website_url: "https://z.ai/blog/glm-5.3",
+    });
+  });
+
   it("returns exact metadata for newly tracked Z.ai families", () => {
     expect(resolveZAIKnownModelMeta("autoglm-phone-multilingual")).toMatchObject({
       name: "AutoGLM Phone Multilingual",
