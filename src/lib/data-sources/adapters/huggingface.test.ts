@@ -146,11 +146,15 @@ describe("huggingface metadata helpers", () => {
   });
 
   it("requests bounded list fields including structured safetensors metadata", () => {
-    const url = new URL(__testables.buildHfListUrl(100, 200));
+    const url = new URL(__testables.buildHfListUrl(100));
+    const cursorUrl = new URL(
+      __testables.buildHfListUrl(100, "cursor-token")
+    );
 
     expect(url.searchParams.get("limit")).toBe("100");
-    expect(url.searchParams.get("offset")).toBe("200");
+    expect(url.searchParams.has("offset")).toBe(false);
     expect(url.searchParams.has("full")).toBe(false);
+    expect(cursorUrl.searchParams.get("cursor")).toBe("cursor-token");
     expect(url.searchParams.getAll("expand")).toEqual(
       expect.arrayContaining([
         "pipeline_tag",
@@ -159,6 +163,21 @@ describe("huggingface metadata helpers", () => {
         "trendingScore",
       ])
     );
+  });
+
+  it("follows only trusted HF cursor links", () => {
+    const nextUrl =
+      "https://huggingface.co/api/models?limit=100&cursor=next-token";
+
+    expect(
+      __testables.extractNextHfPageUrl(`<${nextUrl}>; rel="next"`)
+    ).toBe(nextUrl);
+    expect(
+      __testables.extractNextHfPageUrl(
+        '<https://attacker.example/api/models?cursor=stolen>; rel="next"'
+      )
+    ).toBeNull();
+    expect(__testables.extractNextHfPageUrl(null)).toBeNull();
   });
 
   it("uses safetensors totals for canonical repositories and canonicalizes modalities", () => {
@@ -288,6 +307,33 @@ describe("huggingface metadata helpers", () => {
         parameter_count: 8_100_000_000,
       })
     ).toBe(true);
+  });
+
+  it("compares the normalized payload for low-trust packaging variants", () => {
+    const sourceRecord = __testables.transformModel({
+      id: "unsloth/Qwen3-8B-GGUF",
+      pipeline_tag: "text-generation",
+      tags: ["license:apache-2.0", "gguf"],
+      downloads: 7_000_000,
+      likes: 2_800,
+      trendingScore: 900,
+      library_name: "transformers",
+      createdAt: "2026-07-01T00:00:00.000Z",
+    });
+    const normalized = __testables.normalizeHfRecordForUpsert(sourceRecord);
+    const existing = {
+      ...normalized,
+      data_refreshed_at: "2026-08-01T00:00:00.000Z",
+    };
+
+    expect(normalized).toMatchObject({
+      hf_downloads: null,
+      hf_likes: null,
+      hf_trending_score: null,
+    });
+    expect(
+      __testables.hfRecordChanged(existing as never, normalized)
+    ).toBe(false);
   });
 
   it("extracts ordered base model ids from HF model info card data and tags", () => {

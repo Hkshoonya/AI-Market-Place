@@ -20,6 +20,7 @@ import {
   createRateLimitedFetch,
   upsertBatch,
   makeSlug,
+  normalizeModelRankingInputs,
 } from "../utils";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
 
@@ -293,9 +294,9 @@ interface HfModelRecord extends Record<string, unknown> {
   architecture: string | null;
   parameter_count: number | null;
   hf_model_id: string | null;
-  hf_downloads: number;
-  hf_likes: number;
-  hf_trending_score: number;
+  hf_downloads: number | null;
+  hf_likes: number | null;
+  hf_trending_score: number | null;
   license: string;
   license_name: string;
   is_open_weights: boolean;
@@ -488,6 +489,10 @@ function hfRecordChanged(
   });
 }
 
+function normalizeHfRecordForUpsert(record: HfModelRecord): HfModelRecord {
+  return normalizeModelRankingInputs(record) as HfModelRecord;
+}
+
 async function fetchExistingHfRows(
   ctx: SyncContext,
   slugs: string[]
@@ -621,19 +626,40 @@ function buildHfApiModelInfoUrl(hfId: string) {
     .join("/")}`;
 }
 
-function buildHfListUrl(limit: number, offset: number) {
+function buildHfListUrl(limit: number, cursor?: string) {
   const params = new URLSearchParams({
     limit: String(limit),
-    offset: String(offset),
     sort: "trendingScore",
     direction: "-1",
   });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
 
   for (const field of HF_LIST_EXPANSIONS) {
     params.append("expand", field);
   }
 
   return `${HF_API_BASE}/models?${params.toString()}`;
+}
+
+function extractNextHfPageUrl(linkHeader: string | null): string | null {
+  const nextMatch = linkHeader?.match(/<([^>]+)>\s*;\s*rel="?next"?/i);
+  if (!nextMatch?.[1]) return null;
+
+  try {
+    const nextUrl = new URL(nextMatch[1]);
+    if (
+      nextUrl.origin !== HF_RAW_BASE ||
+      nextUrl.pathname !== "/api/models"
+    ) {
+      return null;
+    }
+    return nextUrl.toString();
+  } catch {
+    return null;
+  }
 }
 
 function buildHfHeaders(token?: string) {
@@ -1250,10 +1276,7 @@ const adapter: DataSourceAdapter = {
 
     const rateLimitedFetch = createRateLimitedFetch(rateLimitDelayMs);
 
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+    const headers = buildHfHeaders(token);
 
     let totalProcessed = 0;
     let totalCreated = 0;
@@ -1261,6 +1284,8 @@ const adapter: DataSourceAdapter = {
     let topRecordsCreated = 0;
     let topRecordsUpdated = 0;
     let topRecordsUnchanged = 0;
+    let pagesAttempted = 0;
+    let pagesFetched = 0;
     let gapBackfilled = 0;
     let historicalRefresh: HfHistoricalRefreshResult = {
       attempted: 0,
@@ -1271,6 +1296,8 @@ const adapter: DataSourceAdapter = {
       errors: [],
     };
     const errors: SyncError[] = [];
+    const seenModelIds = new Set<string>();
+    let nextPageUrl: string | null = buildHfListUrl(pageSize);
 
     for (let page = 0; page < maxPages; page++) {
       // Respect abort signal
@@ -1280,7 +1307,9 @@ const adapter: DataSourceAdapter = {
       }
 
       try {
-        const url = buildHfListUrl(pageSize, page * pageSize);
+        if (!nextPageUrl) break;
+        const url = nextPageUrl;
+        pagesAttempted += 1;
 
         const res = await rateLimitedFetch(url, { headers }, ctx.signal);
 
@@ -1290,22 +1319,35 @@ const adapter: DataSourceAdapter = {
             message: `HF API returned ${res.status}: ${body.slice(0, 200)}`,
             context: `page=${page}`,
           });
-          // Stop fetching on auth / not-found errors
-          if (res.status === 401 || res.status === 403 || res.status === 404) {
-            break;
-          }
-          continue;
+          // Cursor pagination cannot safely skip a failed page.
+          break;
         }
 
         const models: HFModel[] = await res.json();
+        pagesFetched += 1;
+        const linkedNextPageUrl = extractNextHfPageUrl(res.headers.get("link"));
 
         // No more results -- we've exhausted the list
         if (models.length === 0) {
           break;
         }
 
+        const uniqueModels = models.filter((model) => {
+          if (seenModelIds.has(model.id)) return false;
+          seenModelIds.add(model.id);
+          return true;
+        });
+
+        if (uniqueModels.length === 0) {
+          errors.push({
+            message: "HF cursor returned a page with no new model IDs",
+            context: `page=${page}`,
+          });
+          break;
+        }
+
         // Filter out private / disabled models and transform
-        const transformedRecords = models
+        const transformedRecords = uniqueModels
           .filter((m) => !m.private && !m.disabled)
           .map(transformModel);
 
@@ -1313,17 +1355,18 @@ const adapter: DataSourceAdapter = {
           ctx,
           transformedRecords.map((record) => record.slug)
         );
-        const records = transformedRecords.map((record) =>
+        const mergedRecords = transformedRecords.map((record) =>
           mergeHfRecordWithExisting(record, existingBySlug.get(record.slug))
         );
 
         await enrichRecordsWithOfficialContextWindow(
-          records,
+          mergedRecords,
           ctx.signal,
           token
         );
+        const records = mergedRecords.map(normalizeHfRecordForUpsert);
 
-        totalProcessed += models.length;
+        totalProcessed += uniqueModels.length;
 
         if (records.length > 0) {
           const changedAt = new Date().toISOString();
@@ -1364,8 +1407,10 @@ const adapter: DataSourceAdapter = {
 
         // Progress tracked via SyncResult metadata
 
-        // If we got fewer models than the page size, there are no more pages
-        if (models.length < pageSize) {
+        nextPageUrl = linkedNextPageUrl;
+
+        // The Link header is authoritative; a short page is also terminal.
+        if (models.length < pageSize || !nextPageUrl) {
           break;
         }
       } catch (err) {
@@ -1404,7 +1449,6 @@ const adapter: DataSourceAdapter = {
     }
 
     // A sync with only upsert warnings is still considered partial success
-    const hasErrors = errors.length > 0;
     const nothingProcessed = totalProcessed === 0;
 
     return {
@@ -1416,10 +1460,9 @@ const adapter: DataSourceAdapter = {
       metadata: {
         maxPages,
         pageSize,
-        pagesAttempted: Math.min(
-          maxPages,
-          Math.ceil(totalProcessed / pageSize) + (hasErrors ? 1 : 0)
-        ),
+        pagesAttempted,
+        pagesFetched,
+        uniqueTopModels: seenModelIds.size,
         gapBackfilled,
         historicalRefreshAttempted: historicalRefresh.attempted,
         historicalRefreshed: historicalRefresh.updated,
@@ -1481,6 +1524,7 @@ export const __testables = {
   extractBaseModelIdsFromModelInfo,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,
+  extractNextHfPageUrl,
   extractParamCountFromModelInfo,
   extractStructuredParamCount,
   fetchExistingHfRows,
@@ -1488,6 +1532,7 @@ export const __testables = {
   fetchContextWindowForHfId,
   hfRecordChanged,
   mergeHfRecordWithExisting,
+  normalizeHfRecordForUpsert,
   normalizeContextWindow,
   mapCategory,
   mapModalities,

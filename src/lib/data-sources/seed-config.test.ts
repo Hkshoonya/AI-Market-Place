@@ -55,6 +55,15 @@ describe("benchmark seed configuration", () => {
     expect(seed.is_enabled).toBe(true);
   });
 
+  it("keeps broad Hugging Face discovery off the two-hour launch tier", () => {
+    const seed = getSeed("huggingface");
+
+    expect(seed.tier).toBe(2);
+    expect(seed.sync_interval_hours).toBe(4);
+    expect(seed.is_enabled).toBe(true);
+    expect(seed.output_types).toEqual(["models"]);
+  });
+
   it("promotes provider launch feeds onto the fastest sync tier", () => {
     const providerNews = getSeed("provider-news");
     const xAnnouncements = getSeed("x-announcements");
