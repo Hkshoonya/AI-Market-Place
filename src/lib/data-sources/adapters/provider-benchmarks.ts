@@ -495,6 +495,19 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     sourceType: "official_model_card",
     requiresBenchmarkSignal: true,
     strictModelHints: true,
+    verificationUrl:
+      "https://www-cdn.anthropic.com/ceaf5c7ff2783855203fde8208ec311252dced5b/Claude%20Opus%205%20System%20Card.pdf",
+    verifiedFallback: {
+      title: "Claude Opus 5 System Card",
+      summary:
+        "Anthropic reports Claude Opus 5 results for coding, research, and computer-use evaluations in its official system card.",
+      publishedAt: "2026-07-24T00:00:00.000Z",
+      text: [
+        "SWE-bench Pro 79.2",
+        "BrowseComp 90.8",
+        "OSWorld 2.0 70.6",
+      ].join("\n"),
+    },
   },
   {
     id: "anthropic-claude-sonnet-5",
@@ -508,6 +521,20 @@ const PROVIDER_BENCHMARK_SOURCES: ProviderBenchmarkSource[] = [
     sourceType: "official_model_card",
     requiresBenchmarkSignal: true,
     strictModelHints: true,
+    verificationUrl:
+      "https://www-cdn.anthropic.com/283ef97c476cf442c91d9a37d5b214242a55bb92/Claude%20Sonnet%205%20System%20Card.pdf",
+    verifiedFallback: {
+      title: "Claude Sonnet 5 System Card",
+      summary:
+        "Anthropic reports Claude Sonnet 5 results for coding, terminal, research, and computer-use evaluations in its official system card.",
+      publishedAt: "2026-06-30T00:00:00.000Z",
+      text: [
+        "SWE-bench Pro 63.2",
+        "Terminal-Bench 2.1 80.4",
+        "BrowseComp 84.7",
+        "OSWorld-Verified 81.2",
+      ].join("\n"),
+    },
   },
   {
     id: "anthropic-claude-fable-5-mythos-5",
@@ -1652,7 +1679,7 @@ async function resolveSuccessfulProviderContent(
   response: Response
 ) {
   if (source.verificationUrl && source.verifiedFallback) {
-    await response.text();
+    await response.body?.cancel();
     return {
       content: buildVerifiedFallbackContent(source),
       usedVerifiedFallback: true,

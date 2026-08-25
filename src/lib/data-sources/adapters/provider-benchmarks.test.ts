@@ -778,21 +778,60 @@ describe("provider-benchmarks helpers", () => {
         expect.objectContaining({
           id: "anthropic-claude-opus-5",
           url: "https://www.anthropic.com/claude-opus-5-system-card",
+          verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
           contentType: "pdf",
           pdfPages: [1, 152, 153, 162, 177],
           sourceType: "official_model_card",
           strictModelHints: true,
+          verifiedFallback: expect.objectContaining({
+            publishedAt: "2026-07-24T00:00:00.000Z",
+          }),
         }),
         expect.objectContaining({
           id: "anthropic-claude-sonnet-5",
           url: "https://www.anthropic.com/claude-sonnet-5-system-card",
+          verificationUrl: expect.stringContaining("www-cdn.anthropic.com"),
           contentType: "pdf",
           pdfPages: [1, 115, 116, 117, 118, 123, 126],
           sourceType: "official_model_card",
           strictModelHints: true,
+          verifiedFallback: expect.objectContaining({
+            publishedAt: "2026-06-30T00:00:00.000Z",
+          }),
         }),
       ])
     );
+  });
+
+  it("keeps reviewed Claude system-card snapshots machine-extractable", () => {
+    const sources = __testables.PROVIDER_BENCHMARK_SOURCES.filter((source) =>
+      ["anthropic-claude-opus-5", "anthropic-claude-sonnet-5"].includes(
+        source.id
+      )
+    );
+
+    expect(
+      sources.map((source) =>
+        __testables.extractStructuredBenchmarkScoresFromTextTableRows(
+          source.verifiedFallback?.text ?? ""
+        )
+      )
+    ).toEqual([
+      expect.arrayContaining([
+        expect.objectContaining({ benchmarkSlug: "swe_bench", score: 79.2 }),
+        expect.objectContaining({ benchmarkSlug: "browsecomp", score: 90.8 }),
+        expect.objectContaining({ benchmarkSlug: "os-world", score: 70.6 }),
+      ]),
+      expect.arrayContaining([
+        expect.objectContaining({ benchmarkSlug: "swe_bench", score: 63.2 }),
+        expect.objectContaining({
+          benchmarkSlug: "terminal-bench",
+          score: 80.4,
+        }),
+        expect.objectContaining({ benchmarkSlug: "browsecomp", score: 84.7 }),
+        expect.objectContaining({ benchmarkSlug: "os-world", score: 81.2 }),
+      ]),
+    ]);
   });
 
   it("keeps DeepSeek V4 Pro and Flash in the curated provider benchmark watchlist", () => {
