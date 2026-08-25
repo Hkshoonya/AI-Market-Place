@@ -40,7 +40,15 @@ function normalizeProviderBucket(provider: string | null | undefined): string | 
   const canonical = getCanonicalProviderName(provider).trim();
   if (!canonical) return null;
 
-  return canonical.toLowerCase();
+  const bucket = canonical.toLowerCase();
+
+  // Qwen is Alibaba's model brand; treating both labels as separate vendors
+  // weakens provider diversity and can surface duplicate generations.
+  if (bucket === "alibaba" || bucket === "alibaba cloud") {
+    return "qwen";
+  }
+
+  return bucket;
 }
 
 function rankSignal(overallRank: number | null | undefined): number {
@@ -182,7 +190,14 @@ function hasVerifiedOfficialLeadershipLaunch(
   const ageDays = releaseAgeDays(model.release_date ?? knownMeta.release_date, now);
   if (ageDays == null || ageDays > 120) return false;
 
-  return hasLeadershipUpgradeLanguage(model) && hasCurrentHomepageAccess(model);
+  const officialDescription = `${knownMeta.name ?? ""} ${
+    knownMeta.description ?? ""
+  }`.toLowerCase();
+
+  return (
+    (hasLeadershipUpgradeLanguage(model) || /\bfrontier\b/.test(officialDescription)) &&
+    hasCurrentHomepageAccess(model)
+  );
 }
 
 function hasTrustedOfficialLeadershipLaunch(
@@ -518,8 +533,9 @@ export function selectHomepageTopModelIds<
     }
   }
 
-  const fillUniqueProviders = (candidates: T[]) => {
+  const fillDiversityTarget = (candidates: T[]) => {
     for (const model of candidates) {
+      if (selected.length >= diversityTarget) return;
       if (selectedIds.has(model.id)) continue;
       const providerBucket = normalizeProviderBucket(model.provider);
       if (providerBucket && providerCounts.has(providerBucket)) continue;
@@ -530,28 +546,34 @@ export function selectHomepageTopModelIds<
       if (providerBucket) {
         providerCounts.set(providerBucket, 1);
       }
-
-      if (selected.length >= limit) {
-        return true;
-      }
     }
-
-    return false;
   };
 
-  if (fillUniqueProviders(prioritizedHighConfidence)) {
-    return selected.map((candidate) => candidate.id);
+  if (selected.length < diversityTarget) {
+    fillDiversityTarget(prioritizedFallback);
   }
 
-  if (fillUniqueProviders(prioritizedFallback)) {
-    return selected.map((candidate) => candidate.id);
+  if (
+    selected.length >= limit ||
+    (limit <= diversityTarget && selected.length < diversityTarget)
+  ) {
+    return selected.slice(0, limit).map((candidate) => candidate.id);
   }
 
   for (const candidates of [prioritizedHighConfidence, prioritizedFallback]) {
     for (const model of candidates) {
       if (selectedIds.has(model.id)) continue;
+      const providerBucket = normalizeProviderBucket(model.provider);
+      const providerCount = providerBucket
+        ? (providerCounts.get(providerBucket) ?? 0)
+        : 0;
+      if (providerBucket && providerCount >= 2) continue;
+
       selected.push(model);
       selectedIds.add(model.id);
+      if (providerBucket) {
+        providerCounts.set(providerBucket, providerCount + 1);
+      }
       if (selected.length >= limit) {
         return selected.map((candidate) => candidate.id);
       }

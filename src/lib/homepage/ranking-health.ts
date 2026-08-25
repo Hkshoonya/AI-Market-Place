@@ -38,6 +38,34 @@ export interface HomepageRankingHealth {
   staleRowsInShortlist: HomepageRankingHealthSummaryRow[];
 }
 
+function leadershipSeriesKey(model: HomepageRankingHealthModel): string {
+  const provider = model.provider.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const identity = (model.name || model.slug)
+    .toLowerCase()
+    .match(/[a-z0-9]+/g)
+    ?.map((token) => token.replace(/\d+[a-z]?$/i, ""))
+    .filter((token) => token && token !== "v")
+    .join("-");
+
+  return `${provider}:${identity ?? ""}`;
+}
+
+function isSupersededBySelectedSeries(
+  model: HomepageRankingHealthModel,
+  shortlist: HomepageRankingHealthModel[]
+): boolean {
+  const modelReleasedAt = Date.parse(model.release_date ?? "");
+  if (!Number.isFinite(modelReleasedAt)) return false;
+
+  const seriesKey = leadershipSeriesKey(model);
+  return shortlist.some((selected) => {
+    if (leadershipSeriesKey(selected) !== seriesKey) return false;
+
+    const selectedReleasedAt = Date.parse(selected.release_date ?? "");
+    return Number.isFinite(selectedReleasedAt) && selectedReleasedAt > modelReleasedAt;
+  });
+}
+
 function summarizeRow(
   model: HomepageRankingHealthModel,
   now: number
@@ -73,6 +101,7 @@ export function computeHomepageRankingHealth(
   const missingRecentLeadership = activeModels
     .filter((model) => !shortlistIdSet.has(model.id))
     .filter((model) => isRecentLeadershipHomepageCandidate(model, now))
+    .filter((model) => !isSupersededBySelectedSeries(model, shortlist))
     .filter(
       (model) =>
         computeHomepageTopModelScore(model, now) >= lowestShortlistScore - 1

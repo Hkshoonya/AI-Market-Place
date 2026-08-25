@@ -62,4 +62,52 @@ describe("computeHomepageRankingHealth", () => {
     expect(result.missingRecentLeadership).toHaveLength(0);
     expect(result.lifecycleRowsInShortlist).toHaveLength(0);
   });
+
+  it("does not report an older release when a newer model in the same series is selected", () => {
+    const result = computeHomepageRankingHealth(
+      [
+        {
+          id: "glm-5-2",
+          slug: "zai-org-glm-5-2",
+          name: "GLM-5.2",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 1,
+          economic_footprint_score: 92,
+          adoption_score: 92,
+          capability_score: 92,
+          quality_score: 92,
+          popularity_score: 92,
+          release_date: "2026-06-16",
+          description: "Z.ai's latest flagship model for long-horizon tasks.",
+        },
+        {
+          id: "glm-5-3",
+          slug: "z-ai-glm-5-3",
+          name: "GLM-5.3",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 200,
+          economic_footprint_score: 42,
+          adoption_score: 48,
+          capability_score: 57,
+          quality_score: 39,
+          popularity_score: 34,
+          release_date: "2026-08-14",
+          description:
+            "Z.ai's frontier coding and cyber-reasoning model for long-horizon agentic work.",
+        },
+      ],
+      1,
+      Date.parse("2026-08-25T12:00:00Z")
+    );
+
+    expect(result.shortlist).toEqual([
+      expect.objectContaining({ slug: "z-ai-glm-5-3" }),
+    ]);
+    expect(result.missingRecentLeadership).toHaveLength(0);
+    expect(result.healthy).toBe(true);
+  });
 });

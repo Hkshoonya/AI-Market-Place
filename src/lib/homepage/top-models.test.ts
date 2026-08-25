@@ -1300,7 +1300,7 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids).toEqual(["anthropic-current", "moonshot-accessible"]);
   });
 
-  it("fills unseen providers before duplicate-provider rows after the initial diversity pass", () => {
+  it("fills unseen providers before duplicate-provider rows when the diversity target cannot be reached", () => {
     const now = Date.parse("2026-04-20T12:00:00Z");
     const ids = selectHomepageTopModelIds(
       [
@@ -1482,5 +1482,120 @@ describe("selectHomepageTopModelIds", () => {
     expect(ids).toContain("provider-i-1");
     expect(ids).toContain("provider-a-2");
     expect(ids.indexOf("provider-i-1")).toBeLessThan(ids.indexOf("provider-a-2"));
+  });
+
+  it("uses score order with at most two rows per provider after eight distinct providers", () => {
+    const providers = [
+      { id: "openai-one", provider: "OpenAI", score: 96 },
+      { id: "openai-two", provider: "OpenAI", score: 95 },
+      { id: "openai-three", provider: "OpenAI", score: 94 },
+      { id: "anthropic-one", provider: "Anthropic", score: 93 },
+      { id: "google-one", provider: "Google", score: 92 },
+      { id: "xai-one", provider: "xAI", score: 91 },
+      { id: "deepseek-one", provider: "DeepSeek", score: 90 },
+      { id: "qwen-one", provider: "Qwen", score: 89 },
+      { id: "meta-one", provider: "Meta", score: 88 },
+      { id: "mistral-one", provider: "Mistral AI", score: 87 },
+      { id: "minimax-one", provider: "MiniMax", score: 72 },
+    ];
+    const candidates = providers.map(({ id, provider, score }, index) => ({
+      id,
+      slug: `${id}-model`,
+      name: `${id} model`,
+      provider,
+      category: "llm",
+      is_api_available: true,
+      overall_rank: index + 1,
+      economic_footprint_score: score,
+      adoption_score: score,
+      capability_score: score,
+      quality_score: score,
+      popularity_score: score,
+      release_date: "2026-03-01",
+      description: "General-purpose production model.",
+      context_window: 128000,
+    }));
+
+    const ids = selectHomepageTopModelIds(candidates, 10, now);
+
+    expect(ids).toHaveLength(10);
+    expect(ids).toContain("openai-one");
+    expect(ids).toContain("openai-two");
+    expect(ids).not.toContain("openai-three");
+    expect(ids).toContain("minimax-one");
+  });
+
+  it("counts Alibaba and Qwen as one provider family for homepage diversity", () => {
+    const now = Date.parse("2026-08-25T12:00:00Z");
+    const candidates = [
+      { id: "qwen-current", provider: "Qwen", score: 95 },
+      { id: "alibaba-qwen-older", provider: "Alibaba", score: 94 },
+      { id: "anthropic", provider: "Anthropic", score: 93 },
+      { id: "openai", provider: "OpenAI", score: 92 },
+    ].map(({ id, provider, score }, index) => ({
+      id,
+      slug: id,
+      name: id,
+      provider,
+      category: "llm",
+      is_api_available: true,
+      overall_rank: index + 1,
+      economic_footprint_score: score,
+      adoption_score: score,
+      capability_score: score,
+      quality_score: score,
+      popularity_score: score,
+      release_date: "2026-08-01",
+      description: "Current production model.",
+      context_window: 128000,
+    }));
+
+    const ids = selectHomepageTopModelIds(candidates, 3, now);
+
+    expect(ids).toEqual(["qwen-current", "anthropic", "openai"]);
+  });
+
+  it("prefers a recent verified frontier release while benchmarks catch up", () => {
+    const ids = selectHomepageTopModelIds(
+      [
+        {
+          id: "glm-5-2",
+          slug: "zai-org-glm-5-2",
+          name: "GLM-5.2",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 10,
+          economic_footprint_score: 62,
+          adoption_score: 68,
+          capability_score: 92,
+          quality_score: 90,
+          popularity_score: 58,
+          release_date: "2026-06-16",
+          description: "Z.ai reasoning and coding model.",
+        },
+        {
+          id: "glm-5-3",
+          slug: "z-ai-glm-5-3",
+          name: "GLM-5.3",
+          provider: "Z.ai",
+          category: "llm",
+          is_api_available: true,
+          overall_rank: 239,
+          economic_footprint_score: 42,
+          adoption_score: 48,
+          capability_score: 57,
+          quality_score: 39,
+          popularity_score: 34,
+          release_date: "2026-08-14",
+          description:
+            "Z.ai's frontier coding and cyber-reasoning model for long-horizon agentic work.",
+        },
+      ],
+      1,
+      Date.parse("2026-08-25T12:00:00Z")
+    );
+
+    expect(ids).toEqual(["glm-5-3"]);
   });
 });
