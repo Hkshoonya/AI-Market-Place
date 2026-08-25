@@ -267,7 +267,10 @@ vi.mock("../ledger", () => ({
   resolveAgentIssue: vi.fn(async () => undefined),
 }));
 
-import pipelineEngineer from "./pipeline-engineer";
+import pipelineEngineer, {
+  getUnrecoveredFailedSourceSlugs,
+  isInlineRepairDisabledSource,
+} from "./pipeline-engineer";
 import { runSingleSync } from "../../data-sources/orchestrator";
 import { recordAgentIssue } from "../ledger";
 
@@ -682,5 +685,56 @@ describe("pipelineEngineer", () => {
       candidates: 7,
       candidateLimit: 600,
     });
+  });
+});
+
+describe("pipeline failure recovery", () => {
+  it("ignores historical failures after a newer successful sync", () => {
+    const failedSources = getUnrecoveredFailedSourceSlugs(
+      [
+        {
+          slug: "open-llm-leaderboard",
+          is_enabled: true,
+          last_sync_status: "success",
+          last_success_at: "2026-08-25T18:26:05.000Z",
+        },
+      ],
+      [
+        {
+          source: "open-llm-leaderboard",
+          created_at: "2026-08-25T16:02:00.000Z",
+          completed_at: "2026-08-25T16:04:00.000Z",
+        },
+      ]
+    );
+
+    expect([...failedSources]).toEqual([]);
+  });
+
+  it("retains failures that have not been followed by a successful sync", () => {
+    const failedSources = getUnrecoveredFailedSourceSlugs(
+      [
+        {
+          slug: "provider-news",
+          is_enabled: true,
+          last_sync_status: "failed",
+          last_success_at: "2026-08-25T15:00:00.000Z",
+        },
+      ],
+      [
+        {
+          source: "provider-news",
+          created_at: "2026-08-25T16:00:00.000Z",
+        },
+      ]
+    );
+
+    expect([...failedSources]).toEqual(["provider-news"]);
+  });
+
+  it("never runs benchmark ingestion as an inline monitoring repair", () => {
+    expect(isInlineRepairDisabledSource("open-llm-leaderboard")).toBe(true);
+    expect(isInlineRepairDisabledSource("livebench")).toBe(true);
+    expect(isInlineRepairDisabledSource("provider-news")).toBe(false);
   });
 });

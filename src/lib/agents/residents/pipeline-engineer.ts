@@ -35,7 +35,10 @@ import {
   selectRankingHealthModelCandidates,
 } from "../../models/ranking-health-candidates";
 import { buildKnownModelMetaPatch } from "../../models/known-model-meta";
-import { summarizeBenchmarkSourceHealth } from "../../benchmark-source-health";
+import {
+  BENCHMARK_SOURCE_SLUGS,
+  summarizeBenchmarkSourceHealth,
+} from "../../benchmark-source-health";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
 import { getStripePaymentsHealth } from "../../payments/stripe-health";
 import {
@@ -48,12 +51,63 @@ import {
 } from "../../pipeline-health-compute";
 
 const INLINE_REPAIR_DISABLED_SOURCES = new Set([
+  ...BENCHMARK_SOURCE_SLUGS,
   "provider-benchmarks",
   "provider-deployment-signals",
   "huggingface",
   "open-vlm-leaderboard",
   "github-stars",
 ]);
+
+interface RecentFailedSyncJob {
+  source: string;
+  created_at?: string | null;
+  completed_at?: string | null;
+}
+
+function timestamp(value: string | null | undefined) {
+  const parsed = value ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function getUnrecoveredFailedSourceSlugs(
+  sources: Array<
+    Pick<
+      DataSourceRecord,
+      "slug" | "is_enabled" | "last_sync_status" | "last_success_at"
+    >
+  >,
+  failedJobs: RecentFailedSyncJob[]
+) {
+  const enabledSources = new Map(
+    sources
+      .filter((source) => source.is_enabled)
+      .map((source) => [source.slug, source])
+  );
+  const failedSources = new Set<string>();
+
+  for (const job of failedJobs) {
+    const source = enabledSources.get(job.source);
+    if (!source) continue;
+
+    const failureAt = timestamp(job.completed_at) ?? timestamp(job.created_at);
+    const lastSuccessAt = timestamp(source.last_success_at);
+    const recovered =
+      source.last_sync_status === "success" &&
+      lastSuccessAt != null &&
+      (failureAt == null || lastSuccessAt >= failureAt);
+
+    if (!recovered) {
+      failedSources.add(job.source);
+    }
+  }
+
+  return failedSources;
+}
+
+export function isInlineRepairDisabledSource(slug: string) {
+  return INLINE_REPAIR_DISABLED_SOURCES.has(slug);
+}
 
 const ACTIVE_MODEL_PUBLIC_SURFACE_REPAIR_SELECT = [
   "id",
@@ -230,11 +284,10 @@ const pipelineEngineer: ResidentAgent = {
         .gte("created_at", since)
         .order("created_at", { ascending: false });
 
-      const failedSources = new Set<string>();
-      for (const job of failedJobs ?? []) {
-        if (!enabledSourceSlugs.has(job.source)) continue;
-        failedSources.add(job.source);
-      }
+      const failedSources = getUnrecoveredFailedSourceSlugs(
+        dataSources,
+        (failedJobs ?? []) as RecentFailedSyncJob[]
+      );
       output.failedSources = Array.from(failedSources);
 
       for (const healthCheck of healthChecks) {
@@ -838,7 +891,7 @@ const pipelineEngineer: ResidentAgent = {
       let repaired = 0;
 
       for (const slug of Array.from(failedSources).slice(0, maxRepairs)) {
-        if (INLINE_REPAIR_DISABLED_SOURCES.has(slug)) {
+        if (isInlineRepairDisabledSource(slug)) {
           repairSkips.push({
             source: slug,
             skipped: true,
