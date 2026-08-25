@@ -22,9 +22,8 @@ COPY . .
 # Next.js collects telemetry — disable it during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Sentry source map upload during build (token provided via Railway build args)
-ARG SENTRY_AUTH_TOKEN
-ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+# Do not pass private build credentials through ARG/ENV. Sentry still instruments
+# the bundle; source maps can be uploaded from CI using an ephemeral secret.
 
 # NEXT_PUBLIC_* vars are inlined at build time by Next.js — they MUST have
 # real values here, not placeholders. Railway auto-passes env vars as build
