@@ -11,8 +11,12 @@
 import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { recordAgentIssue, resolveAgentIssue } from "../ledger";
+import { isBenchmarkMetadataCoverageCandidate } from "@/lib/benchmark-metadata-coverage-compute";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
 import { hasUserVisibleDeploymentAccess } from "@/lib/models/deployments";
+import { getTrustedStructuredBenchmarkModelIds } from "@/lib/models/benchmark-score-trust";
+import { dedupePublicModelFamilies } from "@/lib/models/public-families";
+import { isDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 
 export interface ActiveModelSummary {
   id: string;
@@ -26,10 +30,27 @@ export interface ActiveModelSummary {
   parameter_count?: number | null;
   context_window?: number | null;
   capabilities?: Record<string, boolean> | null;
+  architecture?: string | null;
+  hf_model_id?: string | null;
+  website_url?: string | null;
+  release_date?: string | null;
+  is_api_available?: boolean | null;
+  license?: string | null;
+  license_name?: string | null;
+  overall_rank?: number | null;
+  quality_score?: number | null;
+  capability_score?: number | null;
+  popularity_score?: number | null;
+  adoption_score?: number | null;
+  economic_footprint_score?: number | null;
+  hf_downloads?: number | null;
+  hf_likes?: number | null;
+  hf_trending_score?: number | null;
 }
 
 interface ModelCoverageRow {
   model_id: string | null;
+  source?: string | null;
 }
 
 interface BenchmarkEvidenceRow {
@@ -57,11 +78,15 @@ interface SellerProfileHealthRow {
 
 interface ContentQualityMetrics {
   totalActiveModels: number;
+  benchmarkEligibleModels: number;
   missingDescription: number;
   missingBenchmarks: number;
   missingPricing: number;
   completenessScore: number;
 }
+
+export const UX_PRIORITY_MODEL_LIMIT = 300;
+export const UX_BENCHMARK_MISSING_RATIO = 0.2;
 
 export function getDescriptionCoverageThreshold(totalActiveModels: number): number {
   return Math.max(25, Math.round(totalActiveModels * 0.2));
@@ -98,6 +123,16 @@ export function filterCoveredActiveModelIds(
   return coveredModelIds;
 }
 
+export function filterTrustedBenchmarkScoreModelIds(
+  rows: ModelCoverageRow[],
+  activeModelIds: Set<string>
+): Set<string> {
+  const trustedModelIds = getTrustedStructuredBenchmarkModelIds(rows);
+  return new Set(
+    [...trustedModelIds].filter((modelId) => activeModelIds.has(modelId))
+  );
+}
+
 export function filterBenchmarkEvidenceModelIds(
   rows: BenchmarkEvidenceRow[],
   activeModelIds: Set<string>
@@ -121,6 +156,39 @@ export function countModelsMissingUserVisibleDescriptions(
   return activeModels.filter(
     (model) => getModelDisplayDescription(model).source === "synthetic"
   ).length;
+}
+
+export function isUxBenchmarkCoverageCandidate(model: ActiveModelSummary) {
+  return isBenchmarkMetadataCoverageCandidate({
+    id: model.id,
+    slug: model.slug,
+    provider: model.provider,
+    category: model.category,
+    hf_model_id: model.hf_model_id ?? null,
+    website_url: model.website_url ?? null,
+    release_date: model.release_date ?? null,
+  });
+}
+
+export function buildUxPriorityModelCohort(
+  activeModels: ActiveModelSummary[],
+  limit = UX_PRIORITY_MODEL_LIMIT
+): ActiveModelSummary[] {
+  return dedupePublicModelFamilies(activeModels)
+    .filter(isDefaultPublicSurfaceReady)
+    .sort((left, right) => {
+      const rankDifference =
+        Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) -
+        Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER);
+      if (rankDifference !== 0) return rankDifference;
+
+      const qualityDifference =
+        Number(right.quality_score ?? 0) - Number(left.quality_score ?? 0);
+      if (qualityDifference !== 0) return qualityDifference;
+
+      return Number(right.hf_downloads ?? 0) - Number(left.hf_downloads ?? 0);
+    })
+    .slice(0, Math.max(0, limit));
 }
 
 export function filterUserVisiblePricedModelIds(input: {
@@ -169,15 +237,20 @@ export function buildContentQualityMetrics({
   activeModels,
   missingDescriptionCount,
   benchmarkedModelIds,
+  benchmarkEligibleModelIds,
   pricedModelIds,
 }: {
   activeModels: ActiveModelSummary[];
   missingDescriptionCount: number;
   benchmarkedModelIds: Set<string>;
+  benchmarkEligibleModelIds?: Set<string>;
   pricedModelIds: Set<string>;
 }): ContentQualityMetrics {
   const totalActiveModels = activeModels.length;
-  const missingBenchmarks = activeModels.filter(
+  const benchmarkEligibleModels = benchmarkEligibleModelIds
+    ? activeModels.filter((model) => benchmarkEligibleModelIds.has(model.id))
+    : activeModels;
+  const missingBenchmarks = benchmarkEligibleModels.filter(
     (model) => !benchmarkedModelIds.has(model.id)
   ).length;
   const missingPricing = activeModels.filter(
@@ -185,20 +258,24 @@ export function buildContentQualityMetrics({
   ).length;
 
   const describedModels = totalActiveModels - missingDescriptionCount;
-  const benchmarkedModels = totalActiveModels - missingBenchmarks;
+  const benchmarkedModels = benchmarkEligibleModels.length - missingBenchmarks;
   const pricedModels = totalActiveModels - missingPricing;
 
   const completenessScore =
     totalActiveModels > 0
       ? Math.round(
-          ((describedModels + benchmarkedModels + pricedModels) /
-            (totalActiveModels * 3)) *
-            100
+          ((describedModels / totalActiveModels +
+            (benchmarkEligibleModels.length > 0
+              ? benchmarkedModels / benchmarkEligibleModels.length
+              : 1) +
+            pricedModels / totalActiveModels) /
+            3) * 100
         )
       : 0;
 
   return {
     totalActiveModels,
+    benchmarkEligibleModels: benchmarkEligibleModels.length,
     missingDescription: missingDescriptionCount,
     missingBenchmarks,
     missingPricing,
@@ -232,7 +309,7 @@ const uxMonitor: ResidentAgent = {
           const { data, error } = await sb
             .from("models")
             .select(
-              "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities"
+              "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities, architecture, hf_model_id, website_url, release_date, is_api_available, license, license_name, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
             )
             .eq("status", "active")
             .order("id", { ascending: true })
@@ -246,16 +323,25 @@ const uxMonitor: ResidentAgent = {
         }
       );
 
-      const missingDescCount = countModelsMissingUserVisibleDescriptions(activeModels);
-      const modelIds = activeModels.map((model) => model.id);
+      const priorityModels = buildUxPriorityModelCohort(activeModels);
+      const rawMissingDescriptionCount =
+        countModelsMissingUserVisibleDescriptions(activeModels);
+      const missingDescCount =
+        countModelsMissingUserVisibleDescriptions(priorityModels);
+      const modelIds = priorityModels.map((model) => model.id);
       const activeModelIdSet = new Set(modelIds);
+      const benchmarkEligibleModelIds = new Set(
+        priorityModels
+          .filter(isUxBenchmarkCoverageCandidate)
+          .map((model) => model.id)
+      );
 
       const [benchmarkRows, benchmarkEvidenceRows, pricingRows, deploymentRows, platformRows] =
         await Promise.all([
           collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
             const { data, error } = await sb
               .from("benchmark_scores")
-              .select("model_id")
+              .select("model_id, source")
               .order("model_id", { ascending: true })
               .range(from, to);
 
@@ -321,7 +407,10 @@ const uxMonitor: ResidentAgent = {
       ]);
 
       const benchmarkedSet = new Set<string>([
-        ...filterCoveredActiveModelIds(benchmarkRows, activeModelIdSet),
+        ...filterTrustedBenchmarkScoreModelIds(
+          benchmarkRows,
+          activeModelIdSet
+        ),
         ...filterBenchmarkEvidenceModelIds(benchmarkEvidenceRows, activeModelIdSet),
       ]);
 
@@ -331,19 +420,25 @@ const uxMonitor: ResidentAgent = {
         activeModelIdSet
       );
       const pricedSet = filterUserVisiblePricedModelIds({
-        activeModels,
+        activeModels: priorityModels,
         pricedModelIds: rawPricedSet,
         directDeploymentModelIds,
         availablePlatformSlugs: new Set(platformRows.map((row) => row.slug)),
       });
 
       const contentQuality = buildContentQualityMetrics({
-        activeModels,
+        activeModels: priorityModels,
         missingDescriptionCount: missingDescCount,
         benchmarkedModelIds: benchmarkedSet,
+        benchmarkEligibleModelIds,
         pricedModelIds: pricedSet,
       });
-      output.contentQuality = contentQuality;
+      output.contentQuality = {
+        ...contentQuality,
+        scope: "top_public_canonical_profiles",
+        rawTrackedArtifacts: activeModels.length,
+        rawMissingDescription: rawMissingDescriptionCount,
+      };
 
       await log.info(
         "Content quality audit complete",
@@ -486,10 +581,11 @@ const uxMonitor: ResidentAgent = {
         );
       }
       if (
-        contentQuality.missingBenchmarks > modelIds.length * 0.5
+        contentQuality.missingBenchmarks >
+        contentQuality.benchmarkEligibleModels * UX_BENCHMARK_MISSING_RATIO
       ) {
         recommendations.push(
-          `${contentQuality.missingBenchmarks} models lack benchmark scores. Expand benchmark adapter coverage.`
+          `${contentQuality.missingBenchmarks} priority models lack trusted benchmark evidence. Expand benchmark adapter coverage.`
         );
       }
       if (
@@ -504,7 +600,7 @@ const uxMonitor: ResidentAgent = {
           `${staleListings} marketplace listings have 0 views after 7+ days. Consider featuring or notifying sellers.`
         );
       }
-      if ((zeroDownloads ?? 0) > modelIds.length * 0.3) {
+      if ((zeroDownloads ?? 0) > activeModels.length * 0.3) {
         recommendations.push(
           `${zeroDownloads} models show zero downloads. Review data freshness from HuggingFace adapter.`
         );
@@ -539,16 +635,24 @@ const uxMonitor: ResidentAgent = {
           evidence: {
             missingDescription: missingDescCount,
             totalModels: modelIds.length,
+            rawTrackedArtifacts: activeModels.length,
+            rawMissingDescription: rawMissingDescriptionCount,
+            scope: "top_public_canonical_profiles",
           },
         },
         {
-          active: contentQuality.missingBenchmarks > modelIds.length * 0.5,
+          active:
+            contentQuality.missingBenchmarks >
+            contentQuality.benchmarkEligibleModels *
+              UX_BENCHMARK_MISSING_RATIO,
           slug: "ux-missing-benchmark-coverage",
           title: "Benchmark coverage is degraded",
           severity: "high" as const,
           evidence: {
             missingBenchmarks: contentQuality.missingBenchmarks,
-            totalModels: modelIds.length,
+            totalModels: contentQuality.benchmarkEligibleModels,
+            priorityCohortModels: modelIds.length,
+            scope: "benchmark_eligible_priority_profiles",
           },
         },
         {
@@ -599,6 +703,7 @@ const uxMonitor: ResidentAgent = {
 
       output.summary = {
         totalModels: modelIds.length,
+        rawTrackedArtifacts: activeModels.length,
         contentCompleteness: output.contentQuality,
         marketplaceListings: totalListings ?? 0,
         recommendationCount: recommendations.length,
@@ -606,7 +711,10 @@ const uxMonitor: ResidentAgent = {
           0,
           100 -
             (missingDescCount > getDescriptionCoverageThreshold(modelIds.length) ? 15 : 0) -
-            (contentQuality.missingBenchmarks > modelIds.length * 0.5 ? 15 : 0) -
+            (contentQuality.missingBenchmarks >
+            contentQuality.benchmarkEligibleModels * UX_BENCHMARK_MISSING_RATIO
+              ? 15
+              : 0) -
             (contentQuality.missingPricing > modelIds.length * 0.3 ? 10 : 0) -
             (staleListings > 5 ? 10 : 0) -
             recommendations.length * 5

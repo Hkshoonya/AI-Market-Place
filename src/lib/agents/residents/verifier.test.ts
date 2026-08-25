@@ -71,6 +71,7 @@ describe("buildUxIssueStateMap", () => {
   it("maps current coverage metrics into the known UX issue slugs", () => {
     const snapshot: UxIssueSnapshot = {
       totalModels: 100,
+      benchmarkEligibleModels: 100,
       missingDescription: 26,
       missingBenchmarks: 60,
       missingPricing: 40,
@@ -89,6 +90,7 @@ describe("buildUxIssueStateMap", () => {
   it("marks UX issues resolved once thresholds are back under control", () => {
     const snapshot: UxIssueSnapshot = {
       totalModels: 100,
+      benchmarkEligibleModels: 100,
       missingDescription: 20,
       missingBenchmarks: 20,
       missingPricing: 10,

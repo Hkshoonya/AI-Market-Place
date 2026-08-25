@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildContentQualityMetrics,
+  buildUxPriorityModelCohort,
   countStaleSellerListings,
   collectPaginatedRows,
   countModelsMissingUserVisibleDescriptions,
   filterBenchmarkEvidenceModelIds,
   filterCoveredActiveModelIds,
+  filterTrustedBenchmarkScoreModelIds,
   filterUserVisiblePricedModelIds,
   getDescriptionCoverageThreshold,
   type ActiveModelSummary,
@@ -45,6 +47,21 @@ describe("filterCoveredActiveModelIds", () => {
   });
 });
 
+describe("filterTrustedBenchmarkScoreModelIds", () => {
+  it("excludes untrusted score sources from UX benchmark coverage", () => {
+    const covered = filterTrustedBenchmarkScoreModelIds(
+      [
+        { model_id: "official", source: "provider-benchmarks" },
+        { model_id: "arena-only", source: "chatbot-arena" },
+        { model_id: "inactive", source: "provider-benchmarks" },
+      ],
+      new Set(["official", "arena-only"])
+    );
+
+    expect([...covered]).toEqual(["official"]);
+  });
+});
+
 describe("filterBenchmarkEvidenceModelIds", () => {
   it("flattens related_model_ids arrays and keeps only active model ids", () => {
     const activeModelIds = new Set(["model-a", "model-b", "model-c"]);
@@ -78,10 +95,45 @@ describe("buildContentQualityMetrics", () => {
     });
 
     expect(metrics.totalActiveModels).toBe(3);
+    expect(metrics.benchmarkEligibleModels).toBe(3);
     expect(metrics.missingDescription).toBe(1);
     expect(metrics.missingBenchmarks).toBe(1);
     expect(metrics.missingPricing).toBe(2);
     expect(metrics.completenessScore).toBe(56);
+  });
+});
+
+describe("buildUxPriorityModelCohort", () => {
+  it("deduplicates, filters non-public variants, ranks, and bounds the audit cohort", () => {
+    const ready = (input: Partial<ActiveModelSummary> & Pick<ActiveModelSummary, "id" | "slug" | "name">): ActiveModelSummary => ({
+      provider: "Example",
+      category: "llm",
+      release_date: "2026-08-01",
+      context_window: 32_768,
+      is_open_weights: true,
+      license: "open_source",
+      license_name: "apache-2.0",
+      hf_model_id: `Example/${input.name}`,
+      ...input,
+    });
+
+    const cohort = buildUxPriorityModelCohort(
+      [
+        ready({ id: "alpha", slug: "example-alpha", name: "Alpha", overall_rank: 20 }),
+        ready({ id: "alpha-copy", slug: "example-alpha-copy", name: "Alpha", overall_rank: 30 }),
+        ready({ id: "gamma", slug: "example-gamma", name: "Gamma", overall_rank: 5 }),
+        ready({
+          id: "wrapped",
+          slug: "example-beta-gguf",
+          name: "Beta GGUF",
+          architecture: "GGUF",
+          overall_rank: 1,
+        }),
+      ],
+      2
+    );
+
+    expect(cohort.map((model) => model.id)).toEqual(["gamma", "alpha"]);
   });
 });
 

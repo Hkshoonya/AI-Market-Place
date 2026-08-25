@@ -29,13 +29,17 @@ import { computePublicRankingHealth } from "../../models/public-ranking-health";
 import { selectRankingHealthModelCandidates } from "../../models/ranking-health-candidates";
 import {
   buildContentQualityMetrics,
+  buildUxPriorityModelCohort,
   countStaleSellerListings,
   collectPaginatedRows,
   filterBenchmarkEvidenceModelIds,
   filterCoveredActiveModelIds,
+  filterTrustedBenchmarkScoreModelIds,
   filterUserVisiblePricedModelIds,
   countModelsMissingUserVisibleDescriptions,
   getDescriptionCoverageThreshold,
+  isUxBenchmarkCoverageCandidate,
+  UX_BENCHMARK_MISSING_RATIO,
   type ActiveModelSummary,
 } from "./ux-monitor";
 import { checkCrawlerSurfaceHealth } from "../../crawl-health";
@@ -71,6 +75,7 @@ interface PipelineHealthSourceRow {
 
 interface ModelCoverageRow {
   model_id: string | null;
+  source?: string | null;
 }
 
 interface BenchmarkEvidenceRow {
@@ -98,6 +103,7 @@ interface SellerProfileHealthRow {
 
 export interface UxIssueSnapshot {
   totalModels: number;
+  benchmarkEligibleModels: number;
   missingDescription: number;
   missingBenchmarks: number;
   missingPricing: number;
@@ -124,7 +130,9 @@ export function buildUxIssueStateMap(snapshot: UxIssueSnapshot): Record<string, 
   return {
     "ux-missing-model-descriptions":
       snapshot.missingDescription > getDescriptionCoverageThreshold(snapshot.totalModels),
-    "ux-missing-benchmark-coverage": snapshot.missingBenchmarks > snapshot.totalModels * 0.5,
+    "ux-missing-benchmark-coverage":
+      snapshot.missingBenchmarks >
+      snapshot.benchmarkEligibleModels * UX_BENCHMARK_MISSING_RATIO,
     "ux-missing-pricing-coverage": snapshot.missingPricing > snapshot.totalModels * 0.3,
     "ux-stale-marketplace-listings": snapshot.staleListings > 0,
   };
@@ -205,7 +213,7 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
     const { data, error } = await sb
       .from("models")
       .select(
-        "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities"
+        "id, slug, name, provider, category, description, short_description, is_open_weights, parameter_count, context_window, capabilities, architecture, hf_model_id, website_url, release_date, is_api_available, license, license_name, overall_rank, quality_score, capability_score, popularity_score, adoption_score, economic_footprint_score, hf_downloads, hf_likes, hf_trending_score"
       )
       .eq("status", "active")
       .order("id", { ascending: true })
@@ -218,15 +226,22 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
     return (data ?? []) as ActiveModelSummary[];
   });
 
-  const activeModelIds = new Set(activeModels.map((model) => model.id));
-  const missingDescription = countModelsMissingUserVisibleDescriptions(activeModels);
+  const priorityModels = buildUxPriorityModelCohort(activeModels);
+  const activeModelIds = new Set(priorityModels.map((model) => model.id));
+  const benchmarkEligibleModelIds = new Set(
+    priorityModels
+      .filter(isUxBenchmarkCoverageCandidate)
+      .map((model) => model.id)
+  );
+  const missingDescription =
+    countModelsMissingUserVisibleDescriptions(priorityModels);
 
   const [benchmarkRows, benchmarkEvidenceRows, pricingRows, deploymentRows, platformRows] =
     await Promise.all([
       collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
         const { data, error } = await sb
           .from("benchmark_scores")
-          .select("model_id")
+          .select("model_id, source")
           .order("model_id", { ascending: true })
           .range(from, to);
 
@@ -292,14 +307,15 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
   ]);
 
   const contentQuality = buildContentQualityMetrics({
-    activeModels,
+    activeModels: priorityModels,
     missingDescriptionCount: missingDescription,
     benchmarkedModelIds: new Set([
-      ...filterCoveredActiveModelIds(benchmarkRows, activeModelIds),
+      ...filterTrustedBenchmarkScoreModelIds(benchmarkRows, activeModelIds),
       ...filterBenchmarkEvidenceModelIds(benchmarkEvidenceRows, activeModelIds),
     ]),
+    benchmarkEligibleModelIds,
     pricedModelIds: filterUserVisiblePricedModelIds({
-      activeModels,
+      activeModels: priorityModels,
       pricedModelIds: filterCoveredActiveModelIds(pricingRows, activeModelIds),
       directDeploymentModelIds: filterCoveredActiveModelIds(
         deploymentRows.filter((row) => !row.status || row.status === "available"),
@@ -357,6 +373,7 @@ async function loadUxIssueSnapshot(ctx: AgentContext): Promise<UxIssueSnapshot> 
 
   return {
     totalModels: contentQuality.totalActiveModels,
+    benchmarkEligibleModels: contentQuality.benchmarkEligibleModels,
     missingDescription: contentQuality.missingDescription,
     missingBenchmarks: contentQuality.missingBenchmarks,
     missingPricing: contentQuality.missingPricing,

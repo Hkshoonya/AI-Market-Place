@@ -209,7 +209,7 @@ export const DATA_SOURCE_SEEDS: SeedEntry[] = [
     name: "HuggingFace Hub",
     adapter_type: "huggingface",
     description:
-      "Hugging Face model discovery, structured weight metadata, downloads, likes, and trending signals",
+      "Hugging Face model discovery, source-attributed model-card descriptions, structured weight metadata, downloads, likes, and trending signals",
     tier: 2,
     sync_interval_hours: 4,
     priority: 15,

@@ -23,6 +23,8 @@ import {
   normalizeModelRankingInputs,
 } from "../utils";
 import { getCanonicalProviderName } from "@/lib/constants/providers";
+import { getModelDisplayDescription } from "@/lib/models/presentation";
+import { isDefaultPublicSurfaceEligibilityExemptModel } from "@/lib/models/public-surface-readiness";
 
 // ────────────────────────────────────────────────────────────────
 // Constants
@@ -49,6 +51,10 @@ const DEFAULT_TOP_CONTEXT_ENRICHMENT_LIMIT = 20;
 const DEFAULT_METADATA_GAP_BACKFILL_LIMIT = 25;
 const DEFAULT_HISTORICAL_REFRESH_LIMIT = 50;
 const DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS = 24 * 7;
+const DEFAULT_DESCRIPTION_ENRICHMENT_LIMIT = 20;
+const MAX_DESCRIPTION_CANDIDATE_POOL = 300;
+const MAX_HF_README_BYTES = 256 * 1024;
+const MAX_HF_DESCRIPTION_LENGTH = 320;
 const HF_LIST_EXPANSIONS = [
   "author",
   "createdAt",
@@ -628,6 +634,215 @@ function buildHfApiModelInfoUrl(hfId: string) {
     .join("/")}`;
 }
 
+function buildHfRawFileUrl(hfId: string, filename: string) {
+  return `${buildHfModelPageUrl(hfId)}/raw/main/${encodeURIComponent(filename)}`;
+}
+
+async function readBoundedResponseText(response: Response, maxBytes: number) {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new Error(`HF model card exceeds ${maxBytes} bytes`);
+  }
+
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+      throw new Error(`HF model card exceeds ${maxBytes} bytes`);
+    }
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let text = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      throw new Error(`HF model card exceeds ${maxBytes} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+
+  return text + decoder.decode();
+}
+
+async function fetchHfModelCardMarkdown(
+  hfId: string,
+  signal?: AbortSignal,
+  token?: string
+): Promise<string | null> {
+  const response = await fetchWithRetry(
+    buildHfRawFileUrl(hfId, "README.md"),
+    {
+      headers: {
+        ...buildHfHeaders(token),
+        Accept: "text/markdown,text/plain;q=0.9",
+      },
+      signal,
+    },
+    { signal, maxRetries: 1, baseDelayMs: 400 }
+  );
+
+  if (!response.ok) return null;
+  return readBoundedResponseText(response, MAX_HF_README_BYTES);
+}
+
+function cleanModelCardText(value: string): string {
+  return value
+    .replace(/\[!(?:caution|important|note|tip|warning)\]/gi, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(?:nbsp|ensp|emsp);/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/[`*_~]/g, "")
+    .replace(/[>#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateModelCardDescription(value: string): string {
+  const lowSignalTail = value.search(
+    /\b(?:click here to|for (?:full|more) (?:details|information)|for the architecture, please refer|follow the .*? serving guide|see the (?:documentation|repository)|suggested inference settings|this is handled automatically)\b/i
+  );
+  const trimmed =
+    lowSignalTail >= 80 ? value.slice(0, lowSignalTail).trim() : value;
+  if (trimmed.length <= MAX_HF_DESCRIPTION_LENGTH) return trimmed;
+
+  const sentenceBoundary = trimmed
+    .slice(0, MAX_HF_DESCRIPTION_LENGTH + 1)
+    .lastIndexOf(". ");
+  if (sentenceBoundary >= 120) {
+    return trimmed.slice(0, sentenceBoundary + 1).trim();
+  }
+
+  const clipped = trimmed.slice(0, MAX_HF_DESCRIPTION_LENGTH - 3);
+  const lastSpace = clipped.lastIndexOf(" ");
+  return `${clipped.slice(0, Math.max(lastSpace, 0)).trim()}...`;
+}
+
+function extractHfModelCardDescription(
+  markdown: string,
+  modelName: string
+): string | null {
+  const withoutFrontmatter = markdown
+    .replace(/^\uFEFF?---\s*\r?\n[\s\S]*?\r?\n---\s*(?:\r?\n|$)/, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "");
+  const lines = withoutFrontmatter.split(/\r?\n/);
+  const blocks: Array<{ section: string; text: string; index: number }> = [];
+  let section = "";
+  let current: string[] = [];
+  let inFence = false;
+
+  const flush = () => {
+    const text = cleanModelCardText(current.join(" "));
+    if (text) blocks.push({ section, text, index: blocks.length });
+    current = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (/^```|^~~~/.test(line)) {
+      flush();
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    if (heading) {
+      flush();
+      section = cleanModelCardText(heading[1]).toLowerCase();
+      continue;
+    }
+
+    if (!line) {
+      flush();
+      continue;
+    }
+
+    if (
+      /^\|/.test(line) ||
+      /^[-:|\s]+$/.test(line) ||
+      /^!\[/.test(line) ||
+      /^<(?:a|img|div|p|picture|source|video)\b/i.test(line)
+    ) {
+      continue;
+    }
+
+    current.push(line);
+  }
+  flush();
+
+  const normalizedModelTokens = modelName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length >= 3);
+  const unsafePattern =
+    /\b(ignore (?:all |any |the )?(?:previous|prior) instructions|system prompt|developer message|jailbreak|assistant response)\b/i;
+  const positiveSection =
+    /\b(about|capabilities|highlight|introduction|model description|model overview|model summary|overview)\b/i;
+  const lowSignalSection =
+    /\b(benchmark|changelog|citation|configuration|deployment|fine.?tun|installation|license|performance|requirements|responsib|risk|safety|terms|tokenizer|training|usage)\b/i;
+  const boilerplatePattern =
+    /\b(model card template|fill in this section|terms of use|acceptable use policy)\b/i;
+
+  const candidates = blocks
+    .filter(({ text }) => text.length >= 80)
+    .filter(({ text }) => !unsafePattern.test(text) && !boilerplatePattern.test(text))
+    .map((block) => {
+      const lower = block.text.toLowerCase();
+      const modelTokenMatches = normalizedModelTokens.filter((token) =>
+        lower.includes(token)
+      ).length;
+      const firstWord = lower.replace(/[^a-z0-9]+/g, " ").trim().split(" ")[0];
+      const hasDescriptiveLead =
+        /^(we (?:are (?:excited|pleased) to )?(?:introduce|present|release)|this (?:folder|model|release|repository|checkpoint|is)|the model)/i.test(
+          block.text
+        ) || normalizedModelTokens.includes(firstWord);
+      const isPositiveSection = positiveSection.test(block.section);
+      let score = Math.min(modelTokenMatches, 3) * 8;
+      if (isPositiveSection) score += 30;
+      if (lowSignalSection.test(block.section)) score -= 35;
+      if (/\b(model|system|checkpoint|weights)\b/i.test(block.text)) score += 8;
+      if (/^(we (?:introduce|present|release)|this model|the model)/i.test(block.text)) {
+        score += 8;
+      }
+      if (block.text.length <= MAX_HF_DESCRIPTION_LENGTH) score += 4;
+      score -= block.index * 0.1;
+      return {
+        ...block,
+        score,
+        modelTokenMatches,
+        hasDescriptiveLead,
+        isPositiveSection,
+      };
+    })
+    .filter(
+      (candidate) =>
+        candidate.score >= 8 &&
+        (candidate.isPositiveSection || candidate.hasDescriptiveLead) &&
+        (candidate.modelTokenMatches > 0 ||
+          /\b(model|checkpoint|weights)\b/i.test(candidate.text))
+    )
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  const best = candidates[0]?.text;
+  return best ? truncateModelCardDescription(best) : null;
+}
+
 function buildHfListUrl(limit: number, cursor?: string) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -1055,6 +1270,230 @@ async function backfillHfMetadataGaps(
   return { attempted: rows.length, updated, enriched, errors };
 }
 
+interface HfDescriptionGapRow {
+  id: string;
+  slug: string;
+  name: string;
+  provider: string;
+  category: string;
+  description: string | null;
+  short_description: string | null;
+  architecture: string | null;
+  parameter_count: number | null;
+  context_window: number | null;
+  hf_model_id: string | null;
+  is_open_weights: boolean | null;
+  capabilities: Record<string, boolean> | null;
+  release_date: string | null;
+  overall_rank: number | null;
+  data_refreshed_at: string | null;
+}
+
+interface HfDescriptionBackfillResult {
+  attempted: number;
+  updated: number;
+  enriched: number;
+  evidenceUpserted: number;
+  skipped: number;
+  warnings: SyncError[];
+  errors: SyncError[];
+}
+
+function shouldBackfillHfDescription(row: HfDescriptionGapRow) {
+  return (
+    Boolean(row.hf_model_id) &&
+    !isDefaultPublicSurfaceEligibilityExemptModel(row) &&
+    getModelDisplayDescription(row).source === "synthetic"
+  );
+}
+
+function descriptionRefreshOrder(row: HfDescriptionGapRow) {
+  if (!row.data_refreshed_at) return 0;
+  const timestamp = Date.parse(row.data_refreshed_at);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+async function fetchHfDescriptionGapRows(ctx: SyncContext, limit: number) {
+  if (limit <= 0) return [];
+
+  const { data, error } = await ctx.supabase
+    .from("models")
+    .select(
+      "id, slug, name, provider, category, description, short_description, architecture, parameter_count, context_window, hf_model_id, is_open_weights, capabilities, release_date, overall_rank, data_refreshed_at"
+    )
+    .eq("status", "active")
+    .not("hf_model_id", "is", null)
+    .is("description", null)
+    .is("short_description", null)
+    .order("overall_rank", { ascending: true, nullsFirst: false })
+    .limit(MAX_DESCRIPTION_CANDIDATE_POOL);
+
+  if (error) {
+    throw new Error(`Failed to fetch HF description gaps: ${error.message}`);
+  }
+
+  return ((data ?? []) as HfDescriptionGapRow[])
+    .filter(shouldBackfillHfDescription)
+    .sort(
+      (left, right) =>
+        descriptionRefreshOrder(left) - descriptionRefreshOrder(right) ||
+        Number(left.overall_rank ?? Number.MAX_SAFE_INTEGER) -
+          Number(right.overall_rank ?? Number.MAX_SAFE_INTEGER)
+    )
+    .slice(0, limit);
+}
+
+async function rotateHfDescriptionCandidate(
+  ctx: SyncContext,
+  row: HfDescriptionGapRow,
+  refreshedAt: string
+) {
+  return ctx.supabase
+    .from("models")
+    .update({ data_refreshed_at: refreshedAt })
+    .eq("id", row.id)
+    .select("id");
+}
+
+async function backfillHfModelCardDescriptions(
+  ctx: SyncContext,
+  limit = DEFAULT_DESCRIPTION_ENRICHMENT_LIMIT
+): Promise<HfDescriptionBackfillResult> {
+  const rows = await fetchHfDescriptionGapRows(ctx, limit);
+  const result: HfDescriptionBackfillResult = {
+    attempted: rows.length,
+    updated: 0,
+    enriched: 0,
+    evidenceUpserted: 0,
+    skipped: 0,
+    warnings: [],
+    errors: [],
+  };
+
+  for (let index = 0; index < rows.length; index += HF_CONTEXT_FETCH_CONCURRENCY) {
+    if (ctx.signal?.aborted) {
+      result.warnings.push({
+        message: "HF description backfill aborted by signal",
+        context: `attempted=${index}`,
+      });
+      break;
+    }
+
+    await Promise.all(
+      rows.slice(index, index + HF_CONTEXT_FETCH_CONCURRENCY).map(async (row) => {
+        const hfModelId = row.hf_model_id;
+        if (!hfModelId) {
+          result.skipped += 1;
+          return;
+        }
+
+        const refreshedAt = new Date().toISOString();
+        let description: string | null = null;
+
+        try {
+          const markdown = await fetchHfModelCardMarkdown(
+            hfModelId,
+            ctx.signal,
+            ctx.secrets.HUGGINGFACE_API_TOKEN ?? ""
+          );
+          description = markdown
+            ? extractHfModelCardDescription(markdown, row.name)
+            : null;
+        } catch (error) {
+          result.warnings.push({
+            message: error instanceof Error ? error.message : String(error),
+            context: `description:${row.slug}`,
+          });
+        }
+
+        if (!description) {
+          const { data: rotatedRows, error: rotateError } =
+            await rotateHfDescriptionCandidate(ctx, row, refreshedAt);
+          if (rotateError) {
+            result.errors.push({
+              message: `Failed to rotate HF description gap: ${rotateError.message}`,
+              context: `model=${row.slug}`,
+            });
+          } else {
+            result.updated += rotatedRows?.length ?? 0;
+          }
+          result.skipped += 1;
+          return;
+        }
+
+        const sourceUrl = buildHfModelPageUrl(hfModelId);
+        const { error: evidenceError } = await ctx.supabase
+          .from("model_metadata_evidence")
+          .upsert(
+            {
+              model_id: row.id,
+              source: "huggingface",
+              source_record_id: hfModelId,
+              source_name: `${row.name} model card`,
+              source_url: sourceUrl,
+              publication_date: row.release_date,
+              parameter_count: row.parameter_count,
+              is_open_weights: row.is_open_weights,
+              confidence: "likely",
+              abstract: description,
+              metadata: {
+                source_kind: "model_card",
+                extraction: "bounded_factual_summary_v1",
+                hf_model_id: hfModelId,
+              },
+              observed_at: refreshedAt,
+            },
+            { onConflict: "model_id,source" }
+          );
+
+        if (evidenceError) {
+          result.errors.push({
+            message: `Failed to persist HF model-card evidence: ${evidenceError.message}`,
+            context: `model=${row.slug}`,
+          });
+          const { data: rotatedRows, error: rotateError } =
+            await rotateHfDescriptionCandidate(ctx, row, refreshedAt);
+          if (rotateError) {
+            result.errors.push({
+              message: `Failed to rotate HF description gap: ${rotateError.message}`,
+              context: `model=${row.slug}`,
+            });
+          } else {
+            result.updated += rotatedRows?.length ?? 0;
+          }
+          return;
+        }
+        result.evidenceUpserted += 1;
+
+        const { data: updatedRows, error: updateError } = await ctx.supabase
+          .from("models")
+          .update({ description, data_refreshed_at: refreshedAt })
+          .eq("id", row.id)
+          .is("description", null)
+          .is("short_description", null)
+          .select("id");
+
+        if (updateError) {
+          result.errors.push({
+            message: `Failed to persist HF model-card description: ${updateError.message}`,
+            context: `model=${row.slug}`,
+          });
+          return;
+        }
+
+        result.updated += updatedRows?.length ?? 0;
+        if ((updatedRows?.length ?? 0) > 0) {
+          result.enriched += 1;
+        } else {
+          result.skipped += 1;
+        }
+      })
+    );
+  }
+
+  return result;
+}
+
 interface HfHistoricalRefreshRow {
   slug: string;
   hf_model_id: string | null;
@@ -1290,6 +1729,7 @@ const adapter: DataSourceAdapter = {
     metadataGapBackfillLimit: DEFAULT_METADATA_GAP_BACKFILL_LIMIT,
     historicalRefreshLimit: DEFAULT_HISTORICAL_REFRESH_LIMIT,
     historicalRefreshAfterHours: DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS,
+    descriptionEnrichmentLimit: DEFAULT_DESCRIPTION_ENRICHMENT_LIMIT,
   },
   requiredSecrets: [],
 
@@ -1336,6 +1776,17 @@ const adapter: DataSourceAdapter = {
         ? ctx.config.historicalRefreshAfterHours
         : DEFAULT_HISTORICAL_REFRESH_AFTER_HOURS
     );
+    const descriptionEnrichmentLimit = Math.min(
+      50,
+      Math.max(
+        0,
+        Math.floor(
+          typeof ctx.config.descriptionEnrichmentLimit === "number"
+            ? ctx.config.descriptionEnrichmentLimit
+            : DEFAULT_DESCRIPTION_ENRICHMENT_LIMIT
+        )
+      )
+    );
     const token = ctx.secrets.HUGGINGFACE_API_TOKEN ?? "";
 
     const rateLimitedFetch = createRateLimitedFetch(rateLimitDelayMs);
@@ -1359,6 +1810,15 @@ const adapter: DataSourceAdapter = {
       attempted: 0,
       updated: 0,
       archived: 0,
+      skipped: 0,
+      warnings: [],
+      errors: [],
+    };
+    let descriptionBackfill: HfDescriptionBackfillResult = {
+      attempted: 0,
+      updated: 0,
+      enriched: 0,
+      evidenceUpserted: 0,
       skipped: 0,
       warnings: [],
       errors: [],
@@ -1510,6 +1970,21 @@ const adapter: DataSourceAdapter = {
     }
 
     try {
+      descriptionBackfill = await backfillHfModelCardDescriptions(
+        ctx,
+        descriptionEnrichmentLimit
+      );
+      totalProcessed += descriptionBackfill.attempted;
+      totalUpdated += descriptionBackfill.updated;
+      errors.push(...descriptionBackfill.errors);
+    } catch (error) {
+      errors.push({
+        message: error instanceof Error ? error.message : String(error),
+        context: "hf-description-backfill",
+      });
+    }
+
+    try {
       const gapBackfill = await backfillHfMetadataGaps(
         ctx,
         metadataGapBackfillLimit
@@ -1551,6 +2026,12 @@ const adapter: DataSourceAdapter = {
         historicalArchived: historicalRefresh.archived,
         historicalSkipped: historicalRefresh.skipped,
         historicalWarnings: historicalRefresh.warnings,
+        descriptionBackfillAttempted: descriptionBackfill.attempted,
+        descriptionBackfillUpdated: descriptionBackfill.updated,
+        descriptionsEnriched: descriptionBackfill.enriched,
+        descriptionEvidenceUpserted: descriptionBackfill.evidenceUpserted,
+        descriptionBackfillSkipped: descriptionBackfill.skipped,
+        descriptionBackfillWarnings: descriptionBackfill.warnings,
         topRecordsCreated,
         topRecordsUpdated,
         topRecordsUnchanged,
@@ -1598,18 +2079,22 @@ export default adapter;
 
 export const __testables = {
   backfillHfMetadataGaps,
+  backfillHfModelCardDescriptions,
   buildHfApiModelInfoUrl,
   buildHfHeaders,
   buildHfListUrl,
   buildHfModelPageUrl,
+  buildHfRawFileUrl,
   enrichRecordWithContextWindow,
   extractBaseModelIdsFromModelInfo,
   extractContextWindowFromConfig,
   extractContextWindowFromTokenizerConfig,
+  extractHfModelCardDescription,
   extractNextHfPageUrl,
   extractParamCountFromModelInfo,
   extractStructuredParamCount,
   fetchExistingHfRows,
+  fetchHfDescriptionGapRows,
   fetchHfModelInfoLookup,
   fetchContextWindowForHfId,
   hfRecordChanged,
@@ -1620,5 +2105,6 @@ export const __testables = {
   mapModalities,
   refreshHistoricalHfModels,
   shouldAttemptContextEnrichment,
+  shouldBackfillHfDescription,
   transformModel,
 };
