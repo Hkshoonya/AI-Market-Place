@@ -112,6 +112,110 @@ We introduce **Example Omni 12B**, a multimodal model designed for document unde
         architecture: "GGUF",
       })
     ).toBe(false);
+    expect(
+      __testables.shouldBackfillHfDescription({
+        ...baseRow,
+        slug: "example-omni-12b-w4a4",
+      })
+    ).toBe(false);
+  });
+
+  it("prefers model identity over metadata and dataset prose", () => {
+    const metadataCard = `## Model Summary
+
+Command A+ is an open source model optimized for agentic, multilingual, reasoning-heavy enterprise tasks and vision inputs.
+
+* Point of Contact: Cohere Labs
+* License: Apache 2.0
+* Model: command-a-plus-05-2026
+* Model Size: 25B active parameters, 218B total parameters
+* Context length: 128K input`;
+    const datasetCard = `## Model Overview
+
+gpt-oss-puzzle-88B is a deployment-optimized large language model developed by NVIDIA for efficient reasoning-heavy workloads.
+
+## Training and Evaluation Datasets
+
+### Dataset Overview
+
+For the KD stage data, prompts from a post-training dataset were used to generate parent-model responses for full training examples.`;
+
+    expect(
+      __testables.extractHfModelCardDescription(
+        metadataCard,
+        "command-a-plus-05-2026-w4a4"
+      )
+    ).toBe(
+      "Command A+ is an open source model optimized for agentic, multilingual, reasoning-heavy enterprise tasks and vision inputs."
+    );
+    expect(
+      __testables.extractHfModelCardDescription(
+        datasetCard,
+        "gpt-oss-puzzle-88B"
+      )
+    ).toBe(
+      "gpt-oss-puzzle-88B is a deployment-optimized large language model developed by NVIDIA for efficient reasoning-heavy workloads."
+    );
+  });
+
+  it("accepts concise identity text instead of generic implementation prose", () => {
+    const markdown = `## harrier-oss-v1
+
+harrier-oss-v1 is a family of multilingual text embedding models developed by Microsoft.
+
+The models use decoder-only architectures with last-token pooling and L2 normalization to produce dense text embeddings.`;
+
+    expect(
+      __testables.extractHfModelCardDescription(markdown, "harrier-oss-v1-27b")
+    ).toBe(
+      "harrier-oss-v1 is a family of multilingual text embedding models developed by Microsoft."
+    );
+  });
+
+  it("rejects prompt instructions, checkpoint lists, and list introductions", () => {
+    const faraCard = `# Fara1.5-27B
+
+Fara1.5-27B is a multimodal computer use agent for web browsers that observes screenshots and emits grounded actions to complete tasks end-to-end.
+
+## System prompt
+
+Fara1.5-27B is trained against a specific system prompt. Use it verbatim for best results:`;
+    const familyCard = `# Nemotron-Terminal Model Family
+
+Nemotron-Terminal is a family of models specialized for autonomous terminal interaction and developed by NVIDIA.
+
+## Model Variants
+
+Nemotron-Terminal-8B - Nemotron-Terminal-14B - Nemotron-Terminal-32B`;
+
+    expect(
+      __testables.extractHfModelCardDescription(faraCard, "Fara1.5-27B")
+    ).toBe(
+      "Fara1.5-27B is a multimodal computer use agent for web browsers that observes screenshots and emits grounded actions to complete tasks end-to-end."
+    );
+    expect(
+      __testables.extractHfModelCardDescription(
+        familyCard,
+        "Nemotron-Terminal-32B"
+      )
+    ).toBe(
+      "Nemotron-Terminal is a family of models specialized for autonomous terminal interaction and developed by NVIDIA."
+    );
+  });
+
+  it("allows factual system-prompt controls without weakening injection rejection", () => {
+    const markdown = `## Model Overview
+
+NVIDIA-Nemotron-Nano-9B-v2-Japanese is a reasoning and chat model optimized for Japanese. Its reasoning mode can be controlled through a system prompt.`;
+
+    expect(
+      __testables.extractHfModelCardDescription(
+        markdown,
+        "NVIDIA-Nemotron-Nano-9B-v2-Japanese"
+      )
+    ).toBe(
+      "NVIDIA-Nemotron-Nano-9B-v2-Japanese is a reasoning and chat model optimized for Japanese. Its reasoning mode can be controlled through a system prompt."
+    );
   });
 
   it("stores model-card evidence before filling a missing description", async () => {

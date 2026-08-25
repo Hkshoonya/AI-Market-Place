@@ -55,6 +55,7 @@ const DEFAULT_DESCRIPTION_ENRICHMENT_LIMIT = 20;
 const MAX_DESCRIPTION_CANDIDATE_POOL = 300;
 const MAX_HF_README_BYTES = 256 * 1024;
 const MAX_HF_DESCRIPTION_LENGTH = 320;
+const HF_DESCRIPTION_EXTRACTION_VERSION = "bounded_factual_summary_v2";
 const HF_LIST_EXPANSIONS = [
   "author",
   "createdAt",
@@ -71,7 +72,7 @@ const HF_LIST_EXPANSIONS = [
   "trendingScore",
 ] as const;
 const PACKAGED_WEIGHT_REPOSITORY_PATTERN =
-  /(?:^|[-_.:/\s])(?:4bit|4-bit|8bit|8-bit|adapter|awq|bnb|exl2|fp4|fp8|gguf|gptq|int4|int8|lora|mlx|nf4|nvfp4|quantized|quantization)(?:$|[-_.:/\s])/i;
+  /(?:^|[-_.:/\s])(?:4bit|4-bit|8bit|8-bit|adapter|awq|bnb|exl2|fp4|fp8|gguf|gptq|int4|int8|lora|mlx|mxfp4|nf4|nvfp4|quantized|quantization|w4a4|w8a8)(?:$|[-_.:/\s])/i;
 
 // ────────────────────────────────────────────────────────────────
 // Mapping helpers (kept from the original Edge Function)
@@ -791,17 +792,31 @@ function extractHfModelCardDescription(
     .split(/\s+/)
     .filter((token) => token.length >= 3);
   const unsafePattern =
-    /\b(ignore (?:all |any |the )?(?:previous|prior) instructions|system prompt|developer message|jailbreak|assistant response)\b/i;
+    /\b(?:ignore (?:all |any |the )?(?:previous|prior) instructions|jailbreak|(?:reveal|show|print|return|output|expose)(?: the)? (?:system prompt|developer message)|assistant response\s*:)/i;
   const positiveSection =
-    /\b(about|capabilities|highlight|introduction|model description|model overview|model summary|overview)\b/i;
+    /(?:^|\()\s*(?:about|capabilities|highlights?|introduction|model (?:description|overview|summary)|overview|description|summary)\s*\)?$/i;
   const lowSignalSection =
-    /\b(benchmark|changelog|citation|configuration|deployment|fine.?tun|installation|license|performance|requirements|responsib|risk|safety|terms|tokenizer|training|usage)\b/i;
+    /\b(benchmark|changelog|citation|configuration|dataset|deployment|evaluation|fine.?tun|installation|license|performance|prompt|requirements|responsib|risk|safety|terms|tokenizer|training|usage)\b/i;
   const boilerplatePattern =
     /\b(model card template|fill in this section|terms of use|acceptable use policy)\b/i;
+  const metadataLeadPattern =
+    /^(?:point of contact|developed by|license|model size|context length|release date|deployment geography|governing terms)\s*:/i;
+  const instructionPattern =
+    /\b(?:specific system prompt|use it verbatim for best results)\b/i;
+  const descriptivePredicatePattern =
+    /\b(?:adds?|allows?|are|built|combines?|delivers?|derived|designed|developed|enables?|extends?|focuses?|generates?|introduces?|is|observes?|offers?|operates?|optimized|performs?|predicts?|presents?|produces?|provides?|releases?|serves?|specialized|supports?|trained|uses?|was|were)\b/i;
 
   const candidates = blocks
-    .filter(({ text }) => text.length >= 80)
-    .filter(({ text }) => !unsafePattern.test(text) && !boilerplatePattern.test(text))
+    .filter(({ text }) => text.length >= 60)
+    .filter(
+      ({ text }) =>
+        !unsafePattern.test(text) &&
+        !boilerplatePattern.test(text) &&
+        !metadataLeadPattern.test(text) &&
+        !instructionPattern.test(text) &&
+        !text.endsWith(":") &&
+        descriptivePredicatePattern.test(text)
+    )
     .map((block) => {
       const lower = block.text.toLowerCase();
       const modelTokenMatches = normalizedModelTokens.filter((token) =>
@@ -817,9 +832,9 @@ function extractHfModelCardDescription(
       if (isPositiveSection) score += 30;
       if (lowSignalSection.test(block.section)) score -= 35;
       if (/\b(model|system|checkpoint|weights)\b/i.test(block.text)) score += 8;
-      if (/^(we (?:introduce|present|release)|this model|the model)/i.test(block.text)) {
-        score += 8;
-      }
+      if (hasDescriptiveLead) score += 8;
+      const nonAsciiCharacters = block.text.replace(/[\x00-\x7F]/g, "").length;
+      if (nonAsciiCharacters / block.text.length < 0.1) score += 6;
       if (block.text.length <= MAX_HF_DESCRIPTION_LENGTH) score += 4;
       score -= block.index * 0.1;
       return {
@@ -835,7 +850,9 @@ function extractHfModelCardDescription(
         candidate.score >= 8 &&
         (candidate.isPositiveSection || candidate.hasDescriptiveLead) &&
         (candidate.modelTokenMatches > 0 ||
-          /\b(model|checkpoint|weights)\b/i.test(candidate.text))
+          (candidate.isPositiveSection &&
+            candidate.hasDescriptiveLead &&
+            /\b(model|checkpoint|weights)\b/i.test(candidate.text)))
     )
     .sort((left, right) => right.score - left.score || left.index - right.index);
 
@@ -1438,7 +1455,7 @@ async function backfillHfModelCardDescriptions(
               abstract: description,
               metadata: {
                 source_kind: "model_card",
-                extraction: "bounded_factual_summary_v1",
+                extraction: HF_DESCRIPTION_EXTRACTION_VERSION,
                 hf_model_id: hfModelId,
               },
               observed_at: refreshedAt,

@@ -50,7 +50,7 @@ export interface PublicSourceTrustModel {
 }
 
 export function isPackagingVariantSlug(slug: string | null | undefined) {
-  return /(?:^|-)(?:gguf|bf16|fp8|int4|int8|nvfp4|awq)(?:-|$)/i.test(
+  return /(?:^|-)(?:4bit|4-bit|8bit|8-bit|adapter|awq|bf16|bnb|exl2|fp4|fp8|gguf|gptq|int4|int8|lora|mlx|mxfp4|nf4|nvfp4|quantized|quantization|w4a4|w8a8)(?:-|$)/i.test(
     String(slug ?? "")
   );
 }

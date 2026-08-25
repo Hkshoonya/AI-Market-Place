@@ -36,6 +36,21 @@ describe("public surface readiness", () => {
         quality_score: 62,
       })
     ).toBe(false);
+
+    expect(
+      isDefaultPublicSurfaceReady({
+        slug: "coherelabs-command-a-plus-05-2026-w4a4",
+        provider: "CohereLabs",
+        name: "Command A+ W4A4",
+        category: "multimodal",
+        release_date: "2026-05-01",
+        is_open_weights: true,
+        license: "open_source",
+        license_name: "Apache 2.0",
+        context_window: 128000,
+        overall_rank: 100,
+      })
+    ).toBe(false);
   });
 
   it("rejects packaging variants inferred from architecture, not only the slug", () => {
