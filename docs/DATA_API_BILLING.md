@@ -106,8 +106,10 @@ delivery/signature verification against this version in staging.
 
 ## Release Gates
 
-1. Review and merge through the existing code-owner gate. Previous one-time admin
-   merge approval for PRs #36/#37 does not authorize bypass on this work.
+1. Complete the existing code-owner review, but do not merge yet: merging `main`
+   triggers Railway deployment. Complete staging verification and the production
+   migration below first. Previous one-time admin merge approval for PRs #36/#37
+   does not authorize bypass on this work.
 2. Apply migration `099_add_data_api_stripe_billing.sql` to isolated staging first.
    Test genuine Stripe sandbox Checkout, payment, renewal, authentication-required
    payment, declined payment, cancellation, refunds/disputes, delayed/duplicate
@@ -121,8 +123,9 @@ delivery/signature verification against this version in staging.
    itself defaults to live mode with an unset merchant pin, so billing is blocked.
 5. After review, pin the correct production merchant in
    `data_api_billing_settings` with `livemode=true`, configure only dedicated live
-   objects/secrets, deploy the application and redeploy the existing Cloudflare
-   cron Worker with updated shared config. Never point test mode at production.
+   objects/secrets, merge the reviewed application for Railway deployment, and
+   redeploy the existing Cloudflare cron Worker with updated shared config. Never
+   point test mode at production.
 6. Verify the authenticated `/api/cron/data-billing` route. Its configured schedule
    is `10-59/15 * * * *`: minutes 10, 25, 40 and 55. Work is bounded to 10 due
    customers and roughly 60 seconds per run; monitor backlog and lease failures.
