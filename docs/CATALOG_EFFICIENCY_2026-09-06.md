@@ -58,6 +58,9 @@ maximum data age during upstream failures. Page-level CDN privacy is unchanged.
   logged dummy-JWT warnings. These are not claimed as clean live-data builds.
   All six existing model-detail E2E tests passed against the built server on
   Chromium desktop and mobile, including tab and leaderboard navigation.
+  The subsequent full E2E run finished with 61 passed and 8 skipped across
+  Chromium desktop/mobile and Firefox desktop. Auth and Commons checks in that
+  suite use fixtures, not the owner's live session or real email delivery.
 - GitHub and public-site DNS resolution became unreliable late in verification.
   A per-command Git HTTPS DNS override, resolved through public DNS, restored
   repository connectivity without changing persistent network configuration.
