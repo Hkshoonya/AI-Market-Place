@@ -163,7 +163,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const modelSlug = url.searchParams.get("modelSlug");
     const requestedConnectionId = url.searchParams.get("providerConnectionId");
-    const connections = await listProviderConnections(auth.user.id);
+    const connections = (await listProviderConnections(auth.user.id)).filter((connection) => connection.provider !== "runpod");
     if (requestedConnectionId && !z.string().uuid().safeParse(requestedConnectionId).success) {
       return NextResponse.json({ error: "Invalid provider connection" }, { status: 400 });
     }
@@ -203,6 +203,9 @@ export async function GET(request: Request) {
           userId: auth.user.id,
         })
       : null;
+    if (deploymentCredential?.provider === "runpod") {
+      return NextResponse.json({ error: "Use Workspace Pods for Runpod GPU deployments." }, { status: 422 });
+    }
     const runtimeExecution = await resolveAvailableWorkspaceRuntimeExecution(modelSlug, {
       openRouterApiKey:
         deploymentCredential?.provider === "openrouter"
@@ -282,6 +285,9 @@ export async function POST(request: Request) {
           userId: auth.user.id,
         })
       : null;
+    if (connectedCredential?.provider === "runpod") {
+      return NextResponse.json({ error: "Use Workspace Pods for Runpod GPU deployments." }, { status: 422 });
+    }
     const billingSource: "provider_account" | "platform_wallet" = connectedCredential
       ? "provider_account"
       : "platform_wallet";

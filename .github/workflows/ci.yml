@@ -51,6 +51,8 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
       - run: npm run test:component
+      - name: Verify Runpod database safety in disposable PostgreSQL
+        run: node scripts/verify-runpod-schema.mjs
 
   e2e:
     name: E2E

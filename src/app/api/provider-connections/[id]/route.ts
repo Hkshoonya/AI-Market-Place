@@ -29,6 +29,11 @@ export async function DELETE(
     }
 
     const admin = createAdminClient();
+    const { count: pods, error: podsError } = await admin.from("runpod_pods")
+      .select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      .eq("provider_connection_id", parsedId.data).not("status", "in", "(quoted,terminated,failed)");
+    if (podsError) throw podsError;
+    if (pods) return NextResponse.json({ error: "Terminate Runpod Pods before disconnecting this account. Stopped Pods still have storage." }, { status: 409 });
     const { count, error: deploymentError } = await admin
       .from("workspace_deployments")
       .select("id", { count: "exact", head: true })

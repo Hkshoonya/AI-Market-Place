@@ -800,8 +800,35 @@ export interface ApiKeyRecord {
   created_at: string;
 }
 
-export type ProviderConnectionProvider = "openrouter" | "replicate" | "huggingface";
+export type ProviderConnectionProvider = "openrouter" | "replicate" | "huggingface" | "runpod";
 export type ProviderConnectionStatus = "active" | "invalid" | "revoked";
+
+export interface RunpodPodRecord {
+  id: string;
+  user_id: string;
+  provider_connection_id: string | null;
+  external_account_id: string;
+  model_key: string;
+  gpu_type_id: string;
+  gpu_name: string;
+  gpu_memory_gb: number;
+  volume_gb: number;
+  gpu_price_per_hr: number;
+  observed_price_per_hr: number | null;
+  image_name: string;
+  encrypted_api_key: string;
+  status: "quoted" | "creating" | "unknown" | "starting" | "running" | "stopping" | "stopped" | "terminating" | "terminated" | "failed";
+  external_pod_id: string | null;
+  quote_expires_at: string;
+  consented_at: string | null;
+  last_checked_at: string | null;
+  api_ready: boolean;
+  last_error: string | null;
+  operation_id: string | null;
+  operation_expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface ProviderConnectionRecord {
   id: string;
@@ -1595,6 +1622,12 @@ export interface Database {
         Update: Partial<ProviderConnectionRecord>;
         Relationships: [];
       };
+      runpod_pods: {
+        Row: AsRow<RunpodPodRecord>;
+        Insert: Partial<RunpodPodRecord> & Pick<RunpodPodRecord, "user_id" | "provider_connection_id" | "external_account_id" | "model_key" | "gpu_type_id" | "gpu_name" | "gpu_memory_gb" | "volume_gb" | "gpu_price_per_hr" | "image_name" | "encrypted_api_key" | "quote_expires_at">;
+        Update: Partial<RunpodPodRecord>;
+        Relationships: [];
+      };
       data_api_plans: {
         Row: AsRow<DataApiPlanRecord>;
         Insert: Partial<DataApiPlanRecord> & Pick<DataApiPlanRecord, "slug" | "name" | "description" | "monthly_request_limit" | "rate_limit_per_minute" | "max_page_size" | "history_days">;
@@ -2086,6 +2119,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_runpod_quote: {
+        Args: { p_id: string; p_user_id: string };
+        Returns: boolean;
+      };
       reserve_autonomous_marketplace_order: {
         Args: {
           p_buyer_id: string;
