@@ -50,6 +50,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:unit
+      - name: Verify Stripe test setup safeguards
+        run: node --test scripts/setup-stripe-test-catalog.test.mjs
       - run: npm run test:component
       - name: Verify Runpod database safety in disposable PostgreSQL
         run: node scripts/verify-runpod-schema.mjs

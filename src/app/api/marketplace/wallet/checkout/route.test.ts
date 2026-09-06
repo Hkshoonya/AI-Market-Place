@@ -6,7 +6,9 @@ const mockGetOrCreateWallet = vi.fn();
 const mockFetch = vi.fn();
 const mockEnv = vi.hoisted(() => ({
   NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: true,
-  STRIPE_SECRET_KEY: "sk_test_123",
+  STRIPE_SECRET_KEY: "sk_live_123",
+  STRIPE_WEBHOOK_SECRET: "whsec_test",
+  STRIPE_EXPECTED_ACCOUNT_ID: "acct_merchant",
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -40,6 +42,8 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
     mockEnv.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = true;
+    mockEnv.STRIPE_SECRET_KEY = "sk_live_123";
+    mockEnv.STRIPE_WEBHOOK_SECRET = "whsec_test";
 
     mockCreateClient.mockResolvedValue({
       auth: {
@@ -47,19 +51,22 @@ describe("POST /api/marketplace/wallet/checkout", () => {
           data: { user: { id: "user-1" } },
         }),
       },
+      from: vi.fn(() => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { is_banned: false }, error: null }) }) }) })),
     });
 
     mockGetOrCreateWallet.mockResolvedValue({
       id: "wallet-1",
     });
 
-    mockFetch.mockResolvedValue({
+    mockFetch.mockReset();
+    mockFetch.mockImplementation(async (url: string) => ({
       ok: true,
-      json: async () => ({
+      json: async () => url.endsWith("/account") ? ({ id: "acct_merchant", charges_enabled: true }) : ({
         id: "cs_test_123",
         url: "https://checkout.stripe.com/c/pay/cs_test_123",
+        livemode: true,
       }),
-    });
+    }));
   });
 
   it("fails closed when Stripe payments are not explicitly enabled", async () => {
@@ -103,12 +110,14 @@ describe("POST /api/marketplace/wallet/checkout", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: "Bearer sk_test_123",
+          Authorization: "Bearer sk_live_123",
         }),
       })
     );
 
-    const stripeBody = mockFetch.mock.calls[0]?.[1]?.body as URLSearchParams;
+    const stripeBody = mockFetch.mock.calls[1]?.[1]?.body as URLSearchParams;
+    expect(stripeBody.get("metadata[app]")).toBe("aimarketcap");
+    expect(stripeBody.get("payment_intent_data[metadata][app]")).toBe("aimarketcap");
     expect(stripeBody.get("metadata[wallet_id]")).toBe("wallet-1");
     expect(stripeBody.get("metadata[purpose]")).toBe("wallet_top_up");
     expect(stripeBody.get("metadata[owner_id]")).toBe("user-1");
@@ -186,7 +195,8 @@ describe("POST /api/marketplace/wallet/checkout", () => {
   });
 
   it("surfaces Stripe API failures", async () => {
-    mockFetch.mockResolvedValue({
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: "acct_merchant", charges_enabled: true }) });
+    mockFetch.mockResolvedValueOnce({
       ok: false,
       json: async () => ({
         error: { message: "Your Stripe account is restricted" },
@@ -206,6 +216,37 @@ describe("POST /api/marketplace/wallet/checkout", () => {
     const body = await response.json();
 
     expect(response.status).toBe(502);
-    expect(body.error).toMatch(/restricted/i);
+    expect(body.error).toBe("Failed to create Stripe checkout session");
+  });
+
+  it.each(["test key", "missing webhook", "wrong merchant", "restricted merchant", "unavailable profile", "banned profile"])("blocks unsafe checkout: %s", async (condition) => {
+    if (condition === "test key") mockEnv.STRIPE_SECRET_KEY = "sk_test_123";
+    if (condition === "missing webhook") mockEnv.STRIPE_WEBHOOK_SECRET = "";
+    if (condition === "wrong merchant") mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: "acct_other", charges_enabled: true }) });
+    if (condition === "restricted merchant") mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: "acct_merchant", charges_enabled: false }) });
+    if (condition.endsWith("profile")) {
+      const client = await mockCreateClient();
+      client.from = () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: condition === "banned profile" ? { is_banned: true } : null, error: null }) }) }) });
+    }
+    const { POST } = await import("./route");
+    const response = await POST(new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
+      method: "POST", headers: { origin: "https://aimarketcap.tech" }, body: JSON.stringify({ pack: "starter" }),
+    }));
+    expect(response.status).toBe(condition.endsWith("profile") ? 403 : 503);
+    expect(mockGetOrCreateWallet).not.toHaveBeenCalled();
+    expect(mockFetch.mock.calls.some(([url]) => String(url).endsWith("/checkout/sessions"))).toBe(false);
+  });
+
+  it.each([
+    { livemode: false, url: "https://checkout.stripe.com/c/pay/cs_test" },
+    { livemode: true, url: "https://evil.example/pay" },
+  ])("rejects an unsafe Checkout response %j", async (result) => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: "acct_merchant", charges_enabled: true }) });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: "cs_test", ...result }) });
+    const { POST } = await import("./route");
+    const response = await POST(new NextRequest("https://aimarketcap.tech/api/marketplace/wallet/checkout", {
+      method: "POST", headers: { origin: "https://aimarketcap.tech" }, body: JSON.stringify({ pack: "starter" }),
+    }));
+    expect(response.status).toBe(502);
   });
 });
