@@ -122,7 +122,7 @@ export async function PATCH(request: NextRequest) {
     const parsed = StatusSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Invalid submission status" }, { status: 400 });
     const { data, error } = await createAdminClient().from("contact_submissions")
-      .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+      .update({ status: parsed.data.status })
       .eq("id", parsed.data.id).select("id, status").maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: "Submission not found" }, { status: 404 });

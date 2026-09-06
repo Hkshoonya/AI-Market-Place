@@ -169,6 +169,7 @@ describe("PATCH /api/admin/contact-submissions", () => {
     expect(response.status).toBe(200);
     expect(from).toHaveBeenCalledExactlyOnceWith("contact_submissions");
     expect(eq).toHaveBeenCalledWith("id", id);
-    expect(update).toHaveBeenCalledWith({ status: "replied", updated_at: expect.any(String) });
+    // Older production tables lack updated_at; status changes must not depend on it.
+    expect(update).toHaveBeenCalledExactlyOnceWith({ status: "replied" });
   });
 });
