@@ -2,6 +2,8 @@ import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
 import { maintainAffiliateLinks } from "@/lib/affiliate/maintenance";
 import { recordAgentIssue, resolveAgentIssue } from "../ledger";
+import { getRevenueOperations } from "@/lib/monetization/operations";
+import { buildRevenueAlerts } from "@/lib/monetization/alerts";
 
 const ISSUE_SLUG = "affiliate-link-health-failures";
 
@@ -42,10 +44,23 @@ const affiliateMaintainer: ResidentAgent = {
       });
     }
 
-    await ctx.log.info("Affiliate link maintenance completed", result);
+    const revenue = await getRevenueOperations(ctx.supabase);
+    for (const alert of buildRevenueAlerts(revenue)) {
+      if (alert.active) {
+        await recordAgentIssue(ctx.supabase, {
+          slug: alert.slug, title: alert.title, issueType: "revenue_operations",
+          source: "affiliate-maintainer", severity: "low", confidence: 1,
+          detectedBy: "affiliate-maintainer", playbook: alert.action,
+          evidence: { ...revenue, adminUrl: "/admin/monetization" },
+        });
+      } else {
+        await resolveAgentIssue(ctx.supabase, alert.slug, { ...revenue, verifier: "affiliate-maintainer" });
+      }
+    }
+    await ctx.log.info("Affiliate link maintenance completed", { ...result, revenue });
     return {
       success: result.errors.length === 0,
-      output: result,
+      output: { ...result, revenue },
       errors: result.errors,
     };
   },

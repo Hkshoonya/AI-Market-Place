@@ -27,6 +27,17 @@ describe("ContactContent", () => {
     ).toHaveAttribute("href", "mailto:support@aimarketcap.tech");
   });
 
+  it("preserves the selected commercial offer without interpreting it as HTML", () => {
+    render(<ContactContent initialCategory="partnership" initialSubject="Data Pro pilot" />);
+    expect(screen.getByLabelText("Subject")).toHaveValue("Data Pro pilot");
+    expect(screen.getByRole("button", { name: "Data API / Partnership" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("ignores unsupported category query parameters", () => {
+    render(<ContactContent initialCategory="admin" />);
+    expect(screen.getByRole("button", { name: "General Inquiry" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("submits the public contact form and shows the success state", async () => {
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,

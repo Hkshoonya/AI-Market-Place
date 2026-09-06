@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { classifyFetchFailures } from "../fetch-failure-budget";
+import { selectRotatingSources } from "../rotating-sources";
 import { fetchWithRetry, upsertBatch, makeSlug } from "../utils";
 import {
   buildModelLookup,
@@ -169,12 +170,31 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
     type: "percentage",
   },
   {
+    benchmarkSlug: "terminal-bench-2-1",
+    labels: ["terminal-bench 2.1", "terminal bench 2.1", "terminalbench 2.1"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "terminal-bench-3",
+    labels: ["terminal-bench 3.0", "terminal bench 3.0", "terminalbench 3.0"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "terminal-bench-4",
+    labels: ["terminal-bench 4.0", "terminal bench 4.0", "terminalbench 4.0"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "cybergym",
+    labels: ["cybergym"],
+    type: "percentage",
+  },
+  {
     benchmarkSlug: "terminal-bench",
     labels: [
-      "terminal-bench 2.1",
       "terminal-bench 2.0",
+      "terminal bench 2.0",
       "terminal-bench",
-      "terminalbench 2.1",
       "terminalbench 2.0",
       "terminalbench",
     ],
@@ -1089,7 +1109,8 @@ function escapeRegExp(value: string) {
 
 function buildBenchmarkLabelPattern(labels: string[]) {
   return `(?:${labels
-    .map((label) => escapeRegExp(label).replace(/\\ /g, "\\s+"))
+    .map((label) => escapeRegExp(label).replace(/\\ /g, "\\s+") +
+      (/^terminal[- ]?bench$/i.test(label) ? "(?![\\s_-]*\\d)" : ""))
     .join("|")})`;
 }
 
@@ -1410,8 +1431,8 @@ function resolveHuggingFaceEvalBenchmarkSlug(result: HuggingFaceEvalResult) {
   if (/swe[-_ ]bench/.test(haystack)) {
     return "swe_bench";
   }
-  if (/terminal[-_ ]bench/.test(haystack)) {
-    return "terminal-bench";
+  if (/terminal[-_ ]?bench/.test(haystack)) {
+    return resolveTerminalBenchmarkSlug(haystack);
   }
   if (/livecodebench/.test(haystack)) {
     return "livecodebench";
@@ -1525,9 +1546,21 @@ function normalizeTableMatchText(value: string | null | undefined) {
     .trim();
 }
 
+function resolveTerminalBenchmarkSlug(text: string) {
+  const version = text.match(/terminal[-_ ]?bench[\s_-]*(\d+(?:[._]\d+)?)/i)?.[1]?.replace("_", ".");
+  if (!version || version === "2" || version === "2.0") return "terminal-bench";
+  if (version === "2.1") return "terminal-bench-2-1";
+  if (version === "3" || version === "3.0") return "terminal-bench-3";
+  if (version === "4" || version === "4.0") return "terminal-bench-4";
+  return null;
+}
+
 function resolveStructuredBenchmarkRule(cellText: string) {
   const normalizedCell = normalizeTableMatchText(cellText);
   if (!normalizedCell) return null;
+  if (/terminal[-_ ]?bench/i.test(cellText)) {
+    return BENCHMARK_EXTRACTION_RULES.find((rule) => rule.benchmarkSlug === resolveTerminalBenchmarkSlug(cellText)) ?? null;
+  }
 
   return (
     BENCHMARK_EXTRACTION_RULES.find((rule) =>
@@ -1606,6 +1639,7 @@ function extractStructuredBenchmarkScoresFromTextTableRows(text: string) {
 
   for (const line of lines) {
     for (const rule of BENCHMARK_EXTRACTION_RULES) {
+      if (rule.benchmarkSlug.startsWith("terminal-bench") && rule.benchmarkSlug !== resolveTerminalBenchmarkSlug(line)) continue;
       const labels = [...rule.labels].sort(
         (left, right) => right.length - left.length
       );
@@ -1987,6 +2021,7 @@ async function fetchExistingAutoBenchmarkSourceIds(
       .select("source_id")
       .eq("source", "provider-benchmarks")
       .or("source_id.like.provider-benchmarks-auto-hf-%,source_id.like.provider-benchmarks-auto-web-%")
+      .order("source_id")
       .range(from, to);
 
     if (error) {
@@ -2156,14 +2191,30 @@ const adapter: DataSourceAdapter = {
     const benchmarkIdMap = new Map(
       (benchmarkRows ?? []).map((row) => [row.slug, row.id] as const)
     );
-    const sources = [
-      ...PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages),
-      ...buildAutoBenchmarkSources(
+    const { data: lastCursorRun, error: cursorError } = await ctx.supabase
+      .from("sync_jobs")
+      .select("metadata")
+      .eq("source", "provider-benchmarks")
+      .neq("status", "running")
+      .not("metadata->>autoBenchmarkCursor", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cursorError) throw new Error(`Could not load benchmark rotation cursor: ${cursorError.message}`);
+    const previousCursor = lastCursorRun?.metadata?.autoBenchmarkCursor;
+    const rotation = selectRotatingSources(
+      buildAutoBenchmarkSources(
         benchmarkCandidateModels,
         trustedBenchmarkCountsByModelId,
         existingAutoSourceIds,
-        autoMaxPages
+        Number.MAX_SAFE_INTEGER
       ),
+      Math.min(autoMaxPages, 200),
+      typeof previousCursor === "string" ? previousCursor : null
+    );
+    const sources = [
+      ...PROVIDER_BENCHMARK_SOURCES.slice(0, maxPages),
+      ...rotation.sources,
     ];
     const records: Record<string, unknown>[] = [];
     const errors: Array<{ message: string; context?: string }> = [];
@@ -2357,6 +2408,7 @@ const adapter: DataSourceAdapter = {
       errors: blockingErrors,
       metadata: {
         sourceCount: sources.length,
+        autoBenchmarkCursor: rotation.nextCursor,
         curatedSourceCount: Math.min(maxPages, PROVIDER_BENCHMARK_SOURCES.length),
         autoSourceCount: Math.max(
           0,

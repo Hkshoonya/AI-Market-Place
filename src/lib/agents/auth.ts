@@ -25,6 +25,14 @@ export function hashApiKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
+export async function loadActiveApiKeyOwner(supabase: TypedSupabaseClient, ownerId: string | null | undefined) {
+  if (!ownerId) return null;
+  const { data, error } = await supabase.from("profiles")
+    .select("id, username, display_name, is_admin, is_banned")
+    .eq("id", ownerId).single();
+  return error || !data || data.is_banned === true ? null : data;
+}
+
 /** Validate an API key and return the key record if valid */
 export async function validateApiKey(
   supabase: TypedSupabaseClient,
@@ -54,15 +62,9 @@ export async function validateApiKey(
   }
 
   // Enrich with owner profile
-  let enrichedData: Record<string, unknown> = rawData as Record<string, unknown>;
-  if (rawData.owner_id) {
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("id, username, display_name, is_admin")
-      .eq("id", rawData.owner_id)
-      .single();
-    enrichedData = { ...rawData, profiles: profile ?? null };
-  }
+  const profile = await loadActiveApiKeyOwner(sb, rawData.owner_id);
+  if (!profile) return { valid: false, keyRecord: null, error: "API key owner is unavailable or suspended" };
+  const enrichedData: Record<string, unknown> = { ...rawData, profiles: profile };
 
   // Check expiration
   const expiresAt = enrichedData.expires_at as string | null | undefined;

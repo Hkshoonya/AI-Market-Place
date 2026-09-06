@@ -25,6 +25,7 @@ vi.mock("@/lib/api-error", () => ({
 
 import { createClient } from "@supabase/supabase-js";
 import { GET } from "./route";
+import { checkPaywall } from "@/lib/middleware/api-paywall";
 
 type MockModel = Record<string, unknown>;
 
@@ -46,8 +47,30 @@ function createQuery(data: MockModel[]) {
 describe("GET /api/models", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(checkPaywall).mockResolvedValue({ allowed: true, callerType: "public" });
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+  });
+
+  it("requires a validated data key for catalog pagination", async () => {
+    expect((await GET(new NextRequest("https://aimarketcap.tech/api/models?view=catalog"))).status).toBe(401);
+  });
+
+  it("serves catalog pages beyond 2,000 records using database pagination and plan limits", async () => {
+    vi.mocked(checkPaywall).mockResolvedValue({ allowed: true, callerType: "bot", planSlug: "free", maxPageSize: 100, quotaRemaining: 2499, quotaLimit: 2500 });
+    const query = {
+      eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      range: vi.fn().mockResolvedValue({ data: [{ id: "long-tail", slug: "long-tail-model", fts: "internal tokens", quality_score: null }], count: 11382, error: null }),
+    };
+    vi.mocked(createClient).mockReturnValue({ from: () => ({ select: () => query }) } as never);
+    const response = await GET(new NextRequest("https://aimarketcap.tech/api/models?view=catalog&page=31&limit=500"));
+    const body = await response.json();
+    expect(query.range).toHaveBeenCalledExactlyOnceWith(3000, 3099);
+    expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
+    expect(body).toMatchObject({ total: 11382, page: 31, limit: 100, totalPages: 114, access: { plan: "free" } });
+    expect(body.data[0]).not.toHaveProperty("fts");
+    expect(body.data[0].quality_score).toBeNull();
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("keeps weak wrapper rows out of default public model listings when enough ready models exist", async () => {

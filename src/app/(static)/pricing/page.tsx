@@ -5,7 +5,7 @@ import { ArrowRight, CreditCard, Database, Gauge, ShieldCheck, Wallet } from "lu
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SITE_NAME, SITE_URL } from "@/lib/constants/site";
+import { SITE_URL } from "@/lib/constants/site";
 import {
   buildAccessOffersCatalog,
   type RankedAccessOffer,
@@ -17,7 +17,7 @@ import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 
 export const metadata: Metadata = {
-  title: `Pricing & Access | ${SITE_NAME}`,
+  title: "Pricing & Access",
   description:
     "Compare AI Market Cap data API plans and verified subscription access for top AI models.",
   alternates: {
@@ -46,7 +46,7 @@ const DATA_API_PLANS = [
     price: "$49",
     requests: "100,000 requests / month",
     rate: "300 requests / minute",
-    history: "One year of model history",
+    history: "Up to one year of recorded history",
     pageSize: "Up to 500 models per page",
     cta: "Request Pro pilot",
     href: "/contact?category=partnership&subject=Data%20Pro%20pilot",
@@ -57,7 +57,7 @@ const DATA_API_PLANS = [
     price: "$199",
     requests: "1,000,000 requests / month",
     rate: "1,000 requests / minute",
-    history: "One year of model history",
+    history: "Up to one year of recorded history",
     pageSize: "Up to 1,000 models per page",
     cta: "Request Business pilot",
     href: "/contact?category=partnership&subject=Data%20Business%20pilot",
@@ -131,22 +131,22 @@ export default async function PricingPage() {
           Pricing & Access
         </p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
-          Verified subscription routes for working with top AI models
+          AI model intelligence for your next product
         </h1>
         <p className="mt-4 text-base text-muted-foreground md:text-lg">
-          This page is for the practical buy decision: which paid platforms cover the
-          models you actually care about, how trustworthy those plans look, and where
-          the tradeoffs are before you sign up.
+          Build model discovery, research dashboards, and provider comparisons with
+          structured rankings, benchmark evidence, pricing, and recorded history.
+          Start with a free API key, then discuss production access as your usage grows.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button className="bg-neon text-background hover:bg-neon/90" asChild>
-            <Link href="/leaderboards">
-              Back to rankings
+            <Link href="/settings/api-keys">
+              Start with the free API
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/api-docs">Use the API instead</Link>
+            <Link href="/api-docs">Explore the API documentation</Link>
           </Button>
         </div>
       </section>
@@ -164,6 +164,8 @@ export default async function PricingPage() {
               Every plan uses scoped API keys, monthly quotas, and per-minute controls. Pro and
               Business are pilot grants for now; online checkout is intentionally disabled until
               the correct AI Market Cap payment account is connected.
+              History varies by model and collection start date. Prices below are proposed monthly plans;
+              requesting a pilot does not charge you or create a subscription.
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -211,6 +213,23 @@ export default async function PricingPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      <section className="mt-10 grid gap-4 md:grid-cols-2">
+        <Card className="border-border/50 bg-card">
+          <CardHeader><CardTitle className="text-lg">Bring model intelligence into your product</CardTitle></CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>Evaluate the API with Explorer. Tell us your request volume, integration needs, and intended data use to agree a production pilot. Provider inference charges are separate.</p>
+            <Button variant="outline" asChild><Link href="/contact?category=partnership&subject=Production%20data%20API%20access">Discuss a data integration<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card">
+          <CardHeader><CardTitle className="text-lg">Reach people evaluating AI tools</CardTitle></CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>Discuss a clearly labelled sponsorship or provider partnership. Placement and pricing are agreed before publication. Sponsorship does not buy a higher model rank or change benchmark results.</p>
+            <Button variant="outline" asChild><Link href="/contact?category=sponsorship&subject=AI%20Market%20Cap%20sponsorship">Enquire about sponsorship<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="mt-10 grid gap-4 md:grid-cols-3">

@@ -501,6 +501,34 @@ describe("provider-benchmarks helpers", () => {
     );
   });
 
+  it("keeps Terminal-Bench versions separate in provider prose", () => {
+    const scores = __testables.extractStructuredBenchmarkScores(
+      "Terminal-Bench 2.0: 60%. Terminal-Bench 2.1: 88.2%. Terminal Bench 3.0: 28.3%. Terminal Bench 4.0: 19%."
+    );
+    expect(scores.map(({ benchmarkSlug, score }) => ({ benchmarkSlug, score }))).toEqual(expect.arrayContaining([
+      { benchmarkSlug: "terminal-bench", score: 60 }, { benchmarkSlug: "terminal-bench-2-1", score: 88.2 },
+      { benchmarkSlug: "terminal-bench-3", score: 28.3 }, { benchmarkSlug: "terminal-bench-4", score: 19 },
+    ]));
+  });
+
+  it("extracts the target model's versioned results without absorbing comparison columns", async () => {
+    const source = {
+      id: "auto-hf-zai-org-glm-5-3", provider: "Z.ai", url: "https://huggingface.co/zai-org/GLM-5.3",
+      titleHint: "GLM-5.3 benchmarks", modelHints: ["GLM-5.3"], sourceType: "official_model_card" as const,
+    };
+    const scores = await __testables.extractStructuredBenchmarkScoresFromHtmlTables(source,
+      `<table><tr><th>Benchmark</th><th>GLM-5.3</th><th>Another model</th></tr>
+      <tr><td>Terminal Bench 2.1</td><td>88.2</td><td>99</td></tr>
+      <tr><td>Terminal Bench 3.0</td><td>28.3</td><td>99</td></tr>
+      <tr><td>CyberGym</td><td>84.5</td><td>99</td></tr>
+      <tr><td>Terminal Bench 9.0</td><td>99</td><td>99</td></tr></table>`);
+    expect(scores.map(({ benchmarkSlug, score }) => ({ benchmarkSlug, score }))).toEqual([
+      { benchmarkSlug: "terminal-bench-2-1", score: 88.2 },
+      { benchmarkSlug: "terminal-bench-3", score: 28.3 },
+      { benchmarkSlug: "cybergym", score: 84.5 },
+    ]);
+  });
+
   it("extracts the first model column from provider PDF table rows", () => {
     expect(
       __testables.extractStructuredBenchmarkScoresFromTextTableRows(
@@ -510,7 +538,7 @@ describe("provider-benchmarks helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({ benchmarkSlug: "swe_bench", score: 79.2 }),
         expect.objectContaining({
-          benchmarkSlug: "terminal-bench",
+          benchmarkSlug: "terminal-bench-2-1",
           score: 80.4,
         }),
         expect.objectContaining({ benchmarkSlug: "browsecomp", score: 90.8 }),
@@ -881,7 +909,7 @@ describe("provider-benchmarks helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({ benchmarkSlug: "swe_bench", score: 63.2 }),
         expect.objectContaining({
-          benchmarkSlug: "terminal-bench",
+          benchmarkSlug: "terminal-bench-2-1",
           score: 80.4,
         }),
         expect.objectContaining({ benchmarkSlug: "browsecomp", score: 84.7 }),
@@ -890,7 +918,7 @@ describe("provider-benchmarks helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({ benchmarkSlug: "swe_bench", score: 80 }),
         expect.objectContaining({
-          benchmarkSlug: "terminal-bench",
+          benchmarkSlug: "terminal-bench-2-1",
           score: 84.3,
         }),
         expect.objectContaining({ benchmarkSlug: "os-world", score: 85 }),
@@ -898,7 +926,7 @@ describe("provider-benchmarks helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({ benchmarkSlug: "swe_bench", score: 80.3 }),
         expect.objectContaining({
-          benchmarkSlug: "terminal-bench",
+          benchmarkSlug: "terminal-bench-2-1",
           score: 88,
         }),
         expect.objectContaining({ benchmarkSlug: "browsecomp", score: 88 }),

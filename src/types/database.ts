@@ -1756,6 +1756,7 @@ export interface Database {
           category: string;
           subject: string;
           message: string;
+          status: "new" | "read" | "replied" | "archived";
           metadata: Record<string, unknown>;
           created_at: string;
         };
@@ -1766,6 +1767,7 @@ export interface Database {
           category?: string;
           subject: string;
           message: string;
+          status?: "new" | "read" | "replied" | "archived";
           metadata?: Record<string, unknown>;
           created_at?: string;
         };
@@ -1776,6 +1778,7 @@ export interface Database {
           category?: string;
           subject?: string;
           message?: string;
+          status?: "new" | "read" | "replied" | "archived";
           metadata?: Record<string, unknown>;
           created_at?: string;
         };

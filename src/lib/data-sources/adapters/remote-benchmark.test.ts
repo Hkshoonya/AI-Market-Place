@@ -4,7 +4,7 @@ import {
   normalizeRemoteBenchmarkDate,
   parseCsvRows,
 } from "./remote-benchmark";
-import { parseTerminalBenchLeaderboardHtml } from "./terminal-bench";
+import { parseTerminalBenchLeaderboardHtml, parseTerminalBenchLeaderboardJson } from "./terminal-bench";
 import { extractTauBenchEntries } from "./tau-bench";
 import { parseWebArenaCsv } from "./webarena";
 
@@ -70,6 +70,36 @@ describe("parseTerminalBenchLeaderboardHtml", () => {
         evaluationDate: "2026-03-15",
       },
     ]);
+  });
+});
+
+describe("Terminal-Bench Harbor feed", () => {
+  const row = (model: string, score: unknown, names = [model]) => ({
+    status: "display", metadata: { model_display: model, model_names: names, date: "2026-08-28" },
+    metrics: { accuracy: score },
+  });
+  const feed = (rows: unknown[]) => ({
+    leaderboard: { package: "terminal-bench/terminal-bench-2", name: "2-0" }, rows,
+  });
+
+  it("takes the best single-model score and retains evaluation dates", () => {
+    expect(parseTerminalBenchLeaderboardJson(feed([row("Model A", 80.1234), row("Model A", 70)])))
+      .toEqual([{ matchNames: ["Model A", "Model A"], score: 80.12, evaluationDate: "2026-08-28" }]);
+  });
+
+  it("rejects ensembles, missing values, hidden rows and out-of-range scores", () => {
+    expect(parseTerminalBenchLeaderboardJson(feed([
+      row("Multiple", 90), row("Team", 85, ["A", "B"]), row("Null", null),
+      row("String", "80"), row("High", 101), row("Low", -1),
+      { ...row("Hidden", 99), status: "hidden" },
+    ]))).toEqual([]);
+  });
+
+  it("does not silently import another benchmark version", () => {
+    expect(parseTerminalBenchLeaderboardJson({ ...feed([row("A", 99)]),
+      leaderboard: { package: "terminal-bench/terminal-bench", name: "4-0-0" },
+    })).toEqual([]);
+    expect(parseTerminalBenchLeaderboardJson(null)).toEqual([]);
   });
 });
 

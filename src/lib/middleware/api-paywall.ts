@@ -18,6 +18,7 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import type { Database } from "@/types/database";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { loadActiveApiKeyOwner } from "@/lib/agents/auth";
 import {
   consumeDataApiQuota,
   getDataApiEntitlement,
@@ -216,6 +217,9 @@ async function handleBotRequest(
 
   const path = new URL(request.url).pathname;
   const isDataRequest = isDataApiRequest(path, request.method);
+  if (!await loadActiveApiKeyOwner(sb, keyRecord.owner_id)) {
+    return { allowed: false, callerType: "bot", error: "API key owner is unavailable or suspended", statusCode: 403 };
+  }
   const scopes = Array.isArray(keyRecord.scopes)
     ? keyRecord.scopes.filter((scope): scope is string => typeof scope === "string")
     : [];
@@ -238,8 +242,7 @@ async function handleBotRequest(
     ? await getDataApiEntitlement(keyRecord.owner_id)
     : null;
 
-  // Rate limit bots by key id + IP
-  const ip = getClientIp(request);
+  // Data plan limits are account-wide; rotating IPs or keys must not multiply them.
   const rateLimitValue =
     entitlement
       ? Math.min(
@@ -248,7 +251,13 @@ async function handleBotRequest(
         )
       : rule?.rate_limit_paid || keyRecord.rate_limit_per_minute || 300;
 
-  const rl = await rateLimit(`bot:${keyRecord.id}:${ip}`, {
+  if (entitlement) {
+    const accountLimit = await rateLimit(`data-api-owner:${keyRecord.owner_id}`, {
+      limit: entitlement.plan.rateLimitPerMinute, windowMs: 60_000,
+    });
+    if (!accountLimit.success) return { allowed: false, callerType: "bot", error: "Account data API rate limit exceeded", statusCode: 429 };
+  }
+  const rl = await rateLimit(`bot:${keyRecord.id}`, {
     limit: rateLimitValue,
     windowMs: 60_000,
   });

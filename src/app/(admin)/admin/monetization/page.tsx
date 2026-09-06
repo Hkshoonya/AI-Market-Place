@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SWR_TIERS } from "@/lib/swr/config";
 import { jsonFetcher } from "@/lib/swr/fetcher";
+import { SalesInbox } from "./sales-inbox";
 
 interface AffiliateResponse {
   links: Array<{
@@ -52,6 +53,7 @@ interface AffiliateResponse {
 }
 
 interface DataSubscriptionsResponse {
+  operations: { activeAffiliateLinks: number; newLeads: number; overdueLeads: number; expiringGrants: number; checkedAt: string };
   subscriptions: Array<{
     id: string;
     user_id: string;
@@ -289,7 +291,7 @@ export default function MonetizationAdminPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-neon">Revenue operations</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Monetization control room</h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Manage verified referral destinations and temporary Data API subscriptions. Paid
+            Manage sales enquiries, verified referral destinations and temporary Data API subscriptions. Paid
             checkout remains disabled until the correct Stripe business account is connected.
           </p>
         </div>
@@ -297,6 +299,23 @@ export default function MonetizationAdminPage() {
           No automated paid checkout
         </Badge>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          ["New sales enquiries", subscriptionData?.operations?.newLeads],
+          ["Awaiting reply over 48h", subscriptionData?.operations?.overdueLeads],
+          ["Pilot grants ending within 7 days", subscriptionData?.operations?.expiringGrants],
+        ].map(([label, value]) => <Card key={label} className="border-border/50 bg-card/70"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value ?? "Unavailable"}</p></CardContent></Card>)}
+      </div>
+      <SalesInbox onUpdate={() => { void mutateSubscriptions(); }} />
+      {affiliateData && activeLinks === 0 ? <Card className="border-amber-500/30 bg-amber-500/5">
+        <CardHeader><CardTitle className="text-lg">Activate your first referral channel</CardTitle></CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>No referral commissions can be attributed to AI Market Cap until your own approved link is configured. A campaign label or a generic provider link is not an affiliate agreement.</p>
+          <p><a className="text-neon underline" href="https://docs.runpod.io/accounts-billing/referrals" target="_blank" rel="noopener noreferrer">Review Runpod&apos;s official referral and affiliate program</a>, obtain your unique link, then add it below. Verify current eligibility and whether rewards are credits or cash before planning revenue.</p>
+          <p>The daily agent checks destinations and disables repeatedly broken links. Referral compensation never changes model ranking scores.</p>
+        </CardContent>
+      </Card> : null}
 
       {affiliateError || subscriptionError ? (
         <Card className="border-loss/30 bg-loss/5">

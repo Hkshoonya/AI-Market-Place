@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error";
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
+import { getRevenueOperations } from "@/lib/monetization/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,7 @@ export async function GET() {
       })),
       plans: plans ?? [],
       users: profiles ?? [],
+      operations: await getRevenueOperations(admin),
     });
   } catch (error) {
     return handleApiError(error, "api/admin/data-subscriptions");

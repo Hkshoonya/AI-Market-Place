@@ -31,6 +31,7 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 import { checkPaywall } from "./api-paywall";
+import { rateLimit } from "@/lib/rate-limit";
 
 const ORIGINAL_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ORIGINAL_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -50,7 +51,7 @@ function createChain(result: unknown) {
   return chain;
 }
 
-function createMockAdminSupabase(keyRecord?: Record<string, unknown> | null) {
+function createMockAdminSupabase(keyRecord?: Record<string, unknown> | null, owner: Record<string, unknown> | null = { id: "user-1", is_banned: false }) {
   return {
     from: (table: string) => {
       if (table === "api_endpoint_pricing") {
@@ -68,6 +69,7 @@ function createMockAdminSupabase(keyRecord?: Record<string, unknown> | null) {
           }),
         };
       }
+      if (table === "profiles") return createChain({ data: owner, error: null });
       throw new Error(`Unexpected table ${table}`);
     },
   };
@@ -111,6 +113,23 @@ describe("checkPaywall", () => {
 
     expect(result.allowed).toBe(true);
     expect(result.callerType).toBe("public");
+  });
+
+  it("rejects suspended or missing key owners before consuming paid quota", async () => {
+    for (const owner of [{ id: "user-1", is_banned: true }, null]) {
+      mockCreateAdminClient.mockReturnValue(createMockAdminSupabase({ id: "key-1", owner_id: "user-1", is_active: true, scopes: ["data"] }, owner));
+      const result = await checkPaywall(new NextRequest("https://aimarketcap.tech/api/models", { headers: { authorization: "Bearer aimk_test_key" } }));
+      expect(result.statusCode).toBe(403);
+      expect(result.allowed).toBe(false);
+    }
+    expect(mockConsumeDataApiQuota).not.toHaveBeenCalled();
+  });
+
+  it("shares the data plan rate limit across keys and client addresses", async () => {
+    mockCreateAdminClient.mockReturnValue(createMockAdminSupabase({ id: "key-1", owner_id: "user-1", is_active: true, scopes: ["data"] }));
+    await checkPaywall(new NextRequest("https://aimarketcap.tech/api/models", { headers: { authorization: "Bearer aimk_test_key" } }));
+    expect(rateLimit).toHaveBeenCalledWith("data-api-owner:user-1", { limit: 30, windowMs: 60_000 });
+    expect(rateLimit).toHaveBeenCalledWith("bot:key-1", { limit: 30, windowMs: 60_000 });
   });
 
   it("treats requests with a valid resolved Supabase session as human traffic", async () => {
