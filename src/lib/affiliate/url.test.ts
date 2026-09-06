@@ -41,4 +41,16 @@ describe("affiliate URL safety", () => {
     expect(sanitizeAffiliateSource(" Model Card / CTA ")).toBe("model-card-cta");
     expect(sanitizeAffiliateSource("***")).toBe("unknown");
   });
+
+  it.each(["192.0.10.1", "192.2.1.1", "198.51.101.1", "203.0.114.1"])(
+    "does not block a public IPv4 range adjacent to reserved space: %s", (address) => {
+      expect(isPublicAffiliateAddress(address)).toBe(true);
+    }
+  );
+
+  it.each(["192.0.2.1", "198.51.100.1", "203.0.113.1", "0:0:0:0:0:0:0:1", "2002:7f00:1::", "3fff::1"])(
+    "blocks reserved, expanded and transition addresses: %s", (address) => {
+      expect(isPublicAffiliateAddress(address)).toBe(false);
+    }
+  );
 });

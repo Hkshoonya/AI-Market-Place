@@ -1,10 +1,9 @@
 import "server-only";
 
 import { lookup } from "node:dns/promises";
-import {
-  isPublicAffiliateAddress,
-  parseSafeAffiliateDestination,
-} from "./url";
+import { request } from "node:https";
+import type { LookupFunction } from "node:net";
+import { isPublicAffiliateAddress, parseSafeAffiliateDestination } from "./url";
 
 export interface AffiliateHealthResult {
   ok: boolean;
@@ -15,100 +14,111 @@ export interface AffiliateHealthResult {
   error: string | null;
 }
 
-async function assertPublicResolution(url: URL) {
-  const records = await lookup(url.hostname, { all: true, verbatim: true });
-  if (
-    records.length === 0 ||
-    records.some((record) => !isPublicAffiliateAddress(record.address))
-  ) {
-    throw new Error("Affiliate destination resolved to a non-public address");
+class DestinationCheckError extends Error {}
+
+function safeDestination(value: string) {
+  try {
+    return parseSafeAffiliateDestination(value);
+  } catch (error) {
+    throw new DestinationCheckError(error instanceof Error ? error.message : "Invalid destination");
   }
 }
 
-async function requestWithSafeRedirects(input: {
-  destination: string;
-  method: "HEAD" | "GET";
-  timeoutMs: number;
-  signal?: AbortSignal;
-}) {
-  let current = parseSafeAffiliateDestination(input.destination);
-  let redirectCount = 0;
+// Node connects to these exact validated answers, without a second DNS lookup.
+const publicLookup: LookupFunction = (hostname, options, callback) => {
+  void lookup(hostname, { all: true, verbatim: true }).then(
+    (records) => {
+      if (!records.length || records.some((record) => !isPublicAffiliateAddress(record.address))) {
+        callback(new DestinationCheckError("Affiliate destination resolved to a non-public address"), []);
+        return;
+      }
+      if (options.all) callback(null, records);
+      else callback(null, records[0].address, records[0].family);
+    },
+    () => callback(new DestinationCheckError("Destination DNS lookup failed"), [])
+  );
+};
 
-  while (redirectCount <= 5) {
-    await assertPublicResolution(current);
-    const timeoutSignal = AbortSignal.timeout(input.timeoutMs);
-    const signal = input.signal
-      ? AbortSignal.any([input.signal, timeoutSignal])
-      : timeoutSignal;
-    const response = await fetch(current, {
-      method: input.method,
-      redirect: "manual",
+function requestHeaders(url: URL, method: "HEAD" | "GET", signal: AbortSignal) {
+  signal.throwIfAborted();
+  return new Promise<{ status: number; location?: string }>((resolve, reject) => {
+    const req = request(url, {
+      method,
+      agent: false,
+      rejectUnauthorized: true,
+      lookup: publicLookup,
+      signal,
       headers: {
         "User-Agent": "AI-Market-Cap-Affiliate-Maintainer/1.0",
-        ...(input.method === "GET" ? { Range: "bytes=0-1023" } : {}),
+        ...(method === "GET" ? { Range: "bytes=0-1023" } : {}),
       },
-      cache: "no-store",
-      signal,
+    }, (response) => {
+      const result = { status: response.statusCode ?? 0, location: response.headers.location };
+      // Health checks only need headers, even if the server ignores Range.
+      response.destroy();
+      resolve(result);
     });
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) return { response, current, redirectCount };
-      current = parseSafeAffiliateDestination(new URL(location, current).toString());
-      redirectCount += 1;
-      continue;
-    }
-
-    return { response, current, redirectCount };
-  }
-
-  throw new Error("Destination exceeded the safe redirect limit");
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 export async function checkAffiliateDestination(
   destination: string,
   options?: { timeoutMs?: number; signal?: AbortSignal }
 ): Promise<AffiliateHealthResult> {
-  const timeoutMs = options?.timeoutMs ?? 8_000;
+  const requestedTimeout = options?.timeoutMs ?? 8_000;
+  const timeoutMs = Number.isFinite(requestedTimeout)
+    ? Math.max(1, Math.min(30_000, Math.trunc(requestedTimeout)))
+    : 8_000;
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const signal = options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
+  let redirectCount = 0;
 
   try {
-    let result = await requestWithSafeRedirects({
-      destination,
-      method: "HEAD",
-      timeoutMs,
-      signal: options?.signal,
-    });
+    let current = safeDestination(destination);
+    let method: "HEAD" | "GET" = "HEAD";
 
-    if ([400, 403, 405].includes(result.response.status)) {
-      result = await requestWithSafeRedirects({
-        destination,
-        method: "GET",
-        timeoutMs,
-        signal: options?.signal,
-      });
+    while (true) {
+      const response = await requestHeaders(current, method, signal);
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        if (!response.location) throw new DestinationCheckError("Destination redirect has no Location header");
+        if (redirectCount >= 5) throw new DestinationCheckError("Destination exceeded the safe redirect limit");
+        current = safeDestination(new URL(response.location, current).toString());
+        redirectCount += 1;
+        continue;
+      }
+
+      if (method === "HEAD" && [400, 403, 405].includes(response.status)) {
+        method = "GET";
+        current = safeDestination(destination);
+        continue;
+      }
+
+      const ok = response.status >= 200 && response.status < 300;
+      return {
+        ok,
+        status: ok ? (redirectCount > 0 ? "redirected" : "healthy") : "failed",
+        httpStatus: response.status,
+        finalUrl: current.toString(),
+        redirectCount,
+        error: ok ? null : `Destination returned HTTP ${response.status}`,
+      };
     }
-
-    const ok = result.response.status >= 200 && result.response.status < 400;
-    return {
-      ok,
-      status: ok
-        ? result.redirectCount > 0
-          ? "redirected"
-          : "healthy"
-        : "failed",
-      httpStatus: result.response.status,
-      finalUrl: result.current.toString(),
-      redirectCount: result.redirectCount,
-      error: ok ? null : `Destination returned HTTP ${result.response.status}`,
-    };
   } catch (error) {
     return {
       ok: false,
       status: "failed",
       httpStatus: null,
       finalUrl: destination,
-      redirectCount: 0,
-      error: error instanceof Error ? error.message.slice(0, 300) : "Destination check failed",
+      redirectCount,
+      error: options?.signal?.aborted
+        ? "Destination check cancelled"
+        : deadline.aborted
+          ? "Destination check timed out"
+          : error instanceof DestinationCheckError
+            ? error.message
+            : "Destination check failed",
     };
   }
 }

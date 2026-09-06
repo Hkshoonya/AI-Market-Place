@@ -53,6 +53,42 @@ admin panel. Start with the [official Runpod program](https://docs.runpod.io/acc
 Check current eligibility and reward type: credits are not cash revenue. The
 maintainer verifies link availability, not attribution or payout eligibility.
 
+As verified on 2026-09-06, Runpod's standard referral program rewards Runpod
+credits, not cash. Its separate, opt-in affiliate program requires at least 25
+paying referrals and pays through PartnerStack. The existing owner-provided
+`https://runpod.io?ref=i223vftj` link is configured and active; that alone does not
+establish cash-program enrollment or prove a commission was earned. Recheck the
+official terms before changing programs; the documented opt-in is permanent.
+
+## Referral Reliability
+
+`/go/[platformSlug]` selects the requested model's active, in-date referral first,
+then the platform default. Database filtering happens before limiting results,
+so unrelated model campaigns cannot hide those links. The unique platform/model
+indexes in migration 088 bound the eligible result to two links. If neither is
+available, the route uses the model deployment or provider website without
+recording an affiliate click.
+
+HEAD checks, known crawler user agents, and prefetch/prerender requests redirect
+without incrementing click aggregates. This is best-effort filtering, not bot
+proofing: headers are spoofable and repeated human clicks are not deduplicated.
+Click aggregates are not unique visitors, attributed purchases, or cash revenue.
+Accounting failures do not prevent an otherwise valid referral redirect.
+
+The maintainer uses HTTPS with normal certificate verification and validates the
+actual connection's DNS answers, including every redirect. Private/reserved IPs,
+mixed public/private answers, URL credentials and custom ports are rejected.
+One deadline covers DNS, HEAD, redirects and the limited GET fallback; response
+bodies are closed immediately rather than downloaded. IPv6 policy deliberately
+accepts only native global unicast outside special-purpose/transition ranges.
+
+Cancelled jobs do not count unfinished checks as destination failures. Updates
+require the stored link version, status, URL and failure count to remain unchanged,
+so an older health result cannot overwrite an administrator's edit or newer check.
+Three consecutive failures invalidate by default; recovery returns a link to
+draft for administrator approval, never directly to active. No new cron, paid
+service, billing activation or automatic partner enrollment is introduced.
+
 ## Operational Notes
 
 Cloudflare Rocket Loader was disabled on 2026-09-06 after browser script-loading
