@@ -24,6 +24,7 @@ describe("sendContactSubmissionEmail", () => {
 
   afterEach(() => {
     process.env = ORIGINAL_ENV;
+    vi.restoreAllMocks();
   });
 
   it("skips delivery when Resend is not configured", async () => {
@@ -85,7 +86,38 @@ describe("sendContactSubmissionEmail", () => {
 
     await expect(sendContactSubmissionEmail(contactInput)).resolves.toEqual({
       status: "failed",
-      error: "Domain not verified",
+      error: "Email provider returned 422",
+    });
+  });
+
+  it("contains network failures instead of failing an already-saved contact submission", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    vi.mocked(global.fetch).mockRejectedValue(new Error("secret credential or recipient details"));
+    await expect(sendContactSubmissionEmail(contactInput)).resolves.toEqual({
+      status: "failed",
+      error: "Email delivery request failed",
+    });
+  });
+
+  it("bounds delivery requests and reports timeouts without sensitive error text", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    vi.mocked(global.fetch).mockRejectedValue(new DOMException("private details", "TimeoutError"));
+    await expect(sendContactSubmissionEmail(contactInput)).resolves.toEqual({
+      status: "failed",
+      error: "Email delivery request timed out",
+    });
+    expect(timeout).toHaveBeenCalledWith(10000);
+    expect(global.fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal: controller.signal }));
+  });
+
+  it.each([null, {}, { id: "" }, { id: 42 }])("does not report success without an email ID: %j", async (body) => {
+    process.env.RESEND_API_KEY = "re_test";
+    vi.mocked(global.fetch).mockResolvedValue({ ok: true, json: async () => body } as Response);
+    await expect(sendContactSubmissionEmail(contactInput)).resolves.toEqual({
+      status: "failed",
+      error: "Email provider returned an invalid response",
     });
   });
 });
