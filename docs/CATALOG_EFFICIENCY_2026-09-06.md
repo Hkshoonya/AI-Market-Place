@@ -8,6 +8,11 @@ Their previously recorded one-time merge authorization is complete. This new
 branch requires normal review; no new protection override is authorized.
 PRs #31/#32, Stripe activation and paid GPU launches are outside this change.
 
+The final live health check still reported that deployed commit, a connected
+database (111 ms sample), external cron with no stale jobs or failures in the
+last 24 hours, and 37 healthy / 0 degraded / 0 down sources. Stripe remained
+disabled. This follow-up is published separately as PR #34, not deployed.
+
 Infrastructure checks in this follow-up were read-only. No database migration,
 compute upgrade, production variable change or forced production sync was made.
 Local application checks used public production data with startup seeding and
@@ -99,7 +104,11 @@ top 500. An experiment using Hugging Face's documented
 that to five requests. A two-row probe succeeded, but repeated 100-row probes
 returned HTTP 500 `ResponseNotReady` with an unavailable/loading dataset index.
 The experiment was removed rather than shipping an unverified replacement.
-The existing production rate-limit warning therefore remains unresolved.
+The final read-only source check confirmed that the existing production adapter
+had recovered normally: its September 6 20:07:58 UTC sync succeeded with 500
+records and no stored error. No recovery sync was forced in this follow-up.
+The rate-limit warning cleared without this proposed rewrite; the adapter's
+request volume and the source's age still warrant follow-up.
 
 The public [dataset API](https://huggingface.co/api/datasets/open-llm-leaderboard/contents)
 reported `lastModified: 2025-03-20T12:17:27.000Z` at revision
