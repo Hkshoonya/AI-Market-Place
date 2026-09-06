@@ -12,8 +12,12 @@ function docker(args, input) {
 const sqlArgs = [
   "exec",
   "-i",
+  "-e",
+  "PGPASSWORD=disposable-local-only",
   container,
   "psql",
+  "-h",
+  "127.0.0.1",
   "-U",
   "postgres",
   "-v",
@@ -41,17 +45,26 @@ try {
     "POSTGRES_PASSWORD=disposable-local-only",
     "postgres:17-alpine",
   ]);
-  for (let attempt = 0; attempt < 40; attempt++) {
+  // The image's initialization server accepts Unix sockets, then shuts down.
+  // Only the final server accepts TCP; waiting for a socket races that restart.
+  let databaseReady = false;
+  for (let attempt = 0; attempt < 120; attempt++) {
     const ready = spawnSync("docker", [
       "exec",
       container,
       "pg_isready",
+      "-h",
+      "127.0.0.1",
       "-U",
       "postgres",
     ]);
-    if (ready.status === 0) break;
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (ready.status === 0) {
+      databaseReady = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
+  if (!databaseReady) throw new Error("Disposable PostgreSQL TCP listener did not become ready within 60 seconds.");
   sql(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
 CREATE SCHEMA auth; CREATE TABLE auth.users(id UUID PRIMARY KEY);
 CREATE FUNCTION auth.role() RETURNS TEXT LANGUAGE SQL AS $$ SELECT current_user::text $$;
