@@ -24,3 +24,14 @@ export function averageCapabilityMetric(models: ProviderMetricModel[]) {
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
+
+export function getBestProviderRank(models: { overall_rank?: number | null }[]) {
+  let best: number | null = null;
+  for (const model of models) {
+    const rank = model.overall_rank;
+    if (rank != null && Number.isFinite(rank) && rank > 0 && (best == null || rank < best)) {
+      best = rank;
+    }
+  }
+  return best;
+}

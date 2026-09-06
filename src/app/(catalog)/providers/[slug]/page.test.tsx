@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockCreatePublicClient = vi.fn();
 const mockNotFound = vi.fn();
 
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+
 vi.mock("@/lib/supabase/public-server", () => ({
   createPublicClient: () => mockCreatePublicClient(),
 }));
@@ -19,6 +21,8 @@ function createQuery<T>(data: T) {
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
     then: (resolve: (value: { data: T; error: null }) => unknown) =>
       Promise.resolve(resolve({ data, error: null })),
   };
@@ -71,6 +75,22 @@ describe("ProviderDetailPage", () => {
     ).resolves.toMatchObject({
       title: "Provider Not Found",
     });
+  });
+
+  it("finds providers beyond the database's first 1,000 rows", async () => {
+    const range = vi.fn((from: number) => Promise.resolve({
+      data: from === 0
+        ? Array.from({ length: 1000 }, () => ({ provider: "OpenAI" }))
+        : [{ provider: "Anthropic" }],
+      error: null,
+    }));
+    mockCreatePublicClient.mockReturnValue({
+      from: vi.fn(() => ({ ...createQuery([]), range })),
+    });
+    const { generateMetadata } = await import("./page");
+    await expect(generateMetadata({ params: Promise.resolve({ slug: "anthropic" }) }))
+      .resolves.toMatchObject({ title: "Anthropic AI Models" });
+    expect(range).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
   it("calls notFound for an invalid provider detail route", async () => {

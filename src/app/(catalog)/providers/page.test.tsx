@@ -13,6 +13,8 @@ const mockIsSelfHostedDeployabilityLabel = vi.fn();
 const mockSummarizeProviderSelfHostRequirements = vi.fn();
 const mockPreferDefaultPublicSurfaceReady = vi.fn();
 
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+
 vi.mock("@/lib/supabase/public-server", () => ({
   createPublicClient: () => mockCreatePublicClient(),
 }));
@@ -87,12 +89,44 @@ function createQuery<T>(data: T) {
     order: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
     then: (resolve: (value: { data: T; error: null }) => unknown) =>
       Promise.resolve(resolve({ data, error: null })),
   };
 }
 
 describe("ProvidersPage", () => {
+  it("paginates provider cards and preserves the search in navigation links", async () => {
+    const db = mockCreatePublicClient();
+    const originalFrom = db.from.getMockImplementation();
+    db.from.mockImplementation((table: string) => table === "models"
+      ? createQuery(Array.from({ length: 122 }, (_, index) => ({
+          id: `model-${index}`, slug: `model-${index}`, name: `Model ${index}`,
+          provider: `Provider ${Math.floor(index / 2)}`, overall_rank: index + 1,
+          category: "llm", is_open_weights: false,
+        })))
+      : originalFrom(table));
+    const { default: ProvidersPage } = await import("./page");
+    render(await ProvidersPage({ searchParams: Promise.resolve({ q: "Provider", page: "2" }) }));
+    const cards = screen.getAllByRole("link").filter((link) =>
+      link.getAttribute("href")?.startsWith("/providers/")
+    );
+    expect(cards).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute(
+      "href", "/providers?page=1&q=Provider"
+    );
+    expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
+  });
+
+  it("filters provider cards without filtering the overall charts", async () => {
+    const { default: ProvidersPage } = await import("./page");
+    render(await ProvidersPage({ searchParams: Promise.resolve({ q: "no-such-provider", page: "invalid" }) }));
+    expect(screen.getByText("No providers match your search.")).toBeInTheDocument();
+    expect(screen.getByText("ProviderCharts:OpenAI")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search providers")).toHaveValue("no-such-provider");
+    expect(screen.queryByRole("link", { name: /Logo:OpenAI/ })).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockFormatNumber.mockImplementation((value: number) => `${value}`);

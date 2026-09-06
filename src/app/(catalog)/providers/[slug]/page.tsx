@@ -39,10 +39,11 @@ import { SignalSummary } from "@/components/news/signal-summary";
 import { LaunchRadar } from "@/components/news/launch-radar";
 import { ProviderSignalBadge } from "@/components/news/provider-signal-badge";
 import { DataFreshnessBadge } from "@/components/shared/data-freshness-badge";
-import { averageCapabilityMetric, getCapabilityMetricValue } from "@/lib/providers/metrics";
+import { averageCapabilityMetric, getBestProviderRank, getCapabilityMetricValue } from "@/lib/providers/metrics";
 import { getNewsSignalType } from "@/lib/news/presentation";
 import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-requirements";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
+import { fetchAllPublicPages, getActiveProviderNames } from "@/lib/providers/catalog-queries";
 
 export const revalidate = 300;
 
@@ -52,9 +53,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = createPublicClient();
-  const { data } = await supabase.from("models").select("provider").eq("status", "active");
-  const allProviders = [...new Set((data ?? []).map((m) => m.provider))];
+  const allProviders = await getActiveProviderNames();
   const providerName = resolveProviderSlug(slug, allProviders);
 
   if (!providerName) return { title: "Provider Not Found" };
@@ -84,11 +83,7 @@ export default async function ProviderDetailPage({
   const { slug } = await params;
   const supabase = createPublicClient();
 
-  const { data: providerRows } = await supabase
-    .from("models")
-    .select("provider")
-    .eq("status", "active");
-  const allProviders = [...new Set((providerRows ?? []).map((m) => m.provider))];
+  const allProviders = await getActiveProviderNames();
   const providerName = resolveProviderSlug(slug, allProviders);
 
   if (!providerName) notFound();
@@ -107,11 +102,20 @@ export default async function ProviderDetailPage({
       .optional(),
   });
 
-  const modelsResponse = await supabase
-    .from("models")
-    .select("*, model_pricing(*)")
-    .eq("status", "active")
-    .order("overall_rank", { ascending: true, nullsFirst: false });
+  const providerAliases = allProviders.filter((provider) =>
+    providerMatchesCanonical(provider, providerName)
+  );
+  const modelsResponse = await fetchAllPublicPages((from, to) =>
+    supabase
+      .from("models")
+      .select("*, model_pricing(*)")
+      .eq("status", "active")
+      .in("provider", providerAliases)
+      .order("overall_rank", { ascending: true, nullsFirst: false })
+      .order("id")
+      .range(from, to),
+    `provider-models:${JSON.stringify([...providerAliases].sort())}`
+  );
 
   const parsedProviderModels = parseQueryResultPartial(
     modelsResponse,
@@ -214,7 +218,7 @@ export default async function ProviderDetailPage({
   const totalDownloads = models.reduce((sum, model) => sum + (model.hf_downloads ?? 0), 0);
   const totalLikes = models.reduce((sum, model) => sum + (model.hf_likes ?? 0), 0);
   const avgCapability = averageCapabilityMetric(models);
-  const topRank = models.find((model) => model.overall_rank != null)?.overall_rank;
+  const topRank = getBestProviderRank(models);
   const openCount = models.filter((model) => model.is_open_weights).length;
   const topValueModel = [...models].sort(
     (left, right) =>
