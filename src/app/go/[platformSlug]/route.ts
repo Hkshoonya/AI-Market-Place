@@ -9,7 +9,16 @@ export const dynamic = "force-dynamic";
 const PlatformSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/);
 const ModelSlugSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,159}$/);
 
-export async function GET(
+function shouldRecordClick(request: Request) {
+  if (request.method !== "GET" || request.headers.has("next-router-prefetch")) return false;
+  const purpose = `${request.headers.get("purpose") ?? ""} ${request.headers.get("sec-purpose") ?? ""}`;
+  if (/prefetch|prerender/i.test(purpose)) return false;
+  return !/bot|crawler|spider|slurp|preview|facebookexternalhit|affiliate-maintainer/i.test(
+    request.headers.get("user-agent") ?? ""
+  );
+}
+
+async function redirectToProvider(
   request: Request,
   { params }: { params: Promise<{ platformSlug: string }> }
 ) {
@@ -38,15 +47,19 @@ export async function GET(
       ? await admin.from("models").select("id").eq("slug", modelSlug).maybeSingle()
       : { data: null };
     const now = new Date().toISOString();
-    const { data: links, error: linksError } = await admin
+    let linksQuery = admin
       .from("affiliate_links")
       .select("id, model_id, destination_url, priority")
       .eq("platform_id", platform.id)
       .eq("status", "active")
       .or(`starts_at.is.null,starts_at.lte.${now}`)
-      .or(`ends_at.is.null,ends_at.gt.${now}`)
-      .order("priority", { ascending: true })
-      .limit(20);
+      .or(`ends_at.is.null,ends_at.gt.${now}`);
+    // Filter before limiting so unrelated model campaigns cannot hide a referral.
+    linksQuery = model?.id
+      ? linksQuery.or(`model_id.eq.${model.id},model_id.is.null`)
+      : linksQuery.is("model_id", null);
+    const { data: links, error: linksError } = await linksQuery
+      .order("priority", { ascending: true }).limit(2);
     const availableLinks = linksError ? [] : links ?? [];
 
     const affiliateLink =
@@ -70,16 +83,16 @@ export async function GET(
     destination = destination ?? platform.base_url;
     const safeDestination = parseSafeAffiliateDestination(destination).toString();
 
-    if (affiliateLink) {
-      const { error: clickError } = await admin.rpc("record_affiliate_click", {
-        p_affiliate_link_id: affiliateLink.id,
-        p_source: source,
-      });
-      if (clickError) {
-        console.warn("affiliate click aggregate failed", {
-          linkId: affiliateLink.id,
-          message: clickError.message,
+    if (affiliateLink && shouldRecordClick(request)) {
+      try {
+        const { error: clickError } = await admin.rpc("record_affiliate_click", {
+          p_affiliate_link_id: affiliateLink.id,
+          p_source: source,
         });
+        if (clickError) throw clickError;
+      } catch {
+        // Analytics failure must not break an otherwise valid provider redirect.
+        console.warn("affiliate click aggregate failed", { linkId: affiliateLink.id });
       }
     }
 
@@ -92,3 +105,6 @@ export async function GET(
     return handleApiError(error, "go/[platformSlug]");
   }
 }
+
+export const GET = redirectToProvider;
+export const HEAD = redirectToProvider;

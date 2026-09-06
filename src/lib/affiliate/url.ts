@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isIP } from "node:net";
+import { BlockList, isIP } from "node:net";
 
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
@@ -9,59 +9,41 @@ const BLOCKED_HOSTNAMES = new Set([
   "instance-data",
 ]);
 
+const reservedIpv4 = new BlockList();
+for (const [address, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24],
+  ["192.0.2.0", 24], ["192.88.99.0", 24], ["192.168.0.0", 16],
+  ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24],
+  ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) {
+  reservedIpv4.addSubnet(address, prefix, "ipv4");
+}
+
+const globalIpv6 = new BlockList();
+globalIpv6.addSubnet("2000::", 3, "ipv6");
+const reservedIpv6 = new BlockList();
+for (const [address, prefix] of [
+  ["2001::", 23], ["2001:db8::", 32], ["2002::", 16], ["3fff::", 20],
+] as const) {
+  reservedIpv6.addSubnet(address, prefix, "ipv6");
+}
+
 function isNonPublicIpv4(hostname: string) {
-  const parts = hostname.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) return false;
-  const [a, b] = parts;
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 0) ||
-    (a === 192 && b === 2) ||
-    (a === 192 && b === 168) ||
-    (a === 192 && b === 31) ||
-    (a === 192 && b === 52) ||
-    (a === 192 && b === 88) ||
-    (a === 192 && b === 175) ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    (a === 198 && b === 51) ||
-    (a === 203 && b === 0) ||
-    a >= 224
-  );
+  return reservedIpv4.check(hostname, "ipv4");
 }
 
 function isNonPublicIpv6(hostname: string) {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  const mappedIpv4 = normalized.match(/^::(?:ffff:)?(\d+\.\d+\.\d+\.\d+)$/)?.[1];
-  if (mappedIpv4) return isNonPublicIpv4(mappedIpv4);
-
-  return (
-    normalized.startsWith("::") ||
-    normalized.startsWith("64:ff9b:") ||
-    normalized.startsWith("100:") ||
-    normalized.startsWith("2001:db8:") ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("fe8") ||
-    normalized.startsWith("fe9") ||
-    normalized.startsWith("fea") ||
-    normalized.startsWith("feb") ||
-    normalized.startsWith("fec") ||
-    normalized.startsWith("fed") ||
-    normalized.startsWith("fee") ||
-    normalized.startsWith("fef") ||
-    normalized.startsWith("ff")
-  );
+  const normalized = hostname.replace(/^\[|\]$/g, "");
+  // Only native global unicast, excluding special-purpose and transition ranges.
+  return !globalIpv6.check(normalized, "ipv6") || reservedIpv6.check(normalized, "ipv6");
 }
 
 export function isPublicAffiliateAddress(address: string) {
-  const ipVersion = isIP(address.replace(/^\[|\]$/g, ""));
-  if (ipVersion === 4) return !isNonPublicIpv4(address);
-  if (ipVersion === 6) return !isNonPublicIpv6(address);
+  const normalized = address.replace(/^\[|\]$/g, "");
+  const ipVersion = isIP(normalized);
+  if (ipVersion === 4) return !isNonPublicIpv4(normalized);
+  if (ipVersion === 6) return !isNonPublicIpv6(normalized);
   return false;
 }
 
