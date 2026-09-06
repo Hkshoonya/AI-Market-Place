@@ -42,6 +42,7 @@ export default defineRailway(() => {
       PROVIDER_CREDENTIALS_ENCRYPTION_KEY: preserve(),
       RATE_LIMIT_BACKEND: preserve(),
       REPLICATE_API_TOKEN: preserve(),
+      RESEND_API_KEY: preserve(),
       RSSHUB_BASE_URL: preserve(),
       SENTRY_AUTH_TOKEN: preserve(),
       SENTRY_PROJECT: preserve(),

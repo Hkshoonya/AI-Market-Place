@@ -91,40 +91,42 @@ export async function sendContactSubmissionEmail(
     return { status: "skipped", reason: "not_configured" };
   }
 
-  const response = await fetch(RESEND_EMAIL_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-      "User-Agent": "ai-market-cap/1.0",
-    },
-    body: JSON.stringify({
-      from: config.from,
-      to: [config.to],
-      reply_to: input.email,
-      subject: `[AI Market Cap] ${input.subject}`,
-      text: buildContactEmailText(input),
-      html: buildContactEmailHtml(input),
-    }),
-  });
+  try {
+    const response = await fetch(RESEND_EMAIL_ENDPOINT, {
+      method: "POST",
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+        "User-Agent": "ai-market-cap/1.0",
+      },
+      body: JSON.stringify({
+        from: config.from,
+        to: [config.to],
+        reply_to: input.email,
+        subject: `[AI Market Cap] ${input.subject}`,
+        text: buildContactEmailText(input),
+        html: buildContactEmailHtml(input),
+      }),
+    });
 
-  const body = (await response.json().catch(() => null)) as
-    | { id?: unknown; message?: unknown; error?: unknown }
-    | null;
-
-  if (!response.ok) {
-    const error =
-      typeof body?.message === "string"
-        ? body.message
-        : typeof body?.error === "string"
-          ? body.error
-          : `Email provider returned ${response.status}`;
-
-    return { status: "failed", error };
+    // Do not pass provider error bodies into logs; they can contain credentials or PII.
+    if (!response.ok) {
+      await response.body?.cancel();
+      return { status: "failed", error: `Email provider returned ${response.status}` };
+    }
+    const body = (await response.json()) as { id?: unknown } | null;
+    if (typeof body?.id !== "string" || !body.id.trim()) {
+      return { status: "failed", error: "Email provider returned an invalid response" };
+    }
+    return { status: "sent", id: body.id };
+  } catch (error) {
+    return {
+      status: "failed",
+      error:
+        error instanceof Error && error.name === "TimeoutError"
+          ? "Email delivery request timed out"
+          : "Email delivery request failed",
+    };
   }
-
-  return {
-    status: "sent",
-    id: typeof body?.id === "string" ? body.id : null,
-  };
 }
