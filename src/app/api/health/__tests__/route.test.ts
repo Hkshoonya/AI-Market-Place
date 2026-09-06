@@ -284,6 +284,7 @@ describe("GET /api/health", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     restoreStripeEnv();
     vi.useRealTimers();
   });
@@ -630,9 +631,10 @@ describe("GET /api/health", () => {
       const originalSecret = process.env.CRON_SECRET;
       process.env.CRON_SECRET = "test-secret";
       process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED = "true";
-      process.env.STRIPE_SECRET_KEY = "sk_test_configured";
-      process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_configured";
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_configured";
+      process.env.STRIPE_SECRET_KEY = "sk_live_configured";
+      process.env.STRIPE_WEBHOOK_SECRET = "whsec_configured";
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_live_configured";
+      vi.stubEnv("STRIPE_EXPECTED_ACCOUNT_ID", "acct_configured");
 
       mockCreateAdminClient.mockReturnValue(
         createFullMockSupabase({

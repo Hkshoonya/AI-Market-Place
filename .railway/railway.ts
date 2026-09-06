@@ -48,6 +48,7 @@ export default defineRailway(() => {
       SENTRY_PROJECT: preserve(),
       SENTY_ORG: preserve(),
       SILICONFLOW_API_KEY: preserve(),
+      STRIPE_EXPECTED_ACCOUNT_ID: preserve(),
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
       SUPABASE_SERVICE_ROLE_KEY: preserve(),
