@@ -36,12 +36,12 @@ profile was connected and the account was inspected directly:
   Payments capability; no unrelated payment method was enabled during this check.
 - Stripe warns that legal identity information is shared with other accounts.
   Legal/address changes can affect those accounts and were not made.
-- Customer emails: Successful payments OFF; Refunds OFF; effective reply address
-  `sense@wemakesense.co`. These are account-wide settings. The owner subsequently
-  approved enabling both, including for other products. A follow-up Chrome
-  connection was refused, so neither setting has been changed by this setup.
-  Reconnect with the owner's browser authorization, enable only these two
-  switches, and verify their persisted state before marking this step complete.
+- Customer emails: Successful payments ON; Refunds ON; effective reply address
+  `sense@wemakesense.co`. With the owner's approval for the account-wide impact,
+  both switches were enabled in the live account on 2026-09-06 and remained
+  checked after a full page reload. Other email switches and the support reply
+  address were unchanged. The browser was detached afterward. No charge, refund,
+  or manual receipt was sent; actual email delivery remains untested.
 - Shared branding uses default colors. No AIMC logo or colors were applied to
   account-wide branding because that would affect other products.
 - Both AIMC products and the USD 49/199 monthly prices were confirmed in this
