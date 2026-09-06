@@ -376,15 +376,14 @@ export default function ApiKeysContent() {
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/pricing">View plans</Link>
+                  <Link href="/settings/billing">Plans &amp; billing</Link>
                 </Button>
               </div>
             </div>
             {!dataAccess.billing.checkoutEnabled ? (
               <div className="border-t border-amber-500/15 bg-amber-500/5 px-5 py-3 text-xs text-amber-100/80">
-                Paid plan checkout is not enabled yet. Admin-granted pilots are available without
-                using the connected Stripe account. {" "}
-                <Link href="/contact?category=partnership&subject=Data%20API%20plan%20upgrade" className="underline underline-offset-2">Request a production plan</Link>
+                {dataAccess.billing.message} {" "}
+                <Link href="/settings/billing" className="underline underline-offset-2">Review data access and billing</Link>
               </div>
             ) : null}
           </CardContent>

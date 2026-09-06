@@ -51,6 +51,7 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
       - run: npm run test:component
+      - run: npm run test:data-billing-db
 
   e2e:
     name: E2E

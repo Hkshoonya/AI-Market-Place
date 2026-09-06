@@ -48,8 +48,8 @@ const DATA_API_PLANS = [
     rate: "300 requests / minute",
     history: "Up to one year of recorded history",
     pageSize: "Up to 500 models per page",
-    cta: "Request Pro pilot",
-    href: "/contact?category=partnership&subject=Data%20Pro%20pilot",
+    cta: "Review Pro access",
+    href: "/settings/billing",
     featured: true,
   },
   {
@@ -59,8 +59,8 @@ const DATA_API_PLANS = [
     rate: "1,000 requests / minute",
     history: "Up to one year of recorded history",
     pageSize: "Up to 1,000 models per page",
-    cta: "Request Business pilot",
-    href: "/contact?category=partnership&subject=Data%20Business%20pilot",
+    cta: "Review Business access",
+    href: "/settings/billing",
     featured: false,
   },
 ] as const;
@@ -161,11 +161,10 @@ export default async function PricingPage() {
               Build with rankings, model records, search, and history
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Every plan uses scoped API keys, monthly quotas, and per-minute controls. Pro and
-              Business are pilot grants for now; online checkout is intentionally disabled until
-              the correct AI Market Cap payment account is connected.
-              History varies by model and collection start date. Prices below are proposed monthly plans;
-              requesting a pilot does not charge you or create a subscription.
+              Every plan uses scoped API keys, calendar-month quotas, and per-minute controls.
+              Review availability and billing in your account before subscribing. Where online
+              checkout is unavailable, you can request a pilot without being charged or creating
+              a subscription. History varies by model and collection start date. Provider inference is separate.
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -185,7 +184,7 @@ export default async function PricingPage() {
             >
               {plan.featured ? (
                 <div className="absolute right-0 top-0 rounded-bl-xl bg-neon px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-background">
-                  Production pilot
+                  Production data
                 </div>
               ) : null}
               <CardHeader>
