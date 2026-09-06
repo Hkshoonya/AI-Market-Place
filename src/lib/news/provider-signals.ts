@@ -69,11 +69,19 @@ export function pickBestProviderSignals(
   newsItems: ProviderSignalCandidate[]
 ): Map<string, ProviderSignalSummary> {
   const selected = new Map<string, { score: number; summary: ProviderSignalSummary }>();
+  const newsByProvider = new Map<string, ProviderSignalCandidate[]>();
+  for (const item of newsItems) {
+    if (!item.related_provider) continue;
+    const canonicalProvider = getCanonicalProviderName(item.related_provider);
+    const candidates = newsByProvider.get(canonicalProvider) ?? [];
+    candidates.push(item);
+    newsByProvider.set(canonicalProvider, candidates);
+  }
 
   for (const provider of providers) {
     const canonicalProvider = getCanonicalProviderName(provider);
 
-    for (const item of newsItems) {
+    for (const item of newsByProvider.get(canonicalProvider) ?? []) {
       const score = computeCandidateScore(item, canonicalProvider);
       if (score < 0) continue;
 
