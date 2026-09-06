@@ -57,6 +57,7 @@ import {
   filterTrustedStructuredBenchmarkScores,
 } from "@/lib/models/benchmark-score-trust";
 import { buildModelEvidenceProfile } from "@/lib/models/evidence-profile";
+import { getPublicModelSnapshots } from "@/lib/models/public-snapshots";
 import type { ModelMetadataEvidence } from "@/types/database";
 
 export const revalidate = 300;
@@ -136,7 +137,7 @@ export default async function ModelDetailPage({
     deploymentsResponse,
     platformsResponse,
     metadataEvidenceResponse,
-    snapshotsResponse,
+    snapshots,
     similarResponse,
     newsResponse,
     providerNewsResponse,
@@ -152,11 +153,7 @@ export default async function ModelDetailPage({
       .select("*")
       .eq("model_id", model.id)
       .order("source_last_modified_at", { ascending: false, nullsFirst: false }),
-    supabase
-      .from("model_snapshots")
-      .select("snapshot_date, quality_score, hf_downloads, hf_likes, overall_rank")
-      .eq("model_id", model.id)
-      .order("snapshot_date", { ascending: true }),
+    getPublicModelSnapshots(model.id),
     supabase
       .from("models")
       .select(
@@ -176,7 +173,6 @@ export default async function ModelDetailPage({
     providerNewsPromise,
   ]);
   const metadataEvidence = (metadataEvidenceResponse.data ?? []) as ModelMetadataEvidence[];
-  const snapshots = snapshotsResponse.data ?? [];
   const similarModels = similarResponse.data ?? [];
   const newsRaw = newsResponse.data ?? [];
   const providerNewsRaw = providerNewsResponse.data ?? [];
