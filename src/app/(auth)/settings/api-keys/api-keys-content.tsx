@@ -383,7 +383,8 @@ export default function ApiKeysContent() {
             {!dataAccess.billing.checkoutEnabled ? (
               <div className="border-t border-amber-500/15 bg-amber-500/5 px-5 py-3 text-xs text-amber-100/80">
                 Paid plan checkout is not enabled yet. Admin-granted pilots are available without
-                using the connected Stripe account.
+                using the connected Stripe account. {" "}
+                <Link href="/contact?category=partnership&subject=Data%20API%20plan%20upgrade" className="underline underline-offset-2">Request a production plan</Link>
               </div>
             ) : null}
           </CardContent>

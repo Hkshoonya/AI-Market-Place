@@ -6,15 +6,66 @@ import type {
 } from "../types";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry } from "../utils";
+import { z } from "zod";
 import {
   normalizeRemoteBenchmarkDate,
-  runRemoteBenchmarkHealthCheck,
   stripHtml,
   syncRemoteBenchmarkEntries,
   type RemoteBenchmarkEntry,
 } from "./remote-benchmark";
 
 const TERMINAL_BENCH_URL = "https://www.tbench.ai/leaderboard/terminal-bench/2.0";
+// The official site moved its leaderboard to Harbor in August 2026.
+const TERMINAL_BENCH_API = "https://ofhuhcpkvzjlejydnvyd.supabase.co/functions/v1/leaderboard-read";
+const TERMINAL_BENCH_PACKAGE = "terminal-bench/terminal-bench-2";
+
+const LeaderboardSchema = z.object({
+  leaderboard: z.object({ package: z.literal(TERMINAL_BENCH_PACKAGE), name: z.literal("2-0") }),
+  rows: z.array(z.unknown()),
+});
+const RowSchema = z.object({
+  metadata: z.object({
+    model_display: z.string().trim().min(1),
+    model_names: z.array(z.string()).optional(),
+    date: z.string().optional(),
+  }),
+  metrics: z.object({ accuracy: z.number().finite().min(0).max(100) }),
+  status: z.literal("display"),
+});
+
+export function parseTerminalBenchLeaderboardJson(value: unknown): RemoteBenchmarkEntry[] {
+  const parsed = LeaderboardSchema.safeParse(value);
+  if (!parsed.success) return [];
+  const bestByModel = new Map<string, RemoteBenchmarkEntry>();
+  for (const candidate of parsed.data.rows) {
+    const row = RowSchema.safeParse(candidate);
+    if (!row.success) continue;
+    const { metadata, metrics } = row.data;
+    // Ensemble results cannot be attributed to each participating model.
+    if ((metadata.model_names?.length ?? 0) > 1 || /^multiple$/i.test(metadata.model_display)) continue;
+    const name = metadata.model_display;
+    const score = Number(metrics.accuracy.toFixed(2));
+    const evaluationDate = normalizeRemoteBenchmarkDate(metadata.date);
+    const current = bestByModel.get(name);
+    if (!current || score > current.score || (score === current.score && (evaluationDate ?? "") > (current.evaluationDate ?? ""))) {
+      bestByModel.set(name, { matchNames: [name, ...(metadata.model_names ?? [])], score, evaluationDate });
+    }
+  }
+  return [...bestByModel.values()].sort((left, right) => right.score - left.score);
+}
+
+async function fetchTerminalBenchEntries(signal?: AbortSignal) {
+  const response = await fetchWithRetry(TERMINAL_BENCH_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "User-Agent": "AI-Market-Cap-Bot" },
+    body: JSON.stringify({ package: TERMINAL_BENCH_PACKAGE, name: "2-0" }),
+    signal,
+  }, { signal });
+  if (!response.ok) throw new Error(`TerminalBench returned HTTP ${response.status}`);
+  const entries = parseTerminalBenchLeaderboardJson(await response.json());
+  if (entries.length === 0) throw new Error("TerminalBench 2.0 returned no usable model rows");
+  return entries;
+}
 
 function parseTerminalBenchRows(html: string) {
   return [...html.matchAll(/<tr data-slot="table-row"[^>]*>([\s\S]*?)<\/tr>/g)]
@@ -34,9 +85,9 @@ export function parseTerminalBenchLeaderboardHtml(html: string): RemoteBenchmark
 
     const modelName = cells[3];
     const evaluationDate = normalizeRemoteBenchmarkDate(cells[4]);
-    const score = Number(cells[7].match(/(\d+(?:\.\d+)?)/)?.[1] ?? "");
+    const score = Number(cells[7].match(/(\d+(?:\.\d+)?)/)?.[1] ?? NaN);
 
-    if (!modelName || !Number.isFinite(score)) continue;
+    if (!modelName || !Number.isFinite(score) || score < 0 || score > 100) continue;
 
     const current = bestByModel.get(modelName);
     if (
@@ -64,30 +115,9 @@ const adapter: DataSourceAdapter = {
   requiredSecrets: [],
 
   async sync(ctx: SyncContext): Promise<SyncResult> {
-    let html: string;
+    let entries: RemoteBenchmarkEntry[];
     try {
-      const res = await fetchWithRetry(
-        TERMINAL_BENCH_URL,
-        {
-          headers: {
-            Accept: "text/html",
-            "User-Agent": "AI-Market-Cap-Bot",
-          },
-          signal: ctx.signal,
-        },
-        { signal: ctx.signal }
-      );
-      if (!res.ok) {
-        return {
-          success: false,
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: [{ message: `TerminalBench returned HTTP ${res.status}`, context: "api_error" }],
-          metadata: { url: TERMINAL_BENCH_URL },
-        };
-      }
-      html = await res.text();
+      entries = await fetchTerminalBenchEntries(ctx.signal);
     } catch (error) {
       return {
         success: false,
@@ -104,33 +134,26 @@ const adapter: DataSourceAdapter = {
       };
     }
 
-    const entries = parseTerminalBenchLeaderboardHtml(html);
-    if (entries.length === 0) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [{ message: "TerminalBench returned no usable model rows", context: "empty_response" }],
-        metadata: { url: TERMINAL_BENCH_URL },
-      };
-    }
-
     return syncRemoteBenchmarkEntries(ctx, {
       benchmarkSlug: "terminal-bench",
       source: "terminal-bench",
       entries,
       metadata: {
         url: TERMINAL_BENCH_URL,
+        apiUrl: TERMINAL_BENCH_API,
         parsedEntries: entries.length,
       },
     });
   },
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return runRemoteBenchmarkHealthCheck(TERMINAL_BENCH_URL, (body) =>
-      parseTerminalBenchLeaderboardHtml(body).length
-    );
+    const start = Date.now();
+    try {
+      const entries = await fetchTerminalBenchEntries(AbortSignal.timeout(5000));
+      return { healthy: true, latencyMs: Date.now() - start, message: `${entries.length} Terminal-Bench 2.0 models` };
+    } catch (error) {
+      return { healthy: false, latencyMs: Date.now() - start, message: error instanceof Error ? error.message : "TerminalBench unavailable" };
+    }
   },
 };
 

@@ -61,13 +61,14 @@ const PUBLIC_SECTIONS: Section[] = [
       {
         method: "GET",
         path: "/api/models",
-        description: "List all AI models with pagination, filtering, and sorting.",
+        description: "List curated public models, or use view=catalog with a data API key to paginate the full active catalog. Catalog records include variants and incomplete metadata; use model detail endpoints for pricing and benchmark evidence.",
         params: [
           { name: "category", type: "string", description: "Filter by category slug (e.g. llm, image_generation)" },
           { name: "q", type: "string", description: "Search query for name, provider, or description" },
           { name: "sort", type: "string", description: "Sort by: rank, downloads, newest, quality" },
           { name: "page", type: "number", description: "Page number (default: 1)" },
           { name: "limit", type: "number", description: "Results per page (default: 20; public max: 100; keyed plan limits apply)" },
+          { name: "view", type: "string", description: "catalog: full active dataset, requires a read/data-scoped key. The default public discovery view is a curated subset." },
         ],
         example: `{
   "data": [
@@ -915,6 +916,7 @@ function AuthSection() {
         </div>
         <p className="text-xs text-muted-foreground mt-3">
           An API key&apos;s own rate cap can be lower than its plan cap. Minute or monthly
+          plan limits are shared by all keys on an account, across client IP addresses. Quota
           exhaustion returns <code className="text-neon">429 Too Many Requests</code>. Paid
           checkout is currently disabled; Pro and Business pilots are granted by an admin until
           the correct payment account is connected.
@@ -931,6 +933,10 @@ curl https://aimarketcap.tech/api/models?category=llm&limit=5
 # Data plan request
 curl -H "Authorization: Bearer aimk_your_data_key" \\
   "https://aimarketcap.tech/api/rankings?category=llm"
+
+# Full catalog, including older models and variants (follow totalPages)
+curl -H "Authorization: Bearer aimk_your_data_key" \\
+  "https://aimarketcap.tech/api/models?view=catalog&sort=newest&page=1&limit=100"
 
 # Plan-aware historical data
 curl -H "Authorization: Bearer aimk_your_data_key" \\

@@ -17,8 +17,8 @@ describe("ContactPage", () => {
     });
   });
 
-  it("renders the contact content wrapper", () => {
-    render(<ContactPage />);
+  it("renders the contact content wrapper", async () => {
+    render(await ContactPage({}));
 
     expect(screen.getByText("ContactContent")).toBeInTheDocument();
   });

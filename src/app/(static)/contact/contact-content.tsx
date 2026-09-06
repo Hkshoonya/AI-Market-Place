@@ -8,6 +8,8 @@ import {
   Mail,
   MessageSquare,
   Send,
+  BriefcaseBusiness,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +21,18 @@ const CATEGORIES = [
   { value: "bug", label: "Report a Bug", icon: Bug },
   { value: "feature", label: "Feature Request", icon: Lightbulb },
   { value: "listing", label: "Marketplace / Listing", icon: MessageSquare },
+  { value: "partnership", label: "Data API / Partnership", icon: BriefcaseBusiness },
+  { value: "sponsorship", label: "Sponsorship", icon: Megaphone },
 ];
 
-export default function ContactContent() {
+export default function ContactContent({ initialCategory, initialSubject }: {
+  initialCategory?: string;
+  initialSubject?: string;
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [category, setCategory] = useState("general");
-  const [subject, setSubject] = useState("");
+  const [category, setCategory] = useState(CATEGORIES.some((item) => item.value === initialCategory) ? initialCategory! : "general");
+  const [subject, setSubject] = useState(initialSubject?.slice(0, 500) ?? "");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -68,8 +75,8 @@ export default function ContactContent() {
           </div>
           <h1 className="mt-6 text-2xl font-bold">Message Sent!</h1>
           <p className="mt-3 text-muted-foreground max-w-md">
-            Thank you for reaching out. We&apos;ll get back to you within 24-48
-            hours.
+            Your message is saved in our team&apos;s inbox. We&apos;ll reply to the
+            email address you provided.
           </p>
           <Button
             variant="outline"
@@ -123,6 +130,7 @@ export default function ContactContent() {
                   <button
                     key={cat.value}
                     type="button"
+                    aria-pressed={category === cat.value}
                     onClick={() => setCategory(cat.value)}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
                       category === cat.value

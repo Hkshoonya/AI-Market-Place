@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     const { searchParams } = new URL(request.url);
+    const catalogView = searchParams.get("view") === "catalog";
+    if (catalogView && !pw.planSlug) {
+      return NextResponse.json({ error: "Catalog access requires a data API key. Create an Explorer key to get started." }, { status: 401 });
+    }
     const category = searchParams.get("category");
     const sort = searchParams.get("sort") || "rank";
     const requestedPage = Number.parseInt(searchParams.get("page") || "1", 10);
@@ -51,12 +55,15 @@ export async function GET(request: NextRequest) {
       Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 20,
       pw.maxPageSize ?? 100
     );
+    if (!Number.isSafeInteger(page) || (page - 1) * limit > 1_000_000) {
+      return NextResponse.json({ error: "Page is out of range" }, { status: 400 });
+    }
     const search = searchParams.get("q");
     const openOnly = searchParams.get("open") === "true";
 
     let query = supabase
       .from("models")
-      .select("*")
+      .select("*", catalogView ? { count: "exact" } : undefined)
       .eq("status", "active");
 
     if (category) query = query.eq("category", category as import("@/types/database").ModelCategory);
@@ -83,6 +90,19 @@ export async function GET(request: NextRequest) {
       ascending: sortConfig.ascending,
       nullsFirst: false,
     });
+
+    if (catalogView) {
+      const offset = (page - 1) * limit;
+      const { data, count, error } = await query.order("id", { ascending: true }).range(offset, offset + limit - 1);
+      if (error) throw error;
+      return NextResponse.json({
+        data: (data ?? []).map((model) => ({ ...model, fts: undefined })),
+        total: count ?? 0, page, limit, totalPages: Math.ceil((count ?? 0) / limit),
+        view: "catalog",
+        coverage: "Active catalog records, including variants and models with incomplete data. Missing scores are not zero scores.",
+        access: { plan: pw.planSlug, quotaRemaining: pw.quotaRemaining, quotaLimit: pw.quotaLimit },
+      }, { headers: { "Cache-Control": "private, no-store", Vary: "Authorization, Cookie" } });
+    }
 
     query = query.range(0, 1999);
 
