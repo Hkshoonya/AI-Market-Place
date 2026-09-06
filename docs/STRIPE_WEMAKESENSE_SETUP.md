@@ -37,8 +37,11 @@ profile was connected and the account was inspected directly:
 - Stripe warns that legal identity information is shared with other accounts.
   Legal/address changes can affect those accounts and were not made.
 - Customer emails: Successful payments OFF; Refunds OFF; effective reply address
-  `sense@wemakesense.co`. These are account-wide settings. Owner approval was
-  requested before changing receipts for other products, and none were changed.
+  `sense@wemakesense.co`. These are account-wide settings. The owner subsequently
+  approved enabling both, including for other products. A follow-up Chrome
+  connection was refused, so neither setting has been changed by this setup.
+  Reconnect with the owner's browser authorization, enable only these two
+  switches, and verify their persisted state before marking this step complete.
 - Shared branding uses default colors. No AIMC logo or colors were applied to
   account-wide branding because that would affect other products.
 - Both AIMC products and the USD 49/199 monthly prices were confirmed in this
@@ -48,6 +51,28 @@ profile was connected and the account was inspected directly:
 No representative details, identity documents, tax identifiers, or banking
 details are retained in these project notes. No legal or compliance declaration
 was submitted. An empty account-task list is not a public-launch security review.
+
+## Focused credential-exposure check, 2026-09-06
+
+- Scanned 1,600 currently tracked files for exact matches to the available local
+  Stripe, Supabase service-role, Railway and GitHub credentials, and for full-length
+  Stripe secret/restricted-key and webhook-secret patterns. No matches were found.
+  Credential values were not printed or included in the report.
+- `.env.local`, `.playwright-cli/` and `output/playwright/` are ignored by Git;
+  only the example environment files are tracked.
+- Fetched public `/`, `/pricing`, `/wallet` HTML and their 29 directly referenced
+  same-origin JavaScript assets. All returned HTTP 200, with no checked credential
+  matches or Stripe secret-key patterns found. No customer records were queried.
+- All 49 targeted wallet Checkout, Stripe webhook and configuration tests passed
+  on the working branch. Those branch safeguards are not yet deployed.
+
+Scope excludes full Git history, every dynamically loaded browser chunk, complete
+production logs, Stripe team/MFA settings, and a review of every credential's
+permissions. No unrestricted live key was rotated or revoked: that could interrupt
+the merchant's other services. Use a dedicated least-privilege integration key
+before paid launch; restricted permissions do not provide full product isolation
+inside a shared merchant account. Normal receipts intentionally disclose public
+merchant/support details, which must be reviewed separately from secret handling.
 
 ## Isolated test catalogue
 
