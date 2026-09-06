@@ -21,7 +21,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const ConnectionSchema = z.object({
-  provider: z.enum(["openrouter", "replicate", "huggingface"]),
+  provider: z.enum(["openrouter", "replicate", "huggingface", "runpod"]),
   token: z.string().trim().min(8).max(1000),
   displayName: z.string().trim().min(2).max(100).optional(),
 });
@@ -69,12 +69,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const admin = createAdminClient();
+    if (parsed.data.provider === "runpod") {
+      const { data: profile, error: profileError } = await admin.from("profiles").select("is_banned").eq("id", user.id).single();
+      if (profileError || !profile || profile.is_banned) {
+        return NextResponse.json({ error: "Account unavailable" }, { status: 403 });
+      }
+    }
     const validation = await validateProviderCredential(
       parsed.data.provider,
       parsed.data.token
     );
     const now = new Date().toISOString();
-    const admin = createAdminClient();
     const { data: existing, error: existingError } = await admin
       .from("provider_connections")
       .select("id, external_account_id")
@@ -102,6 +108,13 @@ export async function POST(request: Request) {
           },
           { status: 409 }
         );
+      }
+      if (parsed.data.provider === "runpod") {
+        const { count: pods, error } = await admin.from("runpod_pods").select("id", { count: "exact", head: true })
+          .eq("user_id", user.id).eq("provider_connection_id", existing.id)
+          .not("status", "in", "(quoted,terminated,failed)");
+        if (error) throw error;
+        if (pods) return NextResponse.json({ error: "Terminate Runpod Pods before switching accounts." }, { status: 409 });
       }
     }
 

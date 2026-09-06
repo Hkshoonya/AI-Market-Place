@@ -484,6 +484,9 @@ export default function WorkspaceContent() {
               <Button variant="outline" asChild>
                 <Link href="/marketplace">Open Marketplace</Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link href="/workspace/pods">GPU Pods</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -994,6 +997,9 @@ export default function WorkspaceContent() {
             </Button>
             <Button variant="outline" asChild>
               <Link href="/deployments">Deployments</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/workspace/pods">GPU Pods</Link>
             </Button>
             {session.modelSlug ? (
               <Button variant="outline" asChild>

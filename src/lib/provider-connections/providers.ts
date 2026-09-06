@@ -1,10 +1,15 @@
 import "server-only";
 
 import type { ProviderConnectionProvider } from "@/types/database";
+import { getRunpodAccount } from "@/lib/runpod/client";
 
 const VALIDATION_TIMEOUT_MS = 8_000;
 
 export const PROVIDER_CONNECTIONS = {
+  runpod: {
+    name: "Runpod",
+    capabilities: ["gpu_pods"],
+  },
   openrouter: {
     name: "OpenRouter",
     capabilities: ["routed_inference"],
@@ -104,6 +109,10 @@ export async function validateProviderCredential(
   provider: ProviderConnectionProvider,
   secret: string
 ) {
+  if (provider === "runpod") {
+    const id = await getRunpodAccount(secret);
+    return { externalAccountId: id, externalAccountName: "Runpod account", capabilities: ["gpu_pods"] };
+  }
   if (provider === "openrouter") return validateOpenRouter(secret);
   if (provider === "replicate") return validateReplicate(secret);
   return validateHuggingFace(secret);

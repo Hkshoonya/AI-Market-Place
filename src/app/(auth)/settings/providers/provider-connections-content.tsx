@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-type Provider = "openrouter" | "replicate" | "huggingface";
+type Provider = "openrouter" | "replicate" | "huggingface" | "runpod";
 
 interface ProviderConnection {
   id: string;
@@ -32,6 +32,13 @@ const PROVIDERS: Array<{
   tokenUrl: string;
   tokenHint: string;
 }> = [
+  {
+    id: "runpod",
+    name: "Runpod",
+    description: "Launch and manage supported open-weight models on GPUs in your own Runpod account. Runpod bills compute and storage directly.",
+    tokenUrl: "https://console.runpod.io/user/settings",
+    tokenHint: "Dedicated Runpod API key",
+  },
   {
     id: "openrouter",
     name: "OpenRouter",
@@ -58,7 +65,7 @@ const PROVIDERS: Array<{
 export default function ProviderConnectionsContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { data, isLoading, mutate } = useSWR<{ connections: ProviderConnection[] }>(
+  const { data, error: loadError, isLoading, mutate } = useSWR<{ connections: ProviderConnection[] }>(
     user ? "/api/provider-connections" : null
   );
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
@@ -139,8 +146,11 @@ export default function ProviderConnectionsContent() {
 
       <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100/90">
         Credentials are validated first, encrypted at rest, and never shown again. Use a scoped key
-        created only for AI Market Cap, set a provider-side spending limit, and rotate it if needed.
+        created only for AI Market Cap and rotate it if needed. Use provider spending controls where
+        available; an estimate on this site is not a hard spending cap.
       </div>
+
+      {loadError ? <p role="alert" className="mb-4 text-loss">Provider connections could not be loaded. Refresh before changing credentials.</p> : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {PROVIDERS.map((provider) => {
@@ -157,13 +167,22 @@ export default function ProviderConnectionsContent() {
                     </p>
                   </div>
                   {connection ? (
-                    <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
-                      Connected
+                    <Badge variant="outline" className={connection.status === "active" ? "border-emerald-500/20 text-emerald-300" : "border-amber-500/20 text-amber-300"}>
+                      {connection.status === "active" ? "Connected" : "Needs attention"}
                     </Badge>
                   ) : (
                     <Badge variant="outline">Not connected</Badge>
                   )}
                 </div>
+
+                {provider.id === "runpod" ? (
+                  <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                    <p>Use a dedicated key with Pod management read/write and account read access. Account validation does not prove launch permission.</p>
+                    <a href="/go/runpod?source=provider-connections" target="_blank" rel="noopener noreferrer sponsored nofollow" className="block text-neon underline">New to Runpod? Create an account</a>
+                    <p>Referral link: AI Market Cap may earn Runpod credits on eligible usage. Existing accounts are not new referrals.</p>
+                    {connection?.status === "active" ? <Link href="/workspace/pods" className="block text-neon underline">Open GPU Pods</Link> : null}
+                  </div>
+                ) : null}
 
                 {connection ? (
                   <div className="mt-5 space-y-3 rounded-lg border border-border/40 bg-background/40 p-3">

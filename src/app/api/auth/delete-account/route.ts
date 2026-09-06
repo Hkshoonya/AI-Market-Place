@@ -68,6 +68,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Do not remove account data or credentials while a Pod may still be billed.
+    // The database also guards auth-user deletion against a concurrent launch.
+    const adminClient = createAdminClient();
+    const { count: pods, error: podsError } = await adminClient.from("runpod_pods")
+      .select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      .not("status", "in", "(quoted,terminated,failed)");
+    if (podsError) throw podsError;
+    if (pods) {
+      return NextResponse.json({ error: "Terminate your Runpod Pods and refresh their status before deleting your account. Stopped Pods can still incur storage charges." }, { status: 409 });
+    }
+
     // Delete user data in order (respecting foreign keys)
     // 1. Delete order messages
     await supabase.from("order_messages").delete().eq("sender_id", user.id);
@@ -126,25 +137,24 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", user.id);
 
-    // 11. Sign out the user's session
-    await supabase.auth.signOut();
-
-    // 12. Fully delete the auth identity (GDPR compliance)
+    // 11. Delete the auth identity before reporting completion or signing out.
     // Uses admin client (service role) to remove the user from auth.users
     try {
-      const adminClient = createAdminClient();
       const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
       if (deleteAuthError) {
         void systemLog.warn("api/auth/delete-account", "Failed to delete auth user (profile already anonymized)", {
           error: deleteAuthError.message,
         });
-        // Don't fail the request — profile is already anonymized, auth deletion is best-effort
+        return NextResponse.json({ error: "Some account data was removed, but account deletion did not complete. Check active provider resources and try again." }, { status: 409 });
       }
     } catch (authDeleteErr) {
       void systemLog.warn("api/auth/delete-account", "Auth user deletion threw (profile already anonymized)", {
         error: authDeleteErr instanceof Error ? authDeleteErr.message : String(authDeleteErr),
       });
+      return NextResponse.json({ error: "Account deletion could not be confirmed. Please try again or contact support." }, { status: 502 });
     }
+
+    await supabase.auth.signOut();
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -544,6 +544,9 @@ export default function DeploymentsContent() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
+            <Link href="/workspace/pods">GPU Pods</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/deploy#deploy-directory">Browse launch directory</Link>
           </Button>
           <Button asChild className="bg-neon text-background hover:bg-neon/90">
