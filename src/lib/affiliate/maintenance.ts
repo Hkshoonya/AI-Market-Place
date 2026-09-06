@@ -36,11 +36,12 @@ export async function maintainAffiliateLinks(input: {
   timeoutMs?: number;
   signal?: AbortSignal;
 }) {
+  input.signal?.throwIfAborted();
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
   const failureThreshold = Math.min(Math.max(input.failureThreshold ?? 3, 2), 10);
   const { data, error } = await input.supabase
     .from("affiliate_links")
-    .select("id, platform_id, destination_url, consecutive_failures, status")
+    .select("id, platform_id, destination_url, consecutive_failures, status, updated_at")
     .in("status", ["active", "invalid"])
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(limit);
@@ -57,6 +58,7 @@ export async function maintainAffiliateLinks(input: {
   const touchedPlatforms = new Set<string>();
 
   for (let index = 0; index < (data ?? []).length; index += 5) {
+    input.signal?.throwIfAborted();
     const batch = (data ?? []).slice(index, index + 5);
     await Promise.all(
       batch.map(async (link) => {
@@ -65,6 +67,7 @@ export async function maintainAffiliateLinks(input: {
             timeoutMs: input.timeoutMs,
             signal: input.signal,
           });
+          input.signal?.throwIfAborted();
           const failures = health.ok ? 0 : (link.consecutive_failures ?? 0) + 1;
           const nextStatus = health.ok
             ? link.status === "invalid"
@@ -74,7 +77,7 @@ export async function maintainAffiliateLinks(input: {
               ? "invalid"
               : link.status;
 
-          const { error: updateError } = await input.supabase
+          const { data: updated, error: updateError } = await input.supabase
             .from("affiliate_links")
             .update({
               status: nextStatus,
@@ -84,8 +87,16 @@ export async function maintainAffiliateLinks(input: {
               consecutive_failures: failures,
               last_error: health.error,
             })
-            .eq("id", link.id);
+            .eq("id", link.id)
+            .eq("status", link.status)
+            .eq("destination_url", link.destination_url)
+            .eq("consecutive_failures", link.consecutive_failures ?? 0)
+            .eq("updated_at", link.updated_at)
+            .select("id")
+            .maybeSingle();
           if (updateError) throw updateError;
+          // An administrator or another check changed this link while HTTP was in flight.
+          if (!updated) return;
 
           results.checked += 1;
           if (health.ok) results.healthy += 1;
@@ -94,6 +105,7 @@ export async function maintainAffiliateLinks(input: {
           if (health.ok && link.status === "invalid") results.recovered += 1;
           touchedPlatforms.add(link.platform_id);
         } catch (error) {
+          input.signal?.throwIfAborted();
           results.errors.push(
             error instanceof Error ? error.message.slice(0, 300) : "Affiliate check failed"
           );
@@ -103,6 +115,7 @@ export async function maintainAffiliateLinks(input: {
   }
 
   for (const platformId of touchedPlatforms) {
+    input.signal?.throwIfAborted();
     await syncPlatformAffiliateFlag(input.supabase, platformId);
   }
 
