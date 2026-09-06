@@ -10,7 +10,7 @@ const PLANS = [
   { slug: "business", name: "Data Business", amount: 19900, requests: 1000000 },
 ];
 
-export async function setupStripeTestCatalog({ key, accountId, apply = false, smoke = false, fetchImpl = fetch }) {
+export async function setupStripeTestCatalog({ key, accountId, apply = false, smoke = false, fetchImpl = fetch, inspectSession }) {
   // No live override: this tool cannot modify a live merchant or charge a card.
   if (!/^(?:sk|rk)_test_[A-Za-z0-9]+$/.test(key ?? "")) throw new Error("A test-mode Stripe server key is required. Live keys are refused.");
   if (!/^acct_[A-Za-z0-9]+$/.test(accountId ?? "")) throw new Error("Supply the expected Stripe account ID with --account.");
@@ -121,6 +121,10 @@ export async function setupStripeTestCatalog({ key, accountId, apply = false, sm
         "line_items[0][price]": price.id,
         "line_items[0][quantity]": "1",
         "payment_method_types[0]": "card",
+        "branding_settings[display_name]": "AI Market Cap by WeMakeSense",
+        "branding_settings[background_color]": "#000000",
+        "branding_settings[button_color]": "#00d4aa",
+        "custom_text[submit][message]": "Test-only preview. Merchant: WeMakeSense. GPU and model inference charges are separate. This test does not activate production API access.",
         success_url: `${SITE}/pricing?stripe_setup=test`,
         cancel_url: `${SITE}/pricing?stripe_setup=cancelled`,
         "metadata[app]": APP,
@@ -129,9 +133,15 @@ export async function setupStripeTestCatalog({ key, accountId, apply = false, sm
         "subscription_data[metadata][purpose]": "setup_probe",
       }, `${account.id}:aimc-setup-probe:${randomUUID()}`);
       requireOwnedTestObject(session, "cs_test_");
-      const expired = await request(`checkout/sessions/${session.id}/expire`, {}, `${session.id}:expire`);
-      if (expired.status !== "expired" || expired.livemode !== false) throw new Error("Test Checkout expiration could not be verified. Check test-mode Checkout Sessions in Stripe.");
-      if (session.mode !== "subscription" || session.amount_total !== plan.amount || session.currency !== "usd") throw new Error("Test Checkout did not match the draft plan.");
+      let expired;
+      try {
+        if (session.mode !== "subscription" || session.amount_total !== plan.amount || session.currency !== "usd") throw new Error("Test Checkout did not match the draft plan.");
+        if (session.branding_settings?.display_name !== "AI Market Cap by WeMakeSense") throw new Error("Test Checkout did not preserve the merchant display name.");
+        if (inspectSession) await inspectSession(session);
+      } finally {
+        expired = await request(`checkout/sessions/${session.id}/expire`, {}, `${session.id}:expire`);
+        if (expired.status !== "expired" || expired.livemode !== false) throw new Error("Test Checkout expiration could not be verified. Check test-mode Checkout Sessions in Stripe.");
+      }
       result.smoke.push({ plan: plan.slug, amountTotal: session.amount_total, status: expired.status, paymentStatus: expired.payment_status });
     }
   }

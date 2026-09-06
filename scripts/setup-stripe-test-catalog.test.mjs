@@ -25,7 +25,7 @@ function fixture() {
       if (path === "products") value = { ...common, id: body.id };
       else if (path === "prices") value = { ...common, id: `price_${writes}`, product: body.product, unit_amount: Number(body.unit_amount), currency: body.currency, recurring: { interval: body["recurring[interval]"], interval_count: 1 }, lookup_key: body.lookup_key };
       else if (path === "billing_portal/configurations") value = { ...common, id: "bpc_fixture", login_page: { enabled: false }, features: { subscription_cancel: { enabled: true, mode: "at_period_end" }, payment_method_update: { enabled: true }, invoice_history: { enabled: true } } };
-      else if (path === "checkout/sessions") value = { ...common, id: `cs_test_${writes}`, mode: "subscription", amount_total: state.prices.find(p => p.id === body["line_items[0][price]"]).unit_amount, currency: "usd" };
+      else if (path === "checkout/sessions") value = { ...common, id: `cs_test_${writes}`, mode: "subscription", amount_total: state.prices.find(p => p.id === body["line_items[0][price]"]).unit_amount, currency: "usd", branding_settings: { display_name: body["branding_settings[display_name]"] } };
       else if (path.endsWith("/expire")) value = { status: "expired", livemode: false, payment_status: "unpaid" };
       else throw new Error(`Unexpected write ${path}`);
       if (state[path]) state[path].push(value);
@@ -73,6 +73,20 @@ test("smoke sessions expire without collecting a payment or granting access", as
   assert.equal(result.smoke.length, 2);
   assert.ok(result.smoke.every(s => s.status === "expired" && s.paymentStatus === "unpaid"));
   assert.equal(f.calls.filter(c => c.url.endsWith("/expire")).length, 2);
+  for (const call of f.calls.filter(c => c.url.endsWith("/checkout/sessions"))) {
+    assert.equal(call.body.get("branding_settings[display_name]"), "AI Market Cap by WeMakeSense");
+    assert.equal(call.body.get("branding_settings[background_color]"), "#000000");
+    assert.equal(call.body.get("branding_settings[button_color]"), "#00d4aa");
+  }
+});
+
+test("a failed browser inspection still expires the test session", async () => {
+  const f = fixture();
+  await assert.rejects(setupStripeTestCatalog({
+    key, accountId, fetchImpl: f.fetchImpl, apply: true, smoke: true,
+    inspectSession: async () => { throw new Error("browser check failed"); },
+  }), /browser check failed/);
+  assert.equal(f.calls.filter(c => c.url.endsWith("/expire")).length, 1);
 });
 
 test("an unrelated product colliding with the reserved ID is not changed", async () => {

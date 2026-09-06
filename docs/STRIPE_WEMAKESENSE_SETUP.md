@@ -5,7 +5,9 @@
 The local test key and Railway production live key both resolve to the same US
 Stripe account: `acct_1SxKRxAneuEOaTi3`. Stripe reports company/display name
 `wemakesense`, public website `wemakesense.co`, statement descriptor
-`WEMAKESENSE`, and charges/payouts enabled. The public support email is not set.
+`WEMAKESENSE`, and charges/payouts enabled. The API's public support email field
+is null; the signed-in dashboard later confirmed an effective reply address of
+`sense@wemakesense.co`. Do not infer missing customer support from that API field alone.
 These API fields do not establish that every business-verification requirement,
 tax obligation or product policy is satisfied.
 
@@ -24,9 +26,28 @@ records were acknowledged as ignored for other products, and the audit query
 found zero processed test-mode events. Audit history alone cannot prove that no
 historical accounting error has ever occurred.
 
-The Kshoonya browser profile exists, but reading its signed-in Stripe dashboard
-requires Chrome's explicit remote-debugging authorization. API inspection is not
-the same as inspecting the dashboard's verification checklist.
+## Signed-in dashboard verification, 2026-09-06
+
+With the owner's explicit Chrome remote-debugging authorization, the Kshoonya
+profile was connected and the account was inspected directly:
+
+- Account status: no active tasks to complete; Payments and Payouts active.
+- Cartes Bancaires payments is paused. This is distinct from the active general
+  Payments capability; no unrelated payment method was enabled during this check.
+- Stripe warns that legal identity information is shared with other accounts.
+  Legal/address changes can affect those accounts and were not made.
+- Customer emails: Successful payments OFF; Refunds OFF; effective reply address
+  `sense@wemakesense.co`. These are account-wide settings. Owner approval was
+  requested before changing receipts for other products, and none were changed.
+- Shared branding uses default colors. No AIMC logo or colors were applied to
+  account-wide branding because that would affect other products.
+- Both AIMC products and the USD 49/199 monthly prices were confirmed in this
+  account's **Test mode** catalogue. They are not live products and are separate
+  from the other sandbox listed in the account switcher.
+
+No representative details, identity documents, tax identifiers, or banking
+details are retained in these project notes. No legal or compliance declaration
+was submitted. An empty account-task list is not a public-launch security review.
 
 ## Isolated test catalogue
 
@@ -42,6 +63,11 @@ Product descriptors use `WMS AIMARKETCAP`. No account-wide branding, tax setting
 live product, existing subscription, webhook, or production entitlement is changed.
 The test portal links to the site's existing terms and privacy pages for setup
 only; subscription/refund terms still require review before paid launch.
+Test Checkout sessions now use session-specific `AI Market Cap by WeMakeSense`
+branding, the site's black/teal colors, and an explicit test/merchant disclosure.
+Shared branding remains unchanged. Stripe invoices still use the account's
+branding, not the session override; inspect real receipt/invoice identity before
+launch rather than assuming the Checkout customization covers every surface.
 
 Applied test objects on 2026-09-06:
 
@@ -55,6 +81,15 @@ Applied test objects on 2026-09-06:
 
 Both test Checkout sessions returned the intended USD amounts and were confirmed
 `expired` and `unpaid`. No card was entered and no subscription was created.
+The Stripe-hosted Data Pro page was also inspected in an isolated browser at
+1440x1000 and 390x844. Its merchant name, USD 49/month price, and test-only product
+description were visible; the mobile layout had no horizontal overflow. Stripe
+truncates the long merchant name and collapses the product description on mobile.
+Local screenshots are in `output/playwright/stripe-data-pro-desktop.png` and
+`output/playwright/stripe-data-pro-mobile.png`. These checks did not submit the
+form or verify payment completion, receipts, renewal, or entitlement provisioning.
+The optional programmatic `inspectSession` callback runs before expiration;
+a `finally` block expires the session even if browser inspection fails.
 
 ```sh
 # Read-only inspection. Uses the existing test key without printing it.
@@ -99,7 +134,7 @@ from settling previously completed payments.
 
 ## Remaining activation work
 
-1. Inspect the dashboard business-verification tasks with the owner. Confirm
+1. Dashboard task inspection is complete. Confirm
    whether AIMC is a product of this merchant or an independently operating brand
    that needs a separate account under the same legal entity. Do not fabricate
    legal names, addresses, tax IDs, representative declarations or bank details.
@@ -130,5 +165,7 @@ from settling previously completed payments.
 - [Price creation](https://docs.stripe.com/api/prices/create)
 - [Customer portal configuration](https://docs.stripe.com/api/customer_portal/configurations/create)
 - [Subscription Checkout](https://docs.stripe.com/payments/checkout/build-subscriptions)
+- [Checkout branding](https://docs.stripe.com/payments/checkout/customization/appearance?payment-ui=stripe-hosted)
+- [Customer receipts](https://docs.stripe.com/receipts)
 - [Subscription webhook lifecycle](https://docs.stripe.com/billing/subscriptions/webhooks)
 - [Chrome browser attachment](https://playwright.dev/agent-cli/commands/attach)
