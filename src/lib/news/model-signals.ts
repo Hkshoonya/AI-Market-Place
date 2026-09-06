@@ -95,9 +95,28 @@ export function pickBestModelSignals<T extends ModelLike>(
   newsItems: ModelSignalCandidate[]
 ): Map<string, ModelSignalSummary> {
   const selected = new Map<string, { score: number; summary: ModelSignalSummary }>();
+  const byModel = new Map<string, number[]>();
+  const byProvider = new Map<string | null, number[]>();
+  newsItems.forEach((item, index) => {
+    for (const id of new Set(item.related_model_ids ?? [])) {
+      const indices = byModel.get(id) ?? [];
+      indices.push(index);
+      byModel.set(id, indices);
+    }
+    const provider = normalizeProvider(item.related_provider);
+    const indices = byProvider.get(provider) ?? [];
+    indices.push(index);
+    byProvider.set(provider, indices);
+  });
 
   for (const model of models) {
-    for (const item of newsItems) {
+    // Only matching candidates can score; preserve source order for equal scores.
+    const indices = [...new Set([
+      ...(byModel.get(model.id) ?? []),
+      ...(byProvider.get(normalizeProvider(model.provider)) ?? []),
+    ])].sort((left, right) => left - right);
+    for (const index of indices) {
+      const item = newsItems[index];
       const score = computeCandidateScore(item, model);
       if (score < 0) continue;
 
