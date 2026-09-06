@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Building2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { createPublicClient } from "@/lib/supabase/public-server";
 
 import { formatNumber } from "@/lib/format";
@@ -26,6 +28,7 @@ import { summarizeProviderSelfHostRequirements } from "@/lib/models/self-host-re
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
+import { fetchAllPublicPages } from "@/lib/providers/catalog-queries";
 
 export const metadata: Metadata = {
   title: "AI Providers Directory",
@@ -62,17 +65,26 @@ interface ProviderDeployabilityStats {
   selfHostCount: number;
 }
 
-export default async function ProvidersPage() {
+export default async function ProvidersPage({ searchParams }: {
+  searchParams?: Promise<{ page?: string; q?: string }>;
+} = {}) {
+  const params = await searchParams;
+  const searchQuery = typeof params?.q === "string" ? params.q.trim().slice(0, 100) : "";
   const supabase = createPublicClient();
 
   // Fetch active provider footprints and recent provider-linked signals.
   const [{ data: models }, { data: newsRaw }, { data: deploymentNewsRaw }] = await Promise.all([
-    supabase
-    .from("models")
-    .select(
-      "id, slug, name, provider, hf_downloads, capability_score, quality_score, economic_footprint_score, overall_rank, is_open_weights, category, parameter_count, context_window, modalities"
-    )
-    .eq("status", "active"),
+    fetchAllPublicPages((from, to) =>
+      supabase
+        .from("models")
+        .select(
+          "id, slug, name, provider, hf_downloads, capability_score, quality_score, economic_footprint_score, overall_rank, is_open_weights, category, parameter_count, context_window, modalities"
+        )
+        .eq("status", "active")
+        .order("id")
+        .range(from, to),
+      "directory-models"
+    ),
     supabase
       .from("model_news")
       .select("id, title, source, related_provider, published_at, metadata")
@@ -95,19 +107,28 @@ export default async function ProvidersPage() {
     uniqueModelIds.length > 0
       ? await Promise.all([
           supabase.from("deployment_platforms").select("*").order("name"),
-          supabase
-            .from("model_deployments")
-            .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
-            .in("model_id", uniqueModelIds)
-            .eq("status", "available"),
+          // The directory spans the catalog; avoid an oversized URL of model IDs.
+          fetchAllPublicPages((from, to) =>
+            supabase
+              .from("model_deployments")
+              .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
+              .eq("status", "available")
+              .order("id")
+              .range(from, to),
+            "directory-deployments"
+          ),
         ])
       : [{ data: [], error: null }, { data: [], error: null }];
 
   // Aggregate stats by provider
   const providerMap = new Map<string, ProviderStats>();
+  const modelsByProvider = new Map<string, typeof uniqueModels>();
 
   uniqueModels.forEach((m) => {
     const canonicalProvider = getCanonicalProviderName(m.provider);
+    const providerModels = modelsByProvider.get(canonicalProvider) ?? [];
+    providerModels.push(m);
+    modelsByProvider.set(canonicalProvider, providerModels);
     const capabilityValue = getCapabilityMetricValue(m);
     const existing = providerMap.get(canonicalProvider);
     if (existing) {
@@ -123,6 +144,7 @@ export default async function ProvidersPage() {
         (existing.topRank == null || m.overall_rank < existing.topRank)
       ) {
         existing.topRank = m.overall_rank;
+        existing.topModelId = m.id;
         existing.topModelId = m.id;
       }
       if (m.is_open_weights) existing.openWeightsCount++;
@@ -153,6 +175,20 @@ export default async function ProvidersPage() {
   // Show top providers (2+ models) to keep the page fast
   const providers = allProviders.filter((p) => p.modelCount >= 2);
   const totalProviderCount = allProviders.length;
+  const matchingProviders = providers.filter((p) =>
+    p.provider.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const pageSize = 60;
+  const totalPages = Math.max(1, Math.ceil(matchingProviders.length / pageSize));
+  const requestedPage = Number(params?.page ?? 1);
+  const page = Number.isSafeInteger(requestedPage)
+    ? Math.min(totalPages, Math.max(1, requestedPage)) : 1;
+  const visibleProviders = matchingProviders.slice((page - 1) * pageSize, page * pageSize);
+  const pageHref = (nextPage: number) => {
+    const query = new URLSearchParams({ page: String(nextPage) });
+    if (searchQuery) query.set("q", searchQuery);
+    return `/providers?${query}`;
+  };
   const accessCatalog = buildAccessOffersCatalog({
     platforms: (deploymentPlatformsRaw.data ?? []).map((platform) => {
       const platformRecord = platform as Record<string, unknown>;
@@ -250,11 +286,10 @@ export default async function ProvidersPage() {
     0
   );
   const providerSelfHostSummaries = new Map(
-    providers.map((provider) => [
+    visibleProviders.map((provider) => [
       provider.provider,
       summarizeProviderSelfHostRequirements(
-        uniqueModels
-          .filter((model) => getCanonicalProviderName(model.provider) === provider.provider)
+        (modelsByProvider.get(provider.provider) ?? [])
           .map((model) => ({
             isOpenWeights: model.is_open_weights,
             parameterCount: typeof model.parameter_count === "number" ? model.parameter_count : null,
@@ -332,8 +367,17 @@ export default async function ProvidersPage() {
       />
 
       {/* Provider Grid */}
+      <form action="/providers" className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <Input name="q" aria-label="Search providers" defaultValue={searchQuery}
+          placeholder="Search providers..." maxLength={100} className="sm:max-w-sm" />
+        <Button type="submit" variant="outline">Search</Button>
+        {searchQuery && <Button variant="ghost" asChild><Link href="/providers">Clear</Link></Button>}
+      </form>
+      <p className="mb-4 text-sm text-muted-foreground">
+        {matchingProviders.length} providers with two or more models. Page {page} of {totalPages}.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {providers.map((prov) => {
+        {visibleProviders.map((prov) => {
           const brand = getProviderBrand(prov.provider);
           const slug = getProviderSlug(prov.provider);
           const bestAccessOffer = getBestAccessOfferForModel(accessCatalog, prov.topModelId);
@@ -450,6 +494,16 @@ export default async function ProvidersPage() {
           );
         })}
       </div>
+      {matchingProviders.length === 0 && (
+        <p className="py-8 text-muted-foreground">No providers match your search.</p>
+      )}
+      {totalPages > 1 && (
+        <nav aria-label="Provider pagination" className="mt-6 flex items-center justify-between gap-3">
+          {page > 1 ? <Button variant="outline" asChild><Link href={pageHref(page - 1)}>Previous</Link></Button> : <span />}
+          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+          {page < totalPages ? <Button variant="outline" asChild><Link href={pageHref(page + 1)}>Next</Link></Button> : <span />}
+        </nav>
+      )}
     </div>
   );
 }

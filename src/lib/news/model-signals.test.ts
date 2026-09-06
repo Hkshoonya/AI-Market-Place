@@ -3,6 +3,27 @@ import { describe, expect, it } from "vitest";
 import { pickBestModelSignals } from "./model-signals";
 
 describe("pickBestModelSignals", () => {
+  it("preserves source-order ties and matches direct IDs across providers", () => {
+    const models = [{ id: "model-1", provider: "Anthropic" }];
+    const picked = pickBestModelSignals(models, [
+      {
+        title: "First direct research note",
+        source: "provider-blog",
+        related_provider: "OpenAI",
+        related_model_ids: ["model-1", "model-1"],
+        metadata: { signal_type: "research", signal_importance: "medium" },
+      },
+      {
+        title: "Second direct research note",
+        source: "provider-blog",
+        related_provider: "  ANTHROPIC  ",
+        related_model_ids: ["model-1"],
+        metadata: { signal_type: "research", signal_importance: "medium" },
+      },
+    ]);
+    expect(picked.get("model-1")?.title).toBe("First direct research note");
+  });
+
   it("prefers direct model-linked signals over provider-only signals", () => {
     const models = [{ id: "model-1", provider: "OpenAI" }];
     const signals = [
