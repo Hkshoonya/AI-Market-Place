@@ -221,7 +221,11 @@ Do not add scheduled GitHub Actions cron while Cloudflare is the scheduler of re
 
 ## Stripe webhook readiness
 
-Marketplace wallet checkout requires all three Stripe variables listed above. The webhook endpoint is:
+Marketplace wallet checkout requires the three Stripe variables listed above,
+plus `STRIPE_EXPECTED_ACCOUNT_ID` pinning the reviewed merchant. Checkout accepts
+only live server credentials and verifies the account and its charging capability.
+Keep `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED=false` until the full customer flow and
+merchant identity are verified. The webhook endpoint is:
 
 ```text
 /api/webhooks/stripe
@@ -236,6 +240,13 @@ At minimum, Stripe should send `checkout.session.completed` and `payment_intent.
 ```
 
 Authenticated responses expose `payments.stripe.status` as `ready`, `partial`, or `disabled`. `partial` means checkout or webhook delivery is not fully configured and wallet credits may not complete.
+
+`ready` is a configuration indicator, not proof of payment delivery or launch
+security. This wallet route is not Data API subscription billing. Test-mode
+events and unrelated products are acknowledged without wallet or audit writes;
+funding requires explicit `app=aimarketcap` and `purpose=wallet_top_up` metadata.
+Review older in-flight sessions lacking those tags rather than weakening the
+guard. See [payment activation gates](PAYMENT_ACTIVATION_GATES.md).
 
 ## Health checks
 

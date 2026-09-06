@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 
 const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
 const MAX_STRIPE_WEBHOOK_BYTES = 1_000_000;
+const WALLET_AUDIT_METADATA_KEYS = new Set([
+  "app", "purpose", "wallet_id", "owner_id", "owner_type", "pack_slug",
+]);
 
 type StripeMetadata = Record<string, string>;
 
@@ -41,13 +44,14 @@ function parseStripeSignature(header: string | null) {
   for (const chunk of header.split(",")) {
     const [scheme, value] = chunk.trim().split("=", 2);
     if (scheme === "t") {
-      timestamp = Number.parseInt(value ?? "", 10);
+      if (!/^\d+$/.test(value ?? "")) throw new ApiError(400, "Invalid Stripe signature");
+      timestamp = Number(value);
     } else if (scheme === "v1" && value) {
       signatures.push(value);
     }
   }
 
-  if (!timestamp || !Number.isFinite(timestamp) || signatures.length === 0) {
+  if (!timestamp || !Number.isSafeInteger(timestamp) || signatures.length === 0) {
     throw new ApiError(400, "Invalid Stripe signature");
   }
 
@@ -55,8 +59,30 @@ function parseStripeSignature(header: string | null) {
 }
 
 function isSecureHexMatch(expected: string, actual: string) {
-  if (expected.length !== actual.length) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+  if (!/^[a-f0-9]{64}$/i.test(actual)) return false;
+  return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex"));
+}
+
+async function readStripePayload(request: NextRequest) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > MAX_STRIPE_WEBHOOK_BYTES) {
+        void reader.cancel().catch(() => {});
+        throw new ApiError(413, "Stripe webhook payload is too large");
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks, length).toString("utf8");
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 function verifyStripeSignature(payload: string, header: string | null, secret: string) {
@@ -120,7 +146,15 @@ function normalizeCurrency(currency: unknown) {
 }
 
 function hasWalletTarget(metadata: StripeMetadata) {
-  return Boolean(metadata.wallet_id || metadata.owner_id);
+  return (
+    metadata.app === "aimarketcap" &&
+    metadata.purpose === "wallet_top_up" &&
+    Boolean(metadata.wallet_id || metadata.owner_id)
+  );
+}
+
+function isValidFundingAmount(value: number | null): value is number {
+  return value !== null && Number.isSafeInteger(value) && value > 0;
 }
 
 function getCheckoutFundingDetails(object: Record<string, unknown>) {
@@ -137,7 +171,7 @@ function getCheckoutFundingDetails(object: Record<string, unknown>) {
   // payments belong to this integration; acknowledging the rest stops retries.
   if (!hasWalletTarget(metadata)) return null;
 
-  if (!paymentIntentId || amountTotal === null) {
+  if (!paymentIntentId?.startsWith("pi_") || !isValidFundingAmount(amountTotal)) {
     throw new ApiError(400, "Stripe checkout session is missing payment details");
   }
 
@@ -162,7 +196,7 @@ function getPaymentIntentFundingDetails(object: Record<string, unknown>) {
 
   if (!hasWalletTarget(metadata)) return null;
 
-  if (!paymentIntentId || amountReceived === null) {
+  if (!paymentIntentId?.startsWith("pi_") || !isValidFundingAmount(amountReceived)) {
     throw new ApiError(400, "Stripe payment intent is missing payment details");
   }
 
@@ -225,7 +259,9 @@ function buildStripeWebhookAuditRecord(event: StripeEvent | null) {
         : typeof object?.livemode === "boolean"
           ? object.livemode
           : null,
-    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+    metadata: Object.fromEntries(
+      Object.entries(metadata).filter(([key]) => WALLET_AUDIT_METADATA_KEYS.has(key))
+    ),
   };
 }
 
@@ -268,7 +304,7 @@ async function handleFundingEvent(object: Record<string, unknown>, type: string)
 
 export async function POST(request: NextRequest) {
   let parsedEvent: StripeEvent | null = null;
-  let signatureVerified = false;
+  let shouldAudit = false;
 
   try {
     if (!env.STRIPE_WEBHOOK_SECRET) {
@@ -280,17 +316,13 @@ export async function POST(request: NextRequest) {
       throw new ApiError(413, "Stripe webhook payload is too large");
     }
 
-    const payload = await request.text();
-    if (Buffer.byteLength(payload, "utf8") > MAX_STRIPE_WEBHOOK_BYTES) {
-      throw new ApiError(413, "Stripe webhook payload is too large");
-    }
+    const payload = await readStripePayload(request);
 
     verifyStripeSignature(
       payload,
       request.headers.get("stripe-signature"),
       env.STRIPE_WEBHOOK_SECRET
     );
-    signatureVerified = true;
     parsedEvent = tryParseStripeEvent(payload);
 
     const event = parsedEvent;
@@ -302,6 +334,28 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, "Invalid Stripe event payload");
     }
 
+    // A test-mode payment must never enter the spendable wallet ledger, even
+    // when an operator accidentally configures a test webhook in production.
+    if (event.livemode === false) {
+      return NextResponse.json({
+        received: true,
+        processed: false,
+        ignored: true,
+        reason: "test_mode_not_funded",
+      });
+    }
+    if (event.livemode !== true || object.livemode === false) {
+      throw new ApiError(400, "Invalid Stripe event mode");
+    }
+
+    // A shared merchant's other products must not enter this application's ledger or audit store.
+    if (
+      !["checkout.session.completed", "payment_intent.succeeded"].includes(event.type) ||
+      !hasWalletTarget(parseStripeMetadata(object.metadata))
+    ) {
+      return NextResponse.json({ received: true, processed: false, ignored: true });
+    }
+    shouldAudit = true;
     const result = await handleFundingEvent(object, event.type);
     const admin = createAdminClient();
     const auditRecord = buildStripeWebhookAuditRecord(event);
@@ -319,7 +373,7 @@ export async function POST(request: NextRequest) {
       ...result,
     });
   } catch (error) {
-    if (signatureVerified && parsedEvent?.id) {
+    if (shouldAudit && parsedEvent?.id) {
       const admin = createAdminClient();
       const auditRecord = buildStripeWebhookAuditRecord(parsedEvent);
       await recordStripeWebhookEvent(admin, {

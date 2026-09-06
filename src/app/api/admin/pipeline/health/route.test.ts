@@ -508,7 +508,7 @@ describe("GET /api/admin/pipeline/health", () => {
 
     expect(response.status).toBe(200);
     expect(body.payments.stripe.status).toBe("partial");
-    expect(body.payments.stripe.checkoutConfigured).toBe(true);
+    expect(body.payments.stripe.checkoutConfigured).toBe(false);
     expect(body.payments.stripe.webhookConfigured).toBe(false);
     expect(body.payments.stripe.blockingIssues).toContain(
       "STRIPE_WEBHOOK_SECRET is missing, so completed payments will not credit wallets."
