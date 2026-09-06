@@ -85,5 +85,5 @@ class Gateway:
 `;
 
 export function runpodBootstrap() {
-  return `import pathlib,runpy,sys\npathlib.Path('/tmp/aimc_guard.py').write_text(${JSON.stringify(RUNPOD_GATEWAY_SOURCE)})\nsys.path.insert(0,'/tmp')\nsys.argv=['vllm-api',*sys.argv[1:]]\nrunpy.run_module('vllm.entrypoints.openai.api_server',run_name='__main__')`;
+  return `import os,pathlib,sys\npathlib.Path('/tmp/aimc_guard.py').write_text(${JSON.stringify(RUNPOD_GATEWAY_SOURCE)})\nos.execv(sys.executable,[sys.executable,'-m','vllm.entrypoints.openai.api_server',*sys.argv[1:]])`;
 }
