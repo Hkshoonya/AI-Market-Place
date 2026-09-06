@@ -46,6 +46,7 @@ export const env = {
     getEnvVar("NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED", false) === "true",
   STRIPE_SECRET_KEY: getEnvVar("STRIPE_SECRET_KEY", false),
   STRIPE_WEBHOOK_SECRET: getEnvVar("STRIPE_WEBHOOK_SECRET", false),
+  STRIPE_EXPECTED_ACCOUNT_ID: getEnvVar("STRIPE_EXPECTED_ACCOUNT_ID", false),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: getEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", false),
 
   // ── GitHub (optional — code quality agent) ──────────────────────

@@ -13,6 +13,7 @@ import { getOrCreateWallet } from "@/lib/payments/wallet";
 import { WALLET_TOP_UP_PACKS } from "@/lib/constants/wallet";
 import { getCanonicalOrigin } from "@/lib/constants/site";
 import { rejectUntrustedRequestOrigin } from "@/lib/security/request-origin";
+import { stripeWalletConfigurationIssues } from "@/lib/payments/stripe-configuration";
 
 export const dynamic = "force-dynamic";
 
@@ -41,17 +42,19 @@ function isSafeLocalReturnPath(value: string | undefined) {
   }
 }
 
-const checkoutSchema = z.object({
-  pack: z.enum(["starter", "builder", "growth", "scale"]),
-  return_path: z
-    .string()
-    .trim()
-    .max(2048)
-    .optional()
-    .refine(isSafeLocalReturnPath, {
-      message: "return_path must be a local path",
-    }),
-});
+const checkoutSchema = z
+  .object({
+    pack: z.enum(["starter", "builder", "growth", "scale"]),
+    return_path: z
+      .string()
+      .trim()
+      .max(2048)
+      .optional()
+      .refine(isSafeLocalReturnPath, {
+        message: "return_path must be a local path",
+      }),
+  })
+  .strict();
 
 function buildCheckoutReturnUrl(
   returnPath: string,
@@ -83,11 +86,13 @@ function buildStripeCheckoutPayload(args: {
   params.set("client_reference_id", args.ownerId);
   params.set("metadata[wallet_id]", args.walletId);
   params.set("metadata[purpose]", "wallet_top_up");
+  params.set("metadata[app]", "aimarketcap");
   params.set("metadata[owner_id]", args.ownerId);
   params.set("metadata[owner_type]", "user");
   params.set("metadata[pack_slug]", args.packSlug);
   params.set("payment_intent_data[metadata][wallet_id]", args.walletId);
   params.set("payment_intent_data[metadata][purpose]", "wallet_top_up");
+  params.set("payment_intent_data[metadata][app]", "aimarketcap");
   params.set("payment_intent_data[metadata][owner_id]", args.ownerId);
   params.set("payment_intent_data[metadata][owner_type]", "user");
   params.set("payment_intent_data[metadata][pack_slug]", args.packSlug);
@@ -117,6 +122,14 @@ export async function POST(request: NextRequest) {
     if (!env.STRIPE_SECRET_KEY) {
       throw new ApiError(503, "Stripe checkout is not configured");
     }
+    const configurationIssues = stripeWalletConfigurationIssues({
+      secretKey: env.STRIPE_SECRET_KEY,
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+      expectedAccountId: env.STRIPE_EXPECTED_ACCOUNT_ID,
+    });
+    if (configurationIssues.length > 0) {
+      throw new ApiError(503, "Wallet payments are not ready for live charging");
+    }
 
     let body: unknown;
     try {
@@ -141,15 +154,43 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       throw new ApiError(401, "Authentication required");
     }
 
     const originError = rejectUntrustedRequestOrigin(request);
     if (originError) {
       return originError;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("is_banned")
+      .eq("id", user.id)
+      .single();
+    if (profileError || !profile || profile.is_banned !== false) {
+      throw new ApiError(403, "Account is not eligible for payments");
+    }
+
+    const accountResponse = await fetch("https://api.stripe.com/v1/account", {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+    const account = await accountResponse.json() as {
+      id?: string;
+      charges_enabled?: boolean;
+    };
+    if (
+      !accountResponse.ok ||
+      account.id !== env.STRIPE_EXPECTED_ACCOUNT_ID ||
+      account.charges_enabled !== true
+    ) {
+      throw new ApiError(503, "The payment account could not be verified for charging");
     }
 
     const wallet = await getOrCreateWallet(user.id);
@@ -174,19 +215,38 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: payload,
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
     });
 
     const stripeBody = (await stripeResponse.json()) as {
       id?: string;
       url?: string;
+      livemode?: boolean;
       error?: { message?: string };
     };
 
-    if (!stripeResponse.ok || !stripeBody.url || !stripeBody.id) {
+    if (
+      !stripeResponse.ok ||
+      !stripeBody.url ||
+      !stripeBody.id ||
+      stripeBody.livemode !== true
+    ) {
       throw new ApiError(
         502,
-        stripeBody.error?.message || "Failed to create Stripe checkout session"
+        "Failed to create Stripe checkout session"
       );
+    }
+
+    const checkoutUrl = new URL(stripeBody.url);
+    if (
+      checkoutUrl.protocol !== "https:" ||
+      checkoutUrl.hostname !== "checkout.stripe.com" ||
+      checkoutUrl.username ||
+      checkoutUrl.password
+    ) {
+      throw new ApiError(502, "Invalid payment redirect");
     }
 
     return NextResponse.json({
@@ -197,7 +257,7 @@ export async function POST(request: NextRequest) {
         label: pack.label,
         amount: pack.amount,
       },
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return handleApiError(error, "api/marketplace/wallet/checkout");
   }

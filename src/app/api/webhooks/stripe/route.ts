@@ -120,7 +120,15 @@ function normalizeCurrency(currency: unknown) {
 }
 
 function hasWalletTarget(metadata: StripeMetadata) {
-  return Boolean(metadata.wallet_id || metadata.owner_id);
+  return (
+    metadata.app === "aimarketcap" &&
+    metadata.purpose === "wallet_top_up" &&
+    Boolean(metadata.wallet_id || metadata.owner_id)
+  );
+}
+
+function isValidFundingAmount(value: number | null): value is number {
+  return value !== null && Number.isSafeInteger(value) && value > 0;
 }
 
 function getCheckoutFundingDetails(object: Record<string, unknown>) {
@@ -137,7 +145,7 @@ function getCheckoutFundingDetails(object: Record<string, unknown>) {
   // payments belong to this integration; acknowledging the rest stops retries.
   if (!hasWalletTarget(metadata)) return null;
 
-  if (!paymentIntentId || amountTotal === null) {
+  if (!paymentIntentId?.startsWith("pi_") || !isValidFundingAmount(amountTotal)) {
     throw new ApiError(400, "Stripe checkout session is missing payment details");
   }
 
@@ -162,7 +170,7 @@ function getPaymentIntentFundingDetails(object: Record<string, unknown>) {
 
   if (!hasWalletTarget(metadata)) return null;
 
-  if (!paymentIntentId || amountReceived === null) {
+  if (!paymentIntentId?.startsWith("pi_") || !isValidFundingAmount(amountReceived)) {
     throw new ApiError(400, "Stripe payment intent is missing payment details");
   }
 
@@ -300,6 +308,20 @@ export async function POST(request: NextRequest) {
     const object = event?.data?.object;
     if (!object || typeof object !== "object" || Array.isArray(object)) {
       throw new ApiError(400, "Invalid Stripe event payload");
+    }
+
+    // A test-mode payment must never enter the spendable wallet ledger, even
+    // when an operator accidentally configures a test webhook in production.
+    if (event.livemode === false) {
+      return NextResponse.json({
+        received: true,
+        processed: false,
+        ignored: true,
+        reason: "test_mode_not_funded",
+      });
+    }
+    if (event.livemode !== true || object.livemode === false) {
+      throw new ApiError(400, "Invalid Stripe event mode");
     }
 
     const result = await handleFundingEvent(object, event.type);
