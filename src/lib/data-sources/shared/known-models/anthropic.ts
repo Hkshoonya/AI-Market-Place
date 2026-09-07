@@ -13,7 +13,7 @@ export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
   // Verified 2026-09-07 against the provider announcement and model reference.
   "claude-fable-5-1": {
     name: "Claude Fable 5.1",
-    description: "Anthropic's September 2026 model for long-running coding, research, and knowledge work. Available through paid Claude plans and provider APIs, with proprietary weights and safety safeguards. Cache reads cost $0.25 per million tokens; eligible customers can use zero data retention.",
+    description: "Anthropic's most capable generally available model at its September 2026 launch, improving on Fable 5 for long-running coding, research, and knowledge work according to the provider's evaluations. Available through paid Claude plans and provider APIs, with proprietary weights and safety safeguards. Cache reads cost $0.25 per million tokens; eligible customers can use zero data retention.",
     category: "multimodal", context_window: 1000000, release_date: "2026-09-01",
     status: "active", is_api_available: true, is_open_weights: false,
     license: "commercial", license_name: "Proprietary", modalities: ["text", "image"],

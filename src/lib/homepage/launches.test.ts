@@ -7,6 +7,49 @@ import {
 } from "./launches";
 
 describe("buildHomepageLaunchSelections", () => {
+  const launchNow = Date.parse("2026-09-07T00:00:00Z");
+  const astra = { id: "astra", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI", category: "multimodal", release_date: "2026-09-03", quality_score: null };
+  const astraBatch = { ...astra, id: "batch", slug: "openai-gpt-6-astra-batch", name: "GPT-6 Astra (batch)", quality_score: 90 };
+
+  it("repairs existing batch-linked news on display without changing its signal", () => {
+    const result = buildHomepageLaunchSelections([astraBatch, astra], [{
+      source: "provider-blog", published_at: "2026-09-04T00:00:00Z",
+      related_provider: "OpenAI", related_model_ids: ["batch"], metadata: { signal_type: "pricing" },
+    }], 4, launchNow);
+    expect(result).toEqual([{ model: astra, surfacedAt: "2026-09-04T00:00:00Z", signalType: "pricing" }]);
+  });
+
+  it("does not advertise orphan batch pricing rows as new releases", () => {
+    expect(buildHomepageLaunchSelections([astraBatch], [], 4, launchNow)).toEqual([]);
+  });
+
+  it("competes new releases against older news even when news fills every slot", () => {
+    const oldModels = ["Google", "Meta", "MiniMax", "Z.ai"].map((provider, index) => ({
+      id: `old-${index}`, slug: `old-${index}`, name: `Old Model ${index}`, provider,
+      category: "llm", release_date: "2026-08-26", quality_score: 80,
+    }));
+    const fable = { ...astra, id: "fable51", slug: "anthropic-claude-fable-5-1", name: "Claude Fable 5.1", provider: "Anthropic", release_date: "2026-09-01" };
+    const news = oldModels.map((model) => ({ source: "provider-blog", related_provider: model.provider,
+      published_at: "2026-08-27T12:00:00Z", related_model_ids: [model.id], metadata: { signal_type: "launch" } }));
+    const result = buildHomepageLaunchSelections([...oldModels, astra, fable], news, 4, launchNow);
+    expect(result.slice(0, 2).map(({ model }) => model.id)).toEqual(["astra", "fable51"]);
+    expect(result).toHaveLength(4);
+    expect(result[0].model.quality_score).toBeNull();
+  });
+
+  it("does not treat future timestamps as already launched", () => {
+    expect(buildHomepageLaunchSelections([{ ...astra, release_date: "2026-09-10" }], [], 4, launchNow)).toEqual([]);
+    const result = buildHomepageLaunchSelections([astra], [{ source: "provider-blog", related_model_ids: ["astra"], published_at: "2026-09-10" }], 4, launchNow);
+    expect(result[0].surfacedAt).toBe("2026-09-03");
+  });
+
+  it("does not let newer community repackages crowd out official provider launches", () => {
+    const community = { ...astra, id: "community", slug: "community-astra-gguf", name: "Astra GGUF", provider: "community", release_date: "2026-09-06", quality_score: 95 };
+    const result = buildHomepageLaunchSelections([community, astra], [], 1, launchNow);
+    expect(result.map(({ model }) => model.id)).toEqual(["astra"]);
+    expect(buildHomepageLaunchSelections([community], [], 1, launchNow)[0].model.id).toBe("community");
+  });
+
   it("surfaces verified new releases without inventing benchmark scores", () => {
     const result = buildHomepageLaunchSelections([
       { id: "astra", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI", release_date: "2026-09-03", quality_score: null },

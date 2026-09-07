@@ -5,6 +5,18 @@ import { selectHomepageTopModelIds } from "./top-models";
 describe("selectHomepageTopModelIds", () => {
   const now = Date.parse("2026-04-02T00:00:00Z");
 
+  it("surfaces September provider leaders while their benchmark feeds catch up", () => {
+    const models = [
+      { id: "fable5", slug: "anthropic-claude-fable-5", name: "Claude Fable 5", provider: "Anthropic", category: "multimodal", is_api_available: true, release_date: "2026-06-09", quality_score: 67.3, capability_score: 80, adoption_score: 77, economic_footprint_score: 70 },
+      { id: "fable51", slug: "anthropic-claude-fable-5-1", name: "Claude Fable 5.1", provider: "Anthropic", category: "multimodal", is_api_available: true, release_date: "2026-09-01", quality_score: 28.9, capability_score: null },
+      { id: "sol", slug: "openai-gpt-5-6-sol", name: "GPT-5.6 Sol", provider: "OpenAI", category: "llm", is_api_available: true, release_date: "2026-07-09", quality_score: 80, capability_score: 80, adoption_score: 77, economic_footprint_score: 70 },
+      { id: "astra", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI", category: "multimodal", is_api_available: true, release_date: "2026-09-03", quality_score: null, capability_score: null },
+    ];
+    expect(selectHomepageTopModelIds(models, 2, Date.parse("2026-09-07"))).toEqual(expect.arrayContaining(["fable51", "astra"]));
+    expect(models[1].quality_score).toBe(28.9);
+    expect(models[3].quality_score).toBeNull();
+  });
+
   it("prioritizes enterprise traction and real-world usage over a single raw rank", () => {
     const ids = selectHomepageTopModelIds(
       [
