@@ -7,6 +7,28 @@ import {
 } from "./public-families";
 
 describe("public model family dedupe", () => {
+  it("uses the canonical model instead of a better-scored batch pricing row", () => {
+    const base = { id: "astra", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI", category: "multimodal", quality_score: null };
+    const batch = { ...base, id: "batch", slug: "openai-gpt-6-astra-batch", name: "GPT-6 Astra (batch)", quality_score: 90 };
+    const pro = { ...base, id: "pro", slug: "openai-gpt-6-astra-pro", name: "GPT-6 Astra Pro" };
+    const families = collapsePublicModelFamilies([batch, pro, base]);
+    expect(families).toHaveLength(2);
+    expect(families.find((family) => family.variants.some((variant) => variant.id === "batch")))
+      .toMatchObject({ representative: { id: "astra" }, variantCount: 2 });
+    expect(getPublicSurfaceSeriesKey(batch)).toBe(getPublicSurfaceSeriesKey(base));
+    expect(getPublicSurfaceSeriesKey(pro)).not.toBe(getPublicSurfaceSeriesKey(base));
+  });
+
+  it("collapses batch suffixes without parenthetical display names", () => {
+    const models = [
+      { id: "base", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI" },
+      { id: "batch", slug: "openai-gpt-6-astra-batch", name: "GPT-6 Astra Batch", provider: "OpenAI" },
+    ];
+    expect(collapsePublicModelFamilies(models)).toMatchObject([
+      { representative: { id: "base" }, variantCount: 2 },
+    ]);
+  });
+
   it("collapses alias-family siblings into one representative row", () => {
     const families = collapsePublicModelFamilies([
       {

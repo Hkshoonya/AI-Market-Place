@@ -1,7 +1,7 @@
 import { getNewsSignalType } from "@/lib/news/presentation";
 import type { NewsSignalType } from "@/lib/news/signals";
 import { getCanonicalProviderName, getProviderBrand } from "@/lib/constants/providers";
-import { collapsePublicModelFamilies } from "@/lib/models/public-families";
+import { collapsePublicModelFamilies, isBatchPricingVariant } from "@/lib/models/public-families";
 import { limitProviderBurst } from "@/lib/homepage/deployments";
 
 const RECENT_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
@@ -79,7 +79,7 @@ function toTimestamp(value: string | null | undefined): number {
 }
 
 function isRecent(timestamp: number, now: number) {
-  return timestamp > 0 && now - timestamp <= RECENT_LAUNCH_WINDOW_MS;
+  return timestamp > 0 && timestamp <= now && now - timestamp <= RECENT_LAUNCH_WINDOW_MS;
 }
 
 function getLaunchTimestamp<TModel extends HomepageLaunchModel>(model: TModel): number {
@@ -92,7 +92,7 @@ function getLaunchTimestamp<TModel extends HomepageLaunchModel>(model: TModel): 
 
 function isSurfaceableRecentModel<TModel extends HomepageLaunchModel>(model: TModel, now: number) {
   const timestamp = getLaunchTimestamp(model);
-  return timestamp > 0 && now - timestamp <= RECENT_MODEL_RELEASE_WINDOW_MS;
+  return timestamp > 0 && timestamp <= now && now - timestamp <= RECENT_MODEL_RELEASE_WINDOW_MS;
 }
 
 function hasMeaningfulModelSignals<TModel extends HomepageLaunchModel>(model: TModel) {
@@ -164,6 +164,10 @@ function compareLaunchSelections<TModel extends HomepageLaunchModel>(
   const rightPenalty = getLaunchSurfacePenalty(right.model);
   if (leftPenalty !== rightPenalty) return leftPenalty - rightPenalty;
 
+  const knownProviderDifference = Number(Boolean(getProviderBrand(right.model.provider ?? ""))) -
+    Number(Boolean(getProviderBrand(left.model.provider ?? "")));
+  if (knownProviderDifference !== 0) return knownProviderDifference;
+
   if (right.score !== left.score) return right.score - left.score;
 
   const launchDelta = getLaunchTimestamp(right.model) - getLaunchTimestamp(left.model);
@@ -184,6 +188,13 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
   const familyKeyById = new Map(
     fullModelFamilies.flatMap((family) =>
       family.variants.map((variant) => [variant.id, family.familyKey] as const)
+    )
+  );
+  const canonicalByBatchId = new Map(
+    fullModelFamilies.flatMap((family) =>
+      family.variants
+        .filter(isBatchPricingVariant)
+        .map((variant) => [variant.id, family.representative] as const)
     )
   );
 
@@ -210,15 +221,16 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     const signalScore = signalType === "launch" ? 2_000 : 0;
 
     for (const modelId of item.related_model_ids ?? []) {
-      const model = modelsById.get(modelId);
+      const model = canonicalByBatchId.get(modelId) ?? modelsById.get(modelId);
       if (!model) continue;
+      if (isBatchPricingVariant(model)) continue;
       if (!isSurfaceableRecentModel(model, now)) continue;
       if (!providersMatch(model.provider, item.related_provider)) continue;
 
       const score = publishedTimestamp + getSourceBonus(source) + signalScore;
-      const existing = selectedById.get(modelId);
+      const existing = selectedById.get(model.id);
       if (!existing || score > existing.score) {
-        selectedById.set(modelId, {
+        selectedById.set(model.id, {
           score,
           model,
           surfacedAt: publishedAt,
@@ -239,29 +251,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
           return bestSelection ?? null;
         })
         .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-        .sort(compareLaunchSelections)
-        .map((entry) => ({
-          model: entry.model,
-          surfacedAt: entry.surfacedAt,
-          signalType: entry.signalType,
-        }))
-    : [...selectedById.values()]
-        .sort(compareLaunchSelections)
-        .map((entry) => ({
-          model: entry.model,
-          surfacedAt: entry.surfacedAt,
-          signalType: entry.signalType,
-        }));
-
-  if (prioritized.length >= limit) {
-    return limitProviderBurst(
-      prioritized.map((entry) => ({
-        ...entry,
-        provider: entry.model.provider,
-      })),
-      limit
-    ).map(({ provider: _provider, ...entry }) => entry);
-  }
+    : [...selectedById.values()];
 
   const usedIds = new Set(prioritized.map((entry) => entry.model.id));
   const usedFamilyKeys = useFamilyCollapse
@@ -273,6 +263,7 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     : new Set<string>();
   const fallbackCandidates = [...models]
     .filter((model) => !usedIds.has(model.id))
+    .filter((model) => !isBatchPricingVariant(model))
     .filter((model) => !usedFamilyKeys.has(familyKeyById.get(model.id) ?? ""))
     .filter((model) => isSurfaceableRecentModel(model, now))
     .filter((model) => Boolean(model.release_date) || hasMeaningfulModelSignals(model));
@@ -281,32 +272,18 @@ export function buildHomepageLaunchSelections<TModel extends HomepageLaunchModel
     ? collapsePublicModelFamilies(fallbackCandidates)
         .map((family) => family.representative)
     : fallbackCandidates)
-    .sort((left, right) => {
-      const leftSpecialized = isSpecializedHomepageLaunch(left);
-      const rightSpecialized = isSpecializedHomepageLaunch(right);
-      if (leftSpecialized !== rightSpecialized) return Number(leftSpecialized) - Number(rightSpecialized);
-
-      const leftPenalty = getLaunchSurfacePenalty(left);
-      const rightPenalty = getLaunchSurfacePenalty(right);
-      if (leftPenalty !== rightPenalty) return leftPenalty - rightPenalty;
-
-      const leftKnown = getProviderBrand(left.provider ?? "") ? 1 : 0;
-      const rightKnown = getProviderBrand(right.provider ?? "") ? 1 : 0;
-      if (rightKnown !== leftKnown) return rightKnown - leftKnown;
-      return getLaunchTimestamp(right) - getLaunchTimestamp(left);
-    })
-    .slice(0, limit - prioritized.length)
     .map((model) => ({
       model,
+      score: getLaunchTimestamp(model),
       surfacedAt: model.release_date ?? model.created_at ?? null,
       signalType: "launch" as const,
     }));
 
   return limitProviderBurst(
-    [...prioritized, ...fallback].map((entry) => ({
+    [...prioritized, ...fallback].sort(compareLaunchSelections).map((entry) => ({
       ...entry,
       provider: entry.model.provider,
     })),
     limit
-  ).map(({ provider: _provider, ...entry }) => entry);
+  ).map(({ provider: _provider, score: _score, ...entry }) => entry);
 }

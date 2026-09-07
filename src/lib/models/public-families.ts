@@ -72,6 +72,10 @@ const MODEL_FAMILY_PREFIX_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 const NON_PROVIDER_PREFIX_ALIAS_SLUGS = new Set(["meta-llama"]);
 
+export function isBatchPricingVariant(model: { slug?: string | null; name?: string | null }) {
+  return /[-:]batch$/i.test(model.slug ?? "") || /\(batch\)\s*$/i.test(model.name ?? "");
+}
+
 function getProviderSlugCandidates(provider: string) {
   const canonicalProvider = getCanonicalProviderName(provider);
   const providerSlug = provider
@@ -156,7 +160,7 @@ function stripProviderNamePrefix(name: string, provider: string) {
 
 function getFamilyKey<T extends PublicModelFamilyCandidate>(model: T) {
   const providerlessSlug = stripProviderPrefix(model.slug, model.provider);
-  const baseSlug = providerlessSlug.replace(DATED_SLUG_RE, "");
+  const baseSlug = providerlessSlug.replace(/[-:]batch$/i, "").replace(DATED_SLUG_RE, "");
   return normalizeFamilyKey(baseSlug || model.name || model.slug);
 }
 
@@ -187,6 +191,7 @@ export function getPublicSurfaceSeriesKey<
 function providerlessSlugToSeriesKey(providerlessSlug: string) {
   const slugKey = normalizeFamilyKey(
     providerlessSlug
+      .replace(/[-:]batch$/i, "")
       .replace(/^meta-meta-llama-/i, "llama-")
       .replace(DATED_SLUG_RE, "")
       .replace(COMPACT_SNAPSHOT_SUFFIX_RE, "")
@@ -284,6 +289,10 @@ function getRepresentativeScore<T extends PublicModelFamilyCandidate>(model: T) 
 }
 
 function compareRepresentatives<T extends PublicModelFamilyCandidate>(left: T, right: T) {
+  // Batch is a billing mode, not a distinct capability release.
+  const batchDifference = Number(isBatchPricingVariant(left)) - Number(isBatchPricingVariant(right));
+  if (batchDifference !== 0) return batchDifference;
+
   const leftLifecycle = hasLifecycleWarningLanguage(left) || left.status === "deprecated";
   const rightLifecycle = hasLifecycleWarningLanguage(right) || right.status === "deprecated";
   const leftPreview = isPreviewLikeModel(left);

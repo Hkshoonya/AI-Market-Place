@@ -225,6 +225,10 @@ interface MatchRange {
   modelId: string;
 }
 
+function normalizeAliasIdentity(value: string): string {
+  return value.toLowerCase().trim().replace(/[\s._:-]+/g, "-");
+}
+
 /**
  * Match text against all models, return matching UUIDs.
  *
@@ -242,11 +246,12 @@ export function matchModelsInText(
   if (!text || text.length < MIN_ALIAS_LENGTH) return [];
 
   const normalizedText = text.toLowerCase();
+  const candidates: Array<MatchRange & { completeName: boolean }> = [];
   const matchedRanges: MatchRange[] = [];
   const matchedIds = new Set<string>();
 
-  // Process entries in order (longest alias first due to sort in buildModelLookup)
   for (const entry of lookup) {
+    const nameIdentity = normalizeAliasIdentity(entry.name);
     for (const alias of entry.aliases) {
       // Quick check: skip if alias can't possibly be in text
       if (alias.length > normalizedText.length) continue;
@@ -264,27 +269,30 @@ export function matchModelsInText(
             : undefined;
 
         if (isBoundaryChar(charBefore) && isBoundaryChar(charAfter)) {
-          // Check if this range is subsumed by an existing longer match
-          const isSubsumed = matchedRanges.some(
-            (m) => idx >= m.start && idx + alias.length <= m.end
-          );
-
-          if (!isSubsumed) {
-            matchedRanges.push({
-              start: idx,
-              end: idx + alias.length,
-              modelId: entry.id,
-            });
-            matchedIds.add(entry.id);
-          }
+          candidates.push({
+            start: idx,
+            end: idx + alias.length,
+            modelId: entry.id,
+            completeName: normalizeAliasIdentity(alias) === nameIdentity,
+          });
         }
 
         searchFrom = idx + 1;
       }
-
-      // If we already found this model via a longer alias, skip shorter ones
-      if (matchedIds.has(entry.id)) break;
     }
+  }
+
+  // Rank actual matches, not each entry's longest possible alias. A stripped
+  // "(batch)" alias must not claim a mention of the complete canonical name.
+  candidates.sort((left, right) =>
+    (right.end - right.start) - (left.end - left.start) ||
+    Number(right.completeName) - Number(left.completeName) ||
+    left.start - right.start || left.modelId.localeCompare(right.modelId)
+  );
+  for (const candidate of candidates) {
+    if (matchedRanges.some((range) => candidate.start < range.end && candidate.end > range.start)) continue;
+    matchedRanges.push(candidate);
+    matchedIds.add(candidate.modelId);
   }
 
   return [...matchedIds];
