@@ -33,6 +33,9 @@ self.addEventListener("fetch", (event) => {
 
   // Skip API requests and auth
   const url = new URL(request.url);
+  // Leave third-party CORS/integrity handling to the browser, including analytics.
+  if (url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) {
     return;
   }
