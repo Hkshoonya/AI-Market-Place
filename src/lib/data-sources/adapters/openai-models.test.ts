@@ -10,7 +10,7 @@ describe("OpenAI model API enrichment", () => {
     expect(__testables.releaseDateFromUnixSeconds(Number.NaN)).toBeNull();
   });
 
-  it("adds API-only models with their provider creation date", () => {
+  it("discovers API-only models without inventing a public release date", () => {
     const records = new Map<string, Record<string, unknown>>();
     const buildRecord = vi.fn(
       (modelId: string, overrides?: { release_date?: string }) => ({
@@ -28,11 +28,9 @@ describe("OpenAI model API enrichment", () => {
       buildRecord
     );
 
-    expect(buildRecord).toHaveBeenCalledWith("gpt-new-model", {
-      release_date: "2026-07-27",
-    });
+    expect(buildRecord).toHaveBeenCalledWith("gpt-new-model");
     expect(records.get("gpt-new-model")).toMatchObject({
-      release_date: "2026-07-27",
+      release_date: null,
       data_refreshed_at: "2026-07-30T12:00:00.000Z",
     });
   });

@@ -57,6 +57,9 @@ export interface AdapterSyncerConfig<TApiResult> {
   /** Total count of static known models — used in healthCheck message. */
   staticModelCount: number;
 
+  /** ID-only discovery must not overwrite richer metadata from other feeds. */
+  preserveDiscoveredMetadata?: boolean;
+
   /**
    * Attempt to scrape the provider's public docs page for model IDs.
    * Returns an empty array on failure (never throws).
@@ -116,7 +119,7 @@ export interface AdapterSyncerConfig<TApiResult> {
   deactivateMissing?: {
     provider: string;
     slugPrefix: string;
-    shouldDeactivateSlug?: (slug: string) => boolean;
+    shouldDeactivateSlug: (slug: string) => boolean;
   };
 }
 
@@ -173,7 +176,42 @@ export function createAdapterSyncer<TApiResult>(
     }
 
     // ── Step 4: Upsert all records ───────────────────────────────────────────
-    const records = Array.from(recordMap.values());
+    let records = Array.from(recordMap.values());
+    const discoveryErrors: SyncResult["errors"] = [];
+    if (sources.length === 1) {
+      discoveryErrors.push({ message: "Live model discovery unavailable; static fallback is not a freshness check" });
+    }
+    if (config.preserveDiscoveredMetadata) {
+      const discovered = [...recordMap.entries()].filter(([id]) => !config.knownModelIds.includes(id));
+      const existingBySlug = new Map<string, { name: string; category: string }>();
+      for (let offset = 0; offset < discovered.length; offset += 100) {
+        const slugs = discovered.slice(offset, offset + 100).map(([, row]) => String(row.slug));
+        const { data, error } = await ctx.supabase.from("models").select("slug, name, category").in("slug", slugs);
+        if (error) {
+          // Fail closed rather than replace metadata if we cannot distinguish inserts.
+          return { success: false, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0,
+            errors: [{ message: "Could not check existing model identities before discovery upsert" }] };
+        }
+        for (const row of data ?? []) existingBySlug.set(row.slug, row);
+      }
+      const discoveredIds = new Set(discovered.map(([, row]) => String(row.slug)));
+      records = [...recordMap.entries()].map(([id, record]) => {
+        if (!discoveredIds.has(String(record.slug))) return record;
+        const sparse = { ...record };
+        for (const [key, value] of Object.entries(sparse)) {
+          if (value == null || (typeof value === "object" && Object.keys(value).length === 0)) delete sparse[key];
+        }
+        const existing = existingBySlug.get(String(record.slug));
+        if (existing) {
+          // INSERT checks NOT NULL before ON CONFLICT; keep required fields.
+          if (record.name === id) sparse.name = existing.name;
+          sparse.category = existing.category;
+          // Inferred modalities are not fresh evidence about the model.
+          delete sparse.modalities;
+        }
+        return sparse;
+      });
+    }
     const { created, errors: upsertErrors } = await upsertBatch(
       ctx.supabase,
       "models",
@@ -182,7 +220,7 @@ export function createAdapterSyncer<TApiResult>(
     );
 
     let deactivatedStale = 0;
-    if (config.deactivateMissing) {
+    if (config.deactivateMissing && sources.length > 1 && upsertErrors.length === 0) {
       const currentSlugs = new Set(
         records
           .map((record) =>
@@ -209,7 +247,7 @@ export function createAdapterSyncer<TApiResult>(
             (slug): slug is string =>
               typeof slug === "string" &&
               !currentSlugs.has(slug) &&
-              (config.deactivateMissing?.shouldDeactivateSlug?.(slug) ?? true)
+              config.deactivateMissing!.shouldDeactivateSlug(slug)
           );
 
         if (staleSlugs.length > 0) {
@@ -230,11 +268,11 @@ export function createAdapterSyncer<TApiResult>(
     }
 
     return {
-      success: upsertErrors.length === 0,
+      success: upsertErrors.length === 0 && discoveryErrors.length === 0,
       recordsProcessed: records.length,
       recordsCreated: created,
       recordsUpdated: records.length - created,
-      errors: upsertErrors,
+      errors: [...discoveryErrors, ...upsertErrors],
       metadata: {
         sources,
         staticModels: config.staticModelCount,
@@ -242,6 +280,7 @@ export function createAdapterSyncer<TApiResult>(
         apiModels: getApiResultSize(apiResult),
         totalRecords: records.length,
         deactivatedStale,
+        discoveryHealthy: sources.length > 1,
       },
     };
   }
@@ -252,10 +291,14 @@ export function createAdapterSyncer<TApiResult>(
     const apiKey = secrets[config.apiKeySecret] ?? process.env[config.apiKeySecret];
 
     if (!apiKey) {
+      const started = Date.now();
+      const models = await config.scrapeFn();
       return {
-        healthy: true,
-        latencyMs: 0,
-        message: `Static-only mode — ${config.staticModelCount} models available without API key`,
+        healthy: models.length > 0,
+        latencyMs: Date.now() - started,
+        message: models.length > 0
+          ? `Public documentation discovery reachable (${models.length} model IDs)`
+          : `Live discovery unavailable; ${config.staticModelCount} static models do not establish freshness`,
       };
     }
 

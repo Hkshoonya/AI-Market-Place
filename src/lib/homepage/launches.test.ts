@@ -7,6 +7,15 @@ import {
 } from "./launches";
 
 describe("buildHomepageLaunchSelections", () => {
+  it("surfaces verified new releases without inventing benchmark scores", () => {
+    const result = buildHomepageLaunchSelections([
+      { id: "astra", slug: "openai-gpt-6-astra", name: "GPT-6 Astra", provider: "OpenAI", release_date: "2026-09-03", quality_score: null },
+      { id: "fable51", slug: "anthropic-claude-fable-5-1", name: "Claude Fable 5.1", provider: "Anthropic", release_date: "2026-09-01", quality_score: null },
+      { id: "fable5", slug: "anthropic-claude-fable-5", name: "Claude Fable 5", provider: "Anthropic", release_date: "2026-06-09", quality_score: 67 },
+    ], [], 3, Date.parse("2026-09-07T00:00:00Z"));
+    expect(result.map(({ model }) => model.id)).toEqual(["astra", "fable51"]);
+    expect(result.every(({ model }) => model.quality_score === null)).toBe(true);
+  });
   it("prefers recent provider launch signals over raw release-date ordering", () => {
     const now = Date.parse("2026-03-28T01:00:00.000Z");
     const models = [

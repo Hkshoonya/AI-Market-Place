@@ -138,6 +138,8 @@ export const KNOWN_PRICES: Record<string, ProviderPrice> = {
   "claude-3-haiku": { provider: "Anthropic", inputPricePerMillion: 0.25, outputPricePerMillion: 1.25, source: "anthropic.com/pricing", lastUpdated: "2026-03-01" },
 
   // ─── Anthropic — Claude 4.x / 5.x ────────────────────────────
+  "claude-fable-5-1": { provider: "Anthropic", inputPricePerMillion: 10.00, outputPricePerMillion: 50.00, cachedInputPricePerMillion: 0.25, source: "https://platform.claude.com/docs/en/models/fable-5-1/overview", lastUpdated: "2026-09-07" },
+  "claude-mythos-5-1": { provider: "Anthropic", inputPricePerMillion: 10.00, outputPricePerMillion: 50.00, cachedInputPricePerMillion: 0.25, source: "https://platform.claude.com/docs/en/models/mythos-5-1/overview", lastUpdated: "2026-09-07" },
   "claude-fable-5": { provider: "Anthropic", inputPricePerMillion: 10.00, outputPricePerMillion: 50.00, source: "platform.claude.com/docs/en/about-claude/pricing", lastUpdated: "2026-06-23" },
   "claude-opus-5": { provider: "Anthropic", inputPricePerMillion: 5.00, outputPricePerMillion: 25.00, source: "platform.claude.com/docs/en/about-claude/models/overview", lastUpdated: "2026-07-24" },
   "claude-sonnet-5": { provider: "Anthropic", inputPricePerMillion: 2.00, outputPricePerMillion: 10.00, source: "platform.claude.com/docs/en/about-claude/models/overview", lastUpdated: "2026-08-10" },

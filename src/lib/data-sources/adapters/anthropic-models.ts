@@ -6,8 +6,7 @@
  *   2. Public HTML scrape  — https://docs.anthropic.com/en/docs/about-claude/models
  *   3. Static known-models data — always available, guarantees at least one sync
  *
- * No API key is required. The static map alone is sufficient to produce a
- * complete, meaningful sync of all current Claude models.
+ * No API key is required, but static fallback alone does not prove freshness.
  */
 
 import type { DataSourceAdapter } from "../types";
@@ -24,6 +23,8 @@ import {
   resolveAnthropicKnownModelMeta,
 } from "../shared/known-models/anthropic";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
+import type { ScrapedModelEntry } from "../shared/adapter-syncer";
+import { enrichDiscoveredModelDocs } from "../shared/provider-model-docs";
 
 // ---------------------------------------------------------------------------
 // Provider-level defaults (all Claude models share these)
@@ -157,7 +158,7 @@ async function tryFetchLiveApi(
  * Try to scrape the Anthropic models documentation page for model IDs.
  * Returns an empty array on failure.
  */
-async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
+async function tryScrapeDocsPage(signal?: AbortSignal): Promise<ScrapedModelEntry[]> {
   try {
     const res = await fetchWithRetry(
       "https://docs.anthropic.com/en/docs/about-claude/models",
@@ -180,7 +181,7 @@ async function tryScrapeDocsPage(signal?: AbortSignal): Promise<string[]> {
       if (modelId) found.add(modelId);
     }
 
-    return [...found];
+    return enrichDiscoveredModelDocs("Anthropic", [...found], new Set(Object.keys(ANTHROPIC_KNOWN_MODELS)), signal);
   } catch {
     return [];
   }
@@ -206,13 +207,15 @@ function enrichFromApi(
         canonicalModelId,
         buildRecordFn(modelId, {
           name: meta.displayName || undefined,
-          release_date: meta.createdAt ? meta.createdAt.split("T")[0] : undefined,
         })
       );
     }
     // Refresh timestamp for all API-confirmed models
     const existing = recordMap.get(canonicalModelId);
-    if (existing) existing.data_refreshed_at = now;
+    if (existing) {
+      if (existing.name === canonicalModelId && meta.displayName) existing.name = meta.displayName;
+      existing.data_refreshed_at = now;
+    }
   }
 }
 
@@ -228,6 +231,7 @@ const { sync, healthCheck } = createAdapterSyncer<
   knownModelIds: Object.keys(ANTHROPIC_KNOWN_MODELS),
   buildRecordFn: boundBuildRecord,
   staticModelCount: Object.keys(ANTHROPIC_KNOWN_MODELS).length,
+  preserveDiscoveredMetadata: true,
   scrapeFn: tryScrapeDocsPage,
   apiFn: tryFetchLiveApi,
   enrichFn: enrichFromApi,
@@ -240,6 +244,7 @@ const { sync, healthCheck } = createAdapterSyncer<
   deactivateMissing: {
     provider: "Anthropic",
     slugPrefix: "anthropic",
+    shouldDeactivateSlug: (slug) => normalizeScrapedAnthropicModelId(slug.slice("anthropic-".length)) === null,
   },
 });
 

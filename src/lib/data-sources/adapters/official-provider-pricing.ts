@@ -39,6 +39,12 @@ interface ExistingPricingRow {
 const OPENAI_PRICING_DOCUMENTS: OfficialPricingDefinition[] = [
   {
     provider: "OpenAI",
+    modelSlugs: ["openai-gpt-6-astra"],
+    documentUrl: "https://developers.openai.com/api/docs/models/gpt-6-astra.md",
+    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-6-astra",
+  },
+  {
+    provider: "OpenAI",
     modelSlugs: ["openai-gpt-5-6-sol", "openai-gpt-5-6"],
     documentUrl:
       "https://developers.openai.com/api/docs/models/gpt-5.6-sol.md",
