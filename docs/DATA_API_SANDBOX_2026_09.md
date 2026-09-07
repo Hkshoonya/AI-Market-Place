@@ -72,6 +72,11 @@ three containers and private network were stopped/removed. Other local projects'
 containers were left running. The targeted billing suite passed 69 tests, and
 the real PostgreSQL migration/RPC test, repository typecheck and lint passed.
 
+The first updated CI run passed unit/component and browser tests but exposed a
+database startup race: `pg_isready` accepted the Docker image's temporary Unix
+socket initialization server before it restarted. Both harnesses now wait for
+the final TCP listener, and the SQL runner fails explicitly on readiness timeout.
+
 The available credential was a standard `sk_test_`, not the intended restricted
 test credential. Therefore the exact least-privilege production permissions are
 still unverified. No real bank-card statement, production receipt identity, tax

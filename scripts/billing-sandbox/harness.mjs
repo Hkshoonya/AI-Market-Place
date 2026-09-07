@@ -93,7 +93,8 @@ async function init() {
   // A private bridge permits localhost port publishing; no database port is exposed.
   docker(["network", "create", prefix]);
   docker(["run", "-d", "--rm", "--name", `${prefix}-db`, "--network", prefix, "--env-file", "/dev/stdin", "postgres:17-alpine"], { POSTGRES_PASSWORD: s.dbPassword });
-  await until(() => { try { return docker(["exec", `${prefix}-db`, "pg_isready", "-U", "postgres"]).includes("accepting connections"); } catch { return false; } });
+  // Do not mistake the image's temporary socket-only init server for readiness.
+  await until(() => { try { return docker(["exec", `${prefix}-db`, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]).includes("accepting connections"); } catch { return false; } });
   sql("CREATE SCHEMA auth; ALTER ROLE postgres SET search_path = auth, public;");
   await startAuth();
   await until(async () => { try { return (await fetch("http://127.0.0.1:3415/health")).ok; } catch { return false; } });
