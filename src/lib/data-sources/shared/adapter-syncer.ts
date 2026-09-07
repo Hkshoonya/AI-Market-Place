@@ -178,7 +178,8 @@ export function createAdapterSyncer<TApiResult>(
     // ── Step 4: Upsert all records ───────────────────────────────────────────
     let records = Array.from(recordMap.values());
     const discoveryErrors: SyncResult["errors"] = [];
-    if (sources.length === 1) {
+    const discoveryHealthy = scrapedModels.length > 0 || getApiResultSize(apiResult) > 0;
+    if (!discoveryHealthy) {
       discoveryErrors.push({ message: "Live model discovery unavailable; static fallback is not a freshness check" });
     }
     if (config.preserveDiscoveredMetadata) {
@@ -220,7 +221,7 @@ export function createAdapterSyncer<TApiResult>(
     );
 
     let deactivatedStale = 0;
-    if (config.deactivateMissing && sources.length > 1 && upsertErrors.length === 0) {
+    if (config.deactivateMissing && discoveryHealthy && upsertErrors.length === 0) {
       const currentSlugs = new Set(
         records
           .map((record) =>
@@ -280,7 +281,7 @@ export function createAdapterSyncer<TApiResult>(
         apiModels: getApiResultSize(apiResult),
         totalRecords: records.length,
         deactivatedStale,
-        discoveryHealthy: sources.length > 1,
+        discoveryHealthy,
       },
     };
   }

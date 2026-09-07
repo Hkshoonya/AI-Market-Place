@@ -230,6 +230,19 @@ describe("createAdapterSyncer discovery safeguards", () => {
     expect(result.metadata).toMatchObject({ discoveryHealthy: false, deactivatedStale: 0 });
   });
 
+  it.each([[], new Map()])("does not treat an empty API collection as fresh discovery: %s", async (collection) => {
+    vi.spyOn(utils, "upsertBatch").mockResolvedValue({ created: 0, errors: [] });
+    const from = vi.fn();
+    const { sync } = createAdapterSyncer({ ...makeConfig(), apiFn: async () => collection,
+      deactivateMissing: { provider: "Test", slugPrefix: "test", shouldDeactivateSlug: () => true },
+    });
+    const result = await sync({ supabase: { from } as never, config: {},
+      secrets: { TEST_API_KEY: "local-test-only" }, lastSyncAt: null });
+    expect(from).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.metadata).toMatchObject({ discoveryHealthy: false, apiModels: 0, deactivatedStale: 0 });
+  });
+
   it("omits empty and inferred metadata on existing ID-only models, but names new rows", async () => {
     const upsert = vi.spyOn(utils, "upsertBatch").mockResolvedValue({ created: 0, errors: [] });
     const query = { in: vi.fn().mockResolvedValue({ data: [{ slug: "future-1", name: "Future 1", category: "multimodal" }], error: null }) };
