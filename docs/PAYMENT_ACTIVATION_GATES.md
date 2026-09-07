@@ -15,9 +15,10 @@ evidence of a completed customer payment or a full account-security audit.
 The stable AIMC Data Pro and Data Business product IDs from the prior test setup
 return 404 with the live credential. No live product was created. No bank details,
 shared branding, receipt settings, prices, existing subscriptions or webhooks were
-modified. The existing server key is a standard key; a dedicated restricted
-integration key is preferable before launch. Do not rotate the shared key just
-to configure this application.
+modified. At that preflight the server key was a standard key. A later
+owner-provided restricted live key now passes the Accounts Read check and matches
+the pinned merchant with charging enabled. Other runtime permissions still need
+isolated integration verification. Do not rotate keys used by other applications.
 
 ## Safety Changes
 
@@ -48,11 +49,13 @@ processed even when new checkout is disabled, so completed payments are not lost
 
 ## Not Yet Ready For Paid Launch
 
-Data API access is still an administrator-approved pilot. Its automatic
-subscription Checkout, dedicated customer mapping, signed entitlement updates,
-renewal/failure/cancellation handling and replay-safe reconciliation are not
-implemented by these wallet safeguards. Do not enable wallet top-ups as a
-substitute or describe deposited balances as earned subscription revenue.
+Data API access in production is still an administrator-approved pilot. The
+separate subscription implementation now prepares Checkout, dedicated customer
+mapping, signed entitlement updates, renewal/failure/cancellation handling and
+lease-fenced reconciliation. These changes are not activated by the wallet
+safeguards. Follow [the data billing runbook](DATA_API_BILLING.md) before deploying
+or enabling them. Do not enable wallet top-ups as a substitute or describe
+deposited balances as earned subscription revenue.
 
 Before enabling customer charges, complete required review/deployment, isolate
 the integration credential, verify the deliverable and pricing/data rights, and

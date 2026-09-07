@@ -68,6 +68,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fence new billing attempts before deleting any data. Existing billing
+    // customers need support reconciliation so subscriptions cannot be orphaned.
+    const { data: mayDelete, error: billingError } = await createAdminClient().rpc(
+      "prepare_data_api_billing_deletion", { p_user_id: user.id }
+    );
+    if (billingError) return NextResponse.json({ error: "Billing status could not be checked. Please try again later." }, { status: 503 });
+    if (!mayDelete) return NextResponse.json({ error: "Manage or cancel your data subscription, then contact support to reconcile billing before deleting your account." }, { status: 409 });
+
     // Delete user data in order (respecting foreign keys)
     // 1. Delete order messages
     await supabase.from("order_messages").delete().eq("sender_id", user.id);

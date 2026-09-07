@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDataApiEntitlement } from "@/lib/data-api/entitlements";
 import { handleApiError } from "@/lib/api-error";
+import { dataBillingCheckoutEnabled, dataBillingConfigured } from "@/lib/data-api/billing/config";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,9 @@ export async function GET() {
         checkoutEnabled: plan.checkout_enabled,
       })),
       billing: {
-        checkoutEnabled: false,
+        checkoutEnabled: dataBillingCheckoutEnabled() && dataBillingConfigured() && (plans ?? []).some((plan) => plan.checkout_enabled),
         message:
-          "Paid data plans are available only by admin grant while payment account setup is deferred.",
+          "Review current plan availability in billing. Pilot requests do not charge you or create subscriptions.",
       },
     });
   } catch (error) {

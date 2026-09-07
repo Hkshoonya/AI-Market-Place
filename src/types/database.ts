@@ -865,6 +865,24 @@ export interface DataApiUsageMonthlyRecord {
   updated_at: string;
 }
 
+export interface DataApiBillingCustomer {
+  user_id: string;
+  customer_id: string | null;
+  subscription_id: string | null;
+  customer_request_id: string;
+  checkout_attempt_id: string | null;
+  checkout_attempt_at: string | null;
+  checkout_plan_slug: string | null;
+  checkout_session_id: string | null;
+  access_hold: boolean;
+  deletion_pending: boolean;
+  lease_token: string | null;
+  lease_until: string | null;
+  last_synced_at: string;
+  last_checked_at: string;
+  created_at: string;
+}
+
 export interface AffiliateLinkRecord {
   id: string;
   platform_id: string;
@@ -1613,6 +1631,12 @@ export interface Database {
         Update: Partial<DataApiUsageMonthlyRecord>;
         Relationships: [];
       };
+      data_api_billing_customers: {
+        Row: AsRow<DataApiBillingCustomer>;
+        Insert: Partial<DataApiBillingCustomer> & Pick<DataApiBillingCustomer, "user_id">;
+        Update: Partial<DataApiBillingCustomer>;
+        Relationships: [];
+      };
       affiliate_links: {
         Row: AsRow<AffiliateLinkRecord>;
         Insert: Partial<AffiliateLinkRecord> & Pick<AffiliateLinkRecord, "platform_id" | "destination_url" | "program_name">;
@@ -2208,6 +2232,30 @@ export interface Database {
           period_start: string;
           period_end: string;
         }[];
+      };
+      claim_data_api_billing: {
+        Args: { p_user_id: string; p_account_id: string; p_livemode: boolean };
+        Returns: DataApiBillingCustomer[];
+      };
+      prepare_data_api_billing_deletion: {
+        Args: { p_user_id: string };
+        Returns: boolean;
+      };
+      save_data_api_billing: {
+        Args: { p_user_id: string; p_token: string; p_patch: Record<string, unknown> };
+        Returns: DataApiBillingCustomer[];
+      };
+      apply_data_api_billing: {
+        Args: {
+          p_user_id: string; p_token: string; p_subscription_id: string; p_plan_slug: string;
+          p_status: string; p_period_start: string; p_period_end: string;
+          p_event_id?: string; p_event_type?: string;
+        };
+        Returns: boolean;
+      };
+      release_data_api_billing: {
+        Args: { p_user_id: string; p_token: string };
+        Returns: undefined;
       };
       record_affiliate_click: {
         Args: {

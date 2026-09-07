@@ -55,6 +55,7 @@
     "cron:launch-signals": "node --import tsx scripts/run-launch-signals-cron.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --no-file-parallelism",
+    "test:data-billing-db": "bash scripts/test-data-billing-db.sh",
     "test:component": "node scripts/run-component-tests.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
