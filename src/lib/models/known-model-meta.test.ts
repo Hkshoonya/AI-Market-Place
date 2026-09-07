@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { buildKnownModelMetaPatch, getKnownModelMeta } from "./known-model-meta";
 
 describe("getKnownModelMeta", () => {
+  it("does not borrow older metadata for a new numeric version", () => {
+    for (const slug of ["anthropic-claude-fable-5-1", "anthropic-claude-fable-5-2", "anthropic-claude-opus-5-2"]) {
+      expect(getKnownModelMeta({ slug, provider: "Anthropic" })?.name).not.toBe(
+        slug.includes("opus") ? "Claude Opus 5" : "Claude Fable 5"
+      );
+    }
+  });
+
+  it("does not let a stale display name override a different versioned slug", () => {
+    expect(getKnownModelMeta({
+      slug: "anthropic-claude-fable-5-2", name: "Claude Fable 5", provider: "Anthropic",
+    })).toBeNull();
+  });
+
   it("does not treat Anthropic pricing anchors as model variants", () => {
     expect(
       getKnownModelMeta({

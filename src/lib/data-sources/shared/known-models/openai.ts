@@ -6,6 +6,17 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const OPENAI_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  // Launch date: official API changelog, 2026-09-03 (not API object creation).
+  "gpt-6-astra": {
+    name: "GPT-6 Astra",
+    description: "OpenAI's September 2026 model for reasoning, coding, computer use, research, and document creation. It supports text and image input, text output, and five reasoning effort levels. Tool calling uses the Responses API; availability is subject to provider rollout and safeguards.",
+    category: "multimodal", context_window: 1050000, release_date: "2026-09-03",
+    status: "active", is_api_available: true, is_open_weights: false,
+    license: "commercial", license_name: "Proprietary", modalities: ["text", "image"],
+    website_url: "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    capabilities: { reasoning: true, coding: true, vision: true, function_calling: true,
+      computer_use: true, streaming: true, max_reasoning: true, structured_outputs: true },
+  },
   // ---- GPT-5 series ----
   "gpt-5.6-sol": {
     name: "GPT-5.6 Sol",

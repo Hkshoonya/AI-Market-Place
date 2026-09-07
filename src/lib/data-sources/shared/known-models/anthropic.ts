@@ -10,6 +10,27 @@
 import type { KnownModelMeta } from "../build-record";
 
 export const ANTHROPIC_KNOWN_MODELS: Record<string, KnownModelMeta> = {
+  // Verified 2026-09-07 against the provider announcement and model reference.
+  "claude-fable-5-1": {
+    name: "Claude Fable 5.1",
+    description: "Anthropic's September 2026 model for long-running coding, research, and knowledge work. Available through paid Claude plans and provider APIs, with proprietary weights and safety safeguards. Cache reads cost $0.25 per million tokens; eligible customers can use zero data retention.",
+    category: "multimodal", context_window: 1000000, release_date: "2026-09-01",
+    status: "active", is_api_available: true, is_open_weights: false,
+    license: "commercial", license_name: "Proprietary", modalities: ["text", "image"],
+    website_url: "https://platform.claude.com/docs/en/models/fable-5-1/overview",
+    capabilities: { vision: true, coding: true, reasoning: true, tool_use: true,
+      adaptive_thinking: true, computer_use: true, streaming: true },
+  },
+  "claude-mythos-5-1": {
+    name: "Claude Mythos 5.1",
+    description: "Anthropic's restricted-access counterpart to Fable 5.1, with the same underlying capabilities and safeguards tailored for vetted cybersecurity and life-sciences work. Access requires provider approval; weights are not publicly downloadable.",
+    category: "multimodal", context_window: 1000000, release_date: "2026-09-01",
+    status: "preview", is_api_available: false, is_open_weights: false,
+    license: "commercial", license_name: "Proprietary", modalities: ["text", "image"],
+    website_url: "https://www.anthropic.com/claude-fable-and-mythos-5-1",
+    capabilities: { vision: true, coding: true, reasoning: true, tool_use: true,
+      adaptive_thinking: true, computer_use: true, streaming: true },
+  },
   // ---- Claude 5 / latest generation ----
   "claude-opus-5": {
     name: "Claude Opus 5",

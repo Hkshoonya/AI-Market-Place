@@ -85,15 +85,14 @@ describe("createAdapterSyncer — healthCheck (PIPE-06)", () => {
     expect(result.message).toContain("Network unreachable");
   });
 
-  it("returns healthy: true in static-only mode when no API key provided", async () => {
+  it("reports unhealthy when neither live API nor public discovery is available", async () => {
     delete process.env.TEST_API_KEY;
 
     const { healthCheck } = createAdapterSyncer(makeConfig());
     const result = await healthCheck({});
 
-    expect(result.healthy).toBe(true);
-    expect(result.latencyMs).toBe(0);
-    expect(result.message).toContain("Static-only mode");
+    expect(result.healthy).toBe(false);
+    expect(result.message).toContain("Live discovery unavailable");
     expect(result.message).toContain("2");
   });
 
@@ -130,7 +129,7 @@ describe("createAdapterSyncer — stale provider row cleanup", () => {
       errors: [],
     });
 
-    const staleRows = [{ slug: "test-stale-docs-slug" }, { slug: "model-a" }];
+    const staleRows = [{ slug: "test-stale-docs-slug" }, { slug: "test-future-model" }, { slug: "model-a" }];
     const selectChain = {
       eq: vi.fn().mockReturnThis(),
       like: vi.fn().mockResolvedValue({ data: staleRows, error: null }),
@@ -150,9 +149,11 @@ describe("createAdapterSyncer — stale provider row cleanup", () => {
 
     const { sync } = createAdapterSyncer({
       ...makeConfig(),
+      scrapeFn: async () => ["model-a"],
       deactivateMissing: {
         provider: "Test Provider",
         slugPrefix: "test",
+        shouldDeactivateSlug: (slug) => slug === "test-stale-docs-slug",
       },
     });
 
@@ -211,5 +212,62 @@ describe("createAdapterSyncer — public docs lifecycle enrichment", () => {
     expect(persistedRecords).toEqual([
       expect.objectContaining({ slug: "model-a", status: "preview" }),
     ]);
+  });
+});
+
+describe("createAdapterSyncer discovery safeguards", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("does not archive anything during a static-only fallback", async () => {
+    vi.spyOn(utils, "upsertBatch").mockResolvedValue({ created: 0, errors: [] });
+    const from = vi.fn();
+    const { sync } = createAdapterSyncer({ ...makeConfig(), deactivateMissing: {
+      provider: "Test", slugPrefix: "test", shouldDeactivateSlug: () => true,
+    } });
+    const result = await sync({ supabase: { from } as never, config: {}, secrets: {}, lastSyncAt: null });
+    expect(from).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.metadata).toMatchObject({ discoveryHealthy: false, deactivatedStale: 0 });
+  });
+
+  it.each([[], new Map()])("does not treat an empty API collection as fresh discovery: %s", async (collection) => {
+    vi.spyOn(utils, "upsertBatch").mockResolvedValue({ created: 0, errors: [] });
+    const from = vi.fn();
+    const { sync } = createAdapterSyncer({ ...makeConfig(), apiFn: async () => collection,
+      deactivateMissing: { provider: "Test", slugPrefix: "test", shouldDeactivateSlug: () => true },
+    });
+    const result = await sync({ supabase: { from } as never, config: {},
+      secrets: { TEST_API_KEY: "local-test-only" }, lastSyncAt: null });
+    expect(from).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.metadata).toMatchObject({ discoveryHealthy: false, apiModels: 0, deactivatedStale: 0 });
+  });
+
+  it("omits empty and inferred metadata on existing ID-only models, but names new rows", async () => {
+    const upsert = vi.spyOn(utils, "upsertBatch").mockResolvedValue({ created: 0, errors: [] });
+    const query = { in: vi.fn().mockResolvedValue({ data: [{ slug: "future-1", name: "Future 1", category: "multimodal" }], error: null }) };
+    const { sync } = createAdapterSyncer({ ...makeConfig(), knownModelIds: [], preserveDiscoveredMetadata: true,
+      scrapeFn: async () => ["future-1", "future-2"],
+      buildRecordFn: (id) => ({ slug: id, name: id, category: "llm", modalities: ["text"], description: null,
+        context_window: null, release_date: null, website_url: null, capabilities: {}, status: "active" }),
+    });
+    const result = await sync({ supabase: { from: () => ({ select: () => query }) } as never,
+      config: {}, secrets: {}, lastSyncAt: null });
+    expect(result.success).toBe(true);
+    expect(upsert.mock.calls[0][2]).toEqual([
+      { slug: "future-1", name: "Future 1", category: "multimodal", status: "active" },
+      { slug: "future-2", name: "future-2", category: "llm", modalities: ["text"], status: "active" },
+    ]);
+  });
+
+  it("fails closed when existing identities cannot be read", async () => {
+    const upsert = vi.spyOn(utils, "upsertBatch");
+    const { sync } = createAdapterSyncer({ ...makeConfig(), preserveDiscoveredMetadata: true,
+      scrapeFn: async () => ["future-1"],
+    });
+    const result = await sync({ supabase: { from: () => ({ select: () => ({ in: async () => ({ error: { message: "offline" } }) }) }) } as never,
+      config: {}, secrets: {}, lastSyncAt: null });
+    expect(result.success).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

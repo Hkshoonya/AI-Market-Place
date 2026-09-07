@@ -6,8 +6,7 @@
  *   2. Public HTML scrape — https://developers.openai.com/api/docs/models
  *   3. Static known-models data — always available, guarantees at least one sync
  *
- * No API key is required. The static map alone is sufficient to produce a
- * complete, meaningful sync of all current OpenAI models.
+ * No API key is required, but static fallback alone does not prove freshness.
  */
 
 import type { DataSourceAdapter } from "../types";
@@ -24,6 +23,7 @@ import {
 } from "../shared/known-models/openai";
 import { createAdapterSyncer } from "../shared/adapter-syncer";
 import type { ScrapedModelEntry } from "../shared/adapter-syncer";
+import { enrichDiscoveredModelDocs } from "../shared/provider-model-docs";
 
 // ---------------------------------------------------------------------------
 // Provider-level defaults
@@ -157,7 +157,7 @@ async function tryScrapeDocsPage(
       found.add(match[1]);
     }
 
-    return [...found]
+    const ids = [...found]
       .filter((modelId) => {
         if (/^codex-(for-oss|and-figma|ambassadors)$/.test(modelId)) {
           return false;
@@ -169,8 +169,8 @@ async function tryScrapeDocsPage(
           return false;
         }
         return true;
-      })
-      .map((modelId) => ({ id: modelId }));
+      });
+    return enrichDiscoveredModelDocs("OpenAI", ids, new Set(Object.keys(OPENAI_KNOWN_MODELS)), signal);
   } catch {
     return [];
   }
@@ -189,21 +189,17 @@ function enrichFromApi(
     overrides?: Partial<KnownModelMeta>
   ) => Record<string, unknown>
 ): void {
-  for (const [modelId, apiMetadata] of apiResult) {
+  for (const [modelId] of apiResult) {
     if (!recordMap.has(modelId)) {
       recordMap.set(
         modelId,
-        buildRecordFn(modelId, {
-          release_date: apiMetadata.releaseDate ?? undefined,
-        })
+        buildRecordFn(modelId)
       );
     }
 
     const existing = recordMap.get(modelId);
     if (existing) {
-      if (!existing.release_date && apiMetadata.releaseDate) {
-        existing.release_date = apiMetadata.releaseDate;
-      }
+      // API creation time can predate public launch; it is not a release date.
       existing.data_refreshed_at = now;
     }
   }
@@ -221,6 +217,7 @@ const { sync, healthCheck } = createAdapterSyncer<
   knownModelIds: Object.keys(OPENAI_KNOWN_MODELS),
   buildRecordFn: boundBuildRecord,
   staticModelCount: Object.keys(OPENAI_KNOWN_MODELS).length,
+  preserveDiscoveredMetadata: true,
   scrapeFn: tryScrapeDocsPage,
   apiFn: tryFetchLiveApi,
   enrichFn: enrichFromApi,
@@ -230,6 +227,8 @@ const { sync, healthCheck } = createAdapterSyncer<
   deactivateMissing: {
     provider: "OpenAI",
     slugPrefix: "openai",
+    // Account-scoped API lists are not complete provider catalogues.
+    shouldDeactivateSlug: (slug) => /(?:-system-card|-introductory-pricing|\.(?:png|jpe?g|svg|webp))$/.test(slug),
   },
 });
 

@@ -158,8 +158,7 @@ function isAllowedVariantToken(token: string): boolean {
   return (
     ALLOWED_VARIANT_TOKENS.has(token) ||
     /^\d+(?:b|m|k)$/.test(token) ||
-    /^[a-z]\d+b$/.test(token) ||
-    /^\d{1,4}$/.test(token)
+    /^[a-z]\d+b$/.test(token)
   );
 }
 
@@ -182,7 +181,7 @@ function isSubsetTokenMatch(
     return false;
   }
 
-  const extras = candidateTokens.filter((token) => !catalogTokens.includes(token));
+  const extras = candidateTokens.slice(catalogTokens.length);
   return extras.every((token) => isAllowedVariantToken(token));
 }
 
@@ -207,6 +206,14 @@ function cacheKnownModelMeta(key: string, meta: KnownModelMeta | null) {
 export function getKnownModelMeta(
   model: KnownModelLookupInput
 ): KnownModelMeta | null {
+  // A stale display name must not override the version in the stable identity.
+  const versions = (value: string | null | undefined) =>
+    tokenizeModelIdentity(value, model.provider).filter((token) => /^\d+$/.test(token)).join(".");
+  const slugVersion = versions(model.slug);
+  const nameVersion = versions(model.name);
+  if (slugVersion && nameVersion && slugVersion !== nameVersion) {
+    model = { ...model, name: undefined };
+  }
   const cacheKey = getKnownModelCacheKey(model);
   if (knownModelMetaCache.has(cacheKey)) {
     return knownModelMetaCache.get(cacheKey) ?? null;

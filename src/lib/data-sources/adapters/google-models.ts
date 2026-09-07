@@ -248,6 +248,7 @@ const { sync, healthCheck } = createAdapterSyncer<
   deactivateMissing: {
     provider: "Google",
     slugPrefix: "google",
+    shouldDeactivateSlug: (slug) => /(?:-system-card|-introductory-pricing)$/.test(slug),
   },
 });
 
