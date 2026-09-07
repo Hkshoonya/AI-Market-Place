@@ -18,7 +18,7 @@ export function TopSubscriptionProviders({ offers }: TopSubscriptionProvidersPro
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No verified subscription plans are available yet.
+            Subscription pricing is not available right now. Please check back later.
           </p>
         </CardContent>
       </Card>
@@ -32,20 +32,23 @@ export function TopSubscriptionProviders({ offers }: TopSubscriptionProvidersPro
         <p className="text-sm text-muted-foreground">
           Ranked for user value, trust, affordability, and real utility breadth.
         </p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Tracked monthly prices in USD, not a live quote. Providers bill separately.
+          Check their current billing cycle, taxes, regional pricing, usage limits,
+          and model availability before subscribing. A chat subscription does not
+          automatically include API credits.
+        </p>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/30">
-                <th className="w-12 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                <th className="hidden w-12 px-4 py-3 text-left text-xs font-medium text-muted-foreground md:table-cell">
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                   Plan
-                </th>
-                <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground md:table-cell">
-                  Monthly
                 </th>
                 <th className="hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground lg:table-cell">
                   Value & Trust
@@ -61,7 +64,7 @@ export function TopSubscriptionProviders({ offers }: TopSubscriptionProvidersPro
             <tbody>
               {offers.map((offer, index) => (
                 <tr key={offer.platform.id} className="border-b border-border/30">
-                  <td className="px-4 py-3.5">
+                  <td className="hidden px-4 py-3.5 md:table-cell">
                     <span
                       className={`text-sm font-bold tabular-nums ${
                         index < 3 ? "text-neon" : "text-muted-foreground"
@@ -78,20 +81,20 @@ export function TopSubscriptionProviders({ offers }: TopSubscriptionProvidersPro
                           {offer.label}
                         </Badge>
                       </div>
+                      <div className="text-sm font-semibold tabular-nums text-neon">
+                        {offer.monthlyPriceLabel}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {offer.topModels.length > 0
-                          ? `Covers ${offer.topModels.map((model) => model.name).join(", ")}`
+                          ? `Related models: ${offer.topModels.map((model) => model.name).join(", ")}`
                           : `${offer.modelCount} tracked models`}
                       </div>
+                      {offer.freeTier && (
+                        <p className="text-xs text-muted-foreground">
+                          Free access notes: {offer.freeTier}
+                        </p>
+                      )}
                     </div>
-                  </td>
-                  <td className="hidden px-4 py-3.5 text-right text-sm font-medium md:table-cell">
-                    {offer.monthlyPriceLabel}
-                    {offer.freeTier && (
-                      <div className="text-[10px] uppercase tracking-[0.14em] text-gain">
-                        Trial
-                      </div>
-                    )}
                   </td>
                   <td className="hidden px-4 py-3.5 text-right lg:table-cell">
                     <div className="space-y-1 text-sm">
@@ -137,4 +140,3 @@ export function TopSubscriptionProviders({ offers }: TopSubscriptionProvidersPro
     </Card>
   );
 }
-

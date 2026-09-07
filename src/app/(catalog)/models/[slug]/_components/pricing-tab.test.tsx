@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PricingTab } from "./pricing-tab";
+import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 
 vi.mock("@/components/charts/price-comparison", () => ({
   PriceComparison: ({ models }: { models: Array<{ name: string }> }) => (
@@ -90,5 +91,19 @@ describe("PricingTab", () => {
     render(<PricingTab modelProvider="OpenAI" pricingData={[]} accessOffers={[]} />);
 
     expect(screen.getByText("No pricing data available yet.")).toBeInTheDocument();
+  });
+
+  it("shows subscription rates and free-access notes even without API pricing", () => {
+    const { subscriptionOffers } = buildAccessOffersCatalog({
+      platforms: [{ id: "p1", slug: "plan", name: "Example Plan", type: "subscription", base_url: "https://example.com", has_affiliate: false }],
+      deployments: [{ id: "d1", model_id: "m1", platform_id: "p1", pricing_model: "monthly", price_per_unit: 19.99, unit_description: "month", free_tier: "Limited free tier", one_click: false }],
+      models: [],
+    });
+    render(<PricingTab modelProvider="OpenAI" pricingData={[]} accessOffers={subscriptionOffers} />);
+    expect(screen.getByText("Example Plan")).toBeInTheDocument();
+    expect(screen.getByText("$19.99/mo")).toBeInTheDocument();
+    expect(screen.getByText("Free access notes: Limited free tier")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Plan" })).toHaveAttribute("href", "/go/plan?source=access-offer");
+    expect(screen.getByText(/Public pricing, no login required/)).toBeInTheDocument();
   });
 });

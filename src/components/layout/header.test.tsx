@@ -121,6 +121,15 @@ describe("Header", () => {
     expect(screen.getByTestId("mobile-auth-controls")).toBeInTheDocument();
   });
 
+  it("exposes pricing in desktop and mobile navigation without login", () => {
+    render(<Header />);
+
+    for (const name of ["Main navigation", "Mobile navigation"]) {
+      const navigation = screen.getByRole("navigation", { name });
+      expect(within(navigation).getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
+    }
+  });
+
   it("does not restart navigation when the active top-level route is clicked", () => {
     mockUsePathname.mockReturnValue("/models");
 
