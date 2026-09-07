@@ -148,8 +148,11 @@ network-disabled PostgreSQL 17 container with no published port. It covers RLS,
 RPC grants, merchant/mode guards, lease fencing, replay safety, quota changes,
 manual-grant conflicts, holds and deletion fencing.
 
-Mock tests and local browser fixtures are not Stripe end-to-end evidence. Genuine
-sandbox billing and production migration/deployment remain launch gates. Existing
+Mock tests and local browser fixtures are not Stripe end-to-end evidence. A genuine
+isolated Stripe run on 2026-09-07 verified payment, SCA, renewal, failed-payment
+recovery, cancellation, refund/dispute holds, replay and actual API quota changes;
+see [the sandbox evidence and limitations](DATA_API_SANDBOX_2026_09.md). Exact
+restricted-key permissions and production migration/deployment remain launch gates. Existing
 API keys retain their explicitly stored per-key rate caps after a plan upgrade;
 new keys use the new plan defaults. Monthly quotas reset by UTC calendar month,
 not subscription anniversary. Self-serve plan switching/proration, automated

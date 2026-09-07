@@ -17,6 +17,13 @@ describe("verified paid entitlement snapshots", () => {
     expect(subscriptionSnapshot(config, billingLease(), subscription({ status: "canceled" })).status).toBe("canceled");
     expect(subscriptionSnapshot(config, billingLease(), subscription({ cancel_at_period_end: true })).status).toBe("active");
   });
+  it("honors portal cancellation timestamps without relying on the legacy boolean", () => {
+    const scheduled = subscription({ cancel_at_period_end: false, cancel_at: 1790812800 });
+    expect(subscriptionSnapshot(config, billingLease(), scheduled)).toMatchObject({
+      status: "active", end: "2026-10-01T00:00:00.000Z",
+    });
+    expect(subscriptionSnapshot(config, billingLease(), { ...scheduled, status: "canceled" }).status).toBe("canceled");
+  });
   it("fails closed for paused collection and foreign invoice customers", () => {
     expect(subscriptionSnapshot(config, billingLease(), subscription({ pause_collection: { behavior: "void" } })).status).toBe("expired");
     expect(subscriptionSnapshot(config, billingLease(), subscription({ latest_invoice: { status: "paid", customer: "cus_foreign", livemode: false } })).status).toBe("expired");
