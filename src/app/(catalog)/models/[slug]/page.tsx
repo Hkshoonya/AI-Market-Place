@@ -25,6 +25,7 @@ import { SimilarModels } from "@/components/models/similar-models";
 import { DeployTab } from "@/components/models/deploy-tab";
 import { ModelOverview } from "@/components/models/model-overview";
 import { ModelUpgradeNote } from "@/components/models/model-upgrade-note";
+import { ModelPricingSummary } from "./_components/model-pricing-summary";
 import { ModelViewTracker } from "@/components/models/model-view-tracker";
 import { ModelEvidenceProfileCard } from "@/components/models/model-evidence-profile";
 import { ModelHeader } from "./_components/model-header";
@@ -452,6 +453,14 @@ export default async function ModelDetailPage({
       />
 
       <ModelUpgradeNote model={model} />
+
+      <ModelPricingSummary
+        slug={model.slug}
+        provider={model.provider}
+        pricingData={pricingData}
+        accessOffers={modelAccessOffers}
+        accessAvailable={allowsLiveAccessSignals}
+      />
 
       {lifecycleBadge && !lifecycleBadge.rankedByDefault && (
         <Card className="mt-4 border-border/50 bg-card/60">

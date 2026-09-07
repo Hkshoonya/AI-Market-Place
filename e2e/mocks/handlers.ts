@@ -171,6 +171,19 @@ async function readBody(request: Request) {
 }
 
 export const handlers = [
+  http.get(`${SUPABASE_URL}/rest/v1/deployment_platforms`, ({ request }) => {
+    return jsonResult(request, applyQueryFilters([{
+      id: "public-pricing-plan", slug: "example-research-plan", name: "Example Research Plan",
+      type: "subscription", base_url: "https://example.com/pricing", has_affiliate: false,
+    }], request));
+  }),
+  http.get(`${SUPABASE_URL}/rest/v1/model_deployments`, ({ request }) => {
+    return jsonResult(request, applyQueryFilters([{
+      id: "public-pricing-deployment", model_id: modelDetailFixture.primary_model.id,
+      platform_id: "public-pricing-plan", pricing_model: "monthly", price_per_unit: 19.99,
+      unit_description: "month", free_tier: "Limited free tier", one_click: false, status: "available",
+    }], request));
+  }),
   http.get(`${SUPABASE_URL}/rest/v1/models`, ({ request }) => {
     const url = new URL(request.url);
     const slugParam = url.searchParams.get("slug");

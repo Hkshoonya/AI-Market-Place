@@ -45,6 +45,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 const NAV_ITEMS = [
   { href: "/models", label: "Models", icon: Activity },
   { href: "/deploy", label: "Deploy", icon: Rocket },
+  { href: "/pricing", label: "Pricing", icon: Wallet },
   { href: "/leaderboards", label: "Leaderboards", icon: BarChart3 },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
   { href: "/skills", label: "Skills", icon: Sparkles },

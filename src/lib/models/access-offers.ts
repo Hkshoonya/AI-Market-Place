@@ -108,7 +108,8 @@ export function getAccessOfferActionLabel(
   kind: AccessOfferKind,
   freeTier: string | null
 ): RankedAccessOffer["actionLabel"] {
-  if (freeTier) return "Start Free Trial";
+  // Free credits or a permanent free tier do not establish trial eligibility.
+  if (freeTier) return "View Plan";
   if (kind === "subscription") return "Subscribe";
   if (kind === "api_access") return "Get API Access";
   if (kind === "deployment") return "Deploy";
@@ -175,7 +176,7 @@ function buildOfferSeed(
         deployment.price_per_unit != null &&
         Number.isFinite(deployment.price_per_unit) &&
         deployment.price_per_unit >= 0 &&
-        (deployment.pricing_model === "monthly" || platform.type === "subscription")
+        deployment.pricing_model === "monthly"
     )
     .map((deployment) => Number(deployment.price_per_unit));
 
@@ -281,10 +282,10 @@ function finalizeOfferScores(seeds: OfferSeed[]): RankedAccessOffer[] {
         monthlyPrice: seed.monthlyPrice,
         monthlyPriceLabel:
           seed.monthlyPrice == null
-            ? "Custom"
+            ? "Price not verified"
             : seed.monthlyPrice === 0
               ? "Free"
-              : `$${seed.monthlyPrice.toFixed(0)}/mo`,
+              : `$${seed.monthlyPrice.toLocaleString("en-US", { maximumFractionDigits: 2 })}/mo`,
         score,
         userValueScore: seed.userValueScore,
         trustScore: seed.trustScore,

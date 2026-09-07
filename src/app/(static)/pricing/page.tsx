@@ -1,33 +1,28 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight, CreditCard, Database, Gauge, ShieldCheck, Wallet } from "lucide-react";
+import { unstable_cache } from "next/cache";
+import { connection } from "next/server";
+import { ArrowRight, Database, Gauge } from "lucide-react";
 
 import { TopSubscriptionProviders } from "@/components/home/top-subscription-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SITE_URL } from "@/lib/constants/site";
-import {
-  buildAccessOffersCatalog,
-  type RankedAccessOffer,
-} from "@/lib/models/access-offers";
+import { buildAccessOffersCatalog } from "@/lib/models/access-offers";
 import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { preferDefaultPublicSurfaceReady } from "@/lib/models/public-surface-readiness";
 import { fetchAllHomepageActiveModels } from "@/lib/homepage/fetch-active-models";
-import { createOptionalAdminClient } from "@/lib/supabase/admin";
 import { createOptionalPublicClient } from "@/lib/supabase/public-server";
 
 export const metadata: Metadata = {
   title: "Pricing & Access",
   description:
-    "Compare AI Market Cap data API plans and verified subscription access for top AI models.",
+    "Compare model rates, provider subscriptions, and AI Market Cap data API plans without logging in. See prices, quotas, and billing details before joining.",
   alternates: {
     canonical: `${SITE_URL}/pricing`,
   },
 };
-
-function sumCoveredModels(offers: RankedAccessOffer[]) {
-  return offers.reduce((total, offer) => total + offer.modelCount, 0);
-}
 
 const DATA_API_PLANS = [
   {
@@ -65,29 +60,26 @@ const DATA_API_PLANS = [
   },
 ] as const;
 
-export default async function PricingPage() {
-  const supabase = createOptionalPublicClient() ?? createOptionalAdminClient();
+const loadSubscriptionOffers = unstable_cache(async () => {
+  const supabase = createOptionalPublicClient();
+  if (!supabase) throw new Error("Public pricing client is not configured");
 
-  const allActiveModels = supabase
-    ? await fetchAllHomepageActiveModels(
-        supabase as unknown as Parameters<typeof fetchAllHomepageActiveModels>[0]
-      ).catch((error) => {
-        console.warn("pricing page active models query failed", error);
-        return [];
-      })
-    : [];
+  const allActiveModels = await fetchAllHomepageActiveModels(
+    supabase as unknown as Parameters<typeof fetchAllHomepageActiveModels>[0]
+  );
 
-  const [deploymentPlatformsRaw, modelDeploymentsRaw] = supabase
-    ? await Promise.all([
-        supabase.from("deployment_platforms").select("*").order("name"),
-        supabase
-          .from("model_deployments")
-          .select(
-            "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
-          )
-          .eq("status", "available"),
-      ])
-    : [{ data: [] }, { data: [] }];
+  const [deploymentPlatformsRaw, modelDeploymentsRaw] = await Promise.all([
+    supabase.from("deployment_platforms").select("*").order("name"),
+    supabase
+      .from("model_deployments")
+      .select(
+        "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
+      )
+      .eq("status", "available"),
+  ]);
+  if (deploymentPlatformsRaw.error || modelDeploymentsRaw.error) {
+    throw new Error("Subscription pricing query failed");
+  }
 
   const activeModels = preferDefaultPublicSurfaceReady(
     dedupePublicModelFamilies(
@@ -121,9 +113,20 @@ export default async function PricingPage() {
     deployments: modelDeploymentsRaw.data ?? [],
     models: activeModels as Parameters<typeof buildAccessOffersCatalog>[0]["models"],
   });
-  const subscriptionOffers = accessOffers.subscriptionOffers.slice(0, 12);
-  const coveredModelCount = sumCoveredModels(subscriptionOffers);
+  return accessOffers.subscriptionOffers.slice(0, 12);
+}, ["public-subscription-offers-v1"], { revalidate: 300 });
 
+async function ProviderSubscriptionPlans() {
+  // Keep build-time outages from freezing an empty catalog into the public page.
+  await connection();
+  const offers = await loadSubscriptionOffers().catch(() => {
+    console.warn("Public subscription prices are temporarily unavailable");
+    return [];
+  });
+  return <TopSubscriptionProviders offers={offers} />;
+}
+
+export default function PricingPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 md:py-16">
       <section className="max-w-3xl">
@@ -131,41 +134,44 @@ export default async function PricingPage() {
           Pricing & Access
         </p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
-          AI model intelligence for your next product
+          Rates & subscription plans
         </h1>
         <p className="mt-4 text-base text-muted-foreground md:text-lg">
-          Build model discovery, research dashboards, and provider comparisons with
-          structured rankings, benchmark evidence, pricing, and recorded history.
-          Start with a free API key, then discuss production access as your usage grows.
+          Compare costs before you join. Browse model rates, provider subscriptions,
+          and our data API plans without an account. All prices on this page are in USD.
+          Provider inference and hosting are billed separately from AI Market Cap data access.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button className="bg-neon text-background hover:bg-neon/90" asChild>
-            <Link href="/settings/api-keys">
-              Start with the free API
+            <Link href="/models">
+              Compare model rates
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/api-docs">Explore the API documentation</Link>
+            <Link href="#provider-subscriptions">Provider subscriptions</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="#data-api-plans">AI Market Cap plans</Link>
           </Button>
         </div>
       </section>
 
-      <section className="mt-12">
+      <section id="data-api-plans" className="mt-12 scroll-mt-24">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-neon">
-              First-party data API
+              AI Market Cap data API
             </p>
             <h2 className="mt-2 text-2xl font-semibold md:text-3xl">
-              Build with rankings, model records, search, and history
+              Our plans, quotas, and what you get
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               Every plan uses scoped API keys, monthly quotas, and per-minute controls. Pro and
-              Business are pilot grants for now; online checkout is intentionally disabled until
-              the correct AI Market Cap payment account is connected.
+              Business are pilot grants for now; paid checkout is not enabled.
               History varies by model and collection start date. Prices below are proposed monthly plans;
               requesting a pilot does not charge you or create a subscription.
+              These plans provide model data, not model inference, GPU time, or provider subscriptions.
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -190,6 +196,9 @@ export default async function PricingPage() {
               ) : null}
               <CardHeader>
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {plan.name === "Explorer" ? "Free access; sign in to create an API key" : "Proposed price; pilot request only, not available to buy"}
+                </p>
                 <div className="flex items-end gap-1">
                   <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
                   <span className="pb-1 text-sm text-muted-foreground">/ month</span>
@@ -232,44 +241,10 @@ export default async function PricingPage() {
         </Card>
       </section>
 
-      <section className="mt-10 grid gap-4 md:grid-cols-3">
-        <Card className="border-border/50 bg-card">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-5 w-5 text-neon" />
-              <div>
-                <p className="text-sm text-muted-foreground">Subscription plans tracked</p>
-                <p className="text-3xl font-bold">{subscriptionOffers.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <Wallet className="h-5 w-5 text-neon" />
-              <div>
-                <p className="text-sm text-muted-foreground">Covered model instances</p>
-                <p className="text-3xl font-bold">{coveredModelCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 bg-card">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-neon" />
-              <div>
-                <p className="text-sm text-muted-foreground">What the ranking values</p>
-                <p className="text-base font-semibold">Trust, breadth, affordability</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="mt-10">
-        <TopSubscriptionProviders offers={subscriptionOffers} />
+      <section id="provider-subscriptions" className="mt-10 scroll-mt-24" aria-label="Provider subscriptions">
+        <Suspense fallback={<p role="status" className="rounded-xl border border-border/50 p-6 text-sm text-muted-foreground">Loading provider subscription prices...</p>}>
+          <ProviderSubscriptionPlans />
+        </Suspense>
       </section>
 
       <section className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -278,7 +253,9 @@ export default async function PricingPage() {
             <CardTitle className="text-lg">How to use this page</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Start with plan coverage and price, then check whether the plan includes the models you actually use.</p>
+            <p>Browsing rates and plan details is free, with no login required. Sign in only when you need account features such as API keys, saved models, or a workspace.</p>
+            <p>Model pages show input and output prices per million tokens, or the applicable request, GPU, or monthly unit. Missing or stale pricing is not treated as free.</p>
+            <p>Provider plans have their own billing cycles, cancellation rules, and usage caps. Related model listings are not a guarantee of plan entitlement; confirm the exact model with the provider.</p>
             <p>Use the leaderboards when you need deeper quality or benchmark context before you buy.</p>
           </CardContent>
         </Card>
@@ -287,7 +264,8 @@ export default async function PricingPage() {
             <CardTitle className="text-lg">What this is not</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>This is not a full total-cost calculator for heavy API volume. It is a starting point for verified paid access options.</p>
+            <p>This is not a full total-cost calculator. Context length, caching, tools, regional pricing, taxes, and provider terms can change your final bill.</p>
+            <p>API credits are not automatically included in a chat subscription. GPU hosting and open-weight model inference can incur separate charges.</p>
             <p>When a plan includes partner disclosure, that is shown in the action column rather than hidden.</p>
           </CardContent>
         </Card>

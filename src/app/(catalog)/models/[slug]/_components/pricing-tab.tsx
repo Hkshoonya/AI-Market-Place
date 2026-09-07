@@ -115,6 +115,12 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
           and the best places to try or deploy this model. The detailed table stays below if you
           want the full pricing breakdown.
         </p>
+        <p className="mb-6 text-xs leading-relaxed text-muted-foreground">
+          Public pricing, no login required. Rates are in USD and billed by the provider,
+          separately from AI Market Cap data plans. Confirm billing cycle, taxes, usage caps,
+          and specific model availability before purchasing. A subscription does not automatically
+          include API credits; context length, caching, and tools can change usage costs.
+        </p>
         {tokenPricingRows.length > 1 && (
           <div className="mb-6">
             <PriceComparison
@@ -154,6 +160,8 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
                 </div>
               </div>
             </div>
+          </>
+        ) : null}
             {accessOffers.length > 0 ? (
               <div className="mb-6 grid gap-3 md:grid-cols-3">
                 {accessOffers.slice(0, 3).map((offer) => (
@@ -175,6 +183,9 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
                     <div className="mt-4 text-sm font-semibold">
                       {offer.monthlyPriceLabel}
                     </div>
+                    {offer.freeTier ? (
+                      <p className="mt-2 text-xs text-muted-foreground">Free access notes: {offer.freeTier}</p>
+                    ) : null}
                     <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                       {offer.actionLabel} · Value {offer.userValueScore.toFixed(0)} · Trust {offer.trustScore.toFixed(0)}
                     </div>
@@ -196,6 +207,8 @@ export function PricingTab({ pricingData, modelProvider, accessOffers = [] }: Pr
                 ))}
               </div>
             ) : null}
+        {sortedPricing.length > 0 ? (
+          <>
             <p className="mb-4 text-xs text-muted-foreground">
               Official provider access is separated from brokers and routers, so the lowest price does not
               get confused with the first-party route.

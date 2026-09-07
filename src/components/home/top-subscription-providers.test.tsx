@@ -35,7 +35,7 @@ describe("TopSubscriptionProviders", () => {
             topModels: [
               { slug: "openai-gpt-4o", name: "GPT-4o", provider: "OpenAI" },
             ],
-            freeTier: null,
+            freeTier: "Limited free tier",
           },
           {
             platform: {
@@ -75,5 +75,13 @@ describe("TopSubscriptionProviders", () => {
     expect(screen.getByText("Partner-supported link")).toBeInTheDocument();
     expect(screen.getAllByText("$20/mo")).toHaveLength(2);
     expect(screen.getByText("ChatGPT Plus")).toBeInTheDocument();
+    expect(screen.getByText("Free access notes: Limited free tier")).toBeInTheDocument();
+    expect(screen.queryByText("Trial")).not.toBeInTheDocument();
+    expect(screen.getByText(/Related models: GPT-4o/)).toBeInTheDocument();
+    expect(screen.getByText(/Tracked monthly prices in USD/)).toBeInTheDocument();
+    for (const price of screen.getAllByText("$20/mo")) {
+      expect(price.closest("td")).not.toHaveClass("hidden");
+      expect(price).not.toHaveClass("hidden");
+    }
   });
 });

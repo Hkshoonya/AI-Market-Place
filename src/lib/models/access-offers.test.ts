@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAccessOffersCatalog, getBestAccessOfferForModel } from "./access-offers";
+import { buildAccessOffersCatalog, getAccessOfferActionLabel, getBestAccessOfferForModel } from "./access-offers";
 
 describe("buildAccessOffersCatalog", () => {
   it("ranks trusted affordable subscription offers above expensive weaker ones", () => {
@@ -142,7 +142,7 @@ describe("buildAccessOffersCatalog", () => {
     expect(result.subscriptionOffers[0]?.partnerDisclosure).toBe("Partner-supported link");
   });
 
-  it("uses trial-aware and api-aware CTA labels", () => {
+  it("links to plan details without promising trial eligibility and preserves API labels", () => {
     const result = buildAccessOffersCatalog({
       platforms: [
         {
@@ -210,7 +210,7 @@ describe("buildAccessOffersCatalog", () => {
 
     const bySlug = new Map(result.subscriptionOffers.map((offer) => [offer.platform.slug, offer]));
 
-    expect(bySlug.get("claude-pro")?.actionLabel).toBe("Start Free Trial");
+    expect(bySlug.get("claude-pro")?.actionLabel).toBe("View Plan");
     expect(bySlug.get("minimax-api")?.actionLabel).toBe("Get API Access");
     expect(bySlug.get("minimax-api")?.label).toBe("Verified");
   });
@@ -256,7 +256,7 @@ describe("buildAccessOffersCatalog", () => {
     expect(result.subscriptionOffers).toHaveLength(1);
     expect(result.subscriptionOffers[0]?.platform.slug).toBe("kimi-code-membership");
     expect(result.subscriptionOffers[0]?.monthlyPrice).toBeNull();
-    expect(result.subscriptionOffers[0]?.monthlyPriceLabel).toBe("Custom");
+    expect(result.subscriptionOffers[0]?.monthlyPriceLabel).toBe("Price not verified");
     expect(result.subscriptionOffers[0]?.actionLabel).toBe("Subscribe");
   });
 
@@ -346,8 +346,30 @@ describe("buildAccessOffersCatalog", () => {
 
     expect(getBestAccessOfferForModel(result, "m2")).toMatchObject({
       platform: { slug: "runpod" },
-      actionLabel: "Start Free Trial",
+      actionLabel: "View Plan",
       partnerDisclosure: "Partner-supported link",
     });
+  });
+
+  it.each(["Starter credit", "Permanent free tier", "No free trial"])(
+    "does not call %s a free trial",
+    (notes) => expect(getAccessOfferActionLabel("subscription", notes)).toBe("View Plan")
+  );
+
+  it.each([
+    ["monthly", 19.99, "$19.99/mo"],
+    ["monthly", 0, "Free"],
+    ["monthly", null, "Price not verified"],
+    ["monthly", -1, "Price not verified"],
+    ["monthly", Number.NaN, "Price not verified"],
+    ["per-hour", 0.8, "Price not verified"],
+    ["annual", 199, "Price not verified"],
+  ])("formats %s price %s without changing the billing unit", (pricingModel, amount, label) => {
+    const catalog = buildAccessOffersCatalog({
+      platforms: [{ id: "p1", slug: "plan", name: "Plan", type: "subscription", base_url: "https://example.com", has_affiliate: false }],
+      deployments: [{ id: "d1", model_id: "m1", platform_id: "p1", pricing_model: pricingModel, price_per_unit: amount, unit_description: null, free_tier: null, one_click: false }],
+      models: [],
+    });
+    expect(catalog.subscriptionOffers[0]?.monthlyPriceLabel).toBe(label);
   });
 });
