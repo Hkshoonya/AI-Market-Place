@@ -23,6 +23,14 @@ describe("provider identity", () => {
     expect(getCanonicalProviderName("topogoogles")).toBe("topogoogles");
   });
 
+  it("keeps unknown and prototype-shaped provider names as strings", () => {
+    expect(getCanonicalProviderName("constructor")).toBe("constructor");
+    expect(getProviderBrand("constructor")).toBeNull();
+    expect(getCanonicalProviderName("  Independent Lab  ")).toBe("Independent Lab");
+    expect(getCanonicalProviderName(null)).toBe("Unknown");
+    expect(getCanonicalProviderName("---")).toBe("Unknown");
+  });
+
   it("builds stable provider slugs from canonical names", () => {
     expect(getProviderSlug("openai")).toBe("openai");
     expect(getProviderSlug("Mistral AI")).toBe("mistral-ai");

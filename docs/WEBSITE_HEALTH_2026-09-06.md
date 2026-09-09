@@ -1,5 +1,9 @@
 # Website Health Check: 2026-09-06
 
+This is the initial, pre-rollout snapshot. PRs #33 and #30 were subsequently
+deployed. See [the catalog efficiency follow-up](CATALOG_EFFICIENCY_2026-09-06.md)
+for the later deployment state, measured bottlenecks and remaining blockers.
+
 ## Result
 
 Production is online, but not fully healthy or verified for paid public launch.

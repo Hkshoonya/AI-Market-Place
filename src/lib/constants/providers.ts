@@ -83,6 +83,11 @@ export function normalizeProviderKey(providerName: string | null | undefined): s
   return (providerName ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+const CANONICAL_PROVIDERS = new Map(Object.entries(PROVIDER_ALIASES));
+for (const brand of Object.keys(PROVIDER_BRANDS)) {
+  CANONICAL_PROVIDERS.set(normalizeProviderKey(brand), brand);
+}
+
 export function getCanonicalProviderName(providerName: string | null | undefined): string {
   const trimmed = (providerName ?? "").trim();
   if (!trimmed) return "Unknown";
@@ -90,18 +95,7 @@ export function getCanonicalProviderName(providerName: string | null | undefined
   const key = normalizeProviderKey(trimmed);
   if (!key) return "Unknown";
 
-  const exactBrand = Object.keys(PROVIDER_BRANDS).find(
-    (brand) => normalizeProviderKey(brand) === key
-  );
-  if (exactBrand) {
-    return exactBrand;
-  }
-
-  if (PROVIDER_ALIASES[key]) {
-    return PROVIDER_ALIASES[key];
-  }
-
-  return trimmed;
+  return CANONICAL_PROVIDERS.get(key) ?? trimmed;
 }
 
 export function getProviderSlug(providerName: string | null | undefined): string {
@@ -148,7 +142,7 @@ export function getProviderBrand(providerName: string): ProviderBrand | null {
   const canonicalProvider = getCanonicalProviderName(providerName);
 
   // Exact match
-  if (PROVIDER_BRANDS[canonicalProvider]) {
+  if (Object.hasOwn(PROVIDER_BRANDS, canonicalProvider)) {
     return PROVIDER_BRANDS[canonicalProvider];
   }
 

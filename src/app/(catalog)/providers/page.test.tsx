@@ -13,7 +13,19 @@ const mockIsSelfHostedDeployabilityLabel = vi.fn();
 const mockSummarizeProviderSelfHostRequirements = vi.fn();
 const mockPreferDefaultPublicSurfaceReady = vi.fn();
 
-vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+const cachedResults = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/cache", () => ({
+  unstable_cache: (fn: (...args: unknown[]) => Promise<unknown>, keys: string[]) =>
+    async (...args: unknown[]) => {
+      const key = JSON.stringify([keys, args]);
+      const cached = cachedResults.get(key);
+      if (cached) return JSON.parse(cached);
+      const result = await fn(...args);
+      const serialized = JSON.stringify(result);
+      cachedResults.set(key, serialized);
+      return JSON.parse(serialized);
+    },
+}));
 
 vi.mock("@/lib/supabase/public-server", () => ({
   createPublicClient: () => mockCreatePublicClient(),
@@ -81,7 +93,7 @@ vi.mock("@/lib/models/public-surface-readiness", () => ({
     mockPreferDefaultPublicSurfaceReady(...args),
 }));
 
-function createQuery<T>(data: T) {
+function createQuery<T>(data: T, error: { message: string } | null = null) {
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -90,12 +102,36 @@ function createQuery<T>(data: T) {
     in: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     range: vi.fn().mockReturnThis(),
-    then: (resolve: (value: { data: T; error: null }) => unknown) =>
-      Promise.resolve(resolve({ data, error: null })),
+    then: (resolve: (value: { data: T; error: { message: string } | null }) => unknown) =>
+      Promise.resolve(resolve({ data, error })),
   };
 }
 
 describe("ProvidersPage", () => {
+  it("reuses serializable public summaries across different searches and pages", async () => {
+    const { default: ProvidersPage } = await import("./page");
+    const first = render(await ProvidersPage({ searchParams: Promise.resolve({ q: "OpenAI" }) }));
+    expect(screen.getByText("ProviderSignal:OpenAI pricing update")).toBeInTheDocument();
+    const queryCount = mockCreatePublicClient().from.mock.calls.length;
+    first.unmount();
+    render(await ProvidersPage({ searchParams: Promise.resolve({ q: "no-match", page: "2" }) }));
+    expect(screen.getByText("No providers match your search.")).toBeInTheDocument();
+    expect(mockDedupePublicModelFamilies).toHaveBeenCalledTimes(1);
+    expect(mockCreatePublicClient().from).toHaveBeenCalledTimes(queryCount);
+  });
+
+  it("does not cache a partial directory when public signal queries fail", async () => {
+    const db = mockCreatePublicClient();
+    const originalFrom = db.from.getMockImplementation();
+    db.from.mockImplementation((table: string) => table === "model_news"
+      ? createQuery(null, { message: "temporary read failure" }) : originalFrom(table));
+    const { default: ProvidersPage } = await import("./page");
+    await expect(ProvidersPage()).rejects.toThrow("Unable to load public provider signals");
+    db.from.mockImplementation(originalFrom);
+    render(await ProvidersPage());
+    expect(screen.getByText("ProviderSignal:OpenAI pricing update")).toBeInTheDocument();
+  });
+
   it("paginates provider cards and preserves the search in navigation links", async () => {
     const db = mockCreatePublicClient();
     const originalFrom = db.from.getMockImplementation();
@@ -129,6 +165,7 @@ describe("ProvidersPage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cachedResults.clear();
     mockFormatNumber.mockImplementation((value: number) => `${value}`);
     mockDedupePublicModelFamilies.mockImplementation((models: unknown[]) => models);
     mockPreferDefaultPublicSurfaceReady.mockImplementation((models: unknown[]) => models);
@@ -277,5 +314,17 @@ describe("ProvidersPage", () => {
     expect(screen.getByText("$20/mo")).toBeInTheDocument();
     expect(screen.getByText(/Open-weight reality:/i)).toBeInTheDocument();
     expect(screen.getByText("ProviderSignal:OpenAI pricing update")).toBeInTheDocument();
+  });
+
+  it("counts single-model providers in global totals even though their cards are filtered", async () => {
+    const { default: ProvidersPage } = await import("./page");
+    render(await ProvidersPage({ searchParams: Promise.resolve({ q: "OpenAI" }) }));
+    const statValue = (label: string) => screen.getByText(label).previousElementSibling?.textContent;
+    expect(statValue("Providers")).toBe("2");
+    expect(statValue("Total Models")).toBe("3");
+    expect(statValue("Open Weight Models")).toBe("1");
+    expect(statValue("Total Downloads")).toBe("1750");
+    expect(statValue("Deployable Models")).toBe("3");
+    expect(screen.queryByRole("link", { name: /Logo:Anthropic/ })).not.toBeInTheDocument();
   });
 });
