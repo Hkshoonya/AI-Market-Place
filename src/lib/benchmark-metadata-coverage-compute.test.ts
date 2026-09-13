@@ -18,6 +18,7 @@ function withPublicMetadata(row: Record<string, unknown>) {
 
 function createMockSupabase(rows: unknown[]) {
   return {
+    rpc: async () => ({ data: [], error: null }),
     from: (table: string) => ({
       select: () => {
         if (table === "models") {
@@ -153,6 +154,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
 
   it("treats existing benchmark evidence as a valid automated update path", async () => {
     const supabase = {
+      rpc: async () => ({ data: [], error: null }),
       from: (table: string) => ({
         select: () => {
           if (table === "models") {
@@ -206,6 +208,7 @@ describe("computeBenchmarkMetadataCoverage", () => {
 
   it("does not treat untrusted benchmark rows as a trusted update path", async () => {
     const supabase = {
+      rpc: async () => ({ data: [], error: null }),
       from: (table: string) => ({
         select: () => {
           if (table === "models") {

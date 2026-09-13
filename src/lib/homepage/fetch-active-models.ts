@@ -143,6 +143,7 @@ export function selectHomepageActiveModelCandidates<T extends HomepageCandidateR
 
 interface HomepageModelsPageQuery {
   eq: (column: string, value: string) => HomepageModelsPageQuery;
+  gt: (column: string, value: string) => HomepageModelsPageQuery;
   order: (
     column: string,
     options: { ascending: boolean }
@@ -168,15 +169,17 @@ async function fetchAllActiveModels(
   surface: "homepage" | "ranking health"
 ): Promise<HomepageActiveModelRow[]> {
   const rows: HomepageActiveModelRow[] = [];
+  let cursor: string | undefined;
 
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const to = from + PAGE_SIZE - 1;
-    const { data, error } = await supabase
+  for (;;) {
+    let query = supabase
       .from("models")
       .select(columns)
       .eq("status", "active")
-      .order("id", { ascending: true })
-      .range(from, to);
+      .order("id", { ascending: true });
+    if (cursor) query = query.gt("id", cursor);
+    // Seek past the previous UUID instead of rereading all preceding pages.
+    const { data, error } = await query.range(0, PAGE_SIZE - 1);
 
     if (error) {
       throw new Error(
@@ -190,6 +193,11 @@ async function fetchAllActiveModels(
     if (page.length < PAGE_SIZE) {
       break;
     }
+    const nextCursor = page.at(-1)?.id;
+    if (typeof nextCursor !== "string" || !nextCursor || (cursor && nextCursor <= cursor)) {
+      throw new Error(`Failed to advance ${surface} active models cursor`);
+    }
+    cursor = nextCursor;
   }
 
   return rows;

@@ -2083,6 +2083,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      get_benchmark_evidence_model_ids: {
+        Args: Record<string, never>;
+        Returns: string[];
+      };
       reserve_autonomous_marketplace_order: {
         Args: {
           p_buyer_id: string;

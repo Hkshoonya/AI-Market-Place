@@ -10,6 +10,7 @@
 
 import type { AgentContext, AgentTaskResult, ResidentAgent } from "../types";
 import { registerAgent } from "../registry";
+import { fetchBenchmarkEvidenceRows } from "@/lib/benchmark-evidence";
 import { recordAgentIssue, resolveAgentIssue } from "../ledger";
 import { isBenchmarkMetadataCoverageCandidate } from "@/lib/benchmark-metadata-coverage-compute";
 import { getModelDisplayDescription } from "@/lib/models/presentation";
@@ -339,20 +340,7 @@ const uxMonitor: ResidentAgent = {
 
             return (data ?? []) as ModelCoverageRow[];
           }),
-          collectPaginatedRows<BenchmarkEvidenceRow>(async (from, to) => {
-            const { data, error } = await sb
-              .from("model_news")
-              .select("related_model_ids")
-              .eq("category", "benchmark")
-              .order("published_at", { ascending: false })
-              .range(from, to);
-
-            if (error) {
-              throw new Error(`Failed to fetch benchmark evidence coverage: ${error.message}`);
-            }
-
-            return (data ?? []) as BenchmarkEvidenceRow[];
-          }),
+          fetchBenchmarkEvidenceRows(sb),
         collectPaginatedRows<ModelCoverageRow>(async (from, to) => {
           const { data, error } = await sb
             .from("model_pricing")
