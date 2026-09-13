@@ -21,6 +21,7 @@ import {
   getTrustedBenchmarkWebsiteUrl,
 } from "@/lib/data-sources/shared/benchmark-coverage";
 import { computePublicMetadataCoverage } from "@/lib/public-metadata-coverage-compute";
+import { fetchBenchmarkEvidenceRows } from "@/lib/benchmark-evidence";
 
 // ---------------------------------------------------------------------------
 // TABLE_MAP: SyncOutputType -> actual Supabase table name
@@ -436,10 +437,6 @@ interface BenchmarkScoreCoverageRow {
   model_id: string | null;
 }
 
-interface BenchmarkNewsCoverageRow {
-  related_model_ids: string[] | null;
-}
-
 interface SyncDiagnostics {
   matchRate: number | null;
   warningCount: number;
@@ -626,29 +623,7 @@ async function fetchAllBenchmarkNewsRows(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any>
 ) {
-  const rows: BenchmarkNewsCoverageRow[] = [];
-
-  for (let from = 0; ; from += METADATA_PAGE_SIZE) {
-    const to = from + METADATA_PAGE_SIZE - 1;
-    const query = supabase
-      .from("model_news")
-      .select("related_model_ids")
-      .eq("category", "benchmark");
-    const { data, error } = await orderBy(query, "id").range(from, to);
-
-    if (error) {
-      throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);
-    }
-
-    const page = (data ?? []) as BenchmarkNewsCoverageRow[];
-    rows.push(...page);
-
-    if (page.length < METADATA_PAGE_SIZE) {
-      break;
-    }
-  }
-
-  return rows;
+  return fetchBenchmarkEvidenceRows(supabase);
 }
 
 // ---------------------------------------------------------------------------

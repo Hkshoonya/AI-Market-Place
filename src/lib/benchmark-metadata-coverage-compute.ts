@@ -15,6 +15,7 @@ import {
   type PublicPriorityModelCandidate,
 } from "@/lib/models/public-priority-cohort";
 import type { TypedSupabaseClient } from "@/types/database";
+import { fetchBenchmarkEvidenceRows } from "./benchmark-evidence";
 
 const PAGE_SIZE = 1000;
 
@@ -136,21 +137,7 @@ export async function computeBenchmarkMetadataCoverage(
 
       return (data ?? []) as BenchmarkScoreCoverageRow[];
     }),
-    fetchAllRows<BenchmarkNewsCoverageRow>(async (from, to) => {
-      const query = supabase
-        .from("model_news")
-        .select("related_model_ids")
-        .eq("category", "benchmark");
-      const { data, error } = await orderBy(query, "id").range(from, to);
-
-      if (error) {
-        throw new Error(
-          `Failed to fetch benchmark news for metadata coverage: ${error.message}`
-        );
-      }
-
-      return (data ?? []) as BenchmarkNewsCoverageRow[];
-    }),
+    fetchBenchmarkEvidenceRows(supabase),
   ]);
 
   const benchmarkEvidenceModelIds = buildBenchmarkEvidenceModelIds(

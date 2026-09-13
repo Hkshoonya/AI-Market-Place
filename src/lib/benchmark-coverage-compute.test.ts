@@ -20,9 +20,13 @@ function createMockSupabase({
 }: {
   models: unknown[];
   scores?: unknown[];
-  news?: unknown[];
+  news?: { related_model_ids: string[] | null }[];
 }) {
   return {
+    rpc: async (name: string) => {
+      expect(name).toBe("get_benchmark_evidence_model_ids");
+      return { data: [...new Set(news.flatMap((row) => row.related_model_ids ?? []))], error: null };
+    },
     from: (table: string) => ({
       select: () => {
         if (table === "models") {
@@ -55,6 +59,16 @@ function createMockSupabase({
 }
 
 describe("computeBenchmarkCoverage", () => {
+  it("preserves news-only evidence through the summary RPC", async () => {
+    const supabase = createMockSupabase({
+      models: [{ id: "covered", slug: "openai-covered", provider: "OpenAI", category: "llm" }],
+      news: [{ related_model_ids: ["covered", "covered"] }, { related_model_ids: null }],
+    });
+    const coverage = await computeBenchmarkCoverage(supabase as never);
+    expect(coverage.totals.with_benchmark_news).toBe(1);
+    expect(coverage.totals.covered_models).toBe(1);
+  });
+
   it("reports recent official gaps only for canonical benchmark candidates", async () => {
     const supabase = createMockSupabase({
       models: [

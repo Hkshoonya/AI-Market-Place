@@ -7,6 +7,7 @@ import {
   type PublicPriorityModelCandidate,
 } from "./models/public-priority-cohort";
 import type { TypedSupabaseClient } from "@/types/database";
+import { fetchBenchmarkEvidenceRows } from "./benchmark-evidence";
 
 type ProviderCoverage = {
   provider: string;
@@ -37,10 +38,6 @@ type ModelCoverageRow = PublicPriorityModelCandidate & {
 type ModelIdRow = {
   model_id: string;
   source?: string | null;
-};
-
-type BenchmarkNewsRow = {
-  related_model_ids: string[] | null;
 };
 
 function orderBy<T extends { order?: (column: string, options: { ascending: boolean }) => T }>(
@@ -101,19 +98,7 @@ export async function computeBenchmarkCoverage(
 
       return (data ?? []) as ModelIdRow[];
     }),
-    fetchAllRows<BenchmarkNewsRow>(async (from, to) => {
-      const query = supabase
-        .from("model_news")
-        .select("related_model_ids")
-        .eq("category", "benchmark");
-      const { data, error } = await orderBy(query, "id").range(from, to);
-
-      if (error) {
-        throw new Error(`Failed to fetch benchmark news coverage: ${error.message}`);
-      }
-
-      return (data ?? []) as BenchmarkNewsRow[];
-    }),
+    fetchBenchmarkEvidenceRows(supabase),
   ]);
 
   const scoredModelIds = getTrustedStructuredBenchmarkModelIds(benchmarkRows);

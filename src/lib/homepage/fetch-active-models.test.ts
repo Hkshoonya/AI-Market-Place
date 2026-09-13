@@ -13,10 +13,12 @@ function createPagedMockSupabase<T>(
   expectedColumns = HOMEPAGE_ACTIVE_MODELS_SELECT
 ) {
   const ranges: Array<[number, number]> = [];
+  const cursors: string[] = [];
   let pageIndex = 0;
 
   return {
     ranges,
+    cursors,
     client: {
       from: (table: "models") => {
         expect(table).toBe("models");
@@ -29,6 +31,11 @@ function createPagedMockSupabase<T>(
           eq: (column: string, value: string) => {
             expect(column).toBe("status");
             expect(value).toBe("active");
+            return chain;
+          },
+          gt: (column: string, value: string) => {
+            expect(column).toBe("id");
+            cursors.push(value);
             return chain;
           },
           order: (column: string, options: { ascending: boolean }) => {
@@ -56,7 +63,7 @@ describe("fetchAllHomepageActiveModels", () => {
       id: `model-${index + 1}`,
     }));
     const secondPage = [{ id: "model-1001" }, { id: "model-1002" }];
-    const { client, ranges } = createPagedMockSupabase([
+    const { client, ranges, cursors } = createPagedMockSupabase([
       { data: firstPage, error: null },
       { data: secondPage, error: null },
     ]);
@@ -68,8 +75,37 @@ describe("fetchAllHomepageActiveModels", () => {
     expect(rows.at(-1)).toEqual({ id: "model-1002" });
     expect(ranges).toEqual([
       [0, 999],
-      [1000, 1999],
+      [0, 999],
     ]);
+    expect(cursors).toEqual(["model-1000"]);
+  });
+
+  it("fetches the terminating page for an exact multiple of the page size", async () => {
+    const page = Array.from({ length: 1000 }, (_, id) => ({ id: `id-${id}` }));
+    const { client, cursors, ranges } = createPagedMockSupabase([
+      { data: page, error: null },
+      { data: [], error: null },
+    ]);
+    expect(await fetchAllHomepageActiveModels(client)).toEqual(page);
+    expect(cursors).toEqual(["id-999"]);
+    expect(ranges).toEqual([[0, 999], [0, 999]]);
+  });
+
+  it("fails instead of looping when the cursor does not advance", async () => {
+    const page = Array.from({ length: 1000 }, () => ({ id: "same-id" }));
+    const { client } = createPagedMockSupabase([
+      { data: page, error: null },
+      { data: page, error: null },
+    ]);
+    await expect(fetchAllHomepageActiveModels(client)).rejects.toThrow("Failed to advance");
+  });
+
+  it("does not return a partial catalogue after a later page fails", async () => {
+    const { client } = createPagedMockSupabase([
+      { data: Array.from({ length: 1000 }, (_, id) => ({ id: `id-${id}` })), error: null },
+      { data: null, error: { message: "later page failed" } },
+    ]);
+    await expect(fetchAllHomepageActiveModels(client)).rejects.toThrow("later page failed");
   });
 
   it("throws when a page query fails", async () => {

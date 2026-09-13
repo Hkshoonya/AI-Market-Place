@@ -394,6 +394,7 @@ describe("verifyDataIntegrity", () => {
     ];
 
     return {
+      rpc: async () => ({ data: [], error: null }),
       from: (table: string) => {
         if (table === "data_sources") {
           return {
