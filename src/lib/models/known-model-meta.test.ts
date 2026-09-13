@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { buildKnownModelMetaPatch, getKnownModelMeta } from "./known-model-meta";
 
 describe("getKnownModelMeta", () => {
+  it("keeps cached exact, stale-name, and unknown identities isolated", () => {
+    const exact = { slug: "meta-llama-3-3-70b-instruct", name: "Llama 3.3 70B Instruct", provider: "Meta" };
+    const newer = { ...exact, slug: "meta-llama-99-70b-instruct" };
+    const first = getKnownModelMeta(exact);
+    expect(first).not.toBeNull();
+    expect(getKnownModelMeta(newer)).toBeNull();
+    expect(getKnownModelMeta(exact)).toBe(first);
+    expect(getKnownModelMeta(newer)).toBeNull();
+    expect(getKnownModelMeta({ ...exact, provider: "Unrelated Provider" })).toBeNull();
+    expect(getKnownModelMeta({ ...exact, provider: " meta " })).toBe(first);
+  });
+
   it("does not borrow older metadata for a new numeric version", () => {
     for (const slug of ["anthropic-claude-fable-5-1", "anthropic-claude-fable-5-2", "anthropic-claude-opus-5-2"]) {
       expect(getKnownModelMeta({ slug, provider: "Anthropic" })?.name).not.toBe(

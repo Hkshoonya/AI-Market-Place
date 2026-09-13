@@ -9,12 +9,14 @@ interface PaginationProps {
   totalCount: number;
   pageSize: number;
   basePath?: string;
+  currentPage?: number;
 }
 
-export function Pagination({ totalCount, pageSize, basePath = "/models" }: PaginationProps) {
+export function Pagination({ totalCount, pageSize, basePath = "/models", currentPage: resolvedPage }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const requestedPage = resolvedPage ?? Number(searchParams.get("page") ?? "1");
+  const currentPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const totalPages = Math.ceil(totalCount / pageSize);
 
   if (totalPages <= 1) return null;

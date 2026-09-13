@@ -162,13 +162,7 @@ function isAllowedVariantToken(token: string): boolean {
   );
 }
 
-function isSubsetTokenMatch(
-  candidateValue: string | null | undefined,
-  catalogValue: string | null | undefined,
-  provider: string
-): boolean {
-  const candidateTokens = tokenizeModelIdentity(candidateValue, provider);
-  const catalogTokens = tokenizeModelIdentity(catalogValue, provider);
+function isSubsetTokenMatch(candidateTokens: string[], catalogTokens: string[]): boolean {
   if (catalogTokens.length < 2 || candidateTokens.length < catalogTokens.length) {
     return false;
   }
@@ -191,6 +185,43 @@ function getProviderCatalog(provider: string | null | undefined): KnownCatalog |
   return KNOWN_MODEL_CATALOGS[normalized] ?? null;
 }
 
+interface PreparedCatalogEntry {
+  meta: KnownModelMeta;
+  normalizedCandidates: string[];
+  tokenSignatures: string[];
+  keyTokens: string[];
+  nameTokens: string[];
+  specificity: number;
+}
+
+const preparedCatalogs = new WeakMap<KnownCatalog, Map<string, PreparedCatalogEntry[]>>();
+
+function getPreparedCatalog(catalog: KnownCatalog, provider: string): PreparedCatalogEntry[] {
+  const providerKey = provider.trim().toLowerCase();
+  const byProvider = preparedCatalogs.get(catalog) ?? new Map<string, PreparedCatalogEntry[]>();
+  const cached = byProvider.get(providerKey);
+  if (cached) return cached;
+
+  // Only built-in provider catalogues reach this cache. Preserve entry order so
+  // exact-match precedence and equal-specificity subset ties remain unchanged.
+  const entries = Object.entries(catalog).map(([key, meta]) => {
+    const keyTokens = tokenizeModelIdentity(key, provider);
+    const nameTokens = tokenizeModelIdentity(meta.name, provider);
+    return {
+      meta,
+      normalizedCandidates: [key, stripTrailingVariantSuffixes(key), meta.name,
+        stripTrailingVariantSuffixes(meta.name)].map(canonicalize).filter(Boolean),
+      tokenSignatures: [[...keyTokens].sort().join("|"), [...nameTokens].sort().join("|")].filter(Boolean),
+      keyTokens,
+      nameTokens,
+      specificity: Math.max(keyTokens.length, nameTokens.length),
+    };
+  });
+  byProvider.set(providerKey, entries);
+  preparedCatalogs.set(catalog, byProvider);
+  return entries;
+}
+
 function getKnownModelCacheKey(model: KnownModelLookupInput) {
   return [model.provider ?? "", model.slug ?? "", model.name ?? ""].join("\u0000");
 }
@@ -206,6 +237,12 @@ function cacheKnownModelMeta(key: string, meta: KnownModelMeta | null) {
 export function getKnownModelMeta(
   model: KnownModelLookupInput
 ): KnownModelMeta | null {
+  // Cache the complete original identity, before the version guard normalizes
+  // a stale name. A different slug/name/version therefore cannot reuse its hit.
+  const cacheKey = getKnownModelCacheKey(model);
+  if (knownModelMetaCache.has(cacheKey)) {
+    return knownModelMetaCache.get(cacheKey) ?? null;
+  }
   // A stale display name must not override the version in the stable identity.
   const versions = (value: string | null | undefined) =>
     tokenizeModelIdentity(value, model.provider).filter((token) => /^\d+$/.test(token)).join(".");
@@ -214,11 +251,6 @@ export function getKnownModelMeta(
   if (slugVersion && nameVersion && slugVersion !== nameVersion) {
     model = { ...model, name: undefined };
   }
-  const cacheKey = getKnownModelCacheKey(model);
-  if (knownModelMetaCache.has(cacheKey)) {
-    return knownModelMetaCache.get(cacheKey) ?? null;
-  }
-
   const catalog = getProviderCatalog(model.provider);
   if (!catalog || !model.provider) return cacheKnownModelMeta(cacheKey, null);
 
@@ -242,6 +274,8 @@ export function getKnownModelMeta(
       .map((value) => buildTokenSignature(value, model.provider))
       .filter(Boolean)
   );
+  const slugTokens = tokenizeModelIdentity(model.slug, model.provider);
+  const nameTokens = tokenizeModelIdentity(model.name, model.provider);
 
   let bestSubsetMatch:
     | {
@@ -250,24 +284,12 @@ export function getKnownModelMeta(
       }
     | null = null;
 
-  for (const [key, meta] of Object.entries(catalog)) {
-    const normalizedCandidates = [
-      key,
-      stripTrailingVariantSuffixes(key),
-      meta.name,
-      stripTrailingVariantSuffixes(meta.name),
-    ]
-      .map((value) => canonicalize(value))
-      .filter(Boolean);
-    const tokenSignatures = [
-      buildTokenSignature(key, model.provider),
-      buildTokenSignature(meta.name, model.provider),
-    ].filter(Boolean);
-
-    const matchingNormalizedCandidates = normalizedCandidates.filter((value) =>
+  for (const entry of getPreparedCatalog(catalog, model.provider)) {
+    const { meta, keyTokens, nameTokens: catalogNameTokens, specificity } = entry;
+    const matchingNormalizedCandidates = entry.normalizedCandidates.filter((value) =>
       candidateKeys.has(value)
     );
-    const matchingTokenSignatures = tokenSignatures.filter((signature) =>
+    const matchingTokenSignatures = entry.tokenSignatures.filter((signature) =>
       candidateSignatures.has(signature)
     );
 
@@ -279,16 +301,11 @@ export function getKnownModelMeta(
     }
 
     if (
-      isSubsetTokenMatch(model.slug, key, model.provider) ||
-      isSubsetTokenMatch(model.slug, meta.name, model.provider) ||
-      isSubsetTokenMatch(model.name, key, model.provider) ||
-      isSubsetTokenMatch(model.name, meta.name, model.provider)
+      isSubsetTokenMatch(slugTokens, keyTokens) ||
+      isSubsetTokenMatch(slugTokens, catalogNameTokens) ||
+      isSubsetTokenMatch(nameTokens, keyTokens) ||
+      isSubsetTokenMatch(nameTokens, catalogNameTokens)
     ) {
-      const specificity = Math.max(
-        tokenizeModelIdentity(key, model.provider).length,
-        tokenizeModelIdentity(meta.name, model.provider).length
-      );
-
       if (!bestSubsetMatch || specificity > bestSubsetMatch.specificity) {
         bestSubsetMatch = { meta, specificity };
       }

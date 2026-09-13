@@ -26,6 +26,19 @@ describe("Pagination", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it.each(["invalid", "0", "-2", "1.5"])("normalizes invalid URL page %s", (page) => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ page }));
+    render(<Pagination totalCount={120} pageSize={10} />);
+    expect(screen.getByRole("button", { name: "Page 1" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Go to previous page" })).toBeDisabled();
+  });
+
+  it("uses the server-resolved page when supplied", () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams("page=4"));
+    render(<Pagination totalCount={120} pageSize={10} currentPage={2} />);
+    expect(screen.getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page");
+  });
+
   it("renders pages and navigates while preserving query params", async () => {
     const user = userEvent.setup();
     mockUseSearchParams.mockReturnValue(new URLSearchParams("q=gemma&page=4"));

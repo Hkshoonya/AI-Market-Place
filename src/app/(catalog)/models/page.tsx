@@ -21,11 +21,15 @@ import { dedupePublicModelFamilies } from "@/lib/models/public-families";
 import { getParameterDisplay } from "@/lib/models/presentation";
 import {
   getLifecycleBadge,
-  getLifecycleStatuses,
   parseLifecycleFilter,
 } from "@/lib/models/lifecycle";
 import { formatMarketValue } from "@/lib/models/market-value";
-import { sanitizeFilterValue } from "@/lib/utils/sanitize";
+import {
+  directoryFilterKey,
+  DirectoryPricingSchema,
+  getDirectoryCandidates,
+  getDirectoryDeployments,
+} from "@/lib/models/directory-data";
 import { ModelsFilterBar } from "@/components/models/models-filter-bar";
 import { ModelsGrid } from "@/components/models/models-grid";
 import { ModelCatalogCoverage } from "@/components/models/model-catalog-coverage";
@@ -57,8 +61,6 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 const PAGE_SIZE = 20;
-const CATALOG_FETCH_PAGE_SIZE = 1_000;
-const MAX_CATALOG_CANDIDATES = 10_000;
 
 export default async function ModelsPage({
   searchParams,
@@ -80,18 +82,12 @@ export default async function ModelsPage({
   }>;
 }) {
   const p = await searchParams;
-  const category = p.category ?? "";
   const sort = p.sort ?? "rank";
-  const query = p.q ?? "";
   const view = p.view ?? "list";
-  const page = parseInt(p.page ?? "1", 10);
-  const openOnly = p.open === "true";
+  const requestedPage = Number(p.page ?? "1");
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const deployableOnly = p.deployable === "true";
   const managedOnly = p.managed === "true";
-  const providerFilter = p.provider ?? "";
-  const paramsFilter = p.params ?? "";
-  const apiFilter = p.api === "true";
-  const licenseFilter = p.license ?? "";
   const lifecycleFilter = parseLifecycleFilter(p.lifecycle);
 
   if (managedOnly) {
@@ -102,135 +98,10 @@ export default async function ModelsPage({
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const buildCatalogQuery = (includeCount: boolean) => {
-    let catalogQuery = supabase
-      .from("models")
-      .select(
-        sort === "price" ? "*, model_pricing(*)" : "*",
-        includeCount ? { count: "exact" } : undefined
-      );
-
-    catalogQuery =
-      lifecycleFilter === "all"
-        ? catalogQuery.in("status", getLifecycleStatuses("all"))
-        : catalogQuery.eq("status", "active");
-
-    if (category) {
-      catalogQuery = catalogQuery.eq(
-        "category",
-        category as import("@/types/database").ModelCategory
-      );
-    }
-    if (openOnly) catalogQuery = catalogQuery.eq("is_open_weights", true);
-    if (providerFilter) catalogQuery = catalogQuery.eq("provider", providerFilter);
-
-    if (paramsFilter) {
-      const billion = 1_000_000_000;
-      if (paramsFilter === "0-10") {
-        catalogQuery = catalogQuery.lt("parameter_count", 10 * billion);
-      } else if (paramsFilter === "10-70") {
-        catalogQuery = catalogQuery
-          .gte("parameter_count", 10 * billion)
-          .lt("parameter_count", 70 * billion);
-      } else if (paramsFilter === "70-200") {
-        catalogQuery = catalogQuery
-          .gte("parameter_count", 70 * billion)
-          .lt("parameter_count", 200 * billion);
-      } else if (paramsFilter === "200+") {
-        catalogQuery = catalogQuery.gte("parameter_count", 200 * billion);
-      }
-    }
-
-    if (apiFilter) catalogQuery = catalogQuery.eq("is_api_available", true);
-    if (licenseFilter) {
-      catalogQuery = catalogQuery.eq(
-        "license",
-        licenseFilter as import("@/types/database").LicenseType
-      );
-    }
-
-    if (query) {
-      const sanitizedQuery = sanitizeFilterValue(query);
-      if (sanitizedQuery) {
-        catalogQuery = catalogQuery.or(
-          `name.ilike.%${sanitizedQuery}%,provider.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`
-        );
-      }
-    }
-
-    switch (sort) {
-      case "downloads":
-        return catalogQuery.order("hf_downloads", {
-          ascending: false,
-          nullsFirst: false,
-        });
-      case "newest":
-        return catalogQuery.order("release_date", {
-          ascending: false,
-          nullsFirst: false,
-        });
-      case "quality":
-        return catalogQuery.order("quality_score", {
-          ascending: false,
-          nullsFirst: false,
-        });
-      case "rank":
-      case "price":
-      default:
-        return catalogQuery.order("overall_rank", {
-          ascending: true,
-          nullsFirst: false,
-        });
-    }
-  };
-
-  const firstModelsResponse = await buildCatalogQuery(true).range(
-    0,
-    CATALOG_FETCH_PAGE_SIZE - 1
-  );
-  const count = firstModelsResponse.count;
-  const rowsToLoad = Math.min(
-    count ?? firstModelsResponse.data?.length ?? 0,
-    MAX_CATALOG_CANDIDATES
-  );
-  const remainingStarts = Array.from(
-    { length: Math.max(0, Math.ceil(rowsToLoad / CATALOG_FETCH_PAGE_SIZE) - 1) },
-    (_, index) => (index + 1) * CATALOG_FETCH_PAGE_SIZE
-  );
-  const remainingResponses = await Promise.all(
-    remainingStarts.map((start) =>
-      buildCatalogQuery(false).range(start, start + CATALOG_FETCH_PAGE_SIZE - 1)
-    )
-  );
-  const firstPageError = firstModelsResponse.error;
-  const remainingError = remainingResponses.find((response) => response.error)?.error;
-  const modelsResponse = {
-    ...firstModelsResponse,
-    data: [firstModelsResponse, ...remainingResponses].flatMap(
-      (response) => response.data ?? []
-    ),
-    error: firstPageError ?? remainingError ?? null,
-  };
-
+  const { data: parsedModels, count } = await getDirectoryCandidates(directoryFilterKey(p));
   const ModelsPageSchema = ModelBaseSchema.extend({
-    model_pricing: z
-      .array(
-        z.object({
-          provider_name: z.string().nullable().optional(),
-          input_price_per_million: z.number().nullable(),
-          source: z.string().nullable().optional(),
-          output_price_per_million: z.number().nullable().optional(),
-          currency: z.string().nullable().optional(),
-        })
-      )
-      .optional(),
+    model_pricing: z.array(DirectoryPricingSchema).optional(),
   });
-
-  const parsedModels = parseQueryResultPartial(
-    modelsResponse,
-    ModelsPageSchema,
-    "ModelsPage"
-  );
 
   const uniqueModels = preferDefaultPublicSurfaceReady(
     dedupePublicModelFamilies(parsedModels),
@@ -279,14 +150,14 @@ export default async function ModelsPage({
   });
 
   if (sortedUniqueModels.length > 0) {
-    const candidateModelIds = sortedUniqueModels.map((model) => model.id);
+    const candidateModelIds = new Set(sortedUniqueModels.map((model) => model.id));
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
     const [
       { data: recentNewsRaw },
       { data: deploymentPlatformsRaw },
-      { data: modelDeploymentsRaw },
+      availableDeployments,
     ] = await Promise.all([
       supabase
         .from("model_news")
@@ -297,14 +168,9 @@ export default async function ModelsPage({
         .order("published_at", { ascending: false })
         .limit(400),
       supabase.from("deployment_platforms").select("*").order("name"),
-      supabase
-        .from("model_deployments")
-        .select(
-          "id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status"
-        )
-        .in("model_id", candidateModelIds)
-        .eq("status", "available"),
+      getDirectoryDeployments(),
     ]);
+    const modelDeploymentsRaw = availableDeployments.filter((deployment) => candidateModelIds.has(deployment.model_id));
 
     const deploymentPlatforms = (deploymentPlatformsRaw ?? []).map((platform) => {
       const platformRecord = platform as Record<string, unknown>;
@@ -394,10 +260,7 @@ export default async function ModelsPage({
     );
   }
 
-  const totalCount =
-    sortedUniqueModels.length > 0
-      ? sortedUniqueModels.length
-      : (count ?? parsedModels.length);
+  const totalCount = sortedUniqueModels.length;
   const pagedCandidateModels = sortedUniqueModels.slice(from, to + 1);
   const pagedModelIds = pagedCandidateModels.map((model) => model.id);
   const pageDetailsResponse =
@@ -686,7 +549,7 @@ export default async function ModelsPage({
         </div>
       )}
 
-      <Pagination totalCount={totalCount} pageSize={PAGE_SIZE} />
+      <Pagination totalCount={totalCount} pageSize={PAGE_SIZE} currentPage={page} />
     </div>
   );
 }
