@@ -24,6 +24,12 @@ anonymous EXPLAIN of an UPDATE with a nonexistent ID confirmed an unrestricted
 write plan without executing a mutation. This was a critical integrity risk;
 there is no evidence from this investigation that it was exploited.
 
+The same inventory found a public INSERT policy on app-owned `notifications`,
+allowing forged system notifications. Migration 106 restricts that policy and
+INSERT grants to the service role. Contact, moderation, verification and order
+message handlers already use server/admin clients for notification creation.
+Existing per-user SELECT/UPDATE policies are preserved and tested.
+
 ## Changes And Rollout
 
 Migration 103 scopes that news policy to `service_role` and removes public/user
@@ -92,8 +98,13 @@ is rejected, and the service summary returns all 3,514 IDs. The ranked RPC
 returns 500 candidates and the full 14,894 active-record count on page one.
 All 20 live RPC pages matched the original anonymous ranked query: 10,000 IDs
 in identical order, no duplicates, with the largest observed page under 470 KiB.
-The previously failed UX monitor completed a real production run in 19 seconds
-with no execution errors after the database change.
+The previously failed UX monitor completed a real production run in 19 seconds;
+the pipeline engineer completed in 44 seconds. Neither was skipped and both
+reported no execution errors. Health at 15:15 UTC was healthy with 37 healthy
+sources, zero degraded/down sources, and a fresh external scheduler. Historical
+failures remain in the 24-hour counter; their records were not erased.
+Browser checks confirmed 20 results on desktop and deployable page-two grid,
+page two selected, and no browser errors/overlay or horizontal overflow at 390px.
 
 This is not a public-launch security certification. A limited policy inventory
 also found broadly scoped service-labelled write policies on tables not defined
@@ -103,7 +114,7 @@ other APIs, historical data integrity, and potential past abuse were not fully
 audited here. The accessible metrics do not expose the Supabase IO-budget graph;
 warning clearance and sustained memory/IO recovery remain unverified.
 
-Rollback: retain migration 103. An application rollback can leave migration 105
+Rollback: retain security migrations 103 and 106. An application rollback can leave migration 105
 installed. If the projection needs rollback, atomically restore the migration 101
 summary function and drop only the two new synchronization triggers; keep news
 records and the derived table intact for investigation. Restoring the old summary

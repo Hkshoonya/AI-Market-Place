@@ -3,6 +3,14 @@
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role BYPASSRLS;
+CREATE TABLE public.notifications (id integer PRIMARY KEY, user_id uuid, is_read boolean DEFAULT false);
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.notifications TO anon, authenticated, service_role;
+CREATE POLICY "System can insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY own_notifications_read ON public.notifications FOR SELECT
+  USING (user_id = nullif(current_setting('request.jwt.claim.sub', true), '')::uuid);
+CREATE POLICY own_notifications_update ON public.notifications FOR UPDATE
+  USING (user_id = nullif(current_setting('request.jwt.claim.sub', true), '')::uuid);
 CREATE TABLE public.model_news (
   id uuid PRIMARY KEY, category text, related_model_ids uuid[], title text
 );
@@ -39,9 +47,12 @@ FROM generate_series(1, 3500) i;
 \ir ../migrations/103_harden_model_news_access.sql
 \ir ../migrations/104_benchmark_evidence_projection.sql
 \ir ../migrations/105_ranked_directory_page.sql
+\ir ../migrations/106_harden_notification_inserts.sql
 
 BEGIN;
 SET LOCAL ROLE service_role;
+INSERT INTO public.notifications (id, user_id)
+VALUES (1, '11111111-1111-1111-1111-111111111111'), (2, '22222222-2222-2222-2222-222222222222');
 DO $$
 DECLARE
   original_tid tid;
@@ -139,8 +150,29 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   PERFORM 1 FROM public.model_news;
+  BEGIN
+    INSERT INTO public.notifications (id, user_id) VALUES (3, '11111111-1111-1111-1111-111111111111');
+    RAISE EXCEPTION 'Anonymous notification forgery still permitted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END;
 $$;
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+DO $$
+DECLARE affected integer;
+BEGIN
+  IF (SELECT count(*) FROM public.notifications) <> 1 THEN RAISE EXCEPTION 'Notification read isolation failed'; END IF;
+  UPDATE public.notifications SET is_read = true;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected <> 1 THEN RAISE EXCEPTION 'Own notification update failed or crossed users'; END IF;
+  BEGIN
+    INSERT INTO public.notifications (id, user_id) VALUES (3, '11111111-1111-1111-1111-111111111111');
+    RAISE EXCEPTION 'Signed-in notification forgery still permitted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
 RESET ROLE;
 DO $$ BEGIN
   IF has_table_privilege('authenticated', 'public.benchmark_evidence_links', 'SELECT') OR
