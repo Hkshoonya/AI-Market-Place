@@ -2083,6 +2083,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      get_ranked_model_directory_page: {
+        Args: { p_offset?: number };
+        Returns: { data: Record<string, unknown>[]; count: number | null };
+      };
       get_benchmark_evidence_model_ids: {
         Args: Record<string, never>;
         Returns: string[];
