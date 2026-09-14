@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   cached: new Map<string, unknown>(),
   registrations: [] as { keys: string[]; options: { revalidate: number } }[],
   errorFrom: -1,
+  rpcData: undefined as unknown,
   active: 0,
   peak: 0,
 }));
@@ -26,6 +27,20 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/supabase/public-server", () => ({
   createPublicClient: () => ({
+    rpc: async (name: string, args: { p_offset: number }) => {
+      const from = args.p_offset;
+      state.calls.push({ table: "rpc", operations: [["rpc", name, args]], from, to: from + 499 });
+      state.peak = Math.max(state.peak, ++state.active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      state.active -= 1;
+      if (from === state.errorFrom) return { data: null, error: { message: "private database details" } };
+      return {
+        data: state.rpcData === undefined
+          ? { data: state.models.slice(from, from + 500), count: from === 0 ? state.models.length : null }
+          : state.rpcData,
+        error: null,
+      };
+    },
     from: (table: string) => {
       const operations: unknown[][] = [];
       const chain: Record<string, unknown> = {};
@@ -70,6 +85,7 @@ beforeEach(() => {
   state.calls = [];
   state.cached.clear();
   state.errorFrom = -1;
+  state.rpcData = undefined;
   state.active = 0;
   state.peak = 0;
 });
@@ -82,8 +98,7 @@ describe("directory data", () => {
     expect(state.calls.map(({ from, to }) => [from, to])).toEqual([[0, 499], [500, 999], [1000, 1499]]);
     expect(state.peak).toBeLessThanOrEqual(2);
     for (const call of state.calls) {
-      expect(call.operations).toContainEqual(["order", "id", { ascending: true }]);
-      expect(call.operations).toContainEqual(["eq", "status", "active"]);
+      expect(call.operations).toEqual([["rpc", "get_ranked_model_directory_page", { p_offset: call.from }]]);
     }
   });
 
@@ -91,7 +106,7 @@ describe("directory data", () => {
     await getDirectoryCandidates(directoryFilterKey({ page: "1", view: "list" }));
     await getDirectoryCandidates(directoryFilterKey({ page: "2", view: "grid", deployable: "true" }));
     expect(state.calls).toHaveLength(3);
-    expect(state.registrations).toContainEqual({ keys: ["public-model-directory-candidates-v1"], options: { revalidate: 300 } });
+    expect(state.registrations).toContainEqual({ keys: ["public-model-directory-candidates-v2"], options: { revalidate: 300 } });
   });
 
   it("includes all database filters in the cache identity", () => {
@@ -101,6 +116,22 @@ describe("directory data", () => {
     }
     expect(directoryFilterKey({ sort: "random", params: "random" })).toBe(original);
   });
+
+  it.each(Object.entries({ category: "llm", sort: "price", q: "model", open: "true", provider: "Example", params: "200+", api: "true", license: "commercial", lifecycle: "all" }))(
+    "keeps the existing filtered query for %s=%s", async (key, value) => {
+      await getDirectoryCandidates(directoryFilterKey({ [key]: value }));
+      expect(state.calls.every((call) => call.table === "models")).toBe(true);
+      expect(state.calls[0].operations).toContainEqual(["order", "id", { ascending: true }]);
+    }
+  );
+
+  it.each([null, {}, { data: [], count: null }, { data: [], count: -1 }, { data: null, count: 0 }, { data: [], count: "100" }])(
+    "rejects malformed ranked pages instead of caching an incomplete directory: %j", async (data) => {
+      state.rpcData = data;
+      await expect(getDirectoryCandidates(directoryFilterKey({}))).rejects.toThrow("Unable to load the complete models directory");
+      expect(state.cached.size).toBe(0);
+    }
+  );
 
   it("does not persist arbitrary search/provider/invalid enum queries", async () => {
     await getDirectoryCandidates(directoryFilterKey({ q: "model" }));

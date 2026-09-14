@@ -52,6 +52,14 @@ jobs:
       - run: npm run test:unit
       - run: npm run test:component
 
+  database:
+    name: Database IO
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - run: bash scripts/test-database-io.sh
+
   e2e:
     name: E2E
     runs-on: ubuntu-latest
