@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { ArrowRight, Building2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,15 +66,12 @@ interface ProviderDeployabilityStats {
   selfHostCount: number;
 }
 
-export default async function ProvidersPage({ searchParams }: {
-  searchParams?: Promise<{ page?: string; q?: string }>;
-} = {}) {
-  const params = await searchParams;
-  const searchQuery = typeof params?.q === "string" ? params.q.trim().slice(0, 100) : "";
+// Cache only public, serializable summaries, not the full catalog or user input.
+const getProviderDirectory = unstable_cache(async () => {
   const supabase = createPublicClient();
 
   // Fetch active provider footprints and recent provider-linked signals.
-  const [{ data: models }, { data: newsRaw }, { data: deploymentNewsRaw }] = await Promise.all([
+  const [{ data: models }, { data: newsRaw, error: newsError }, { data: deploymentNewsRaw, error: deploymentNewsError }] = await Promise.all([
     fetchAllPublicPages((from, to) =>
       supabase
         .from("models")
@@ -82,8 +80,7 @@ export default async function ProvidersPage({ searchParams }: {
         )
         .eq("status", "active")
         .order("id")
-        .range(from, to),
-      "directory-models"
+        .range(from, to)
     ),
     supabase
       .from("model_news")
@@ -97,6 +94,9 @@ export default async function ProvidersPage({ searchParams }: {
       .order("published_at", { ascending: false })
       .limit(200),
   ]);
+  if (newsError || deploymentNewsError) {
+    throw new Error("Unable to load public provider signals");
+  }
 
   const uniqueModels = preferDefaultPublicSurfaceReady(
     dedupePublicModelFamilies(models ?? []),
@@ -114,11 +114,13 @@ export default async function ProvidersPage({ searchParams }: {
               .select("id, model_id, platform_id, pricing_model, price_per_unit, unit_description, free_tier, one_click, status")
               .eq("status", "available")
               .order("id")
-              .range(from, to),
-            "directory-deployments"
+              .range(from, to)
           ),
         ])
       : [{ data: [], error: null }, { data: [], error: null }];
+  if (deploymentPlatformsRaw.error) {
+    throw new Error("Unable to load public deployment platforms");
+  }
 
   // Aggregate stats by provider
   const providerMap = new Map<string, ProviderStats>();
@@ -144,7 +146,6 @@ export default async function ProvidersPage({ searchParams }: {
         (existing.topRank == null || m.overall_rank < existing.topRank)
       ) {
         existing.topRank = m.overall_rank;
-        existing.topModelId = m.id;
         existing.topModelId = m.id;
       }
       if (m.is_open_weights) existing.openWeightsCount++;
@@ -175,20 +176,6 @@ export default async function ProvidersPage({ searchParams }: {
   // Show top providers (2+ models) to keep the page fast
   const providers = allProviders.filter((p) => p.modelCount >= 2);
   const totalProviderCount = allProviders.length;
-  const matchingProviders = providers.filter((p) =>
-    p.provider.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const pageSize = 60;
-  const totalPages = Math.max(1, Math.ceil(matchingProviders.length / pageSize));
-  const requestedPage = Number(params?.page ?? 1);
-  const page = Number.isSafeInteger(requestedPage)
-    ? Math.min(totalPages, Math.max(1, requestedPage)) : 1;
-  const visibleProviders = matchingProviders.slice((page - 1) * pageSize, page * pageSize);
-  const pageHref = (nextPage: number) => {
-    const query = new URLSearchParams({ page: String(nextPage) });
-    if (searchQuery) query.set("q", searchQuery);
-    return `/providers?${query}`;
-  };
   const accessCatalog = buildAccessOffersCatalog({
     platforms: (deploymentPlatformsRaw.data ?? []).map((platform) => {
       const platformRecord = platform as Record<string, unknown>;
@@ -285,10 +272,19 @@ export default async function ProvidersPage({ searchParams }: {
     (sum, entry) => sum + entry.deployableCount,
     0
   );
-  const providerSelfHostSummaries = new Map(
-    visibleProviders.map((provider) => [
-      provider.provider,
-      summarizeProviderSelfHostRequirements(
+  return {
+    totalProviderCount,
+    totalModelCount: uniqueModels.length,
+    totalOpenWeightsCount: allProviders.reduce((sum, provider) => sum + provider.openWeightsCount, 0),
+    totalDownloads: allProviders.reduce((sum, provider) => sum + provider.totalDownloads, 0),
+    deployableProviderModelCount,
+    latestSignalAt,
+    providers: providers.map((provider) => ({
+      ...provider,
+      bestAccessOffer: getBestAccessOfferForModel(accessCatalog, provider.topModelId),
+      deployability: providerDeployability.get(provider.provider) ?? null,
+      signal: providerSignals.get(provider.provider) ?? null,
+      selfHostSummary: summarizeProviderSelfHostRequirements(
         (modelsByProvider.get(provider.provider) ?? [])
           .map((model) => ({
             isOpenWeights: model.is_open_weights,
@@ -300,8 +296,31 @@ export default async function ProvidersPage({ searchParams }: {
             category: model.category,
           }))
       ),
-    ])
+    })),
+  };
+}, ["provider-directory-summary-v1"], { revalidate: 300 });
+
+export default async function ProvidersPage({ searchParams }: {
+  searchParams?: Promise<{ page?: string; q?: string }>;
+} = {}) {
+  const [{ providers, totalProviderCount, totalModelCount, totalOpenWeightsCount, totalDownloads,
+    deployableProviderModelCount, latestSignalAt }, params] =
+    await Promise.all([getProviderDirectory(), searchParams]);
+  const searchQuery = typeof params?.q === "string" ? params.q.trim().slice(0, 100) : "";
+  const matchingProviders = providers.filter((p) =>
+    p.provider.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const pageSize = 60;
+  const totalPages = Math.max(1, Math.ceil(matchingProviders.length / pageSize));
+  const requestedPage = Number(params?.page ?? 1);
+  const page = Number.isSafeInteger(requestedPage)
+    ? Math.min(totalPages, Math.max(1, requestedPage)) : 1;
+  const visibleProviders = matchingProviders.slice((page - 1) * pageSize, page * pageSize);
+  const pageHref = (nextPage: number) => {
+    const query = new URLSearchParams({ page: String(nextPage) });
+    if (searchQuery) query.set("q", searchQuery);
+    return `/providers?${query}`;
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -330,17 +349,15 @@ export default async function ProvidersPage({ searchParams }: {
           { label: "Providers", value: totalProviderCount },
           {
             label: "Total Models",
-            value: providers.reduce((s, p) => s + p.modelCount, 0),
+            value: totalModelCount,
           },
           {
             label: "Open Weight Models",
-            value: providers.reduce((s, p) => s + p.openWeightsCount, 0),
+            value: totalOpenWeightsCount,
           },
           {
             label: "Total Downloads",
-            value: formatNumber(
-              providers.reduce((s, p) => s + p.totalDownloads, 0)
-            ),
+            value: formatNumber(totalDownloads),
           },
           {
             label: "Deployable Models",
@@ -380,9 +397,7 @@ export default async function ProvidersPage({ searchParams }: {
         {visibleProviders.map((prov) => {
           const brand = getProviderBrand(prov.provider);
           const slug = getProviderSlug(prov.provider);
-          const bestAccessOffer = getBestAccessOfferForModel(accessCatalog, prov.topModelId);
-          const deployability = providerDeployability.get(prov.provider);
-          const selfHostSummary = providerSelfHostSummaries.get(prov.provider) ?? null;
+          const { bestAccessOffer, deployability, selfHostSummary, signal } = prov;
 
           return (
             <Link key={prov.provider} href={`/providers/${slug}`}>
@@ -480,12 +495,12 @@ export default async function ProvidersPage({ searchParams }: {
                     </p>
                   ) : null}
 
-                  {providerSignals.get(prov.provider) ? (
+                  {signal ? (
                     <div className="mt-3 border-t border-border/40 pt-3">
                       <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                         Recent Signal
                       </p>
-                      <ProviderSignalBadge signal={providerSignals.get(prov.provider)!} />
+                      <ProviderSignalBadge signal={signal} />
                     </div>
                   ) : null}
                 </CardContent>
