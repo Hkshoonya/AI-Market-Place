@@ -7,6 +7,31 @@ import {
 } from "./benchmark-coverage";
 
 describe("benchmark coverage helpers", () => {
+  it("uses reviewed evaluation pages instead of API reference pages", () => {
+    expect(getTrustedBenchmarkWebsiteUrl({
+      slug: "openai-gpt-6-astra", provider: "OpenAI", category: "multimodal",
+      website_url: "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    })).toBe("https://openai.com/index/gpt-6-astra/");
+    expect(getTrustedBenchmarkWebsiteUrl({
+      slug: "meta-muse-spark-1-3", provider: "Meta", category: "multimodal",
+      website_url: null,
+    })).toBe("https://research.meta.ai/blog/introducing-muse-spark-1-3");
+  });
+
+  it("trusts the current Claude documentation domain, not lookalikes", () => {
+    const model = { slug: "anthropic-claude-fable-5-1", provider: "Anthropic", category: "multimodal" };
+    const url = "https://platform.claude.com/docs/en/models/fable-5-1/overview";
+    expect(getTrustedBenchmarkWebsiteUrl({ ...model, website_url: url })).toBe(url);
+    for (const website_url of [
+      "https://platform.claude.com.evil.example/models",
+      "http://platform.claude.com/models",
+      "https://user:password@platform.claude.com/models",
+      "https://platform.claude.com:8443/models",
+    ]) {
+      expect(getTrustedBenchmarkWebsiteUrl({ ...model, website_url })).toBeNull();
+    }
+  });
+
   it("marks llm and multimodal models as benchmark-expected", () => {
     expect(
       isBenchmarkExpectedModel({
