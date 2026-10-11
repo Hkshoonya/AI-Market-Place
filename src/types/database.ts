@@ -2083,6 +2083,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      get_active_provider_names: {
+        Args: Record<string, never>;
+        Returns: string[];
+      };
       get_cron_health_summary: {
         Args: Record<string, never>;
         Returns: {

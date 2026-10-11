@@ -47,7 +47,9 @@ test.describe("Product roadmap surfaces", () => {
       page.getByRole("heading", { name: /assisted escrow/i }).first()
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: /no platform fee/i }).first()
+      page.getByRole("heading", {
+        name: /^(no platform fee|1\.5% assisted escrow fee)$/i,
+      }).first()
     ).toBeVisible();
   });
 

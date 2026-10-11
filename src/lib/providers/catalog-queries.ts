@@ -38,11 +38,12 @@ export async function fetchAllPublicPages<T>(
 
 // Share the provider lookup between metadata and page rendering in one request.
 export const getActiveProviderNames = cache(async () => {
-  const supabase = createPublicClient();
-  const { data } = await fetchAllPublicPages((from, to) =>
-    supabase.from("models").select("provider").eq("status", "active")
-      .order("id").range(from, to),
-    "active-provider-names"
-  );
-  return [...new Set(data.map((row) => row.provider))];
+  const readNames = unstable_cache(async () => {
+    const { data, error } = await createPublicClient().rpc("get_active_provider_names");
+    if (error || !Array.isArray(data) || data.some((name) => typeof name !== "string")) {
+      throw new Error("Unable to load the complete public provider catalog");
+    }
+    return data;
+  }, ["public-active-provider-names-v2"], { revalidate: 300 });
+  return readNames();
 });

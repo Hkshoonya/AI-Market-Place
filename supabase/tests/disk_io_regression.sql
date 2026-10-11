@@ -58,6 +58,7 @@ FROM generate_series(1, 3500) i;
 \ir ../migrations/106_harden_notification_inserts.sql
 \ir ../migrations/107_news_retention_cover.sql
 \ir ../migrations/108_cron_health_summary.sql
+\ir ../migrations/109_active_provider_names.sql
 
 BEGIN;
 SET LOCAL ROLE service_role;
@@ -151,6 +152,8 @@ BEGIN
 END;
 $$;
 RESET ROLE;
+UPDATE public.models SET provider = CASE WHEN name IN ('Restricted', 'Old model')
+  THEN name ELSE 'Provider ' || (substring(name FROM 7)::integer % 1500) END;
 SET LOCAL ROLE anon;
 SET LOCAL plan_cache_mode = force_generic_plan;
 SET LOCAL work_mem = '2MB';
@@ -159,7 +162,17 @@ DECLARE
   page jsonb;
   expected jsonb;
   offset_value integer;
+  provider_names text[];
+  expected_providers text[];
 BEGIN
+  SELECT array_agg(provider ORDER BY first_id) INTO expected_providers FROM (
+    SELECT DISTINCT ON (provider) provider, id AS first_id
+    FROM public.models WHERE status = 'active' ORDER BY provider, id
+  ) old_names;
+  provider_names := public.get_active_provider_names();
+  IF cardinality(provider_names) <> 1500 OR provider_names IS DISTINCT FROM expected_providers THEN
+    RAISE EXCEPTION 'Provider names lost ordering, duplicates, RLS, or exceeded an API row cap';
+  END IF;
   FOR offset_value IN SELECT generate_series(0, 9500, 500) LOOP
     page := public.get_ranked_model_directory_page(offset_value);
     SELECT jsonb_agg(id ORDER BY overall_rank ASC NULLS LAST, id) INTO expected
@@ -233,6 +246,7 @@ DO $$ BEGIN
      has_table_privilege('authenticated', 'public.model_news', 'INSERT,UPDATE,DELETE,TRUNCATE') OR
      has_function_privilege('authenticated', 'public.get_benchmark_evidence_model_ids()', 'EXECUTE') OR
      (SELECT prosecdef FROM pg_proc WHERE oid = 'public.get_cron_health_summary()'::regprocedure) OR
+     (SELECT prosecdef FROM pg_proc WHERE oid = 'public.get_active_provider_names()'::regprocedure) OR
      has_function_privilege('service_role', 'public.sync_benchmark_evidence_links()', 'EXECUTE') THEN
     RAISE EXCEPTION 'Private grants are too broad';
   END IF;
@@ -242,6 +256,9 @@ SET LOCAL ROLE anon;
 DO $$ BEGIN
   IF public.get_ranked_model_directory_page(0) <> '{"data":[],"count":0}'::jsonb THEN
     RAISE EXCEPTION 'Empty catalogue failed';
+  END IF;
+  IF public.get_active_provider_names() <> '{}'::text[] THEN
+    RAISE EXCEPTION 'Empty provider catalogue failed';
   END IF;
 END $$;
 ROLLBACK;

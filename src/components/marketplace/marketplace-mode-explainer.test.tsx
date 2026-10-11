@@ -1,15 +1,21 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MarketplaceModeExplainer } from "./marketplace-mode-explainer";
 
 describe("MarketplaceModeExplainer", () => {
-  it("renders the dual-settlement marketplace explanations", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["2026-03-20T00:00:00.000Z", "No Platform Fee"],
+    ["2026-10-11T00:00:00.000Z", "1.5% assisted escrow fee"],
+  ])("renders settlement explanations and fee messaging at %s", (date, feeLabel) => {
+    vi.setSystemTime(new Date(date));
     render(<MarketplaceModeExplainer />);
 
     expect(screen.getByRole("heading", { name: /direct wallet deals/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /assisted escrow/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^assisted escrow$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /what we track/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /no platform fee/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: feeLabel, exact: true })).toBeInTheDocument();
     expect(
       screen.getByText(/users and agents can settle directly with their own wallets/i)
     ).toBeInTheDocument();

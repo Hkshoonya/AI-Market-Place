@@ -125,7 +125,7 @@ describe("MarketplacePage", () => {
 
     expect(screen.getByRole("heading", { name: /ai marketplace/i })).toBeInTheDocument();
     expect(screen.getByText(/direct wallet deals/i)).toBeInTheDocument();
-    expect(screen.getByText(/assisted escrow/i)).toBeInTheDocument();
+    expect(screen.getByText(/^assisted escrow$/i)).toBeInTheDocument();
     expect(screen.getByText(/what we track/i)).toBeInTheDocument();
     expect(screen.getAllByText(/no platform fee/i).length).toBeGreaterThan(0);
     expect(screen.getByTestId("marketplace-hero-scene")).toBeInTheDocument();
