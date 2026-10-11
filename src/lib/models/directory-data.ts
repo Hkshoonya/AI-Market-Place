@@ -66,8 +66,29 @@ export function directoryFilterKey(p: Record<string, string | undefined>): strin
 
 async function loadCandidatePage(filterKey: string, from: number) {
   const filters = JSON.parse(filterKey) as DirectoryFilters;
+  const supabase = createPublicClient();
+  // Optimize the common active/rank path without changing optional filter or
+  // pricing semantics. The invoker RPC applies RLS before paging and hydration.
+  const rankedPage = filters.sort === "rank" && filters.lifecycle === "active" &&
+    !filters.category && !filters.openOnly && !filters.provider && !filters.apiOnly &&
+    !filters.license && !filters.params && !filters.query;
+  if (rankedPage) {
+    const response = await supabase.rpc("get_ranked_model_directory_page", { p_offset: from });
+    const page = z.object({
+      data: z.array(z.unknown()).max(PAGE_SIZE),
+      count: z.number().int().nonnegative().nullable(),
+    }).safeParse(response.data);
+    if (response.error || !page.success || (from === 0 && page.data.count === null)) {
+      throw new Error("Unable to load the complete models directory");
+    }
+    return {
+      data: parseQueryResultPartial({ data: page.data.data, error: null }, DirectoryCandidateSchema, "DirectoryCandidates"),
+      count: page.data.count,
+      fetched: page.data.data.length,
+    };
+  }
   const pricing = "model_pricing(provider_name,input_price_per_million,output_price_per_million,source,currency)";
-  let query = createPublicClient().from("models").select(
+  let query = supabase.from("models").select(
     filters.sort === "price" ? `${DIRECTORY_CANDIDATE_COLUMNS},${pricing}` : DIRECTORY_CANDIDATE_COLUMNS,
     from === 0 ? { count: "exact" } : undefined
   );
@@ -104,7 +125,7 @@ async function loadCandidatePage(filterKey: string, from: number) {
 
 // Cache small pages rather than the whole catalogue. Never cache auth clients.
 const readCandidatePage = unstable_cache(loadCandidatePage,
-  ["public-model-directory-candidates-v1"], { revalidate: 300 });
+  ["public-model-directory-candidates-v2"], { revalidate: 300 });
 
 export const getDirectoryCandidates = cache(async (filterKey: string) => {
   const filters = JSON.parse(filterKey) as DirectoryFilters;

@@ -1,8 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchAllPublicPages } from "./catalog-queries";
+import { fetchAllPublicPages, getActiveProviderNames } from "./catalog-queries";
 import { unstable_cache } from "next/cache";
+import { createPublicClient } from "@/lib/supabase/public-server";
 
 vi.mock("next/cache", () => ({ unstable_cache: vi.fn((fn) => fn) }));
+vi.mock("@/lib/supabase/public-server", () => ({ createPublicClient: vi.fn() }));
+
+describe("getActiveProviderNames", () => {
+  it("fetches all names in one anonymous RPC and caches only public data", async () => {
+    const names = Array.from({ length: 1501 }, (_, i) => `Provider ${i}`);
+    const rpc = vi.fn().mockResolvedValue({ data: names, error: null });
+    vi.mocked(createPublicClient).mockReturnValue({ rpc } as never);
+    await expect(getActiveProviderNames()).resolves.toEqual(names);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("get_active_provider_names");
+    expect(unstable_cache).toHaveBeenCalledWith(
+      expect.any(Function), ["public-active-provider-names-v2"], { revalidate: 300 }
+    );
+  });
+
+  it.each([
+    { data: null, error: { message: "private database detail" } },
+    { data: null, error: null },
+    { data: [{ provider: "wrong shape" }], error: null },
+    { data: [null], error: null },
+  ])("rejects incomplete or malformed summaries: %j", async (result) => {
+    vi.mocked(createPublicClient).mockReturnValue({ rpc: vi.fn().mockResolvedValue(result) } as never);
+    await expect(getActiveProviderNames()).rejects.toThrow("Unable to load the complete public provider catalog");
+  });
+
+  it("supports an empty provider summary", async () => {
+    vi.mocked(createPublicClient).mockReturnValue({ rpc: vi.fn().mockResolvedValue({ data: [], error: null }) } as never);
+    await expect(getActiveProviderNames()).resolves.toEqual([]);
+  });
+});
 
 describe("fetchAllPublicPages", () => {
   it("uses explicit cache namespaces and a five-minute public-data lifetime", async () => {

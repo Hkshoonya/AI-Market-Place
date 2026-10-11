@@ -181,7 +181,8 @@ function makePipelineHealth(rows: Array<{
 // Mock supabase with DB ping (for SELECT 1) + data_sources + pipeline_health tables
 function createFullMockSupabase(
   tables: Record<string, TableMock>,
-  dbPingResult?: { data: unknown; error: null | { message: string } }
+  dbPingResult?: { data: unknown; error: null | { message: string } },
+  cronResult?: { data: unknown; error: null | { message: string } }
 ) {
   const pingResult = dbPingResult ?? { data: [{ "?column?": 1 }], error: null };
   return {
@@ -219,7 +220,32 @@ function createFullMockSupabase(
       };
       return chain;
     },
-    rpc: (_fn: string) => {
+    rpc: vi.fn((fn: string) => {
+      if (fn === "get_cron_health_summary") {
+        if (cronResult) return Promise.resolve(cronResult);
+        // Compile the existing row fixtures into the RPC response. The SQL
+        // integration suite tests the aggregation itself, including row caps.
+        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const rows = (tables.cron_runs?.data ?? [])
+          .filter((row) => String(row.created_at) >= cutoff)
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        const latest = new Map<string, unknown>();
+        for (const row of rows) {
+          const job = String(row.job_name ?? "").trim();
+          if (job && !latest.has(job)) latest.set(job, row.status);
+        }
+        return Promise.resolve({
+          data: {
+            runCount: rows.length,
+            runningJobs: rows.filter((row) => row.status === "running").length,
+            recentFailures24h: rows.filter((row) => row.status === "failed" &&
+              !String(row.error_message ?? "").startsWith("Marked stale before acquiring cron lock for")).length,
+            latestFailedJobs24h: [...latest.values()].filter((status) => status === "failed").length,
+            lastRunAt: rows[0]?.started_at ?? rows[0]?.created_at ?? null,
+          },
+          error: tables.cron_runs?.error ?? null,
+        });
+      }
       const chain = new Proxy(
         {},
         {
@@ -232,7 +258,7 @@ function createFullMockSupabase(
         }
       );
       return chain;
-    },
+    }),
   };
 }
 
@@ -1015,6 +1041,59 @@ describe("GET /api/health", () => {
 
       process.env.CRON_SECRET = originalSecret;
       process.env.CRON_RUNNER_MODE = originalMode;
+    });
+
+    it("uses a complete summary even when a failure is older than the newest 1,000 runs", async () => {
+      vi.stubEnv("CRON_SECRET", "test-secret");
+      vi.stubEnv("CRON_RUNNER_MODE", "external");
+      try {
+        const supabase = createFullMockSupabase({}, undefined, {
+          data: {
+            runCount: 1401,
+            runningJobs: 0,
+            recentFailures24h: 1,
+            latestFailedJobs24h: 1,
+            lastRunAt: "2026-03-11T23:59:00.000Z",
+          },
+          error: null,
+        });
+        mockCreateAdminClient.mockReturnValue(supabase as unknown as ReturnType<typeof createAdminClient>);
+        const response = await GET(makeRequest("Bearer test-secret") as never);
+        const body = await response.json();
+        expect(response.status).toBe(200);
+        expect(body.status).toBe("degraded");
+        expect(body.cron.recentFailures24h).toBe(1);
+        expect(supabase.rpc).toHaveBeenCalledExactlyOnceWith("get_cron_health_summary");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it.each([
+      { data: null, error: { message: "sensitive upstream detail" } },
+      { data: [], error: null },
+      { data: { runCount: 0 }, error: null },
+    ])("never reports healthy when the cron summary is unavailable: %j", async (result) => {
+      vi.stubEnv("CRON_SECRET", "test-secret");
+      try {
+        mockCreateAdminClient.mockReturnValue(
+          createFullMockSupabase({}, undefined, result) as unknown as ReturnType<typeof createAdminClient>
+        );
+        const response = await GET(makeRequest("Bearer test-secret") as never);
+        expect(response.status).toBe(500);
+        const body = await response.text();
+        expect(body).not.toContain('"healthy"');
+        expect(body).not.toContain("sensitive upstream detail");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("does not call the private cron summary for public health requests", async () => {
+      const supabase = createFullMockSupabase({});
+      mockCreateAdminClient.mockReturnValue(supabase as unknown as ReturnType<typeof createAdminClient>);
+      await GET(makeRequest() as never);
+      expect(supabase.rpc).not.toHaveBeenCalled();
     });
 
     it("returns 503 with status 'unhealthy' when authenticated but DB fails", async () => {

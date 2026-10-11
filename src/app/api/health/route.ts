@@ -26,11 +26,16 @@ import {
 } from "@/lib/cron-runtime";
 import { checkCrawlerSurfaceHealth } from "@/lib/crawl-health";
 import { getStripePaymentsHealth } from "@/lib/payments/stripe-health";
-import { isAutoStaleCronFailure } from "@/lib/pipeline-cron-health";
 
 export const dynamic = "force-dynamic";
 
-const CRON_HEALTH_LOOKBACK_HOURS = 24;
+const CronHealthSummarySchema = z.object({
+  runCount: z.number().int().nonnegative(),
+  runningJobs: z.number().int().nonnegative(),
+  recentFailures24h: z.number().int().nonnegative(),
+  latestFailedJobs24h: z.number().int().nonnegative(),
+  lastRunAt: z.string().nullable(),
+});
 
 const pkgPath = join(process.cwd(), "package.json");
 const APP_VERSION: string = (() => {
@@ -121,31 +126,6 @@ const HealthUnhealthySchema = z.object({
   timestamp: z.string(),
   error: z.string(),
 });
-
-type CronRunSnapshot = {
-  job_name?: string | null;
-  status?: string | null;
-  started_at?: string | null;
-  created_at?: string | null;
-  error_message?: string | null;
-};
-
-function countLatestFailedJobs(cronRuns: CronRunSnapshot[]) {
-  const latestByJob = new Map<string, CronRunSnapshot>();
-
-  for (const run of cronRuns) {
-    const jobName = run.job_name?.trim();
-    if (!jobName || latestByJob.has(jobName)) continue;
-    latestByJob.set(jobName, run);
-  }
-
-  let failedJobs = 0;
-  for (const run of latestByJob.values()) {
-    if (run.status === "failed") failedJobs++;
-  }
-
-  return failedJobs;
-}
 
 function resolveReleaseMetadata() {
   const normalizeEnvValue = (value: string | undefined) => {
@@ -268,24 +248,18 @@ export async function GET(request: NextRequest) {
       pipelineDown > 0 || pipelineDegraded > 0 ? "degraded" : "healthy";
 
     if (isAuthenticated) {
-      const cronCutoff = new Date(
-        Date.now() - CRON_HEALTH_LOOKBACK_HOURS * 60 * 60 * 1000
-      ).toISOString();
-      const { data: cronRuns = [] } = await supabase
-        .from("cron_runs")
-        .select("job_name, status, started_at, created_at, error_message")
-        .gte("created_at", cronCutoff)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      const recentCronRuns = cronRuns ?? [];
+      // Aggregate the complete window in the database, not the newest 100 runs
+      // or an API row-capped export that can hide a failed low-frequency job.
+      const cronResponse = await supabase.rpc("get_cron_health_summary");
+      const cronSummary = CronHealthSummarySchema.safeParse(cronResponse.data);
+      if (cronResponse.error || !cronSummary.success) {
+        throw new Error("Unable to read complete cron health");
+      }
+      const { runCount, runningJobs, recentFailures24h, latestFailedJobs24h, lastRunAt } = cronSummary.data;
 
       const cronMode = resolveCronRunnerMode();
       const schedulerConfigured = isCronSchedulerConfigured(cronMode);
-      const recentFailures24h = recentCronRuns.filter(
-        (run) => run.status === "failed" && !isAutoStaleCronFailure(run)
-      ).length;
-      const latestFailedJobs24h = countLatestFailedJobs(recentCronRuns);
-      const cronStale = schedulerConfigured && recentCronRuns.length === 0;
+      const cronStale = schedulerConfigured && runCount === 0;
       const cronDegraded = cronStale || latestFailedJobs24h > 0;
       const [stripePaymentsHealth, crawlSurface] = await Promise.all([
         getStripePaymentsHealth(supabase),
@@ -313,9 +287,9 @@ export async function GET(request: NextRequest) {
           mode: cronMode,
           schedulerConfigured,
           stale: cronStale,
-          runningJobs: recentCronRuns.filter((run) => run.status === "running").length,
+          runningJobs,
           recentFailures24h,
-          lastRunAt: recentCronRuns[0]?.started_at ?? recentCronRuns[0]?.created_at ?? null,
+          lastRunAt,
         },
         pipeline: {
           healthy: pipelineHealthy,

@@ -171,6 +171,11 @@ async function readBody(request: Request) {
 }
 
 export const handlers = [
+  http.post(`${SUPABASE_URL}/rest/v1/rpc/get_ranked_model_directory_page`, async ({ request }) => {
+    const { p_offset = 0 } = await request.json() as { p_offset?: number };
+    const rows = modelDetailFixture.similar_models;
+    return HttpResponse.json({ data: rows.slice(p_offset, p_offset + 500), count: p_offset === 0 ? rows.length : null });
+  }),
   http.get(`${SUPABASE_URL}/rest/v1/deployment_platforms`, ({ request }) => {
     return jsonResult(request, applyQueryFilters([{
       id: "public-pricing-plan", slug: "example-research-plan", name: "Example Research Plan",

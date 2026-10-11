@@ -17,17 +17,6 @@ vi.mock("next/navigation", async () => {
   };
 });
 
-function createQuery<T>(data: T) {
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    range: vi.fn().mockReturnThis(),
-    then: (resolve: (value: { data: T; error: null }) => unknown) =>
-      Promise.resolve(resolve({ data, error: null })),
-  };
-}
-
 describe("ProviderDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,12 +27,7 @@ describe("ProviderDetailPage", () => {
 
   it("builds metadata for a valid provider slug", async () => {
     mockCreatePublicClient.mockReturnValue({
-      from: vi.fn(() =>
-        createQuery([
-          { provider: "OpenAI" },
-          { provider: "Anthropic" },
-        ]),
-      ),
+      rpc: vi.fn().mockResolvedValue({ data: ["OpenAI", "Anthropic"], error: null }),
     });
 
     const { generateMetadata } = await import("./page");
@@ -63,7 +47,7 @@ describe("ProviderDetailPage", () => {
 
   it("returns not-found metadata when the provider slug does not resolve", async () => {
     mockCreatePublicClient.mockReturnValue({
-      from: vi.fn(() => createQuery([{ provider: "OpenAI" }])),
+      rpc: vi.fn().mockResolvedValue({ data: ["OpenAI"], error: null }),
     });
 
     const { generateMetadata } = await import("./page");
@@ -78,24 +62,22 @@ describe("ProviderDetailPage", () => {
   });
 
   it("finds providers beyond the database's first 1,000 rows", async () => {
-    const range = vi.fn((from: number) => Promise.resolve({
-      data: from === 0
-        ? Array.from({ length: 1000 }, () => ({ provider: "OpenAI" }))
-        : [{ provider: "Anthropic" }],
+    const rpc = vi.fn().mockResolvedValue({
+      data: [...Array.from({ length: 1000 }, (_, i) => `Provider ${i}`), "Anthropic"],
       error: null,
-    }));
+    });
     mockCreatePublicClient.mockReturnValue({
-      from: vi.fn(() => ({ ...createQuery([]), range })),
+      rpc,
     });
     const { generateMetadata } = await import("./page");
     await expect(generateMetadata({ params: Promise.resolve({ slug: "anthropic" }) }))
       .resolves.toMatchObject({ title: "Anthropic AI Models" });
-    expect(range).toHaveBeenNthCalledWith(2, 1000, 1999);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("get_active_provider_names");
   });
 
   it("calls notFound for an invalid provider detail route", async () => {
     mockCreatePublicClient.mockReturnValue({
-      from: vi.fn(() => createQuery([{ provider: "OpenAI" }])),
+      rpc: vi.fn().mockResolvedValue({ data: ["OpenAI"], error: null }),
     });
 
     const { default: ProviderDetailPage } = await import("./page");
