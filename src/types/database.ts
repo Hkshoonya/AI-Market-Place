@@ -2083,6 +2083,16 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      get_cron_health_summary: {
+        Args: Record<string, never>;
+        Returns: {
+          runCount: number;
+          runningJobs: number;
+          recentFailures24h: number;
+          latestFailedJobs24h: number;
+          lastRunAt: string | null;
+        };
+      };
       get_ranked_model_directory_page: {
         Args: { p_offset?: number };
         Returns: { data: Record<string, unknown>[]; count: number | null };

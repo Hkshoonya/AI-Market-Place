@@ -11,7 +11,7 @@ import {
 
 describe("marketplace settlement helpers", () => {
   it("returns the direct settlement mode as the default recommendation", () => {
-    const options = getSettlementModeOptions();
+    const options = getSettlementModeOptions(new Date("2026-03-20T00:00:00.000Z"));
 
     expect(options[0]).toMatchObject({
       key: "direct",
@@ -27,11 +27,21 @@ describe("marketplace settlement helpers", () => {
   it("keeps assisted escrow messaging simple while preserving future fee configuration", () => {
     expect(ESCROW_PLATFORM_FEE_BPS).toBe(150);
     expect(FIRST_ESCROW_FEE_WAIVER_MONTHS).toBe(6);
-    expect(getMarketplaceFeeHeadline()).toBe("No Platform Fee");
+    expect(getMarketplaceFeeHeadline(new Date("2026-03-20T00:00:00.000Z"))).toBe("No Platform Fee");
   });
 
   it("treats escrow as fee-waived during the initial launch window", () => {
     expect(isEscrowFeeWaived(new Date("2026-03-20T00:00:00.000Z"))).toBe(true);
+  });
+
+  it("shows the configured escrow fee after the launch window without changing direct fees", () => {
+    const afterWaiver = new Date("2026-10-11T00:00:00.000Z");
+    expect(isEscrowFeeWaived(afterWaiver)).toBe(false);
+    expect(getMarketplaceFeeHeadline(afterWaiver)).toBe("1.5% assisted escrow fee");
+    expect(getSettlementModeOptions(afterWaiver).map((option) => option.feeLabel)).toEqual([
+      "No Platform Fee",
+      "1.5% assisted escrow fee",
+    ]);
   });
 
   it("surfaces direct and escrow summaries for marketplace explanations", () => {

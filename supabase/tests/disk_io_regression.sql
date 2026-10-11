@@ -12,8 +12,16 @@ CREATE POLICY own_notifications_read ON public.notifications FOR SELECT
 CREATE POLICY own_notifications_update ON public.notifications FOR UPDATE
   USING (user_id = nullif(current_setting('request.jwt.claim.sub', true), '')::uuid);
 CREATE TABLE public.model_news (
-  id uuid PRIMARY KEY, category text, related_model_ids uuid[], title text
+  id uuid PRIMARY KEY, category text, related_model_ids uuid[], title text,
+  source text, published_at timestamptz
 );
+CREATE TABLE public.cron_runs (
+  id uuid PRIMARY KEY, job_name text, status text, started_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(), error_message text
+);
+ALTER TABLE public.cron_runs ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON public.cron_runs TO service_role;
+CREATE INDEX idx_cron_runs_created ON public.cron_runs(created_at DESC);
 ALTER TABLE public.model_news ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can read model_news" ON public.model_news FOR SELECT USING (true);
 CREATE POLICY "Service role can manage model_news" ON public.model_news FOR ALL USING (true);
@@ -48,6 +56,8 @@ FROM generate_series(1, 3500) i;
 \ir ../migrations/104_benchmark_evidence_projection.sql
 \ir ../migrations/105_ranked_directory_page.sql
 \ir ../migrations/106_harden_notification_inserts.sql
+\ir ../migrations/107_news_retention_cover.sql
+\ir ../migrations/108_cron_health_summary.sql
 
 BEGIN;
 SET LOCAL ROLE service_role;
@@ -64,7 +74,7 @@ BEGIN
   IF cardinality(public.get_benchmark_evidence_model_ids()) <> 3500 THEN
     RAISE EXCEPTION 'Backfill lost IDs or hit a response limit';
   END IF;
-  INSERT INTO public.model_news VALUES (test_news_id, 'general', ARRAY[fresh_id], 'test');
+  INSERT INTO public.model_news(id, category, related_model_ids, title) VALUES (test_news_id, 'general', ARRAY[fresh_id], 'test');
   IF EXISTS (SELECT FROM public.benchmark_evidence_links WHERE benchmark_evidence_links.news_id = test_news_id) THEN
     RAISE EXCEPTION 'Non-benchmark news entered projection';
   END IF;
@@ -96,7 +106,7 @@ BEGIN
   DELETE FROM public.model_news WHERE id = '33333333-3333-3333-3333-333333333333';
   IF cardinality(public.get_benchmark_evidence_model_ids()) <> 3500 THEN RAISE EXCEPTION 'Cascade/shared evidence failed'; END IF;
   BEGIN
-    INSERT INTO public.model_news VALUES (test_news_id, 'benchmark', ARRAY[fresh_id], 'rollback');
+    INSERT INTO public.model_news(id, category, related_model_ids, title) VALUES (test_news_id, 'benchmark', ARRAY[fresh_id], 'rollback');
     RAISE EXCEPTION 'rollback fixture' USING ERRCODE = 'ZX001';
   EXCEPTION WHEN SQLSTATE 'ZX001' THEN NULL;
   END;
@@ -104,6 +114,40 @@ BEGIN
   IF has_table_privilege('service_role', 'public.benchmark_evidence_links', 'INSERT,UPDATE,DELETE') THEN
     RAISE EXCEPTION 'Service client can mutate the derived projection directly';
   END IF;
+END;
+$$;
+DO $$
+DECLARE summary jsonb;
+BEGIN
+  summary := public.get_cron_health_summary();
+  IF summary <> '{"runCount":0,"runningJobs":0,"recentFailures24h":0,"latestFailedJobs24h":0,"lastRunAt":null}'::jsonb THEN
+    RAISE EXCEPTION 'Empty cron summary failed: %', summary;
+  END IF;
+  INSERT INTO public.cron_runs(id, job_name, status, created_at, started_at)
+  SELECT md5('cron-' || i)::uuid, 'frequent', 'completed', now() - i * interval '1 second', now() - i * interval '1 second'
+  FROM generate_series(1, 1200) i;
+  INSERT INTO public.cron_runs(id, job_name, status, created_at, error_message) VALUES
+    (md5('retention')::uuid, 'maintenance-retention', 'failed', now() - interval '12 hours', 'timeout'),
+    (md5('old')::uuid, 'old-failure', 'failed', now() - interval '25 hours', 'old'),
+    (md5('rerun-fail')::uuid, 'rerun', 'failed', now() - interval '6 hours', NULL),
+    (md5('rerun-ok')::uuid, ' rerun ', 'completed', now() - interval '5 hours', NULL),
+    (md5('auto-stale')::uuid, 'rerun', 'failed', now() - interval '8 hours', 'Marked stale before acquiring cron lock for rerun'),
+    (md5('running')::uuid, 'running', 'running', now(), NULL);
+  summary := public.get_cron_health_summary();
+  IF summary->>'runCount' <> '1205' OR summary->>'runningJobs' <> '1' OR
+     summary->>'recentFailures24h' <> '2' OR summary->>'latestFailedJobs24h' <> '1' OR
+     (summary->>'lastRunAt')::timestamptz <> now() THEN
+    RAISE EXCEPTION 'Complete-window cron summary failed: %', summary;
+  END IF;
+  -- A deterministic tie-breaker prevents status flapping on equal timestamps.
+  INSERT INTO public.cron_runs(id, job_name, status, created_at) VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000001', 'tie', 'failed', now()),
+    ('aaaaaaaa-0000-0000-0000-000000000002', 'tie', 'completed', now());
+  IF public.get_cron_health_summary()->>'latestFailedJobs24h' <> '1' THEN
+    RAISE EXCEPTION 'Equal-timestamp cron ordering is unstable';
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_index WHERE indexrelid = 'public.idx_model_news_retention_cover'::regclass
+    AND indisvalid AND indisready) THEN RAISE EXCEPTION 'Retention index is not usable'; END IF;
 END;
 $$;
 RESET ROLE;
@@ -135,6 +179,11 @@ BEGIN
     END;
   END LOOP;
   BEGIN
+    PERFORM public.get_cron_health_summary();
+    RAISE EXCEPTION 'Private cron summary is callable by anon';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
     PERFORM public.get_benchmark_evidence_model_ids();
     RAISE EXCEPTION 'Private summary is callable by anon';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -163,6 +212,11 @@ SET LOCAL request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 DO $$
 DECLARE affected integer;
 BEGIN
+  BEGIN
+    PERFORM public.get_cron_health_summary();
+    RAISE EXCEPTION 'Private cron summary is callable by authenticated';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
   IF (SELECT count(*) FROM public.notifications) <> 1 THEN RAISE EXCEPTION 'Notification read isolation failed'; END IF;
   UPDATE public.notifications SET is_read = true;
   GET DIAGNOSTICS affected = ROW_COUNT;
@@ -178,6 +232,7 @@ DO $$ BEGIN
   IF has_table_privilege('authenticated', 'public.benchmark_evidence_links', 'SELECT') OR
      has_table_privilege('authenticated', 'public.model_news', 'INSERT,UPDATE,DELETE,TRUNCATE') OR
      has_function_privilege('authenticated', 'public.get_benchmark_evidence_model_ids()', 'EXECUTE') OR
+     (SELECT prosecdef FROM pg_proc WHERE oid = 'public.get_cron_health_summary()'::regprocedure) OR
      has_function_privilege('service_role', 'public.sync_benchmark_evidence_links()', 'EXECUTE') THEN
     RAISE EXCEPTION 'Private grants are too broad';
   END IF;
