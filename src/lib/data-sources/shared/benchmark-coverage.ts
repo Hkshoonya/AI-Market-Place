@@ -291,7 +291,12 @@ export function getTrustedBenchmarkWebsiteUrl(
   let host: string;
   try {
     const url = new URL(websiteUrl);
-    if (url.protocol !== "https:" || url.username || url.password || url.port) {
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.port !== ""
+    ) {
       return null;
     }
     host = url.hostname.toLowerCase();

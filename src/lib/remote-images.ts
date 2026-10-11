@@ -13,7 +13,12 @@ export function getRemoteImagePatterns(supabaseUrl?: string): RemoteImagePattern
   if (!supabaseUrl) return patterns;
   try {
     const url = new URL(supabaseUrl);
-    if (url.protocol !== "https:" || url.username || url.password || url.port) {
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.port !== ""
+    ) {
       return patterns;
     }
     // Never optimize arbitrary tenants' uploads via a shared Supabase wildcard.
