@@ -13,6 +13,7 @@ const MODEL_PAGE_SIZE = 1000;
 interface ResolveAliasFamilyOptions {
   slugCandidates?: Array<string | null | undefined>;
   nameCandidates?: Array<string | null | undefined>;
+  allowLooseMatch?: boolean;
 }
 
 interface ModelAliasIndex {
@@ -230,6 +231,9 @@ export function resolveAliasFamilyModelIds(
     for (const id of index.slugToIds.get(slug) ?? []) {
       matched.add(id);
     }
+    for (const id of index.baseToDatedIds.get(slug) ?? []) {
+      matched.add(id);
+    }
   }
 
   for (const slug of compactSlugCandidates) {
@@ -250,7 +254,7 @@ export function resolveAliasFamilyModelIds(
     }
   }
 
-  if (matched.size === 0) {
+  if (matched.size === 0 && options.allowLooseMatch !== false) {
     for (const [dbName, ids] of index.nameToIds) {
       if (
         nameCandidates.filter(isUsefulLooseCandidate).some(
@@ -264,7 +268,7 @@ export function resolveAliasFamilyModelIds(
     }
   }
 
-  if (matched.size === 0) {
+  if (matched.size === 0 && options.allowLooseMatch !== false) {
     for (const [dbSlug, ids] of index.slugToIds) {
       if (
         slugCandidates.filter(isUsefulLooseCandidate).some(
