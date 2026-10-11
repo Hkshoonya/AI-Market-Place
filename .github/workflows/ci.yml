@@ -23,6 +23,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run audit:production
       - run: npm run lint
 
   typecheck:

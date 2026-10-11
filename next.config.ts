@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import { buildContentSecurityPolicy } from "./src/lib/csp";
+import { getRemoteImagePatterns } from "./src/lib/remote-images";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -13,10 +14,7 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "api.dicebear.com" },
-    ],
+    remotePatterns: getRemoteImagePatterns(process.env.NEXT_PUBLIC_SUPABASE_URL),
   },
   async headers() {
     // In E2E test mode, extend connect-src to include localhost:54321 (Supabase mock).

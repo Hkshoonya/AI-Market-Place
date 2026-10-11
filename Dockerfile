@@ -10,7 +10,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 
-RUN npm install --ignore-scripts --prefer-offline
+RUN npm ci --ignore-scripts --prefer-offline
 
 # ── Stage 2: Build the application ────────────────────────
 FROM node:22-alpine AS builder
