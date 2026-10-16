@@ -17,6 +17,7 @@ const LLMS_TEXT = [
   `- Search: ${SITE_URL}/search`,
   `- News: ${SITE_URL}/news`,
   `- About: ${SITE_URL}/about`,
+  `- Methodology: ${SITE_URL}/methodology`,
   `- API Docs: ${SITE_URL}/api-docs`,
   `- Sitemap: ${SITE_URL}/sitemap.xml`,
   "",

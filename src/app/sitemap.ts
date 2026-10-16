@@ -45,6 +45,7 @@ function buildStaticRoutes(lastModified: Date): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/providers`, lastModified, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/roadmap`, lastModified, changeFrequency: "weekly", priority: 0.5 },
     { url: `${SITE_URL}/about`, lastModified, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${SITE_URL}/methodology`, lastModified, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/terms`, lastModified, changeFrequency: "monthly", priority: 0.2 },
     { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: "monthly", priority: 0.2 },
     { url: `${SITE_URL}/news`, lastModified, changeFrequency: "weekly", priority: 0.5 },

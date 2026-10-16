@@ -6,6 +6,20 @@ import type {
 const MIN_EFFECTIVE_PRICE = 0.1;
 const MAX_PRICE_NORMALIZATION = 20;
 
+export const ADOPTION_SIGNAL_WEIGHTS = {
+  downloads: 0.2,
+  usage: 0.45,
+  distribution: 0.2,
+  durability: 0.15,
+} as const;
+
+export const ECONOMIC_FOOTPRINT_WEIGHTS = {
+  adoption: 0.45,
+  monetization: 0.2,
+  distribution: 0.2,
+  durability: 0.15,
+} as const;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -106,10 +120,10 @@ export function computeAdoptionScore(inputs: {
   const durabilitySignal = computeDurabilityScore(inputs.releaseDate);
 
   const weighted =
-    downloadSignal * 0.2 +
-    usageSignal * 0.45 +
-    distributionSignal * 0.2 +
-    durabilitySignal * 0.15;
+    downloadSignal * ADOPTION_SIGNAL_WEIGHTS.downloads +
+    usageSignal * ADOPTION_SIGNAL_WEIGHTS.usage +
+    distributionSignal * ADOPTION_SIGNAL_WEIGHTS.distribution +
+    durabilitySignal * ADOPTION_SIGNAL_WEIGHTS.durability;
 
   return Math.round(clamp(weighted, 0, 100) * 10) / 10;
 }
@@ -131,10 +145,10 @@ export function computeEconomicFootprintScore(inputs: {
   const confidenceMultiplier = computeEconomicConfidenceMultiplier(inputs);
 
   const weighted =
-    inputs.adoptionScore * 0.45 +
-    monetizationScore * 0.2 +
-    distributionScore * 0.2 +
-    durabilityScore * 0.15;
+    inputs.adoptionScore * ECONOMIC_FOOTPRINT_WEIGHTS.adoption +
+    monetizationScore * ECONOMIC_FOOTPRINT_WEIGHTS.monetization +
+    distributionScore * ECONOMIC_FOOTPRINT_WEIGHTS.distribution +
+    durabilityScore * ECONOMIC_FOOTPRINT_WEIGHTS.durability;
 
   return Math.round(clamp(weighted * confidenceMultiplier, 0, 100) * 10) / 10;
 }

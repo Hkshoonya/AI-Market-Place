@@ -245,6 +245,11 @@ describe("LeaderboardsPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: /ai model leaderboards/i })).toBeInTheDocument();
+    expect(screen.queryByText(/every 6 hours/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /how rankings are calculated/i })).toHaveAttribute(
+      "href",
+      "/methodology"
+    );
     expect(screen.getByTestId("leaderboard-lens-nav")).toHaveTextContent("capability");
     expect(screen.getByRole("link", { name: /browser agents/i })).toHaveAttribute(
       "href",

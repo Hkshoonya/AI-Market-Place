@@ -58,6 +58,7 @@ vi.mock("@/components/ui/sheet", () => ({
 vi.mock("lucide-react", () => ({
   Activity: (props: ComponentProps<"svg">) => <svg data-testid="activity-icon" {...props} />,
   BarChart3: (props: ComponentProps<"svg">) => <svg {...props} />,
+  BookOpen: (props: ComponentProps<"svg">) => <svg {...props} />,
   Building2: (props: ComponentProps<"svg">) => <svg {...props} />,
   Gauge: (props: ComponentProps<"svg">) => <svg {...props} />,
   LayoutDashboard: (props: ComponentProps<"svg">) => <svg {...props} />,

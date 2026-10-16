@@ -101,7 +101,7 @@ interface WeightProfile {
   openness: number;
 }
 
-const CATEGORY_WEIGHTS: Record<string, WeightProfile> = {
+export const QUALITY_CATEGORY_WEIGHTS: Record<string, WeightProfile> = {
   llm:              { popularity: 10, benchmarks: 30, elo: 30, recency: 10, community: 10, openness: 10 },
   multimodal:       { popularity: 10, benchmarks: 25, elo: 25, recency: 15, community: 15, openness: 10 },
   image_generation: { popularity: 20, benchmarks: 15, elo: 10, recency: 20, community: 25, openness: 10 },
@@ -231,7 +231,7 @@ function computeProxyQualitySignal(inputs: QualityInputs): number {
 /**
  * Calculate quality score for a single model.
  *
- * Weights are category-dependent (see CATEGORY_WEIGHTS).
+ * Weights are category-dependent (see QUALITY_CATEGORY_WEIGHTS).
  * Missing signals are excluded and remaining signals reweighted proportionally.
  *
  * Proprietary models: HF-based signals (popularity, community/likes) are
@@ -241,7 +241,7 @@ export function calculateQualityScore(
   inputs: QualityInputs,
   stats: NormalizationStats
 ): number {
-  const weights = CATEGORY_WEIGHTS[inputs.category] ?? CATEGORY_WEIGHTS.default;
+  const weights = QUALITY_CATEGORY_WEIGHTS[inputs.category] ?? QUALITY_CATEGORY_WEIGHTS.default;
   const isProprietary = !inputs.isOpenWeights;
   const isHfAvailable = !isProprietary || (inputs.hfDownloads != null && inputs.hfDownloads > 0);
 

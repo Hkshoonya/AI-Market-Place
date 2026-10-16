@@ -34,7 +34,7 @@ const VALUE_CARDS = [
   {
     icon: Zap,
     title: "Real-Time Data",
-    desc: "Benchmark scores, pricing, and ranking signals are refreshed continuously through the platform pipeline.",
+    desc: "Benchmark scores, pricing, and ranking signals refresh on a tiered schedule, from about every hour for launch feeds through daily for reference sources.",
   },
   {
     icon: Users,
@@ -61,8 +61,11 @@ export default async function AboutPage() {
         <h1 className="mt-6 text-4xl font-bold">About AI Market Cap</h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
           We track, rank, compare, and operationalize the AI model economy so users can
-          make decisions with current data, visible methodology, and transparent platform
-          governance.
+          make decisions with current data, a public{" "}
+          <Link href="/methodology" className="text-neon hover:underline">
+            methodology
+          </Link>
+          , and transparent platform governance.
         </p>
       </div>
 

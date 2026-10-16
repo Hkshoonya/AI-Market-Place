@@ -38,6 +38,15 @@ const KNOWN_MODEL_CATALOGS: Record<string, KnownCatalog> = {
   "black forest labs": BLACK_FOREST_LABS_KNOWN_MODELS,
 };
 
+export function countDistinctKnownModels(): number {
+  const catalogs = new Set(Object.values(KNOWN_MODEL_CATALOGS));
+  let total = 0;
+  for (const catalog of catalogs) {
+    total += Object.keys(catalog).length;
+  }
+  return total;
+}
+
 const KNOWN_MODEL_META_CACHE_MAX_ENTRIES = 20_000;
 const knownModelMetaCache = new Map<string, KnownModelMeta | null>();
 

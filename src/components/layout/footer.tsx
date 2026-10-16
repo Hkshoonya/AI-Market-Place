@@ -21,6 +21,7 @@ const FOOTER_LINKS = {
   })),
   Company: [
     { href: "/about", label: "About" },
+    { href: "/methodology", label: "Methodology" },
     { href: "/roadmap", label: "Roadmap" },
     { href: "/contact", label: "Contact" },
     { href: "/faq", label: "FAQ" },
