@@ -23,6 +23,13 @@ export interface PopularityStats {
   maxTrendingScore: number;
 }
 
+export const POPULARITY_SIGNAL_WEIGHTS = {
+  community: 0.4,
+  market: 0.2,
+  adoption: 0.25,
+  durability: 0.15,
+} as const;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -91,7 +98,7 @@ export function computePopularityScore(
       signals,
       "community",
       communitySignals.reduce((sum, score) => sum + score, 0) / communitySignals.length,
-      0.4
+      POPULARITY_SIGNAL_WEIGHTS.community
     );
   }
 
@@ -108,7 +115,7 @@ export function computePopularityScore(
       signals,
       "market",
       marketSignals.reduce((sum, score) => sum + score, 0) / marketSignals.length,
-      0.2
+      POPULARITY_SIGNAL_WEIGHTS.market
     );
   }
 
@@ -118,13 +125,18 @@ export function computePopularityScore(
       signals,
       "adoption",
       logNormalizeSignal(inputs.providerUsageEstimate, stats.maxUsageEstimate),
-      0.25
+      POPULARITY_SIGNAL_WEIGHTS.adoption
     );
   }
 
   if (evidenceSignalCount === 0) return 0;
 
-  addSignal(signals, "durability", computeDurabilityScore(inputs.releaseDate), 0.15);
+  addSignal(
+    signals,
+    "durability",
+    computeDurabilityScore(inputs.releaseDate),
+    POPULARITY_SIGNAL_WEIGHTS.durability
+  );
 
   const totalWeight = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const weightedSum = signals.reduce(

@@ -472,7 +472,11 @@ export default async function LeaderboardsPage({
           <h1 className="text-2xl font-bold">AI Model Leaderboards</h1>
         </div>
         <p className="mt-2 text-muted-foreground">
-          Rankings across capability, popularity, adoption, economic footprint, speed, and value. Updated every 6 hours.
+          Rankings across capability, popularity, adoption, economic footprint, speed, and value.
+          Sources refresh on a tiered schedule: about every hour, 2 hours, 4 hours, 8 hours, or daily.{" "}
+          <Link href="/methodology" className="text-neon hover:underline">
+            How rankings are calculated
+          </Link>
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           Use this page when you want the best models for a specific goal, not just the biggest names.

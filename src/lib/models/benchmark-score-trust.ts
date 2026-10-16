@@ -1,4 +1,4 @@
-const TRUSTED_STRUCTURED_BENCHMARK_SOURCES = new Set<string>([
+export const TRUSTED_STRUCTURED_BENCHMARK_SOURCES = new Set<string>([
   "aider",
   "arena-hard-auto",
   "artificial-analysis",

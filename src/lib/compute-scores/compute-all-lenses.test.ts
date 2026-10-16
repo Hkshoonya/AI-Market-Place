@@ -595,23 +595,29 @@ describe("computeAllLenses", () => {
   });
 
   it("demotes superseded lifecycle rows below the current replacement in capability and balanced ranks", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-30T00:00:00.000Z"));
     const inputs = buildLifecyclePenaltyFixture();
     const supabase = createMockSupabase();
 
-    const result = await computeAllLenses(inputs, supabase);
+    try {
+      const result = await computeAllLenses(inputs, supabase);
 
-    const opus46Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-6");
-    const opus47Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-7");
+      const opus46Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-6");
+      const opus47Capability = result.capabilityScoreMap.get("anthropic-claude-opus-4-7");
 
-    expect(opus46Capability).not.toBeNull();
-    expect(opus47Capability).not.toBeNull();
-    expect(opus47Capability!).toBeGreaterThan(opus46Capability!);
+      expect(opus46Capability).not.toBeNull();
+      expect(opus47Capability).not.toBeNull();
+      expect(opus47Capability!).toBeGreaterThan(opus46Capability!);
 
-    expect(result.capRankMap.get("anthropic-claude-opus-4-7")).toBeLessThan(
-      result.capRankMap.get("anthropic-claude-opus-4-6")!
-    );
-    expect(result.balancedRankMap.get("anthropic-claude-opus-4-7")?.overall).toBeLessThan(
-      result.balancedRankMap.get("anthropic-claude-opus-4-6")?.overall ?? Number.MAX_SAFE_INTEGER
-    );
+      expect(result.capRankMap.get("anthropic-claude-opus-4-7")).toBeLessThan(
+        result.capRankMap.get("anthropic-claude-opus-4-6")!
+      );
+      expect(result.balancedRankMap.get("anthropic-claude-opus-4-7")?.overall).toBeLessThan(
+        result.balancedRankMap.get("anthropic-claude-opus-4-6")?.overall ?? Number.MAX_SAFE_INTEGER
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HelpCircle, ChevronDown } from "lucide-react";
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants/site";
@@ -27,7 +28,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "How often is data updated?",
-        a: "Source refresh cadence is tiered by importance rather than fixed to one interval. High-priority feeds sync about every 2 hours, secondary sources around every 4 hours, slower sources around every 8 hours, and low-priority reference sources daily. Benchmark scores and pricing also update as new evaluations and provider pricing changes are published.",
+        a: "Source refresh is tiered. Provider news and X announcements refresh about every hour. Other high-priority provider catalogs refresh about every 2 hours. Secondary sources refresh about every 4 hours, slower sources about every 8 hours, and reference sources daily. Rankings recompute about every 2 hours. Benchmark scores and pricing also update when new evaluations or provider price sheets land.",
       },
       {
         q: "Is AI Market Cap free to use?",
@@ -35,7 +36,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "Is the data real-time?",
-        a: "Our data is near-real-time rather than strictly real-time. Public source refreshes run on a tiered schedule from roughly every 2 hours for the hottest feeds through daily for lower-priority sources. Benchmark scores update as new evaluations are published. Pricing data updates as providers announce changes. Marketplace listings, orders, and reviews update immediately when users act.",
+        a: "Our data is near-real-time rather than strictly real-time. Public source refreshes run on a tiered schedule, from about every hour for launch feeds through daily for reference sources. Rankings recompute about every 2 hours. Benchmark scores update as new evaluations are published. Pricing data updates as providers announce changes. Marketplace listings, orders, and reviews update immediately when users act.",
       },
     ],
   },
@@ -44,7 +45,18 @@ const FAQ_SECTIONS = [
     items: [
       {
         q: "How are AI models ranked?",
-        a: "Models are ranked using a composite scoring system that considers benchmark performance (quality score), community engagement (downloads and likes), pricing value, and Elo ratings from head-to-head arenas like LMSYS Chatbot Arena. Each factor is weighted to produce an overall rank.",
+        a: (
+          <>
+            Models are ranked on five public lenses: capability, popularity, adoption,
+            economic footprint, and value. Overall tables can also show an aggregate rank
+            for browsing. The formulas, evidence badges, and refresh cadence are published
+            on the{" "}
+            <Link href="/methodology" className="text-neon hover:underline">
+              methodology page
+            </Link>
+            .
+          </>
+        ),
       },
       {
         q: "What is the Quality Score?",
@@ -52,7 +64,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "What are Elo ratings?",
-        a: "Elo ratings come from head-to-head comparison arenas where humans blindly compare model outputs. The rating system (similar to chess Elo) produces a relative ranking based on thousands of comparisons. We pull data from popular arenas including LMSYS Chatbot Arena.",
+        a: "Elo ratings come from head-to-head comparison arenas where humans blindly compare model outputs. The rating system (similar to chess Elo) produces a relative ranking based on thousands of comparisons. We pull data from popular arenas including LMArena (formerly LMSYS Chatbot Arena).",
       },
     ],
   },

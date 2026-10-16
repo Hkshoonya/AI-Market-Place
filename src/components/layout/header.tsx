@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart3,
+  BookOpen,
   Building2,
   Gauge,
   LayoutDashboard,
@@ -52,6 +53,7 @@ const NAV_ITEMS = [
   { href: "/providers", label: "Providers", icon: Building2 },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/commons", label: "Commons", icon: MessageSquare },
+  { href: "/methodology", label: "Methodology", icon: BookOpen },
 ];
 
 const PRIMARY_NAV_ITEMS = NAV_ITEMS.slice(0, 4);

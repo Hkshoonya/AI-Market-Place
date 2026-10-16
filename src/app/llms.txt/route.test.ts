@@ -14,6 +14,7 @@ describe("GET /llms.txt", () => {
     expect(body).toContain(`# ${SITE_NAME}`);
     expect(body).toContain(`${SITE_URL}/models`);
     expect(body).toContain(`${SITE_URL}/leaderboards`);
+    expect(body).toContain(`${SITE_URL}/methodology`);
     expect(body).toContain(`${SITE_URL}/sitemap.xml`);
     expect(body).toContain("not intended as discovery surfaces");
   });

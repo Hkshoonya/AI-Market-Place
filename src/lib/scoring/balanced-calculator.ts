@@ -16,7 +16,7 @@ interface BalancedWeights {
   value: number;
 }
 
-const CATEGORY_BALANCED_WEIGHTS: Record<string, BalancedWeights> = {
+export const BALANCED_CATEGORY_WEIGHTS: Record<string, BalancedWeights> = {
   llm:              { capability: 0.35, usage: 0.30, expert: 0.25, value: 0.10 },
   code:             { capability: 0.40, usage: 0.25, expert: 0.25, value: 0.10 },
   image_generation: { capability: 0.20, usage: 0.40, expert: 0.30, value: 0.10 },
@@ -51,7 +51,7 @@ export function computeBalancedRankings(
   const maxRank = models.length;
 
   const scored = models.map((m) => {
-    const w = CATEGORY_BALANCED_WEIGHTS[m.category] ?? CATEGORY_BALANCED_WEIGHTS.default;
+    const w = BALANCED_CATEGORY_WEIGHTS[m.category] ?? BALANCED_CATEGORY_WEIGHTS.default;
     const capRank = m.capabilityRank ?? maxRank;
     const valRank = m.valueRank ?? maxRank;
     const rawRankPenalty = Number(m.rankPenalty ?? 0);

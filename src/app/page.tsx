@@ -446,7 +446,10 @@ export default async function HomePage() {
                         Ranked for economic footprint, adoption, and quality, with extra trust
                         given to direct benchmark, arena, and verified pricing evidence.{" "}
                         {topModelsWithDirectEvidenceCount} of {topModels.length || 0} shortlisted
-                        models currently show direct benchmark or arena evidence.
+                        models currently show direct benchmark or arena evidence.{" "}
+                        <Link href="/methodology" className="underline">
+                          Read the methodology
+                        </Link>
                       </TooltipContent>
                     </Tooltip>
                   </div>

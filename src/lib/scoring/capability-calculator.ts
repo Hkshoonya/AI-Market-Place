@@ -28,6 +28,12 @@ export interface CapabilityInputs {
  * Category-specific benchmark groupings.
  * Primary benchmarks get 70% of the benchmark sub-weight; secondary get 30%.
  */
+export const CAPABILITY_LENS_WEIGHTS = {
+  benchmarks: 0.6,
+  elo: 0.3,
+  recency: 0.1,
+} as const;
+
 const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string[] }> = {
   llm: {
     primary: ["mmlu", "mmlu-pro", "gpqa", "math", "aime", "math-benchmark", "bbh"],
@@ -129,9 +135,9 @@ export function computeCapabilityScore(inputs: CapabilityInputs): number | null 
   const recencyBonus = computeRecencyScore(inputs.releaseDate, { halfLifeMonths: 12 });
 
   // Weight distribution
-  let benchWeight = 0.60;
-  let eloWeight = 0.30;
-  const recencyWeight = 0.10;
+  let benchWeight: number = CAPABILITY_LENS_WEIGHTS.benchmarks;
+  let eloWeight: number = CAPABILITY_LENS_WEIGHTS.elo;
+  const recencyWeight = CAPABILITY_LENS_WEIGHTS.recency;
 
   // If no benchmarks, ELO absorbs benchmark weight
   if (!hasBenchmarks && hasELO) {
