@@ -73,4 +73,23 @@ test.describe("Public pricing without login", () => {
     await expect(page.getByRole("tab", { name: "Pricing", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel").getByText(/Public pricing, no login required/)).toBeVisible();
   });
+
+  test("keeps the mounted deployment panel hidden outside its selected tab", async ({ page }) => {
+    await page.goto("/models/deepseek-r1?tab=pricing#model-tabs");
+    const deployPanel = page.locator('[role="tabpanel"][id$="-content-deploy"]');
+
+    await expect(page.getByRole("tabpanel", { name: "Pricing", exact: true })).toBeVisible();
+    await expect(deployPanel).toHaveCount(1);
+    await expect(deployPanel).not.toBeVisible();
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
+
+    await page.getByRole("tab", { name: "Deploy", exact: true }).click();
+    await expect(deployPanel).toBeVisible();
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
+
+    await page.getByRole("tab", { name: "Pricing", exact: true }).click();
+    await expect(deployPanel).toHaveCount(1);
+    await expect(deployPanel).not.toBeVisible();
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
+  });
 });
