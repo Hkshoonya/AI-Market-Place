@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { filterProviderSignals, pickBestProviderSignals } from "./provider-signals";
 
 describe("pickBestProviderSignals", () => {
+  it("preserves first-source tie order and aliases without matching unrelated providers", () => {
+    const first = {
+      title: "First announcement", related_provider: "Google DeepMind", source: "provider-blog",
+      metadata: { signal_type: "launch", signal_importance: "high" },
+    };
+    const result = pickBestProviderSignals(["Independent Lab", "google", "Google"], [
+      { ...first, related_provider: "Other Lab", title: "Unrelated announcement" },
+      first,
+      { ...first, related_provider: "Google", title: "Second announcement" },
+    ]);
+    expect([...result.keys()]).toEqual(["Google"]);
+    expect(result.get("Google")?.title).toBe("First announcement");
+  });
+
   it("selects the strongest recent signal for each provider", () => {
     const signals = [
       {
