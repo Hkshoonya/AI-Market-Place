@@ -5,10 +5,11 @@
  * Verifies all score maps, rank maps, and result shape are populated correctly.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { computeAllLenses } from "./compute-all-lenses";
 import type { ScoringInputs, ScoringResults } from "./types";
 import { lookupProviderPrice } from "@/lib/data-sources/adapters/provider-pricing";
+afterEach(() => vi.useRealTimers());
 
 // Mock logging to prevent real Supabase calls
 vi.mock("@/lib/logging", () => ({
@@ -595,6 +596,8 @@ describe("computeAllLenses", () => {
   });
 
   it("demotes superseded lifecycle rows below the current replacement in capability and balanced ranks", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
     const inputs = buildLifecyclePenaltyFixture();
     const supabase = createMockSupabase();
 

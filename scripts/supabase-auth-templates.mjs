@@ -64,6 +64,10 @@ function frameEmail({
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 640px; border: 1px solid ${BRAND.border}; border-radius: 24px; overflow: hidden; background: #090909;">
             <tr>
               <td style="padding: 24px 28px; border-bottom: 1px solid ${BRAND.border}; background: #070707;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 22px;"><tr>
+                  <td style="padding-right: 12px;"><img src="${BRAND.siteUrl}/apple-icon" width="40" height="40" alt="AI Market Cap" style="display: block; border: 0; border-radius: 10px;" /></td>
+                  <td style="color: ${BRAND.text}; font-size: 18px; font-weight: 800;">${BRAND.siteName}</td>
+                </tr></table>
                 <div style="display: inline-block; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(0, 212, 170, 0.28); color: ${BRAND.accent}; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700;">
                   ${eyebrow}
                 </div>

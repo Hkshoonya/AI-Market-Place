@@ -14,9 +14,13 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
 });
 
 export async function listPublishedRevenueReports(
-  baseDir = join(process.cwd(), "reports", "revenue")
+  baseDir?: string
 ) {
-  const entries = await readdir(baseDir, { withFileTypes: true });
+  // Only the fixed report folder belongs in the standalone build. The dynamic
+  // override is for tests and must not cause tracing of private operational files.
+  const entries = baseDir
+    ? await readdir(/* turbopackIgnore: true */ baseDir, { withFileTypes: true })
+    : await readdir(join(process.cwd(), "reports", "revenue"), { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isFile() && /^\d{4}-\d{2}\.md$/.test(entry.name))

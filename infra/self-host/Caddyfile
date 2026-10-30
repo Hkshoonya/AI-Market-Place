@@ -1,0 +1,64 @@
+{
+  email {$ACME_EMAIL}
+  admin off
+  servers {
+    timeouts {
+      read_header 10s
+    }
+  }
+}
+
+{$SITE_HOST} {
+  request_body {
+    max_size 10MB
+  }
+  reverse_proxy web:3000 {
+    transport http {
+      response_header_timeout 320s
+    }
+  }
+}
+
+www.{$SITE_HOST} {
+  redir https://{$SITE_HOST}{uri} permanent
+}
+
+{$API_HOST} {
+  request_body {
+    max_size 2MB
+  }
+  header {
+    Cache-Control "no-store"
+    X-Content-Type-Options "nosniff"
+    Access-Control-Allow-Origin "https://{$SITE_HOST}"
+    Access-Control-Allow-Headers "authorization, apikey, content-type, x-client-info, x-supabase-api-version, prefer, accept-profile, content-profile, range, x-upsert"
+    Access-Control-Allow-Methods "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
+    Access-Control-Expose-Headers "Content-Range, Range-Unit, X-Total-Count"
+    Vary Origin
+  }
+  route {
+  @foreignOrigin {
+    header Origin *
+    not header Origin https://{$SITE_HOST}
+  }
+  respond @foreignOrigin "Origin is not allowed" 403
+  @preflight method OPTIONS
+  respond @preflight 204
+
+  handle_path /auth/v1/* {
+    reverse_proxy auth:9999
+  }
+  handle_path /rest/v1/* {
+    @missingApiKey `{header.apikey} != "{$ANON_KEY}" && {header.apikey} != "{$SERVICE_ROLE_KEY}"`
+    respond @missingApiKey "Invalid API key" 401
+    reverse_proxy rest:3000
+  }
+  respond "Not found" 404
+  }
+}
+
+# Auth templates are only reachable inside the Docker network.
+http://:8088 {
+  root * /emails
+  file_server
+}

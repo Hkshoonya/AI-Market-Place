@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { buildContentSecurityPolicy } from "./src/lib/csp";
 import { getRemoteImagePatterns } from "./src/lib/remote-images";
 
@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
     const contentSecurityPolicy = buildContentSecurityPolicy({
       isDevelopment: process.env.NODE_ENV !== "production",
       isE2E,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     });
 
     return [
