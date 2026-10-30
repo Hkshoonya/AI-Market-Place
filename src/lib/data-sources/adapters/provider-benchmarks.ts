@@ -190,6 +190,16 @@ const BENCHMARK_EXTRACTION_RULES: Array<{
     type: "percentage",
   },
   {
+    benchmarkSlug: "deepswe-1-1",
+    labels: ["deepswe (v1.1)", "deepswe v1.1", "deepswe 1.1"],
+    type: "percentage",
+  },
+  {
+    benchmarkSlug: "toolathlon-verified",
+    labels: ["toolathlon verified"],
+    type: "percentage",
+  },
+  {
     benchmarkSlug: "terminal-bench",
     labels: [
       "terminal-bench 2.0",
@@ -1159,6 +1169,10 @@ function buildStructuredBenchmarkModelIds(
     }
   }
 
+  if (source.id.startsWith("auto-") || hasSingleStructuredTargetHint(source)) {
+    return [];
+  }
+
   return relatedModelIds;
 }
 
@@ -1525,7 +1539,8 @@ function dedupeStructuredBenchmarkScores(
 
   for (const score of scores) {
     const existing = deduped.get(score.benchmarkSlug);
-    if (!existing || existing.scoreNormalized < score.scoreNormalized) {
+    // Sources are ordered by specificity: model-matched tables before prose.
+    if (!existing) {
       deduped.set(score.benchmarkSlug, score);
     }
   }
@@ -1547,6 +1562,10 @@ function normalizeTableMatchText(value: string | null | undefined) {
 }
 
 function resolveTerminalBenchmarkSlug(text: string) {
+  // These are separate task suites, not aliases for unversioned Terminal-Bench.
+  if (/long[-_ ]horizon[-_ ]terminal|terminal[-_ ]?bench[-_ ]+science/i.test(text)) {
+    return null;
+  }
   const version = text.match(/terminal[-_ ]?bench[\s_-]*(\d+(?:[._]\d+)?)/i)?.[1]?.replace("_", ".");
   if (!version || version === "2" || version === "2.0") return "terminal-bench";
   if (version === "2.1") return "terminal-bench-2-1";
@@ -1585,15 +1604,22 @@ function resolveTargetTableHeaderIndex(
 
   if (normalizedHints.length === 0) return -1;
 
+  const exactIndex = headerRow.findIndex((cell) =>
+    normalizedHints.includes(normalizeTableMatchText(cell))
+  );
+  if (exactIndex >= 0) return exactIndex;
+
   return headerRow.findIndex((cell) => {
     const normalizedCell = normalizeTableMatchText(cell);
     if (!normalizedCell) return false;
 
     return normalizedHints.some(
       (normalizedHint) =>
-        normalizedCell === normalizedHint ||
-        normalizedCell.includes(normalizedHint) ||
-        normalizedHint.includes(normalizedCell)
+        // Accept effort annotations, not a different version or a shorter name.
+        normalizedCell.startsWith(`${normalizedHint} `) &&
+        /^(?:low|medium|high|xhigh|max|thinking|reasoning|instruct|w |with )/.test(
+          normalizedCell.slice(normalizedHint.length + 1)
+        )
     );
   });
 }
@@ -1693,7 +1719,6 @@ async function extractStructuredBenchmarkScoresFromHtmlTables(
       .map((row) =>
         [...row.querySelectorAll("th,td")]
           .map((cell) => normalizeTableText(cell.textContent))
-          .filter(Boolean)
       )
       .filter((row) => row.length > 0);
 
@@ -1723,6 +1748,8 @@ async function extractStructuredBenchmarkScoresFromHtmlTables(
     if (scoreColumnIndex < 0) continue;
 
     for (const row of rows.slice(headerRowIndex + 1)) {
+      // Empty cells must retain their column position. Ragged rows are ambiguous.
+      if (row.length !== sampleDataRow.length) continue;
       if (row.length <= scoreColumnIndex) continue;
 
       const benchmarkCell = row
@@ -1752,7 +1779,28 @@ async function extractStructuredBenchmarkScoresFromHtmlTables(
     }
   }
 
+  dom.window.close();
   return [...extracted.values()];
+}
+
+async function extractProviderBenchmarkScores(
+  source: ProviderBenchmarkSource,
+  content: ParsedProviderSourceContent
+) {
+  return dedupeStructuredBenchmarkScores([
+    ...(content.html
+      ? await extractStructuredBenchmarkScoresFromHtmlTables(source, content.html)
+      : []),
+    ...(content.html
+      ? extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(content.html)
+      : []),
+    // Flattening a comparison table loses model columns and can attach peer scores.
+    ...(content.html && /<table\b/i.test(content.html)
+      ? []
+      : source.pdfPages?.length
+        ? extractStructuredBenchmarkScoresFromTextTableRows(content.text)
+        : extractStructuredBenchmarkScores(content.text)),
+  ]);
 }
 
 function buildPdfFallbackRecord(source: ProviderBenchmarkSource) {
@@ -1901,6 +1949,7 @@ function resolveBenchmarkHintModelIds(
   const resolvedIds = resolveAliasFamilyModelIds(aliasIndex, {
     slugCandidates: [hint],
     nameCandidates: [hint],
+    allowLooseMatch: false,
   });
 
   return resolvedIds.length > MAX_RELATED_BENCHMARK_MODELS
@@ -1928,7 +1977,7 @@ function buildModelRelations(
   const hintedUniqueIds = [...new Set(hintedIds)];
   const resolvedIds = [...new Set([...hintedUniqueIds, ...relation.modelIds])];
 
-  if (source.strictModelHints && hintedUniqueIds.length > 0) {
+  if (source.strictModelHints) {
     return limitProviderScopedModelIds(
       hintedUniqueIds,
       MAX_RELATED_BENCHMARK_MODELS
@@ -2292,24 +2341,7 @@ const adapter: DataSourceAdapter = {
         relatedModelIds
       );
       const structuredScores = isStructuredBenchmarkSource(source, relatedModelIds)
-        ? dedupeStructuredBenchmarkScores([
-            ...(parsedContent.html
-              ? await extractStructuredBenchmarkScoresFromHtmlTables(
-                  source,
-                  parsedContent.html
-                )
-              : []),
-            ...(parsedContent.html
-              ? extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(
-                  parsedContent.html
-                )
-              : []),
-            ...(source.pdfPages?.length
-              ? extractStructuredBenchmarkScoresFromTextTableRows(
-                  parsedContent.text
-                )
-              : extractStructuredBenchmarkScores(parsedContent.text)),
-          ])
+        ? await extractProviderBenchmarkScores(source, parsedContent)
         : [];
 
       for (const structuredScore of structuredScores) {
@@ -2495,6 +2527,8 @@ export const __testables = {
   extractStructuredBenchmarkScoresFromTextTableRows,
   extractStructuredBenchmarkScoresFromHuggingFaceEvalResults,
   extractStructuredBenchmarkScoresFromHtmlTables,
+  dedupeStructuredBenchmarkScores,
+  extractProviderBenchmarkScores,
   hasSingleStructuredTargetHint,
   buildStructuredBenchmarkModelIds,
   buildAutoBenchmarkSources,

@@ -1,0 +1,36 @@
+{
+  admin off
+  auto_https off
+}
+
+http://:80 {
+  header {
+    Cache-Control "no-store"
+    Access-Control-Allow-Origin "http://127.0.0.1:13000"
+    Access-Control-Allow-Headers "authorization, apikey, content-type, x-client-info, x-supabase-api-version, prefer"
+    Access-Control-Allow-Methods "GET, HEAD, POST, PATCH, DELETE, OPTIONS"
+  }
+  route {
+  @foreignOrigin {
+    header Origin *
+    not header Origin http://127.0.0.1:13000
+  }
+  respond @foreignOrigin "Origin is not allowed" 403
+  @preflight method OPTIONS
+  respond @preflight 204
+  handle_path /auth/v1/* {
+    reverse_proxy auth:9999
+  }
+  handle_path /rest/v1/* {
+    @missingApiKey `{header.apikey} != "{$ANON_KEY}" && {header.apikey} != "{$SERVICE_ROLE_KEY}"`
+    respond @missingApiKey "Invalid API key" 401
+    reverse_proxy rest:3000
+  }
+  respond "Not found" 404
+  }
+}
+
+http://:8088 {
+  root * /emails
+  file_server
+}

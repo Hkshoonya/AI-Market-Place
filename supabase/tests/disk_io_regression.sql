@@ -3,6 +3,11 @@
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role BYPASSRLS;
+CREATE TABLE public.benchmarks (
+  id serial PRIMARY KEY, slug text UNIQUE NOT NULL, name text NOT NULL,
+  description text, category text, score_type text, min_score numeric, max_score numeric,
+  higher_is_better boolean, source text, source_url text, is_active boolean
+);
 CREATE TABLE public.notifications (id integer PRIMARY KEY, user_id uuid, is_read boolean DEFAULT false);
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.notifications TO anon, authenticated, service_role;
@@ -59,6 +64,34 @@ FROM generate_series(1, 3500) i;
 \ir ../migrations/107_news_retention_cover.sql
 \ir ../migrations/108_cron_health_summary.sql
 \ir ../migrations/109_active_provider_names.sql
+\ir ../migrations/110_add_current_agent_benchmarks.sql
+\ir ../migrations/110_add_current_agent_benchmarks.sql
+CREATE TABLE public.benchmark_scores (
+  id integer PRIMARY KEY, model_id uuid REFERENCES public.models(id),
+  source text, metadata jsonb, score numeric
+);
+INSERT INTO public.models(id, slug, name, status) VALUES
+  ('ffffffff-ffff-ffff-ffff-fffffffffff3', 'anthropic-claude-fable-5-1', 'Claude Fable 5.1', 'archived');
+INSERT INTO public.benchmark_scores(id, model_id, source, metadata, score) VALUES
+  (1, 'ffffffff-ffff-ffff-ffff-fffffffffff3', 'provider-benchmarks', '{"source_key":"anthropic-claude-fable-5"}', 80),
+  (2, 'ffffffff-ffff-ffff-ffff-fffffffffff3', 'provider-benchmarks', '{"source_key":"anthropic-claude-fable-5-1"}', 90);
+\ir ../migrations/111_quarantine_cross_version_fable_scores.sql
+\ir ../migrations/111_quarantine_cross_version_fable_scores.sql
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.benchmarks WHERE slug IN ('deepswe-1-1', 'toolathlon-verified')) <> 2 THEN
+    RAISE EXCEPTION 'Agent benchmark definitions missing or duplicated';
+  END IF;
+  IF (SELECT count(*) FROM public.benchmark_scores) <> 2
+     OR NOT EXISTS (SELECT FROM public.benchmark_scores WHERE id = 1 AND score = 80
+       AND source = 'provider-benchmarks-unverified' AND metadata->>'original_source' = 'provider-benchmarks')
+     OR NOT EXISTS (SELECT FROM public.benchmark_scores WHERE id = 2 AND source = 'provider-benchmarks') THEN
+    RAISE EXCEPTION 'Cross-version quarantine lost history or changed verified evidence';
+  END IF;
+END;
+$$;
+DROP TABLE public.benchmark_scores;
+DELETE FROM public.models WHERE id = 'ffffffff-ffff-ffff-ffff-fffffffffff3';
 
 BEGIN;
 SET LOCAL ROLE service_role;

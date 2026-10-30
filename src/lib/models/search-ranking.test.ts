@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getModelSearchRelevance, rankModelsForSearch } from "./search-ranking";
+afterEach(() => vi.useRealTimers());
 
 describe("search ranking helpers", () => {
   it("prefers direct name matches over popularity-only wins", () => {
@@ -119,6 +120,8 @@ describe("search ranking helpers", () => {
   });
 
   it("prefers the current flagship family row for broad provider-family searches", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-11T12:00:00Z"));
     const ranked = rankModelsForSearch(
       [
         {

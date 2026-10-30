@@ -25,6 +25,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "output/**",
+    "recovery/**",
+    "infra/self-host/state/**",
+    "infra/self-host/.runtime/**",
+    "infra/self-host/upstream/**",
   ]),
 ]);
 

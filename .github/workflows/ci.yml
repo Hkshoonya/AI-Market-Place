@@ -23,6 +23,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run audit:production
       - run: npm run lint
 
   typecheck:
@@ -49,6 +50,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: node --test scripts/self-host/*.test.mjs
       - run: npm run test:unit
       - run: npm run test:component
 
@@ -59,6 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: bash scripts/test-database-io.sh
+      - run: bash scripts/test-profile-privacy.sh
 
   e2e:
     name: E2E
