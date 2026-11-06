@@ -27,7 +27,7 @@ const AUTO_HF_BENCHMARK_PROVIDER_ORGS: Record<string, string[]> = {
 
 const TRUSTED_BENCHMARK_WEBSITE_HOSTS: Record<string, string[]> = {
   OpenAI: ["openai.com", "platform.openai.com", "developers.openai.com"],
-  Anthropic: ["anthropic.com"],
+  Anthropic: ["anthropic.com", "platform.claude.com"],
   Google: ["ai.google.dev", "blog.google", "cloud.google.com", "deepmind.google"],
   xAI: ["x.ai", "docs.x.ai", "data.x.ai"],
   Meta: ["ai.meta.com", "research.meta.ai", "llama.com", "meta.com"],
@@ -83,6 +83,9 @@ function inferTrustedBenchmarkWebsiteCandidate(
   const text = `${slug} ${normalizeText(model.name)}`;
 
   if (provider === "OpenAI") {
+    if (slug === "openai-gpt-6-astra") {
+      return "https://openai.com/index/gpt-6-astra/";
+    }
     if (model.category === "speech_audio" || /\b(transcribe|speech|audio|whisper)\b/.test(text)) {
       return "https://developers.openai.com/api/docs/guides/speech-to-text";
     }
@@ -157,6 +160,9 @@ function inferTrustedBenchmarkWebsiteCandidate(
   }
 
   if (provider === "Meta") {
+    if (slug === "meta-muse-spark-1-3") {
+      return "https://research.meta.ai/blog/introducing-muse-spark-1-3";
+    }
     if (slug.includes("muse-spark-1-2")) {
       return "https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2";
     }
@@ -273,7 +279,10 @@ export function getTrustedBenchmarkWebsiteUrl(
     provider === "xAI" &&
     slug === "x-ai-grok-4-20" &&
     typeof inferred.website_url === "string";
-  const websiteUrl = preferInferredXaiBenchmarkCard || preferInferredQwenBenchmarkPage
+  const preferReviewedEvaluationPage =
+    (provider === "OpenAI" && slug === "openai-gpt-6-astra") ||
+    (provider === "Meta" && slug === "meta-muse-spark-1-3");
+  const websiteUrl = preferInferredXaiBenchmarkCard || preferInferredQwenBenchmarkPage || preferReviewedEvaluationPage
     ? inferred.website_url
     : model.website_url?.trim() || inferred.website_url;
   if (!websiteUrl) return null;
@@ -281,7 +290,16 @@ export function getTrustedBenchmarkWebsiteUrl(
 
   let host: string;
   try {
-    host = new URL(websiteUrl).hostname.toLowerCase();
+    const url = new URL(websiteUrl);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.port !== ""
+    ) {
+      return null;
+    }
+    host = url.hostname.toLowerCase();
   } catch {
     return null;
   }

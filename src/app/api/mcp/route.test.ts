@@ -77,7 +77,8 @@ describe("POST /api/mcp", () => {
     expect(response.status).toBe(200);
     expect(mockCreateClient).toHaveBeenCalledWith(
       "https://example.supabase.co",
-      "anon-key"
+      "anon-key",
+      { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } }
     );
     expect(mockHandleMcpRequest).toHaveBeenCalledWith(
       { key: "anon-key" },

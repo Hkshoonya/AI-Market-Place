@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import type { Database } from "@/types/database";
 import { handleApiError } from "@/lib/api-error";
 import { buildTopMoversPayload, type ModelSummaryRow, type SnapshotRow } from "./logic";

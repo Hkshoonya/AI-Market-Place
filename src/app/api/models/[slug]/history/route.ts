@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import { handleApiError } from "@/lib/api-error";
 import { checkPaywall, paywallErrorResponse } from "@/lib/middleware/api-paywall";
 import type { Database } from "@/types/database";

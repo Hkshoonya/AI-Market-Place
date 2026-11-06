@@ -19,3 +19,11 @@ scripts/*
 .idea/
 nul
 rr.html
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/*.private.*
+output/
+recovery/
+infra/self-host/

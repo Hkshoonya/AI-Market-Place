@@ -5,7 +5,7 @@
  * runs the agent, records results. Called by cron endpoints.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import type { AgentRecord, AgentTask, AgentContext, AgentTaskResult } from "./types";
 import { getAgent, loadAllAgents } from "./registry";
 import { createAgentLogger } from "./logger";

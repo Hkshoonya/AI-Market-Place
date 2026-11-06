@@ -53,5 +53,13 @@ next-env.d.ts
 # supabase local CLI/runtime artifacts
 /supabase/.temp/
 
+# Private self-hosting runtime, database files, and pinned upstream downloads
+/infra/self-host/.runtime/
+/infra/self-host/state/
+/infra/self-host/upstream/
+/cloudflare/uptime-monitor/.dev.vars*
+/cloudflare/uptime-monitor/.wrangler/
+/cloudflare/uptime-monitor/worker-configuration.d.ts
+
 # local Claude desktop/tooling artifacts
 /.claude/

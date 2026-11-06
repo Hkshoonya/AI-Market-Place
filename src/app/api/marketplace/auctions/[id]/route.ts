@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import type { Database } from "@/types/database";
 import { parseQueryResultSingle } from "@/lib/schemas/parse";
 import {

@@ -5,7 +5,7 @@
  * and provides coverage reporting.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 
 function createServiceClient() {
   return createClient(

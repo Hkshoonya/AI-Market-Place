@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import { trackCronRun } from "@/lib/cron-tracker";
 import { fetchInputs } from "@/lib/compute-scores/fetch-inputs";
 import { computeAllLenses } from "@/lib/compute-scores/compute-all-lenses";

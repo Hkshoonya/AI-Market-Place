@@ -7,7 +7,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import type {
   DataSourceRecord,
   SyncContext,

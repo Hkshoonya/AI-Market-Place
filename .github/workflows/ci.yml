@@ -23,6 +23,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run audit:production
       - run: npm run lint
 
   typecheck:
@@ -37,6 +38,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run typecheck
+      - run: npx wrangler types cloudflare/uptime-monitor/worker-configuration.d.ts -c cloudflare/uptime-monitor/wrangler.jsonc --env-file cloudflare/uptime-monitor/.env.example --strict-vars=false
+      - run: npx tsc -p cloudflare/uptime-monitor/tsconfig.json
 
   test:
     name: Test
@@ -49,6 +52,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: node --test scripts/self-host/*.test.mjs
+      - run: node --test cloudflare/uptime-monitor/src/recovery.test.mjs
       - run: npm run test:unit
       - run: npm run test:component
 
@@ -59,10 +64,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: bash scripts/test-database-io.sh
+      - run: bash scripts/test-profile-privacy.sh
 
   e2e:
     name: E2E
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321'

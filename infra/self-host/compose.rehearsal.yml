@@ -1,0 +1,30 @@
+services:
+  db:
+    labels:
+      io.aimarketcap.migration-rehearsal: "true"
+    volumes:
+      - ${AIMC_STATE_DIR}/rehearsal-database:/var/lib/postgresql/data
+  web:
+    profiles: [application]
+  gateway:
+    ports: !override
+      - "127.0.0.1:18080:80"
+    volumes:
+      - ./Caddyfile.rehearsal:/etc/caddy/Caddyfile:ro
+  auth:
+    environment:
+      API_EXTERNAL_URL: http://127.0.0.1:18080
+      GOTRUE_SITE_URL: http://127.0.0.1:13000
+      GOTRUE_URI_ALLOW_LIST: http://127.0.0.1:13000/auth/callback,http://127.0.0.1:13000/reset-password
+      GOTRUE_JWT_ISSUER: http://127.0.0.1:18080/auth/v1
+      GOTRUE_SMTP_USER: ""
+      GOTRUE_SMTP_PASS: ""
+  mailpit:
+    image: public.ecr.aws/supabase/mailpit:v1.22.3
+    mem_limit: 128m
+    networks: [application]
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:18025:8025"

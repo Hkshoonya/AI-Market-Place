@@ -251,6 +251,96 @@ const SAMPLE_DEEPSEEK_V4_TABLE_HTML = `
 `;
 
 describe("provider-benchmarks helpers", () => {
+  it("never copies an unavailable older model's scores to a newer version", () => {
+    const index = __testables.buildModelAliasIndex([
+      { id: "new", slug: "anthropic-claude-fable-5-1", name: "Claude Fable 5.1", provider: "Anthropic" },
+    ]);
+    const source = {
+      id: "anthropic-claude-fable-5", provider: "Anthropic", url: "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+      titleHint: "Claude Fable 5", modelHints: ["Claude Fable 5", "claude-fable-5"], strictModelHints: true,
+    };
+    expect(__testables.buildStructuredBenchmarkModelIds(source, index, ["new"])).toEqual([]);
+    expect(__testables.buildModelRelations(source, "Claude Fable 5.1", "Claude Fable 5 benchmarks", [], index)).toEqual([]);
+  });
+
+  it("preserves explicit dated aliases without loose version matching", () => {
+    const index = __testables.buildModelAliasIndex([
+      { id: "dated", slug: "anthropic-claude-fable-5-2026-06-09", name: "Claude Fable 5 (2026-06-09)", provider: "Anthropic" },
+      { id: "new", slug: "anthropic-claude-fable-5-1", name: "Claude Fable 5.1", provider: "Anthropic" },
+    ]);
+    expect(__testables.buildStructuredBenchmarkModelIds({
+      id: "anthropic-claude-fable-5", provider: "Anthropic", url: "https://www.anthropic.com/",
+      titleHint: "Claude Fable 5", modelHints: ["Claude Fable 5"],
+    }, index, ["new", "dated"])).toEqual(["dated"]);
+  });
+
+  it("does not shift scores across empty cells or match an older version header", async () => {
+    const source = {
+      id: "auto-hf-zai-org-glm-5-3", provider: "Z.ai",
+      url: "https://huggingface.co/zai-org/GLM-5.3",
+      titleHint: "GLM-5.3", modelHints: ["GLM-5.3"],
+    };
+    const scores = await __testables.extractStructuredBenchmarkScoresFromHtmlTables(source, `
+      <table>
+        <tr><th></th><th>GLM-5</th><th>GLM-5.3</th><th>Peer</th></tr>
+        <tr><td>DeepSWE (v1.1)</td><td>46.2</td><td>66.9</td><td>72.7</td></tr>
+        <tr><td>Toolathlon Verified</td><td></td><td>73.0</td><td>74.9</td></tr>
+        <tr><td>CyberGym</td><td>77.2</td><td></td><td>83.6</td></tr>
+        <tr><td>GPQA</td><td>99</td><td>98</td></tr>
+      </table>
+    `);
+    expect(scores).toEqual([
+      expect.objectContaining({ benchmarkSlug: "deepswe-1-1", score: 66.9 }),
+      expect.objectContaining({ benchmarkSlug: "toolathlon-verified", score: 73 }),
+    ]);
+  });
+
+  it("does not use a prefix model version when the requested model is absent", async () => {
+    expect(await __testables.extractStructuredBenchmarkScoresFromHtmlTables({
+      id: "auto-web-openai-gpt-6", provider: "OpenAI", url: "https://openai.com/",
+      titleHint: "GPT-6", modelHints: ["GPT-6"],
+    }, `<table><tr><th>Benchmark</th><th>GPT-6.1</th></tr><tr><td>GPQA</td><td>95</td></tr></table>`)).toEqual([]);
+  });
+
+  it("preserves a model-specific table score over a higher generic prose score", () => {
+    const table = { benchmarkSlug: "gpqa", score: 80, scoreNormalized: 80, snippet: "model table", matchedLabel: "GPQA" };
+    const prose = { ...table, score: 95, scoreNormalized: 95, snippet: "peer prose" };
+    expect(__testables.dedupeStructuredBenchmarkScores([table, prose])).toEqual([table]);
+  });
+
+  it("does not recover a competitor score from flattened comparison table text", async () => {
+    const source = {
+      id: "auto-hf-deepseek-v4-pro", provider: "DeepSeek",
+      url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
+      titleHint: "DeepSeek V4 Pro", modelHints: ["DeepSeek-V4-Pro"],
+    };
+    expect(await __testables.extractProviderBenchmarkScores(source, {
+      title: source.titleHint, summary: "Benchmark comparison", publishedAt: "2026-10-11",
+      hasBenchmarkSignal: true, html: SAMPLE_DEEPSEEK_V4_TABLE_HTML,
+      text: "GPQA 95% HumanEval 99%",
+    })).toEqual([]);
+  });
+
+  it("does not mislabel science or long-horizon suites as Terminal-Bench 2.0", async () => {
+    const source = {
+      id: "auto-web-openai-gpt-6-astra", provider: "OpenAI",
+      url: "https://openai.com/index/gpt-6-astra/", titleHint: "GPT-6 Astra",
+      modelHints: ["GPT-6 Astra"],
+    };
+    expect(await __testables.extractStructuredBenchmarkScoresFromHtmlTables(source, `
+      <table><tr><th>Benchmark</th><th>GPT-6 Astra</th></tr>
+        <tr><td>Terminal-Bench-Science 0.1</td><td>64.6</td></tr>
+        <tr><td>Long-Horizon-Terminal-Bench</td><td>12</td></tr>
+        <tr><td>Terminal-Bench 4.0</td><td>57.9</td></tr>
+      </table>
+    `)).toEqual([expect.objectContaining({ benchmarkSlug: "terminal-bench-4", score: 57.9 })]);
+    const evalResults = JSON.stringify({ evalResults: [{
+      dataset: { id: "IntelligenceLab/Long-Horizon-Terminal-Bench", isBenchmark: true },
+      value: 12, label: "Lhtb2 Solved",
+    }] }).replaceAll('"', "&quot;");
+    expect(__testables.extractStructuredBenchmarkScoresFromHuggingFaceEvalResults(`<div data-props="${evalResults}"></div>`)).toEqual([]);
+  });
+
   it("tracks current official Anthropic and xAI benchmark pages", () => {
     const sources = new Map(
       __testables.PROVIDER_BENCHMARK_SOURCES.map((source) => [source.id, source])
@@ -718,7 +808,7 @@ describe("provider-benchmarks helpers", () => {
     ]);
   });
 
-  it("extracts benchmark rows when the model column is at the end of the table", async () => {
+  it("extracts benchmark rows when an explicitly matching model column is at the end", async () => {
     const extracted =
       await __testables.extractStructuredBenchmarkScoresFromHtmlTables(
         {
@@ -727,9 +817,7 @@ describe("provider-benchmarks helpers", () => {
           url: "https://huggingface.co/meta-llama/Llama-3.1-405B-Instruct",
           titleHint: "Llama 3.1 405B Instruct benchmark update",
           modelHints: [
-            "Llama 3.1 405B Instruct",
-            "Llama-3.1-405B-Instruct",
-            "meta-llama-3.1-405b-instruct",
+            "Llama 3.1 405B",
           ],
         },
         SAMPLE_META_TABLE_HTML
@@ -765,7 +853,7 @@ describe("provider-benchmarks helpers", () => {
           provider: "DeepSeek",
           url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
           titleHint: "DeepSeek V4 Pro benchmark update",
-          modelHints: ["DeepSeek-V4-Pro"],
+          modelHints: ["DeepSeek-V4-Pro-Base"],
         },
         SAMPLE_DEEPSEEK_V4_TABLE_HTML
       ),
@@ -775,7 +863,7 @@ describe("provider-benchmarks helpers", () => {
           provider: "DeepSeek",
           url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash",
           titleHint: "DeepSeek V4 Flash benchmark update",
-          modelHints: ["DeepSeek-V4-Flash"],
+          modelHints: ["DeepSeek-V4-Flash-Base"],
         },
         SAMPLE_DEEPSEEK_V4_TABLE_HTML
       ),
