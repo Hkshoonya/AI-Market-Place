@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "aimarketcap-service-fallback",
+  "account_id": "fbfce5875ce339f84da50ababc61faaf",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "routes": [
+    { "pattern": "aimarketcap.tech/*", "zone_name": "aimarketcap.tech" },
+    { "pattern": "www.aimarketcap.tech/*", "zone_name": "aimarketcap.tech" }
+  ]
+}

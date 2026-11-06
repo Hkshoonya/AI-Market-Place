@@ -11,6 +11,7 @@ import { DeployWorkspacePanel } from "@/components/workspace/deploy-workspace-pa
 import { Toaster } from "sonner";
 import { buildRootMetadata } from "@/lib/seo/root-metadata";
 import { LazyAmbientScene } from "@/components/three/lazy-ambient-scene";
+import { ServiceStatusBanner } from "@/components/shared/service-status-banner";
 import { PHProvider, SWRProvider } from "./providers";
 
 import "./globals.css";
@@ -64,6 +65,7 @@ export default function RootLayout({
                   </a>
                   <LazyAmbientScene />
                   <Header />
+                  <ServiceStatusBanner />
                   <main id="main-content" className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
                   <Footer />
                   <DeployWorkspacePanel />

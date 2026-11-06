@@ -55,6 +55,8 @@ export default {
   },
   async fetch(request, env) {
     if (request.method !== "GET" || new URL(request.url).pathname !== "/") return new Response("Not found", { status: 404 });
-    return Response.json(await env.MONITOR.getByName("aimarketcap.tech").status(), { headers: { "Cache-Control": "no-store" } });
+    return Response.json(await env.MONITOR.getByName("aimarketcap.tech").status(), {
+      headers: { "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" },
+    });
   },
 } satisfies ExportedHandler<Env>;
