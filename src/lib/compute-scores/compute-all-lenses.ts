@@ -168,6 +168,7 @@ export async function computeAllLenses(
       trendingScore: m.hf_trending_score ? Number(m.hf_trending_score) : null,
       newsMentions: newsMentionMap.get(m.id) ?? 0,
       eloScore: eloMap.get(m.id) ?? null,
+      eloNormalized: inputs.eloNormalizedMap?.get(m.id),
       eloRank: null,
       category: (m.category as string) ?? "other",
       providerAvgBenchmark: providerBenchmarkAvg.get(provider) ?? null,
@@ -435,6 +436,7 @@ export async function computeAllLenses(
     const capInputs: CapabilityInputs = {
       benchmarkScores: benchmarkDetailMap.get(m.id) ?? null,
       eloScore: eloMap.get(m.id) ?? null,
+      eloNormalized: inputs.eloNormalizedMap?.get(m.id),
       releaseDate: m.release_date as string | null,
       category: (m.category as string) ?? "other",
       sourceCoverage: sourceCoverageMap.get(m.id) ?? null,
@@ -500,6 +502,7 @@ export async function computeAllLenses(
       avgBenchmarkScore: avgBenchmark,
       benchmarkScores: benchmarkDetailMap.get(m.id) ?? null,
       eloScore: eloMap.get(m.id) ?? null,
+      eloNormalized: inputs.eloNormalizedMap?.get(m.id),
       hfLikes: (m.hf_likes as number) ?? null,
       githubStars: (m.github_stars as number) ?? null,
       newsMentions: newsMentionMap.get(m.id) ?? 0,

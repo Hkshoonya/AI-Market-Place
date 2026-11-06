@@ -38,6 +38,7 @@ export interface ScoringInputs {
   benchmarkMap: Map<string, number[]>;
   benchmarkDetailMap: Map<string, Array<{ slug: string; score: number }>>;
   eloMap: Map<string, number>;
+  eloNormalizedMap?: Map<string, number>;
   newsMentionMap: Map<string, number>;
   providerBenchmarkAvg: Map<string, number>;
   staleCount: number;

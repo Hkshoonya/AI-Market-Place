@@ -18,6 +18,8 @@ describe("LeaderboardLensNav", () => {
     expect(screen.getByText("Adoption")).toBeInTheDocument();
     expect(screen.getByText("Economic Footprint")).toBeInTheDocument();
     expect(screen.getByText("Value")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Arena leaderboard dataset" }))
+      .toHaveAttribute("href", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset");
   });
 
   it("renders lens cards as navigable controls with active state", () => {

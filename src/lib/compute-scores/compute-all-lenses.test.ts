@@ -302,6 +302,15 @@ function createUpsertCapturingSupabase(
 }
 
 describe("computeAllLenses", () => {
+  it("propagates arena-specific normalization to capability, quality and expert scores", async () => {
+    const inputs = buildFixtureInputs();
+    const low = await computeAllLenses({ ...inputs, eloNormalizedMap: new Map([["gpt-4o", 0]]) }, createMockSupabase());
+    const high = await computeAllLenses({ ...inputs, eloNormalizedMap: new Map([["gpt-4o", 100]]) }, createMockSupabase());
+    expect(high.capabilityScoreMap.get("gpt-4o")!).toBeGreaterThan(low.capabilityScoreMap.get("gpt-4o")!);
+    expect(high.expertScoreMap.get("gpt-4o")!).toBeGreaterThan(low.expertScoreMap.get("gpt-4o")!);
+    expect(high.scoredModels.find((row) => row.id === "gpt-4o")!.qualityScore)
+      .toBeGreaterThan(low.scoredModels.find((row) => row.id === "gpt-4o")!.qualityScore);
+  });
   it("produces ScoringResults with all expected maps populated for 3 models", async () => {
     const inputs = buildFixtureInputs();
     const supabase = createMockSupabase();

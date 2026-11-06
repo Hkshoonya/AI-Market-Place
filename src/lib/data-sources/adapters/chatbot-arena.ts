@@ -1,52 +1,68 @@
 /**
- * Chatbot Arena / LMSYS Elo Ratings Adapter (Live API)
- *
- * Fetches the Chatbot Arena leaderboard data from the HuggingFace
- * datasets API (mathewhe/chatbot-arena-elo — a public mirror of the
- * lmarena-ai leaderboard scores).
- * No static fallback — sync fails if the API is unreachable.
+ * Official Arena text leaderboard. Never replace publication dates with sync time,
+ * mix category-specific rows, or fall back to the frozen 2025 third-party mirror.
  */
-
-import type {
-  DataSourceAdapter,
-  SyncContext,
-  SyncResult,
-  HealthCheckResult,
-} from "../types";
-import {
-  buildModelAliasIndex,
-  fetchAllActiveAliasModels,
-  resolveAliasFamilyModelIds,
-} from "../model-alias-resolver";
+import type { DataSourceAdapter, SyncContext, SyncResult, HealthCheckResult } from "../types";
+import { buildModelAliasIndex, fetchAllActiveAliasModels, resolveAliasFamilyModelIds } from "../model-alias-resolver";
 import { registerAdapter } from "../registry";
 import { fetchWithRetry, makeSlug } from "../utils";
 
-// --------------- HuggingFace Datasets API Types ---------------
-
-interface HFRowContent {
-  [key: string]: unknown;
-}
-
-interface HFRow {
-  row_idx: number;
-  row: HFRowContent;
-}
-
-interface HFRowsResponse {
-  features: { feature_idx: number; name: string; type: unknown }[];
-  rows: HFRow[];
-  num_rows_total: number;
-  num_rows_per_page: number;
-  partial: boolean;
-}
-
-// --------------- Constants ---------------
-
-const HF_DATASET = "mathewhe/chatbot-arena-elo";
-const HF_ROWS_API = "https://datasets-server.huggingface.co/rows";
+const HF_DATASET = "lmarena-ai/leaderboard-dataset";
+const FILTER_API = "https://datasets-server.huggingface.co/filter";
 const PAGE_LENGTH = 100;
+const MAX_ROWS = 5000;
+export const OFFICIAL_TEXT_ARENA = "arena-text-official";
 
-// --------------- Adapter ---------------
+export function arenaDatasetUrl(offset = 0, length = PAGE_LENGTH) {
+  const url = new URL(FILTER_API);
+  for (const [key, value] of Object.entries({
+    dataset: HF_DATASET, config: "text", split: "latest",
+    where: "\"category\" = 'overall'",
+    offset: String(offset), length: String(length),
+  })) url.searchParams.set(key, value);
+  return url.toString();
+}
+
+export function parseOfficialArenaRow(value: unknown, now = Date.now()) {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (row.category !== "overall" || typeof row.model_name !== "string" || !row.model_name.trim()
+    || typeof row.rating !== "number" || !Number.isFinite(row.rating) || row.rating <= 0 || row.rating > 3000
+    || typeof row.leaderboard_publish_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(row.leaderboard_publish_date)) return null;
+  const date = Date.parse(row.leaderboard_publish_date);
+  if (!Number.isFinite(date) || date > now || now - date > 45 * 86400000) return null;
+  const optionalInteger = (value: unknown, rounding = Math.round) =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 ? rounding(value) : null;
+  return {
+    modelName: row.model_name.trim(),
+    snapshotDate: row.leaderboard_publish_date,
+    eloScore: Math.round(row.rating),
+    confidenceLow: optionalInteger(row.rating_lower, Math.floor),
+    confidenceHigh: optionalInteger(row.rating_upper, Math.ceil),
+    votes: optionalInteger(row.vote_count),
+    rank: optionalInteger(row.rank),
+  };
+}
+
+async function fetchLeaderboardPage(offset: number, ctx?: SyncContext, length = PAGE_LENGTH, healthCheck = false) {
+  const token = ctx?.secrets.HUGGINGFACE_API_TOKEN || process.env.HUGGINGFACE_API_TOKEN;
+  const timeout = AbortSignal.timeout(healthCheck ? 4000 : 15_000);
+  const signal = ctx?.signal ? AbortSignal.any([ctx.signal, timeout]) : timeout;
+  const response = await fetchWithRetry(arenaDatasetUrl(offset, length), {
+    headers: { Accept: "application/json", "User-Agent": "AI-Market-Cap-Bot", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    signal, redirect: "error",
+  }, { signal, maxRetries: healthCheck ? 0 : 2, baseDelayMs: 1000 });
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`Official Arena dataset returned HTTP ${response.status}`);
+  }
+  const json = await response.json() as { rows?: Array<{ row?: unknown }>; num_rows_total?: number };
+  if (!Array.isArray(json.rows) || !Number.isInteger(json.num_rows_total)
+    || json.num_rows_total! <= 0 || json.num_rows_total! > MAX_ROWS) {
+    throw new Error("Official Arena dataset returned an invalid or unexpectedly large result");
+  }
+  return { rows: json.rows, total: json.num_rows_total! };
+}
 
 const adapter: DataSourceAdapter = {
   id: "chatbot-arena",
@@ -55,269 +71,81 @@ const adapter: DataSourceAdapter = {
   defaultConfig: {},
   requiredSecrets: [],
 
-  async sync(ctx: SyncContext): Promise<SyncResult> {
-    const errors: { message: string; context?: string }[] = [];
-    const sb = ctx.supabase;
-    const today = new Date().toISOString().split("T")[0];
-
-    const hfToken =
-      process.env.HUGGINGFACE_API_TOKEN ||
-      ctx.secrets?.HUGGINGFACE_API_TOKEN ||
-      "";
-    const headers: Record<string, string> = {
-      Accept: "application/json",
-      "User-Agent": "AI-Market-Cap-Bot",
-    };
-    if (hfToken) headers.Authorization = `Bearer ${hfToken}`;
-
-    // Fetch all rows from the HuggingFace datasets API with pagination
-    const allRows: HFRowContent[] = [];
-    let offset = 0;
-    let totalRows = Infinity;
-
-    try {
-      while (offset < totalRows) {
-        const url = new URL(HF_ROWS_API);
-        url.searchParams.set("dataset", HF_DATASET);
-        url.searchParams.set("config", "default");
-        url.searchParams.set("split", "train");
-        url.searchParams.set("offset", String(offset));
-        url.searchParams.set("length", String(PAGE_LENGTH));
-
-        const res = await fetchWithRetry(
-          url.toString(),
-          { headers, signal: ctx.signal },
-          { signal: ctx.signal, maxRetries: 5, baseDelayMs: 2000 }
-        );
-
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          return {
-            success: false,
-            recordsProcessed: 0,
-            recordsCreated: 0,
-            recordsUpdated: 0,
-            errors: [
-              {
-                message: `HuggingFace datasets API returned ${res.status}: ${body.slice(0, 200)}`,
-              },
-            ],
-          };
-        }
-
-        const json: HFRowsResponse = await res.json();
-        totalRows = json.num_rows_total;
-
-        for (const row of json.rows) {
-          allRows.push(row.row);
-        }
-
-        offset += PAGE_LENGTH;
-
-        // Safety: if the page returned no rows, stop
-        if (json.rows.length === 0) break;
-      }
-    } catch (err) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [
-          {
-            message: `Failed to fetch Chatbot Arena data: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
-      };
-    }
-
-    if (allRows.length === 0) {
-      return {
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        errors: [{ message: "No rows returned from Chatbot Arena dataset" }],
-      };
-    }
-
+  async sync(ctx): Promise<SyncResult> {
+    const errors: Array<{ message: string }> = [];
     let recordsProcessed = 0;
     let recordsCreated = 0;
-
-    // ── Batch model lookup (avoid N+1 queries) ──
-    const allModels = await fetchAllActiveAliasModels(sb);
-    const modelAliasIndex = buildModelAliasIndex(allModels);
-
-    const slugToId = new Map<string, string>();
-    const nameLowerToId = new Map<string, string>();
-    for (const m of allModels) {
-      slugToId.set(m.slug, m.id);
-      nameLowerToId.set(m.name.toLowerCase(), m.id);
-    }
-
-    function findModelId(rawName: string): string | null {
-      const slug = makeSlug(rawName);
-      // Direct slug match
-      if (slugToId.has(slug)) return slugToId.get(slug)!;
-      // Name match (case-insensitive)
-      const lowerName = rawName.toLowerCase();
-      if (nameLowerToId.has(lowerName)) return nameLowerToId.get(lowerName)!;
-      // Partial name match
-      for (const [dbName, id] of nameLowerToId) {
-        if (dbName.includes(lowerName) || lowerName.includes(dbName)) return id;
-      }
-      // Partial slug match (endsWith)
-      for (const [dbSlug, id] of slugToId) {
-        if (dbSlug.endsWith("-" + slug) || slug.endsWith("-" + dbSlug)) return id;
-      }
-      return null;
-    }
-
-    function findAllModelIds(rawName: string): string[] {
-      const primaryId = findModelId(rawName);
-      if (!primaryId) return [];
-
-      const normalizedName = rawName.toLowerCase();
-      const relatedIds = resolveAliasFamilyModelIds(modelAliasIndex, {
-        slugCandidates: [makeSlug(rawName)],
-        nameCandidates: [rawName, normalizedName],
-      });
-
-      return relatedIds.length > 0 ? relatedIds : [primaryId];
-    }
-
-    for (const row of allRows) {
-      // mathewhe/chatbot-arena-elo columns:
-      // "Model", "Arena Score", "95% CI", "Votes", "Rank* (UB)", "Organization"
-      const modelName =
-        (row["Model"] as string) ??
-        (row["model"] as string) ??
-        (row["model_name"] as string) ??
-        (row["key"] as string);
-
-      if (!modelName) continue;
-
-      // Extract Elo / Arena score
-      const eloScore =
-        (row["Arena Score"] as number) ??
-        (row["arena_score"] as number) ??
-        (row["elo"] as number) ??
-        (row["rating"] as number) ??
-        (row["score"] as number);
-
-      // Parse "95% CI" field (format: "+5/-4") into low/high
-      let ciLow: number | null = null;
-      let ciHigh: number | null = null;
-      const ciStr = row["95% CI"] as string | undefined;
-      if (ciStr && eloScore != null) {
-        const ciMatch = ciStr.match(/\+(\d+)\/-(\d+)/);
-        if (ciMatch) {
-          ciHigh = eloScore + parseInt(ciMatch[1], 10);
-          ciLow = eloScore - parseInt(ciMatch[2], 10);
+    try {
+      const rows: NonNullable<ReturnType<typeof parseOfficialArenaRow>>[] = [];
+      for (let offset = 0, total = MAX_ROWS; offset < total; offset += PAGE_LENGTH) {
+        const page = await fetchLeaderboardPage(offset, ctx);
+        total = page.total;
+        if (page.rows.length === 0) throw new Error("Official Arena pagination ended before the declared total");
+        for (const { row } of page.rows) {
+          const parsed = parseOfficialArenaRow(row);
+          if (parsed) rows.push(parsed);
         }
       }
-      // Fallback to explicit fields if present
-      ciLow ??=
-        (row["confidence_interval_low"] as number) ??
-        (row["CI_low"] as number) ??
-        null;
-      ciHigh ??=
-        (row["confidence_interval_high"] as number) ??
-        (row["CI_high"] as number) ??
-        null;
-
-      const votes =
-        (row["Votes"] as number) ??
-        (row["votes"] as number) ??
-        (row["num_battles"] as number) ??
-        (row["num_votes"] as number) ??
-        null;
-
-      const rank =
-        (row["Rank* (UB)"] as number) ??
-        (row["rank"] as number) ??
-        (row["Rank"] as number) ??
-        (row["final_ranking"] as number) ??
-        null;
-
-      if (eloScore == null) continue;
-
-      recordsProcessed++;
-
-      const modelIds = findAllModelIds(modelName);
-      if (modelIds.length === 0) continue;
-
-      for (const modelId of modelIds) {
-        const { error } = await sb.from("elo_ratings").upsert(
-          {
-            model_id: modelId,
-            arena_name: "chatbot-arena",
-            elo_score: eloScore,
-            confidence_interval_low: ciLow,
-            confidence_interval_high: ciHigh,
-            num_battles: votes,
-            rank,
-            snapshot_date: today,
-          },
-          { onConflict: "model_id,arena_name,snapshot_date" }
-        );
-
-        if (error) {
-          errors.push({
-            message: `Elo upsert for ${modelName}: ${error.message}`,
-          });
-        } else {
-          recordsCreated++;
+      if (!rows.length) throw new Error("No fresh, valid overall text ratings found in the official Arena dataset");
+      const models = await fetchAllActiveAliasModels(ctx.supabase);
+      const index = buildModelAliasIndex(models);
+      let unmatchedRows = 0;
+      const unmatchedModels: string[] = [];
+      const pending = new Map<string, {
+        model_id: string; arena_name: string; elo_score: number;
+        confidence_interval_low: number | null; confidence_interval_high: number | null;
+        num_battles: number | null; rank: number | null; snapshot_date: string;
+      }>();
+      for (const row of rows) {
+        recordsProcessed++;
+        const ids = resolveAliasFamilyModelIds(index, {
+          slugCandidates: [makeSlug(row.modelName)], nameCandidates: [row.modelName],
+          allowLooseMatch: false, expandDatedVariants: false,
+        });
+        if (!ids.length) {
+          unmatchedRows++;
+          if (unmatchedModels.length < 20) unmatchedModels.push(row.modelName.slice(0, 200));
+        }
+        for (const modelId of ids) {
+          const rating = {
+            model_id: modelId, arena_name: OFFICIAL_TEXT_ARENA,
+            elo_score: row.eloScore, confidence_interval_low: row.confidenceLow,
+            confidence_interval_high: row.confidenceHigh, num_battles: row.votes,
+            rank: row.rank, snapshot_date: row.snapshotDate,
+          };
+          const key = `${modelId}:${row.snapshotDate}`;
+          const previous = pending.get(key);
+          if (!previous || rating.elo_score < previous.elo_score) pending.set(key, rating);
         }
       }
+      const ratings = [...pending.values()];
+      for (let offset = 0; offset < ratings.length; offset += 100) {
+        const batch = ratings.slice(offset, offset + 100);
+        const { error } = await ctx.supabase.from("elo_ratings").upsert(batch,
+          { onConflict: "model_id,arena_name,snapshot_date" });
+        if (error) errors.push({ message: "Could not save a batch of official Arena ratings" });
+        else recordsCreated += batch.length;
+      }
+      if (!recordsCreated) errors.push({ message: "No official Arena rows matched exact catalog identities" });
+      return { success: !errors.length, recordsProcessed, recordsCreated, recordsUpdated: 0, errors,
+        metadata: { source: "official_arena_dataset", dataset: HF_DATASET,
+          latestPublicationDate: rows.map((row) => row.snapshotDate).sort().at(-1),
+          validOverallRows: rows.length, unmatchedRows, unmatchedModels, legacyMirrorUsed: false } };
+    } catch {
+      return { success: false, recordsProcessed, recordsCreated, recordsUpdated: 0,
+        errors: [...errors, { message: "Official Arena sync failed; legacy mirror fallback is disabled" }] };
     }
-
-    return {
-      success: errors.length === 0,
-      recordsProcessed,
-      recordsCreated,
-      recordsUpdated: 0,
-      errors,
-      metadata: {
-        source: "huggingface_datasets_api",
-        dataset: HF_DATASET,
-        totalRowsFetched: allRows.length,
-      },
-    };
   },
 
   async healthCheck(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      const url = new URL(HF_ROWS_API);
-      url.searchParams.set("dataset", HF_DATASET);
-      url.searchParams.set("config", "default");
-      url.searchParams.set("split", "train");
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("length", "1");
-
-      const res = await fetchWithRetry(url.toString(), {}, { maxRetries: 1 });
-      const latencyMs = Date.now() - start;
-
-      if (res.ok) {
-        return {
-          healthy: true,
-          latencyMs,
-          message: "HuggingFace datasets API reachable for Chatbot Arena data",
-        };
-      }
-
-      return {
-        healthy: false,
-        latencyMs,
-        message: `HuggingFace datasets API returned HTTP ${res.status}`,
-      };
-    } catch (err) {
-      return {
-        healthy: false,
-        latencyMs: Date.now() - start,
-        message: `HuggingFace datasets API unreachable: ${err instanceof Error ? err.message : String(err)}`,
-      };
+      const page = await fetchLeaderboardPage(0, undefined, 1, true);
+      const valid = parseOfficialArenaRow(page.rows[0]?.row) != null;
+      return { healthy: valid, latencyMs: Date.now() - start,
+        message: valid ? "Official overall text ratings reachable with a recent publication date" : "Official Arena data is stale or malformed" };
+    } catch {
+      return { healthy: false, latencyMs: Date.now() - start, message: "Official Arena dataset unavailable" };
     }
   },
 };

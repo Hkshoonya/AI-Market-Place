@@ -22,6 +22,7 @@ export interface ExpertInputs {
   avgBenchmarkScore: number | null;
   benchmarkScores: Array<{ slug: string; score: number }> | null;
   eloScore: number | null;
+  eloNormalized?: number;
   hfLikes: number | null;
   githubStars: number | null;
   newsMentions: number;
@@ -69,7 +70,7 @@ export function computeExpertScore(
 
   let eloNorm = 0;
   if (inputs.eloScore != null && inputs.eloScore > 0) {
-    eloNorm = normalizeElo(inputs.eloScore);
+    eloNorm = inputs.eloNormalized ?? normalizeElo(inputs.eloScore);
   }
 
   const likesNorm = inputs.hfLikes ? logNormalizeSignal(inputs.hfLikes, stats.maxLikes) : 0;

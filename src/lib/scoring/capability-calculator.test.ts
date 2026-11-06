@@ -2,6 +2,18 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { computeCapabilityScore, CapabilityInputs } from "@/lib/scoring/capability-calculator";
 
 describe("computeCapabilityScore", () => {
+  it("does not turn invalid benchmark values into quality evidence", () => {
+    expect(computeCapabilityScore({ benchmarkScores: [{ slug: "mmlu", score: NaN },
+      { slug: "gpqa", score: 101 }], eloScore: Infinity, releaseDate: null, category: "llm" })).toBeNull();
+  });
+
+  it.each(["terminal-bench-2-1", "terminal-bench-3", "terminal-bench-4", "terminal-bench-5-1", "swe-bench-verified", "swe-bench-pro", "swe-bench-pro-v2"])("recognizes %s as primary agent evidence without renaming its version", (slug) => {
+    const score = (primary: string) => computeCapabilityScore({ benchmarkScores: [
+      { slug: primary, score: 80 }, { slug: "gaia", score: 40 }],
+      eloScore: null, releaseDate: null, category: "agentic_browser" });
+    expect(score(slug)).toBe(score("terminal-bench"));
+    expect(score(slug)!).toBeGreaterThan(score("unknown-test")!);
+  });
   afterEach(() => {
     vi.useRealTimers();
   });

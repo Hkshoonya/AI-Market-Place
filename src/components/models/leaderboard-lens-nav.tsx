@@ -96,6 +96,15 @@ export function LeaderboardLensNav({
           </Link>
         );
       })}
+      <p className="col-span-full text-xs leading-5 text-muted-foreground">
+        Composite scores are AI Market Cap calculations, not probabilities or official Arena rankings.
+        Arena data attribution:{" "}
+        <a href="https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+          target="_blank" rel="noopener noreferrer" className="text-neon underline underline-offset-4">
+          Arena leaderboard dataset
+        </a>{" "}
+        (CC BY 4.0). Missing evidence and model access affect ranking eligibility.
+      </p>
     </div>
   );
 }
