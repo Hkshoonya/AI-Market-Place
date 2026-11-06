@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import type { Database } from "@/types/database";
 import { extractApiKey, validateApiKey, hasScope } from "@/lib/agents/auth";
 import { rateLimit, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";

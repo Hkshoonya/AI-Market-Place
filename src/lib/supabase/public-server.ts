@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "./stateless";
 import type { Database } from "@/types/database";
 
 export function createPublicClient() {

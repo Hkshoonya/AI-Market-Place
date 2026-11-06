@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";
 import { isFreshVerifiedPricingEntry } from "@/lib/models/pricing";

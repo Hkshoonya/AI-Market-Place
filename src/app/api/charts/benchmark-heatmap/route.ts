@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { createStatelessClient as createClient } from "@/lib/supabase/stateless";
 import { parseQueryResult } from "@/lib/schemas/parse";
 import { handleApiError } from "@/lib/api-error";
 import { providerMatchesCanonical } from "@/lib/constants/providers";

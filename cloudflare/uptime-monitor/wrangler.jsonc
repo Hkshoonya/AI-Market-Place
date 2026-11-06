@@ -1,0 +1,17 @@
+{
+  "name": "aimarketcap-uptime-monitor",
+  "account_id": "fbfce5875ce339f84da50ababc61faaf",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "version_metadata": { "binding": "VERSION" },
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": { "MONITOR_ENABLED": "true", "AUTO_RECOVERY_ENABLED": "true" },
+  "secrets": { "required": ["RAILWAY_TOKEN", "RESEND_API_KEY"] },
+  "durable_objects": {
+    "bindings": [{ "name": "MONITOR", "class_name": "WebsiteMonitor" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WebsiteMonitor"] }]
+}
