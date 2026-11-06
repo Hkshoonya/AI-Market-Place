@@ -30,7 +30,7 @@ const eslintConfig = defineConfig([
     "infra/self-host/state/**",
     "infra/self-host/.runtime/**",
     "infra/self-host/upstream/**",
-    "cloudflare/uptime-monitor/worker-configuration.d.ts",
+    "cloudflare/**/worker-configuration.d.ts",
     "cloudflare/**/.wrangler/**",
   ]),
 ]);

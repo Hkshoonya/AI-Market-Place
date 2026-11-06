@@ -1,97 +1,14 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
+import RouteServiceError, { type RouteServiceErrorProps } from "@/components/shared/route-service-error";
+import "./globals.css";
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-
+export default function GlobalError(props: RouteServiceErrorProps) {
   return (
     <html lang="en" className="dark">
-      <body
-        style={{
-          margin: 0,
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#0a0a0b",
-          color: "#e4e4e7",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
-        <div style={{ textAlign: "center", padding: "2rem", maxWidth: "480px" }}>
-          <div
-            style={{
-              width: "48px",
-              height: "48px",
-              margin: "0 auto 1.5rem",
-              borderRadius: "12px",
-              backgroundColor: "rgba(239, 68, 68, 0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "24px",
-            }}
-          >
-            !
-          </div>
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 700,
-              margin: "0 0 0.75rem",
-            }}
-          >
-            Something went wrong
-          </h1>
-          <p
-            style={{
-              fontSize: "0.875rem",
-              color: "#a1a1aa",
-              margin: "0 0 1.5rem",
-              lineHeight: 1.6,
-            }}
-          >
-            An unexpected error occurred. Please try again or refresh the page.
-          </p>
-          {error?.digest && (
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "#71717a",
-                margin: "0 0 1.5rem",
-                fontFamily: "monospace",
-              }}
-            >
-              Error ID: {error.digest}
-            </p>
-          )}
-          <button
-            onClick={reset}
-            style={{
-              padding: "0.625rem 1.5rem",
-              backgroundColor: "#00d4aa",
-              color: "#0a0a0b",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Try Again
-          </button>
-        </div>
+      <body className="min-h-screen bg-background font-sans text-foreground">
+        <title>Service temporarily unavailable | AI Market Cap</title>
+        <RouteServiceError {...props} />
       </body>
     </html>
   );

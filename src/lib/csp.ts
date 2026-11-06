@@ -36,6 +36,7 @@ export function buildContentSecurityPolicy({
     "wss://*.supabase.co",
     "https://*.ingest.sentry.io",
     "https://*.i.posthog.com",
+    "https://aimarketcap-uptime-monitor.sense-fbf.workers.dev",
   ];
 
   const directives = [

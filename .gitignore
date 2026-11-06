@@ -60,6 +60,8 @@ next-env.d.ts
 /cloudflare/uptime-monitor/.dev.vars*
 /cloudflare/uptime-monitor/.wrangler/
 /cloudflare/uptime-monitor/worker-configuration.d.ts
+/cloudflare/service-fallback/.wrangler/
+/cloudflare/service-fallback/worker-configuration.d.ts
 
 # local Claude desktop/tooling artifacts
 /.claude/

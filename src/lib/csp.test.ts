@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildContentSecurityPolicy } from "./csp";
 
 describe("buildContentSecurityPolicy", () => {
+  it("permits only the fixed independent monitor for status connections", () => {
+    const policy = buildContentSecurityPolicy({ isDevelopment: false, isE2E: false });
+    expect(policy).toContain("https://aimarketcap-uptime-monitor.sense-fbf.workers.dev");
+    expect(policy).not.toContain("https://*.workers.dev");
+  });
   it("allows the configured self-hosted backend only for connections", () => {
     const policy = buildContentSecurityPolicy({
       isDevelopment: false,
