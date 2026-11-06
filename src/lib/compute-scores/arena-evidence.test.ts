@@ -16,14 +16,14 @@ describe("selectArenaEvidence", () => {
 
   it("keeps leading ratings distinct above 1400 and isolates arena scales", () => {
     const models = ["a", "b", "c"].map((id) => ({ id, category: "multimodal" }));
-    const result = selectArenaEvidence([row("a", 1450), row("b", 1474), row("c", 1400, "2026-11-06", "vision-arena")], models, now);
+    const result = selectArenaEvidence([row("a", 1450), row("b", 1474), row("c", 1400, "2026-11-06", "arena-vision-official")], models, now);
     expect(result.eloNormalizedMap.get("a")).toBeLessThan(result.eloNormalizedMap.get("b")!);
     expect(result.eloNormalizedMap.get("b")).toBe(100);
     expect(result.eloNormalizedMap.get("c")).toBe(100);
   });
 
   it("never takes a larger rating from an unrelated arena or frozen legacy mirror", () => {
-    const result = selectArenaEvidence([row("a", 1200), row("a", 1300, "2026-11-06", "vision-arena"), row("a", 1500, "2026-11-06", "chatbot-arena")], [{ id: "a", category: "multimodal" }], now);
+    const result = selectArenaEvidence([row("a", 1200), row("a", 1300, "2026-11-06", "arena-vision-official"), row("a", 1500, "2026-11-06", "chatbot-arena")], [{ id: "a", category: "multimodal" }], now);
     expect(result.eloMap.get("a")).toBe(1200);
     expect([...result.eloSourcesByModel.get("a")!]).toEqual(["arena-text-official"]);
   });
@@ -31,16 +31,16 @@ describe("selectArenaEvidence", () => {
   it("rejects malformed, future, non-finite, inactive-model and unknown-arena evidence", () => {
     const result = selectArenaEvidence([row("a", NaN), row("a", Infinity), row("a", 0),
       row("a", 1600, "2099-01-01"), row("a", 1600, "invalid"), row("inactive", 2000),
-      row("a", 1600, "2026-11-06", "unknown"), row("a", 1600, "2026-11-06", "vision-arena")], [{ id: "a", category: "llm" }], now);
+      row("a", 1600, "2026-11-06", "unknown"), row("a", 1600, "2026-11-06", "arena-vision-official")], [{ id: "a", category: "llm" }], now);
     expect(result.eloMap.size).toBe(0);
   });
 
   it("does not use image-understanding or text ratings for image-generation models", () => {
-    expect(selectArenaEvidence([row("a", 1300), row("a", 1400, "2026-11-06", "vision-arena")], [{ id: "a", category: "image_generation" }], now).eloMap.size).toBe(0);
+    expect(selectArenaEvidence([row("a", 1300), row("a", 1400, "2026-11-06", "arena-vision-official")], [{ id: "a", category: "image_generation" }], now).eloMap.size).toBe(0);
   });
 
   it("uses vision ratings for the dedicated image-understanding category", () => {
-    const result = selectArenaEvidence([row("a", 1400), row("a", 1200, "2026-11-06", "vision-arena")], [{ id: "a", category: "vision" }], now);
+    const result = selectArenaEvidence([row("a", 1400), row("a", 1200, "2026-11-06", "arena-vision-official")], [{ id: "a", category: "vision" }], now);
     expect(result.eloMap.get("a")).toBe(1200);
   });
 });

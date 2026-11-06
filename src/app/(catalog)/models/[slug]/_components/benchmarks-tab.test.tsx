@@ -51,6 +51,18 @@ describe("BenchmarksTab", () => {
     expect(screen.getAllByText("Chatbot Arena")).toHaveLength(1);
     expect(screen.getByText("2 snapshots")).toBeInTheDocument();
     expect(screen.getByText("1320")).toBeInTheDocument();
+    expect(screen.getByText(/Legacy import history, not current ranking evidence/)).toBeInTheDocument();
+  });
+
+  it("identifies official publication dates and extends the rating scale above 1500", () => {
+    render(<BenchmarksTab benchmarkScores={[]} benchmarkTracking={arenaOnlyTracking} eloRatings={[
+      { arena_name: "arena-text-official", elo_score: 1540, num_battles: 4403, snapshot_date: "2026-10-28" },
+    ]} />);
+    expect(screen.getByText("Arena Text (Official)")).toBeInTheDocument();
+    expect(screen.getByText("Published")).toBeInTheDocument();
+    expect(screen.getByText("Oct 28, 2026")).toBeInTheDocument();
+    expect(screen.getByText("1600")).toBeInTheDocument();
+    expect(screen.queryByText(/Legacy import history/)).not.toBeInTheDocument();
   });
 
   it("shows recent benchmark evidence when structured scores are still empty", () => {

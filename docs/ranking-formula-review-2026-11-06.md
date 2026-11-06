@@ -4,7 +4,7 @@
 
 - The Arena adapter used a third-party mirror last modified July 18, 2025 and
   stamped every import with today's date. It now reads Arena's official
-  `lmarena-ai/leaderboard-dataset`, filters to `text/latest/overall`, validates
+  `lmarena-ai/leaderboard-dataset`, selects `text/latest/overall`, validates
   publication dates and uses a distinct `arena-text-official` identity. Frozen
   mirror rows remain stored as history but cannot supply current ranking inputs.
   The official filtered endpoint returned 419 overall text rows on November 6,
@@ -14,6 +14,20 @@
   Arena imports. Unmatched effort/version variants are reported, not attached to
   a nearby older model. Updates use batches of 100 and retain the publication
   date as the snapshot key, avoiding a new history row on every daily import.
+- Follow-up transport repair: both text and vision use the publisher's small
+  `latest` Parquet snapshots directly, not the unreliable dataset-viewer filter
+  API or bot-blocked Vision HTML page. A fixed repository revision, allowlisted
+  HTTPS redirects, credential-free downloads, LFS SHA-256 and declared/streamed
+  size checks protect retrieval. Row/schema/decompression budgets and actual
+  publication dates are checked before planning any writes. The reader is pinned
+  `hyparquet@1.32.0`, with no transitive dependencies or install scripts.
+- Vision imports use `arena-vision-official`; legacy scraped rows remain history,
+  not current ranking evidence. Exact matching also checks the publisher's
+  organization and preserves effort qualifiers such as High/Max. Blank upstream
+  organizations and unmatched configurations are reported, not guessed.
+- Import batches compare existing records and skip unchanged values, reducing
+  repeated disk writes. Availability checks test the bounded manifest path and
+  explicitly distinguish transport availability from sync-time freshness checks.
 - Scoring previously selected the greatest historical Arena rating for each model,
   including across arenas. It now selects the latest dated result from the text
   arena, with vision-understanding evidence for vision models and as a multimodal
@@ -68,12 +82,13 @@ Run with the existing environment loaded, without printing secrets:
 
 ```bash
 node --env-file=.env.local --import tsx scripts/audit-ranking-formulas.ts
+node --env-file=.env.local --import tsx scripts/preview-arena-import.ts
 ```
 
 The audit uses the management API's `read_only: true`, a fixed query, a bounded
 shortlist and a timeout. It never invokes the full scoring orchestrator, whose
 pricing-sync stage writes data. No production recomputation or migration is part
-of this audit. Rollout must import official Arena ratings before running the
+of this audit. Rollout must import official text and vision ratings before running the
 corrected scoring job. Confirm exact identity matches and unmatched variants,
 then preview and recompute through the normal jobs while database health is
 stable. A rollout guard halts scoring before any writes if legacy text ratings
@@ -82,16 +97,27 @@ during a database outage.
 
 ## Limitations and follow-up
 
+At 16:42 UTC, direct snapshots verified 419 text rows (October 28) and 167 vision
+rows (October 19), totaling 687,518 compressed bytes. Against a read-only,
+bounded sample of 3,226 catalog candidates, exact matches proposed 186 text and
+69 vision records from 146 and 57 source rows respectively. This preview is NOT
+a production import, complete-catalog coverage guarantee, or global reranking.
+Many unmatched leading rows specify an effort option absent from the catalog.
+Do not silently attach those results to a default model/configuration. Preserve
+explicit configuration identities and review unmatched-source diagnostics.
+
 Normalized raw percentages from different tests are not equal-difficulty measures.
 Agent/harness settings and benchmark versions matter. The source allowlist alone
 cannot prove every upstream attribution or detect all fractional-vs-percentage
 normalization mistakes. Retain original evidence and verify suspicious reports
 rather than guessing a factor of 100. Vision Arena's latest stored snapshot was
-October 12, so its ingestion/freshness needs separate repair; this review does not
-claim that feed is current. The official Hugging Face filter endpoint also
+October 12 in production; the replacement adapter is tested but has not been
+released or imported there. The official Hugging Face filter endpoint also
 returned intermittent upstream HTTP 500/authentication-check timeouts during
 verification; the source must pass a fresh live check before rollout. The
-adapter fails closed with bounded timeouts, not a stale-mirror fallback.
+new direct-snapshot path was live-verified without that service. Both adapters
+fail closed with bounded timeouts, not a stale-mirror fallback. Their manifests
+being reachable is not proof that a model's measured configuration is current.
 Fetching historical Arena rows remains a
 database-load concern: a reviewed latest-per-model/arena query or RPC should
 replace it, but no unapproved database migration is introduced here.

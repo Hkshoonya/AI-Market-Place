@@ -18,6 +18,8 @@ export type CollapsedArenaRating<T extends ArenaRatingLike = ArenaRatingLike> = 
 };
 
 const ARENA_FAMILY_ALIASES = new Map<string, { familyKey: string; displayName: string }>([
+  ["arena text official", { familyKey: "arena-text-official", displayName: "Arena Text (Official)" }],
+  ["arena vision official", { familyKey: "arena-vision-official", displayName: "Arena Vision (Official)" }],
   ["chatbot-arena", { familyKey: "chatbot-arena", displayName: "Chatbot Arena" }],
   ["chatbot arena", { familyKey: "chatbot-arena", displayName: "Chatbot Arena" }],
   ["lmarena", { familyKey: "chatbot-arena", displayName: "Chatbot Arena" }],

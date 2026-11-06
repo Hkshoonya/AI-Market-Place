@@ -158,7 +158,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
       supabase
         .from("elo_ratings")
         .select("model_id, elo_score, arena_name, snapshot_date")
-        .in("arena_name", ["arena-text-official", "vision-arena"])
+        .in("arena_name", ["arena-text-official", "arena-vision-official"])
         .order("id", { ascending: true }),
     "elo_ratings"
   );

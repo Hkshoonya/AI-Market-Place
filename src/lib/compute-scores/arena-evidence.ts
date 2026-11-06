@@ -26,7 +26,7 @@ export function selectArenaEvidence(
     const arena = arenaKey(row.arena_name);
     // Legacy chatbot-arena rows were refreshed from a frozen mirror using sync
     // dates, so their apparent freshness cannot establish current evidence.
-    if (arena !== "arena-text-official" && arena !== "vision-arena") continue;
+    if (arena !== "arena-text-official" && arena !== "arena-vision-official") continue;
     const key = `${row.model_id}:${arena}`;
     const previous = latest.get(key);
     if (!previous || timestamp > Date.parse(previous.snapshot_date)
@@ -45,9 +45,9 @@ export function selectArenaEvidence(
   for (const model of models) {
     if (!["llm", "code", "agentic_browser", "multimodal", "vision"].includes(model.category)) continue;
     // Vision Arena evaluates image understanding, not image generation.
-    const row = model.category === "vision" ? latest.get(`${model.id}:vision-arena`)
+    const row = model.category === "vision" ? latest.get(`${model.id}:arena-vision-official`)
       : latest.get(`${model.id}:arena-text-official`)
-        ?? (model.category === "multimodal" ? latest.get(`${model.id}:vision-arena`) : undefined);
+        ?? (model.category === "multimodal" ? latest.get(`${model.id}:arena-vision-official`) : undefined);
     if (!row) continue;
     eloMap.set(model.id, row.elo_score);
     eloNormalizedMap.set(model.id, normalizeElo(row.elo_score, maxima.get(row.arena_name)));
