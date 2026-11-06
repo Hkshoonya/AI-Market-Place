@@ -6,6 +6,14 @@ interface AdminClientConfig {
   serviceRoleKey: string;
 }
 
+// Service-role clients never hold user sessions. Auth's default refresh timer
+// otherwise retains every per-request client for the lifetime of the process.
+const SERVICE_ROLE_AUTH = {
+  autoRefreshToken: false,
+  persistSession: false,
+  detectSessionInUrl: false,
+} as const;
+
 function readAdminClientConfig(): AdminClientConfig | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -50,7 +58,8 @@ export function createAdminClient() {
 
   return createClient<Database>(
     supabaseUrl,
-    serviceRoleKey
+    serviceRoleKey,
+    { auth: SERVICE_ROLE_AUTH }
   );
 }
 
@@ -62,5 +71,7 @@ export function createOptionalAdminClient() {
     return null;
   }
 
-  return createClient<Database>(config.supabaseUrl, config.serviceRoleKey);
+  return createClient<Database>(config.supabaseUrl, config.serviceRoleKey, {
+    auth: SERVICE_ROLE_AUTH,
+  });
 }
