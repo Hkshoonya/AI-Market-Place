@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { collapseArenaRatings } from "./arena-family";
 
 describe("collapseArenaRatings", () => {
+  it("keeps official publication-dated evidence separate from legacy sync-dated rows", () => {
+    const rows = collapseArenaRatings([
+      { arena_name: "chatbot-arena", elo_score: 1400, snapshot_date: "2026-11-06" },
+      { arena_name: "arena-text-official", elo_score: 1500, snapshot_date: "2026-10-28" },
+      { arena_name: "arena-vision-official", elo_score: 1300, snapshot_date: "2026-10-19" },
+    ]);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.displayName)).toContain("Arena Text (Official)");
+    expect(rows.map((row) => row.displayName)).toContain("Arena Vision (Official)");
+  });
   it("deduplicates identical arena rows before counting variants", () => {
     const result = collapseArenaRatings([
       {

@@ -113,11 +113,13 @@ export function weightedBenchmarkAvg(
 }
 
 /**
- * Normalise an ELO rating from the 800-1400 Chatbot Arena range onto 0-100.
- * Values below 800 clamp to 0; values above 1400 clamp to 100.
+ * Normalise an Arena rating onto 0-100, extending the historical 1400 ceiling
+ * with the latest observed maximum from the same arena (never across arenas).
  */
-export function normalizeElo(eloScore: number): number {
-  return Math.min(Math.max((eloScore - 800) / (1400 - 800) * 100, 0), 100);
+export function normalizeElo(eloScore: number, observedMaximum = 1400): number {
+  if (!Number.isFinite(eloScore)) return 0;
+  const ceiling = Number.isFinite(observedMaximum) ? Math.max(1400, observedMaximum) : 1400;
+  return Math.min(Math.max((eloScore - 800) / (ceiling - 800) * 100, 0), 100);
 }
 
 /**
@@ -133,12 +135,16 @@ export function computeRecencyScore(
   releaseDate: string | null,
   options?: { halfLifeMonths?: number; floor?: number }
 ): number {
-  const halfLife = options?.halfLifeMonths ?? 18;
-  const floor = options?.floor ?? 10;
+  const requestedHalfLife = options?.halfLifeMonths ?? 18;
+  const halfLife = Number.isFinite(requestedHalfLife) && requestedHalfLife > 0 ? requestedHalfLife : 18;
+  const requestedFloor = options?.floor ?? 10;
+  const floor = Number.isFinite(requestedFloor) ? Math.min(100, Math.max(0, requestedFloor)) : 10;
 
   if (!releaseDate) return 50;
 
-  const ageMs = Date.now() - new Date(releaseDate).getTime();
+  const releasedAt = Date.parse(releaseDate);
+  if (!Number.isFinite(releasedAt)) return 50;
+  const ageMs = Math.max(0, Date.now() - releasedAt);
   const ageMonths = ageMs / (30 * 24 * 60 * 60 * 1000);
-  return Math.max(100 * Math.exp(-ageMonths / halfLife), floor);
+  return Math.max(100 * Math.pow(2, -ageMonths / halfLife), floor);
 }

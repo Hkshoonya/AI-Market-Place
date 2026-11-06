@@ -118,6 +118,12 @@ describe("normalizeElo", () => {
   it("clamps to 100 for ELO above 1400", () => {
     expect(normalizeElo(1600)).toBe(100);
   });
+
+  it("extends the ceiling using the current arena maximum without losing ordering", () => {
+    expect(normalizeElo(1450, 1474)).toBeLessThan(normalizeElo(1474, 1474));
+    expect(normalizeElo(1474, 1474)).toBe(100);
+    expect(normalizeElo(NaN)).toBe(0);
+  });
 });
 
 // ---------- computeRecencyScore ----------
@@ -159,5 +165,17 @@ describe("computeRecencyScore", () => {
     vi.setSystemTime(new Date("2026-03-01T00:00:00Z"));
     const result = computeRecencyScore("2010-01-01", { floor: 20 });
     expect(result).toBeGreaterThanOrEqual(20);
+  });
+
+  it("really halves after the configured number of 30-day months", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse("2025-01-01T00:00:00Z") + 12 * 30 * 86400000);
+    expect(computeRecencyScore("2025-01-01", { halfLifeMonths: 12 })).toBeCloseTo(50, 8);
+  });
+
+  it("does not reward future dates or propagate malformed dates and options", () => {
+    expect(computeRecencyScore("invalid")).toBe(50);
+    expect(computeRecencyScore("2099-01-01")).toBe(100);
+    expect(computeRecencyScore("2020-01-01", { halfLifeMonths: 0, floor: Infinity })).toBeGreaterThanOrEqual(10);
   });
 });

@@ -49,6 +49,7 @@ export interface QualityInputs {
   newsMentions: number;
   /** Chatbot Arena ELO rating */
   eloScore: number | null;
+  eloNormalized?: number;
   /** Rank in arena */
   eloRank: number | null;
   /** Model category for weight selection */
@@ -159,7 +160,7 @@ function computeEloSignal(
   hasBenchmarks: boolean
 ): Signal {
   if (inputs.eloScore == null || inputs.eloScore <= 0) return null;
-  const normalizedElo = normalizeElo(inputs.eloScore);
+  const normalizedElo = inputs.eloNormalized ?? normalizeElo(inputs.eloScore);
   let eloWeight = weights.elo;
   if (!hasBenchmarks) {
     eloWeight += weights.benchmarks;

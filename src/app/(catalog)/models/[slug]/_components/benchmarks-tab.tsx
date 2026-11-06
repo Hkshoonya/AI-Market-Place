@@ -220,6 +220,8 @@ export function BenchmarksTab({
                 const ciLow = rating.confidence_interval_low;
                 const ciHigh = rating.confidence_interval_high;
                 const ciWidth = ciLow && ciHigh ? ciHigh - ciLow : null;
+                const scaleMaximum = Math.max(1500, Math.ceil(rating.elo_score / 100) * 100);
+                const isOfficial = ["arena-text-official", "arena-vision-official"].includes(rating.familyKey);
 
                 return (
                   <div key={index} className="rounded-lg border border-border/50 p-4">
@@ -241,12 +243,17 @@ export function BenchmarksTab({
                         )}
                       </div>
                     </div>
+                    {["chatbot-arena", "vision-arena"].includes(rating.familyKey) && (
+                      <p className="mb-3 text-xs leading-5 text-amber-300">
+                        Legacy import history, not current ranking evidence. These snapshot dates may reflect import activity rather than the publisher&apos;s release date.
+                      </p>
+                    )}
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <div>
                         <p className="text-2xl font-bold tabular-nums">
                           {rating.elo_score}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">ELO Score</p>
+                        <p className="text-[11px] text-muted-foreground">Arena rating</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium tabular-nums">
@@ -272,10 +279,11 @@ export function BenchmarksTab({
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
+                                timeZone: "UTC",
                               })
                             : "--"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">Last Updated</p>
+                        <p className="text-[11px] text-muted-foreground">{isOfficial ? "Published" : "Import snapshot"}</p>
                       </div>
                     </div>
                     <div className="mt-3">
@@ -283,14 +291,14 @@ export function BenchmarksTab({
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-[#f5a623] to-neon transition-all duration-700"
                           style={{
-                            width: `${Math.min(((rating.elo_score - 900) / 600) * 100, 100)}%`,
+                            width: `${Math.max(0, Math.min(((rating.elo_score - 800) / (scaleMaximum - 800)) * 100, 100))}%`,
                           }}
                         />
                       </div>
                       <div className="mt-1 flex justify-between">
-                        <span className="text-[9px] text-muted-foreground/40">900</span>
-                        <span className="text-[9px] text-muted-foreground/40">1200</span>
-                        <span className="text-[9px] text-muted-foreground/40">1500</span>
+                        <span className="text-[9px] text-muted-foreground/40">800</span>
+                        <span className="text-[9px] text-muted-foreground/40">{(800 + scaleMaximum) / 2}</span>
+                        <span className="text-[9px] text-muted-foreground/40">{scaleMaximum}</span>
                       </div>
                     </div>
                   </div>

@@ -14,6 +14,7 @@ interface ResolveAliasFamilyOptions {
   slugCandidates?: Array<string | null | undefined>;
   nameCandidates?: Array<string | null | undefined>;
   allowLooseMatch?: boolean;
+  expandDatedVariants?: boolean;
 }
 
 interface ModelAliasIndex {
@@ -231,7 +232,7 @@ export function resolveAliasFamilyModelIds(
     for (const id of index.slugToIds.get(slug) ?? []) {
       matched.add(id);
     }
-    for (const id of index.baseToDatedIds.get(slug) ?? []) {
+    for (const id of options.expandDatedVariants === false ? [] : index.baseToDatedIds.get(slug) ?? []) {
       matched.add(id);
     }
   }
@@ -297,19 +298,19 @@ export function resolveAliasFamilyModelIds(
 
     const familyKeys = new Set<string>();
     familyKeys.add(model.slug);
-    familyKeys.add(stripDateSuffix(model.slug));
+    if (options.expandDatedVariants !== false) familyKeys.add(stripDateSuffix(model.slug));
 
     const providerlessSlug = getProviderlessSlug(model);
     if (providerlessSlug) {
       familyKeys.add(providerlessSlug);
-      familyKeys.add(stripDateSuffix(providerlessSlug));
+      if (options.expandDatedVariants !== false) familyKeys.add(stripDateSuffix(providerlessSlug));
     }
 
     for (const key of familyKeys) {
       for (const siblingId of index.slugToIds.get(key) ?? []) {
         if (!expanded.has(siblingId)) queue.push(siblingId);
       }
-      for (const datedId of index.baseToDatedIds.get(key) ?? []) {
+      for (const datedId of options.expandDatedVariants === false ? [] : index.baseToDatedIds.get(key) ?? []) {
         if (!expanded.has(datedId)) queue.push(datedId);
       }
     }

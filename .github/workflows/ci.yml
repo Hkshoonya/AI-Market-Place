@@ -40,6 +40,8 @@ jobs:
       - run: npm run typecheck
       - run: npx wrangler types cloudflare/uptime-monitor/worker-configuration.d.ts -c cloudflare/uptime-monitor/wrangler.jsonc --env-file cloudflare/uptime-monitor/.env.example --strict-vars=false
       - run: npx tsc -p cloudflare/uptime-monitor/tsconfig.json
+      - run: npx wrangler types cloudflare/service-fallback/worker-configuration.d.ts -c cloudflare/service-fallback/wrangler.jsonc
+      - run: npx tsc -p cloudflare/service-fallback/tsconfig.json
 
   test:
     name: Test
@@ -54,6 +56,7 @@ jobs:
       - run: npm ci
       - run: node --test scripts/self-host/*.test.mjs
       - run: node --test cloudflare/uptime-monitor/src/recovery.test.mjs
+      - run: node --test cloudflare/service-fallback/src/fallback.test.mjs
       - run: npm run test:unit
       - run: npm run test:component
 

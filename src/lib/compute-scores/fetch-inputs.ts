@@ -14,6 +14,8 @@ import { buildSourceCoverage } from "@/lib/source-coverage";
 import type { ScoringInputs } from "./types";
 import { createTaggedLogger } from "@/lib/logging";
 import { buildModelNewsEvidenceMap } from "@/lib/news/evidence";
+import { isTrustedStructuredBenchmarkSource } from "@/lib/models/benchmark-score-trust";
+import { selectArenaEvidence } from "./arena-evidence";
 
 const log = createTaggedLogger("compute-scores");
 const PAGE_SIZE = 1000;
@@ -113,9 +115,16 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
   const benchmarkDetailMap = new Map<string, Array<{ slug: string; score: number }>>();
   const benchmarkSourcesByModel = new Map<string, Set<string>>();
   const benchmarkCategoriesByModel = new Map<string, Set<string>>();
+  const groupedBenchmarks = new Map<string, Map<string, number[]>>();
   for (const bs of benchmarkAvgs) {
     const modelId = bs.model_id;
-    const source = bs.source ?? bs.benchmarks?.source ?? bs.benchmarks?.slug ?? null;
+    // A benchmark's definition does not establish provenance for an individual result.
+    if (!isTrustedStructuredBenchmarkSource(bs.source) || bs.score_normalized == null) continue;
+    const score = Number(bs.score_normalized);
+    const benchSlug = bs.benchmarks?.slug.toLowerCase().replace(/_/g, "-");
+    if (!Number.isFinite(score) || score < 0 || score > 100 || !benchSlug
+      || benchSlug === "chatbot-arena-elo") continue;
+    const source = bs.source;
     if (source) {
       const sources = benchmarkSourcesByModel.get(modelId) ?? new Set<string>();
       sources.add(source);
@@ -128,17 +137,19 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
       benchmarkCategoriesByModel.set(modelId, categories);
     }
 
-    if (bs.score_normalized == null) continue;
-    const score = Number(bs.score_normalized);
-
-    if (!benchmarkMap.has(modelId)) benchmarkMap.set(modelId, []);
-    benchmarkMap.get(modelId)!.push(score);
-
-    const benchSlug = bs.benchmarks?.slug;
-    if (benchSlug) {
-      if (!benchmarkDetailMap.has(modelId)) benchmarkDetailMap.set(modelId, []);
-      benchmarkDetailMap.get(modelId)!.push({ slug: benchSlug, score });
-    }
+    const grouped = groupedBenchmarks.get(modelId) ?? new Map<string, number[]>();
+    const scores = grouped.get(benchSlug) ?? [];
+    scores.push(score);
+    grouped.set(benchSlug, scores);
+    groupedBenchmarks.set(modelId, grouped);
+  }
+  // Multiple reports of the same test count once, not as extra benchmark breadth.
+  for (const [modelId, grouped] of groupedBenchmarks) {
+    const details = Array.from(grouped, ([slug, scores]) => ({
+      slug, score: scores.reduce((sum, score) => sum + score, 0) / scores.length,
+    }));
+    benchmarkDetailMap.set(modelId, details);
+    benchmarkMap.set(modelId, details.map(({ score }) => score));
   }
 
   // 2b. Fetch ELO ratings from Chatbot Arena
@@ -146,23 +157,19 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     () =>
       supabase
         .from("elo_ratings")
-        .select("model_id, elo_score, arena_name")
+        .select("model_id, elo_score, arena_name, snapshot_date")
+        .in("arena_name", ["arena-text-official", "arena-vision-official"])
         .order("id", { ascending: true }),
     "elo_ratings"
   );
 
-  const eloMap = new Map<string, number>();
-  const eloSourcesByModel = new Map<string, Set<string>>();
-  for (const elo of eloRatings ?? []) {
-    const arenas = eloSourcesByModel.get(elo.model_id) ?? new Set<string>();
-    arenas.add(elo.arena_name ?? "arena");
-    eloSourcesByModel.set(elo.model_id, arenas);
-
-    if (elo.elo_score == null) continue;
-    const score = Number(elo.elo_score);
-    const existing = eloMap.get(elo.model_id);
-    if (!existing || score > existing) {
-      eloMap.set(elo.model_id, score);
+  const { eloMap, eloNormalizedMap, eloSourcesByModel } = selectArenaEvidence(eloRatings, models);
+  if (models.some((model) => ["llm", "multimodal", "code", "agentic_browser"].includes(model.category))
+    && ![...eloSourcesByModel.values()].some((sources) => sources.has("arena-text-official"))) {
+    const legacy = await supabase.from("elo_ratings").select("model_id")
+      .eq("arena_name", "chatbot-arena").limit(1);
+    if (legacy.error || legacy.data?.length) {
+      throw new Error("Import verified official Arena text evidence before replacing legacy-derived rankings");
     }
   }
 
@@ -239,6 +246,7 @@ export async function fetchInputs(supabase: SupabaseClient): Promise<ScoringInpu
     benchmarkMap,
     benchmarkDetailMap,
     eloMap,
+    eloNormalizedMap,
     newsMentionMap,
     providerBenchmarkAvg,
     staleCount,

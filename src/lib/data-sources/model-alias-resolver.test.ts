@@ -7,6 +7,21 @@ import {
 } from "./model-alias-resolver";
 
 describe("model alias resolver", () => {
+  it("supports strict performance identities without cross-version or dated-family inheritance", () => {
+    const models = [
+      { id: "base", name: "Grok 4", slug: "x-ai-grok-4", provider: "xAI" },
+      { id: "new", name: "Grok 4.6", slug: "x-ai-grok-4-6", provider: "xAI" },
+      { id: "dated", name: "Grok 4 2025-07-09", slug: "x-ai-grok-4-2025-07-09", provider: "xAI" },
+    ];
+    const index = buildModelAliasIndex(models);
+    const resolve = (name: string) => resolveAliasFamilyModelIds(index, {
+      nameCandidates: [name], slugCandidates: [name], allowLooseMatch: false, expandDatedVariants: false,
+    });
+    expect(resolve("Grok 4")).toEqual(["base"]);
+    expect(resolve("Grok 4.6")).toEqual(["new"]);
+    expect(resolve("Grok 4.7")).toEqual([]);
+    expect(resolve("Grok 4 2025-07-09")).toEqual(["dated"]);
+  });
   it("returns sibling aliases and dated variants for the same benchmark family", () => {
     const index = buildModelAliasIndex([
       {

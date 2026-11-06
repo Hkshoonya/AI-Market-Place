@@ -75,6 +75,7 @@ function createPagedMockSupabase(
         gte: () => chain,
         not: () => chain,
         order: () => chain,
+        limit: () => resolvePage(),
         range: () => resolvePage(),
       };
 
@@ -84,6 +85,13 @@ function createPagedMockSupabase(
 }
 
 describe("fetchInputs", () => {
+  it("halts legacy-to-official rollout before any score/pricing writes if official evidence has not imported", async () => {
+    const supabase = createPagedMockSupabase({
+      models: [{ data: [{ id: "m1", category: "llm", status: "active" }], error: null }],
+      elo_ratings: [{ data: [], error: null }, { data: [{ model_id: "m1" }], error: null }],
+    });
+    await expect(fetchInputs(supabase)).rejects.toThrow("Import verified official Arena text evidence");
+  });
   it("returns ScoringInputs with populated models, benchmark, elo, and news maps", async () => {
     const mockModels = [
       {
@@ -123,13 +131,13 @@ describe("fetchInputs", () => {
     ];
 
     const mockBenchmarks = [
-      { model_id: "m1", score_normalized: 92, benchmarks: { slug: "mmlu" } },
-      { model_id: "m1", score_normalized: 88, benchmarks: { slug: "gpqa" } },
-      { model_id: "m2", score_normalized: 78, benchmarks: { slug: "mmlu" } },
+      { model_id: "m1", source: "provider-benchmarks", score_normalized: 92, benchmarks: { slug: "mmlu" } },
+      { model_id: "m1", source: "provider-benchmarks", score_normalized: 88, benchmarks: { slug: "gpqa" } },
+      { model_id: "m2", source: "provider-benchmarks", score_normalized: 78, benchmarks: { slug: "mmlu" } },
     ];
 
     const mockElo = [
-      { model_id: "m1", elo_score: 1287, arena_name: "gpt-4o" },
+      { model_id: "m1", elo_score: 1287, arena_name: "arena-text-official", snapshot_date: "2026-02-28" },
     ];
 
     const mockNews = [
@@ -198,6 +206,23 @@ describe("fetchInputs", () => {
     await expect(fetchInputs(supabase)).rejects.toThrow(
       "Failed to fetch models"
     );
+  });
+
+  it("excludes untrusted, invalid, missing-provenance and duplicate Arena benchmark evidence", async () => {
+    const row = (score: number | null, source: string | null, slug = "mmlu") => ({
+      model_id: "m1", score_normalized: score, source,
+      benchmarks: { slug, source: "provider-benchmarks", category: "knowledge" },
+    });
+    const supabase = createMockSupabase({
+      models: { data: [{ id: "m1", provider: "test", category: "llm", status: "active" }], error: null },
+      benchmark_scores: { data: [row(80, "provider-benchmarks"), row(90, "artificial-analysis"),
+        row(100, "seed_data"), row(100, null), row(101, "provider-benchmarks"),
+        row(-1, "provider-benchmarks"), row(null, "provider-benchmarks"),
+        row(100, "provider-benchmarks", "chatbot_arena_elo")], error: null },
+    });
+    const result = await fetchInputs(supabase);
+    expect(result.benchmarkDetailMap.get("m1")).toEqual([{ slug: "mmlu", score: 85 }]);
+    expect(result.benchmarkMap.get("m1")).toEqual([85]);
   });
 
   it("returns empty maps when no benchmark/elo/news data exists", async () => {

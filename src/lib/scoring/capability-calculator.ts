@@ -19,6 +19,7 @@ import {
 export interface CapabilityInputs {
   benchmarkScores: Array<{ slug: string; score: number }> | null;
   eloScore: number | null;
+  eloNormalized?: number;
   releaseDate: string | null;
   category: string;
   sourceCoverage?: SourceCoverage | null;
@@ -34,7 +35,7 @@ const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string
     secondary: ["ifeval", "hellaswag", "truthfulqa", "arena-hard-auto"],
   },
   code: {
-    primary: ["humaneval", "swe-bench", "swe_bench", "bigcodebench", "livecodebench", "aider-polyglot"],
+    primary: ["humaneval", "swe-bench", "swe-bench-verified", "swe-bench-pro", "bigcodebench", "livecodebench", "aider-polyglot"],
     secondary: ["livebench-coding"],
   },
   multimodal: {
@@ -46,8 +47,8 @@ const CATEGORY_BENCHMARKS: Record<string, { primary: string[]; secondary: string
     secondary: [],
   },
   agentic_browser: {
-    primary: ["swe-bench", "swe_bench", "terminal-bench", "terminal_bench", "os-world", "os_world"],
-    secondary: ["gaia", "webarena", "web-arena", "tau-bench", "tau_bench"],
+    primary: ["swe-bench", "swe-bench-verified", "swe-bench-pro", "terminal-bench", "terminal-bench-2", "terminal-bench-2-1", "terminal-bench-3", "terminal-bench-4", "os-world"],
+    secondary: ["gaia", "webarena", "web-arena", "tau-bench", "browsecomp"],
   },
   speech_audio: {
     primary: ["open-asr-mean-wer"],
@@ -71,7 +72,13 @@ function computeCategoryWeightedBenchmarks(
 
   for (const s of scores) {
     const normalized = s.slug.toLowerCase().replace(/_/g, "-");
-    if (primary.includes(s.slug) || primary.includes(normalized)) {
+    const isCodingOrAgent = category === "code" || category === "agentic_browser";
+    // Recognize versioned families without merging scores from different task sets.
+    const isVersionedPrimary = isCodingOrAgent && (
+      /^swe-bench-(?:verified|pro)(?:-v?\d+(?:-\d+)*)?$/.test(normalized)
+      || /^terminal-bench(?:-v?\d+(?:-\d+)*)?$/.test(normalized)
+    );
+    if (primary.includes(normalized) || isVersionedPrimary) {
       primaryScores.push(s.score);
     } else if (secondary.includes(s.slug) || secondary.includes(normalized)) {
       secondaryScores.push(s.score);
@@ -106,9 +113,10 @@ function computeCategoryWeightedBenchmarks(
  * Returns null if model has no benchmarks AND no ELO (unranked).
  */
 export function computeCapabilityScore(inputs: CapabilityInputs): number | null {
-  const hasBenchmarks = inputs.benchmarkScores != null && inputs.benchmarkScores.length > 0;
-  const hasELO = inputs.eloScore != null && inputs.eloScore > 0;
-  const benchmarkCount = inputs.benchmarkScores?.length ?? 0;
+  const benchmarkScores = inputs.benchmarkScores?.filter(({ score }) => Number.isFinite(score) && score >= 0 && score <= 100) ?? [];
+  const hasBenchmarks = benchmarkScores.length > 0;
+  const hasELO = inputs.eloScore != null && Number.isFinite(inputs.eloScore) && inputs.eloScore > 0;
+  const benchmarkCount = benchmarkScores.length;
 
   // Gate: must have at least one quality signal
   if (!hasBenchmarks && !hasELO) return null;
@@ -116,13 +124,13 @@ export function computeCapabilityScore(inputs: CapabilityInputs): number | null 
   // Benchmark sub-score (0-100)
   let benchmarkScore = 0;
   if (hasBenchmarks) {
-    benchmarkScore = computeCategoryWeightedBenchmarks(inputs.benchmarkScores!, inputs.category);
+    benchmarkScore = computeCategoryWeightedBenchmarks(benchmarkScores, inputs.category);
   }
 
   // ELO sub-score (0-100), normalized from 800-1400 range
   let eloNormalized = 0;
   if (hasELO) {
-    eloNormalized = normalizeElo(inputs.eloScore!);
+    eloNormalized = inputs.eloNormalized ?? normalizeElo(inputs.eloScore!);
   }
 
   // Recency bonus (0-100), exponential decay with 12-month half-life

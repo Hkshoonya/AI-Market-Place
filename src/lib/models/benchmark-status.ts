@@ -45,7 +45,7 @@ export function getBenchmarkTrackingSummary(
       label: "Structured benchmark coverage",
       badgeLabel: "Structured",
       summary:
-        "This model has normalized benchmark rows, so scores here are directly comparable across benchmark sources.",
+        "This model has normalized benchmark rows. Compare the same benchmark, version, and evaluation setup; scores across different tests are not interchangeable.",
       showTrustAsterisk: false,
     };
   }
@@ -67,7 +67,7 @@ export function getBenchmarkTrackingSummary(
       label: "Arena-only competitive signal",
       badgeLabel: "Arena only",
       summary:
-        "This model has live arena signal, but it does not have structured benchmark rows or provider benchmark evidence yet.",
+        "This model has recorded arena evidence, but no structured benchmark rows or provider benchmark evidence yet. Check each rating's source and publication date for freshness.",
       showTrustAsterisk: false,
     };
   }
